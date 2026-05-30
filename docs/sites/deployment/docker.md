@@ -16,7 +16,7 @@ The repo Compose profile currently sets:
 
 - container name: `craw-chat-local-minimal`
 - `CRAW_CHAT_BIND_ADDR=0.0.0.0:18090`
-- `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=local-minimal-public-dev-secret`
+- `CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=local-minimal-friend-request-cursor-dev-secret`
 - port mapping: `18090:18090`
 - healthcheck: `curl -fsS http://127.0.0.1:18090/healthz`
 
@@ -58,7 +58,7 @@ docker compose -f deployments/docker-compose/local-minimal.yml up -d --build
 By default the Docker bootstrap calls `tools/smoke/local_stack_smoke.ps1`, which:
 
 - waits for `/healthz`
-- generates a signed local bearer token
+- sends `x-sdkwork-*` AppContext projection headers
 - creates a conversation
 - posts a message
 - verifies the conversation summary path

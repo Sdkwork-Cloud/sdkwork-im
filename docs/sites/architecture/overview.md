@@ -4,7 +4,7 @@ Craw Chat is a multi-service Rust workspace, not a single binary with optional e
 documentation is easiest to understand through five architectural lenses:
 
 1. The workspace layout and contract crates
-2. The app-facing `local-minimal-node`
+2. The IM open-platform `local-minimal-node`
 3. The separate `control-plane-api`
 4. The unified `web-gateway` / `craw-chat-server` external boundary
 5. The runtime-directory persistence contract and shared storage baseline
@@ -15,10 +15,12 @@ documentation is easiest to understand through five architectural lenses:
 | --- | --- |
 | Default app runtime | `services/local-minimal-node` |
 | Unified server binary | `services/web-gateway` with `[[bin]] name = "craw-chat-server"` |
-| Default public app prefix | `/api/v1/*` |
+| Default IM open-platform prefix | `/im/v3/api/*` |
+| Default app-development prefix | `/app/v3/api/*` |
+| Default backend/operator prefix | `/backend/v3/api/*` |
 | Default local app bind address | `127.0.0.1:18090` |
 | Standalone control-plane bind address | `127.0.0.1:18081` |
-| Public auth model | HS256 bearer tokens |
+| Public auth model | SDKWork dual token at appbase boundary; verified AppContext projection inside craw-chat |
 | Default local runtime directory | `.runtime/local-minimal` |
 | Control-plane permissions | `control.read` and `control.write` |
 
@@ -27,11 +29,11 @@ documentation is easiest to understand through five architectural lenses:
 `services/local-minimal-node` is the current default business runtime. It assembles the following
 domains into one HTTP process:
 
-- session recovery, presence, and realtime delivery
+- device route recovery, presence, and realtime delivery
 - conversation lifecycle, inbox projection, membership, and read state
 - messages, media, streams, and RTC
 - notifications, automation, audit, and operator diagnostics
-- user-module, object-storage, RTC, and IoT-related provider health surfaces
+- principal-profile, object-storage, RTC, and IoT-related provider health surfaces
 
 The main routing surface is declared in `services/local-minimal-node/src/node/build.rs`.
 
@@ -90,7 +92,7 @@ The platform-default provider registry currently selects these defaults:
 | --- | --- |
 | `rtc` | `rtc-volcengine` |
 | `object-storage` | `object-storage-volcengine` |
-| `user-module` | `user-module-local` |
+| `principal-profile` | `principal-profile-upstream-context` (default), `principal-profile-external-catalog` (read-only catalog mode) |
 | `iot-access` | `iot-access-local` |
 | `iot-protocol` | `iot-mqtt` |
 

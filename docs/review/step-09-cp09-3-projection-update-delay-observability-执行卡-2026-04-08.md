@@ -65,8 +65,8 @@
 - `services/local-minimal-node/src/node/platform.rs`
   - `map_projection_plane_observability(...)` 现在会把 `projection-service` 的 `updateDelay` 映射到 `ops-service`
 - 这意味着 `Local Minimal` profile 下，业务请求触发的真实 projection apply 可以直接在：
-  - `/api/v1/ops/health`
-  - `/api/v1/ops/diagnostics`
+  - `/backend/v3/api/ops/health`
+  - `/backend/v3/api/ops/diagnostics`
   看到 `timeline / inbox update delay`
 
 ### 5. 全量回归发现并修复了 Step 02 结构红线回归

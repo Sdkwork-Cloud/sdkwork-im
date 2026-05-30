@@ -4,7 +4,7 @@
 
 Upgrade the local operator chat window into a realistic IM test surface that can:
 
-- log in with visible account and password fields against the real `/api/v1/auth/login` backend
+- log in with visible account and password fields against the real `sdkwork-appbase login verification` backend
 - keep and use issued bearer tokens for message and RTC operations
 - drive RTC signaling flows from the same window
 - let operators verify message timeline and RTC lifecycle events without mock media or fake auth
@@ -112,12 +112,12 @@ Add a dedicated panel on the right or bottom side of the window with:
 Behavior:
 
 - all RTC buttons require authenticated state
-- `Create` uses `/api/v1/rtc/sessions`
-- `Invite` uses `/api/v1/rtc/sessions/{id}/invite`
-- `Accept` uses `/api/v1/rtc/sessions/{id}/accept`
-- `Reject` uses `/api/v1/rtc/sessions/{id}/reject`
-- `End` uses `/api/v1/rtc/sessions/{id}/end`
-- `Send Signal` uses `/api/v1/rtc/sessions/{id}/signals`
+- `Create` uses `/im/v3/api/rtc/sessions`
+- `Invite` uses `/im/v3/api/rtc/sessions/{id}/invite`
+- `Accept` uses `/im/v3/api/rtc/sessions/{id}/accept`
+- `Reject` uses `/im/v3/api/rtc/sessions/{id}/reject`
+- `End` uses `/im/v3/api/rtc/sessions/{id}/end`
+- `Send Signal` uses `/im/v3/api/rtc/sessions/{id}/signals`
 - `Fetch Credentials` and `Fetch Recording` are debugging helpers for provider validation
 - responses are appended to a diagnostics box and critical durable outcomes are also visible through the timeline as `rtc.*` summaries
 
@@ -149,7 +149,7 @@ This keeps manual and automated testing aligned on the same surface.
 
 1. operator opens chat window
 2. operator enters login credentials
-3. window calls `chat-cli login` or direct shared helper that hits `/api/v1/auth/login`
+3. window calls `chat-cli login` or direct shared helper that hits `sdkwork-appbase login verification`
 4. returned `accessToken` is stored in memory only
 5. status updates to authenticated and enables chat + RTC actions
 

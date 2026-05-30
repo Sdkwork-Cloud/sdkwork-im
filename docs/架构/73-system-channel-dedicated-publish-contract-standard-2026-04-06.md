@@ -25,11 +25,11 @@ It does not yet define:
 
 For `system_channel`, the server must expose a dedicated publish route:
 
-- `POST /api/v1/conversations/{conversationId}/system-channel/publish`
+- `POST /im/v3/api/chat/conversations/{conversationId}/system-channel/publish`
 
 The generic conversation message route:
 
-- `POST /api/v1/conversations/{conversationId}/messages`
+- `POST /im/v3/api/chat/conversations/{conversationId}/messages`
 
 must not be used as the publish contract for `system_channel`.
 
@@ -52,7 +52,7 @@ Any subscriber or other non-publisher actor must be rejected with:
 
 If a caller attempts:
 
-- `POST /api/v1/conversations/{conversationId}/messages`
+- `POST /im/v3/api/chat/conversations/{conversationId}/messages`
 
 against a `system_channel`, the server must reject the request even if the actor is the real system publisher.
 

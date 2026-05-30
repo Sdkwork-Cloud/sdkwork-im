@@ -11,12 +11,12 @@
 - 新增 `diff_versions(fromVersion, toVersion)`，以已提交快照为唯一真源计算差异。
 - 差异分为 `deploymentProfileChanges` 与 `tenantOverrideChanges` 两组。
 - `changeKind` 固定为 `added / removed / changed`，不回传未变化项。
-- control-plane 新增 `GET /api/v1/control/provider-policies/diff`。
+- control-plane 新增 `GET /backend/v3/api/control/provider-policies/diff`。
 - 新接口仅要求 `control.read`，保持只读，不追加 audit 写入，不触发 ops 刷新，也不引入 preview 写路径。
 
 ## 接口冻结
 
-- 路径: `GET /api/v1/control/provider-policies/diff?fromVersion=2&toVersion=4`
+- 路径: `GET /backend/v3/api/control/provider-policies/diff?fromVersion=2&toVersion=4`
 - Query: `fromVersion`、`toVersion`
 - Response:
   - `fromVersion` / `toVersion`

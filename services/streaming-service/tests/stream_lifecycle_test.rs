@@ -16,10 +16,10 @@ async fn test_stream_checkpoint_and_complete_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -42,10 +42,10 @@ async fn test_stream_checkpoint_and_complete_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_lifecycle/checkpoint")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_lifecycle/checkpoint")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -72,10 +72,10 @@ async fn test_stream_checkpoint_and_complete_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_lifecycle/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_lifecycle/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -110,10 +110,10 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -136,10 +136,10 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_abort/abort")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_abort/abort")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -169,10 +169,10 @@ async fn test_stream_abort_over_http_closes_stream_without_result_message() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_abort/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_abort/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -196,11 +196,11 @@ async fn test_stream_append_and_list_frames_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -223,11 +223,11 @@ async fn test_stream_append_and_list_frames_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_frames/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams/st_frames/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -264,11 +264,11 @@ async fn test_stream_append_and_list_frames_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_frames/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams/st_frames/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -288,10 +288,10 @@ async fn test_stream_append_and_list_frames_over_http() {
     let list_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/streams/st_frames/frames?afterFrameSeq=0&limit=10")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_frames/frames?afterFrameSeq=0&limit=10")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -322,10 +322,10 @@ async fn test_request_scoped_stream_append_rejects_different_actor_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -347,10 +347,10 @@ async fn test_request_scoped_stream_append_rejects_different_actor_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_request_scope_owner_only_append/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_other_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_request_scope_owner_only_append/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -386,10 +386,10 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -426,10 +426,10 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_timestamps/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_timestamps/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -465,10 +465,10 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_timestamps/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_timestamps/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -503,10 +503,10 @@ async fn test_stream_runtime_timestamps_advance_between_distinct_mutations() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_timestamps/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_timestamps/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -546,10 +546,10 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -572,10 +572,10 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_rules/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_rules/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -611,10 +611,10 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_rules/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_rules/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -654,10 +654,10 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_rules/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_rules/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -688,10 +688,10 @@ async fn test_stream_append_enforces_ordering_and_idempotent_retry_rules() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_rules/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_rules/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -727,10 +727,10 @@ async fn test_stream_append_rejects_closed_stream() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -753,10 +753,10 @@ async fn test_stream_append_rejects_closed_stream() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_closed/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_closed/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -774,10 +774,10 @@ async fn test_stream_append_rejects_closed_stream() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_closed/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_closed/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -814,11 +814,11 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -854,11 +854,11 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_open_idempotent/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams/st_open_idempotent/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -880,11 +880,11 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -925,10 +925,10 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/streams/st_open_idempotent/frames?afterFrameSeq=0&limit=10")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_open_idempotent/frames?afterFrameSeq=0&limit=10")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -950,10 +950,10 @@ async fn test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejec
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -990,10 +990,10 @@ async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1028,10 +1028,10 @@ async fn test_duplicate_open_stream_with_different_actor_is_conflict() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_other_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1068,10 +1068,10 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1094,10 +1094,10 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_complete_idempotent/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_complete_idempotent/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1119,10 +1119,10 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_complete_idempotent/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_complete_idempotent/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1155,10 +1155,10 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_complete_idempotent/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_complete_idempotent/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1194,10 +1194,10 @@ async fn test_duplicate_complete_stream_request_is_idempotent_and_conflicting_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_complete_idempotent/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_complete_idempotent/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1231,10 +1231,10 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1257,10 +1257,10 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_actor_scope_complete/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_actor_scope_complete/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1282,10 +1282,10 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_actor_scope_complete/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_actor_scope_complete/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1316,10 +1316,10 @@ async fn test_duplicate_complete_stream_request_with_different_actor_is_not_foun
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_actor_scope_complete/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_other_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_actor_scope_complete/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1352,10 +1352,10 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1378,10 +1378,10 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_abort_idempotent/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_abort_idempotent/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1403,10 +1403,10 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_abort_idempotent/abort")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_abort_idempotent/abort")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1441,10 +1441,10 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_abort_idempotent/abort")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_abort_idempotent/abort")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1483,10 +1483,10 @@ async fn test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_abort_idempotent/abort")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_abort_idempotent/abort")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1519,10 +1519,10 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1545,10 +1545,10 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_actor_scope_abort/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_actor_scope_abort/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1570,10 +1570,10 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_actor_scope_abort/abort")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_actor_scope_abort/abort")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1604,10 +1604,10 @@ async fn test_duplicate_abort_stream_request_with_different_actor_is_not_found()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_actor_scope_abort/abort")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_other_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_actor_scope_abort/abort")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1640,10 +1640,10 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1666,10 +1666,10 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_checkpoint_idempotent/checkpoint")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_checkpoint_idempotent/checkpoint")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1701,10 +1701,10 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_checkpoint_idempotent/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_checkpoint_idempotent/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1723,10 +1723,10 @@ async fn test_duplicate_checkpoint_stream_request_replays_after_stream_completes
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_checkpoint_idempotent/checkpoint")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_checkpoint_idempotent/checkpoint")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1768,10 +1768,10 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1794,10 +1794,10 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_actor_scope_checkpoint/checkpoint")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_actor_scope_checkpoint/checkpoint")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1827,10 +1827,10 @@ async fn test_duplicate_checkpoint_stream_request_with_different_actor_is_not_fo
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_actor_scope_checkpoint/checkpoint")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_other_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_actor_scope_checkpoint/checkpoint")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1865,11 +1865,11 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1892,11 +1892,11 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_rebuild/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams/st_rebuild/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1921,10 +1921,10 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/streams/st_rebuild/frames?afterFrameSeq=0&limit=10")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_rebuild/frames?afterFrameSeq=0&limit=10")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1949,10 +1949,10 @@ async fn test_runtime_restores_stream_state_on_rebuild_with_shared_store() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_rebuild/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_rebuild/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1975,11 +1975,11 @@ async fn test_stream_append_rejects_oversized_payload_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2010,11 +2010,11 @@ async fn test_stream_append_rejects_oversized_payload_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_oversized_payload/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams/st_oversized_payload/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(append_body))
                 .unwrap(),
@@ -2032,11 +2032,11 @@ async fn test_stream_append_rejects_oversized_attributes_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2069,11 +2069,11 @@ async fn test_stream_append_rejects_oversized_attributes_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_oversized_attributes/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/streams/st_oversized_attributes/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(append_body))
                 .unwrap(),
@@ -2091,10 +2091,10 @@ async fn test_stream_complete_rejects_oversized_result_message_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2121,10 +2121,10 @@ async fn test_stream_complete_rejects_oversized_result_message_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_oversized_result_message_id/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_oversized_result_message_id/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(complete_body))
                 .unwrap(),
@@ -2158,10 +2158,10 @@ async fn test_stream_abort_rejects_oversized_reason_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2188,10 +2188,10 @@ async fn test_stream_abort_rejects_oversized_reason_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_oversized_abort_reason/abort")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_oversized_abort_reason/abort")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(abort_body))
                 .unwrap(),
@@ -2225,10 +2225,10 @@ async fn test_stream_list_rejects_limit_above_guardrail_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2249,10 +2249,10 @@ async fn test_stream_list_rejects_limit_above_guardrail_over_http() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/streams/st_limit_guardrail/frames?afterFrameSeq=0&limit=1001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams/st_limit_guardrail/frames?afterFrameSeq=0&limit=1001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2279,11 +2279,11 @@ async fn test_stream_list_rejects_oversized_stream_id_over_http() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/api/v1/streams/{oversized_stream_id}/frames?afterFrameSeq=0&limit=10"
+                    "/im/v3/api/streams/{oversized_stream_id}/frames?afterFrameSeq=0&limit=10"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )

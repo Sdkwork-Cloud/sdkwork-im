@@ -2,7 +2,7 @@
 
 ## 目标
 
-让 `local-minimal-node` 在 `/api/v1/iot/protocol/uplink` 的目标设备已知时，先完成访问控制，再调用 `IotProtocolAdapter::decode_uplink()`。
+让 `local-minimal-node` 在 `/backend/v3/api/iot/protocol/uplink` 的目标设备已知时，先完成访问控制，再调用 `IotProtocolAdapter::decode_uplink()`。
 
 ## 输入
 
@@ -16,7 +16,7 @@
 
 本轮包含：
 
-- `/api/v1/iot/protocol/uplink`
+- `/backend/v3/api/iot/protocol/uplink`
 - `request.device_id.clone().or_else(|| auth.device_id.clone())`
 - 已知 deviceId 时的 preflight access check
 - `device_permission_denied`
@@ -56,7 +56,7 @@
 ## 关键词冻结
 
 - `local-minimal-node`
-- `/api/v1/iot/protocol/uplink`
+- `/backend/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `request.device_id.clone().or_else(|| auth.device_id.clone())`

@@ -6,7 +6,6 @@ services:
     container_name: craw-chat-local-minimal
     environment:
       CRAW_CHAT_BIND_ADDR: 0.0.0.0:18090
-      CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET: local-minimal-public-dev-secret
       CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET: local-minimal-friend-request-cursor-dev-secret
     ports:
       - "18090:18090"

@@ -21,7 +21,7 @@
 
 当前最小写接口固定为：
 
-- `POST /api/v1/control/provider-bindings`
+- `POST /backend/v3/api/control/provider_bindings`
 
 请求最小字段：
 

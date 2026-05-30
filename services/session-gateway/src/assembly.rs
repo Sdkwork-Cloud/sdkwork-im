@@ -6,13 +6,13 @@ use craw_chat_contract_control::{
 };
 use im_platform_contracts::RealtimeEventWindowStore;
 
-use crate::{RealtimeClusterBridge, RealtimeDeliveryRuntime, SessionPresenceRuntime};
+use crate::{DevicePresenceRuntime, RealtimeClusterBridge, RealtimeDeliveryRuntime};
 
 #[derive(Clone)]
 pub struct RealtimePlaneAssembly {
     realtime_cluster: Arc<RealtimeClusterBridge>,
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
-    presence_runtime: Arc<SessionPresenceRuntime>,
+    presence_runtime: Arc<DevicePresenceRuntime>,
 }
 
 impl Default for RealtimePlaneAssembly {
@@ -20,7 +20,7 @@ impl Default for RealtimePlaneAssembly {
         Self::new(
             Arc::new(RealtimeClusterBridge::default()),
             Arc::new(RealtimeDeliveryRuntime::standalone_gateway()),
-            Arc::new(SessionPresenceRuntime::default()),
+            Arc::new(DevicePresenceRuntime::default()),
         )
     }
 }
@@ -29,7 +29,7 @@ impl RealtimePlaneAssembly {
     pub fn new(
         realtime_cluster: Arc<RealtimeClusterBridge>,
         realtime_runtime: Arc<RealtimeDeliveryRuntime>,
-        presence_runtime: Arc<SessionPresenceRuntime>,
+        presence_runtime: Arc<DevicePresenceRuntime>,
     ) -> Self {
         Self {
             realtime_cluster,
@@ -42,7 +42,7 @@ impl RealtimePlaneAssembly {
         Self::new(
             realtime_cluster,
             Arc::new(RealtimeDeliveryRuntime::standalone_gateway()),
-            Arc::new(SessionPresenceRuntime::default()),
+            Arc::new(DevicePresenceRuntime::default()),
         )
     }
 
@@ -53,7 +53,7 @@ impl RealtimePlaneAssembly {
         Self::new(
             realtime_cluster,
             realtime_runtime,
-            Arc::new(SessionPresenceRuntime::default()),
+            Arc::new(DevicePresenceRuntime::default()),
         )
     }
 
@@ -82,7 +82,7 @@ impl RealtimePlaneAssembly {
                     event_window_store,
                 ),
             ),
-            Arc::new(SessionPresenceRuntime::with_store(presence_state_store)),
+            Arc::new(DevicePresenceRuntime::with_store(presence_state_store)),
         )
     }
 
@@ -99,7 +99,7 @@ impl RealtimePlaneAssembly {
         self.realtime_runtime.clone()
     }
 
-    pub fn presence_runtime(&self) -> Arc<SessionPresenceRuntime> {
+    pub fn presence_runtime(&self) -> Arc<DevicePresenceRuntime> {
         self.presence_runtime.clone()
     }
 }

@@ -10,15 +10,15 @@ This standard applies when:
 
 - a device has already established session-bound activity
 - the same device successfully calls:
-  - `POST /api/v1/sessions/disconnect`
+  - `POST /im/v3/api/device/sessions/disconnect`
 
 This standard governs all later device-bound requests that rely on the shared device bind path, including:
 
-- `POST /api/v1/presence/heartbeat`
-- `POST /api/v1/devices/register`
-- `POST /api/v1/realtime/subscriptions`
-- `GET /api/v1/realtime/events`
-- `POST /api/v1/realtime/events/ack`
+- `POST /im/v3/api/presence/heartbeat`
+- `POST /im/v3/api/devices/register`
+- `POST /im/v3/api/realtime/subscriptions`
+- `GET /im/v3/api/realtime/events`
+- `POST /im/v3/api/realtime/events/ack`
 - websocket attach
 - future stream, push, transport, or signaling endpoints that bind a device route
 

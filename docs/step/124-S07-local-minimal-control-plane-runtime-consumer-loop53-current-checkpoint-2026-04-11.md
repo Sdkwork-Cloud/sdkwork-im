@@ -28,7 +28,7 @@
 ## Actions This Loop
 - actual_changes:
   - `control-plane-api` 抽出不带 `/healthz` 的 embedded control surface builder，并补齐 `runtime_dir + governance_sinks + shared_channel_sync_trigger` 组合 builder，供同进程装配面复用
-  - `local-minimal-node` 升级为 `control-plane-api` 的生产依赖，并把 `/api/v1/control/*` routes 合并进默认/公开装配面
+  - `local-minimal-node` 升级为 `control-plane-api` 的生产依赖，并把 `/backend/v3/api/control/*` routes 合并进默认/公开装配面
   - `local-minimal-node` 新增同进程 `SharedChannelLinkedMemberSyncTrigger` implementation，直接调用 `ConversationRuntime::sync_shared_channel_linked_member(...)`
   - merged control-plane surface 与 local-minimal 复用同一 `RealtimeClusterBridge / OpsRuntime / AuditRuntime`，且 `ops_runtime` service inventory 现在显式包含 `control-plane-api`
   - `projection-service` 的 `timeline_from_auth_context(...)` 改为接受 `can_read_shared_history()` 的 linked member，从而让 shared linked member 经过 local-minimal timeline surface 直接读取历史
@@ -57,7 +57,7 @@
   - `cargo test -p projection-service --offline --tests -- --nocapture`
   - `cargo test -p local-minimal-node --offline --test control_plane_social_sync_e2e_test -- --nocapture`
 - results:
-  - red: `test_local_minimal_profile_control_plane_shared_channel_auto_sync_materializes_runtime_linked_member` 初始失败断言为 `left: 404` / `right: 200`，证明 `local-minimal-node` 尚未暴露 `/api/v1/control/social/external-connections`
+  - red: `test_local_minimal_profile_control_plane_shared_channel_auto_sync_materializes_runtime_linked_member` 初始失败断言为 `left: 404` / `right: 200`，证明 `local-minimal-node` 尚未暴露 `/backend/v3/api/control/social/external-connections`
   - red: 合并 control-plane route 后，同一测试进一步失败为 `left: 403` / `right: 200`，暴露 `projection-service` timeline 鉴权仍只接受 active member、未消费 linked shared-history reader truth
   - green: `cargo test -p local-minimal-node --offline --test control_plane_social_sync_e2e_test test_local_minimal_profile_control_plane_shared_channel_auto_sync_materializes_runtime_linked_member -- --nocapture` = `passed`
   - `cargo fmt -p local-minimal-node -p control-plane-api -p projection-service` = `passed`

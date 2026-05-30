@@ -36,46 +36,46 @@
 
 ### 3.1 认证与会话
 
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/sessions/resume`
-- `POST /api/v1/devices/register`
-- `GET /api/v1/devices/{id}/sync-feed`
+- `sdkwork-appbase` login verification
+- `sdkwork-appbase` dual-token refresh
+- `POST /im/v3/api/device/sessions/resume`
+- `POST /im/v3/api/devices/register`
+- `GET /im/v3/api/devices/{id}/sync-feed`
 
 ### 3.2 会话与成员
 
-- `POST /api/v1/conversations`
-- `GET /api/v1/conversations/{id}`
-- `GET /api/v1/conversations/{id}/members`
-- `POST /api/v1/conversations/{id}/members/add`
-- `POST /api/v1/conversations/{id}/members/remove`
-- `POST /api/v1/conversations/{id}/members/transfer-owner`
-- `POST /api/v1/conversations/{id}/members/change-role`
-- `POST /api/v1/conversations/{id}/members/leave`
-- `GET /api/v1/conversations/{id}/read-cursor`
-- `POST /api/v1/conversations/{id}/read-cursor`
-- `GET /api/v1/inbox`
-- `POST /api/v1/conversations` 当前只接受以下 `conversationType`：
+- `POST /im/v3/api/chat/conversations`
+- `GET /im/v3/api/chat/conversations/{id}`
+- `GET /im/v3/api/chat/conversations/{id}/members`
+- `POST /im/v3/api/chat/conversations/{id}/members/add`
+- `POST /im/v3/api/chat/conversations/{id}/members/remove`
+- `POST /im/v3/api/chat/conversations/{id}/members/transfer-owner`
+- `POST /im/v3/api/chat/conversations/{id}/members/change-role`
+- `POST /im/v3/api/chat/conversations/{id}/members/leave`
+- `GET /im/v3/api/chat/conversations/{id}/read-cursor`
+- `POST /im/v3/api/chat/conversations/{id}/read-cursor`
+- `GET /im/v3/api/chat/inbox`
+- `POST /im/v3/api/chat/conversations` 当前只接受以下 `conversationType`：
   - `group`
   - `direct`
 - special conversation dedicated create 状态：
-  - `agent_dialog` 只能通过 `POST /api/v1/conversations/agent-dialogs` 创建。
+  - `agent_dialog` 只能通过 `POST /im/v3/api/chat/conversations/agent_dialogs` 创建。
   - `agent_handoff / system_channel` 当前仍是保留类型，不能通过 generic create 创建。
 - 未注册类型和保留 special type 都必须在 create-time 直接返回 `400 conversation_type_invalid`。
-- `POST /api/v1/conversations` 的创建者身份必须来自认证上下文，而不是请求体：
+- `POST /im/v3/api/chat/conversations` 的创建者身份必须来自认证上下文，而不是请求体：
   - `tenantId` 来自认证上下文
   - `creatorId` 来自认证上下文
   - `creatorKind` 来自认证上下文中的 `actor_kind`
 - `agent_dialog` 当前阶段已经改为 dedicated create 暴露；generic create 仍然禁止直接创建。
 - `agent_handoff / system_channel` 当前阶段仍不允许通过 generic create 暴露；否则会生成没有专用参与者拓扑的残缺会话。
-- `POST /api/v1/conversations/{id}/members/transfer-owner` 用于 group owner 向另一个 active member 交接 owner 角色，请求体只接受 `memberId`。
+- `POST /im/v3/api/chat/conversations/{id}/members/transfer-owner` 用于 group owner 向另一个 active member 交接 owner 角色，请求体只接受 `memberId`。
 - 当前最小实现中：
   - 仅 `group` 支持 transfer-owner
   - 仅当前 active `owner` 可以发起
   - 目标必须是另一个 active member
   - 交接后旧 owner 降为 `admin`，新 owner 成为唯一 `owner`
 - owner transfer 统一写入 `conversation.owner_transferred`，并作为旧 owner 后续 `leave` 的前置治理动作。
-- `POST /api/v1/conversations/{id}/members/change-role` 用于 group owner 对另一个 active non-owner member 执行通用角色治理，请求体只接受 `memberId` 与目标 `role`。
+- `POST /im/v3/api/chat/conversations/{id}/members/change-role` 用于 group owner 对另一个 active non-owner member 执行通用角色治理，请求体只接受 `memberId` 与目标 `role`。
 - 当前最小实现中：
   - 仅 `group` 支持 `change-role`
   - 仅当前 active `owner` 可以发起
@@ -84,7 +84,7 @@
   - 涉及 `owner` 的角色变化必须使用 `transfer-owner`
   - stale `memberId` 会被拒绝，不能命中历史 membership episode
 - 通用角色治理统一写入 `conversation.member_role_changed`，返回 `previousMember / updatedMember / changedAt`，并同步更新读模型中的成员快照。
-- `POST /api/v1/conversations/{id}/members/leave` 用于当前认证主体主动离开当前会话，请求体可为空，不接受 `tenantId`、`principalId`、`memberId`。
+- `POST /im/v3/api/chat/conversations/{id}/members/leave` 用于当前认证主体主动离开当前会话，请求体可为空，不接受 `tenantId`、`principalId`、`memberId`。
 - 当前最小实现中：
   - `group` 的 `admin / member / guest` active member 可以 leave
   - `group owner` 必须先完成 owner transfer，之后按非 owner 规则 leave
@@ -97,16 +97,16 @@
 
 ### 3.3 消息
 
-- `POST /api/v1/conversations/{id}/messages`
-- `GET /api/v1/conversations/{id}/messages`
-- `POST /api/v1/messages/{id}/edit`
-- `POST /api/v1/messages/{id}/recall`
-- 当前最小实现中，`POST /api/v1/conversations/{id}/messages` 支持 `text` 和 `parts` 混合提交；`parts` 可包含 `text/data/media/signal/stream_ref`。
-- 已读推进统一走 `POST /api/v1/conversations/{id}/read-cursor`，避免把 read/ack 状态混入消息发送命令。
-- `POST /api/v1/messages/{id}/edit` 与 `POST /api/v1/messages/{id}/recall` 作用于既有消息，服务端必须自行解析消息所属会话，客户端无需重复提交 `conversationId`。
+- `POST /im/v3/api/chat/conversations/{id}/messages`
+- `GET /im/v3/api/chat/conversations/{id}/messages`
+- `POST /im/v3/api/chat/messages/{id}/edit`
+- `POST /im/v3/api/chat/messages/{id}/recall`
+- 当前最小实现中，`POST /im/v3/api/chat/conversations/{id}/messages` 支持 `text` 和 `parts` 混合提交；`parts` 可包含 `text/data/media/signal/stream_ref`。
+- 已读推进统一走 `POST /im/v3/api/chat/conversations/{id}/read-cursor`，避免把 read/ack 状态混入消息发送命令。
+- `POST /im/v3/api/chat/messages/{id}/edit` 与 `POST /im/v3/api/chat/messages/{id}/recall` 作用于既有消息，服务端必须自行解析消息所属会话，客户端无需重复提交 `conversationId`。
 - 编辑和撤回都采用事件追加，不允许原地覆盖 durable message log。
 
-`POST /api/v1/messages/{id}/edit` 请求示例：
+`POST /im/v3/api/chat/messages/{id}/edit` 请求示例：
 
 ```json
 {
@@ -115,7 +115,7 @@
 }
 ```
 
-`POST /api/v1/messages/{id}/recall` 请求示例：
+`POST /im/v3/api/chat/messages/{id}/recall` 请求示例：
 
 ```json
 {}
@@ -123,54 +123,54 @@
 
 ### 3.4 流
 
-- `POST /api/v1/streams`
-- `POST /api/v1/streams/{id}/checkpoint`
-- `POST /api/v1/streams/{id}/complete`
-- `POST /api/v1/streams/{id}/abort`
+- `POST /im/v3/api/streams`
+- `POST /im/v3/api/streams/{id}/checkpoint`
+- `POST /im/v3/api/streams/{id}/complete`
+- `POST /im/v3/api/streams/{id}/abort`
 - `WebSocket stream.command / stream.event` 用于连续数据帧传输，HTTP 只负责流生命周期命令。
 
 ### 3.5 RTC 信令
 
-- `POST /api/v1/rtc/sessions`
-- `POST /api/v1/rtc/sessions/{id}/invite`
-- `POST /api/v1/rtc/sessions/{id}/accept`
-- `POST /api/v1/rtc/sessions/{id}/reject`
-- `POST /api/v1/rtc/sessions/{id}/end`
-- `POST /api/v1/rtc/sessions/{id}/signals`
+- `POST /im/v3/api/rtc/sessions`
+- `POST /im/v3/api/rtc/sessions/{id}/invite`
+- `POST /im/v3/api/rtc/sessions/{id}/accept`
+- `POST /im/v3/api/rtc/sessions/{id}/reject`
+- `POST /im/v3/api/rtc/sessions/{id}/end`
+- `POST /im/v3/api/rtc/sessions/{id}/signals`
 - 当前最小实现先通过 `invite/accept/reject/end` 写入信令状态，独立 `signals` 接口保留为后续扩展。
 - 当前最小实现中，当 RTC 会话已绑定 `conversationId` 时，`invite/accept/reject/end` 会额外提交一条 `messageType=signal` 的消息，消息体包含 `SignalPart`，并进入时间线与摘要投影。
 
 ### 3.6 文件资源
 
-- `POST /api/v1/media/uploads`
-- `POST /api/v1/media/uploads/{id}/complete`
-- `GET /api/v1/media/{id}`
-- `POST /api/v1/media/{id}/attach`
+- `POST /im/v3/api/media/uploads`
+- `POST /im/v3/api/media/uploads/{id}/complete`
+- `GET /im/v3/api/media/{id}`
+- `POST /im/v3/api/media/{id}/attach`
 - 当前最小实现已落地 create/complete/get/attach 四个接口，其中 `attach` 会把已就绪媒体资源包装为消息 `MediaPart` 并提交到目标会话。
 - 上传完成后服务端会写入 `media.asset.created` 事件，供审计、工作流、投影和私有化替换适配复用。
 
 ### 3.7 通知
 
-- `POST /api/v1/notifications/requests`
-- `GET /api/v1/notifications`
-- `GET /api/v1/notifications/{id}`
+- `POST /im/v3/api/notifications/requests`
+- `GET /im/v3/api/notifications`
+- `GET /im/v3/api/notifications/{id}`
 - 当前最小实现中，消息提交后会在 `local-minimal-node` 中以 side-effect 方式触发 `notification.requested -> notification.dispatched`。
 
 ### 3.8 自动化
 
-- `POST /api/v1/automation/executions`
-- `GET /api/v1/automation/executions/{id}`
+- `POST /im/v3/api/automation/executions`
+- `GET /im/v3/api/automation/executions/{id}`
 - 当前最小实现中，自动化请求会同步走完 `automation.execution_requested -> automation.execution_completed` 最小链路，并为调用者生成一条 `automation.result` 站内通知。
 
 ### 3.9 审计与运维
 
-- `POST /api/v1/audit/records`
-- `GET /api/v1/audit/records`
-- `GET /api/v1/audit/export`
-- `GET /api/v1/ops/health`
-- `GET /api/v1/ops/cluster`
-- `GET /api/v1/ops/lag`
-- `GET /api/v1/ops/diagnostics`
+- `POST /backend/v3/api/audit/records`
+- `GET /backend/v3/api/audit/records`
+- `GET /backend/v3/api/audit/export`
+- `GET /backend/v3/api/ops/health`
+- `GET /backend/v3/api/ops/cluster`
+- `GET /backend/v3/api/ops/lag`
+- `GET /backend/v3/api/ops/diagnostics`
 - 当前最小实现中，消息提交、通知请求、自动化执行都会留下审计锚点；运维面暴露单节点 `local-minimal` 的 cluster / lag / diagnostic 视图。
 
 ### 3.10 认证上下文约束
@@ -185,8 +185,8 @@
 
 ### 3.11 已读游标 API 约定
 
-- `GET /api/v1/conversations/{id}/read-cursor`
-- `POST /api/v1/conversations/{id}/read-cursor`
+- `GET /im/v3/api/chat/conversations/{id}/read-cursor`
+- `POST /im/v3/api/chat/conversations/{id}/read-cursor`
 - 租户、操作者、成员身份都必须由认证上下文和服务端成员关系推导，请求体不接受 `tenantId`、`principalId`、`memberId`。
 - `POST` 请求体建议：
 
@@ -220,7 +220,7 @@
 
 ### 3.12 Inbox API 约定
 
-- `GET /api/v1/inbox`
+- `GET /im/v3/api/chat/inbox`
 - inbox 只返回当前认证主体具备活跃成员关系的会话。
 - 返回体建议：
 
@@ -250,14 +250,14 @@
 
 ### 3.13 Device Sync Feed API 约定
 
-- `POST /api/v1/devices/register`
-- `GET /api/v1/devices/{id}/sync-feed`
-- `POST /api/v1/devices/register` 用于把当前认证主体下的设备纳入多端补偿投递集合。请求体可显式携带 `deviceId` 作为首次注册输入；若认证上下文已经携带 `deviceId`，服务端必须校验两者一致。
-- `GET /api/v1/devices/{id}/sync-feed` 只允许查询当前认证主体自己的设备补偿流；如果认证上下文自带 `deviceId`，则路径参数必须与其一致。
+- `POST /im/v3/api/devices/register`
+- `GET /im/v3/api/devices/{id}/sync-feed`
+- `POST /im/v3/api/devices/register` 用于把当前认证主体下的设备纳入多端补偿投递集合。请求体可显式携带 `deviceId` 作为首次注册输入；若认证上下文已经携带 `deviceId`，服务端必须校验两者一致。
+- `GET /im/v3/api/devices/{id}/sync-feed` 只允许查询当前认证主体自己的设备补偿流；如果认证上下文自带 `deviceId`，则路径参数必须与其一致。
 - 建议查询参数：
 
 ```text
-GET /api/v1/devices/d_xxx/sync-feed?afterSeq=12
+GET /im/v3/api/devices/d_xxx/sync-feed?afterSeq=12
 ```
 
 - 返回体建议：
@@ -292,26 +292,26 @@ GET /api/v1/devices/d_xxx/sync-feed?afterSeq=12
 
 ### 3.14 Session Resume 与 Presence API 约定
 
-- `POST /api/v1/sessions/resume`
-- `POST /api/v1/sessions/disconnect`
-- `POST /api/v1/presence/heartbeat`
-- `GET /api/v1/presence/me`
-- `POST /api/v1/sessions/resume` 只从认证上下文获得 `tenantId`、`actorId`、`sessionId`，不得由业务请求体重复提交这些字段。
+- `POST /im/v3/api/device/sessions/resume`
+- `POST /im/v3/api/device/sessions/disconnect`
+- `POST /im/v3/api/presence/heartbeat`
+- `GET /im/v3/api/presence/me`
+- `POST /im/v3/api/device/sessions/resume` 只从认证上下文获得 `tenantId`、`actorId`、`sessionId`，不得由业务请求体重复提交这些字段。
 - `deviceId` 可来自认证上下文或请求体；如果认证上下文已绑定 `deviceId`，请求体中的 `deviceId` 必须与之完全一致。
-- `POST /api/v1/sessions/resume` 的职责是：
+- `POST /im/v3/api/device/sessions/resume` 的职责是：
   - 确认当前设备已注册
   - 读取该设备当前最新 `syncSeq`
   - 对比客户端上送的 `lastSeenSyncSeq`
   - 返回是否需要补拉 `sync-feed`
   - 刷新当前设备的 presence 快照
-- `POST /api/v1/presence/heartbeat` 的职责是刷新当前设备的在线时间与在线状态，不改变 `resumeFromSyncSeq` 语义。
-- `POST /api/v1/sessions/disconnect` 的职责是把当前设备 presence 标记为 `offline`，保留最近一次 `lastSyncSeq` 与时间戳用于后续展示。
-- `GET /api/v1/presence/me` 返回当前认证主体的设备在线快照，用于多端状态展示、路由优化和恢复前展示。
+- `POST /im/v3/api/presence/heartbeat` 的职责是刷新当前设备的在线时间与在线状态，不改变 `resumeFromSyncSeq` 语义。
+- `POST /im/v3/api/device/sessions/disconnect` 的职责是把当前设备 presence 标记为 `offline`，保留最近一次 `lastSyncSeq` 与时间戳用于后续展示。
+- `GET /im/v3/api/presence/me` 返回当前认证主体的设备在线快照，用于多端状态展示、路由优化和恢复前展示。
 
 请求示例：
 
 ```http
-POST /api/v1/sessions/resume
+POST /im/v3/api/device/sessions/resume
 Content-Type: application/json
 
 {
@@ -351,7 +351,7 @@ Content-Type: application/json
 }
 ```
 
-`GET /api/v1/presence/me` 返回示例：
+`GET /im/v3/api/presence/me` 返回示例：
 
 ```json
 {
@@ -400,7 +400,7 @@ Content-Type: application/json
 - `session.resume` 是长连接标准能力，不允许继续用业务接口模拟恢复语义。
 - `presence.heartbeat` 可以按固定间隔上送，用于刷新 `lastSeenAt`。
 - `session.disconnect` 用于显式断开时把 presence 快照切回 `offline`。
-- `presence.event` 协议名预留不变；一期可以只提供 `GET /api/v1/presence/me` 查询快照，不强制要求做广播下行。
+- `presence.event` 协议名预留不变；一期可以只提供 `GET /im/v3/api/presence/me` 查询快照，不强制要求做广播下行。
 
 绑定说明：
 

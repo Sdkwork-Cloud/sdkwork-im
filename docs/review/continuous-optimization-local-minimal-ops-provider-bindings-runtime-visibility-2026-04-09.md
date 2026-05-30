@@ -3,11 +3,11 @@
 ## Context
 
 - Architecture and prior ops docs already froze `providerBindings` and `providerBindingDrift` in the ops diagnostic contract.
-- `local-minimal-node` exposed `GET /api/v1/ops/diagnostics`, but runtime provider selection was still invisible there.
+- `local-minimal-node` exposed `GET /backend/v3/api/ops/diagnostics`, but runtime provider selection was still invisible there.
 
 ## Confirmed Bug
 
-- `GET /api/v1/ops/diagnostics` returned `providerBindings=[]` in the default local-minimal profile.
+- `GET /backend/v3/api/ops/diagnostics` returned `providerBindings=[]` in the default local-minimal profile.
 - Operators could inspect per-domain provider-health routes, but could not see one unified selected-provider snapshot.
 
 ## Root Cause
@@ -21,7 +21,7 @@
 - Keep the existing ops contract.
 - Mirror one global provider binding snapshot into `OpsRuntime` during refresh.
 - Reuse real RTC and media runtime provider bindings.
-- Derive user-module, IoT access, and IoT protocol bindings from current selected descriptors over the frozen platform registry baseline.
+- Derive principal-profile, IoT access, and IoT protocol bindings from current selected descriptors over the frozen platform registry baseline.
 
 ## Changed Files
 
@@ -52,5 +52,5 @@ cargo test -p local-minimal-node --offline -- --nocapture
 
 ## Remaining Gap
 
-- `local-minimal-node` now exposes a global runtime provider snapshot, but it still does not expose dedicated `/api/v1/ops/provider-bindings` and `/api/v1/ops/provider-bindings/drift` routes like standalone `ops-service`.
+- `local-minimal-node` now exposes a global runtime provider snapshot, but it still does not expose dedicated `/backend/v3/api/ops/provider_bindings` and `/backend/v3/api/ops/provider_bindings/drift` routes like standalone `ops-service`.
 - Cross-subsystem binding divergence detection is still implicit; RTC recording storage and media storage are assumed aligned by profile.

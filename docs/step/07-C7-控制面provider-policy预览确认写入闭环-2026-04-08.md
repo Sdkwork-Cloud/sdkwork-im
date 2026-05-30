@@ -10,7 +10,7 @@
 - `RuntimeProviderRegistry` 新增：
   - `set_deployment_profile_with_expected_version(...)`
   - `set_tenant_override_with_expected_version(...)`
-- `POST /api/v1/control/provider-bindings` 请求体新增可选 `expectedBaseVersion`。
+- `POST /backend/v3/api/control/provider_bindings` 请求体新增可选 `expectedBaseVersion`。
 - 若当前真实版本与 `expectedBaseVersion` 不一致，返回 `409`。
 - 冲突错误码固定为 `provider_policy_conflict`。
 - 冲突消息固定描述 `provider policy version drift: expected X, current Y`。
@@ -21,7 +21,7 @@
 
 ## 接口冻结
 
-- 路径: `POST /api/v1/control/provider-bindings`
+- 路径: `POST /backend/v3/api/control/provider_bindings`
 - 权限: `control.write`
 - Body:
   - `tenantId`

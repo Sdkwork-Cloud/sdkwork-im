@@ -68,9 +68,9 @@ Typical sequences:
 
 1. process restarts with the same runtime dir
 2. a client calls:
-   - `GET /api/v1/notifications`
-   - `GET /api/v1/notifications/{id}`
-   - `POST /api/v1/notifications/requests`
+   - `GET /im/v3/api/notifications`
+   - `GET /im/v3/api/notifications/{id}`
+   - `POST /im/v3/api/notifications/requests`
 3. runtime loads persisted state for:
    - `tenant + notification_id` on direct lookup and request idempotency
    - `tenant + recipient_id` on recipient list queries

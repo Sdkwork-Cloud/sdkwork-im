@@ -7,11 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use im_auth_context::encode_hs256_bearer_token;
-use serde_json::json;
-
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
-const TEST_PUBLIC_BEARER_SECRET: &str = "blackbox-public-bearer-secret";
 
 struct ManagedServerProcess {
     child: Child,
@@ -63,10 +59,6 @@ fn spawn_local_minimal_server_with_env(
     command
         .env("CRAW_CHAT_RUNTIME_DIR", runtime_dir)
         .env("CRAW_CHAT_BIND_ADDR", bind_addr.as_str())
-        .env(
-            "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET",
-            TEST_PUBLIC_BEARER_SECRET,
-        )
         .env(
             "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET",
             "blackbox-test-secret",
@@ -181,11 +173,15 @@ fn send_json_request(
     user_id: &str,
     body: Option<&str>,
 ) -> Result<(u16, serde_json::Value), String> {
-    let authorization = signed_bearer_for_user(user_id, &[]);
+    let session_id = format!("s_{user_id}");
+    let device_id = format!("d_{user_id}");
     let mut headers = vec![
-        ("authorization", authorization.as_str()),
-        ("x-tenant-id", "t_demo"),
-        ("x-user-id", user_id),
+        ("x-sdkwork-tenant-id", "t_demo"),
+        ("x-sdkwork-user-id", user_id),
+        ("x-sdkwork-actor-id", user_id),
+        ("x-sdkwork-actor-kind", "user"),
+        ("x-sdkwork-session-id", session_id.as_str()),
+        ("x-sdkwork-device-id", device_id.as_str()),
     ];
     if body.is_some() {
         headers.push(("content-type", "application/json"));
@@ -196,38 +192,20 @@ fn send_json_request(
     Ok((response.status_code, json))
 }
 
-fn signed_bearer_for_user(user_id: &str, permissions: &[&str]) -> String {
-    let token = encode_hs256_bearer_token(
-        &json!({
-            "tenant_id": "t_demo",
-            "sub": user_id,
-            "actor_kind": "user",
-            "sid": format!("s_{user_id}"),
-            "did": format!("d_{user_id}"),
-            "client_kind": "im_user",
-            "permissions": permissions,
-            "iss": "craw-chat",
-            "aud": "craw-chat-public",
-        }),
-        TEST_PUBLIC_BEARER_SECRET,
-    )
-    .expect("signed bearer token should encode");
-    format!("Bearer {token}")
-}
-
 fn send_admin_control_request(
     base_url: &str,
     path: &str,
 ) -> Result<(u16, serde_json::Value), String> {
-    let admin_bearer = signed_bearer_for_user("u_admin", &["control.read"]);
     let response = send_http_request(
         base_url,
         "GET",
         path,
         &[
-            ("authorization", admin_bearer.as_str()),
-            ("x-tenant-id", "t_demo"),
-            ("x-user-id", "u_admin"),
+            ("x-sdkwork-tenant-id", "t_demo"),
+            ("x-sdkwork-user-id", "u_admin"),
+            ("x-sdkwork-actor-id", "u_admin"),
+            ("x-sdkwork-actor-kind", "admin"),
+            ("x-sdkwork-permission-scope", "control.read"),
         ],
         None,
     )?;
@@ -243,7 +221,7 @@ fn wait_for_friend_request_status(
     timeout: Duration,
 ) -> serde_json::Value {
     let deadline = Instant::now() + timeout;
-    let path = format!("/api/v1/control/social/friend-requests/{request_id}");
+    let path = format!("/backend/v3/api/control/social/friend-requests/{request_id}");
     let mut last_status = None;
     let mut last_body = serde_json::Value::Null;
 
@@ -307,7 +285,7 @@ fn test_local_minimal_process_blackbox_concurrent_accept_and_cancel_across_insta
     let (submit_status, submit_json) = send_json_request(
         server_a.base_url.as_str(),
         "POST",
-        "/api/v1/social/friend-requests",
+        "/im/v3/api/social/friend_requests",
         "u_alice",
         Some(
             r#"{
@@ -324,7 +302,7 @@ fn test_local_minimal_process_blackbox_concurrent_accept_and_cancel_across_insta
         .to_owned();
 
     let accept_base_url = server_a.base_url.clone();
-    let accept_path = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let accept_path = format!("/im/v3/api/social/friend_requests/{request_id}/accept");
     let accept_handle = thread::spawn(move || {
         send_json_request(
             accept_base_url.as_str(),
@@ -336,7 +314,7 @@ fn test_local_minimal_process_blackbox_concurrent_accept_and_cancel_across_insta
     });
 
     let cancel_base_url = server_b.base_url.clone();
-    let cancel_path = format!("/api/v1/social/friend-requests/{request_id}/cancel");
+    let cancel_path = format!("/im/v3/api/social/friend_requests/{request_id}/cancel");
     let cancel_handle = thread::spawn(move || {
         send_json_request(
             cancel_base_url.as_str(),
@@ -384,16 +362,17 @@ fn test_local_minimal_process_blackbox_concurrent_accept_and_cancel_across_insta
         "canceled"
     };
 
-    let snapshot_path = format!("/api/v1/control/social/friend-requests/{request_id}");
-    let admin_bearer = signed_bearer_for_user("u_admin", &["control.read"]);
+    let snapshot_path = format!("/backend/v3/api/control/social/friend-requests/{request_id}");
     let snapshot_response = send_http_request(
         server_a.base_url.as_str(),
         "GET",
         snapshot_path.as_str(),
         &[
-            ("authorization", admin_bearer.as_str()),
-            ("x-tenant-id", "t_demo"),
-            ("x-user-id", "u_admin"),
+            ("x-sdkwork-tenant-id", "t_demo"),
+            ("x-sdkwork-user-id", "u_admin"),
+            ("x-sdkwork-actor-id", "u_admin"),
+            ("x-sdkwork-actor-kind", "admin"),
+            ("x-sdkwork-permission-scope", "control.read"),
         ],
         None,
     )
@@ -436,7 +415,7 @@ fn test_local_minimal_process_blackbox_concurrent_accepts_converge_idempotently_
     let (submit_status, submit_json) = send_json_request(
         server_a.base_url.as_str(),
         "POST",
-        "/api/v1/social/friend-requests",
+        "/im/v3/api/social/friend_requests",
         "u_alice",
         Some(
             r#"{
@@ -452,7 +431,7 @@ fn test_local_minimal_process_blackbox_concurrent_accepts_converge_idempotently_
         .expect("submitted request should expose request id")
         .to_owned();
 
-    let accept_path = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let accept_path = format!("/im/v3/api/social/friend_requests/{request_id}/accept");
     let first_accept_base_url = server_a.base_url.clone();
     let first_accept_path = accept_path.clone();
     let first_accept_handle = thread::spawn(move || {
@@ -508,16 +487,17 @@ fn test_local_minimal_process_blackbox_concurrent_accepts_converge_idempotently_
         first_accept_json["conversation"]["conversationId"]
     );
 
-    let snapshot_path = format!("/api/v1/control/social/friend-requests/{request_id}");
-    let admin_bearer = signed_bearer_for_user("u_admin", &["control.read"]);
+    let snapshot_path = format!("/backend/v3/api/control/social/friend-requests/{request_id}");
     let snapshot_response = send_http_request(
         server_a.base_url.as_str(),
         "GET",
         snapshot_path.as_str(),
         &[
-            ("authorization", admin_bearer.as_str()),
-            ("x-tenant-id", "t_demo"),
-            ("x-user-id", "u_admin"),
+            ("x-sdkwork-tenant-id", "t_demo"),
+            ("x-sdkwork-user-id", "u_admin"),
+            ("x-sdkwork-actor-id", "u_admin"),
+            ("x-sdkwork-actor-kind", "admin"),
+            ("x-sdkwork-permission-scope", "control.read"),
         ],
         None,
     )
@@ -547,7 +527,7 @@ fn test_local_minimal_process_blackbox_cross_instance_accept_and_submit_same_pai
     let (submit_status, submit_json) = send_json_request(
         server_a.base_url.as_str(),
         "POST",
-        "/api/v1/social/friend-requests",
+        "/im/v3/api/social/friend_requests",
         "u_alice",
         Some(
             r#"{
@@ -564,7 +544,7 @@ fn test_local_minimal_process_blackbox_cross_instance_accept_and_submit_same_pai
         .to_owned();
 
     let accept_base_url = server_a.base_url.clone();
-    let accept_path = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let accept_path = format!("/im/v3/api/social/friend_requests/{request_id}/accept");
     let accept_handle = thread::spawn(move || {
         send_json_request(
             accept_base_url.as_str(),
@@ -580,7 +560,7 @@ fn test_local_minimal_process_blackbox_cross_instance_accept_and_submit_same_pai
     let (submit_again_status, submit_again_json) = send_json_request(
         server_b.base_url.as_str(),
         "POST",
-        "/api/v1/social/friend-requests",
+        "/im/v3/api/social/friend_requests",
         "u_alice",
         Some(
             r#"{
@@ -603,16 +583,17 @@ fn test_local_minimal_process_blackbox_cross_instance_accept_and_submit_same_pai
     assert_eq!(accept_status, 200);
     assert_eq!(accept_json["friendRequest"]["status"], "accepted");
 
-    let snapshot_path = format!("/api/v1/control/social/friend-requests/{request_id}");
-    let admin_bearer = signed_bearer_for_user("u_admin", &["control.read"]);
+    let snapshot_path = format!("/backend/v3/api/control/social/friend-requests/{request_id}");
     let snapshot_response = send_http_request(
         server_b.base_url.as_str(),
         "GET",
         snapshot_path.as_str(),
         &[
-            ("authorization", admin_bearer.as_str()),
-            ("x-tenant-id", "t_demo"),
-            ("x-user-id", "u_admin"),
+            ("x-sdkwork-tenant-id", "t_demo"),
+            ("x-sdkwork-user-id", "u_admin"),
+            ("x-sdkwork-actor-id", "u_admin"),
+            ("x-sdkwork-actor-kind", "admin"),
+            ("x-sdkwork-permission-scope", "control.read"),
         ],
         None,
     )
@@ -625,14 +606,14 @@ fn test_local_minimal_process_blackbox_cross_instance_accept_and_submit_same_pai
     let contacts_response = send_http_request(
         server_b.base_url.as_str(),
         "GET",
-        "/api/v1/contacts",
+        "/im/v3/api/chat/contacts",
         &[
-            (
-                "authorization",
-                signed_bearer_for_user("u_alice", &[]).as_str(),
-            ),
-            ("x-tenant-id", "t_demo"),
-            ("x-user-id", "u_alice"),
+            ("x-sdkwork-tenant-id", "t_demo"),
+            ("x-sdkwork-user-id", "u_alice"),
+            ("x-sdkwork-actor-id", "u_alice"),
+            ("x-sdkwork-actor-kind", "user"),
+            ("x-sdkwork-session-id", "s_u_alice"),
+            ("x-sdkwork-device-id", "d_u_alice"),
         ],
         None,
     )
@@ -665,7 +646,7 @@ fn test_local_minimal_process_blackbox_cross_instance_submit_same_pair_converges
         send_json_request(
             submit_alice_base_url.as_str(),
             "POST",
-            "/api/v1/social/friend-requests",
+            "/im/v3/api/social/friend_requests",
             "u_alice",
             Some(
                 r#"{
@@ -681,7 +662,7 @@ fn test_local_minimal_process_blackbox_cross_instance_submit_same_pair_converges
         send_json_request(
             submit_bob_base_url.as_str(),
             "POST",
-            "/api/v1/social/friend-requests",
+            "/im/v3/api/social/friend_requests",
             "u_bob",
             Some(
                 r#"{
@@ -717,16 +698,18 @@ fn test_local_minimal_process_blackbox_cross_instance_submit_same_pair_converges
         "cross-instance same-pair submit must converge to a single pending request id"
     );
 
-    let snapshot_path = format!("/api/v1/control/social/friend-requests/{alice_request_id}");
-    let admin_bearer = signed_bearer_for_user("u_admin", &["control.read"]);
+    let snapshot_path =
+        format!("/backend/v3/api/control/social/friend-requests/{alice_request_id}");
     let snapshot_response = send_http_request(
         server_a.base_url.as_str(),
         "GET",
         snapshot_path.as_str(),
         &[
-            ("authorization", admin_bearer.as_str()),
-            ("x-tenant-id", "t_demo"),
-            ("x-user-id", "u_admin"),
+            ("x-sdkwork-tenant-id", "t_demo"),
+            ("x-sdkwork-user-id", "u_admin"),
+            ("x-sdkwork-actor-id", "u_admin"),
+            ("x-sdkwork-actor-kind", "admin"),
+            ("x-sdkwork-permission-scope", "control.read"),
         ],
         None,
     )
@@ -767,7 +750,7 @@ fn test_local_minimal_process_blackbox_restart_repairs_pending_acceptance_after_
     let (submit_status, submit_json) = send_json_request(
         server_a.base_url.as_str(),
         "POST",
-        "/api/v1/social/friend-requests",
+        "/im/v3/api/social/friend_requests",
         "u_alice",
         Some(
             r#"{
@@ -784,7 +767,7 @@ fn test_local_minimal_process_blackbox_restart_repairs_pending_acceptance_after_
         .to_owned();
 
     let accept_base_url = server_a.base_url.clone();
-    let accept_path = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let accept_path = format!("/im/v3/api/social/friend_requests/{request_id}/accept");
     let accept_handle = thread::spawn(move || {
         send_json_request(
             accept_base_url.as_str(),
@@ -829,7 +812,7 @@ fn test_local_minimal_process_blackbox_restart_repairs_pending_acceptance_after_
     let (alice_contacts_status, alice_contacts_json) = send_json_request(
         server_b.base_url.as_str(),
         "GET",
-        "/api/v1/contacts",
+        "/im/v3/api/chat/contacts",
         "u_alice",
         None,
     )
@@ -860,7 +843,7 @@ fn test_local_minimal_process_blackbox_restart_repairs_pending_acceptance_after_
     let (bob_contacts_status, bob_contacts_json) = send_json_request(
         server_b.base_url.as_str(),
         "GET",
-        "/api/v1/contacts",
+        "/im/v3/api/chat/contacts",
         "u_bob",
         None,
     )
@@ -879,14 +862,14 @@ fn test_local_minimal_process_blackbox_restart_repairs_pending_acceptance_after_
     assert_eq!(bob_items[0]["directChatId"], direct_chat_id);
     assert_eq!(bob_items[0]["conversationId"], conversation_id);
 
-    let friendship_path = format!("/api/v1/control/social/friendships/{friendship_id}");
+    let friendship_path = format!("/backend/v3/api/control/social/friendships/{friendship_id}");
     let (friendship_status, friendship_json) =
         send_admin_control_request(server_b.base_url.as_str(), friendship_path.as_str())
             .expect("friendship snapshot after restart repair should return response");
     assert_eq!(friendship_status, 200);
     assert_eq!(friendship_json["friendship"]["status"], "active");
 
-    let direct_chat_path = format!("/api/v1/control/social/direct-chats/{direct_chat_id}");
+    let direct_chat_path = format!("/backend/v3/api/control/social/direct_chats/{direct_chat_id}");
     let (direct_chat_status, direct_chat_json) =
         send_admin_control_request(server_b.base_url.as_str(), direct_chat_path.as_str())
             .expect("direct chat snapshot after restart repair should return response");
@@ -897,7 +880,7 @@ fn test_local_minimal_process_blackbox_restart_repairs_pending_acceptance_after_
         conversation_id
     );
 
-    let conversation_path = format!("/api/v1/conversations/{conversation_id}");
+    let conversation_path = format!("/im/v3/api/chat/conversations/{conversation_id}");
     let (conversation_status, conversation_json) = send_json_request(
         server_b.base_url.as_str(),
         "GET",
@@ -927,7 +910,7 @@ fn test_local_minimal_process_blackbox_cross_instance_remove_and_submit_converge
     let (submit_status, submit_json) = send_json_request(
         server_a.base_url.as_str(),
         "POST",
-        "/api/v1/social/friend-requests",
+        "/im/v3/api/social/friend_requests",
         "u_alice",
         Some(
             r#"{
@@ -943,7 +926,7 @@ fn test_local_minimal_process_blackbox_cross_instance_remove_and_submit_converge
         .expect("submitted request should expose request id")
         .to_owned();
 
-    let accept_path = format!("/api/v1/social/friend-requests/{request_id}/accept");
+    let accept_path = format!("/im/v3/api/social/friend_requests/{request_id}/accept");
     let (accept_status, accept_json) = send_json_request(
         server_b.base_url.as_str(),
         "POST",
@@ -959,7 +942,7 @@ fn test_local_minimal_process_blackbox_cross_instance_remove_and_submit_converge
         .to_owned();
 
     let remove_base_url = server_a.base_url.clone();
-    let remove_path = format!("/api/v1/social/friendships/{friendship_id}/remove");
+    let remove_path = format!("/im/v3/api/social/friendships/{friendship_id}/remove");
     let remove_friendship = thread::spawn(move || {
         send_json_request(
             remove_base_url.as_str(),
@@ -975,7 +958,7 @@ fn test_local_minimal_process_blackbox_cross_instance_remove_and_submit_converge
         send_json_request(
             submit_again_base_url.as_str(),
             "POST",
-            "/api/v1/social/friend-requests",
+            "/im/v3/api/social/friend_requests",
             "u_alice",
             Some(
                 r#"{
@@ -1003,16 +986,18 @@ fn test_local_minimal_process_blackbox_cross_instance_remove_and_submit_converge
         other => panic!("unexpected cross-instance remove/submit race submit status: {other}"),
     }
 
-    let admin_bearer = signed_bearer_for_user("u_admin", &["control.read"]);
-    let friendship_snapshot_path = format!("/api/v1/control/social/friendships/{friendship_id}");
+    let friendship_snapshot_path =
+        format!("/backend/v3/api/control/social/friendships/{friendship_id}");
     let friendship_snapshot = send_http_request(
         server_a.base_url.as_str(),
         "GET",
         friendship_snapshot_path.as_str(),
         &[
-            ("authorization", admin_bearer.as_str()),
-            ("x-tenant-id", "t_demo"),
-            ("x-user-id", "u_admin"),
+            ("x-sdkwork-tenant-id", "t_demo"),
+            ("x-sdkwork-user-id", "u_admin"),
+            ("x-sdkwork-actor-id", "u_admin"),
+            ("x-sdkwork-actor-kind", "admin"),
+            ("x-sdkwork-permission-scope", "control.read"),
         ],
         None,
     )
@@ -1028,15 +1013,17 @@ fn test_local_minimal_process_blackbox_cross_instance_remove_and_submit_converge
             .as_str()
             .expect("successful resubmit should expose request id");
         let request_snapshot_path =
-            format!("/api/v1/control/social/friend-requests/{new_request_id}");
+            format!("/backend/v3/api/control/social/friend-requests/{new_request_id}");
         let request_snapshot = send_http_request(
             server_b.base_url.as_str(),
             "GET",
             request_snapshot_path.as_str(),
             &[
-                ("authorization", admin_bearer.as_str()),
-                ("x-tenant-id", "t_demo"),
-                ("x-user-id", "u_admin"),
+                ("x-sdkwork-tenant-id", "t_demo"),
+                ("x-sdkwork-user-id", "u_admin"),
+                ("x-sdkwork-actor-id", "u_admin"),
+                ("x-sdkwork-actor-kind", "admin"),
+                ("x-sdkwork-permission-scope", "control.read"),
             ],
             None,
         )
@@ -1051,7 +1038,7 @@ fn test_local_minimal_process_blackbox_cross_instance_remove_and_submit_converge
     let (alice_contacts_status, alice_contacts_json) = send_json_request(
         server_a.base_url.as_str(),
         "GET",
-        "/api/v1/contacts",
+        "/im/v3/api/chat/contacts",
         "u_alice",
         None,
     )
@@ -1072,7 +1059,7 @@ fn test_local_minimal_process_blackbox_cross_instance_remove_and_submit_converge
     let (bob_contacts_status, bob_contacts_json) = send_json_request(
         server_b.base_url.as_str(),
         "GET",
-        "/api/v1/contacts",
+        "/im/v3/api/chat/contacts",
         "u_bob",
         None,
     )

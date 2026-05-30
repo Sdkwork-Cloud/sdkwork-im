@@ -132,7 +132,7 @@ resolve_primary_config_file_from_profile() {
   printf '%s\n' "${root_dir}/.runtime/local-minimal/config/local-minimal.env"
 }
 
-generate_public_bearer_secret() {
+generate_random_secret() {
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -base64 48 | tr -d '\r\n' | tr '+/' '-_' | tr -d '='
     return
@@ -143,7 +143,7 @@ generate_public_bearer_secret() {
     return
   fi
 
-  echo "Unable to generate CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET" >&2
+  echo "Unable to generate random secret" >&2
   exit 1
 }
 
@@ -161,20 +161,15 @@ if [[ -f "$CONFIG_FILE" && "$force_mode" -ne 1 ]]; then
   exit 0
 fi
 
-public_bearer_secret="$(read_config_value_from_file "$CONFIG_FILE" "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET" || true)"
-if [[ -z "$public_bearer_secret" ]]; then
-  public_bearer_secret="$(generate_public_bearer_secret)"
-fi
 friend_request_cursor_secret="$(read_config_value_from_file "$CONFIG_FILE" "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET" || true)"
 if [[ -z "$friend_request_cursor_secret" ]]; then
-  friend_request_cursor_secret="$(generate_public_bearer_secret)"
+  friend_request_cursor_secret="$(generate_random_secret)"
 fi
 
 cat >"$CONFIG_FILE" <<EOF
 # ${profile_name} runtime config
 CRAW_CHAT_BIND_ADDR=${bind_addr}
 CRAW_CHAT_RUNTIME_DIR=${RUNTIME_DIR}
-CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=${public_bearer_secret}
 CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=${friend_request_cursor_secret}
 EOF
 

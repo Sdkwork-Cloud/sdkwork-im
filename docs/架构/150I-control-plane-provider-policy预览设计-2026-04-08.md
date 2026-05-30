@@ -5,7 +5,7 @@
 
 ## 2. 目标
 
-- 提供标准 `POST /api/v1/control/provider-policies/preview`。
+- 提供标准 `POST /backend/v3/api/control/provider-policies/preview`。
 - 复用真实写接口的校验规则。
 - 返回统一的 `previewBinding` 与 `diff`。
 - 保证预览无副作用。
@@ -41,7 +41,7 @@
 
 ## 6. HTTP 面
 
-- 路径: `POST /api/v1/control/provider-policies/preview`
+- 路径: `POST /backend/v3/api/control/provider-policies/preview`
 - 权限: `control.write`
 - Body 与真实写接口一致：
   - `tenantId`

@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::{Arc, Barrier, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
 
@@ -8,58 +9,75 @@ use axum::{Json, Router};
 use control_plane_api::{
     SharedChannelLinkedMemberSyncRequest, SharedChannelSyncDeliveryProofStatus,
 };
-use im_auth_context::{PUBLIC_BEARER_REQUIRED_AUD_ENV, PUBLIC_BEARER_REQUIRED_ISS_ENV};
 use serde_json::json;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
 
 #[derive(Clone, Default)]
 struct CapturedSyncRequest {
-    authorization: Arc<Mutex<Option<String>>>,
+    app_context_headers: Arc<Mutex<BTreeMap<String, String>>>,
 }
 
-fn decode_base64url(input: &str) -> Vec<u8> {
-    let mut output = Vec::with_capacity((input.len() * 3) / 4 + 3);
-    let mut buffer = 0u32;
-    let mut bits = 0u8;
+fn capture_app_context_headers(headers: &HeaderMap) -> BTreeMap<String, String> {
+    [
+        "x-sdkwork-tenant-id",
+        "x-sdkwork-user-id",
+        "x-sdkwork-actor-id",
+        "x-sdkwork-actor-kind",
+        "x-sdkwork-permission-scope",
+    ]
+    .into_iter()
+    .filter_map(|name| {
+        headers
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .map(|value| (name.to_owned(), value.to_owned()))
+    })
+    .collect()
+}
 
-    for byte in input.bytes() {
-        let value = match byte {
-            b'A'..=b'Z' => byte - b'A',
-            b'a'..=b'z' => byte - b'a' + 26,
-            b'0'..=b'9' => byte - b'0' + 52,
-            b'-' => 62,
-            b'_' => 63,
-            b'=' => continue,
-            _ => panic!("jwt payload segment should be valid base64url"),
-        } as u32;
+fn record_app_context_headers(captured: &CapturedSyncRequest, headers: &HeaderMap) {
+    *captured
+        .app_context_headers
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = capture_app_context_headers(headers);
+}
 
-        buffer = (buffer << 6) | value;
-        bits += 6;
+fn captured_app_context_headers(captured: &CapturedSyncRequest) -> BTreeMap<String, String> {
+    captured
+        .app_context_headers
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .clone()
+}
 
-        while bits >= 8 {
-            bits -= 8;
-            output.push(((buffer >> bits) & 0xff) as u8);
-        }
+#[test]
+fn test_shared_channel_sync_trigger_source_uses_app_context_header_naming() {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let forbidden_camel = ["Principal", "Header"].concat();
+    let forbidden_snake = ["principal", "_header"].concat();
+    let checked_paths = [
+        manifest_dir.join("src/lib.rs"),
+        manifest_dir.join("src/main.rs"),
+        manifest_dir.join("tests/social_external_collaboration_test.rs"),
+    ];
+
+    for path in checked_paths {
+        let source = std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("{} should be readable: {error}", path.display()));
+        assert!(
+            !source.contains(&forbidden_camel),
+            "{} should use AppContextHeader naming, not {}",
+            path.display(),
+            forbidden_camel
+        );
+        assert!(
+            !source.contains(&forbidden_snake),
+            "{} should use app_context_header naming, not {}",
+            path.display(),
+            forbidden_snake
+        );
     }
-
-    output
-}
-
-fn decode_claims_from_bearer(authorization: &str) -> serde_json::Value {
-    let token = authorization
-        .strip_prefix("Bearer ")
-        .or_else(|| authorization.strip_prefix("bearer "))
-        .expect("authorization should be bearer");
-    let segments: Vec<&str> = token.split('.').collect();
-    assert_eq!(
-        segments.len(),
-        3,
-        "shared-channel sync bearer should contain jwt header/payload/signature"
-    );
-
-    let payload = decode_base64url(segments[1]);
-    serde_json::from_slice(&payload).expect("jwt claims should be valid json")
 }
 
 async fn capture_sync_call(
@@ -67,14 +85,7 @@ async fn capture_sync_call(
     headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let authorization = headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-    *captured
-        .authorization
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    record_app_context_headers(&captured, &headers);
     let request_key = payload
         .get("requestKey")
         .and_then(|value| value.as_str())
@@ -124,14 +135,7 @@ async fn capture_sync_call_with_delay(
     headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let authorization = headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-    *captured
-        .authorization
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    record_app_context_headers(&captured, &headers);
     let request_key = payload
         .get("requestKey")
         .and_then(|value| value.as_str())
@@ -182,14 +186,7 @@ async fn capture_sync_call_with_replayed_ack(
     headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let authorization = headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-    *captured
-        .authorization
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    record_app_context_headers(&captured, &headers);
     let request_key = payload
         .get("requestKey")
         .and_then(|value| value.as_str())
@@ -239,14 +236,7 @@ async fn capture_sync_call_without_request_key_commit_fence(
     headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let authorization = headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-    *captured
-        .authorization
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    record_app_context_headers(&captured, &headers);
     let request_key = payload
         .get("requestKey")
         .and_then(|value| value.as_str())
@@ -295,14 +285,7 @@ async fn capture_sync_call_already_linked_without_request_key_commit_fence(
     headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let authorization = headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-    *captured
-        .authorization
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    record_app_context_headers(&captured, &headers);
     let request_key = payload
         .get("requestKey")
         .and_then(|value| value.as_str())
@@ -351,14 +334,7 @@ async fn capture_sync_call_already_linked_with_mismatched_request_key_commit_fen
     headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let authorization = headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-    *captured
-        .authorization
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    record_app_context_headers(&captured, &headers);
     let request_key = payload
         .get("requestKey")
         .and_then(|value| value.as_str())
@@ -407,14 +383,7 @@ async fn capture_sync_call_with_large_error_body(
     State(captured): State<CapturedSyncRequest>,
     headers: HeaderMap,
 ) -> (StatusCode, String) {
-    let authorization = headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-    *captured
-        .authorization
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    record_app_context_headers(&captured, &headers);
     (StatusCode::BAD_GATEWAY, "x".repeat(20_000))
 }
 
@@ -422,14 +391,7 @@ async fn capture_sync_call_with_invalid_ack(
     State(captured): State<CapturedSyncRequest>,
     headers: HeaderMap,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let authorization = headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-    *captured
-        .authorization
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    record_app_context_headers(&captured, &headers);
     (
         StatusCode::OK,
         Json(json!({
@@ -450,14 +412,7 @@ async fn capture_sync_call_with_mismatched_principal_ack(
     headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let authorization = headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-    *captured
-        .authorization
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()) = authorization;
+    record_app_context_headers(&captured, &headers);
     let request_key = payload
         .get("requestKey")
         .and_then(|value| value.as_str())
@@ -491,11 +446,6 @@ fn insecure_http_guard() -> MutexGuard<'static, ()> {
 }
 
 async fn shared_channel_sync_env_guard_async() -> AsyncMutexGuard<'static, ()> {
-    static GUARD: OnceLock<AsyncMutex<()>> = OnceLock::new();
-    GUARD.get_or_init(|| AsyncMutex::new(())).lock().await
-}
-
-async fn public_bearer_contract_guard_async() -> AsyncMutexGuard<'static, ()> {
     static GUARD: OnceLock<AsyncMutex<()>> = OnceLock::new();
     GUARD.get_or_init(|| AsyncMutex::new(())).lock().await
 }
@@ -556,13 +506,10 @@ fn clear_shared_channel_sync_dispatch_overrides() {
 }
 
 #[test]
-fn test_public_shared_channel_sync_trigger_accepts_https_target() {
+fn test_app_context_header_shared_channel_sync_trigger_accepts_https_target() {
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        "https://sync.example.com",
-        "secret",
-    );
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger("https://sync.example.com");
     assert!(
         trigger.is_ok(),
         "https target should be accepted for shared-channel sync trigger"
@@ -570,13 +517,10 @@ fn test_public_shared_channel_sync_trigger_accepts_https_target() {
 }
 
 #[test]
-fn test_public_shared_channel_sync_trigger_accepts_localhost_http_target() {
+fn test_app_context_header_shared_channel_sync_trigger_accepts_localhost_http_target() {
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        "http://127.0.0.1:19080",
-        "secret",
-    );
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger("http://127.0.0.1:19080");
     assert!(
         trigger.is_ok(),
         "localhost http target should remain available for local testing"
@@ -584,13 +528,10 @@ fn test_public_shared_channel_sync_trigger_accepts_localhost_http_target() {
 }
 
 #[test]
-fn test_public_shared_channel_sync_trigger_rejects_remote_http_target() {
+fn test_app_context_header_shared_channel_sync_trigger_rejects_remote_http_target() {
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
-    let error = match control_plane_api::build_public_shared_channel_sync_trigger(
-        "http://sync.example.com",
-        "secret",
-    ) {
+    let error = match control_plane_api::build_app_context_header_shared_channel_sync_trigger("http://sync.example.com") {
         Ok(_) => panic!("remote http target must be rejected"),
         Err(error) => error,
     };
@@ -601,7 +542,7 @@ fn test_public_shared_channel_sync_trigger_rejects_remote_http_target() {
 }
 
 #[test]
-fn test_public_shared_channel_sync_trigger_allows_remote_http_when_explicitly_enabled() {
+fn test_app_context_header_shared_channel_sync_trigger_allows_remote_http_when_explicitly_enabled() {
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
     clear_runtime_profile_override();
@@ -617,10 +558,7 @@ fn test_public_shared_channel_sync_trigger_allows_remote_http_when_explicitly_en
             "true",
         );
     }
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        "http://sync.example.com",
-        "secret",
-    );
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger("http://sync.example.com");
     clear_insecure_http_override();
     clear_runtime_profile_override();
     assert!(
@@ -630,7 +568,7 @@ fn test_public_shared_channel_sync_trigger_allows_remote_http_when_explicitly_en
 }
 
 #[test]
-fn test_public_shared_channel_sync_trigger_rejects_remote_http_override_without_local_runtime_profile()
+fn test_app_context_header_shared_channel_sync_trigger_rejects_remote_http_override_without_local_runtime_profile()
  {
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
@@ -641,10 +579,7 @@ fn test_public_shared_channel_sync_trigger_rejects_remote_http_override_without_
             "true",
         );
     }
-    let error = match control_plane_api::build_public_shared_channel_sync_trigger(
-        "http://sync.example.com",
-        "secret",
-    ) {
+    let error = match control_plane_api::build_app_context_header_shared_channel_sync_trigger("http://sync.example.com") {
         Ok(_) => panic!(
             "remote http override should be rejected unless runtime profile is explicitly local"
         ),
@@ -659,7 +594,7 @@ fn test_public_shared_channel_sync_trigger_rejects_remote_http_override_without_
 }
 
 #[test]
-fn test_public_shared_channel_sync_trigger_rejects_remote_http_override_for_production_profile() {
+fn test_app_context_header_shared_channel_sync_trigger_rejects_remote_http_override_for_production_profile() {
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
     clear_runtime_profile_override();
@@ -673,10 +608,7 @@ fn test_public_shared_channel_sync_trigger_rejects_remote_http_override_for_prod
             "true",
         );
     }
-    let error = match control_plane_api::build_public_shared_channel_sync_trigger(
-        "http://sync.example.com",
-        "secret",
-    ) {
+    let error = match control_plane_api::build_app_context_header_shared_channel_sync_trigger("http://sync.example.com") {
         Ok(_) => panic!("production profile must reject remote insecure shared-channel sync http"),
         Err(error) => error,
     };
@@ -689,7 +621,7 @@ fn test_public_shared_channel_sync_trigger_rejects_remote_http_override_for_prod
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_public_shared_channel_sync_trigger_embeds_dedicated_permission_claim() {
+async fn test_app_context_header_shared_channel_sync_trigger_projects_app_context_permission_scope() {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -701,7 +633,7 @@ async fn test_public_shared_channel_sync_trigger_embeds_dedicated_permission_cla
     let captured = CapturedSyncRequest::default();
     let app = Router::new()
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(capture_sync_call),
         )
         .with_state(captured.clone());
@@ -711,10 +643,7 @@ async fn test_public_shared_channel_sync_trigger_embeds_dedicated_permission_cla
             .expect("shared-channel sync test server should run");
     });
 
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        format!("http://{local_addr}"),
-        "test-shared-channel-secret",
-    )
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
     .expect("shared-channel sync trigger should build against local http target");
     trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -728,21 +657,11 @@ async fn test_public_shared_channel_sync_trigger_embeds_dedicated_permission_cla
         })
         .expect("shared-channel sync trigger should dispatch request");
 
-    let authorization = captured
-        .authorization
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .clone()
-        .expect("sync request should include authorization header");
-    let claims = decode_claims_from_bearer(authorization.as_str());
-    let permissions = claims["permissions"]
-        .as_array()
-        .expect("shared-channel sync token should include permissions array");
-    assert!(
-        permissions
-            .iter()
-            .any(|item| item.as_str() == Some("conversation.shared_channel.sync")),
-        "shared-channel sync token should include dedicated sync permission claim"
+    let headers = captured_app_context_headers(&captured);
+    assert_eq!(
+        headers.get("x-sdkwork-permission-scope").map(String::as_str),
+        Some("conversation.shared_channel.sync"),
+        "shared-channel sync must project dedicated AppContext permission scope"
     );
 
     server.abort();
@@ -750,13 +669,10 @@ async fn test_public_shared_channel_sync_trigger_embeds_dedicated_permission_cla
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_public_shared_channel_sync_trigger_includes_required_issuer_and_audience_claims_when_configured()
+async fn test_app_context_header_shared_channel_sync_trigger_projects_system_app_context_headers()
  {
     let _env_guard = shared_channel_sync_env_guard_async().await;
-    let _guard = public_bearer_contract_guard_async().await;
     clear_shared_channel_sync_timeout_override();
-    let _required_issuer = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_ISS_ENV, "craw-chat");
-    let _required_audience = ScopedEnvVar::set(PUBLIC_BEARER_REQUIRED_AUD_ENV, "craw-chat-public");
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
         .expect("shared-channel sync test listener should bind");
@@ -766,7 +682,7 @@ async fn test_public_shared_channel_sync_trigger_includes_required_issuer_and_au
     let captured = CapturedSyncRequest::default();
     let app = Router::new()
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(capture_sync_call),
         )
         .with_state(captured.clone());
@@ -776,10 +692,7 @@ async fn test_public_shared_channel_sync_trigger_includes_required_issuer_and_au
             .expect("shared-channel sync test server should run");
     });
 
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        format!("http://{local_addr}"),
-        "test-shared-channel-secret",
-    )
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
     .expect("shared-channel sync trigger should build against local http target");
     trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -793,22 +706,30 @@ async fn test_public_shared_channel_sync_trigger_includes_required_issuer_and_au
         })
         .expect("shared-channel sync trigger should dispatch request");
 
-    let authorization = captured
-        .authorization
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .clone()
-        .expect("sync request should include authorization header");
-    let claims = decode_claims_from_bearer(authorization.as_str());
-    assert_eq!(claims["iss"], "craw-chat");
-    assert_eq!(claims["aud"], "craw-chat-public");
+    let headers = captured_app_context_headers(&captured);
+    assert_eq!(
+        headers.get("x-sdkwork-tenant-id").map(String::as_str),
+        Some("t_demo")
+    );
+    assert_eq!(
+        headers.get("x-sdkwork-user-id").map(String::as_str),
+        Some("control-plane-sync")
+    );
+    assert_eq!(
+        headers.get("x-sdkwork-actor-id").map(String::as_str),
+        Some("control-plane-sync")
+    );
+    assert_eq!(
+        headers.get("x-sdkwork-actor-kind").map(String::as_str),
+        Some("system")
+    );
 
     server.abort();
     let _ = server.await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_public_shared_channel_sync_trigger_fails_fast_when_http_timeout_is_exceeded() {
+async fn test_app_context_header_shared_channel_sync_trigger_fails_fast_when_http_timeout_is_exceeded() {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let _timeout_override = ScopedEnvVar::set(
@@ -824,7 +745,7 @@ async fn test_public_shared_channel_sync_trigger_fails_fast_when_http_timeout_is
     let captured = CapturedSyncRequest::default();
     let app = Router::new()
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(capture_sync_call_with_delay),
         )
         .with_state(captured);
@@ -834,10 +755,7 @@ async fn test_public_shared_channel_sync_trigger_fails_fast_when_http_timeout_is
             .expect("shared-channel sync timeout test server should run");
     });
 
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        format!("http://{local_addr}"),
-        "test-shared-channel-secret",
-    )
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -861,7 +779,7 @@ async fn test_public_shared_channel_sync_trigger_fails_fast_when_http_timeout_is
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_public_shared_channel_sync_trigger_rejects_oversized_response_body() {
+async fn test_app_context_header_shared_channel_sync_trigger_rejects_oversized_response_body() {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -873,7 +791,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_oversized_response_body
     let captured = CapturedSyncRequest::default();
     let app = Router::new()
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(capture_sync_call_with_large_error_body),
         )
         .with_state(captured);
@@ -883,10 +801,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_oversized_response_body
             .expect("shared-channel sync oversized body test server should run");
     });
 
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        format!("http://{local_addr}"),
-        "test-shared-channel-secret",
-    )
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -909,7 +824,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_oversized_response_body
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_public_shared_channel_sync_trigger_returns_backpressure_error_when_dispatch_queue_is_full()
+async fn test_app_context_header_shared_channel_sync_trigger_returns_backpressure_error_when_dispatch_queue_is_full()
  {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
@@ -932,7 +847,7 @@ async fn test_public_shared_channel_sync_trigger_returns_backpressure_error_when
     let captured = CapturedSyncRequest::default();
     let app = Router::new()
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(capture_sync_call_with_delay),
         )
         .with_state(captured);
@@ -942,10 +857,7 @@ async fn test_public_shared_channel_sync_trigger_returns_backpressure_error_when
             .expect("shared-channel sync queue backpressure test server should run");
     });
 
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        format!("http://{local_addr}"),
-        "test-shared-channel-secret",
-    )
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
     .expect("shared-channel sync trigger should build against local http target");
 
     let concurrent_calls = 8usize;
@@ -999,7 +911,7 @@ async fn test_public_shared_channel_sync_trigger_returns_backpressure_error_when
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_public_shared_channel_sync_trigger_rejects_invalid_ack_contract() {
+async fn test_app_context_header_shared_channel_sync_trigger_rejects_invalid_ack_contract() {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -1011,7 +923,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_invalid_ack_contract() 
     let captured = CapturedSyncRequest::default();
     let app = Router::new()
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(capture_sync_call_with_invalid_ack),
         )
         .with_state(captured);
@@ -1021,10 +933,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_invalid_ack_contract() 
             .expect("shared-channel sync invalid ack test server should run");
     });
 
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        format!("http://{local_addr}"),
-        "test-shared-channel-secret",
-    )
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -1049,7 +958,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_invalid_ack_contract() 
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_public_shared_channel_sync_trigger_rejects_ack_with_mismatched_member_truth() {
+async fn test_app_context_header_shared_channel_sync_trigger_rejects_ack_with_mismatched_member_truth() {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -1061,7 +970,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_ack_with_mismatched_mem
     let captured = CapturedSyncRequest::default();
     let app = Router::new()
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(capture_sync_call_with_mismatched_principal_ack),
         )
         .with_state(captured);
@@ -1071,10 +980,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_ack_with_mismatched_mem
             .expect("shared-channel sync mismatched ack test server should run");
     });
 
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        format!("http://{local_addr}"),
-        "test-shared-channel-secret",
-    )
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -1098,7 +1004,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_ack_with_mismatched_mem
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_public_shared_channel_sync_trigger_maps_replayed_ack_status() {
+async fn test_app_context_header_shared_channel_sync_trigger_maps_replayed_ack_status() {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -1110,7 +1016,7 @@ async fn test_public_shared_channel_sync_trigger_maps_replayed_ack_status() {
     let captured = CapturedSyncRequest::default();
     let app = Router::new()
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(capture_sync_call_with_replayed_ack),
         )
         .with_state(captured);
@@ -1120,10 +1026,7 @@ async fn test_public_shared_channel_sync_trigger_maps_replayed_ack_status() {
             .expect("shared-channel sync replayed ack test server should run");
     });
 
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        format!("http://{local_addr}"),
-        "test-shared-channel-secret",
-    )
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
     .expect("shared-channel sync trigger should build against local http target");
     let proof = trigger
         .trigger_with_delivery_proof(SharedChannelLinkedMemberSyncRequest {
@@ -1144,7 +1047,7 @@ async fn test_public_shared_channel_sync_trigger_maps_replayed_ack_status() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_public_shared_channel_sync_trigger_rejects_ack_without_request_key_commit_fence() {
+async fn test_app_context_header_shared_channel_sync_trigger_rejects_ack_without_request_key_commit_fence() {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -1156,7 +1059,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_ack_without_request_key
     let captured = CapturedSyncRequest::default();
     let app = Router::new()
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(capture_sync_call_without_request_key_commit_fence),
         )
         .with_state(captured);
@@ -1166,10 +1069,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_ack_without_request_key
             .expect("shared-channel sync commit-fence ack test server should run");
     });
 
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        format!("http://{local_addr}"),
-        "test-shared-channel-secret",
-    )
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -1192,7 +1092,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_ack_without_request_key
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_without_request_key_commit_fence()
+async fn test_app_context_header_shared_channel_sync_trigger_rejects_already_linked_ack_without_request_key_commit_fence()
  {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
@@ -1205,7 +1105,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_with
     let captured = CapturedSyncRequest::default();
     let app = Router::new()
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(capture_sync_call_already_linked_without_request_key_commit_fence),
         )
         .with_state(captured);
@@ -1215,10 +1115,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_with
             .expect("shared-channel sync already-linked commit-fence ack test server should run");
     });
 
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        format!("http://{local_addr}"),
-        "test-shared-channel-secret",
-    )
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -1243,7 +1140,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_with
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_with_mismatched_request_key_commit_fence()
+async fn test_app_context_header_shared_channel_sync_trigger_rejects_already_linked_ack_with_mismatched_request_key_commit_fence()
  {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
@@ -1256,7 +1153,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_with
     let captured = CapturedSyncRequest::default();
     let app = Router::new()
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(capture_sync_call_already_linked_with_mismatched_request_key_commit_fence),
         )
         .with_state(captured);
@@ -1266,10 +1163,7 @@ async fn test_public_shared_channel_sync_trigger_rejects_already_linked_ack_with
         );
     });
 
-    let trigger = control_plane_api::build_public_shared_channel_sync_trigger(
-        format!("http://{local_addr}"),
-        "test-shared-channel-secret",
-    )
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {

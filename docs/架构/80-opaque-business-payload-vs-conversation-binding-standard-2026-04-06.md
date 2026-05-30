@@ -26,7 +26,7 @@ A field is conversation-binding when it directly determines any of the following
 Current examples:
 
 - top-level route or request identifiers such as:
-  - `/api/v1/conversations/{conversationId}/...`
+  - `/im/v3/api/chat/conversations/{conversationId}/...`
   - request `conversationId`
 - stream binding fields:
   - `scopeKind = conversation`

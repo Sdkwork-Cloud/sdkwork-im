@@ -1,4 +1,4 @@
-use super::user_module::build_default_user_module_provider;
+use super::principal_profile::build_default_principal_profile_provider;
 use super::*;
 use control_plane_api::{
     SharedChannelLinkedMemberSyncRequest, SharedChannelLinkedMemberSyncTrigger,
@@ -8,7 +8,59 @@ use im_adapter_iot_access_local::LocalDeviceAccessProvider;
 use im_adapter_iot_mqtt::MqttIotProtocolAdapter;
 use im_adapters_local_disk::FileDeviceTwinStore;
 use im_adapters_local_memory::MemoryDeviceTwinStore;
+use im_adapters_postgres_realtime::{
+    PostgresRealtimeCheckpointStore, PostgresRealtimeConfig, PostgresRealtimeDisconnectFenceStore,
+    PostgresRealtimeEventWindowStore, PostgresRealtimePresenceStateStore,
+    PostgresRealtimeSubscriptionStore,
+};
+use serde::Deserialize;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
+use tower_http::limit::RequestBodyLimitLayer;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum LocalMinimalRealtimeStorageProvider {
+    LocalDisk,
+    Postgresql,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct LocalMinimalRealtimeStorageConfig {
+    provider: LocalMinimalRealtimeStorageProvider,
+    postgres: Option<PostgresRealtimeConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalMinimalPostgresConfigFile {
+    provider: String,
+    connection: LocalMinimalPostgresConnectionConfig,
+    #[serde(default)]
+    pool: LocalMinimalPostgresPoolConfig,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalMinimalPostgresConnectionConfig {
+    host: String,
+    #[serde(default = "default_postgres_port")]
+    port: u16,
+    database: String,
+    username: String,
+    password_file: String,
+    #[serde(default = "default_postgres_sslmode")]
+    sslmode: String,
+    #[serde(default)]
+    application_name: Option<String>,
+    #[serde(default)]
+    connect_timeout_seconds: Option<u64>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalMinimalPostgresPoolConfig {
+    min_connections: Option<u32>,
+    max_connections: Option<u32>,
+}
 
 #[derive(Clone)]
 struct LocalMinimalSharedChannelLinkedMemberSyncTrigger {
@@ -47,6 +99,18 @@ pub fn build_public_app() -> Router {
     }
 }
 
+pub fn try_build_public_app() -> Result<Router, String> {
+    match configured_runtime_dir() {
+        Some(runtime_dir) => try_build_public_app_with_bind_addr_and_runtime_dir(
+            resolve_bind_addr().as_str(),
+            runtime_dir,
+        ),
+        None => Ok(build_public_app_with_bind_addr(
+            resolve_bind_addr().as_str(),
+        )),
+    }
+}
+
 pub fn build_default_app_with_runtime_dir(runtime_dir: impl AsRef<StdPath>) -> Router {
     build_default_app_with_bind_addr_and_runtime_dir(resolve_bind_addr().as_str(), runtime_dir)
 }
@@ -55,17 +119,17 @@ pub fn build_public_app_with_runtime_dir(runtime_dir: impl AsRef<StdPath>) -> Ro
     build_public_app_with_bind_addr_and_runtime_dir(resolve_bind_addr().as_str(), runtime_dir)
 }
 
-pub fn build_default_app_with_user_module_provider(
-    user_module_provider: Arc<dyn UserModuleProvider>,
+pub fn build_default_app_with_principal_profile_provider(
+    principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
 ) -> Router {
     match configured_runtime_dir() {
-        Some(runtime_dir) => build_default_app_with_runtime_dir_and_user_module_provider(
+        Some(runtime_dir) => build_default_app_with_runtime_dir_and_principal_profile_provider(
             runtime_dir,
-            user_module_provider,
+            principal_profile_provider,
         ),
-        None => build_default_app_with_bind_addr_and_user_module_provider(
+        None => build_default_app_with_bind_addr_and_principal_profile_provider(
             resolve_bind_addr().as_str(),
-            user_module_provider,
+            principal_profile_provider,
         ),
     }
 }
@@ -100,14 +164,14 @@ pub fn build_default_app_with_iot_protocol_adapter(
     }
 }
 
-pub fn build_default_app_with_runtime_dir_and_user_module_provider(
+pub fn build_default_app_with_runtime_dir_and_principal_profile_provider(
     runtime_dir: impl AsRef<StdPath>,
-    user_module_provider: Arc<dyn UserModuleProvider>,
+    principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
 ) -> Router {
-    build_default_app_with_bind_addr_and_runtime_dir_and_user_module_provider(
+    build_default_app_with_bind_addr_and_runtime_dir_and_principal_profile_provider(
         resolve_bind_addr().as_str(),
         runtime_dir,
-        user_module_provider,
+        principal_profile_provider,
     )
 }
 
@@ -155,7 +219,7 @@ fn build_default_app_with_bind_addr(bind_addr: &str) -> Router {
         bind_addr,
         projection_service,
         realtime_cluster,
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
@@ -169,28 +233,29 @@ fn build_public_app_with_bind_addr(bind_addr: &str) -> Router {
         bind_addr,
         projection_service,
         realtime_cluster,
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
+    .layer(RequestBodyLimitLayer::new(5 * 1024 * 1024))
     .layer(build_public_browser_cors_layer())
-    .layer(middleware::from_fn(require_public_bearer_auth))
+    .layer(middleware::from_fn(require_app_context))
 }
 
 fn build_default_app_with_bind_addr_and_runtime_dir(
     bind_addr: &str,
     runtime_dir: impl AsRef<StdPath>,
 ) -> Router {
-    build_default_app_with_bind_addr_and_runtime_dir_and_user_module_provider(
+    build_default_app_with_bind_addr_and_runtime_dir_and_principal_profile_provider(
         bind_addr,
         runtime_dir,
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
     )
 }
 
-fn build_default_app_with_bind_addr_and_user_module_provider(
+fn build_default_app_with_bind_addr_and_principal_profile_provider(
     bind_addr: &str,
-    user_module_provider: Arc<dyn UserModuleProvider>,
+    principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
 ) -> Router {
     let projection_service = Arc::new(TimelineProjectionService::default());
     let realtime_cluster = Arc::new(RealtimeClusterBridge::default());
@@ -199,7 +264,7 @@ fn build_default_app_with_bind_addr_and_user_module_provider(
         bind_addr,
         projection_service,
         realtime_cluster,
-        user_module_provider,
+        principal_profile_provider,
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
@@ -216,7 +281,7 @@ fn build_default_app_with_bind_addr_and_device_access_provider(
         bind_addr,
         projection_service,
         realtime_cluster,
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
         device_access_provider,
         build_default_iot_protocol_adapter(),
     )
@@ -233,16 +298,16 @@ fn build_default_app_with_bind_addr_and_iot_protocol_adapter(
         bind_addr,
         projection_service,
         realtime_cluster,
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
         build_default_device_access_provider(),
         iot_protocol_adapter,
     )
 }
 
-fn build_default_app_with_bind_addr_and_runtime_dir_and_user_module_provider(
+fn build_default_app_with_bind_addr_and_runtime_dir_and_principal_profile_provider(
     bind_addr: &str,
     runtime_dir: impl AsRef<StdPath>,
-    user_module_provider: Arc<dyn UserModuleProvider>,
+    principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
 ) -> Router {
     let projection_service = Arc::new(TimelineProjectionService::default());
     let runtime_dir = runtime_dir.as_ref().to_path_buf();
@@ -276,7 +341,7 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_user_module_provider(
             projection_service,
         ),
         build_local_minimal_automation_runtime(journal, runtime_dir.as_path()),
-        user_module_provider,
+        principal_profile_provider,
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
@@ -319,7 +384,7 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_device_access_provider(
             projection_service,
         ),
         build_local_minimal_automation_runtime(journal, runtime_dir.as_path()),
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
         device_access_provider,
         build_default_iot_protocol_adapter(),
     )
@@ -362,7 +427,7 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_iot_protocol_adapter(
             projection_service,
         ),
         build_local_minimal_automation_runtime(journal, runtime_dir.as_path()),
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
         build_default_device_access_provider(),
         iot_protocol_adapter,
     )
@@ -372,14 +437,27 @@ fn build_public_app_with_bind_addr_and_runtime_dir(
     bind_addr: &str,
     runtime_dir: impl AsRef<StdPath>,
 ) -> Router {
+    try_build_public_app_with_bind_addr_and_runtime_dir(bind_addr, runtime_dir).unwrap_or_else(
+        |error| {
+            panic!("failed to build local-minimal public app: {error}");
+        },
+    )
+}
+
+fn try_build_public_app_with_bind_addr_and_runtime_dir(
+    bind_addr: &str,
+    runtime_dir: impl AsRef<StdPath>,
+) -> Result<Router, String> {
     let projection_service = Arc::new(TimelineProjectionService::default());
     let runtime_dir = runtime_dir.as_ref().to_path_buf();
     let projection_snapshot_stores =
         build_local_minimal_projection_snapshot_stores(runtime_dir.as_path());
     let realtime_scope_policy =
         realtime_policy::direct_chat_realtime_policy(projection_service.clone());
-    let realtime_plane =
-        build_local_minimal_realtime_plane(runtime_dir.as_path(), realtime_scope_policy.clone());
+    let realtime_plane = try_build_local_minimal_realtime_plane(
+        runtime_dir.as_path(),
+        realtime_scope_policy.clone(),
+    )?;
     let journal = ProjectionJournal::new_file(
         projection_service.clone(),
         runtime_dir
@@ -388,7 +466,7 @@ fn build_public_app_with_bind_addr_and_runtime_dir(
             .join("commit-journal.json"),
         projection_snapshot_stores,
     );
-    build_app_with_dependencies_and_runtime_and_journal(
+    Ok(build_app_with_dependencies_and_runtime_and_journal(
         "local_minimal_node_1",
         bind_addr,
         Some(runtime_dir.clone()),
@@ -404,30 +482,26 @@ fn build_public_app_with_bind_addr_and_runtime_dir(
             projection_service,
         ),
         build_local_minimal_automation_runtime(journal, runtime_dir.as_path()),
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
     .layer(build_public_browser_cors_layer())
-    .layer(middleware::from_fn(require_public_bearer_auth))
+    .layer(middleware::from_fn(require_app_context)))
 }
 
 fn build_public_browser_cors_layer() -> CorsLayer {
-    let user_center_config = user_center::resolve_effective_user_center_runtime_config();
     let mut allowed_headers = Vec::new();
     for header_name in [
         axum::http::header::AUTHORIZATION.as_str(),
         axum::http::header::CONTENT_TYPE.as_str(),
-        user_center_config.authorization_header_name.as_str(),
-        user_center_config.access_token_header_name.as_str(),
-        user_center_config.refresh_token_header_name.as_str(),
-        user_center_config.session_header_name.as_str(),
-        "x-sdkwork-app-id",
-        "x-sdkwork-user-center-provider-key",
-        "x-sdkwork-user-center-handshake-mode",
-        "x-sdkwork-user-center-secret-id",
-        "x-sdkwork-user-center-signature",
-        "x-sdkwork-user-center-signed-at",
+        "x-sdkwork-tenant-id",
+        "x-sdkwork-user-id",
+        "x-sdkwork-actor-id",
+        "x-sdkwork-actor-kind",
+        "x-sdkwork-session-id",
+        "x-sdkwork-device-id",
+        "x-sdkwork-permission-scope",
     ] {
         if let Ok(parsed) = header_name.parse::<axum::http::header::HeaderName>()
             && !allowed_headers.contains(&parsed)
@@ -454,6 +528,50 @@ fn build_public_browser_cors_layer() -> CorsLayer {
 }
 
 fn build_local_minimal_realtime_plane(
+    runtime_dir: impl AsRef<StdPath>,
+    scope_access_policy: Arc<dyn RealtimeScopeAccessPolicy>,
+) -> RealtimePlaneAssembly {
+    try_build_local_minimal_realtime_plane(runtime_dir, scope_access_policy).unwrap_or_else(
+        |error| {
+            panic!("failed to build local-minimal realtime plane: {error}");
+        },
+    )
+}
+
+fn try_build_local_minimal_realtime_plane(
+    runtime_dir: impl AsRef<StdPath>,
+    scope_access_policy: Arc<dyn RealtimeScopeAccessPolicy>,
+) -> Result<RealtimePlaneAssembly, String> {
+    let storage_config = resolve_local_minimal_realtime_storage_config_from_env()?;
+    try_build_local_minimal_realtime_plane_with_storage_config(
+        runtime_dir,
+        scope_access_policy,
+        storage_config,
+    )
+}
+
+fn try_build_local_minimal_realtime_plane_with_storage_config(
+    runtime_dir: impl AsRef<StdPath>,
+    scope_access_policy: Arc<dyn RealtimeScopeAccessPolicy>,
+    storage_config: LocalMinimalRealtimeStorageConfig,
+) -> Result<RealtimePlaneAssembly, String> {
+    match storage_config.provider {
+        LocalMinimalRealtimeStorageProvider::LocalDisk => Ok(
+            build_local_minimal_file_realtime_plane(runtime_dir, scope_access_policy),
+        ),
+        LocalMinimalRealtimeStorageProvider::Postgresql => {
+            build_local_minimal_postgres_realtime_plane(
+                runtime_dir,
+                scope_access_policy,
+                storage_config
+                    .postgres
+                    .ok_or_else(|| "postgresql realtime storage config is missing".to_owned())?,
+            )
+        }
+    }
+}
+
+fn build_local_minimal_file_realtime_plane(
     runtime_dir: impl AsRef<StdPath>,
     scope_access_policy: Arc<dyn RealtimeScopeAccessPolicy>,
 ) -> RealtimePlaneAssembly {
@@ -500,8 +618,285 @@ fn build_local_minimal_realtime_plane(
                 scope_access_policy,
             ),
         ),
-        Arc::new(SessionPresenceRuntime::with_store(presence_state_store)),
+        Arc::new(DevicePresenceRuntime::with_store(presence_state_store)),
     )
+}
+
+fn build_local_minimal_postgres_realtime_plane(
+    _runtime_dir: impl AsRef<StdPath>,
+    scope_access_policy: Arc<dyn RealtimeScopeAccessPolicy>,
+    postgres_config: PostgresRealtimeConfig,
+) -> Result<RealtimePlaneAssembly, String> {
+    let pool = postgres_config
+        .connect_pool()
+        .map_err(|error| format!("failed to create PostgreSQL realtime storage pool: {error:?}"))?;
+    let disconnect_fence_store = Arc::new(PostgresRealtimeDisconnectFenceStore::from_pool(
+        pool.clone(),
+    ));
+    let checkpoint_store = Arc::new(PostgresRealtimeCheckpointStore::from_pool(pool.clone()));
+    let subscription_store = Arc::new(PostgresRealtimeSubscriptionStore::from_pool(pool.clone()));
+    let event_window_store = Arc::new(PostgresRealtimeEventWindowStore::from_pool(pool.clone()));
+    let presence_state_store = Arc::new(PostgresRealtimePresenceStateStore::from_pool(pool));
+
+    Ok(RealtimePlaneAssembly::new(
+        Arc::new(RealtimeClusterBridge::with_disconnect_fence_store(
+            disconnect_fence_store,
+        )),
+        Arc::new(
+            RealtimeDeliveryRuntime::with_durable_stores_and_scope_access_policy(
+                checkpoint_store,
+                subscription_store,
+                event_window_store,
+                scope_access_policy,
+            ),
+        ),
+        Arc::new(DevicePresenceRuntime::with_store(presence_state_store)),
+    ))
+}
+
+fn resolve_local_minimal_realtime_storage_config_from_env()
+-> Result<LocalMinimalRealtimeStorageConfig, String> {
+    let storage_provider = std::env::var(CRAW_CHAT_STORAGE_PROVIDER_ENV).ok();
+    let database_url = std::env::var(CRAW_CHAT_DATABASE_URL_ENV).ok();
+    let postgres_config = std::env::var(CRAW_CHAT_POSTGRES_CONFIG_ENV).ok();
+    resolve_local_minimal_realtime_storage_config(
+        storage_provider.as_deref(),
+        database_url.as_deref(),
+        postgres_config.as_deref(),
+    )
+}
+
+fn resolve_local_minimal_realtime_storage_config(
+    storage_provider: Option<&str>,
+    database_url: Option<&str>,
+    postgres_config: Option<&str>,
+) -> Result<LocalMinimalRealtimeStorageConfig, String> {
+    let provider = normalize_realtime_storage_provider(storage_provider);
+    match provider.as_deref() {
+        None | Some("local-disk") | Some("localdisk") | Some("file") | Some("filesystem") => {
+            Ok(LocalMinimalRealtimeStorageConfig {
+                provider: LocalMinimalRealtimeStorageProvider::LocalDisk,
+                postgres: None,
+            })
+        }
+        Some("postgresql") | Some("postgres") => {
+            let database_url = normalize_realtime_storage_value(database_url);
+            let postgres = if let Some(database_url) = database_url {
+                PostgresRealtimeConfig::new(database_url)
+            } else if let Some(config_path) = normalize_realtime_storage_value(postgres_config) {
+                load_local_minimal_postgres_realtime_config(config_path.as_str())?
+            } else {
+                return Err(format!(
+                    "{CRAW_CHAT_STORAGE_PROVIDER_ENV}=postgresql requires {CRAW_CHAT_DATABASE_URL_ENV} or {CRAW_CHAT_POSTGRES_CONFIG_ENV}"
+                ));
+            };
+            Ok(LocalMinimalRealtimeStorageConfig {
+                provider: LocalMinimalRealtimeStorageProvider::Postgresql,
+                postgres: Some(postgres),
+            })
+        }
+        Some(provider) => Err(format!(
+            "{CRAW_CHAT_STORAGE_PROVIDER_ENV} has unsupported realtime storage provider `{provider}`; supported values are local-disk and postgresql"
+        )),
+    }
+}
+
+fn load_local_minimal_postgres_realtime_config(
+    config_path: &str,
+) -> Result<PostgresRealtimeConfig, String> {
+    let config_path = PathBuf::from(config_path);
+    let body = std::fs::read_to_string(&config_path).map_err(|error| {
+        format!(
+            "failed to read {CRAW_CHAT_POSTGRES_CONFIG_ENV} at {}: {error}",
+            config_path.display()
+        )
+    })?;
+    let parsed: LocalMinimalPostgresConfigFile =
+        serde_yaml::from_str(body.as_str()).map_err(|error| {
+            format!(
+                "failed to parse {CRAW_CHAT_POSTGRES_CONFIG_ENV} at {}: {error}",
+                config_path.display()
+            )
+        })?;
+    if parsed.provider.trim().eq_ignore_ascii_case("postgresql") {
+        validate_local_minimal_postgres_config(&parsed)?;
+        let connection = parsed.connection;
+        let password_path = resolve_postgres_password_file_path(
+            config_path.parent().unwrap_or_else(|| StdPath::new(".")),
+            connection.password_file.as_str(),
+        );
+        let password = std::fs::read_to_string(&password_path).map_err(|error| {
+            format!(
+                "failed to read PostgreSQL passwordFile at {}: {error}",
+                password_path.display()
+            )
+        })?;
+        let database_url =
+            render_postgres_key_value_connection_string(&connection, password.trim());
+        let mut postgres = PostgresRealtimeConfig::new(database_url);
+        if let Some(max_connections) = parsed.pool.max_connections {
+            postgres = postgres.with_pool_max_size(max_connections);
+        }
+        if let Some(min_connections) = parsed.pool.min_connections {
+            postgres = postgres.with_pool_min_idle(min_connections);
+        }
+        Ok(postgres)
+    } else {
+        Err(format!(
+            "{CRAW_CHAT_POSTGRES_CONFIG_ENV} provider must be postgresql, got `{}`",
+            parsed.provider
+        ))
+    }
+}
+
+fn validate_local_minimal_postgres_config(
+    parsed: &LocalMinimalPostgresConfigFile,
+) -> Result<(), String> {
+    let mut errors = Vec::new();
+    require_non_empty_postgres_field(
+        "connection.host",
+        parsed.connection.host.as_str(),
+        &mut errors,
+    );
+    require_non_empty_postgres_field(
+        "connection.database",
+        parsed.connection.database.as_str(),
+        &mut errors,
+    );
+    require_non_empty_postgres_field(
+        "connection.username",
+        parsed.connection.username.as_str(),
+        &mut errors,
+    );
+    require_non_empty_postgres_field(
+        "connection.passwordFile",
+        parsed.connection.password_file.as_str(),
+        &mut errors,
+    );
+    if parsed.connection.port == 0 {
+        errors.push("connection.port must be greater than zero".to_owned());
+    }
+    if matches!(parsed.connection.connect_timeout_seconds, Some(0)) {
+        errors.push("connection.connectTimeoutSeconds must be greater than zero".to_owned());
+    }
+    validate_postgres_sslmode(parsed.connection.sslmode.as_str(), &mut errors);
+    validate_postgres_pool_config(&parsed.pool, &mut errors);
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "{CRAW_CHAT_POSTGRES_CONFIG_ENV} has invalid PostgreSQL settings: {}",
+            errors.join("; ")
+        ))
+    }
+}
+
+fn require_non_empty_postgres_field(field: &'static str, value: &str, errors: &mut Vec<String>) {
+    if value.trim().is_empty() {
+        errors.push(format!("{field} must not be empty"));
+    }
+}
+
+fn validate_postgres_sslmode(sslmode: &str, errors: &mut Vec<String>) {
+    let normalized = sslmode.trim().to_ascii_lowercase();
+    let supported = [
+        "disable",
+        "allow",
+        "prefer",
+        "require",
+        "verify-ca",
+        "verify-full",
+    ];
+    if !supported.contains(&normalized.as_str()) {
+        errors.push(format!(
+            "connection.sslmode must be one of {}; got `{}`",
+            supported.join(", "),
+            sslmode.trim()
+        ));
+    }
+}
+
+fn validate_postgres_pool_config(pool: &LocalMinimalPostgresPoolConfig, errors: &mut Vec<String>) {
+    if matches!(pool.max_connections, Some(0)) {
+        errors.push("pool.maxConnections must be greater than zero".to_owned());
+    }
+    if let (Some(min_connections), Some(max_connections)) =
+        (pool.min_connections, pool.max_connections)
+        && min_connections > max_connections
+    {
+        errors.push(format!(
+            "pool.minConnections ({min_connections}) must be less than or equal to pool.maxConnections ({max_connections})"
+        ));
+    }
+}
+
+fn resolve_postgres_password_file_path(config_dir: &StdPath, password_file: &str) -> PathBuf {
+    let password_path = PathBuf::from(password_file);
+    if password_path.is_absolute() {
+        return password_path;
+    }
+    let config_root = config_dir.parent().unwrap_or(config_dir);
+    config_root.join(password_path)
+}
+
+fn render_postgres_key_value_connection_string(
+    connection: &LocalMinimalPostgresConnectionConfig,
+    password: &str,
+) -> String {
+    let mut parts = vec![
+        render_postgres_kv("host", connection.host.trim()),
+        format!("port={}", connection.port),
+        render_postgres_kv("dbname", connection.database.trim()),
+        render_postgres_kv("user", connection.username.trim()),
+        render_postgres_kv("password", password),
+        render_postgres_kv("sslmode", connection.sslmode.trim()),
+    ];
+    if let Some(application_name) = connection.application_name.as_deref()
+        && !application_name.trim().is_empty()
+    {
+        parts.push(render_postgres_kv(
+            "application_name",
+            application_name.trim(),
+        ));
+    }
+    if let Some(timeout_seconds) = connection.connect_timeout_seconds {
+        parts.push(format!("connect_timeout={timeout_seconds}"));
+    }
+    parts.join(" ")
+}
+
+fn render_postgres_kv(key: &str, value: &str) -> String {
+    let escaped = value
+        .chars()
+        .flat_map(|character| match character {
+            '\\' => ['\\', '\\'].into_iter().collect::<Vec<_>>(),
+            '\'' => ['\\', '\''].into_iter().collect::<Vec<_>>(),
+            character => [character].into_iter().collect::<Vec<_>>(),
+        })
+        .collect::<String>();
+    format!("{key}='{escaped}'")
+}
+
+fn default_postgres_port() -> u16 {
+    5432
+}
+
+fn default_postgres_sslmode() -> String {
+    "prefer".to_owned()
+}
+
+fn normalize_realtime_storage_provider(value: Option<&str>) -> Option<String> {
+    normalize_realtime_storage_value(value)
+        .map(|value| value.to_ascii_lowercase().replace('_', "-"))
+}
+
+fn normalize_realtime_storage_value(value: Option<&str>) -> Option<String> {
+    let normalized = value?.trim();
+    if normalized.is_empty() {
+        None
+    } else {
+        Some(normalized.to_owned())
+    }
 }
 
 fn build_local_minimal_streaming_runtime(
@@ -609,7 +1004,7 @@ pub fn build_app_with_dependencies(
         bind_addr,
         projection_service,
         realtime_cluster,
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
@@ -661,7 +1056,7 @@ pub fn build_app_with_dependencies_and_runtime_dir(
                 realtime_scope_policy.clone(),
             ),
         ),
-        Arc::new(SessionPresenceRuntime::with_store(presence_state_store)),
+        Arc::new(DevicePresenceRuntime::with_store(presence_state_store)),
     );
     let journal = ProjectionJournal::new_file(
         projection_service.clone(),
@@ -687,7 +1082,7 @@ pub fn build_app_with_dependencies_and_runtime_dir(
             projection_service,
         ),
         build_local_minimal_automation_runtime(journal, runtime_dir.as_path()),
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
@@ -698,7 +1093,7 @@ fn build_app_with_dependencies_and_provider_ports(
     bind_addr: impl Into<String>,
     projection_service: Arc<TimelineProjectionService>,
     realtime_cluster: Arc<RealtimeClusterBridge>,
-    user_module_provider: Arc<dyn UserModuleProvider>,
+    principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
     device_access_provider: Arc<dyn DeviceAccessProvider>,
     iot_protocol_adapter: Arc<dyn IotProtocolAdapter>,
 ) -> Router {
@@ -726,7 +1121,7 @@ fn build_app_with_dependencies_and_provider_ports(
             projection_service,
         )),
         Arc::new(AutomationRuntime::with_journal(Arc::new(journal))),
-        user_module_provider,
+        principal_profile_provider,
         device_access_provider,
         iot_protocol_adapter,
     )
@@ -755,7 +1150,7 @@ pub fn build_app_with_dependencies_and_runtime(
             projection_service,
         )),
         Arc::new(AutomationRuntime::default()),
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
@@ -782,7 +1177,7 @@ pub fn build_app_with_dependencies_realtime_and_notification_runtime(
         Arc::new(RtcRuntime::default()),
         notification_runtime,
         Arc::new(AutomationRuntime::default()),
-        build_default_user_module_provider(),
+        build_default_principal_profile_provider(),
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
@@ -803,7 +1198,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
     rtc_runtime: Arc<RtcRuntime>,
     notification_runtime: Arc<NotificationRuntime>,
     automation_runtime: Arc<AutomationRuntime>,
-    user_module_provider: Arc<dyn UserModuleProvider>,
+    principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
     device_access_provider: Arc<dyn DeviceAccessProvider>,
     iot_protocol_adapter: Arc<dyn IotProtocolAdapter>,
 ) -> Router {
@@ -811,7 +1206,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
     let bind_addr = bind_addr.into();
     realtime_plane.bind_node_runtime(node_id.as_str());
     let realtime_cluster = realtime_plane.realtime_cluster();
-    let session_presence_runtime = realtime_plane.presence_runtime();
+    let device_presence_runtime = realtime_plane.presence_runtime();
     let realtime_runtime = realtime_plane.realtime_runtime();
     let conversation_runtime = Arc::new(ConversationRuntime::new(journal.clone()));
     let replay_summary = replay_projection_journal(
@@ -877,7 +1272,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
     let device_registration = LocalNodeDeviceRegistration::new(
         node_id.clone(),
         realtime_cluster.clone(),
-        session_presence_runtime.clone(),
+        device_presence_runtime.clone(),
         realtime_runtime.clone(),
         projection_service.clone(),
         journal.snapshot_stores(),
@@ -892,20 +1287,18 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         )),
         None => Arc::new(MemoryDeviceTwinStore::default()),
     };
-    let auth_runtime = Arc::new(auth::AuthRuntime::new(runtime_dir.clone()));
     let pending_friend_request_accept_repairs =
         social::load_pending_friend_request_accept_repairs(runtime_dir.as_deref());
     let state = AppState {
         node_id: node_id.clone(),
         runtime_dir,
-        auth_runtime,
         control_plane_app: control_plane_app.clone(),
         social_query,
         realtime_cluster,
         conversation_runtime,
-        user_module_provider,
+        principal_profile_provider,
         projection_service,
-        session_presence_runtime,
+        device_presence_runtime,
         realtime_runtime,
         device_registration,
         device_twin_store,
@@ -947,7 +1340,7 @@ fn replay_projection_journal(
     let recorded = match journal.recorded() {
         Ok(recorded) => recorded,
         Err(error) => {
-            eprintln!(
+            tracing::warn!(
                 "failed to load local-minimal commit journal during startup replay: {error:?}. starting with empty replay backlog"
             );
             Vec::new()
@@ -1011,7 +1404,7 @@ fn replay_projection_journal(
         if replay_projection {
             backlog_size += 1;
             if let Err(error) = projection_service.apply(envelope) {
-                eprintln!(
+                tracing::warn!(
                     "failed to replay projection event {} during local-minimal startup: {error:?}. continuing bootstrap in degraded replay mode",
                     envelope.event_id
                 );
@@ -1021,7 +1414,7 @@ fn replay_projection_journal(
         }
 
         if let Err(error) = conversation_runtime.apply_recovered_envelope(envelope) {
-            eprintln!(
+            tracing::warn!(
                 "failed to replay conversation event {} during local-minimal startup: {error:?}. continuing bootstrap with partial domain recovery",
                 envelope.event_id
             );
@@ -1049,361 +1442,651 @@ fn replay_projection_journal(
 }
 
 fn build_app(state: AppState) -> Router {
-    let user_center_config = user_center::resolve_effective_user_center_runtime_config();
-    let user_center_login_path = user_center::login_path(&user_center_config);
-    let user_center_refresh_path = user_center::refresh_path(&user_center_config);
-    let user_center_profile_path = user_center::profile_path(&user_center_config);
-    let user_center_health_path = user_center::health_path(&user_center_config);
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
-        .route(APP_OPENAPI_SCHEMA_PATH, get(export_app_openapi_schema))
-        .route("/api/v1/auth/login", post(auth::login))
-        .route("/api/v1/auth/refresh", post(auth::refresh))
-        .route("/api/v1/auth/me", get(auth::me))
-        .route(user_center_login_path.as_str(), post(auth::login))
-        .route(user_center_refresh_path.as_str(), post(auth::refresh))
-        .route(user_center_profile_path.as_str(), get(auth::me))
+        .route(IM_OPENAPI_SCHEMA_PATH, get(export_im_openapi_schema))
         .route(
-            user_center_health_path.as_str(),
-            get(user_center::get_user_center_health),
-        )
-        .route("/api/v1/portal/home", get(portal::get_home))
-        .route("/api/v1/portal/auth", get(portal::get_auth))
-        .route("/api/v1/portal/workspace", get(portal::get_workspace))
-        .route("/api/v1/portal/dashboard", get(portal::get_dashboard))
-        .route(
-            "/api/v1/portal/conversations",
-            get(portal::get_conversations),
-        )
-        .route("/api/v1/portal/realtime", get(portal::get_realtime))
-        .route("/api/v1/portal/media", get(portal::get_media))
-        .route("/api/v1/portal/automation", get(portal::get_automation))
-        .route("/api/v1/portal/governance", get(portal::get_governance))
-        .route("/api/v1/sessions/resume", post(session::resume_session))
-        .route(
-            "/api/v1/sessions/disconnect",
-            post(session::disconnect_session),
+            APP_API_OPENAPI_SCHEMA_PATH,
+            get(export_app_api_openapi_schema),
         )
         .route(
-            "/api/v1/presence/heartbeat",
-            post(session::heartbeat_presence),
+            BACKEND_API_OPENAPI_SCHEMA_PATH,
+            get(export_backend_api_openapi_schema),
         )
-        .route("/api/v1/presence/me", get(session::get_presence_me))
+        .nest("/im/v3/api", im_standard_api_routes())
+        .nest("/app/v3/api", app_business_api_routes())
+        .nest("/backend/v3/api", backend_api_routes())
+        .with_state(state)
+}
+
+fn im_standard_api_routes() -> Router<AppState> {
+    Router::new()
         .route(
-            "/api/v1/realtime/subscriptions/sync",
-            post(session::sync_realtime_subscriptions),
-        )
-        .route("/api/v1/realtime/ws", get(session::realtime_websocket))
-        .route(
-            "/api/v1/realtime/events/ack",
-            post(session::ack_realtime_events),
-        )
-        .route(
-            "/api/v1/realtime/events",
-            get(session::list_realtime_events),
-        )
-        .route("/api/v1/devices/register", post(session::register_device))
-        .route(
-            "/api/v1/devices/{device_id}/sync-feed",
-            get(session::get_device_sync_feed),
+            "/device/sessions/resume",
+            post(device_session::resume_device_session),
         )
         .route(
-            "/api/v1/devices/{device_id}/twin",
-            get(twin::get_device_twin),
+            "/device/sessions/disconnect",
+            post(device_session::disconnect_device_session),
         )
         .route(
-            "/api/v1/devices/{device_id}/twin/desired",
-            post(twin::update_device_twin_desired),
+            "/presence/heartbeat",
+            post(device_session::heartbeat_presence),
+        )
+        .route("/presence/me", get(device_session::get_presence_me))
+        .route(
+            "/realtime/subscriptions/sync",
+            post(device_session::sync_realtime_subscriptions),
+        )
+        .route("/realtime/ws", get(device_session::realtime_websocket))
+        .route(
+            "/realtime/events/ack",
+            post(device_session::ack_realtime_events),
         )
         .route(
-            "/api/v1/devices/{device_id}/twin/reported",
-            post(twin::update_device_twin_reported),
+            "/realtime/events",
+            get(device_session::list_realtime_events),
+        )
+        .route("/devices/register", post(device_session::register_device))
+        .route(
+            "/devices/{device_id}/sync_feed",
+            get(device_session::get_device_sync_feed),
         )
         .route(
-            "/api/v1/social/friend-requests",
+            "/social/friend_requests",
             get(social::list_friend_requests).post(social::submit_friend_request),
         )
         .route(
-            "/api/v1/social/friend-requests/{request_id}/accept",
+            "/social/friend_requests/{request_id}/accept",
             post(social::accept_friend_request),
         )
         .route(
-            "/api/v1/social/friend-requests/{request_id}/decline",
+            "/social/friend_requests/{request_id}/decline",
             post(social::decline_friend_request),
         )
         .route(
-            "/api/v1/social/friend-requests/{request_id}/cancel",
+            "/social/friend_requests/{request_id}/cancel",
             post(social::cancel_friend_request),
         )
         .route(
-            "/api/v1/social/friendships/{friendship_id}/remove",
+            "/social/friendships/{friendship_id}/remove",
             post(social::remove_friendship),
         )
-        .route("/api/v1/contacts", get(projection::get_contacts))
-        .route("/api/v1/inbox", get(projection::get_inbox))
+        .route("/chat/contacts", get(projection::get_contacts))
+        .route("/chat/inbox", get(projection::get_inbox))
         .route(
-            "/api/v1/conversations",
+            "/chat/conversations",
             post(conversation::create_conversation),
         )
         .route(
-            "/api/v1/conversations/agent-dialogs",
+            "/chat/conversations/agent_dialogs",
             post(conversation::create_agent_dialog),
         )
         .route(
-            "/api/v1/conversations/agent-handoffs",
+            "/chat/conversations/agent_handoffs",
             post(conversation::create_agent_handoff),
         )
         .route(
-            "/api/v1/conversations/system-channels",
+            "/chat/conversations/system_channels",
             post(conversation::create_system_channel),
         )
         .route(
-            "/api/v1/conversations/threads",
+            "/chat/conversations/threads",
             post(conversation::create_thread_conversation),
         )
         .route(
-            "/api/v1/conversations/direct-chats/bindings",
+            "/chat/conversations/direct_chats/bindings",
             post(conversation::bind_direct_chat_conversation),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/agent-handoff",
+            "/chat/conversations/{conversation_id}/agent_handoff",
             get(handoff::get_agent_handoff_state),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/agent-handoff/accept",
+            "/chat/conversations/{conversation_id}/agent_handoff/accept",
             post(handoff::accept_agent_handoff),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/agent-handoff/resolve",
+            "/chat/conversations/{conversation_id}/agent_handoff/resolve",
             post(handoff::resolve_agent_handoff),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/agent-handoff/close",
+            "/chat/conversations/{conversation_id}/agent_handoff/close",
             post(handoff::close_agent_handoff),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}",
+            "/chat/conversations/{conversation_id}",
             get(projection::get_conversation_summary),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members",
+            "/chat/conversations/{conversation_id}/members",
             get(membership::list_members),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members/add",
+            "/chat/conversations/{conversation_id}/members/add",
             post(membership::add_member),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members/remove",
+            "/chat/conversations/{conversation_id}/members/remove",
             post(membership::remove_member),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members/transfer-owner",
+            "/chat/conversations/{conversation_id}/members/transfer_owner",
             post(membership::transfer_conversation_owner),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members/change-role",
+            "/chat/conversations/{conversation_id}/members/change_role",
             post(membership::change_conversation_member_role),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members/leave",
+            "/chat/conversations/{conversation_id}/members/leave",
             post(membership::leave_conversation),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/read-cursor",
+            "/chat/conversations/{conversation_id}/read_cursor",
             get(projection::get_read_cursor).post(projection::update_read_cursor),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/member-directory",
+            "/chat/conversations/{conversation_id}/member_directory",
             get(projection::get_member_directory),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/messages",
-            post(message::post_message),
+            "/chat/conversations/{conversation_id}/messages",
+            get(projection::get_timeline).post(message::post_message),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/system-channel/publish",
+            "/chat/conversations/{conversation_id}/system_channel/publish",
             post(message::publish_system_channel_message),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/messages",
-            get(projection::get_timeline),
-        )
-        .route(
-            "/api/v1/conversations/{conversation_id}/pins",
+            "/chat/conversations/{conversation_id}/pins",
             get(projection::get_pinned_messages),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/messages/{message_id}/interaction-summary",
+            "/chat/conversations/{conversation_id}/messages/{message_id}/interaction_summary",
             get(projection::get_message_interaction_summary),
         )
         .route(
-            "/api/v1/messages/{message_id}/edit",
+            "/chat/messages/{message_id}/edit",
             post(message::edit_message),
         )
         .route(
-            "/api/v1/messages/{message_id}/recall",
+            "/chat/messages/{message_id}/recall",
             post(message::recall_message),
         )
-        .route("/api/v1/media/uploads", post(media::create_media_upload))
+        .route("/media/uploads", post(media::create_media_upload))
         .route(
-            "/api/v1/media/uploads/{media_asset_id}/complete",
+            "/media/uploads/{media_asset_id}/complete",
             post(media::complete_media_upload),
         )
         .route(
-            "/api/v1/media/provider-health",
-            get(media::get_media_provider_health),
-        )
-        .route(
-            "/api/v1/user-module/provider-health",
-            get(user_module::get_user_module_provider_health),
-        )
-        .route(
-            "/api/v1/iot/access/provider-health",
-            get(iot::get_iot_access_provider_health),
-        )
-        .route(
-            "/api/v1/iot/protocol/provider-health",
-            get(iot::get_iot_protocol_provider_health),
-        )
-        .route(
-            "/api/v1/iot/protocol/uplink",
-            post(iot::ingest_iot_protocol_uplink),
-        )
-        .route(
-            "/api/v1/iot/protocol/downlink",
-            post(iot::ingest_iot_protocol_downlink),
-        )
-        .route(
-            "/api/v1/media/{media_asset_id}/download-url",
+            "/media/{media_asset_id}/download_url",
             get(media::get_media_download_url),
         )
-        .route("/api/v1/media/{media_asset_id}", get(media::get_media))
+        .route("/media/{media_asset_id}", get(media::get_media))
+        .route("/media/{media_asset_id}/attach", post(media::attach_media))
+        .route("/streams", post(stream::open_stream))
         .route(
-            "/api/v1/media/{media_asset_id}/attach",
-            post(media::attach_media),
-        )
-        .route("/api/v1/streams", post(stream::open_stream))
-        .route(
-            "/api/v1/streams/{stream_id}/frames",
-            post(stream::append_stream_frame).get(stream::list_stream_frames),
+            "/streams/{stream_id}/frames",
+            get(stream::list_stream_frames).post(stream::append_stream_frame),
         )
         .route(
-            "/api/v1/streams/{stream_id}/checkpoint",
+            "/streams/{stream_id}/checkpoint",
             post(stream::checkpoint_stream),
         )
         .route(
-            "/api/v1/streams/{stream_id}/complete",
+            "/streams/{stream_id}/complete",
             post(stream::complete_stream),
         )
+        .route("/streams/{stream_id}/abort", post(stream::abort_stream))
+        .route("/rtc/sessions", post(rtc::create_rtc_session))
         .route(
-            "/api/v1/streams/{stream_id}/abort",
-            post(stream::abort_stream),
-        )
-        .route("/api/v1/rtc/sessions", post(rtc::create_rtc_session))
-        .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/invite",
+            "/rtc/sessions/{rtc_session_id}/invite",
             post(rtc::invite_rtc_session),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/accept",
+            "/rtc/sessions/{rtc_session_id}/accept",
             post(rtc::accept_rtc_session),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/reject",
+            "/rtc/sessions/{rtc_session_id}/reject",
             post(rtc::reject_rtc_session),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/end",
+            "/rtc/sessions/{rtc_session_id}/end",
             post(rtc::end_rtc_session),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/signals",
+            "/rtc/sessions/{rtc_session_id}/signals",
             post(rtc::post_rtc_signal),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/credentials",
+            "/rtc/sessions/{rtc_session_id}/credentials",
             post(rtc::issue_rtc_participant_credential),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/artifacts/recording",
+            "/rtc/sessions/{rtc_session_id}/artifacts/recording",
             get(rtc::get_rtc_recording_artifact),
         )
+}
+
+fn app_business_api_routes() -> Router<AppState> {
+    Router::new()
+        .route("/portal/home", get(portal::get_home))
+        .route("/portal/access", get(portal::get_access))
+        .route("/portal/workspace", get(portal::get_workspace))
+        .route("/portal/dashboard", get(portal::get_dashboard))
+        .route("/portal/conversations", get(portal::get_conversations))
+        .route("/portal/realtime", get(portal::get_realtime))
+        .route("/portal/media", get(portal::get_media))
+        .route("/portal/automation", get(portal::get_automation))
+        .route("/portal/governance", get(portal::get_governance))
+        .route("/devices/{device_id}/twin", get(twin::get_device_twin))
         .route(
-            "/api/v1/rtc/provider-callbacks",
+            "/devices/{device_id}/twin/desired",
+            post(twin::update_device_twin_desired),
+        )
+        .route(
+            "/devices/{device_id}/twin/reported",
+            post(twin::update_device_twin_reported),
+        )
+        .route(
+            "/media/provider_health",
+            get(media::get_media_provider_health),
+        )
+        .route(
+            "/principal/profiles/provider_health",
+            get(principal_profile::get_principal_profile_provider_health),
+        )
+        .route(
+            "/iot/access/provider_health",
+            get(iot::get_iot_access_provider_health),
+        )
+        .route(
+            "/iot/protocol/provider_health",
+            get(iot::get_iot_protocol_provider_health),
+        )
+        .route(
+            "/iot/protocol/uplink",
+            post(iot::ingest_iot_protocol_uplink),
+        )
+        .route(
+            "/iot/protocol/downlink",
+            post(iot::ingest_iot_protocol_downlink),
+        )
+        .route(
+            "/rtc/provider_callbacks",
             post(rtc::map_rtc_provider_callback),
         )
+        .route("/rtc/provider_health", get(rtc::get_rtc_provider_health))
         .route(
-            "/api/v1/rtc/provider-health",
-            get(rtc::get_rtc_provider_health),
-        )
-        .route(
-            "/api/v1/notifications/requests",
+            "/notifications/requests",
             post(platform::request_notification),
         )
-        .route("/api/v1/notifications", get(platform::list_notifications))
+        .route("/notifications", get(platform::list_notifications))
         .route(
-            "/api/v1/notifications/{notification_id}",
+            "/notifications/{notification_id}",
             get(platform::get_notification),
         )
         .route(
-            "/api/v1/automation/executions",
+            "/automation/executions",
             post(platform::request_automation_execution),
         )
         .route(
-            "/api/v1/automation/governance",
-            get(platform::get_automation_governance),
-        )
-        .route(
-            "/api/v1/automation/agent-responses",
+            "/automation/agent_responses",
             post(platform::start_agent_response),
         )
         .route(
-            "/api/v1/automation/agent-responses/{stream_id}/frames",
+            "/automation/agent_responses/{stream_id}/frames",
             post(platform::append_agent_response_delta),
         )
         .route(
-            "/api/v1/automation/agent-responses/{stream_id}/complete",
+            "/automation/agent_responses/{stream_id}/complete",
             post(platform::complete_agent_response),
         )
         .route(
-            "/api/v1/automation/agent-tool-calls",
+            "/automation/agent_tool_calls",
             post(platform::request_agent_tool_call),
         )
         .route(
-            "/api/v1/automation/executions/{execution_id}/agent-tool-calls/{tool_call_id}/complete",
+            "/automation/executions/{execution_id}/agent_tool_calls/{tool_call_id}/complete",
             post(platform::complete_agent_tool_call),
         )
         .route(
-            "/api/v1/automation/executions/{execution_id}",
+            "/automation/executions/{execution_id}",
             get(platform::get_automation_execution),
         )
-        .route("/api/v1/audit/records", post(platform::record_audit_anchor))
-        .route("/api/v1/audit/records", get(platform::list_audit_records))
-        .route("/api/v1/audit/export", get(platform::export_audit_bundle))
-        .route("/api/v1/ops/health", get(platform::get_ops_health))
-        .route("/api/v1/ops/cluster", get(platform::get_ops_cluster))
-        .route("/api/v1/ops/lag", get(platform::get_ops_lag))
+}
+
+fn backend_api_routes() -> Router<AppState> {
+    Router::new()
         .route(
-            "/api/v1/ops/replay-status",
-            get(platform::get_ops_replay_status),
+            "/automation/governance",
+            get(platform::get_automation_governance),
         )
         .route(
-            "/api/v1/ops/runtime-dir",
-            get(platform::get_ops_runtime_dir),
+            "/audit/records",
+            get(platform::list_audit_records).post(platform::record_audit_anchor),
         )
+        .route("/audit/export", get(platform::export_audit_bundle))
+        .route("/ops/health", get(platform::get_ops_health))
+        .route("/ops/cluster", get(platform::get_ops_cluster))
+        .route("/ops/lag", get(platform::get_ops_lag))
+        .route("/ops/replay_status", get(platform::get_ops_replay_status))
         .route(
-            "/api/v1/ops/provider-bindings",
+            "/ops/commercial_readiness",
+            get(platform::get_ops_commercial_readiness),
+        )
+        .route("/ops/runtime_dir", get(platform::get_ops_runtime_dir))
+        .route(
+            "/ops/provider_bindings",
             get(platform::get_ops_provider_bindings),
         )
         .route(
-            "/api/v1/ops/provider-bindings/drift",
+            "/ops/provider_bindings/drift",
             get(platform::get_ops_provider_binding_drift),
         )
-        .route(
-            "/api/v1/ops/diagnostics",
-            get(platform::get_ops_diagnostics),
+        .route("/ops/diagnostics", get(platform::get_ops_diagnostics))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use session_gateway::StandaloneRealtimeScopeAccessPolicy;
+
+    #[test]
+    fn test_resolve_local_minimal_realtime_storage_config_defaults_to_local_disk() {
+        let config = resolve_local_minimal_realtime_storage_config(None, None, None)
+            .expect("missing storage provider should keep the local development default");
+
+        assert_eq!(
+            config.provider,
+            LocalMinimalRealtimeStorageProvider::LocalDisk
+        );
+        assert!(config.postgres.is_none());
+    }
+
+    #[test]
+    fn test_resolve_local_minimal_realtime_storage_config_rejects_postgres_without_database_url() {
+        let error = resolve_local_minimal_realtime_storage_config(Some("postgresql"), None, None)
+            .expect_err("postgresql realtime storage must not silently fall back to local disk");
+
+        assert!(
+            error.contains(CRAW_CHAT_DATABASE_URL_ENV),
+            "missing PostgreSQL database URL should name the executable runtime env var: {error}"
+        );
+        assert!(
+            error.contains(CRAW_CHAT_POSTGRES_CONFIG_ENV),
+            "missing PostgreSQL database URL should explain why config-only input is insufficient: {error}"
+        );
+    }
+
+    #[test]
+    fn test_resolve_local_minimal_realtime_storage_config_builds_postgres_config_from_database_url()
+    {
+        let config = resolve_local_minimal_realtime_storage_config(
+            Some(" PostgreSQL "),
+            Some(" postgres://chat_user:chat_pass@localhost:5432/chat "),
+            None,
         )
-        .with_state(state)
+        .expect("postgresql storage provider should accept an explicit database URL");
+
+        assert_eq!(
+            config.provider,
+            LocalMinimalRealtimeStorageProvider::Postgresql
+        );
+        let postgres = config
+            .postgres
+            .expect("postgresql storage config should include adapter config");
+        assert_eq!(
+            postgres.database_url(),
+            "postgres://chat_user:chat_pass@localhost:5432/chat"
+        );
+    }
+
+    #[test]
+    fn test_resolve_local_minimal_realtime_storage_config_builds_postgres_config_from_yaml_file() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after epoch")
+            .as_nanos();
+        let config_root = std::env::temp_dir().join(format!("craw_chat_postgres_config_{unique}"));
+        let storage_dir = config_root.join("storage");
+        let secrets_dir = config_root.join("secrets");
+        std::fs::create_dir_all(&storage_dir).expect("storage dir should be created");
+        std::fs::create_dir_all(&secrets_dir).expect("secrets dir should be created");
+        std::fs::write(secrets_dir.join("postgresql.password"), "demo-secret\n")
+            .expect("password file should be written");
+        let postgres_config_path = storage_dir.join("postgresql.yaml");
+        std::fs::write(
+            &postgres_config_path,
+            r#"provider: postgresql
+connection:
+  host: 127.0.0.1
+  port: 15432
+  database: craw_chat
+  username: craw_chat_app
+  passwordFile: ./secrets/postgresql.password
+  sslmode: require
+  applicationName: craw-chat-server
+  connectTimeoutSeconds: 10
+pool:
+  minConnections: 5
+  maxConnections: 30
+"#,
+        )
+        .expect("postgresql config should be written");
+
+        let config = resolve_local_minimal_realtime_storage_config(
+            Some("postgresql"),
+            None,
+            Some(
+                postgres_config_path
+                    .to_str()
+                    .expect("postgres config path should be utf-8"),
+            ),
+        )
+        .expect("postgresql storage provider should accept the packaged postgresql.yaml contract");
+
+        assert_eq!(
+            config.provider,
+            LocalMinimalRealtimeStorageProvider::Postgresql
+        );
+        let postgres = config
+            .postgres
+            .expect("postgresql storage config should include adapter config");
+        assert_eq!(postgres.pool_max_size(), 30);
+        assert_eq!(postgres.pool_min_idle(), Some(5));
+        let connection = postgres.database_url();
+        for expected in [
+            "host='127.0.0.1'",
+            "port=15432",
+            "dbname='craw_chat'",
+            "user='craw_chat_app'",
+            "password='demo-secret'",
+            "sslmode='require'",
+            "application_name='craw-chat-server'",
+            "connect_timeout=10",
+        ] {
+            assert!(
+                connection.contains(expected),
+                "generated PostgreSQL connection string should contain `{expected}`, got: {connection}"
+            );
+        }
+
+        let _ = std::fs::remove_dir_all(config_root);
+    }
+
+    #[test]
+    fn test_resolve_local_minimal_realtime_storage_config_rejects_unknown_provider() {
+        let error = resolve_local_minimal_realtime_storage_config(Some("memory"), None, None)
+            .expect_err("unknown realtime storage providers should fail closed");
+
+        assert!(
+            error.contains(CRAW_CHAT_STORAGE_PROVIDER_ENV) && error.contains("memory"),
+            "unknown provider error should be actionable: {error}"
+        );
+    }
+
+    #[test]
+    fn test_postgres_key_value_connection_string_escapes_password_quotes_and_backslashes() {
+        let connection = LocalMinimalPostgresConnectionConfig {
+            host: "127.0.0.1".into(),
+            port: 5432,
+            database: "craw_chat".into(),
+            username: "craw_chat_app".into(),
+            password_file: "unused".into(),
+            sslmode: "require".into(),
+            application_name: Some("craw-chat-server".into()),
+            connect_timeout_seconds: Some(10),
+        };
+
+        let rendered = render_postgres_key_value_connection_string(&connection, r#"pa'ss\word"#);
+
+        assert!(
+            rendered.contains(r#"password='pa\'ss\\word'"#),
+            "PostgreSQL key/value strings must escape password quotes and backslashes, got: {rendered}"
+        );
+    }
+
+    #[test]
+    fn test_resolve_local_minimal_realtime_storage_config_rejects_unsafe_postgres_yaml_values() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after epoch")
+            .as_nanos();
+        let config_root =
+            std::env::temp_dir().join(format!("craw_chat_postgres_invalid_config_{unique}"));
+        let storage_dir = config_root.join("storage");
+        let secrets_dir = config_root.join("secrets");
+        std::fs::create_dir_all(&storage_dir).expect("storage dir should be created");
+        std::fs::create_dir_all(&secrets_dir).expect("secrets dir should be created");
+        std::fs::write(secrets_dir.join("postgresql.password"), "demo-secret\n")
+            .expect("password file should be written");
+        let postgres_config_path = storage_dir.join("postgresql.yaml");
+        std::fs::write(
+            &postgres_config_path,
+            r#"provider: postgresql
+connection:
+  host: "   "
+  database: craw_chat
+  username: craw_chat_app
+  passwordFile: ./secrets/postgresql.password
+  sslmode: trust-me
+pool:
+  minConnections: 31
+  maxConnections: 30
+"#,
+        )
+        .expect("postgresql config should be written");
+
+        let error = resolve_local_minimal_realtime_storage_config(
+            Some("postgresql"),
+            None,
+            Some(
+                postgres_config_path
+                    .to_str()
+                    .expect("postgres config path should be utf-8"),
+            ),
+        )
+        .expect_err("unsafe PostgreSQL yaml values must fail before pool construction");
+
+        assert!(
+            error.contains("connection.host"),
+            "empty host should be rejected with a field-specific error: {error}"
+        );
+        assert!(
+            error.contains("connection.sslmode"),
+            "unsupported sslmode should be rejected with a field-specific error: {error}"
+        );
+        assert!(
+            error.contains("pool.minConnections") && error.contains("pool.maxConnections"),
+            "pool min/max inversion should be rejected before r2d2 clamps values: {error}"
+        );
+
+        let _ = std::fs::remove_dir_all(config_root);
+    }
+
+    #[test]
+    fn test_resolve_local_minimal_realtime_storage_config_rejects_zero_postgres_port_and_timeout() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be after epoch")
+            .as_nanos();
+        let config_root =
+            std::env::temp_dir().join(format!("craw_chat_postgres_zero_config_{unique}"));
+        let storage_dir = config_root.join("storage");
+        let secrets_dir = config_root.join("secrets");
+        std::fs::create_dir_all(&storage_dir).expect("storage dir should be created");
+        std::fs::create_dir_all(&secrets_dir).expect("secrets dir should be created");
+        std::fs::write(secrets_dir.join("postgresql.password"), "demo-secret\n")
+            .expect("password file should be written");
+        let postgres_config_path = storage_dir.join("postgresql.yaml");
+        std::fs::write(
+            &postgres_config_path,
+            r#"provider: postgresql
+connection:
+  host: 127.0.0.1
+  port: 0
+  database: craw_chat
+  username: craw_chat_app
+  passwordFile: ./secrets/postgresql.password
+  sslmode: prefer
+  connectTimeoutSeconds: 0
+pool:
+  minConnections: 0
+  maxConnections: 30
+"#,
+        )
+        .expect("postgresql config should be written");
+
+        let error = resolve_local_minimal_realtime_storage_config(
+            Some("postgresql"),
+            None,
+            Some(
+                postgres_config_path
+                    .to_str()
+                    .expect("postgres config path should be utf-8"),
+            ),
+        )
+        .expect_err("zero PostgreSQL port and timeout must fail before pool construction");
+
+        assert!(
+            error.contains("connection.port"),
+            "zero PostgreSQL port should be rejected with a field-specific error: {error}"
+        );
+        assert!(
+            error.contains("connection.connectTimeoutSeconds"),
+            "zero PostgreSQL connect timeout should be rejected with a field-specific error: {error}"
+        );
+        assert!(
+            !error.contains("demo-secret"),
+            "configuration validation errors must not leak secrets: {error}"
+        );
+
+        let _ = std::fs::remove_dir_all(config_root);
+    }
+
+    #[test]
+    fn test_try_build_local_minimal_realtime_plane_rejects_postgres_without_database_url() {
+        let policy = Arc::new(StandaloneRealtimeScopeAccessPolicy);
+        let result = try_build_local_minimal_realtime_plane_with_storage_config(
+            std::env::temp_dir(),
+            policy,
+            LocalMinimalRealtimeStorageConfig {
+                provider: LocalMinimalRealtimeStorageProvider::Postgresql,
+                postgres: None,
+            },
+        );
+        let error = match result {
+            Ok(_) => panic!("postgresql realtime storage must not build without executable config"),
+            Err(error) => error,
+        };
+
+        assert!(
+            error.contains("postgresql realtime storage config is missing"),
+            "missing runtime adapter config should fail before any local-disk fallback: {error}"
+        );
+    }
 }

@@ -30,7 +30,7 @@
 - actual_changes:
   - 新增 `ConversationScenario::Thread`
   - 新增 `CreateThreadConversationCommand` 与 dedicated runtime create path
-  - 新增 `POST /api/v1/conversations/threads`
+  - 新增 `POST /im/v3/api/chat/conversations/threads`
   - thread 现以 `group conversation + root message` 为锚点，并写入 `businessType = thread / businessId = rootMessageId`
   - binding/readback 与 recovery replay 均保留该 truth
 - changed_files:

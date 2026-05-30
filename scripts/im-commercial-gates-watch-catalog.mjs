@@ -13,10 +13,6 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_WATCH_REQUIREMENTS = [
     'im commercial gates workflow must watch its own workflow file',
   ),
   createWatchRequirement(
-    '.github/workflows/user-center-upstream-sync.yml',
-    'im commercial gates workflow must watch the user-center upstream sync workflow because it governs cross-repository identity standard propagation',
-  ),
-  createWatchRequirement(
     'Cargo.toml',
     'im commercial gates workflow must watch the Rust workspace manifest',
   ),
@@ -95,30 +91,6 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_WATCH_REQUIREMENTS = [
   createWatchRequirement(
     'scripts/run-commercial-gates-governance-node-tests.test.mjs',
     'im commercial gates workflow must watch the governance node test runner contract test',
-  ),
-  createWatchRequirement(
-    'scripts/run-user-center-standard.mjs',
-    'im commercial gates workflow must watch the root user-center standard runner entrypoint',
-  ),
-  createWatchRequirement(
-    'scripts/run-user-center-standard.test.mjs',
-    'im commercial gates workflow must watch the root user-center standard runner contract test',
-  ),
-  createWatchRequirement(
-    'scripts/server-user-center-entrypoint-contract.test.mjs',
-    'im commercial gates workflow must watch the server deployment entrypoint user-center contract test',
-  ),
-  createWatchRequirement(
-    'scripts/user-center-upstream-sync-payload.mjs',
-    'im commercial gates workflow must watch the upstream sync payload validator entrypoint',
-  ),
-  createWatchRequirement(
-    'scripts/user-center-upstream-sync-payload.test.mjs',
-    'im commercial gates workflow must watch the upstream sync payload validator contract test',
-  ),
-  createWatchRequirement(
-    'scripts/user-center-upstream-sync-workflow.test.mjs',
-    'im commercial gates workflow must watch the upstream sync workflow contract test',
   ),
   createWatchRequirement(
     'scripts/strict-contract-catalog.mjs',

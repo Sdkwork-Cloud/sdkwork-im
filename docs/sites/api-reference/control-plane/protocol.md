@@ -7,7 +7,7 @@
 
 <div class="api-link-list">
   <a href="/api-reference/control-plane/providers"><code>Providers</code> Provider registry, bindings, preview, and rollback flows are documented separately</a>
-  <a href="/sdk/control-plane-sdk"><code>Control-Plane SDK</code> Read the admin SDK page for audience boundaries and release-state limits</a>
+  <a href="/sdk/backend-sdk"><code>Backend SDK</code> Read the backend SDK page for control module boundaries and release-state limits</a>
 </div>
 
 <a id="get-control-healthz"></a>
@@ -26,7 +26,7 @@ Returns the liveness state of the control-plane process.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>Open endpoint</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / protocol-governance</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.protocol</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Not required</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ControlPlaneHealthResponse`</span></div>
 </div>
@@ -37,22 +37,22 @@ Returns the liveness state of the control-plane process.
 
 </section>
 
-<a id="get-protocol-registry"></a>
+<a id="get-protocol_registry"></a>
 <section class="api-op">
 
-## `GET /api/v1/control/protocol-registry`
+## `GET /backend/v3/api/control/protocol_registry`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/api/v1/control/protocol-registry</code>
+  <code>/backend/v3/api/control/protocol_registry</code>
   <span class="api-op-id">operationId: getProtocolRegistry</span>
 </div>
 
 Returns the active protocol registry snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / protocol-governance</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.protocol</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProtocolRegistryResponse`</span></div>
 </div>
@@ -67,27 +67,27 @@ Returns the active protocol registry snapshot.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks the required control-plane permission. |
 | `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
 
 </section>
-<a id="get-protocol-governance"></a>
+<a id="get-protocol_governance"></a>
 <section class="api-op">
 
-## `GET /api/v1/control/protocol-governance`
+## `GET /backend/v3/api/control/protocol_governance`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/api/v1/control/protocol-governance</code>
+  <code>/backend/v3/api/control/protocol_governance</code>
   <span class="api-op-id">operationId: getProtocolGovernance</span>
 </div>
 
 Returns the effective control-plane governance snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / protocol-governance</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.protocol</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProtocolGovernanceResponse`</span></div>
 </div>
@@ -102,7 +102,7 @@ Returns the effective control-plane governance snapshot.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks the required control-plane permission. |
 | `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
 

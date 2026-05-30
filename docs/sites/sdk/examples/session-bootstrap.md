@@ -1,4 +1,4 @@
-# Session Bootstrap
+# Device Sessions Bootstrap
 
 ## Goal
 

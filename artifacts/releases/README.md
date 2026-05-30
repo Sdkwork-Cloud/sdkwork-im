@@ -172,8 +172,9 @@ The SDK release catalog is a machine-readable release snapshot, not a hand-maint
   - the checked-in `.sdkwork-assembly.json` files under each SDK workspace
 - current workspaces:
   - `sdks/sdkwork-im-sdk`
-  - `sdks/sdkwork-control-plane-sdk`
-  - `sdks/sdkwork-im-admin-sdk`
+  - `sdks/sdkwork-im-app-sdk`
+  - `sdks/sdkwork-im-backend-sdk`
+  - `sdks/sdkwork-rtc-sdk`
 - synchronization script:
   - `node artifacts/releases/sync-sdk-release-catalog.mjs --bundle <bundle-id>`
 - drift check:
@@ -191,11 +192,14 @@ The release-state semantics are:
 ## Current Status
 
 - `wave-d-2026-04-08` already includes a checked-in `sdk-release-catalog.json`
-- the current SDK release-catalog state is `generated_pending_publication`
-- the tracked artifact set currently covers the full app multi-language family plus the admin and
-  IM admin TypeScript/Flutter outputs recorded in `sdk-release-catalog.json`
-- every tracked artifact currently shows:
+- the current SDK release-catalog state is `template_only_pending_generation`
+- the tracked artifact set covers the IM standard, App API, Backend API, and RTC provider-runtime
+  SDK families recorded in `sdk-release-catalog.json`
+- the generated HTTP SDK families currently show:
   - `generationStatus = generated`
+  - `releaseStatus = not_published`
+- the independent RTC provider-runtime SDK family currently shows:
+  - `generationStatus = template_only_pending_generation`
   - `releaseStatus = not_published`
 - version-freeze fields remain explicit until publication is planned:
   - `plannedVersion = null`

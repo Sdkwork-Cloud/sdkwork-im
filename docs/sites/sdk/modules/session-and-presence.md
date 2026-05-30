@@ -1,4 +1,4 @@
-# Session and Presence
+# Device Sessions and Presence
 
 ## What This Module Is For
 
@@ -14,7 +14,7 @@ The primary App API alignment is the session and realtime domain.
 
 ## Common Workflows
 
-Typical flows include session resume, disconnect handling, and presence state reads.
+Typical flows include device route resume, disconnect handling, and presence state reads.
 
 ## Ownership and Status
 

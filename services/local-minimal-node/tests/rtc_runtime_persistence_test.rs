@@ -27,12 +27,12 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
-                .header("x-session-id", "s_phone")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("x-sdkwork-session-id", "s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -51,12 +51,12 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
-                .header("x-session-id", "s_phone")
+                .uri("/im/v3/api/rtc/sessions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("x-sdkwork-session-id", "s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -76,12 +76,12 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_restart_demo/invite")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
-                .header("x-session-id", "s_phone")
+                .uri("/im/v3/api/rtc/sessions/rtc_restart_demo/invite")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("x-sdkwork-session-id", "s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -107,12 +107,12 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_restart_demo/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
-                .header("x-session-id", "s_phone_new")
+                .uri("/im/v3/api/rtc/sessions/rtc_restart_demo/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("x-sdkwork-session-id", "s_phone_new")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -141,12 +141,12 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_restart_demo/signals")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
-                .header("x-session-id", "s_phone_new")
+                .uri("/im/v3/api/rtc/sessions/rtc_restart_demo/signals")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("x-sdkwork-session-id", "s_phone_new")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -176,12 +176,12 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_restart_demo/end")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
-                .header("x-session-id", "s_phone_new")
+                .uri("/im/v3/api/rtc/sessions/rtc_restart_demo/end")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("x-sdkwork-session-id", "s_phone_new")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -197,12 +197,12 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
     let timeline = app_after
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_rtc_restart/messages")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
-                .header("x-session-id", "s_phone_new")
+                .uri("/im/v3/api/chat/conversations/c_rtc_restart/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("x-sdkwork-session-id", "s_phone_new")
                 .body(Body::empty())
                 .unwrap(),
         )

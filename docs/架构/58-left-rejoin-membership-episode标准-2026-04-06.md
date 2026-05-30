@@ -69,8 +69,8 @@ cm_{conversationId}_{principalId}_e3
 ```
 
 - 旧 episode 的 cursor 保留，不迁移到新 episode。
-- `GET /api/v1/conversations/{id}/read-cursor` 只能读取当前 active episode 的 cursor。
-- `POST /api/v1/conversations/{id}/read-cursor` 只能推进当前 active episode 的 cursor。
+- `GET /im/v3/api/chat/conversations/{id}/read-cursor` 只能读取当前 active episode 的 cursor。
+- `POST /im/v3/api/chat/conversations/{id}/read-cursor` 只能推进当前 active episode 的 cursor。
 
 ## 5. 治理动作标准
 
@@ -106,7 +106,7 @@ cm_{conversationId}_{principalId}_e3
 
 ## 7. 对外 API 影响
 
-- `POST /api/v1/conversations/{id}/members/add` 的请求体不变。
+- `POST /im/v3/api/chat/conversations/{id}/members/add` 的请求体不变。
 - 但当目标 principal 是历史成员重新加入时，响应中的 `memberId` 会变化为新的 episode 身份。
 - `GET /read-cursor` 返回的 `memberId` 也会切换为当前 active episode 的新值。
 

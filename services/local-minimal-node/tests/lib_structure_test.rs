@@ -104,10 +104,10 @@ fn test_local_minimal_node_session_surface_moves_out_of_node_impl() {
     let node_source = include_str!("../src/node.rs");
 
     for forbidden_symbol in [
-        "async fn resume_session(",
+        "async fn resume_device_session(",
         "async fn get_presence_me(",
         "async fn heartbeat_presence(",
-        "async fn disconnect_session(",
+        "async fn disconnect_device_session(",
         "async fn register_device(",
         "async fn sync_realtime_subscriptions(",
         "async fn list_realtime_events(",
@@ -245,7 +245,7 @@ fn test_local_minimal_node_message_paths_use_auth_context_command_constructors()
     let combined = format!("{effects_source}\n{message_source}");
     assert!(
         combined.contains("from_auth_context("),
-        "local-minimal-node message paths should construct message mutation commands from AuthContext in one place"
+        "local-minimal-node message paths should construct message mutation commands from AppContext in one place"
     );
 
     for forbidden_symbol in [
@@ -288,7 +288,7 @@ fn test_local_minimal_node_non_message_paths_use_auth_context_command_constructo
     ] {
         assert!(
             combined.contains(required_symbol),
-            "local-minimal-node non-message paths should consume runtime auth-context entrypoint in one place: {required_symbol}"
+            "local-minimal-node non-message paths should consume runtime principal-context entrypoint in one place: {required_symbol}"
         );
     }
 
@@ -322,7 +322,7 @@ fn test_local_minimal_node_non_message_paths_use_auth_context_command_constructo
     ] {
         assert!(
             !combined.contains(forbidden_symbol),
-            "local-minimal-node non-message paths should not keep non-message authority capture outside runtime auth-context entrypoint: {forbidden_symbol}"
+            "local-minimal-node non-message paths should not keep non-message authority capture outside runtime principal-context entrypoint: {forbidden_symbol}"
         );
     }
 }
@@ -354,7 +354,7 @@ fn test_local_minimal_node_non_message_paths_use_runtime_auth_context_entrypoint
     ] {
         assert!(
             combined.contains(required_symbol),
-            "local-minimal-node non-message paths should consume runtime auth-context entrypoint: {required_symbol}"
+            "local-minimal-node non-message paths should consume runtime principal-context entrypoint: {required_symbol}"
         );
     }
 
@@ -363,7 +363,7 @@ fn test_local_minimal_node_non_message_paths_use_runtime_auth_context_entrypoint
             && !combined.contains("with_creator_kind(")
             && !combined.contains("with_requester_kind(")
             && !combined.contains("with_source_kind("),
-        "local-minimal-node non-message write paths should not use the old *with_*kind entrypoints once conversation-runtime owns that auth-context boundary"
+        "local-minimal-node non-message write paths should not use the old *with_*kind entrypoints once conversation-runtime owns that principal-context boundary"
     );
 }
 
@@ -383,7 +383,7 @@ fn test_local_minimal_node_read_query_paths_use_runtime_auth_context_entrypoints
     ] {
         assert!(
             combined.contains(required_symbol),
-            "local-minimal-node read query paths should consume runtime auth-context entrypoint: {required_symbol}"
+            "local-minimal-node read query paths should consume runtime principal-context entrypoint: {required_symbol}"
         );
     }
 
@@ -394,7 +394,7 @@ fn test_local_minimal_node_read_query_paths_use_runtime_auth_context_entrypoints
     ] {
         assert!(
             !combined.contains(forbidden_symbol),
-            "local-minimal-node read query paths should not keep raw auth field capture outside conversation-runtime auth-context entrypoint: {forbidden_symbol}"
+            "local-minimal-node read query paths should not keep raw auth field capture outside conversation-runtime principal-context entrypoint: {forbidden_symbol}"
         );
     }
 }
@@ -405,7 +405,7 @@ fn test_local_minimal_node_access_paths_use_runtime_write_access_auth_context_en
 
     assert!(
         access_source.contains(".ensure_conversation_bound_write_allowed_from_auth_context("),
-        "services/local-minimal-node/src/node/access.rs should consume conversation-runtime auth-context write-access guard"
+        "services/local-minimal-node/src/node/access.rs should consume conversation-runtime principal-context write-access guard"
     );
 
     assert!(
@@ -451,7 +451,7 @@ fn test_local_minimal_node_device_registration_owner_moves_out_of_access_impl() 
         "pub(crate) fn bind_registered_device(",
         "pub(crate) fn ensure_registered_device(",
         "fn ensure_route_session_current(",
-        "self.session_presence_runtime",
+        "self.device_presence_runtime",
         "self.realtime_runtime",
         "self.projection_service",
         ".ensure_device_registration_allowed_from_auth_context(",
@@ -583,7 +583,7 @@ fn test_local_minimal_node_effects_member_fanout_uses_projection_auth_context_en
 
     assert!(
         effects_source.contains(".active_conversation_principal_recipients_from_auth_context("),
-        "services/local-minimal-node/src/node/effects.rs should consume projection-service auth-context active-recipient seam for notification/realtime recipient resolution"
+        "services/local-minimal-node/src/node/effects.rs should consume projection-service principal-context active-recipient seam for notification/realtime recipient resolution"
     );
 
     for forbidden_symbol in [
@@ -605,7 +605,7 @@ fn test_local_minimal_node_effects_use_projection_owned_realtime_fanout_target_s
 
     assert!(
         effects_source.contains(".realtime_fanout_targets_for_recipients_from_auth_context("),
-        "services/local-minimal-node/src/node/effects.rs should consume projection-service's typed auth-context realtime fanout target seam for principal-to-device resolution"
+        "services/local-minimal-node/src/node/effects.rs should consume projection-service's typed principal-context realtime fanout target seam for principal-to-device resolution"
     );
 
     for forbidden_symbol in [
@@ -682,7 +682,7 @@ fn test_local_minimal_node_effects_do_not_thread_message_posted_recipient_ids() 
 
     assert!(
         !effects_source.contains("recipient_ids:"),
-        "services/local-minimal-node/src/node/effects.rs should not keep threading message-posted recipient_ids once notification-service owns recipient resolution through projection auth-context"
+        "services/local-minimal-node/src/node/effects.rs should not keep threading message-posted recipient_ids once notification-service owns recipient resolution through projection principal-context"
     );
 }
 
@@ -698,7 +698,7 @@ fn test_local_minimal_node_projection_paths_use_projection_service_auth_context_
     ] {
         assert!(
             projection_source.contains(required_symbol),
-            "local-minimal-node projection paths should consume projection-service auth-context entrypoint: {required_symbol}"
+            "local-minimal-node projection paths should consume projection-service principal-context entrypoint: {required_symbol}"
         );
     }
 
@@ -710,7 +710,7 @@ fn test_local_minimal_node_projection_paths_use_projection_service_auth_context_
     ] {
         assert!(
             !projection_source.contains(forbidden_symbol),
-            "local-minimal-node projection paths should not keep raw projection auth field capture outside projection-service auth-context entrypoint: {forbidden_symbol}"
+            "local-minimal-node projection paths should not keep raw projection auth field capture outside projection-service principal-context entrypoint: {forbidden_symbol}"
         );
     }
 }
@@ -728,11 +728,11 @@ fn test_local_minimal_node_read_cursor_write_path_uses_strict_domain_membership_
         update_read_cursor.contains(
             "access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?"
         ),
-        "POST /read-cursor mutates conversation-runtime state and must use the strict domain membership gate"
+        "POST /read_cursor mutates conversation-runtime state and must use the strict domain membership gate"
     );
     assert!(
         !update_read_cursor.contains("access::ensure_conversation_read_access("),
-        "POST /read-cursor must not use projection snapshot fallback because that fallback is read-only recovery access"
+        "POST /read_cursor must not use projection snapshot fallback because that fallback is read-only recovery access"
     );
 }
 
@@ -742,17 +742,17 @@ fn test_local_minimal_node_session_projection_paths_use_projection_service_auth_
     let session_source = include_str!("../src/node/session.rs");
 
     for required_symbol in [
-        ".device_sync_session_state_from_auth_context(",
+        ".device_sync_state_snapshot_from_auth_context(",
         ".device_sync_feed_window_from_auth_context(",
     ] {
         assert!(
             session_source.contains(required_symbol),
-            "local-minimal-node session paths should consume projection-service auth-context entrypoint: {required_symbol}"
+            "local-minimal-node session paths should consume projection-service principal-context entrypoint: {required_symbol}"
         );
     }
 
     for forbidden_symbol in [
-        "fn registered_devices(state: &AppState, auth: &AuthContext) -> Vec<String>",
+        "fn registered_devices(state: &AppState, auth: &AppContext) -> Vec<String>",
         ".registered_devices_from_auth_context(",
         ".latest_device_sync_seq_from_auth_context(",
         ".registered_devices(auth.tenant_id.as_str(), auth.actor_id.as_str())",
@@ -762,19 +762,19 @@ fn test_local_minimal_node_session_projection_paths_use_projection_service_auth_
     ] {
         assert!(
             !session_source.contains(forbidden_symbol),
-            "local-minimal-node session paths should not keep raw projection auth field capture outside projection-service auth-context entrypoint: {forbidden_symbol}"
+            "local-minimal-node session paths should not keep raw projection auth field capture outside projection-service principal-context entrypoint: {forbidden_symbol}"
         );
     }
 }
 
 #[test]
-fn test_local_minimal_node_notification_request_path_uses_notification_runtime_public_access_owner()
+fn test_local_minimal_node_notification_request_path_uses_notification_runtime_app_context_owner()
 {
     let platform_source = include_str!("../src/node/platform.rs");
 
     assert!(
-        platform_source.contains(".request_notification_from_public_api("),
-        "services/local-minimal-node/src/node/platform.rs should consume notification-service's runtime-owned public notification request seam"
+        platform_source.contains(".request_notification_from_app_context("),
+        "services/local-minimal-node/src/node/platform.rs should consume notification-service's runtime-owned AppContext notification request seam"
     );
 
     for forbidden_symbol in [
@@ -783,7 +783,7 @@ fn test_local_minimal_node_notification_request_path_uses_notification_runtime_p
     ] {
         assert!(
             !platform_source.contains(forbidden_symbol),
-            "services/local-minimal-node/src/node/platform.rs should not keep local notification public-access enforcement once notification-service owns that boundary: {forbidden_symbol}"
+            "services/local-minimal-node/src/node/platform.rs should not keep local notification AppContext access enforcement once notification-service owns that boundary: {forbidden_symbol}"
         );
     }
 }
@@ -935,7 +935,7 @@ fn test_local_minimal_node_runtime_dir_surface_moves_out_of_node_impl() {
     ] {
         assert!(
             !node_source.contains(forbidden_symbol),
-            "services/local-minimal-node/src/node.rs should not keep runtime-dir lifecycle symbol: {forbidden_symbol}"
+            "services/local-minimal-node/src/node.rs should not keep runtime_dir lifecycle symbol: {forbidden_symbol}"
         );
     }
 }
@@ -962,7 +962,7 @@ fn test_local_minimal_node_runtime_dir_preview_surface_moves_out_of_runtime_dir_
     ] {
         assert!(
             !runtime_dir_source.contains(forbidden_symbol),
-            "services/local-minimal-node/src/node/runtime_dir.rs should not keep runtime-dir preview symbol: {forbidden_symbol}"
+            "services/local-minimal-node/src/node/runtime_dir.rs should not keep runtime_dir preview symbol: {forbidden_symbol}"
         );
     }
 }
@@ -982,7 +982,7 @@ fn test_local_minimal_node_runtime_dir_preview_keys_use_segment_safe_encoding() 
     ] {
         assert!(
             preview_diff_source.contains(required_symbol),
-            "runtime-dir restore preview keys should use segment-safe encoding: {required_symbol}"
+            "runtime_dir restore preview keys should use segment-safe encoding: {required_symbol}"
         );
     }
 
@@ -994,7 +994,7 @@ fn test_local_minimal_node_runtime_dir_preview_keys_use_segment_safe_encoding() 
     ] {
         assert!(
             !preview_diff_source.contains(forbidden_symbol),
-            "runtime-dir restore preview keys must not use ambiguous delimiter concatenation: {forbidden_symbol}"
+            "runtime_dir restore preview keys must not use ambiguous delimiter concatenation: {forbidden_symbol}"
         );
     }
 }

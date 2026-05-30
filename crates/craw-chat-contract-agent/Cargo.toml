@@ -7,4 +7,5 @@ version.workspace = true
 [dependencies]
 craw-chat-contract-core = { path = "../craw-chat-contract-core" }
 im-domain-core = { path = "../im-domain-core" }
+im-time = { path = "../im-time" }
 serde.workspace = true

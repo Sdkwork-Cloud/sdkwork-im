@@ -58,4 +58,4 @@
 
 - provider-policy routes do not emit `status=not_found`
 - `unknown provider policy version` 必须继续归类到 `provider_policy_conflict`
-- 对 `GET /api/v1/control/provider-policies/diff` 与 `POST /api/v1/control/provider-policies/rollback`，未知版本统一返回 `status=conflict`
+- 对 `GET /backend/v3/api/control/provider-policies/diff` 与 `POST /backend/v3/api/control/provider-policies/rollback`，未知版本统一返回 `status=conflict`

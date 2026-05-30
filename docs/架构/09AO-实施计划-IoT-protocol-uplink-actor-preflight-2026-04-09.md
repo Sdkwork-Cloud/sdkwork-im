@@ -2,7 +2,7 @@
 
 ## 目标
 
-让 `local-minimal-node` 在 `/api/v1/iot/protocol/uplink` 中，先完成 actor 级预检，再调用 `IotProtocolAdapter::decode_uplink()`。
+让 `local-minimal-node` 在 `/backend/v3/api/iot/protocol/uplink` 中，先完成 actor 级预检，再调用 `IotProtocolAdapter::decode_uplink()`。
 
 ## 输入
 
@@ -17,7 +17,7 @@
 
 本轮包含：
 
-- `/api/v1/iot/protocol/uplink`
+- `/backend/v3/api/iot/protocol/uplink`
 - `ensure_iot_protocol_uplink_actor_preflight`
 - `auth.actor_kind`
 - `auth.device_id`
@@ -66,7 +66,7 @@
 ## 关键词冻结
 
 - `local-minimal-node`
-- `/api/v1/iot/protocol/uplink`
+- `/backend/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `ensure_iot_protocol_uplink_actor_preflight`

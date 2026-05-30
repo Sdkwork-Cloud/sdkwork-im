@@ -38,7 +38,7 @@
 
 ## 6. HTTP 面
 
-- 路径: `POST /api/v1/control/provider-bindings`
+- 路径: `POST /backend/v3/api/control/provider_bindings`
 - 权限: `control.write`
 - Success Response:
   - `applied`

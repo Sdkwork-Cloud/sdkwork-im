@@ -5,32 +5,32 @@ SDKs.
 
 ## Public Auth Model
 
-The public app-facing SDK contract is bearer-token based.
+The public IM consumer SDK contract is SDKWork appbase based.
 
-- header: `Authorization: Bearer <token>`
-- signing secret in local deployments: `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`
-- trusted headers are still valid for internal tests and service wiring, but they are not the
-  public app SDK contract
+- `sdkwork-appbase` owns login, IAM sessions, tenants, users, organizations, and dual-token validation.
+- Craw Chat receives only verified `x-sdkwork-*` AppContext projection headers from the trusted edge.
+- local Craw Chat deployments do not generate or verify Craw Chat-owned public tokens.
 
-If you are documenting or implementing a public consumer path, prefer bearer-token examples only.
+If you are documenting or implementing a public consumer path, route authentication through the
+SDKWork app/auth client and do not create local HTTP auth wrappers.
 
 ## Preferred Client Surface
 
 | Language | Preferred client surface | Auth update method |
 | --- | --- | --- |
-| TypeScript | `new ImSdkClient({ baseUrl, authToken })` | `sdk.auth.useToken(token)` |
-| Flutter | `ImSdkClient.create(...)` | `sdk.auth.useToken(token)` |
+| TypeScript | `new ImSdkClient({ baseUrl, authToken })` | Recreate the client with the new `authToken`, or update the generated transport with `setAuthToken(token)` when working at transport level |
+| Flutter | `ImSdkClient.create(...)` | `sdk.setAuthToken(token)` |
 | Rust | `ImSdkClient::new_with_base_url(...)` | `client.set_auth_token(token)` |
 
 All three languages also expose the generated transport layer, but the preferred integration surface
-is the official app-facing client for each language. TypeScript now ships that public contract from
+is the official IM consumer client for each language. TypeScript now ships that public contract from
 the root `@sdkwork/im-sdk` package.
 
 ## Shared Initialization Flow
 
 1. resolve the app base URL
 2. create the preferred app client
-3. set or inject the bearer token
+3. set or inject the SDKWork auth/access token pair through the generated transport
 4. route work through the semantic modules
 5. drop to the App API reference only when you need exact payload or operation detail
 
@@ -44,7 +44,7 @@ const sdk = new ImSdkClient({
   authToken: process.env.CRAW_CHAT_TOKEN,
 });
 
-const session = await sdk.session.resume({
+const session = await sdk.deviceSessions.resume({
   deviceId: "device-web-01",
   lastSeenSyncSeq: 0,
 });
@@ -60,8 +60,8 @@ final client = ImSdkClient.create(
   authToken: token,
 );
 
-final session = await client.session.resume(
-  ResumeSessionRequest(
+final session = await client.deviceSessions.resume(
+  ResumeDeviceSessionRequest(
     deviceId: 'device-mobile-01',
     lastSeenSyncSeq: 0,
   ),
@@ -71,14 +71,14 @@ final session = await client.session.resume(
 ## Rust
 
 ```rust
-use im_sdk::{ImSdkClient, ResumeSessionRequest};
+use im_sdk::{ImSdkClient, ResumeDeviceSessionRequest};
 
 let client = ImSdkClient::new_with_base_url("http://127.0.0.1:18090")?;
 client.set_auth_token(token);
 
 let session = client
-  .session()
-  .resume(ResumeSessionRequest {
+  .device_sessions()
+  .resume(ResumeDeviceSessionRequest {
     device_id: Some("device-rust-01".into()),
     last_seen_sync_seq: Some(0),
   })
@@ -97,13 +97,13 @@ let session = client
 
 The current SDK family splits realtime into generated HTTP coordination and manual live runtimes:
 
-- session resume, subscription sync, catch-up, and event acknowledgement remain exposed directly
+- device route resume, subscription sync, catch-up, and event acknowledgement remain exposed directly
 - TypeScript and Flutter both ship `sdk.connect(...)` from their manual-owned consumer packages
 - TypeScript and Flutter now both keep `ImWebSocketAuthOptions.automatic()` as the standard
   default
-- TypeScript automatic auth resolves to query bearer on the default browser `WebSocket` path and
-  to header bearer when a custom `webSocketFactory` is present
-- Flutter automatic auth resolves to header bearer on native runtimes and query bearer fallback on
+- TypeScript automatic auth resolves to query credential on the default browser `WebSocket` path and
+  to header credential when a custom `webSocketFactory` is present
+- Flutter automatic auth resolves to header credential on native runtimes and query credential fallback on
   Flutter Web
 - TypeScript browser runtimes can still prefer `sdk.connect({ url })` when the gateway issues a
   fully pre-signed realtime URL instead of a credential exchange flow

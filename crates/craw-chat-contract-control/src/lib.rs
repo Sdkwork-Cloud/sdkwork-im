@@ -1,6 +1,9 @@
 use craw_chat_contract_core::ContractError;
+use im_domain_core::device_session::{DevicePresenceStatus, DevicePresenceView};
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
-use im_domain_core::session::{DevicePresenceStatus, DevicePresenceView};
+use im_time::{
+    compare_optional_rfc3339_asc, max_rfc3339_string, rfc3339_gt, rfc3339_le, rfc3339_lt,
+};
 use serde::{Deserialize, Serialize};
 
 const REALTIME_EVENT_WINDOW_HIGH_RISK_LIMIT: usize = 5;
@@ -114,7 +117,7 @@ impl RealtimeEventWindowDiagnosticsSnapshot {
                 && snapshot
                     .last_capacity_trimmed_at
                     .as_deref()
-                    .is_none_or(|latest| last_capacity_trimmed_at.as_str() > latest)
+                    .is_none_or(|latest| rfc3339_gt(last_capacity_trimmed_at.as_str(), latest))
             {
                 snapshot.last_capacity_trimmed_at = Some(last_capacity_trimmed_at);
             }
@@ -138,7 +141,7 @@ impl RealtimeEventWindowDiagnosticsSnapshot {
                 if snapshot
                     .oldest_pending_occurred_at
                     .as_deref()
-                    .is_none_or(|oldest| event.occurred_at.as_str() < oldest)
+                    .is_none_or(|oldest| rfc3339_lt(event.occurred_at.as_str(), oldest))
                 {
                     snapshot.oldest_pending_occurred_at = Some(event.occurred_at);
                 }
@@ -149,8 +152,10 @@ impl RealtimeEventWindowDiagnosticsSnapshot {
                 .pending_event_count
                 .cmp(&left.pending_event_count)
                 .then_with(|| {
-                    left.oldest_pending_occurred_at
-                        .cmp(&right.oldest_pending_occurred_at)
+                    compare_optional_rfc3339_asc(
+                        left.oldest_pending_occurred_at.as_deref(),
+                        right.oldest_pending_occurred_at.as_deref(),
+                    )
                 })
                 .then_with(|| left.tenant_id.cmp(&right.tenant_id))
                 .then_with(|| left.principal_kind.cmp(&right.principal_kind))
@@ -190,7 +195,7 @@ impl RealtimeCheckpointRecord {
             .max(next.capacity_trimmed_through_seq);
         let last_capacity_trimmed_at =
             match (self.last_capacity_trimmed_at, next.last_capacity_trimmed_at) {
-                (Some(left), Some(right)) => Some(left.max(right)),
+                (Some(left), Some(right)) => Some(max_rfc3339_string(left, right)),
                 (Some(left), None) => Some(left),
                 (None, Some(right)) => Some(right),
                 (None, None) => None,
@@ -206,7 +211,7 @@ impl RealtimeCheckpointRecord {
             capacity_trimmed_event_count,
             capacity_trimmed_through_seq,
             last_capacity_trimmed_at,
-            updated_at: self.updated_at.max(next.updated_at),
+            updated_at: max_rfc3339_string(self.updated_at, next.updated_at),
         }
         .normalized()
     }
@@ -226,7 +231,7 @@ pub struct RealtimeDisconnectFenceRecord {
 
 impl RealtimeDisconnectFenceRecord {
     pub fn merge_latest(self, next: Self) -> Self {
-        if next.disconnected_at > self.disconnected_at {
+        if rfc3339_gt(next.disconnected_at.as_str(), self.disconnected_at.as_str()) {
             next
         } else {
             self
@@ -290,7 +295,7 @@ impl PresenceStateRecord {
 
     pub fn is_online_seen_at_or_before(&self, cutoff_seen_at: &str) -> bool {
         self.online_seen_at()
-            .map(|last_seen_at| last_seen_at <= cutoff_seen_at)
+            .map(|last_seen_at| rfc3339_le(last_seen_at, cutoff_seen_at))
             .unwrap_or(false)
     }
 
@@ -500,6 +505,34 @@ mod tests {
     }
 
     #[test]
+    fn test_disconnect_fence_record_merge_compares_rfc3339_by_instant() {
+        let latest = RealtimeDisconnectFenceRecord {
+            tenant_id: "t_demo".into(),
+            principal_kind: "user".into(),
+            principal_id: "u_demo".into(),
+            device_id: "d_pad".into(),
+            session_id: Some("s_new".into()),
+            owner_node_id: "node_b".into(),
+            disconnected_at: "2026-05-06T00:00:00.100Z".into(),
+            fence_token: "latest".into(),
+        };
+        let stale = RealtimeDisconnectFenceRecord {
+            tenant_id: "t_demo".into(),
+            principal_kind: "user".into(),
+            principal_id: "u_demo".into(),
+            device_id: "d_pad".into(),
+            session_id: Some("s_old".into()),
+            owner_node_id: "node_a".into(),
+            disconnected_at: "2026-05-06T00:00:00Z".into(),
+            fence_token: "stale".into(),
+        };
+
+        let merged = latest.clone().merge_latest(stale);
+
+        assert_eq!(merged, latest);
+    }
+
+    #[test]
     fn test_realtime_checkpoint_merge_preserves_capacity_trim_metadata_monotonically() {
         let current = RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
@@ -564,6 +597,102 @@ mod tests {
             merged_advanced.last_capacity_trimmed_at.as_deref(),
             Some("2026-05-09T10:00:09.000Z")
         );
+    }
+
+    #[test]
+    fn test_realtime_checkpoint_merge_compares_rfc3339_timestamps_by_instant() {
+        let current = RealtimeCheckpointRecord {
+            tenant_id: "t_demo".into(),
+            principal_kind: "user".into(),
+            principal_id: "u_demo".into(),
+            device_id: "d_pad".into(),
+            latest_realtime_seq: 12,
+            acked_through_seq: 8,
+            trimmed_through_seq: 8,
+            capacity_trimmed_event_count: 4,
+            capacity_trimmed_through_seq: 6,
+            last_capacity_trimmed_at: Some("2026-05-09T10:00:00Z".into()),
+            updated_at: "2026-05-09T10:00:00Z".into(),
+        };
+        let later = RealtimeCheckpointRecord {
+            tenant_id: "t_demo".into(),
+            principal_kind: "user".into(),
+            principal_id: "u_demo".into(),
+            device_id: "d_pad".into(),
+            latest_realtime_seq: 12,
+            acked_through_seq: 8,
+            trimmed_through_seq: 8,
+            capacity_trimmed_event_count: 4,
+            capacity_trimmed_through_seq: 6,
+            last_capacity_trimmed_at: Some("2026-05-09T10:00:00.100Z".into()),
+            updated_at: "2026-05-09T10:00:00.100Z".into(),
+        };
+
+        let merged = current.merge_monotonic(later);
+
+        assert_eq!(merged.updated_at, "2026-05-09T10:00:00.100Z");
+        assert_eq!(
+            merged.last_capacity_trimmed_at.as_deref(),
+            Some("2026-05-09T10:00:00.100Z")
+        );
+    }
+
+    #[test]
+    fn test_presence_online_seen_at_or_before_compares_rfc3339_by_instant() {
+        let presence = PresenceStateRecord {
+            tenant_id: "t_demo".into(),
+            principal_kind: "user".into(),
+            principal_id: "u_demo".into(),
+            device_id: "d_pad".into(),
+            presence: DevicePresenceView {
+                tenant_id: "t_demo".into(),
+                principal_id: "u_demo".into(),
+                device_id: "d_pad".into(),
+                platform: None,
+                session_id: Some("s_demo".into()),
+                status: DevicePresenceStatus::Online,
+                last_sync_seq: 42,
+                last_resume_at: None,
+                last_seen_at: Some("2026-05-06T00:00:00.100Z".into()),
+            },
+            resume_required: false,
+            updated_at: "2026-05-06T00:00:00.100Z".into(),
+        };
+
+        assert!(
+            !presence.is_online_seen_at_or_before("2026-05-06T00:00:00Z"),
+            "later fractional last_seen_at must not be treated as older than a whole-second cutoff"
+        );
+    }
+
+    #[test]
+    fn test_realtime_event_window_diagnostics_compare_rfc3339_by_instant() {
+        let snapshot = RealtimeEventWindowDiagnosticsSnapshot::from_records(vec![
+            realtime_window_record_with_time(
+                "t_demo",
+                "user",
+                "u_demo",
+                "d_pad",
+                "2026-05-09T10:00:00.100Z",
+            ),
+            realtime_window_record_with_time(
+                "t_demo",
+                "user",
+                "u_demo",
+                "d_phone",
+                "2026-05-09T10:00:00Z",
+            ),
+        ]);
+
+        assert_eq!(
+            snapshot.last_capacity_trimmed_at.as_deref(),
+            Some("2026-05-09T10:00:00.100Z")
+        );
+        assert_eq!(
+            snapshot.oldest_pending_occurred_at.as_deref(),
+            Some("2026-05-09T10:00:00Z")
+        );
+        assert_eq!(snapshot.high_risk_windows[0].device_id, "d_phone");
     }
 
     #[test]
@@ -647,6 +776,38 @@ mod tests {
             last_capacity_trimmed_at: (trimmed_through_seq > 0)
                 .then(|| format!("2026-05-09T10:00:{trimmed_through_seq:02}.000Z")),
             updated_at: "2026-05-09T10:00:00.000Z".into(),
+        }
+    }
+
+    fn realtime_window_record_with_time(
+        tenant_id: &str,
+        principal_kind: &str,
+        principal_id: &str,
+        device_id: &str,
+        timestamp: &str,
+    ) -> RealtimeEventWindowRecord {
+        RealtimeEventWindowRecord {
+            tenant_id: tenant_id.into(),
+            principal_kind: principal_kind.into(),
+            principal_id: principal_id.into(),
+            device_id: device_id.into(),
+            events: vec![RealtimeEvent {
+                tenant_id: tenant_id.into(),
+                principal_id: principal_id.into(),
+                device_id: device_id.into(),
+                realtime_seq: 2,
+                scope_type: "conversation".into(),
+                scope_id: "c_demo".into(),
+                event_type: "message.posted".into(),
+                delivery_class: "ephemeral".into(),
+                payload: r#"{"messageId":"msg_2"}"#.into(),
+                occurred_at: timestamp.into(),
+            }],
+            trimmed_through_seq: 1,
+            capacity_trimmed_event_count: 1,
+            capacity_trimmed_through_seq: 1,
+            last_capacity_trimmed_at: Some(timestamp.into()),
+            updated_at: timestamp.into(),
         }
     }
 }

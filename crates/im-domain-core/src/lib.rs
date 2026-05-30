@@ -1,10 +1,10 @@
 pub mod automation;
 pub mod conversation;
+pub mod device_session;
 pub mod media;
 pub mod message;
 pub mod notification;
 pub mod realtime;
 pub mod rtc;
-pub mod session;
 pub mod social;
 pub mod stream;

@@ -10,11 +10,11 @@
 | Read models | Inbox, conversation summary, and read cursor | `services/local-minimal-node/src/node/build.rs` |
 | Agent handoff state | Read, accept, resolve, and close handoff state | `services/local-minimal-node/src/node/build.rs` |
 
-## Session, Presence, and Realtime
+## Device Sessions, Presence, and Realtime
 
 | Capability group | Current implementation | Evidence |
 | --- | --- | --- |
-| Session | Resume and disconnect | `services/local-minimal-node/src/node/build.rs` |
+| Device Sessions | Resume and disconnect | `services/local-minimal-node/src/node/build.rs` |
 | Presence | Heartbeat and current presence | `services/local-minimal-node/src/node/build.rs` |
 | Realtime delivery | Subscription sync, event polling, ack flow, and websocket upgrade | `services/local-minimal-node/src/node/build.rs`, `services/session-gateway/tests/websocket_smoke_test.rs` |
 | Device routing | Device register and sync-feed reads | `services/local-minimal-node/src/node/build.rs` |
@@ -41,7 +41,7 @@
 
 | Capability group | Current implementation | Evidence |
 | --- | --- | --- |
-| User-module provider | Provider health and local or external mode wiring | `services/local-minimal-node/tests/user_module_provider_http_test.rs` |
+| Principal-profile provider | Provider health and upstream-context or external-catalog mode wiring | `services/local-minimal-node/tests/principal_profile_provider_http_test.rs` |
 | Object storage provider | Provider health and provider-generated download URLs | `services/local-minimal-node/tests/media_provider_http_test.rs` |
 | IoT access provider | Provider health | `services/local-minimal-node/tests/iot_provider_http_test.rs` |
 | IoT protocol adapter | Provider health, uplink decode, and downlink encode path | `services/local-minimal-node/src/node/build.rs`, `services/local-minimal-node/src/node/iot.rs` |
@@ -60,11 +60,10 @@
 
 | Surface | Current status |
 | --- | --- |
-| App TypeScript and Flutter packages | App TypeScript and Flutter packages \| Both app language workspaces are materialized and locally verifiable; release publication is still pending |
-| Control-plane TypeScript and Flutter packages | Both control-plane language workspaces are materialized and locally verifiable; release publication is still pending |
-| Operator-console admin SDK | Operator-console admin SDK \| Checked-in authority, derived sdkgen input, assembly snapshot, and materialized TypeScript and Flutter generated/composed packages now live under `sdks/sdkwork-im-admin-sdk/` |
-| Admin console consumption | The admin console consumes the unified control-plane TypeScript package through `@sdkwork/control-plane-sdk`; the `/api/admin/*` authority inventory remains checked into `sdks/sdkwork-im-admin-sdk/` |
-| Control-plane OpenAPI source | Checked-in authority and derived files now exist under `sdks/sdkwork-control-plane-sdk/openapi/` and are refreshed from `services/control-plane-api` runtime OpenAPI endpoints |
+| IM standard SDK | `sdkwork-im-sdk` owns standardized IM development APIs under `/im/v3/api/*`; TypeScript, Flutter, Rust, and generated transport lanes are checked in and locally verifiable |
+| App API SDK | `sdkwork-im-app-sdk` owns app-business and non-management HTTP APIs under `/app/v3/api/*`, including provider health, IoT protocol, notifications, automation execution, and app-facing RTC provider routes |
+| Backend SDK | `sdkwork-im-backend-sdk` owns `/backend/v3/api/*`, including ops, audit, automation governance, control-plane governance, node operations, and every admin route |
+| RTC SDK | `sdkwork-rtc-sdk` owns provider runtime, provider package, native driver, capability negotiation, and provider-selection standards; it is not an OpenAPI-generated HTTP SDK |
 | Frontend apps | `apps/craw-chat-portal` and `apps/craw-chat-admin` are present as directories, not documented here as mature deliverables |
 
 ## What To Read Next

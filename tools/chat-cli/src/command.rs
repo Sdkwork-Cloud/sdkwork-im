@@ -80,17 +80,11 @@ pub(crate) struct AuthInput {
     pub(crate) device_id: String,
     pub(crate) permissions: Vec<String>,
     pub(crate) bearer_token: Option<String>,
-    pub(crate) public_bearer_secret: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum CommandOperation {
     Health,
-    Login {
-        login: String,
-        password: String,
-        client_kind: String,
-    },
     Token {
         authorization_header: bool,
     },
@@ -141,7 +135,6 @@ struct GlobalOptions {
     device_id: Option<String>,
     permissions: Option<Vec<String>>,
     bearer_token: Option<String>,
-    public_bearer_secret: Option<String>,
 }
 
 pub fn parse_cli_args<I, S>(args: I) -> Result<CliCommand, CliError>
@@ -201,11 +194,6 @@ where
                 cursor.next();
                 global.bearer_token = Some(cursor.required_value("--bearer-token")?);
             }
-            "--public-bearer-secret" => {
-                cursor.next();
-                global.public_bearer_secret =
-                    Some(cursor.required_value("--public-bearer-secret")?);
-            }
             other if other.starts_with('-') => {
                 return Err(CliError::usage(format!(
                     "unknown global flag: {other}\n\n{}",
@@ -245,40 +233,6 @@ fn parse_command_operation(
 ) -> Result<CommandOperation, CliError> {
     match command_name {
         "health" => Ok(CommandOperation::Health),
-        "login" => {
-            let mut login = None;
-            let mut password = None;
-            let mut client_kind = Some("im_user".to_owned());
-            while let Some(next) = cursor.peek() {
-                match next {
-                    "-h" | "--help" => return Err(CliError::help(login_usage())),
-                    "--login" => {
-                        cursor.next();
-                        login = Some(cursor.required_value("--login")?);
-                    }
-                    "--password" => {
-                        cursor.next();
-                        password = Some(cursor.required_value("--password")?);
-                    }
-                    "--client-kind" => {
-                        cursor.next();
-                        client_kind = Some(cursor.required_value("--client-kind")?);
-                    }
-                    other if other.starts_with('-') => {
-                        return Err(CliError::usage(format!(
-                            "unknown login flag: {other}\n\n{}",
-                            login_usage()
-                        )));
-                    }
-                    _ => break,
-                }
-            }
-            Ok(CommandOperation::Login {
-                login: required_field(login, "--login is required for login")?,
-                password: required_field(password, "--password is required for login")?,
-                client_kind: client_kind.unwrap_or_else(|| "im_user".to_owned()),
-            })
-        }
         "token" => {
             let mut authorization_header = true;
             while let Some(next) = cursor.peek() {
@@ -633,10 +587,6 @@ fn build_command_context(global: GlobalOptions) -> CommandContext {
                 .map(parse_permissions)
         })
         .unwrap_or_default();
-    let public_bearer_secret = global
-        .public_bearer_secret
-        .or_else(|| std::env::var(im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV).ok())
-        .or_else(resolve_public_bearer_secret_from_config);
     let base_url = global
         .base_url
         .or_else(|| std::env::var("CRAW_CHAT_BASE_URL").ok())
@@ -653,17 +603,8 @@ fn build_command_context(global: GlobalOptions) -> CommandContext {
             device_id,
             permissions,
             bearer_token: global.bearer_token,
-            public_bearer_secret,
         },
     }
-}
-
-fn resolve_public_bearer_secret_from_config() -> Option<String> {
-    let config_path = find_local_env_file()?;
-    read_env_file_value(
-        config_path.as_path(),
-        im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-    )
 }
 
 fn resolve_base_url_from_config() -> Option<String> {
@@ -782,7 +723,6 @@ fn is_command_name(value: &str) -> bool {
     matches!(
         value,
         "health"
-            | "login"
             | "token"
             | "create-conversation"
             | "add-member"
@@ -805,13 +745,11 @@ fn cli_usage() -> String {
             "  --actor-kind <kind>              Actor kind. Default: user\n",
             "  --session-id <id>                Session id. Default: s_<user-id>\n",
             "  --device-id <id>                 Device id. Default: d_<user-id>\n",
-            "  --permissions <csv>              Optional permissions claims\n",
-            "  --bearer-token <token>           Use an existing bearer token\n",
-            "  --public-bearer-secret <secret>  Generate a signed local bearer token\n",
+            "  --permissions <csv>              Optional principal permissions header\n",
+            "  --bearer-token <token>           Forward an upstream bearer token when available\n",
             "  -h, --help                       Show help\n\n",
             "Commands:\n",
             "  health\n",
-            "  login --login <id> --password <secret> [--client-kind im_user|portal_operator]\n",
             "  token [--token-only]\n",
             "  create-conversation --conversation-id <id> [--conversation-type <type>]\n",
             "  add-member --conversation-id <id> --principal-id <id> [--principal-kind user] [--role member]\n",
@@ -831,10 +769,6 @@ fn cli_usage() -> String {
 
 fn token_usage() -> String {
     "Usage: craw-chat-cli [global options] token [--token-only]".to_owned()
-}
-
-fn login_usage() -> String {
-    "Usage: craw-chat-cli [global options] login --login <id> --password <secret> [--client-kind <im_user|portal_operator>]".to_owned()
 }
 
 fn create_conversation_usage() -> String {

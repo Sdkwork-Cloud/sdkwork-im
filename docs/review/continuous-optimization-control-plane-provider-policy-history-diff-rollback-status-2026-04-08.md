@@ -3,9 +3,9 @@
 ## 本轮交付
 
 - 新增 `07-C11 / 09N / 150N` 文档闭环。
-- `GET /api/v1/control/provider-policies` 返回 `status=history`。
-- `GET /api/v1/control/provider-policies/diff` 返回 `status=diff`。
-- `POST /api/v1/control/provider-policies/rollback` 返回 `status=rolled_back`。
+- `GET /backend/v3/api/control/provider-policies` 返回 `status=history`。
+- `GET /backend/v3/api/control/provider-policies/diff` 返回 `status=diff`。
+- `POST /backend/v3/api/control/provider-policies/rollback` 返回 `status=rolled_back`。
 - 底层 `ProviderPolicyHistory / ProviderPolicyDiff` contract 保持不变。
 
 ## 验证

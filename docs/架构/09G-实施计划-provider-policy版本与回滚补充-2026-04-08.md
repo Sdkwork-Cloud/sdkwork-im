@@ -8,16 +8,16 @@
 ## 实施项
 
 1. 在 `RuntimeProviderRegistry` 中维护版本快照序列，输出 `ProviderPolicyHistory`。
-2. 暴露 `GET /api/v1/control/provider-policies`，用于查询所有版本。
-3. 暴露 `POST /api/v1/control/provider-policies/rollback`，按 `targetVersion` 回滚。
+2. 暴露 `GET /backend/v3/api/control/provider-policies`，用于查询所有版本。
+3. 暴露 `POST /backend/v3/api/control/provider-policies/rollback`，按 `targetVersion` 回滚。
 4. 回滚后生成新快照而不是覆写旧快照，并回填 `rollbackFromVersion`。
 5. control-plane 在写入和回滚后刷新 ops provider binding 视图；回滚路径必须走 `replace_provider_binding_snapshots`。
 6. 写入与回滚都要补齐 audit；新增 `control.provider_policy_rolled_back`。
 
 ## 契约冻结
 
-- 历史接口：`GET /api/v1/control/provider-policies`
-- 回滚接口：`POST /api/v1/control/provider-policies/rollback`
+- 历史接口：`GET /backend/v3/api/control/provider-policies`
+- 回滚接口：`POST /backend/v3/api/control/provider-policies/rollback`
 - 回滚请求：`{"targetVersion":1}`
 - 历史字段：`currentVersion`、`items`、`rollbackFromVersion`
 - ops 刷新要求：删除租户 override 后不允许保留旧快照

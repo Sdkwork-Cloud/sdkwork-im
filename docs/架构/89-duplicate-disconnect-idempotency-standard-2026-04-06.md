@@ -8,8 +8,8 @@
 
 This standard applies when:
 
-- a device has already completed a successful `POST /api/v1/sessions/disconnect`
-- the same session retries `POST /api/v1/sessions/disconnect` again
+- a device has already completed a successful `POST /im/v3/api/device/sessions/disconnect`
+- the same session retries `POST /im/v3/api/device/sessions/disconnect` again
 
 This standard refines Standard 88. It is a narrow exception for the disconnect endpoint itself and does not relax reconnect-required behavior for ordinary non-`resume` device-bound requests.
 

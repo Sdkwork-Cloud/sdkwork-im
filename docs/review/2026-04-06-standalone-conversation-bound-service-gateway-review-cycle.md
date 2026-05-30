@@ -10,9 +10,9 @@
     - conversation-bound RTC writes
   - however the standalone service HTTP apps still exposed the same conversation-bound request shapes directly:
     - `streaming-service`
-      - `POST /api/v1/streams` with `scopeKind = conversation`
+      - `POST /im/v3/api/streams` with `scopeKind = conversation`
     - `rtc-signaling-service`
-      - `POST /api/v1/rtc/sessions` with `conversationId`
+      - `POST /im/v3/api/rtc/sessions` with `conversationId`
   - these standalone services do not own conversation membership state and therefore cannot authorize conversation-bound access by themselves.
   - before this fix, they still returned `200` and created state directly.
 - Impact:

@@ -916,7 +916,7 @@ impl RealtimeDeliveryRuntime {
         let sender = lock_realtime_mutex(&self.notifiers, "realtime notifier store")
             .entry(scope_key)
             .or_insert_with(|| {
-                eprintln!("warn: realtime notifier missing after ensure; reconstructing sender");
+                tracing::warn!("realtime notifier missing after ensure; reconstructing sender");
                 let (sender, _) = watch::channel(0);
                 sender
             })
@@ -954,8 +954,8 @@ impl RealtimeDeliveryRuntime {
         )
         .entry(scope_key)
         .or_insert_with(|| {
-            eprintln!(
-                "warn: realtime disconnect notifier missing after ensure; reconstructing sender"
+            tracing::warn!(
+                "realtime disconnect notifier missing after ensure; reconstructing sender"
             );
             let (sender, _) = watch::channel(0);
             sender
@@ -2257,7 +2257,7 @@ pub(super) fn lock_realtime_mutex<'a, T>(
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!("warn: recovered poisoned realtime runtime mutex lock={lock_name}");
+            tracing::warn!("recovered poisoned realtime runtime mutex lock={lock_name}");
             poisoned.into_inner()
         }
     }

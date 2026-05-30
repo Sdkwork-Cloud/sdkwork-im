@@ -422,7 +422,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "session-gateway",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/api/v1/sessions/{*path}"],
+        &["/im/v3/api/device/sessions/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "sessions",
@@ -430,7 +430,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "session-gateway",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/api/v1/presence/{*path}"],
+        &["/im/v3/api/presence/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "presence",
@@ -438,14 +438,14 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "session-gateway",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/api/v1/realtime/{*path}"],
+        &["/im/v3/api/realtime/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "realtime",
     ));
     entries.push(websocket_route(
         "session-gateway",
-        "/api/v1/realtime/ws",
+        "/im/v3/api/realtime/ws",
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "realtime",
@@ -454,7 +454,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "control-plane-api",
         all_http_methods(),
-        &["/api/v1/control/{*path}"],
+        &["/backend/v3/api/control/{*path}"],
         RouteVisibility::Internal,
         vec![SdkTarget::ControlPlaneSdk],
         "control",
@@ -462,7 +462,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(exact_routes(
         "conversation-runtime",
         vec![HttpMethod::Post],
-        &["/api/v1/conversations"],
+        &["/im/v3/api/chat/conversations"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "conversations",
@@ -470,7 +470,10 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "conversation-runtime",
         vec![HttpMethod::Post],
-        &["/api/v1/conversations/{*path}", "/api/v1/messages/{*path}"],
+        &[
+            "/im/v3/api/chat/conversations/{*path}",
+            "/im/v3/api/chat/messages/{*path}",
+        ],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "conversations",
@@ -478,7 +481,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(exact_routes(
         "projection-service",
         vec![HttpMethod::Get],
-        &["/api/v1/contacts", "/api/v1/inbox"],
+        &["/im/v3/api/chat/contacts", "/im/v3/api/chat/inbox"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "conversations",
@@ -486,7 +489,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(exact_routes(
         "projection-service",
         vec![HttpMethod::Post],
-        &["/api/v1/devices/register"],
+        &["/im/v3/api/devices/register"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "devices",
@@ -494,7 +497,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(exact_routes(
         "projection-service",
         vec![HttpMethod::Get],
-        &["/api/v1/devices/{device_id}/sync-feed"],
+        &["/im/v3/api/devices/{device_id}/sync_feed"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "devices",
@@ -502,7 +505,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "projection-service",
         vec![HttpMethod::Get],
-        &["/api/v1/conversations/{*path}"],
+        &["/im/v3/api/chat/conversations/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "conversations",
@@ -510,7 +513,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(exact_routes(
         "streaming-service",
         vec![HttpMethod::Post],
-        &["/api/v1/streams"],
+        &["/im/v3/api/streams"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "streams",
@@ -518,7 +521,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "streaming-service",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/api/v1/streams/{*path}"],
+        &["/im/v3/api/streams/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "streams",
@@ -526,7 +529,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "rtc-signaling-service",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/api/v1/rtc/{*path}"],
+        &["/im/v3/api/rtc/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "rtc",
@@ -534,7 +537,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "media-service",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/api/v1/media/{*path}"],
+        &["/im/v3/api/media/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "media",
@@ -542,7 +545,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(exact_routes(
         "notification-service",
         vec![HttpMethod::Get],
-        &["/api/v1/notifications"],
+        &["/im/v3/api/notifications"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "notifications",
@@ -550,7 +553,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "notification-service",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/api/v1/notifications/{*path}"],
+        &["/im/v3/api/notifications/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "notifications",
@@ -558,7 +561,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "automation-service",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/api/v1/automation/{*path}"],
+        &["/im/v3/api/automation/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::CrawChatAppSdk],
         "automation",
@@ -566,7 +569,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "audit-service",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/api/v1/audit/{*path}"],
+        &["/backend/v3/api/audit/{*path}"],
         RouteVisibility::Internal,
         vec![SdkTarget::None],
         "audit",
@@ -574,7 +577,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "ops-service",
         vec![HttpMethod::Get],
-        &["/api/v1/ops/{*path}"],
+        &["/backend/v3/api/ops/{*path}"],
         RouteVisibility::Internal,
         vec![SdkTarget::None],
         "ops",

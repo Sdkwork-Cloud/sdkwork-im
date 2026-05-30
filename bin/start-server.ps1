@@ -103,21 +103,6 @@ function Import-ServerEnvFile {
     }
 }
 
-function Set-ServerUserCenterRuntimeEnv {
-    param([hashtable]$Mappings)
-
-    foreach ($mapping in $Mappings.GetEnumerator()) {
-        $sourceKey = $mapping.Key
-        $value = [Environment]::GetEnvironmentVariable($sourceKey)
-        if ([string]::IsNullOrWhiteSpace($value)) {
-            continue
-        }
-
-        Set-Item -Path ("Env:" + $mapping.Value.CanonicalKey) -Value $value
-        Set-Item -Path ("Env:" + $mapping.Value.AppKey) -Value $value
-    }
-}
-
 function Resolve-ServerBinaryPath {
     param([string]$Root, [string]$InstallRoot, [string]$ExplicitBinaryPath, [bool]$PreferRelease)
     if (-not [string]::IsNullOrWhiteSpace($ExplicitBinaryPath) -and (Test-Path $ExplicitBinaryPath)) {
@@ -197,84 +182,6 @@ function Get-ManagedProcess {
 $root = Split-Path -Parent $PSScriptRoot
 $serverEnvPath = Resolve-ServerEnvFilePath -ExplicitEnvFile $EnvFile -ResolvedConfigDir $ConfigDir
 Import-ServerEnvFile -EnvFilePath $serverEnvPath
-Set-ServerUserCenterRuntimeEnv -Mappings ([ordered]@{
-    CRAW_CHAT_SERVER_USER_CENTER_MODE = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_MODE'
-        AppKey = 'CRAW_CHAT_USER_CENTER_MODE'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_PROVIDER_KEY = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_PROVIDER_KEY'
-        AppKey = 'CRAW_CHAT_USER_CENTER_PROVIDER_KEY'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_LOCAL_API_BASE_PATH = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_LOCAL_API_BASE_PATH'
-        AppKey = 'CRAW_CHAT_USER_CENTER_LOCAL_API_BASE_PATH'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_AUTHORIZATION_HEADER_NAME = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_AUTHORIZATION_HEADER_NAME'
-        AppKey = 'CRAW_CHAT_USER_CENTER_AUTHORIZATION_HEADER_NAME'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_ACCESS_TOKEN_HEADER_NAME = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_ACCESS_TOKEN_HEADER_NAME'
-        AppKey = 'CRAW_CHAT_USER_CENTER_ACCESS_TOKEN_HEADER_NAME'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_REFRESH_TOKEN_HEADER_NAME = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_REFRESH_TOKEN_HEADER_NAME'
-        AppKey = 'CRAW_CHAT_USER_CENTER_REFRESH_TOKEN_HEADER_NAME'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_SESSION_HEADER_NAME = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_SESSION_HEADER_NAME'
-        AppKey = 'CRAW_CHAT_USER_CENTER_SESSION_HEADER_NAME'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_AUTHORIZATION_SCHEME = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_AUTHORIZATION_SCHEME'
-        AppKey = 'CRAW_CHAT_USER_CENTER_AUTHORIZATION_SCHEME'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_ALLOW_AUTHORIZATION_FALLBACK_TO_ACCESS_TOKEN = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_ALLOW_AUTHORIZATION_FALLBACK_TO_ACCESS_TOKEN'
-        AppKey = 'CRAW_CHAT_USER_CENTER_ALLOW_AUTHORIZATION_FALLBACK_TO_ACCESS_TOKEN'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_APP_ID = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_APP_ID'
-        AppKey = 'CRAW_CHAT_USER_CENTER_APP_ID'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_APP_API_BASE_URL = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_APP_API_BASE_URL'
-        AppKey = 'CRAW_CHAT_USER_CENTER_APP_API_BASE_URL'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_SECRET_ID = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_SECRET_ID'
-        AppKey = 'CRAW_CHAT_USER_CENTER_SECRET_ID'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_SHARED_SECRET = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_SHARED_SECRET'
-        AppKey = 'CRAW_CHAT_USER_CENTER_SHARED_SECRET'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_EXTERNAL_BASE_URL = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_EXTERNAL_BASE_URL'
-        AppKey = 'CRAW_CHAT_USER_CENTER_EXTERNAL_BASE_URL'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_DATABASE_URL = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_DATABASE_URL'
-        AppKey = 'CRAW_CHAT_USER_CENTER_DATABASE_URL'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_SCHEMA_NAME = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_SCHEMA_NAME'
-        AppKey = 'CRAW_CHAT_USER_CENTER_SCHEMA_NAME'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_SQLITE_PATH = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_SQLITE_PATH'
-        AppKey = 'CRAW_CHAT_USER_CENTER_SQLITE_PATH'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_TABLE_PREFIX = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_TABLE_PREFIX'
-        AppKey = 'CRAW_CHAT_USER_CENTER_TABLE_PREFIX'
-    }
-    CRAW_CHAT_SERVER_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS = @{
-        CanonicalKey = 'SDKWORK_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS'
-        AppKey = 'CRAW_CHAT_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS'
-    }
-})
 $serverYamlPath = Join-Path $ConfigDir "server.yaml"
 if (-not (Test-Path $serverYamlPath)) {
     throw "Missing server config. Run init-config-server first: $serverYamlPath"

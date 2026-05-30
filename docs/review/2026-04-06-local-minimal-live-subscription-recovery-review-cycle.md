@@ -104,7 +104,7 @@ Verified in this cycle with fresh command output:
 
 Managed `local-minimal` private deployment now restores live realtime subscription intent across rebuild when the same runtime dir is reused **and** the same device performs a fresh bootstrap such as `session.resume`.
 
-The device no longer needs a second `POST /api/v1/realtime/subscriptions/sync` after restart just to receive new matching realtime events.
+The device no longer needs a second `POST /im/v3/api/realtime/subscriptions/sync` after restart just to receive new matching realtime events.
 
 ## 8. Residual Risk
 

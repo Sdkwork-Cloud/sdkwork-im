@@ -8,8 +8,8 @@ When a device explicitly calls `session.disconnect`, any already-open realtime w
 
 This standard applies when:
 
-- a device already has an active websocket connection through `/api/v1/realtime/ws`
-- the same device successfully calls `POST /api/v1/sessions/disconnect`
+- a device already has an active websocket connection through `/im/v3/api/realtime/ws`
+- the same device successfully calls `POST /im/v3/api/device/sessions/disconnect`
 
 This standard complements:
 

@@ -26,8 +26,8 @@ The first landing implementation is TypeScript for browser and Node.js, but the 
 
 - TypeScript SDK workspace: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript`
 - SDK root workspace: `sdks/sdkwork-im-sdk`
-- Current live schema export endpoint: `/openapi/craw-chat-app.openapi.yaml`
-- Checked-in authority schema: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
+- Current live schema export endpoint: `/im/v3/openapi.json`
+- Checked-in authority schema: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
 - Current live schema refresh script: `sdks/sdkwork-im-sdk/bin/refresh-live-openapi-source.mjs`
 - Current TypeScript client implementation: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/sdk.ts`
 - Current TypeScript public types: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/types.ts`
@@ -219,7 +219,7 @@ Why:
 
 Network activity begins only with explicit methods such as:
 
-- `sdk.auth.login(...)`
+- `sdk.auth.useToken(...)`
 - `sdk.connect(...)`
 - `sdk.messages.send(...)`
 - `sdk.media.upload(...)`
@@ -281,16 +281,17 @@ Guiding rule:
 
 ## Authentication Standard
 
-Authentication should not be framed around portal internals in the public SDK.
+Authentication and IAM context are issued by `sdkwork-appbase`, not by Craw Chat SDK packages.
+The public Craw Chat SDK auth surface is token consumption only.
 
 Required public shape:
 
-- `sdk.auth.login(...)`
 - `sdk.auth.useToken(token)`
 - `sdk.auth.clearToken()`
-- `sdk.auth.me()`
+- `authToken` constructor config
 
-If the backend still routes login through a portal-specific HTTP group, the semantic layer should absorb that mismatch. Public SDK consumers should see an auth domain, not repository history.
+Current-user, tenant, organization, login, refresh, and dual-token lifecycle flows stay in appbase.
+Craw Chat receives an appbase bearer token and applies it to IM HTTP and realtime requests.
 
 ## Connection Standard
 
@@ -567,7 +568,7 @@ The generator pipeline must always use the newest service contract, not a stale 
 Required pipeline:
 
 1. start or verify the target service instance
-2. fetch the live OpenAPI 3.x schema from `/openapi/craw-chat-app.openapi.yaml`
+2. fetch the live OpenAPI 3.x schema from `/im/v3/openapi.json`
 3. validate that the fetched document is OpenAPI 3.x
 4. refresh the checked-in authority snapshot
 5. derive generator-specific normalized inputs where needed

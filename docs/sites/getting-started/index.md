@@ -8,7 +8,7 @@ repository with minimal surprises.
 - A runnable `local-minimal-node` app surface for local development and verification.
 - Scripted install, config, start, stop, restart, status, and Docker bootstrap entry points.
 - OpenAPI-style API documentation that tracks the implemented HTTP surface.
-- Clear boundaries between app APIs, control-plane governance APIs, and SDK workspaces.
+- Clear boundaries between IM standard APIs, app-business APIs, backend control/admin APIs, and SDK workspaces.
 
 ## Supported Runtime Modes
 
@@ -47,19 +47,21 @@ The fallback behavior is not documentation guesswork. It is implemented in the s
 
 ## Auth Boundary You Need To Know
 
-### App-facing public routes
+### IM Open-Platform Public Routes
 
-The public app surface uses bearer-token auth:
+Public clients authenticate through SDKWork appbase. `sdkwork-appbase` owns login, IAM sessions,
+tenant/user/org context, and dual-token validation. `craw-chat` receives only the verified
+AppContext projection:
 
-- Header: `Authorization: Bearer <token>`
-- Signing secret: `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`
-
-Trusted internal headers such as `x-tenant-id`, `x-user-id`, and `x-session-id` are still used in
-tests and embedded compositions, but they are not the canonical public SDK auth model.
+- `x-sdkwork-tenant-id`
+- `x-sdkwork-user-id`
+- `x-sdkwork-session-id`
+- `x-sdkwork-device-id`
+- `x-sdkwork-permission-scope`
 
 ### Control-plane routes
 
-The control-plane surface also uses public bearer auth and adds permission checks:
+The control-plane surface uses the same SDKWork AppContext boundary and adds permission checks:
 
 - `control.read` for read operations
 - `control.write` for mutating operations
@@ -74,13 +76,15 @@ The implementation also allows `control.write` to satisfy read access.
 - Want the full endpoint inventory: [API Reference](/api-reference/index)
 - Want to understand SDK reality before promising packages: [SDK Overview](/sdk/index)
 
-The app-facing IM SDK family lives in `sdkwork-im-sdk`, with the public TypeScript package
-`@sdkwork/im-sdk`. Local development points at `local-minimal-node`; packaged installs point at the
-unified `craw-chat-server` / `web-gateway` public origin.
+The IM standard SDK family lives in `sdkwork-im-sdk`, with the public TypeScript package
+`@sdkwork/im-sdk`, and maps to `/im/v3/api/*`.
 
-`sdkwork-control-plane-sdk` maps to governance and control-plane routes. Standalone governance
-development can point directly at `control-plane-api`; packaged installs should switch to the
-unified gateway public origin.
+`sdkwork-im-app-sdk` maps to `/app/v3/api/*` for app-business and non-management HTTP APIs outside
+the IM standardized surface.
 
-`sdkwork-im-admin-sdk` maps to the deployed `/api/admin/*` surface. In packaged
-installs that surface is also reached through the unified gateway public origin.
+`sdkwork-im-backend-sdk` maps to `/backend/v3/api/*`. Control-plane governance under
+`/backend/v3/api/control/*` and admin under `/backend/v3/api/admin/*` are backend SDK modules, not
+separate SDK families.
+
+`sdkwork-rtc-sdk` is independent from OpenAPI-generated HTTP SDKs and owns RTC provider runtime,
+provider package, and native driver boundaries.

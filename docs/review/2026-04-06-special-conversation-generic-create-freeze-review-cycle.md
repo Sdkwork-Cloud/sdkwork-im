@@ -24,7 +24,7 @@
 
 The current safest commercial-grade standard is:
 
-- Generic `POST /api/v1/conversations` supports only:
+- Generic `POST /im/v3/api/chat/conversations` supports only:
   - `group`
   - `direct`
 - The following remain valid data-model values but are reserved for future dedicated create commands:

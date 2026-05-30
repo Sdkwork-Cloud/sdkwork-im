@@ -6,8 +6,8 @@
 
 ## 2. 收敛目标
 
-- `GET /api/v1/control/provider-policies/diff`
-- `POST /api/v1/control/provider-policies/rollback`
+- `GET /backend/v3/api/control/provider-policies/diff`
+- `POST /backend/v3/api/control/provider-policies/rollback`
 - `unknown provider policy version`
 - `status=conflict`
 - `code=provider_policy_conflict`

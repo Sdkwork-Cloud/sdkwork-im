@@ -1,7 +1,8 @@
-# Control Plane API Overview
+# Backend Control Module Overview
 
 <p class="api-page-intro">
-  The Control Plane API manages runtime governance outside the app node request path. It exposes
+  Backend control modules manage runtime governance outside the app node request path under
+  <code>/backend/v3/api/control/*</code>. They expose
   protocol registry and governance snapshots, provider registry and provider policy management,
   social graph and shared-channel runtime control, and node lifecycle operations for drain,
   activate, and route migration.
@@ -37,11 +38,11 @@
 
 ## SDK Alignment
 
-- These endpoints are the checked-in authority for `sdkwork-control-plane-sdk`.
-- Read the SDK guides at [Control-Plane SDK](/sdk/control-plane-sdk), [Control-Plane TypeScript SDK](/sdk/control-plane-typescript-sdk), and [Control-Plane Flutter SDK](/sdk/control-plane-flutter-sdk).
-- The live contract source is `services/control-plane-api`, exposed at `/openapi.json` and `/api/v1/control/openapi.json`, then normalized into `sdks/sdkwork-control-plane-sdk/openapi/control-plane.openapi.yaml`.
-- The checked-in OpenAPI authority also includes
-  `sdks/sdkwork-control-plane-sdk/openapi/control-plane.openapi.json`.
+- These endpoints are backend SDK control modules inside `sdkwork-im-backend-sdk`.
+- Read [Backend SDK](/sdk/backend-sdk) for the generated SDK boundary.
+- The live control-plane source remains `services/control-plane-api`, exposed at `/openapi.json`
+  and `/backend/v3/api/control/openapi.json`, then consolidated into
+  `sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml`.
 - Read and write permissions are split between `control.read` and `control.write`.
 - Standalone governance development can call `control-plane-api` directly, but packaged installs
   expose the same governance routes through the unified `craw-chat-server` / `web-gateway` public
@@ -52,15 +53,13 @@
 Use the control-plane API docs as the semantic authority first:
 
 1. Read this overview and the linked control-plane operation groups for request, response, and permission behavior.
-2. Use [Control-Plane SDK](/sdk/control-plane-sdk) only to confirm audience boundary, source-of-truth files, and release-state limits.
-3. Do not infer that every browser-only `/api/admin/*` route is already generated from OpenAPI just because the control-plane authority and validated consumer package manifests now exist.
-
-That split is intentional: control-plane route behavior is documented as delivered, while admin
-consumer package surfaces are still documented conservatively.
+2. Use [Backend SDK](/sdk/backend-sdk) to confirm package boundaries, source-of-truth files, and release-state limits.
+3. Treat `/backend/v3/api/control/*` and `/backend/v3/api/admin/*` as modules of the same backend SDK family.
 
 ## What To Read Next
 
-- [Control-Plane SDK](/sdk/control-plane-sdk)
+- [Backend SDK](/sdk/backend-sdk)
+- [Backend API](/api-reference/backend-api)
 - [SDK Overview](/sdk/index)
 - [Authentication and Errors](/api-reference/auth-and-errors)
 

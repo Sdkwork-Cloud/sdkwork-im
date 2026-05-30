@@ -19,7 +19,7 @@
 - 红灯命令：
   - `cargo test -p local-minimal-node --offline --test iot_provider_http_test -- --nocapture`
 - 初始失败原因：
-  - `GET /api/v1/iot/access/provider-health` 返回 `404`
+  - `GET /backend/v3/api/iot/access/provider_health` 返回 `404`
 - 绿灯后确认：
   - 返回 `200`
   - `pluginId = iot-access-local`
@@ -41,7 +41,7 @@
 ## 本轮冻结的设计事实
 
 - 路由：
-  - `GET /api/v1/iot/access/provider-health`
+  - `GET /backend/v3/api/iot/access/provider_health`
 - 响应源：
   - `DeviceAccessProvider::provider_health_snapshot()`
 - 当前默认 provider：

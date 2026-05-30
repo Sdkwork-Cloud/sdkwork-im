@@ -26,7 +26,7 @@
 
 - 测试可以替换 provider
 - 默认运行时仍然不需要额外配置
-- provider 注入模式与 `UserModuleProvider` 保持一致
+- provider 注入模式与 `PrincipalProfileProvider` 保持一致
 
 ## 运行时调用设计
 
@@ -62,7 +62,7 @@
 在 `local-minimal-node` 当前基线中，provider 请求固定为：
 
 - `product_id = local-minimal-device`
-- `credential_kind = session`
+- `credential_kind = device_route`
 
 这是本轮为了最小闭环做的运行时冻结，后续如果引入 product registry 再提升为可配置选择。
 

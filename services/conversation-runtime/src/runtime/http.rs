@@ -16,8 +16,8 @@ use craw_chat_api_registry::HttpMethod;
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_auth_context::{
-    AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
+use im_app_context::{
+    AppContext, AppContextError, resolve_app_context,
 };
 use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursorView, MembershipRole,
@@ -275,7 +275,7 @@ fn lock_shared_channel_rate_limit_mutex<'a, T>(
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!("warn: recovered poisoned conversation-runtime mutex lock={lock_name}");
+            tracing::warn!("recovered poisoned conversation-runtime mutex lock={lock_name}");
             poisoned.into_inner()
         }
     }
@@ -596,8 +596,8 @@ impl ApiError {
     }
 }
 
-impl From<AuthContextError> for ApiError {
-    fn from(value: AuthContextError) -> Self {
+impl From<AppContextError> for ApiError {
+    fn from(value: AppContextError) -> Self {
         Self {
             status: axum::http::StatusCode::UNAUTHORIZED,
             code: value.code(),
@@ -704,14 +704,18 @@ pub fn build_default_app_with_principal_directory(
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_public_bearer_auth))
+    build_default_app().layer(middleware::from_fn(require_app_context))
+}
+
+pub fn build_public_app_with_allow_all_principals() -> Router {
+    build_default_app().layer(middleware::from_fn(require_app_context))
 }
 
 pub fn build_public_app_with_principal_directory(
     principal_directory: Arc<dyn PrincipalDirectory>,
 ) -> Router {
     build_default_app_with_principal_directory(principal_directory)
-        .layer(middleware::from_fn(require_public_bearer_auth))
+        .layer(middleware::from_fn(require_app_context))
 }
 
 fn build_app(state: AppState) -> Router {
@@ -720,106 +724,118 @@ fn build_app(state: AppState) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .route("/api/v1/conversations", post(create_conversation))
+        .route("/im/v3/api/chat/conversations", post(create_conversation))
         .route(
-            "/api/v1/conversations/threads",
+            "/im/v3/api/chat/conversations/threads",
             post(create_thread_conversation),
         )
         .route(
-            "/api/v1/conversations/direct-chats/bindings",
+            "/im/v3/api/chat/conversations/direct_chats/bindings",
             post(bind_direct_chat_conversation),
         )
         .route(
-            "/api/v1/conversations/shared-channel-links/sync",
+            "/im/v3/api/chat/conversations/shared_channel_links/sync",
             post(sync_shared_channel_linked_member),
         )
         .route(
-            "/api/v1/conversations/agent-dialogs",
+            "/im/v3/api/chat/conversations/agent_dialogs",
             post(create_agent_dialog),
         )
         .route(
-            "/api/v1/conversations/agent-handoffs",
+            "/im/v3/api/chat/conversations/agent_handoffs",
             post(create_agent_handoff),
         )
         .route(
-            "/api/v1/conversations/system-channels",
+            "/im/v3/api/chat/conversations/system_channels",
             post(create_system_channel),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/agent-handoff",
+            "/im/v3/api/chat/conversations/{conversation_id}/agent_handoff",
             get(get_agent_handoff_state),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/agent-handoff/accept",
+            "/im/v3/api/chat/conversations/{conversation_id}/agent_handoff/accept",
             post(accept_agent_handoff),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/agent-handoff/resolve",
+            "/im/v3/api/chat/conversations/{conversation_id}/agent_handoff/resolve",
             post(resolve_agent_handoff),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/agent-handoff/close",
+            "/im/v3/api/chat/conversations/{conversation_id}/agent_handoff/close",
             post(close_agent_handoff),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members",
+            "/im/v3/api/chat/conversations/{conversation_id}/members",
             get(list_members),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/binding",
+            "/im/v3/api/chat/conversations/{conversation_id}/binding",
             get(get_conversation_binding),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members/add",
+            "/im/v3/api/chat/conversations/{conversation_id}/members/add",
             post(add_member),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members/remove",
+            "/im/v3/api/chat/conversations/{conversation_id}/members/remove",
             post(remove_member),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members/transfer-owner",
+            "/im/v3/api/chat/conversations/{conversation_id}/members/transfer_owner",
             post(transfer_conversation_owner),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members/change-role",
+            "/im/v3/api/chat/conversations/{conversation_id}/members/change_role",
             post(change_conversation_member_role),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/members/leave",
+            "/im/v3/api/chat/conversations/{conversation_id}/members/leave",
             post(leave_conversation),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/read-cursor",
+            "/im/v3/api/chat/conversations/{conversation_id}/read_cursor",
             get(get_read_cursor).post(update_read_cursor),
         )
-        .route("/api/v1/messages/{message_id}/edit", post(edit_message))
-        .route("/api/v1/messages/{message_id}/recall", post(recall_message))
         .route(
-            "/api/v1/messages/{message_id}/reactions",
+            "/im/v3/api/chat/messages/{message_id}/edit",
+            post(edit_message),
+        )
+        .route(
+            "/im/v3/api/chat/messages/{message_id}/recall",
+            post(recall_message),
+        )
+        .route(
+            "/im/v3/api/chat/messages/{message_id}/reactions",
             post(add_message_reaction),
         )
         .route(
-            "/api/v1/messages/{message_id}/reactions/remove",
+            "/im/v3/api/chat/messages/{message_id}/reactions/remove",
             post(remove_message_reaction),
         )
-        .route("/api/v1/messages/{message_id}/pin", post(pin_message))
-        .route("/api/v1/messages/{message_id}/unpin", post(unpin_message))
         .route(
-            "/api/v1/conversations/{conversation_id}/messages",
+            "/im/v3/api/chat/messages/{message_id}/pin",
+            post(pin_message),
+        )
+        .route(
+            "/im/v3/api/chat/messages/{message_id}/unpin",
+            post(unpin_message),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/messages",
             get(list_messages).post(post_message),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/system-channel/publish",
+            "/im/v3/api/chat/conversations/{conversation_id}/system_channel/publish",
             post(publish_system_channel_message),
         )
         .with_state(state)
 }
 
-async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_public_bearer_auth_context(request.headers()) {
+        _ => match resolve_app_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => ApiError::from(error).into_response(),
         },
@@ -863,7 +879,7 @@ fn build_conversation_runtime_openapi_document() -> Result<serde_json::Value, St
         &conversation_runtime_openapi_spec(),
         &routes,
         conversation_runtime_tag,
-        conversation_runtime_requires_bearer,
+        conversation_runtime_requires_app_context,
         conversation_runtime_summary,
     ))
 }
@@ -872,7 +888,7 @@ fn conversation_runtime_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
         title: "Craw Chat Conversation Runtime API",
         version: env!("CARGO_PKG_VERSION"),
-        description: "Live OpenAPI contract generated from the conversation-runtime router for conversation creation, membership changes, messaging, read cursor updates, and shared-channel sync commands.",
+        description: "Live OpenAPI contract generated from the conversation-runtime router for conversation creation, membership changes, messaging, read cursor updates, and shared_channel sync commands.",
         openapi_path: "/openapi.json",
         docs_path: "/docs",
     }
@@ -881,15 +897,15 @@ fn conversation_runtime_openapi_spec() -> OpenApiServiceSpec<'static> {
 fn conversation_runtime_tag(path: &str, _method: HttpMethod) -> String {
     match path {
         "/healthz" | "/readyz" => "system".to_owned(),
-        path if path.starts_with("/api/v1/messages/") => "messages".to_owned(),
+        path if path.starts_with("/im/v3/api/chat/messages/") => "messages".to_owned(),
         path if path.contains("/members") => "members".to_owned(),
-        path if path.contains("shared-channel-links") => "shared-channel".to_owned(),
-        path if path.contains("agent-handoff") => "agent-handoff".to_owned(),
+        path if path.contains("shared_channel_links") => "shared_channel".to_owned(),
+        path if path.contains("agent_handoff") => "agent_handoff".to_owned(),
         _ => "conversations".to_owned(),
     }
 }
 
-fn conversation_runtime_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+fn conversation_runtime_requires_app_context(path: &str, _method: HttpMethod) -> bool {
     !matches!(path, "/healthz" | "/readyz")
 }
 
@@ -1069,13 +1085,13 @@ async fn bind_direct_chat_conversation(
 fn resolve_active_http_auth_context(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<AuthContext, ApiError> {
-    let auth = resolve_auth_context(headers)?;
+) -> Result<AppContext, ApiError> {
+    let auth = resolve_app_context(headers)?;
     ensure_active_http_auth_principal(state, &auth)?;
     Ok(auth)
 }
 
-fn ensure_active_http_auth_principal(state: &AppState, auth: &AuthContext) -> Result<(), ApiError> {
+fn ensure_active_http_auth_principal(state: &AppState, auth: &AppContext) -> Result<(), ApiError> {
     ensure_active_http_principal(
         state,
         auth.tenant_id.as_str(),
@@ -1693,7 +1709,7 @@ mod tests {
         runtime: &ConversationRuntime<InMemoryJournal>,
         conversation_id: &str,
     ) -> String {
-        let owner_auth = AuthContext {
+        let owner_auth = AppContext {
             tenant_id: "t_demo".into(),
             actor_id: "u_owner".into(),
             actor_kind: "user".into(),
@@ -1890,10 +1906,10 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/conversations/c_ghost_post_http/messages")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_missing")
-                    .header("x-actor-kind", "user")
+                    .uri("/im/v3/api/chat/conversations/c_ghost_post_http/messages")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_missing")
+                    .header("x-sdkwork-actor-kind", "user")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         r#"{
@@ -1932,10 +1948,10 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("GET")
-                    .uri("/api/v1/conversations/c_ghost_history_http/messages")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_missing")
-                    .header("x-actor-kind", "user")
+                    .uri("/im/v3/api/chat/conversations/c_ghost_history_http/messages")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_missing")
+                    .header("x-sdkwork-actor-kind", "user")
                     .body(Body::empty())
                     .unwrap(),
             )

@@ -19,7 +19,7 @@
   - `deployment_profile`
   - `tenant_override`
   拆成可写的运行时 provider policy owner。
-- `control-plane-api` 新增 `POST /api/v1/control/provider-bindings`
+- `control-plane-api` 新增 `POST /backend/v3/api/control/provider_bindings`
 - 写接口最小请求固定为：
   - `tenantId`
   - `domain`
@@ -33,8 +33,8 @@
   - `control.provider_deployment_profile_updated`
   - `control.provider_tenant_override_updated`
 - 公开权限边界保持不变：
-  - `GET /api/v1/control/provider-bindings` 仍要求 `control.read`
-  - `POST /api/v1/control/provider-bindings` 要求 `control.write`
+  - `GET /backend/v3/api/control/provider_bindings` 仍要求 `control.read`
+  - `POST /backend/v3/api/control/provider_bindings` 要求 `control.write`
 
 ## 改动文件
 

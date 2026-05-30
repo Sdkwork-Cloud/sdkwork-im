@@ -27,7 +27,7 @@
 
 ### 3.1 专用路由
 
-- `POST /api/v1/conversations/agent-handoffs`
+- `POST /im/v3/api/chat/conversations/agent_handoffs`
 
 请求体：
 
@@ -184,7 +184,7 @@
 ## 10. Gateway 标准
 
 - app-facing 与 local profile 必须暴露相同专用路由：
-  - `POST /api/v1/conversations/agent-handoffs`
+  - `POST /im/v3/api/chat/conversations/agent_handoffs`
 - 网关层不得允许客户端显式提交：
   - `tenantId`
   - `sourceId`

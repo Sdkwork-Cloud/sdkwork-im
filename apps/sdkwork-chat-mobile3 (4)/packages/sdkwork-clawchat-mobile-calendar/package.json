@@ -1,0 +1,12 @@
+{
+  "name": "@sdkwork/clawchat-mobile-calendar",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-router": "^7.1.1",
+    "lucide-react": "^0.469.0",
+    "motion": "^11.15.0",
+    "@sdkwork/clawchat-mobile-commons": "*"
+  }
+}

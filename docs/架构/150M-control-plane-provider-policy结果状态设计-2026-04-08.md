@@ -1,7 +1,7 @@
 # 150M control-plane provider-policy 结果状态设计
 ## 1. 背景
 
-`07-C6` 引入了 `POST /api/v1/control/provider-policies/preview`，`07-C8` 补齐 committed 回显，`07-C9` 又加入 no-op 抑制。但调用方仍需要通过不同路由、`applied` 布尔值和 HTTP 语义组合判断当前到底是 `preview`、真实写入还是 `noop`。
+`07-C6` 引入了 `POST /backend/v3/api/control/provider-policies/preview`，`07-C8` 补齐 committed 回显，`07-C9` 又加入 no-op 抑制。但调用方仍需要通过不同路由、`applied` 布尔值和 HTTP 语义组合判断当前到底是 `preview`、真实写入还是 `noop`。
 
 ## 2. 目标
 
@@ -39,9 +39,9 @@
 
 ## 5. HTTP 面
 
-- `POST /api/v1/control/provider-policies/preview`
+- `POST /backend/v3/api/control/provider-policies/preview`
   - 返回 `status=preview`
-- `POST /api/v1/control/provider-bindings`
+- `POST /backend/v3/api/control/provider_bindings`
   - 真写入返回 `status=applied`
   - no-op 返回 `status=noop`
   - 继续返回 `applied` 布尔值，兼容旧调用方

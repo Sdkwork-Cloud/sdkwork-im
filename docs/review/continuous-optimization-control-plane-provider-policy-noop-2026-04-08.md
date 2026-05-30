@@ -3,7 +3,7 @@
 ## 本轮交付
 
 - 新增 `07-C9 / 09L / 150L` 文档闭环。
-- `POST /api/v1/control/provider-bindings` 新增 `applied` no-op 语义。
+- `POST /backend/v3/api/control/provider_bindings` 新增 `applied` no-op 语义。
 - `ProviderPolicyCommit` 新增 `applied`。
 - 相同 policy 重复提交会返回 `applied=false`，不再新增版本。
 - no-op 成功路径已证明不会追加 audit，也不会触发新的 ops 刷新。

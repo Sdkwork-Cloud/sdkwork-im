@@ -28,20 +28,20 @@ fn assert_state_json_eq(actual: &serde_json::Value, expected: &str) {
 
 fn device_actor(builder: RequestBuilder) -> RequestBuilder {
     builder
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_owner")
-        .header("x-actor-kind", "device")
-        .header("x-device-id", "d_sensor")
-        .header("x-session-id", "s_sensor")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_owner")
+        .header("x-sdkwork-actor-kind", "device")
+        .header("x-sdkwork-device-id", "d_sensor")
+        .header("x-sdkwork-session-id", "s_sensor")
 }
 
 fn owner_actor(builder: RequestBuilder) -> RequestBuilder {
     builder
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_owner")
-        .header("x-actor-kind", "user")
-        .header("x-device-id", "d_console")
-        .header("x-session-id", "s_console")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_owner")
+        .header("x-sdkwork-actor-kind", "user")
+        .header("x-sdkwork-device-id", "d_console")
+        .header("x-sdkwork-session-id", "s_console")
 }
 
 #[tokio::test]
@@ -54,7 +54,7 @@ async fn test_local_minimal_profile_device_twin_mainline_supports_desired_and_re
             device_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/devices/register"),
+                    .uri("/im/v3/api/devices/register"),
             )
             .header("content-type", "application/json")
             .body(Body::from(r#"{}"#))
@@ -70,7 +70,7 @@ async fn test_local_minimal_profile_device_twin_mainline_supports_desired_and_re
             owner_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/devices/d_sensor/twin/desired"),
+                    .uri("/im/v3/api/devices/d_sensor/twin/desired"),
             )
             .header("content-type", "application/json")
             .body(Body::from(
@@ -98,7 +98,7 @@ async fn test_local_minimal_profile_device_twin_mainline_supports_desired_and_re
             device_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/devices/d_sensor/twin/reported"),
+                    .uri("/im/v3/api/devices/d_sensor/twin/reported"),
             )
             .header("content-type", "application/json")
             .body(Body::from(
@@ -123,7 +123,7 @@ async fn test_local_minimal_profile_device_twin_mainline_supports_desired_and_re
 
     let get_response = app
         .oneshot(
-            owner_actor(Request::builder().uri("/api/v1/devices/d_sensor/twin"))
+            owner_actor(Request::builder().uri("/im/v3/api/devices/d_sensor/twin"))
                 .body(Body::empty())
                 .unwrap(),
         )

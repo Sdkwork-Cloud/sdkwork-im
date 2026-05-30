@@ -38,6 +38,22 @@ surface.
 | `chat-window.*` | Interactive terminal window backed by `chat-cli` |
 | `chat-window-gui.*` | Windows GUI wrapper around the chat-window workflow |
 
+### Scripted Chat Validation
+
+`open-chat-test.*` is the supported wrapper for scripted local chat verification. PowerShell uses
+`-ScriptedValidation`; Bash and CMD-compatible flows use `--scripted-validation`.
+
+The scripted contract keeps these names stable for automation:
+
+- `ValidationMessage`
+- `watchFrameTypes`
+- `realtime.connected`
+- `event.window`
+- `OwnerPassword`
+- `GuestPassword`
+
+Use `open-chat-test` for end-to-end local validation before treating CLI or SDK samples as current.
+
 ## Server Lifecycle Scripts
 
 | Script family | Description |
@@ -129,15 +145,15 @@ Notes:
 
 The SDK workspaces under `sdks/` have their own root command wrappers.
 
-### App SDK Derived Specs And Verification
+### IM Standard SDK Verification
 
-The app-facing SDK workspace is `sdks/sdkwork-im-sdk`.
+The IM standard SDK workspace is `sdks/sdkwork-im-sdk`.
 
 Its checked-in authority and derived generator inputs live under `openapi/`:
 
-- `openapi/craw-chat-app.openapi.yaml`
-- `openapi/craw-chat-app.sdkgen.yaml`
-- `openapi/craw-chat-app.flutter.sdkgen.yaml`
+- `openapi/craw-chat-im.openapi.yaml`
+- `openapi/craw-chat-im.sdkgen.yaml`
+- `openapi/craw-chat-im.flutter.sdkgen.yaml`
 
 Run from the repository root:
 
@@ -152,56 +168,61 @@ verification updates `.sdkwork-assembly.json`, which records package `manifestPa
 `generated` / `composed` layer split, and the stable `generatedAt` timestamp used for release-facing
 inspection.
 
-### Control-Plane SDK Derived Specs And Verification
+### App API And Backend SDK Boundary Materialization
 
-The admin control-plane SDK workspace is `sdks/sdkwork-control-plane-sdk`.
-
-### Control-Plane SDK Contract Refresh
-
-Run from the repository root when you need to refresh the checked-in admin authority contract:
+The app and backend SDK boundaries are materialized from the current OpenAPI authorities by:
 
 ```powershell
-node .\sdks\sdkwork-control-plane-sdk\bin\fetch-openapi-source.mjs
-node .\sdks\sdkwork-control-plane-sdk\bin\prepare-openapi-source.mjs
+node .\sdks\materialize-im-v3-openapi-boundaries.mjs
 ```
 
-That flow refreshes:
+That command consolidates backend management, control, and admin APIs into
+`sdkwork-im-backend-sdk`, and moves non-management backend paths into `sdkwork-im-app-sdk`.
 
-- `openapi/control-plane.openapi.yaml`
-- `openapi/control-plane.sdkgen.yaml`
+### App API SDK Verification
 
-### Control-Plane SDK Verification And Assembly
+The app-business generated HTTP SDK workspace is `sdks/sdkwork-im-app-sdk`.
 
 Run from the repository root:
 
 ```powershell
-node .\sdks\sdkwork-control-plane-sdk\bin\verify-sdk.mjs --language typescript --language flutter
-node .\sdks\sdkwork-control-plane-sdk\bin\verify-sdk.mjs --language flutter --with-dart
+node .\sdks\sdkwork-im-app-sdk\bin\verify-sdk.mjs
+node .\sdks\sdkwork-im-app-sdk\bin\generate-sdk.mjs --language typescript
 ```
 
-The root verification path runs workspace automation checks, language verification, and final
-assembly refresh. Successful verification updates `.sdkwork-assembly.json`, which records the
-workspace package inventory, generated package `manifestPath` values, the `generated` / `composed`
-layer split, and the stable `generatedAt` timestamp used for release-facing inspection.
+The app SDK owns `/app/v3/api/*` and must not contain backend, admin, or control routes.
 
-### IM Admin SDK Derived Specs And Verification
+### Backend SDK Verification
 
-The operator-console IM admin SDK workspace is `sdks/sdkwork-im-admin-sdk`.
+The backend management SDK workspace is `sdks/sdkwork-im-backend-sdk`.
 
 Run from the repository root:
 
 ```powershell
-node .\sdks\sdkwork-im-admin-sdk\bin\verify-sdk.mjs
+node .\sdks\sdkwork-im-backend-sdk\bin\verify-sdk.mjs
+node .\sdks\sdkwork-im-backend-sdk\bin\generate-sdk.mjs --language typescript
 ```
 
-Regenerate the checked-in authority inventory and language workspaces:
+The backend SDK owns `/backend/v3/api/*`, including `/backend/v3/api/control/*` and
+`/backend/v3/api/admin/*`. Do not use a separate admin or control SDK family.
+
+### RTC SDK Verification
+
+The RTC provider-standard SDK workspace is `sdks/sdkwork-rtc-sdk`.
+
+Run from the repository root:
 
 ```powershell
-.\sdks\sdkwork-im-admin-sdk\bin\generate-sdk.ps1
+node .\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
 ```
 
-The IM admin workspace follows the same generated-versus-composed package split and refreshes its
-own `.sdkwork-assembly.json` snapshot as part of verification and assembly.
+Run full smoke only when required language toolchains are available:
+
+```powershell
+node .\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
+```
+
+The RTC SDK is independent from OpenAPI-generated HTTP SDK families.
 
 ## Help Conventions
 

@@ -62,10 +62,13 @@ async fn test_public_app_exports_live_openapi_json() {
         serde_json::from_slice(&body).expect("body should be valid json");
 
     assert_eq!(value["openapi"], "3.1.0");
-    assert_eq!(value["info"]["title"], "Craw Chat Session Gateway API");
     assert_eq!(
-        value["paths"]["/api/v1/realtime/ws"]["get"]["summary"],
-        "Open realtime websocket session"
+        value["info"]["title"],
+        "Craw Chat Realtime Device Gateway API"
+    );
+    assert_eq!(
+        value["paths"]["/im/v3/api/realtime/ws"]["get"]["summary"],
+        "Open realtime websocket device route"
     );
 }
 
@@ -89,12 +92,12 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
     let html = String::from_utf8(body.to_vec()).expect("docs should be valid utf-8");
 
     assert!(html.contains("OpenAPI 3.1"));
-    assert!(html.contains("Craw Chat Session Gateway API"));
+    assert!(html.contains("Craw Chat Realtime Device Gateway API"));
     assert!(html.contains("/openapi.json"));
 }
 
 #[tokio::test]
-async fn test_session_resume_returns_presence_snapshot_for_current_device() {
+async fn test_device_session_resume_returns_presence_snapshot_for_current_device() {
     let app = session_gateway::build_app();
 
     let response = app
@@ -102,12 +105,12 @@ async fn test_session_resume_returns_presence_snapshot_for_current_device() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -139,12 +142,12 @@ async fn test_session_resume_returns_presence_snapshot_for_current_device() {
     let snapshot = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/presence/me")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/presence/me")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -166,19 +169,19 @@ async fn test_session_resume_returns_presence_snapshot_for_current_device() {
 }
 
 #[tokio::test]
-async fn test_session_resume_rejects_mismatched_bound_device_id() {
+async fn test_device_session_resume_rejects_mismatched_bound_device_id() {
     let app = session_gateway::build_app();
 
     let response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -213,12 +216,12 @@ async fn test_presence_snapshot_isolated_by_actor_kind_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_dual")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_user")
-                .header("x-device-id", "d_user")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_dual")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_user")
+                .header("x-sdkwork-device-id", "d_user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -232,12 +235,12 @@ async fn test_presence_snapshot_isolated_by_actor_kind_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_dual")
-                .header("x-actor-kind", "agent")
-                .header("x-session-id", "s_agent")
-                .header("x-device-id", "d_agent")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_dual")
+                .header("x-sdkwork-actor-kind", "agent")
+                .header("x-sdkwork-session-id", "s_agent")
+                .header("x-sdkwork-device-id", "d_agent")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -250,12 +253,12 @@ async fn test_presence_snapshot_isolated_by_actor_kind_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/presence/me")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_dual")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_user")
-                .header("x-device-id", "d_user")
+                .uri("/im/v3/api/presence/me")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_dual")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_user")
+                .header("x-sdkwork-device-id", "d_user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -283,12 +286,12 @@ async fn test_presence_snapshot_isolated_by_actor_kind_over_http() {
     let agent_presence = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/presence/me")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_dual")
-                .header("x-actor-kind", "agent")
-                .header("x-session-id", "s_agent")
-                .header("x-device-id", "d_agent")
+                .uri("/im/v3/api/presence/me")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_dual")
+                .header("x-sdkwork-actor-kind", "agent")
+                .header("x-sdkwork-session-id", "s_agent")
+                .header("x-sdkwork-device-id", "d_agent")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -315,7 +318,7 @@ async fn test_presence_snapshot_isolated_by_actor_kind_over_http() {
 }
 
 #[tokio::test]
-async fn test_session_resume_rejects_same_device_id_with_different_actor_kind_over_http() {
+async fn test_device_session_resume_rejects_same_device_id_with_different_actor_kind_over_http() {
     let app = session_gateway::build_app();
 
     let user_resume = app
@@ -323,12 +326,12 @@ async fn test_session_resume_rejects_same_device_id_with_different_actor_kind_ov
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_dual")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_user")
-                .header("x-device-id", "d_shared")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_dual")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_user")
+                .header("x-sdkwork-device-id", "d_shared")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -341,12 +344,12 @@ async fn test_session_resume_rejects_same_device_id_with_different_actor_kind_ov
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_dual")
-                .header("x-actor-kind", "agent")
-                .header("x-session-id", "s_agent")
-                .header("x-device-id", "d_shared")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_dual")
+                .header("x-sdkwork-actor-kind", "agent")
+                .header("x-sdkwork-session-id", "s_agent")
+                .header("x-sdkwork-device-id", "d_shared")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -367,7 +370,7 @@ async fn test_session_resume_rejects_same_device_id_with_different_actor_kind_ov
 }
 
 #[tokio::test]
-async fn test_session_resume_rejects_same_device_id_with_different_principal_over_http() {
+async fn test_device_session_resume_rejects_same_device_id_with_different_principal_over_http() {
     let app = session_gateway::build_app();
 
     let first_resume = app
@@ -375,12 +378,12 @@ async fn test_session_resume_rejects_same_device_id_with_different_principal_ove
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner_a")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_owner_a")
-                .header("x-device-id", "d_shared_owner")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner_a")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_owner_a")
+                .header("x-sdkwork-device-id", "d_shared_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -393,12 +396,12 @@ async fn test_session_resume_rejects_same_device_id_with_different_principal_ove
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner_b")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_owner_b")
-                .header("x-device-id", "d_shared_owner")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner_b")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_owner_b")
+                .header("x-sdkwork-device-id", "d_shared_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -427,12 +430,12 @@ async fn test_presence_heartbeat_and_disconnect_drive_device_offline_transition(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -446,12 +449,12 @@ async fn test_presence_heartbeat_and_disconnect_drive_device_offline_transition(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/presence/heartbeat")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -465,12 +468,12 @@ async fn test_presence_heartbeat_and_disconnect_drive_device_offline_transition(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/disconnect")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/disconnect")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -491,12 +494,12 @@ async fn test_presence_heartbeat_and_disconnect_drive_device_offline_transition(
     let snapshot = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/presence/me")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/presence/me")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -515,7 +518,7 @@ async fn test_presence_heartbeat_and_disconnect_drive_device_offline_transition(
 }
 
 #[tokio::test]
-async fn test_session_gateway_requires_fresh_resume_after_disconnect() {
+async fn test_session_gateway_requires_fresh_device_resume_after_disconnect() {
     let app = session_gateway::build_app();
 
     let resume_old = app
@@ -523,12 +526,12 @@ async fn test_session_gateway_requires_fresh_resume_after_disconnect() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_old")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_old")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -542,12 +545,12 @@ async fn test_session_gateway_requires_fresh_resume_after_disconnect() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/disconnect")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_old")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/disconnect")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_old")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -561,12 +564,12 @@ async fn test_session_gateway_requires_fresh_resume_after_disconnect() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/presence/heartbeat")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_old")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_old")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -589,12 +592,12 @@ async fn test_session_gateway_requires_fresh_resume_after_disconnect() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_new")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_new")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -607,12 +610,12 @@ async fn test_session_gateway_requires_fresh_resume_after_disconnect() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/presence/heartbeat")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_new")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_new")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -631,12 +634,12 @@ async fn test_session_gateway_treats_duplicate_disconnect_as_idempotent_for_same
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -650,12 +653,12 @@ async fn test_session_gateway_treats_duplicate_disconnect_as_idempotent_for_same
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/disconnect")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/disconnect")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -668,12 +671,12 @@ async fn test_session_gateway_treats_duplicate_disconnect_as_idempotent_for_same
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/disconnect")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/disconnect")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -705,12 +708,12 @@ async fn test_session_gateway_rebuild_preserves_reconnect_required_fence_until_f
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_old")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_old")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -723,12 +726,12 @@ async fn test_session_gateway_rebuild_preserves_reconnect_required_fence_until_f
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/disconnect")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_old")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/disconnect")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_old")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -746,12 +749,12 @@ async fn test_session_gateway_rebuild_preserves_reconnect_required_fence_until_f
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/presence/heartbeat")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_old")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_old")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -774,12 +777,12 @@ async fn test_session_gateway_rebuild_preserves_reconnect_required_fence_until_f
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_new")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_new")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -792,12 +795,12 @@ async fn test_session_gateway_rebuild_preserves_reconnect_required_fence_until_f
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/presence/heartbeat")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_new")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_new")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -816,12 +819,12 @@ async fn test_session_gateway_rejects_sessionless_device_rebind_after_session_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -834,11 +837,11 @@ async fn test_session_gateway_rejects_sessionless_device_rebind_after_session_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/presence/heartbeat")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -866,12 +869,12 @@ async fn test_presence_runtime_timestamps_advance_between_resume_heartbeat_and_d
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -899,12 +902,12 @@ async fn test_presence_runtime_timestamps_advance_between_resume_heartbeat_and_d
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/presence/heartbeat")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -931,12 +934,12 @@ async fn test_presence_runtime_timestamps_advance_between_resume_heartbeat_and_d
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/disconnect")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/device/sessions/disconnect")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -970,12 +973,12 @@ async fn test_realtime_subscription_sync_and_empty_event_window_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/realtime/subscriptions/sync")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_pad")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_pad")
+                .header("x-sdkwork-device-id", "d_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1009,12 +1012,12 @@ async fn test_realtime_subscription_sync_and_empty_event_window_over_http() {
     let event_window = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_pad")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_pad")
+                .header("x-sdkwork-device-id", "d_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1054,12 +1057,12 @@ async fn test_realtime_subscription_sync_returns_403_when_scope_policy_denies_ov
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/realtime/subscriptions/sync")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1103,12 +1106,12 @@ async fn test_realtime_ack_endpoint_accepts_empty_window_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/realtime/subscriptions/sync")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_pad")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_pad")
+                .header("x-sdkwork-device-id", "d_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1131,12 +1134,12 @@ async fn test_realtime_ack_endpoint_accepts_empty_window_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/realtime/events/ack")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_pad")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/realtime/events/ack")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_pad")
+                .header("x-sdkwork-device-id", "d_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"ackedSeq":0}"#))
                 .unwrap(),
@@ -1159,7 +1162,7 @@ async fn test_realtime_ack_endpoint_accepts_empty_window_over_http() {
 }
 
 #[tokio::test]
-async fn test_session_resume_rejects_oversized_device_id_over_http() {
+async fn test_device_session_resume_rejects_oversized_device_id_over_http() {
     let app = session_gateway::build_app();
     let oversized_device_id = "d".repeat(1024);
     let request_body = serde_json::json!({
@@ -1172,11 +1175,11 @@ async fn test_session_resume_rejects_oversized_device_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1221,12 +1224,12 @@ async fn test_realtime_subscription_sync_rejects_oversized_scope_id_over_http() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/realtime/subscriptions/sync")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1264,12 +1267,12 @@ async fn test_realtime_event_window_rejects_limit_above_guardrail_over_http() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/realtime/events?afterSeq=0&limit=5000")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=5000")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1295,12 +1298,12 @@ async fn test_realtime_event_window_rejects_zero_limit_without_binding_route_ove
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/realtime/events?afterSeq=0&limit=0")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1345,12 +1348,12 @@ async fn test_realtime_subscription_sync_rejects_oversized_event_types_payload_o
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/realtime/subscriptions/sync")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1396,12 +1399,12 @@ async fn test_realtime_subscription_sync_rejects_too_many_items_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/realtime/subscriptions/sync")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1449,12 +1452,12 @@ async fn test_realtime_subscription_sync_rejects_oversized_total_payload_over_ht
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/realtime/subscriptions/sync")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_demo")
-                .header("x-device-id", "d_demo")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

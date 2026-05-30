@@ -70,8 +70,8 @@
 - `services/local-minimal-node/src/node/platform.rs`
   - `refresh_node_operational_view(...)` 现在会把 `projection-service` owner 的 `rebuild_duration_ms` 写入 `OpsRuntime`
 - 这意味着 `Local Minimal` profile 下，启动恢复后的真实 rebuild duration 已可直接在：
-  - `/api/v1/ops/health`
-  - `/api/v1/ops/diagnostics`
+  - `/backend/v3/api/ops/health`
+  - `/backend/v3/api/ops/diagnostics`
  读取
 
 ### 5. snapshot-only recovery 现在具备正确的双指标语义

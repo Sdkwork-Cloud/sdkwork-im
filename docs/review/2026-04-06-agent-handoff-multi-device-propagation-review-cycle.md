@@ -9,8 +9,8 @@
   - `projection-service` projected the event into `summary` and `inbox`, but did not append any `DeviceSyncFeedEntry`.
   - `local-minimal-node` handlers for `accept / resolve / close` only mutated runtime state and returned JSON. They did not publish any realtime business event.
 - Impact:
-  - another device of the same principal could not resume the handoff lifecycle from `/api/v1/devices/{deviceId}/sync-feed`
-  - subscribed devices could not observe lifecycle changes from `/api/v1/realtime/events`
+  - another device of the same principal could not resume the handoff lifecycle from `/im/v3/api/devices/{deviceId}/sync-feed`
+  - subscribed devices could not observe lifecycle changes from `/im/v3/api/realtime/events`
   - websocket push clients could not receive lifecycle transitions in near real time
 
 ## 2. Scope Freeze

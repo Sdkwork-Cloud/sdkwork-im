@@ -117,7 +117,7 @@
 
 ## 5. API 行为标准
 
-### 5.1 `GET /api/v1/conversations/{conversationId}`
+### 5.1 `GET /im/v3/api/chat/conversations/{conversationId}`
 
 只要会话存在且调用方是有效成员，summary 就必须返回 `200`。
 
@@ -129,7 +129,7 @@
 
 而返回 `404 conversation_summary_not_found`。
 
-### 5.2 `GET /api/v1/inbox`
+### 5.2 `GET /im/v3/api/chat/inbox`
 
 当会话类型为 `agent_handoff` 时，返回项必须携带：
 

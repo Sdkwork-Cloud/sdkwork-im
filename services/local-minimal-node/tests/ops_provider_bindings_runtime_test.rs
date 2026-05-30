@@ -10,11 +10,11 @@ async fn test_local_minimal_ops_diagnostics_exposes_runtime_provider_bindings() 
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/diagnostics")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_ops_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/diagnostics")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_ops_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -76,11 +76,11 @@ async fn test_local_minimal_ops_diagnostics_exposes_runtime_provider_bindings() 
     );
     assert!(
         effective_bindings.iter().any(|binding| {
-            binding["domain"] == "user-module"
-                && binding["selectedPluginId"] == "user-module-local"
+            binding["domain"] == "principal-profile"
+                && binding["selectedPluginId"] == "principal-profile-upstream-context"
                 && binding["selectionSource"] == "global_default"
         }),
-        "user-module binding should expose the local provider"
+        "principal-profile binding should expose the local provider"
     );
     assert!(
         effective_bindings.iter().any(|binding| {
@@ -114,52 +114,52 @@ async fn test_local_minimal_exposes_standalone_ops_provider_binding_routes() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_ops_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_ops_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("ops provider-bindings should return response");
+        .expect("ops provider_bindings should return response");
     assert_eq!(
         provider_bindings_response.status(),
         StatusCode::OK,
-        "local-minimal should expose standalone provider-bindings route"
+        "local-minimal should expose standalone provider_bindings route"
     );
 
     let provider_bindings_body = provider_bindings_response
         .into_body()
         .collect()
         .await
-        .expect("provider-bindings body should collect")
+        .expect("provider_bindings body should collect")
         .to_bytes();
     let provider_bindings_json: serde_json::Value = serde_json::from_slice(&provider_bindings_body)
-        .expect("provider-bindings body should be valid json");
+        .expect("provider_bindings body should be valid json");
     let items = provider_bindings_json["items"]
         .as_array()
-        .expect("provider-bindings items should be an array");
+        .expect("provider_bindings items should be an array");
     assert_eq!(
         items.len(),
         1,
-        "standalone provider-bindings route should publish the same global snapshot as diagnostics"
+        "standalone provider_bindings route should publish the same global snapshot as diagnostics"
     );
 
     let provider_binding_drift_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/provider-bindings/drift")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_ops_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/provider_bindings/drift")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_ops_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("ops provider-bindings drift should return response");
+        .expect("ops provider_bindings drift should return response");
     assert_eq!(
         provider_binding_drift_response.status(),
         StatusCode::OK,
@@ -170,11 +170,11 @@ async fn test_local_minimal_exposes_standalone_ops_provider_binding_routes() {
         .into_body()
         .collect()
         .await
-        .expect("provider-bindings drift body should collect")
+        .expect("provider_bindings drift body should collect")
         .to_bytes();
     let provider_binding_drift_json: serde_json::Value =
         serde_json::from_slice(&provider_binding_drift_body)
-            .expect("provider-bindings drift body should be valid json");
+            .expect("provider_bindings drift body should be valid json");
     assert_eq!(
         provider_binding_drift_json["items"],
         serde_json::json!([]),

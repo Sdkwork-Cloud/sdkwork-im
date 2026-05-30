@@ -19,7 +19,7 @@
 - 红灯命令：
   - `cargo test -p local-minimal-node --offline --test iot_protocol_adapter_mainline_test -- --nocapture`
 - 初始失败原因：
-  - `POST /api/v1/iot/protocol/downlink` 返回 `404`
+  - `POST /backend/v3/api/iot/protocol/downlink` 返回 `404`
 - 绿灯确认：
   - 返回 `200`
   - `frame.streamType = device.command`
@@ -41,7 +41,7 @@
 ## 本轮冻结的设计事实
 
 - route：
-  - `POST /api/v1/iot/protocol/downlink`
+  - `POST /backend/v3/api/iot/protocol/downlink`
 - runtime seam：
   - `IotProtocolAdapter::encode_downlink()`
 - 统一目标：

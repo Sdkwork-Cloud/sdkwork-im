@@ -63,7 +63,7 @@ Default unmanaged/in-process builders may continue to use a memory-backed store.
 Typical sequence:
 
 1. process restarts with the same runtime dir
-2. the client calls `GET /api/v1/streams/{id}/frames`
+2. the client calls `GET /im/v3/api/streams/{id}/frames`
    - or `POST /checkpoint`
    - or `POST /complete`
    - or `POST /abort`

@@ -8,25 +8,25 @@
 ## 本轮实现
 
 - `services/control-plane-api/src/lib.rs`
-  - `GET /api/v1/control/provider-policies` 返回 `status=history`
-  - `GET /api/v1/control/provider-policies/diff` 返回 `status=diff`
-  - `POST /api/v1/control/provider-policies/rollback` 返回 `status=rolled_back`
+  - `GET /backend/v3/api/control/provider-policies` 返回 `status=history`
+  - `GET /backend/v3/api/control/provider-policies/diff` 返回 `status=diff`
+  - `POST /backend/v3/api/control/provider-policies/rollback` 返回 `status=rolled_back`
 - 采用 HTTP 包装层补充 `status`，底层 `ProviderPolicyHistory / ProviderPolicyDiff` contract 不改动。
 - 已有 `preview / applied / noop` 状态保持不变。
 
 ## 接口冻结
 
-- `GET /api/v1/control/provider-policies`
+- `GET /backend/v3/api/control/provider-policies`
   - `status=history`
   - `currentVersion`
   - `items`
-- `GET /api/v1/control/provider-policies/diff`
+- `GET /backend/v3/api/control/provider-policies/diff`
   - `status=diff`
   - `fromVersion`
   - `toVersion`
   - `deploymentProfileChanges`
   - `tenantOverrideChanges`
-- `POST /api/v1/control/provider-policies/rollback`
+- `POST /backend/v3/api/control/provider-policies/rollback`
   - `status=rolled_back`
   - `currentVersion`
   - `items`

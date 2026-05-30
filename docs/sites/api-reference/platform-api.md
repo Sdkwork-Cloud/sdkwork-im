@@ -1,51 +1,52 @@
-# Platform API Overview
+# Legacy Platform API Grouping
 
 <p class="api-page-intro">
-  Platform APIs expose business automation, operator tooling, audit, and provider health surfaces
-  implemented behind the `local-minimal-node` profile. These endpoints are typically consumed by
-  administrative consoles, internal services, and operator tooling.
+  This page is retained only as a legacy grouping note. Current API authority is split into
+  <code>/app/v3/api/*</code> for app-business routes and <code>/backend/v3/api/*</code> for
+  management, operator, audit, control, and admin routes.
 </p>
 
 <div class="api-overview-grid">
   <div class="api-card">
     <h3>Notifications</h3>
     <p>Create notification requests and inspect dispatched notification tasks.</p>
-    <p><a href="/api-reference/platform/notifications">Open Notification APIs</a></p>
+    <p><a href="/api-reference/app/notifications">Open Notification APIs</a></p>
   </div>
   <div class="api-card">
     <h3>Automation</h3>
     <p>Trigger automation executions and inspect execution state.</p>
-    <p><a href="/api-reference/platform/automation">Open Automation APIs</a></p>
+    <p><a href="/api-reference/app/automation">Open Automation APIs</a></p>
   </div>
   <div class="api-card">
     <h3>Audit and Ops</h3>
     <p>Read and export audit records, inspect runtime health, lag, cluster topology, and diagnostic bundles.</p>
-    <p><a href="/api-reference/platform/ops">Open Operator APIs</a></p>
+    <p><a href="/api-reference/backend/ops">Open Operator APIs</a></p>
   </div>
   <div class="api-card">
     <h3>Provider Health</h3>
-    <p>Check media, RTC, and user-module provider plugin health from the active node.</p>
-    <p><a href="/api-reference/platform/provider-health">Open Provider Health APIs</a></p>
+    <p>Check media, RTC, and principal-profile provider plugin health from the active node.</p>
+    <p><a href="/api-reference/app/provider-health">Open Provider Health APIs</a></p>
   </div>
 </div>
 
 ## SDK Alignment
 
-- These endpoints are typically consumed through administrative or backend SDK layers rather than the public app SDK.
+- Management endpoints are consumed through `sdkwork-im-backend-sdk`; non-management app-business
+  endpoints are consumed through `sdkwork-im-app-sdk`.
 - Permission requirements are documented in [Authentication and Errors](/api-reference/auth-and-errors) and repeated on operation pages when they are mandatory.
-- This site does not document a separate published Platform SDK family. Treat these APIs as HTTP-first surfaces unless a repo backend or admin consumer layer is documented elsewhere.
-- Operator and `/api/admin/*` platform surfaces are intended for `sdkwork-im-admin-sdk`;
-  control-plane governance stays in `sdkwork-control-plane-sdk`; neither belongs in the public
-  app-consumer surface exposed through `@sdkwork/im-sdk`.
+- This site does not document a separate Platform API or Platform SDK family.
+- `/backend/v3/api/ops/*`, `/backend/v3/api/audit/*`, `/backend/v3/api/automation/governance`,
+  `/backend/v3/api/control/*`, and `/backend/v3/api/admin/*` belong to `sdkwork-im-backend-sdk`.
+- Provider health, IoT protocol, app-facing notifications, app-facing automation execution, and
+  app-facing RTC provider routes belong to `sdkwork-im-app-sdk` under `/app/v3/api/*`.
 - In packaged installs, these routes are still reached through the unified `craw-chat-server` /
   `web-gateway` public origin even though the implementation remains on the app-node side of the
   runtime.
-- The local `platform/*` routes documented on this page do not currently have a standalone
-  published SDK family.
+- Platform routes do not have a standalone SDK family.
 
 ## How To Use This Page
 
-- Start with [Authentication and Errors](/api-reference/auth-and-errors) for shared bearer and permission rules.
+- Start with [Authentication and Errors](/api-reference/auth-and-errors) for SDKWork dual-token, AppContext projection, and permission rules.
 - Use the linked operation groups below for exact route semantics.
 - Switch to [SDK Overview](/sdk/index) only when you need to understand whether a backend-facing
   package surface is documented as published or only present as repo workspace state.
@@ -55,12 +56,12 @@
 - [Authentication and Errors](/api-reference/auth-and-errors)
 - [SDK Overview](/sdk/index)
 
-## Platform API Domains
+## Current Domains
 
 <div class="api-link-list">
-  <a href="/api-reference/platform/notifications"><code>Notifications</code> Request, list, and inspect notification tasks</a>
-  <a href="/api-reference/platform/automation"><code>Automation</code> Request and inspect automation executions</a>
-  <a href="/api-reference/platform/audit"><code>Audit</code> Record audit anchors, list audit records, and export bundles</a>
-  <a href="/api-reference/platform/ops"><code>Ops</code> Cluster health, lag, replay status, runtime directory, provider bindings, and diagnostics</a>
-  <a href="/api-reference/platform/provider-health"><code>Health</code> Provider plugin health snapshots for active integrations</a>
+  <a href="/api-reference/app/notifications"><code>Notifications</code> Request, list, and inspect notification tasks</a>
+  <a href="/api-reference/app/automation"><code>Automation</code> Request and inspect automation executions</a>
+  <a href="/api-reference/backend/audit"><code>Audit</code> Record audit anchors, list audit records, and export bundles</a>
+  <a href="/api-reference/backend/ops"><code>Ops</code> Cluster health, lag, replay status, runtime directory, provider bindings, and diagnostics</a>
+  <a href="/api-reference/app/provider-health"><code>Health</code> Provider plugin health snapshots for active integrations</a>
 </div>

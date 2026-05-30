@@ -2,14 +2,14 @@
 
 The official TypeScript consumer package in the IM SDK family is `@sdkwork/im-sdk`.
 
-This package is the primary app-facing SDK for browser and Node.js and follows one package rule:
+This package is the primary IM consumer SDK for browser and Node.js and follows one package rule:
 
 - one installable package for normal consumers
 - one primary client class: `ImSdkClient`
 - one generated transport boundary assembled under `src/generated/**`
 - one semantic SDK surface at the package root
 
-Use `ImSdkClient` for application code. Route-aligned transport modules such as `sdk.session`,
+Use `ImSdkClient` for application code. Route-aligned transport modules such as `sdk.deviceSessions`,
 `sdk.presence`, `sdk.realtime`, `sdk.device`, `sdk.inbox`, and `sdk.stream` are mounted directly on
 the same client when you need exact OpenAPI transport control.
 
@@ -30,7 +30,7 @@ The TypeScript standard is now intentionally narrow and explicit:
 | Official package | `@sdkwork/im-sdk` |
 | Primary client | `ImSdkClient` |
 | Runtime targets | Browser and Node.js |
-| Route-aligned transport modules | `sdk.session`, `sdk.presence`, `sdk.realtime`, `sdk.device`, `sdk.inbox`, `sdk.stream` |
+| Route-aligned transport modules | `sdk.deviceSessions`, `sdk.presence`, `sdk.realtime`, `sdk.device`, `sdk.inbox`, `sdk.stream` |
 | Generated source boundary | `src/generated/**` |
 | Generator-owned authoring boundary | `generated/server-openapi` |
 
@@ -75,29 +75,21 @@ normal use.
 
 ## Authentication
 
-Authentication is exposed through `sdk.auth`.
+Authentication is issued by `sdkwork-appbase`. The IM SDK passes the resulting appbase-issued credential
+through constructor `authToken`; Craw Chat receives the verified AppContext projection and does not implement login, token refresh,
+tenant, organization, or current-account resolution.
 
 ```ts
-const login = await sdk.auth.login({
-  tenantId: 'tenant-acme',
-  login: 'ops_lead',
-  password: '***',
-  clientKind: 'portal_operator',
+const sdk = new ImSdkClient({
+  baseUrl,
+  authToken: appbaseAccessToken,
 });
-
-console.log(login.accessToken);
-
-sdk.auth.useToken(login.accessToken);
-await sdk.auth.me();
-sdk.auth.clearToken();
 ```
 
 Behavior:
 
-- `sdk.auth.login(...)` automatically applies the returned bearer token when `accessToken` is
-  present
-- `sdk.auth.useToken(...)` updates the underlying generated HTTP client
-- `sdk.auth.clearToken()` clears the token used by HTTP and live helpers
+- `authToken` is passed through to the generated HTTP transport and live helpers
+- transport-level code can still call `setAuthToken(...)` on the generated client when it is not using `ImSdkClient`
 
 ## Portal Snapshots
 
@@ -117,7 +109,7 @@ stable and discoverable on the main application client.
 | Snapshot | Method |
 | --- | --- |
 | Public landing | `sdk.portal.getHome()` |
-| Sign-in page snapshot | `sdk.portal.getAuth()` |
+| Sign-in page snapshot | `sdk.portal.getAccess()` |
 | Workspace shell | `sdk.portal.getWorkspace()` |
 | Dashboard | `sdk.portal.getDashboard()` |
 | Conversations portal | `sdk.portal.getConversations()` |
@@ -131,7 +123,7 @@ stable and discoverable on the main application client.
 For a new application, build against the SDK in this order:
 
 1. Construct `ImSdkClient`
-2. Authenticate with `sdk.auth`
+2. Authenticate with `authToken`
 3. Send a text message with `sdk.createTextMessage(...)` and `sdk.send(...)`
 4. Add live push with `sdk.connect(...)`
 5. Add durable catch-up with `sdk.sync.catchUp(...)`
@@ -149,16 +141,16 @@ when you need exact OpenAPI operations, request bodies, or transport DTO details
 
 | App domain | Primary TypeScript SDK surface | Exact API reference |
 | --- | --- | --- |
-| Auth and current-session identity | `sdk.auth` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Portal shell and workspace snapshots | `sdk.portal` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Conversation lifecycle and handoff | `sdk.conversations.create`, `sdk.conversations.createAgentDialog`, `sdk.conversations.createAgentHandoff`, `sdk.conversations.get` | [Conversations](/api-reference/app/conversations) |
-| Membership and read cursors | `sdk.conversations.listMembers`, `sdk.conversations.addMember`, `sdk.conversations.updateReadCursor` | [Membership and Read State](/api-reference/app/membership-and-read-state) |
-| Message schemas and semantic send ergonomics | `sdk.createTextMessage(...)`, `sdk.send(...)`, `sdk.decodeMessage(...)` | [Messages](/api-reference/app/messages) |
-| Upload registration, presigned client upload, completion, and attachment | `sdk.media.createUploadSession(...)`, `sdk.media.upload(...)`, `sdk.upload(...)`, `sdk.media.completeUpload(...)`, `sdk.media.attachText(...)` | [Media](/api-reference/app/media) |
-| Session, presence, live subscriptions, and durable replay | `sdk.connect(...)`, `sdk.sync.catchUp(...)`, `sdk.sync.ack(...)`, `sdk.session`, `sdk.presence`, `sdk.realtime` | [Session and Realtime](/api-reference/app/session-and-realtime) |
-| Device registration and sync feeds | `sdk.device.register(...)`, `sdk.device.getDeviceSyncFeed(...)` | [Device Sync](/api-reference/app/device-sync) |
-| RTC lifecycle and signaling-side HTTP calls | `sdk.rtc.create(...)`, `sdk.rtc.postJsonSignal(...)`, `sdk.rtc.issueParticipantCredential(...)`, `sdk.rtc.getRecordingArtifact(...)` | [RTC](/api-reference/app/rtc) |
-| Stream transport and checkpointing | `sdk.stream.open(...)`, `sdk.stream.appendStreamFrame(...)`, `sdk.stream.checkpoint(...)`, `sdk.stream.complete(...)` | [Streams](/api-reference/app/streams) |
+| SDKWork appbase credential pass-through | `authToken` | [Portal Access](/api-reference/app/portal-access) |
+| Portal shell and workspace snapshots | `sdk.portal` | [Portal Access](/api-reference/app/portal-access) |
+| Conversation lifecycle and handoff | `sdk.conversations.create`, `sdk.conversations.createAgentDialog`, `sdk.conversations.createAgentHandoff`, `sdk.conversations.get` | [Conversations](/api-reference/im/conversations) |
+| Membership and read cursors | `sdk.conversations.listMembers`, `sdk.conversations.addMember`, `sdk.conversations.updateReadCursor` | [Membership and Read State](/api-reference/im/membership-and-read-state) |
+| Message schemas and semantic send ergonomics | `sdk.createTextMessage(...)`, `sdk.send(...)`, `sdk.decodeMessage(...)` | [Messages](/api-reference/im/messages) |
+| Upload registration, presigned client upload, completion, and attachment | `sdk.media.createUploadSession(...)`, `sdk.media.upload(...)`, `sdk.upload(...)`, `sdk.media.completeUpload(...)`, `sdk.media.attachText(...)` | [Media](/api-reference/im/media) |
+| Device Sessions, presence, live subscriptions, and durable replay | `sdk.connect(...)`, `sdk.sync.catchUp(...)`, `sdk.sync.ack(...)`, `sdk.deviceSessions`, `sdk.presence`, `sdk.realtime` | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
+| Device registration and sync feeds | `sdk.device.register(...)`, `sdk.device.getDeviceSyncFeed(...)` | [Device Sync](/api-reference/im/device-sync) |
+| RTC lifecycle and signaling-side HTTP calls | `sdk.rtc.create(...)`, `sdk.rtc.postJsonSignal(...)`, `sdk.rtc.issueParticipantCredential(...)`, `sdk.rtc.getRecordingArtifact(...)` | [RTC](/api-reference/im/rtc) |
+| Stream transport and checkpointing | `sdk.stream.open(...)`, `sdk.stream.appendStreamFrame(...)`, `sdk.stream.checkpoint(...)`, `sdk.stream.complete(...)` | [Streams](/api-reference/im/streams) |
 
 ## Conversations
 
@@ -623,10 +615,10 @@ Important: the default global `WebSocket` constructor cannot attach `Authorizati
 plain browser environments, authenticated realtime should use a browser-safe credential path:
 
 - `ImWebSocketAuthOptions.automatic()` is the standard TypeScript default
-- automatic auth resolves to query bearer for the default browser `WebSocket` constructor
-- automatic auth resolves to header bearer when a custom `webSocketFactory` is present
+- automatic auth resolves to a query credential for the default browser `WebSocket` constructor
+- automatic auth resolves to a header credential when a custom `webSocketFactory` is present
 - prefer exchanging the primary access token for a short-lived realtime ticket or query credential
-- prefer `wss://` plus short-lived credentials over long-lived query bearer tokens
+- prefer `wss://` plus short-lived credentials over long-lived query credentials
 - use `sdk.connect({ url })` when the gateway returns a pre-signed realtime URL
 
 Node.js and custom runtimes can provide header-based upgrades through `webSocketFactory`.
@@ -655,7 +647,7 @@ const live = await sdk.connect({
 const realtimeTicket = await issueRealtimeTicket();
 
 const live = await sdk.connect({
-  url: `wss://realtime.example.com/api/v1/realtime/ws?rt=${encodeURIComponent(realtimeTicket)}`,
+  url: `wss://realtime.example.com/im/v3/api/realtime/ws?rt=${encodeURIComponent(realtimeTicket)}`,
   subscriptions: {
     conversations: ['conversation-1'],
   },
@@ -727,7 +719,7 @@ const sdk = new ImSdkClient({
   authToken: 'token',
 });
 
-await sdk.session.resume({ deviceId: 'web-chrome-01' });
+await sdk.deviceSessions.resume({ deviceId: 'web-chrome-01' });
 await sdk.presence.getPresenceMe();
 await sdk.realtime.listRealtimeEvents({ limit: 20 });
 await sdk.conversations.listMessages('conversation-1');
@@ -744,7 +736,7 @@ await sdk.stream.open({
 ```
 
 Use the root transport modules when you need exact DTOs or route-group control. Reach for
-`sdk.session.resume(...)`, `sdk.presence.getPresenceMe()`, `sdk.realtime.listRealtimeEvents(...)`,
+`sdk.deviceSessions.resume(...)`, `sdk.presence.getPresenceMe()`, `sdk.realtime.listRealtimeEvents(...)`,
 `sdk.device.register(...)`, `sdk.inbox.getInbox()`, and `sdk.stream.open(...)` when the route group
 already matches the API cleanly. Use the semantic domains on `ImSdkClient` for normal application
 integration.
@@ -804,8 +796,8 @@ node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language typescript
   matrix.
 - Read [Generator Boundary](/sdk/generator-boundary) when you need the exact split between
   `src/generated/**`, `generated/server-openapi`, and `composed`.
-- Read [Portal and Auth](/api-reference/app/portal-and-auth) when you need the underlying HTTP
-  contract for auth and portal snapshots.
-- Read [Messages](/api-reference/app/messages), [Session and Realtime](/api-reference/app/session-and-realtime),
-  and [RTC](/api-reference/app/rtc) when you need the route-level contract behind the semantic
+- Read [Portal Access](/api-reference/app/portal-access) when you need the underlying HTTP
+  contract for portal snapshots and SDKWork appbase credential pass-through.
+- Read [Messages](/api-reference/im/messages), [Device Sessions and Realtime](/api-reference/im/session-and-realtime),
+  and [RTC](/api-reference/im/rtc) when you need the route-level contract behind the semantic
   TypeScript SDK.

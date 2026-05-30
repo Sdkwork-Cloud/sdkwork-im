@@ -2,7 +2,7 @@
 
 ## 本轮目标
 
-在 Step 05 的 `UserModuleProvider` 主链闭环后，进入 Step 06 的最小可闭环增量：
+在 Step 05 的 `PrincipalProfileProvider` 主链闭环后，进入 Step 06 的最小可闭环增量：
 
 - 把 `RtcProviderPort` 从契约层推进到真实 `RtcRuntime`
 - 落默认 `rtc-volcengine` provider adapter

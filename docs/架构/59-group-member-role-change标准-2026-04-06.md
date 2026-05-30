@@ -26,7 +26,7 @@
 ### 3.1 命令与接口
 
 - 新增命令：`change_conversation_member_role`
-- 新增接口：`POST /api/v1/conversations/{conversationId}/members/change-role`
+- 新增接口：`POST /im/v3/api/chat/conversations/{conversationId}/members/change-role`
 
 请求体：
 

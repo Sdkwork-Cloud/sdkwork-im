@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{
@@ -14,6 +14,17 @@ use im_platform_contracts::{
     TimelineProjectionStore,
 };
 use im_storage_contracts::{StorageDomainSnapshot, StorageDomainSnapshotStore};
+use im_time::{rfc3339_cmp, rfc3339_le};
+
+fn lock_memory_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexGuard<'a, T> {
+    match mutex.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!("warn: recovered poisoned local-memory mutex lock={lock_name}");
+            poisoned.into_inner()
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct MemoryCommitJournal {
@@ -36,13 +47,13 @@ impl MemoryCommitJournal {
     }
 
     pub fn recorded(&self) -> Vec<CommitEnvelope> {
-        self.events.lock().expect("journal should lock").clone()
+        lock_memory_mutex(&self.events, "journal").clone()
     }
 }
 
 impl CommitJournal for MemoryCommitJournal {
     fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
-        let mut events = self.events.lock().expect("journal should lock");
+        let mut events = lock_memory_mutex(&self.events, "journal");
         events.push(envelope);
         Ok(CommitPosition::new(
             self.partition.as_str(),
@@ -54,13 +65,17 @@ impl CommitJournal for MemoryCommitJournal {
         &self,
         envelopes: Vec<CommitEnvelope>,
     ) -> Result<Vec<CommitPosition>, ContractError> {
-        let mut events = self.events.lock().expect("journal should lock");
+        let mut events = lock_memory_mutex(&self.events, "journal");
         let start_offset = events.len() as u64 + 1;
         let batch_len = envelopes.len() as u64;
         events.extend(envelopes);
         Ok((0..batch_len)
             .map(|index| CommitPosition::new(self.partition.as_str(), start_offset + index))
             .collect())
+    }
+
+    fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
+        Ok(MemoryCommitJournal::recorded(self))
     }
 }
 
@@ -71,9 +86,7 @@ pub struct MemoryMetadataStore {
 
 impl MemoryMetadataStore {
     pub fn snapshot(&self, scope: &str, key: &str) -> Option<String> {
-        self.snapshots
-            .lock()
-            .expect("metadata store should lock")
+        lock_memory_mutex(&self.snapshots, "metadata store")
             .get(snapshot_key(scope, key).as_str())
             .cloned()
     }
@@ -81,9 +94,7 @@ impl MemoryMetadataStore {
 
 impl MetadataStore for MemoryMetadataStore {
     fn put_snapshot(&self, scope: &str, key: &str, value: &str) -> Result<(), ContractError> {
-        self.snapshots
-            .lock()
-            .expect("metadata store should lock")
+        lock_memory_mutex(&self.snapshots, "metadata store")
             .insert(snapshot_key(scope, key), value.to_string());
         Ok(())
     }
@@ -93,7 +104,7 @@ impl MetadataStore for MemoryMetadataStore {
     }
 
     fn put_snapshots(&self, snapshots: &[MetadataSnapshotRecord]) -> Result<(), ContractError> {
-        let mut stored = self.snapshots.lock().expect("metadata store should lock");
+        let mut stored = lock_memory_mutex(&self.snapshots, "metadata store");
         for snapshot in snapshots {
             stored.insert(
                 snapshot_key(snapshot.scope.as_str(), snapshot.key.as_str()),
@@ -111,9 +122,7 @@ pub struct MemoryStorageDomainSnapshotStore {
 
 impl MemoryStorageDomainSnapshotStore {
     pub fn snapshot(&self, domain: &str) -> Option<StorageDomainSnapshot> {
-        self.snapshots
-            .lock()
-            .expect("storage snapshot store should lock")
+        lock_memory_mutex(&self.snapshots, "storage snapshot store")
             .get(domain)
             .cloned()
     }
@@ -125,9 +134,7 @@ impl StorageDomainSnapshotStore for MemoryStorageDomainSnapshotStore {
     }
 
     fn save_snapshot(&self, snapshot: StorageDomainSnapshot) -> Result<(), ContractError> {
-        self.snapshots
-            .lock()
-            .expect("storage snapshot store should lock")
+        lock_memory_mutex(&self.snapshots, "storage snapshot store")
             .insert(snapshot.catalog.domain.clone(), snapshot);
         Ok(())
     }
@@ -146,9 +153,7 @@ impl MemoryRealtimeCheckpointStore {
         principal_id: &str,
         device_id: &str,
     ) -> Option<RealtimeCheckpointRecord> {
-        self.checkpoints
-            .lock()
-            .expect("realtime checkpoint store should lock")
+        lock_memory_mutex(&self.checkpoints, "realtime checkpoint store")
             .get(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
             .cloned()
     }
@@ -169,10 +174,7 @@ impl RealtimeCheckpointStore for MemoryRealtimeCheckpointStore {
         &self,
         records: Vec<RealtimeCheckpointRecord>,
     ) -> Result<(), ContractError> {
-        let mut checkpoints = self
-            .checkpoints
-            .lock()
-            .expect("realtime checkpoint store should lock");
+        let mut checkpoints = lock_memory_mutex(&self.checkpoints, "realtime checkpoint store");
         for record in records {
             let key = device_scope_key(
                 record.tenant_id.as_str(),
@@ -203,9 +205,7 @@ impl MemoryRealtimeEventWindowStore {
         principal_id: &str,
         device_id: &str,
     ) -> Option<RealtimeEventWindowRecord> {
-        self.windows
-            .lock()
-            .expect("realtime event window store should lock")
+        lock_memory_mutex(&self.windows, "realtime event window store")
             .get(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
             .cloned()
     }
@@ -223,10 +223,7 @@ impl RealtimeEventWindowStore for MemoryRealtimeEventWindowStore {
     }
 
     fn save_windows(&self, records: Vec<RealtimeEventWindowRecord>) -> Result<(), ContractError> {
-        let mut windows = self
-            .windows
-            .lock()
-            .expect("realtime event window store should lock");
+        let mut windows = lock_memory_mutex(&self.windows, "realtime event window store");
         for record in records {
             windows.insert(
                 device_scope_key(
@@ -248,21 +245,19 @@ impl RealtimeEventWindowStore for MemoryRealtimeEventWindowStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<bool, ContractError> {
-        Ok(self
-            .windows
-            .lock()
-            .expect("realtime event window store should lock")
-            .remove(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
-            .is_some())
+        Ok(
+            lock_memory_mutex(&self.windows, "realtime event window store")
+                .remove(
+                    device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str(),
+                )
+                .is_some(),
+        )
     }
 
     fn diagnostics_snapshot(
         &self,
     ) -> Result<RealtimeEventWindowDiagnosticsSnapshot, ContractError> {
-        let windows = self
-            .windows
-            .lock()
-            .expect("realtime event window store should lock");
+        let windows = lock_memory_mutex(&self.windows, "realtime event window store");
         Ok(RealtimeEventWindowDiagnosticsSnapshot::from_records(
             windows.values().cloned(),
         ))
@@ -277,11 +272,8 @@ impl RealtimeEventWindowStore for MemoryRealtimeEventWindowStore {
         acked_through_seq: u64,
     ) -> Result<(), ContractError> {
         let key = device_scope_key(tenant_id, principal_kind, principal_id, device_id);
-        if let Some(record) = self
-            .windows
-            .lock()
-            .expect("realtime event window store should lock")
-            .get_mut(key.as_str())
+        if let Some(record) =
+            lock_memory_mutex(&self.windows, "realtime event window store").get_mut(key.as_str())
         {
             record.trimmed_through_seq = record.trimmed_through_seq.max(acked_through_seq);
             record
@@ -299,9 +291,7 @@ pub struct MemoryDeviceTwinStore {
 
 impl MemoryDeviceTwinStore {
     pub fn twin(&self, tenant_id: &str, device_id: &str) -> Option<DeviceTwinRecord> {
-        self.twins
-            .lock()
-            .expect("device twin store should lock")
+        lock_memory_mutex(&self.twins, "device twin store")
             .get(device_twin_scope_key(tenant_id, device_id).as_str())
             .cloned()
     }
@@ -317,13 +307,10 @@ impl DeviceTwinStore for MemoryDeviceTwinStore {
     }
 
     fn save_twin(&self, record: DeviceTwinRecord) -> Result<(), ContractError> {
-        self.twins
-            .lock()
-            .expect("device twin store should lock")
-            .insert(
-                device_twin_scope_key(record.tenant_id.as_str(), record.device_id.as_str()),
-                record,
-            );
+        lock_memory_mutex(&self.twins, "device twin store").insert(
+            device_twin_scope_key(record.tenant_id.as_str(), record.device_id.as_str()),
+            record,
+        );
         Ok(())
     }
 }
@@ -341,9 +328,7 @@ impl MemoryRealtimeDisconnectFenceStore {
         principal_id: &str,
         device_id: &str,
     ) -> Option<RealtimeDisconnectFenceRecord> {
-        self.fences
-            .lock()
-            .expect("realtime disconnect fence store should lock")
+        lock_memory_mutex(&self.fences, "realtime disconnect fence store")
             .get(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
             .cloned()
     }
@@ -367,10 +352,7 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
             record.principal_id.as_str(),
             record.device_id.as_str(),
         );
-        let mut fences = self
-            .fences
-            .lock()
-            .expect("realtime disconnect fence store should lock");
+        let mut fences = lock_memory_mutex(&self.fences, "realtime disconnect fence store");
         let next = fences
             .remove(key.as_str())
             .map(|previous| previous.merge_latest(record.clone()))
@@ -386,12 +368,13 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<bool, ContractError> {
-        Ok(self
-            .fences
-            .lock()
-            .expect("realtime disconnect fence store should lock")
-            .remove(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
-            .is_some())
+        Ok(
+            lock_memory_mutex(&self.fences, "realtime disconnect fence store")
+                .remove(
+                    device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str(),
+                )
+                .is_some(),
+        )
     }
 
     fn clear_fence_disconnected_at_or_before(
@@ -403,13 +386,10 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
         cutoff_disconnected_at: &str,
     ) -> Result<bool, ContractError> {
         let key = device_scope_key(tenant_id, principal_kind, principal_id, device_id);
-        let mut fences = self
-            .fences
-            .lock()
-            .expect("realtime disconnect fence store should lock");
+        let mut fences = lock_memory_mutex(&self.fences, "realtime disconnect fence store");
         let should_clear = fences
             .get(key.as_str())
-            .map(|record| record.disconnected_at.as_str() <= cutoff_disconnected_at)
+            .map(|record| rfc3339_le(record.disconnected_at.as_str(), cutoff_disconnected_at))
             .unwrap_or(false);
         if !should_clear {
             return Ok(false);
@@ -427,10 +407,7 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
             expected.principal_id.as_str(),
             expected.device_id.as_str(),
         );
-        let mut fences = self
-            .fences
-            .lock()
-            .expect("realtime disconnect fence store should lock");
+        let mut fences = lock_memory_mutex(&self.fences, "realtime disconnect fence store");
         let should_clear = fences
             .get(key.as_str())
             .map(|record| record == expected)
@@ -455,9 +432,7 @@ impl MemoryRealtimeSubscriptionStore {
         principal_id: &str,
         device_id: &str,
     ) -> Option<RealtimeSubscriptionRecord> {
-        self.subscriptions
-            .lock()
-            .expect("realtime subscription store should lock")
+        lock_memory_mutex(&self.subscriptions, "realtime subscription store")
             .get(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
             .cloned()
     }
@@ -478,10 +453,7 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
         &self,
         query: RealtimeMatchingSubscriptionQuery<'_>,
     ) -> Result<Vec<RealtimeSubscriptionRecord>, ContractError> {
-        let subscriptions = self
-            .subscriptions
-            .lock()
-            .expect("realtime subscription store should lock");
+        let subscriptions = lock_memory_mutex(&self.subscriptions, "realtime subscription store");
         Ok(query
             .candidate_device_ids
             .iter()
@@ -509,18 +481,15 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
     }
 
     fn save_subscriptions(&self, record: RealtimeSubscriptionRecord) -> Result<(), ContractError> {
-        self.subscriptions
-            .lock()
-            .expect("realtime subscription store should lock")
-            .insert(
-                device_scope_key(
-                    record.tenant_id.as_str(),
-                    record.principal_kind.as_str(),
-                    record.principal_id.as_str(),
-                    record.device_id.as_str(),
-                ),
-                record,
-            );
+        lock_memory_mutex(&self.subscriptions, "realtime subscription store").insert(
+            device_scope_key(
+                record.tenant_id.as_str(),
+                record.principal_kind.as_str(),
+                record.principal_id.as_str(),
+                record.device_id.as_str(),
+            ),
+            record,
+        );
         Ok(())
     }
 
@@ -531,12 +500,13 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
         principal_id: &str,
         device_id: &str,
     ) -> Result<bool, ContractError> {
-        Ok(self
-            .subscriptions
-            .lock()
-            .expect("realtime subscription store should lock")
-            .remove(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
-            .is_some())
+        Ok(
+            lock_memory_mutex(&self.subscriptions, "realtime subscription store")
+                .remove(
+                    device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str(),
+                )
+                .is_some(),
+        )
     }
 
     fn clear_subscriptions_synced_at_or_before(
@@ -548,13 +518,11 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
         cutoff_synced_at: &str,
     ) -> Result<bool, ContractError> {
         let key = device_scope_key(tenant_id, principal_kind, principal_id, device_id);
-        let mut subscriptions = self
-            .subscriptions
-            .lock()
-            .expect("realtime subscription store should lock");
+        let mut subscriptions =
+            lock_memory_mutex(&self.subscriptions, "realtime subscription store");
         let should_clear = subscriptions
             .get(key.as_str())
-            .map(|record| record.synced_at.as_str() <= cutoff_synced_at)
+            .map(|record| rfc3339_le(record.synced_at.as_str(), cutoff_synced_at))
             .unwrap_or(false);
         if !should_clear {
             return Ok(false);
@@ -570,9 +538,7 @@ pub struct MemoryStreamStateStore {
 
 impl MemoryStreamStateStore {
     pub fn state(&self, tenant_id: &str, stream_id: &str) -> Option<StreamStateRecord> {
-        self.states
-            .lock()
-            .expect("stream state store should lock")
+        lock_memory_mutex(&self.states, "stream state store")
             .get(stream_scope_key(tenant_id, stream_id).as_str())
             .cloned()
     }
@@ -585,9 +551,7 @@ pub struct MemoryRtcStateStore {
 
 impl MemoryRtcStateStore {
     pub fn state(&self, tenant_id: &str, rtc_session_id: &str) -> Option<RtcStateRecord> {
-        self.states
-            .lock()
-            .expect("rtc state store should lock")
+        lock_memory_mutex(&self.states, "rtc state store")
             .get(rtc_scope_key(tenant_id, rtc_session_id).as_str())
             .cloned()
     }
@@ -604,7 +568,7 @@ impl RtcStateStore for MemoryRtcStateStore {
 
     fn save_state(&self, record: RtcStateRecord) -> Result<(), ContractError> {
         let key = rtc_scope_key(record.tenant_id.as_str(), record.rtc_session_id.as_str());
-        let mut states = self.states.lock().expect("rtc state store should lock");
+        let mut states = lock_memory_mutex(&self.states, "rtc state store");
         let next = states
             .remove(key.as_str())
             .map(|previous| previous.merge_monotonic(record.clone()))
@@ -614,10 +578,7 @@ impl RtcStateStore for MemoryRtcStateStore {
     }
 
     fn clear_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<bool, ContractError> {
-        Ok(self
-            .states
-            .lock()
-            .expect("rtc state store should lock")
+        Ok(lock_memory_mutex(&self.states, "rtc state store")
             .remove(rtc_scope_key(tenant_id, rtc_session_id).as_str())
             .is_some())
     }
@@ -634,7 +595,7 @@ impl StreamStateStore for MemoryStreamStateStore {
 
     fn save_state(&self, record: StreamStateRecord) -> Result<(), ContractError> {
         let key = stream_scope_key(record.tenant_id.as_str(), record.stream_id.as_str());
-        let mut states = self.states.lock().expect("stream state store should lock");
+        let mut states = lock_memory_mutex(&self.states, "stream state store");
         let next = states
             .remove(key.as_str())
             .map(|previous| previous.merge_monotonic(record.clone()))
@@ -644,10 +605,7 @@ impl StreamStateStore for MemoryStreamStateStore {
     }
 
     fn clear_state(&self, tenant_id: &str, stream_id: &str) -> Result<bool, ContractError> {
-        Ok(self
-            .states
-            .lock()
-            .expect("stream state store should lock")
+        Ok(lock_memory_mutex(&self.states, "stream state store")
             .remove(stream_scope_key(tenant_id, stream_id).as_str())
             .is_some())
     }
@@ -666,9 +624,7 @@ struct MemoryNotificationTaskState {
 
 impl MemoryNotificationTaskStore {
     pub fn task(&self, tenant_id: &str, notification_id: &str) -> Option<NotificationTaskRecord> {
-        self.state
-            .lock()
-            .expect("notification task store should lock")
+        lock_memory_mutex(&self.state, "notification task store")
             .tasks
             .get(notification_scope_key(tenant_id, notification_id).as_str())
             .cloned()
@@ -687,10 +643,7 @@ impl NotificationTaskStore for MemoryNotificationTaskStore {
     fn save_task(&self, record: NotificationTaskRecord) -> Result<(), ContractError> {
         let notification_key =
             notification_scope_key(record.tenant_id.as_str(), record.notification_id.as_str());
-        let mut state = self
-            .state
-            .lock()
-            .expect("notification task store should lock");
+        let mut state = lock_memory_mutex(&self.state, "notification task store");
         if let Some(previous) = state.tasks.get(notification_key.as_str()).cloned() {
             remove_notification_recipient_index(
                 &mut state.tasks_by_recipient,
@@ -721,10 +674,7 @@ impl NotificationTaskStore for MemoryNotificationTaskStore {
         recipient_kind: &str,
         recipient_id: &str,
     ) -> Result<Vec<NotificationTaskRecord>, ContractError> {
-        let state = self
-            .state
-            .lock()
-            .expect("notification task store should lock");
+        let state = lock_memory_mutex(&self.state, "notification task store");
         let task_keys = state
             .tasks_by_recipient
             .get(notification_recipient_scope_key(tenant_id, recipient_kind, recipient_id).as_str())
@@ -750,9 +700,7 @@ impl MemoryAutomationExecutionStore {
         principal_id: &str,
         execution_id: &str,
     ) -> Option<AutomationExecutionRecord> {
-        self.executions
-            .lock()
-            .expect("automation execution store should lock")
+        lock_memory_mutex(&self.executions, "automation execution store")
             .get(
                 execution_scope_key(tenant_id, principal_kind, principal_id, execution_id).as_str(),
             )
@@ -778,10 +726,7 @@ impl AutomationExecutionStore for MemoryAutomationExecutionStore {
             record.principal_id.as_str(),
             record.execution_id.as_str(),
         );
-        let mut executions = self
-            .executions
-            .lock()
-            .expect("automation execution store should lock");
+        let mut executions = lock_memory_mutex(&self.executions, "automation execution store");
         let next = executions
             .remove(key.as_str())
             .map(|previous| previous.merge_monotonic(record.clone()))
@@ -817,9 +762,7 @@ impl MemoryPresenceStateStore {
         principal_id: &str,
         device_id: &str,
     ) -> Option<PresenceStateRecord> {
-        self.state
-            .lock()
-            .expect("presence state store should lock")
+        lock_memory_mutex(&self.state, "presence state store")
             .by_device
             .get(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
             .cloned()
@@ -849,7 +792,7 @@ impl PresenceStateStore for MemoryPresenceStateStore {
             record.principal_kind.as_str(),
             record.principal_id.as_str(),
         );
-        let mut state = self.state.lock().expect("presence state store should lock");
+        let mut state = lock_memory_mutex(&self.state, "presence state store");
         if let Some(previous) = state.by_device.get(device_key.as_str()).cloned() {
             remove_presence_online_seen_at_index(&mut state.online_by_seen_at, &previous);
         }
@@ -873,7 +816,7 @@ impl PresenceStateStore for MemoryPresenceStateStore {
         principal_kind: &str,
         principal_id: &str,
     ) -> Result<Vec<PresenceStateRecord>, ContractError> {
-        let state = self.state.lock().expect("presence state store should lock");
+        let state = lock_memory_mutex(&self.state, "presence state store");
         let device_keys = state
             .presence_by_principal
             .get(principal_scope_key(tenant_id, principal_kind, principal_id).as_str())
@@ -893,11 +836,18 @@ impl PresenceStateStore for MemoryPresenceStateStore {
         if limit == 0 {
             return Ok(Vec::new());
         }
-        let state = self.state.lock().expect("presence state store should lock");
-        Ok(state
+        let state = lock_memory_mutex(&self.state, "presence state store");
+        let mut stale_keys = state
             .online_by_seen_at
             .iter()
-            .take_while(|key| key.last_seen_at.as_str() <= cutoff_seen_at)
+            .filter(|key| rfc3339_le(key.last_seen_at.as_str(), cutoff_seen_at))
+            .collect::<Vec<_>>();
+        stale_keys.sort_by(|left, right| {
+            rfc3339_cmp(left.last_seen_at.as_str(), right.last_seen_at.as_str())
+                .then_with(|| left.device_key.cmp(&right.device_key))
+        });
+        Ok(stale_keys
+            .into_iter()
             .take(limit)
             .filter_map(|key| state.by_device.get(key.device_key.as_str()).cloned())
             .collect())
@@ -913,7 +863,7 @@ impl PresenceStateStore for MemoryPresenceStateStore {
         expired_at: &str,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
         let device_key = device_scope_key(tenant_id, principal_kind, principal_id, device_id);
-        let mut state = self.state.lock().expect("presence state store should lock");
+        let mut state = lock_memory_mutex(&self.state, "presence state store");
         let Some(current) = state.by_device.get(device_key.as_str()).cloned() else {
             return Ok(None);
         };
@@ -939,9 +889,7 @@ pub struct MemoryTimelineProjectionStore {
 
 impl MemoryTimelineProjectionStore {
     pub fn entries(&self, tenant_id: &str, timeline_scope: &str) -> Vec<(u64, String)> {
-        self.entries
-            .lock()
-            .expect("timeline projection store should lock")
+        lock_memory_mutex(&self.entries, "timeline projection store")
             .get(timeline_projection_scope_key(tenant_id, timeline_scope).as_str())
             .map(|items| {
                 items
@@ -961,9 +909,7 @@ impl TimelineProjectionStore for MemoryTimelineProjectionStore {
         message_seq: u64,
         payload: &str,
     ) -> Result<(), ContractError> {
-        self.entries
-            .lock()
-            .expect("timeline projection store should lock")
+        lock_memory_mutex(&self.entries, "timeline projection store")
             .entry(timeline_projection_scope_key(tenant_id, timeline_scope))
             .or_default()
             .insert(message_seq, payload.to_string());
@@ -984,10 +930,7 @@ impl TimelineProjectionStore for MemoryTimelineProjectionStore {
         timeline_scope: &str,
         records: &[TimelineProjectionRecord],
     ) -> Result<(), ContractError> {
-        let mut entries = self
-            .entries
-            .lock()
-            .expect("timeline projection store should lock");
+        let mut entries = lock_memory_mutex(&self.entries, "timeline projection store");
         let scope_entries = entries
             .entry(timeline_projection_scope_key(tenant_id, timeline_scope))
             .or_default();
@@ -1001,10 +944,7 @@ impl TimelineProjectionStore for MemoryTimelineProjectionStore {
         &self,
         batches: &[TimelineProjectionBatch],
     ) -> Result<(), ContractError> {
-        let mut entries = self
-            .entries
-            .lock()
-            .expect("timeline projection store should lock");
+        let mut entries = lock_memory_mutex(&self.entries, "timeline projection store");
         for batch in batches {
             let scope_entries = entries
                 .entry(timeline_projection_scope_key(
@@ -1148,4 +1088,59 @@ fn execution_scope_key(
     execution_id: &str,
 ) -> String {
     scope_key_parts(&[tenant_id, principal_kind, principal_id, execution_id])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn poison_mutex<T>(mutex: Arc<Mutex<T>>) {
+        let _ = std::panic::catch_unwind(move || {
+            let _guard = mutex.lock().expect("test mutex should lock before poison");
+            panic!("poison local-memory mutex");
+        });
+    }
+
+    #[test]
+    fn test_commit_journal_append_recovers_from_poisoned_lock() {
+        let journal = MemoryCommitJournal::default();
+        poison_mutex(journal.events.clone());
+
+        let position = journal
+            .append(CommitEnvelope::minimal(
+                "evt_poison",
+                "t_demo",
+                "message.posted",
+                "conversation",
+                "c_demo",
+                1,
+            ))
+            .expect("poisoned journal lock should be recovered");
+
+        assert_eq!(position.offset, 1);
+    }
+
+    #[test]
+    fn test_disconnect_fence_store_load_recovers_from_poisoned_lock() {
+        let store = MemoryRealtimeDisconnectFenceStore::default();
+        poison_mutex(store.fences.clone());
+
+        let restored = store
+            .load_fence("t_demo", "user", "u_demo", "d_pad")
+            .expect("poisoned disconnect fence lock should be recovered");
+
+        assert!(restored.is_none());
+    }
+
+    #[test]
+    fn test_presence_state_store_load_recovers_from_poisoned_lock() {
+        let store = MemoryPresenceStateStore::default();
+        poison_mutex(store.state.clone());
+
+        let restored = store
+            .load_state("t_demo", "user", "u_demo", "d_pad")
+            .expect("poisoned presence state lock should be recovered");
+
+        assert!(restored.is_none());
+    }
 }

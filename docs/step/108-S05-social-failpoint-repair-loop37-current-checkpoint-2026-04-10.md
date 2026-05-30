@@ -4,7 +4,7 @@
 - 状态: `not_closed / local_closure`
 - 本轮已兑现:
   - 新增 `state/social-failpoints.json` 的一次性 `failNextSnapshotSave` 注入点
-  - 新增 `POST /api/v1/control/social/runtime/repair-derived-snapshot`
+  - 新增 `POST /backend/v3/api/control/social/runtime/repair-derived-snapshot`
   - 新增并转绿：
     - `test_control_plane_social_file_runtime_failpoint_forces_next_snapshot_save_failure_once`
     - `test_control_plane_social_file_runtime_operator_repair_rebuilds_snapshot_after_failpoint`

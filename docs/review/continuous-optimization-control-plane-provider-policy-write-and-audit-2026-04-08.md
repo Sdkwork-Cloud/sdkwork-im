@@ -10,9 +10,9 @@
 
 当前仓库已经具备：
 
-- `GET /api/v1/control/provider-bindings`
-- `GET /api/v1/ops/provider-bindings`
-- `GET /api/v1/ops/provider-bindings/drift`
+- `GET /backend/v3/api/control/provider_bindings`
+- `GET /backend/v3/api/ops/provider_bindings`
+- `GET /backend/v3/api/ops/provider_bindings/drift`
 
 但仍缺：
 
@@ -24,7 +24,7 @@
 ## 3. 本轮实际完成
 
 - `im-platform-contracts` 新增 `RuntimeProviderRegistry`
-- `control-plane-api` 新增 `POST /api/v1/control/provider-bindings`
+- `control-plane-api` 新增 `POST /backend/v3/api/control/provider_bindings`
 - 写入后仍返回 `effectiveBindings`
 - 写入后会把同一份结果镜像到 `OpsRuntime`
 - 写入后会记录 audit anchor

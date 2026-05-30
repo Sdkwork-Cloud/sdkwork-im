@@ -59,7 +59,7 @@ PowerShell uses `-Help`. CMD and Bash wrappers expose shell-style help flags for
 
 1. Runs `install-local.ps1`
 2. Resolves the effective config file and runtime directory
-3. Verifies `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`
+3. Resolves the optional `CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET`
 4. Starts the process in foreground or background mode
 5. Writes PID and log targets
 6. Waits up to 30 seconds for `/healthz`

@@ -21,7 +21,7 @@ Once an owner has created that asset id, later requests must not silently reinte
 
 ## 3. Create Upload Rule
 
-For `POST /api/v1/media/uploads`:
+For `POST /im/v3/api/media/uploads`:
 
 ### 3.1 Same owner, identical create payload
 
@@ -45,7 +45,7 @@ This preserves ownership isolation semantics while distinguishing it from same-o
 
 ## 4. Complete Upload Rule
 
-For `POST /api/v1/media/uploads/{mediaAssetId}/complete`:
+For `POST /im/v3/api/media/uploads/{mediaAssetId}/complete`:
 
 ### 4.1 Pending asset
 

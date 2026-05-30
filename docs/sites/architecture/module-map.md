@@ -8,7 +8,7 @@ directories are stable enough to document as product surfaces.
 | Directory | Current responsibility |
 | --- | --- |
 | `adapters/` | Provider and storage adapters such as local disk, local memory, IoT access, IoT MQTT, object storage, and RTC providers |
-| `crates/` | Shared contracts, CCP protocol crates, auth context, runtime links, route ownership models, and domain primitives |
+| `crates/` | Shared contracts, CCP protocol crates, AppContext projection, runtime links, route ownership models, and domain primitives |
 | `services/` | App runtime services, control-plane API, operator services, and business subsystems |
 | `services/web-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `craw-chat-server` binary |
 | `tools/` | Local verification tools such as `chat-cli` and smoke workflows |
@@ -22,9 +22,9 @@ directories are stable enough to document as product surfaces.
 
 | Service | Responsibility |
 | --- | --- |
-| `local-minimal-node` | App-facing HTTP node that assembles the current default runtime |
+| `local-minimal-node` | IM open-platform HTTP node that assembles the current default runtime |
 | `conversation-runtime` | Conversation, membership, message, and handoff behavior |
-| `session-gateway` | Session resume, presence, realtime route ownership, disconnect fences, and websocket handling |
+| `session-gateway` | Device route resume, presence, realtime route ownership, disconnect fences, and websocket handling |
 | `projection-service` | Inbox, timeline, summary, and read-model projection support |
 | `media-service` | Media upload lifecycle, lookup, attachment, and provider-aware download URLs |
 | `streaming-service` | Stream sessions, frames, checkpoints, completion, and abort flow |
@@ -39,11 +39,11 @@ directories are stable enough to document as product surfaces.
 
 | Crate group | Why it matters |
 | --- | --- |
-| `craw-chat-contract-*` | Business and transport contracts for app-facing surfaces |
+| `craw-chat-contract-*` | Business and transport contracts for IM open-platform surfaces |
 | `craw-chat-ccp-*` | CCP binding, codec, control, core, and registry surfaces |
 | `im-platform-contracts` | Provider registry, effective binding, and platform integration contracts |
 | `im-storage-*` | Shared storage provider schema, validation, fallback resolution, audit, and snapshot persistence seams |
-| `im-auth-context` | Shared auth-context parsing for bearer and trusted-header flows |
+| `im-app-context` | Shared SDKWork AppContext projection parsing from trusted `x-sdkwork-*` headers |
 | `craw-chat-runtime-*` | Runtime linking and route-ownership contracts |
 | `im-domain-*` | Core domain and event-level models reused by services |
 
@@ -54,7 +54,7 @@ directories are stable enough to document as product surfaces.
 - Checked-in OpenAPI authority now exists for the app, admin, and management SDK workspaces.
 - `web-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `craw-chat-server` binary.
 - The admin control-plane TypeScript SDK is locally verified, but that does not imply that every
-  browser `/api/admin/*` route has already been promoted into the formal control-plane authority.
+  browser `/backend/v3/api/admin/*` route has already been promoted into the formal control-plane authority.
 
 That distinction matters: directory presence alone is not treated as product delivery.
 

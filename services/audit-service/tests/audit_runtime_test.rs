@@ -2,12 +2,12 @@ use std::collections::BTreeSet;
 use std::thread::sleep;
 use std::time::Duration;
 
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 
 #[test]
 fn test_record_anchor_and_export_bundle() {
     let runtime = audit_service::AuditRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -42,7 +42,7 @@ fn test_record_anchor_and_export_bundle() {
 #[test]
 fn test_recorded_at_advances_between_distinct_records() {
     let runtime = audit_service::AuditRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -88,7 +88,7 @@ fn test_recorded_at_advances_between_distinct_records() {
 #[test]
 fn test_export_bundle_includes_verifiable_chain_and_detects_tampering() {
     let runtime = audit_service::AuditRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -149,7 +149,7 @@ fn test_export_bundle_includes_verifiable_chain_and_detects_tampering() {
 #[test]
 fn test_runtime_record_anchor_rejects_oversized_payload_consistently_with_http_contract() {
     let runtime = audit_service::AuditRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),

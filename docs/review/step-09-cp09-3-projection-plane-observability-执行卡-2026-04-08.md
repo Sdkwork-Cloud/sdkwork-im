@@ -8,7 +8,7 @@
   - `Step 08` 已于 `2026-04-08` 闭环完成
   - `Step 09 / CP09-2` 已完成 `projection snapshot` 与 `device-sync snapshot` 的统一恢复合同
   - 但 `projection-service` 的 snapshot persist / restore 仍缺少真实的 `metrics / tracing / structured logging`
-  - `ops-service` 的 `/api/v1/ops/health` 与 `/api/v1/ops/diagnostics` 也还没有 projection plane 观测面
+  - `ops-service` 的 `/backend/v3/api/ops/health` 与 `/backend/v3/api/ops/diagnostics` 也还没有 projection plane 观测面
 
 ## 本轮为什么做这个子任务
 - `docs/step/09-存储投影与可观测治理.md` 把 `CP09-3` 定义为“metrics / tracing / logging 已按 plane 基本收口”。
@@ -63,7 +63,7 @@
     - `state.projection_service.projection_plane_observability()`
   - 并映射写入：
     - `state.ops_runtime.update_projection_plane(...)`
-- 这让 `managed runtime-dir` 下的 snapshot persist / restore 观测面进入真实 `/api/v1/ops/health` 与 `/api/v1/ops/diagnostics`
+- 这让 `managed runtime-dir` 下的 snapshot persist / restore 观测面进入真实 `/backend/v3/api/ops/health` 与 `/backend/v3/api/ops/diagnostics`
 
 ### 5. 用真实红绿测试冻结最小观测合同
 - `services/projection-service/tests/projection_snapshot_test.rs`

@@ -10,7 +10,7 @@
     - publisher-only message post
     - publisher-only conversation-bound `stream/RTC` writes
   - but message publish itself still reused the generic conversation message route:
-    - `POST /api/v1/conversations/{id}/messages`
+    - `POST /im/v3/api/chat/conversations/{id}/messages`
   - that left no dedicated publish contract for `system_channel`, so future scheduled/bulk/delegated publish work still had to extend a generic two-way conversation write surface.
 - Impact:
   - `system_channel` publish semantics were still coupled to a generic message API intended for normal conversations.
@@ -44,9 +44,9 @@ This gives the platform a stable contract boundary now, without prematurely desi
 The contract is:
 
 - dedicated route:
-  - `POST /api/v1/conversations/{conversationId}/system-channel/publish`
+  - `POST /im/v3/api/chat/conversations/{conversationId}/system-channel/publish`
 - generic route:
-  - `POST /api/v1/conversations/{conversationId}/messages`
+  - `POST /im/v3/api/chat/conversations/{conversationId}/messages`
   - rejected for `system_channel`
 
 ## 4. Implementation
@@ -61,7 +61,7 @@ The contract is:
   - dedicated system-channel publish still enforces publisher-only access in runtime
   - runtime message write now also validates sender kind against the resolved member principal kind before appending
   - exposed route:
-    - `POST /api/v1/conversations/{conversation_id}/system-channel/publish`
+    - `POST /im/v3/api/chat/conversations/{conversation_id}/system-channel/publish`
 - `services/local-minimal-node/src/lib.rs`
   - exposed the same dedicated publish route
   - added local side-effect handling for dedicated publish:

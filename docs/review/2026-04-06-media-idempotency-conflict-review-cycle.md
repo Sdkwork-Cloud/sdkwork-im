@@ -15,8 +15,8 @@
     - `url`
     - `checksum`
 - Before the fix:
-  - same-owner conflicting duplicate `POST /api/v1/media/uploads` returned `200`
-  - same-owner conflicting duplicate `POST /api/v1/media/uploads/{id}/complete` returned `200`
+  - same-owner conflicting duplicate `POST /im/v3/api/media/uploads` returned `200`
+  - same-owner conflicting duplicate `POST /im/v3/api/media/uploads/{id}/complete` returned `200`
   - later completion requests could silently rewrite the finalized storage target of an already-ready asset
 
 ## 2. Impact

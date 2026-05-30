@@ -27,7 +27,7 @@
 
 ## Actions This Loop
 - actual_changes:
-  - `control-plane-api` 当前新增 `POST /api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted`
+  - `control-plane-api` 当前新增 `POST /backend/v3/api/control/social/runtime/takeover-pending-shared-channel-sync-targeted`
   - `SocialControlState` 当前新增 targeted takeover state mutation，仅接管 `foreign-owned` 的 pending request
   - `SocialControlRuntime::takeover_pending_shared_channel_sync_targeted(...)` 当前会把 selected foreign claim 转移给当前 operator，并重写 `claimedAt`
   - takeover 当前复用既有 owner/republish boundary；旧 owner takeover 后再做 targeted republish 会继续收到 `409 shared_channel_sync_owner_conflict`

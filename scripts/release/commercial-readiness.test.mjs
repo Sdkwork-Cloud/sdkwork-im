@@ -28,7 +28,6 @@ test('commercial readiness checks cover the verified frontend and backend gate c
       'admin-test',
       'admin-typecheck',
       'admin-build',
-      'portal-user-center-standard',
       'portal-test',
       'portal-build',
       'control-plane-api-tests',
@@ -53,18 +52,6 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   assert.equal(
     checks.find((check) => check.id === 'admin-build')?.cwd,
     path.join(repoRoot, 'apps', 'craw-chat-admin'),
-  );
-  assert.deepEqual(
-    checks.find((check) => check.id === 'portal-user-center-standard')?.args,
-    [path.join(repoRoot, 'scripts', 'run-user-center-standard.mjs')],
-  );
-  assert.equal(
-    checks.find((check) => check.id === 'portal-user-center-standard')?.command,
-    process.execPath,
-  );
-  assert.equal(
-    checks.find((check) => check.id === 'portal-user-center-standard')?.cwd,
-    repoRoot,
   );
   assert.deepEqual(
     checks.find((check) => check.id === 'portal-build')?.args,

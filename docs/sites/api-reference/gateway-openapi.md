@@ -47,7 +47,7 @@
 - The aggregate contract also publishes gateway-owned discovery operations such as the schema index, runtime summary, and service-schema proxy routes, so `/docs` shows both proxied API surface and gateway discovery surface together.
 - The aggregate contract now defines formal OpenAPI response schemas for the gateway discovery surface. Tooling can bind directly against `GatewayOpenapiIndex`, `GatewayRuntimeSummary`, `GatewayRouteSummary`, `GatewaySurfaceGroupSummary`, and related enum schemas under `components.schemas`.
 - In strict startup mode, upstream schema fetch failures are treated as blocking errors for aggregate schema generation.
-- The unified `web-gateway` now proxies registry-owned public websocket upgrade routes on the same external port as the HTTP surface. The current app-facing example is `GET /api/v1/realtime/ws`, but the gateway behavior is no longer hardcoded to that single path.
+- The unified `web-gateway` now proxies registry-owned public websocket upgrade routes on the same external port as the HTTP surface. The current IM open-platform example is `GET /im/v3/api/realtime/ws`, but the gateway behavior is no longer hardcoded to that single path.
 - The service index now exposes three complementary collections:
   `services` for per-service schema and docs inventory,
   `routes` for registry-owned route patterns across all visibilities,
@@ -70,7 +70,7 @@
 
 <div class="api-link-list">
   <a href="/api-reference/index"><code>API Reference</code> API reference landing page</a>
-  <a href="/api-reference/app-api"><code>App API</code> User-facing application surface</a>
-  <a href="/api-reference/platform-api"><code>Platform API</code> Platform and operator endpoints</a>
-  <a href="/api-reference/control-plane-api"><code>Control Plane API</code> Governance and route-control surface</a>
+  <a href="/api-reference/im-api"><code>IM Standard API</code> Standardized IM development surface</a>
+  <a href="/api-reference/app-api"><code>App API</code> App-business generated HTTP surface</a>
+  <a href="/api-reference/backend-api"><code>Backend API</code> Backend management, operator, control, and admin surface</a>
 </div>

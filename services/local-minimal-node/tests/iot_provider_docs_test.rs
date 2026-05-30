@@ -269,7 +269,7 @@ fn test_local_minimal_node_device_access_provider_injection_docs_freeze_runtime_
     assert!(
         review_doc.contains("TDD")
             && review_doc.contains("build_default_app_with_runtime_dir_and_device_access_provider")
-            && review_doc.contains("/api/v1/devices/register"),
+            && review_doc.contains("/im/v3/api/devices/register"),
         "review doc must capture the failing seam, the delivered seam and the runtime path"
     );
 }
@@ -302,7 +302,7 @@ fn test_session_gateway_device_access_provider_injection_docs_freeze_runtime_clo
             "DeviceAccessProvider",
             "iot-access-local",
             "build_app_with_device_access_provider",
-            "/api/v1/sessions/resume",
+            "/im/v3/api/device/sessions/resume",
             "register_device",
             "bind_owner",
         ] {
@@ -314,15 +314,15 @@ fn test_session_gateway_device_access_provider_injection_docs_freeze_runtime_clo
     }
 
     assert!(
-        architecture_doc.contains("SessionSyncState::has_registered_device")
+        architecture_doc.contains("DeviceSyncState::has_registered_device")
             && architecture_doc.contains("session-gateway-device")
-            && architecture_doc.contains("credential_kind = session"),
+            && architecture_doc.contains("credential_kind = device_route"),
         "150AI must freeze the first-registration guard and request constants"
     );
     assert!(
         review_doc.contains("TDD")
             && review_doc.contains("build_app_with_device_access_provider")
-            && review_doc.contains("/api/v1/presence/heartbeat"),
+            && review_doc.contains("/im/v3/api/presence/heartbeat"),
         "review doc must capture the TDD seam and the no-repeat heartbeat verification"
     );
 }
@@ -353,7 +353,7 @@ fn test_iot_access_provider_health_http_surface_docs_freeze_first_external_visib
         for required in [
             "local-minimal-node",
             "iot-access-local",
-            "/api/v1/iot/access/provider-health",
+            "/backend/v3/api/iot/access/provider_health",
             "provider_health_snapshot",
             "DeviceAccessProvider",
             "mqtt,xiaozhi",
@@ -390,7 +390,7 @@ fn test_iot_protocol_provider_health_http_surface_docs_freeze_first_external_vis
         for required in [
             "local-minimal-node",
             "iot-mqtt",
-            "/api/v1/iot/protocol/provider-health",
+            "/backend/v3/api/iot/protocol/provider_health",
             "IotProtocolAdapter",
             "provider_health_snapshot",
             "build_default_app_with_iot_protocol_adapter",
@@ -427,7 +427,7 @@ fn test_iot_protocol_uplink_device_telemetry_mainline_docs_freeze_runtime_consum
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/api/v1/iot/protocol/uplink",
+            "/backend/v3/api/iot/protocol/uplink",
             "IotProtocolAdapter",
             "decode_uplink",
             "build_default_app_with_iot_protocol_adapter",
@@ -467,7 +467,7 @@ fn test_iot_protocol_downlink_device_command_mainline_docs_freeze_runtime_consum
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/api/v1/iot/protocol/downlink",
+            "/backend/v3/api/iot/protocol/downlink",
             "IotProtocolAdapter",
             "encode_downlink",
             "build_default_app_with_iot_protocol_adapter",
@@ -510,9 +510,9 @@ fn test_wave_c_93_review_refreshes_step08_continuous_optimization_closure() {
         "08-L",
         "08-M",
         "08-N",
-        "/api/v1/iot/protocol/provider-health",
-        "/api/v1/iot/protocol/uplink",
-        "/api/v1/iot/protocol/downlink",
+        "/backend/v3/api/iot/protocol/provider_health",
+        "/backend/v3/api/iot/protocol/uplink",
+        "/backend/v3/api/iot/protocol/downlink",
         "09AK",
         "09AL",
         "09AM",
@@ -555,7 +555,7 @@ fn test_iot_protocol_uplink_known_device_preflight_docs_freeze_auth_before_decod
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/api/v1/iot/protocol/uplink",
+            "/backend/v3/api/iot/protocol/uplink",
             "IotProtocolAdapter",
             "decode_uplink",
             "request.device_id.clone().or_else(|| auth.device_id.clone())",
@@ -595,7 +595,7 @@ fn test_iot_protocol_uplink_actor_preflight_docs_freeze_auth_before_decode() {
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/api/v1/iot/protocol/uplink",
+            "/backend/v3/api/iot/protocol/uplink",
             "IotProtocolAdapter",
             "decode_uplink",
             "ensure_iot_protocol_uplink_actor_preflight",
@@ -636,7 +636,7 @@ fn test_iot_protocol_uplink_request_device_mismatch_docs_freeze_error_before_dec
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/api/v1/iot/protocol/uplink",
+            "/backend/v3/api/iot/protocol/uplink",
             "IotProtocolAdapter",
             "decode_uplink",
             "resolve_requested_device_id",
@@ -676,7 +676,7 @@ fn test_iot_protocol_uplink_decoded_device_mismatch_docs_freeze_error_after_deco
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/api/v1/iot/protocol/uplink",
+            "/backend/v3/api/iot/protocol/uplink",
             "IotProtocolAdapter",
             "decode_uplink",
             "ensure_iot_protocol_uplink_decoded_device_matches_preflight",

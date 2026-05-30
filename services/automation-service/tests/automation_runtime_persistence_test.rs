@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 
 use im_adapters_local_memory::MemoryAutomationExecutionStore;
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
 
@@ -23,7 +23,7 @@ impl CommitJournal for RecordingJournal {
 fn test_runtime_restores_automation_projection_on_rebuild_with_shared_store() {
     let journal = Arc::new(RecordingJournal::default());
     let execution_store = Arc::new(MemoryAutomationExecutionStore::default());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -67,7 +67,7 @@ fn test_runtime_restores_automation_projection_on_rebuild_with_shared_store() {
 fn test_runtime_restores_principal_kind_isolated_executions_on_rebuild_with_shared_store() {
     let journal = Arc::new(RecordingJournal::default());
     let execution_store = Arc::new(MemoryAutomationExecutionStore::default());
-    let user_auth = AuthContext {
+    let user_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -78,7 +78,7 @@ fn test_runtime_restores_principal_kind_isolated_executions_on_rebuild_with_shar
             "automation.read".to_string(),
         ]),
     };
-    let system_auth = AuthContext {
+    let system_auth = AppContext {
         actor_kind: "system".into(),
         session_id: Some("s_system".into()),
         ..user_auth.clone()

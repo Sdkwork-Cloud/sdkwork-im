@@ -11,10 +11,9 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const docsRoot = path.resolve(currentDir, "..");
 const operationsRoot = path.join(docsRoot, "api-reference", "operations");
 const domainOverviewLinks = {
+  "IM Standard API": "/api-reference/im-api",
   "App API": "/api-reference/app-api",
-  "Platform API": "/api-reference/platform-api",
-  "IoT API": "/api-reference/iot-api",
-  "Control Plane API": "/api-reference/control-plane-api",
+  "Backend API": "/api-reference/backend-api",
 };
 
 function sourceGroupFor(pageLink) {
@@ -58,7 +57,7 @@ function operationFileContent(pageLink, operationTitle, body) {
 <div class="api-link-list">
   <a href="${pageLink}"><code>${page}</code> Return to the group page for workflow context and related operations</a>
   <a href="${domainOverviewLink}"><code>${domain}</code> Return to the domain overview</a>
-  <a href="/api-reference/auth-and-errors"><code>Auth</code> Shared bearer, trusted-header, and error-envelope rules</a>
+  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, AppContext projection, and error-envelope rules</a>
 </div>
 
 <section class="api-op api-op-single">

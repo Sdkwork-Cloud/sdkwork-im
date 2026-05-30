@@ -11,7 +11,7 @@
     - `conversation.member_removed`
     - `conversation.member_left`
   - `local-minimal-node` handlers for add/remove/change-role/leave only recorded audit and returned JSON.
-  - No realtime business event was published into `/api/v1/realtime/events` or websocket push.
+  - No realtime business event was published into `/im/v3/api/realtime/events` or websocket push.
 - Impact:
   - roster UIs could not react in real time to member joins, role changes, removals, or leaves
   - multi-device clients of the same principal would miss their own membership changes while online

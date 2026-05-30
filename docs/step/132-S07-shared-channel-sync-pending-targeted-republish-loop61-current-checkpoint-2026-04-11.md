@@ -27,9 +27,9 @@
 
 ## Actions This Loop
 - actual_changes:
-  - 控制面新增 `GET /api/v1/control/social/runtime/pending-shared-channel-sync`
+  - 控制面新增 `GET /backend/v3/api/control/social/runtime/pending-shared-channel-sync`
   - pending inventory item 当前显式暴露 `requestKey / request / failureCount / lastError`
-  - 控制面新增 `POST /api/v1/control/social/runtime/republish-pending-shared-channel-sync-targeted`
+  - 控制面新增 `POST /backend/v3/api/control/social/runtime/republish-pending-shared-channel-sync-targeted`
   - `SocialControlRuntime` 当前支持按 `requestKey` 只把被选中的 pending request 显式 republish 到 remote runtime
   - targeted republish 成功后只清理被选中的成功 request；未选中的 pending request 继续保持 backlog
   - 新增 dual-service e2e，证明只有被选中的 actor 会恢复 shared history 可读；未被选中的 actor 仍然 `403`

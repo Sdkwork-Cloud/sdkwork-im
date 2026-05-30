@@ -17,13 +17,22 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
 
     for required_command in [
         "cargo test -p session-gateway --tests",
-        "cargo test -p session-gateway --test http_smoke_test test_session_resume_rejects_same_device_id_with_different_actor_kind_over_http -- --exact",
-        "cargo test -p session-gateway --test http_smoke_test test_session_resume_rejects_same_device_id_with_different_principal_over_http -- --exact",
+        "cargo test -p session-gateway --test http_smoke_test test_device_session_resume_rejects_same_device_id_with_different_actor_kind_over_http -- --exact",
+        "cargo test -p session-gateway --test http_smoke_test test_device_session_resume_rejects_same_device_id_with_different_principal_over_http -- --exact",
         "cargo test -p session-gateway --test http_smoke_test test_realtime_subscription_sync_rejects_oversized_event_types_payload_over_http -- --exact",
         "cargo test -p session-gateway --test http_smoke_test test_realtime_subscription_sync_rejects_too_many_items_over_http -- --exact",
         "cargo test -p session-gateway --test websocket_smoke_test test_realtime_websocket_rejects_oversized_request_id -- --exact",
         "cargo test -p session-gateway --test websocket_smoke_test test_realtime_websocket_rejects_oversized_frame_type -- --exact",
-        "cargo test -p session-gateway --test device_access_provider_mainline_test test_conflicting_session_resume_does_not_call_provider_for_second_owner -- --exact",
+        "cargo test -p session-gateway --test device_access_provider_mainline_test test_conflicting_device_session_resume_does_not_call_provider_for_second_owner -- --exact",
+        "cargo test -p im-postgres-realtime-contracts --test postgres_realtime_contracts_test",
+        "cargo test -p im-adapters-postgres-realtime --test postgres_realtime_checkpoint_store_test",
+        "cargo test -p im-adapters-postgres-realtime --test postgres_realtime_live_integration_test -- --nocapture",
+        "cargo test -p session-gateway --test postgres_realtime_live_runtime_test -- --nocapture",
+        "cargo test -p session-gateway --test postgres_realtime_websocket_live_drill_test -- --nocapture",
+        "cargo test -p local-minimal-node --test realtime_storage_provider_contract_test",
+        "cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime --tests -- -D warnings",
+        "cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime -p session-gateway --tests -- -D warnings",
+        "cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime -p local-minimal-node --tests -- -D warnings",
         "cargo test -p projection-service --tests",
         "cargo test -p projection-service --test http_smoke_test test_timeline_query_rejects_same_actor_id_with_different_actor_kind_over_http -- --exact",
         "cargo test -p projection-service --test http_smoke_test test_contacts_query_rejects_same_actor_id_with_different_actor_kind_over_http -- --exact",
@@ -58,17 +67,22 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_preserves_add_member_request_attributes_for_non_user_principal -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_oversized_render_hints_on_post_message -- --exact",
         "cargo test -p local-minimal-node --test commercial_gate_contract_test",
+        "cargo test -p local-minimal-node --test commercial_readiness_gate_test",
+        "cargo test -p local-minimal-node --test runtime_cli_error_handling_test",
         "cargo test -p local-minimal-node --test device_stream_e2e_test test_local_minimal_profile_device_stream_rejects_same_actor_id_different_actor_kind -- --exact",
         "cargo test -p local-minimal-node --test device_stream_e2e_test test_local_minimal_profile_user_actor_cannot_inherit_system_device_command_access -- --exact",
         "cargo test -p local-minimal-node --test device_access_provider_mainline_test test_conflicting_device_register_does_not_call_provider_for_second_owner -- --exact",
-        "cargo test -p local-minimal-node --test user_module_provider_mainline_test test_local_user_module_provider_rejects_oversized_creator_attributes_on_create_conversation -- --exact",
-        "cargo test -p local-minimal-node --test user_module_provider_mainline_test test_local_user_module_provider_rejects_oversized_sender_metadata_on_post_message -- --exact",
-        "cargo test -p local-minimal-node --test user_module_provider_mainline_test test_local_user_module_provider_merges_add_member_request_attributes -- --exact",
+        "cargo test -p local-minimal-node --test principal_profile_provider_mainline_test test_local_principal_profile_provider_rejects_oversized_creator_attributes_on_create_conversation -- --exact",
+        "cargo test -p local-minimal-node --test principal_profile_provider_mainline_test test_local_principal_profile_provider_rejects_oversized_sender_metadata_on_post_message -- --exact",
+        "cargo test -p local-minimal-node --test principal_profile_provider_mainline_test test_local_principal_profile_provider_merges_add_member_request_attributes -- --exact",
         "cargo test -p local-minimal-node --test task10_capabilities_e2e_test test_local_minimal_profile_treats_duplicate_automation_request_as_idempotent -- --exact",
         "cargo test -p local-minimal-node --test task10_capabilities_e2e_test test_local_minimal_profile_isolates_automation_notifications_by_actor_kind -- --exact",
         "cargo test -p local-minimal-node --test task10_capabilities_e2e_test test_local_minimal_profile_records_automation_audit_per_actor_kind -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact",
-        "cargo test -p local-minimal-node --test real_auth_e2e_test test_portal_public_snapshots_are_open_but_workspace_requires_operator_token -- --exact",
+        "cargo test -p local-minimal-node --test openapi_schema_export_test",
+        "cargo test -p local-minimal-node --test openapi_im_v3_contract_test",
+        "cargo test -p local-minimal-node --test chat_runtime_session_namespace_test",
+        "cargo test -p local-minimal-node --test runtime_config_test",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_direct_chat_binding_as_idempotent -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_message_post_retry -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_retry -- --exact",
@@ -119,6 +133,30 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
             "commercial gate workflow must include `{required_command}`"
         );
     }
+
+    assert!(
+        workflow.contains("- 'adapters/**'"),
+        "commercial gate workflow must trigger when adapter crates change"
+    );
+    assert!(
+        workflow.contains("postgres:"),
+        "commercial gate workflow must provision a PostgreSQL service for live realtime storage integration"
+    );
+    assert!(
+        workflow.contains("CRAW_CHAT_POSTGRES_TEST_DATABASE_URL:"),
+        "commercial gate workflow must set CRAW_CHAT_POSTGRES_TEST_DATABASE_URL so the live PostgreSQL realtime test cannot silently skip in CI"
+    );
+    assert!(
+        workflow
+            .matches("CRAW_CHAT_POSTGRES_TEST_DATABASE_URL:")
+            .count()
+            >= 3,
+        "commercial gate workflow must wire the PostgreSQL database URL into adapter-level, session-gateway runtime, and websocket live tests"
+    );
+    assert!(
+        workflow.contains("postgres://craw_chat_test:craw_chat_test@localhost:5432/craw_chat_test"),
+        "commercial gate workflow must wire the live PostgreSQL realtime test to the provisioned test database"
+    );
 }
 
 #[test]
@@ -134,7 +172,7 @@ fn test_as_built_alignment_no_longer_claims_local_minimal_lacks_direct_chat_bind
 
     assert!(
         !as_built.contains(
-            "local-minimal-node` still does not expose a dedicated `/api/v1/conversations/direct-chats/bindings` route"
+            "local-minimal-node` still does not expose a dedicated `/im/v3/api/chat/conversations/direct_chats/bindings` route"
         ),
         "as-built alignment doc must not preserve the stale direct-chat binding route gap after the route exists in code"
     );

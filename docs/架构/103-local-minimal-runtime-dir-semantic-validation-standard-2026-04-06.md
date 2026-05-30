@@ -21,7 +21,7 @@ This standard does not add automatic file repair.
 
 Standard 102 remains the response-shape contract:
 
-- `GET /api/v1/ops/runtime-dir`
+- `GET /backend/v3/api/ops/runtime_dir`
 - `local-minimal-node inspect-runtime-dir --runtime-dir <path> [--json]`
 - the existing `RuntimeDirInspectionView` and `RuntimeDirInspectionItem` fields
 

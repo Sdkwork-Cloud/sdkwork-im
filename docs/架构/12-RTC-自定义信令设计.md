@@ -17,7 +17,7 @@
 RTC 相关能力拆成两层：
 
 - 会话状态层：`create / invite / accept / reject / end`
-- 自定义信令层：`POST /api/v1/rtc/sessions/{rtc_session_id}/signals`
+- 自定义信令层：`POST /im/v3/api/rtc/sessions/{rtc_session_id}/signals`
 
 会话状态层负责管理 RTC 会话生命周期，自定义信令层负责承载生命周期之外的实时数据交换。两层共享统一的授权、租户隔离、会话标识和可观测性约束，但互相解耦。
 
@@ -30,7 +30,7 @@ RTC 相关能力拆成两层：
 
 ### 3.1 请求
 
-`POST /api/v1/rtc/sessions/{rtc_session_id}/signals`
+`POST /im/v3/api/rtc/sessions/{rtc_session_id}/signals`
 
 请求体：
 
@@ -205,7 +205,7 @@ RTC 相关能力拆成两层：
 本轮已落地：
 
 - 领域模型 `RtcSignalEvent`
-- RTC 服务入口 `POST /api/v1/rtc/sessions/{rtc_session_id}/signals`
+- RTC 服务入口 `POST /im/v3/api/rtc/sessions/{rtc_session_id}/signals`
 - 关闭态 RTC 会话拒绝自定义信令
 - `sender` 统一结构接入 RTC 自定义信令
 - 会话绑定 IM 时自动投影为 `signal` 消息

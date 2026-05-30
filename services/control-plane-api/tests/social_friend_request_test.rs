@@ -9,9 +9,10 @@ use audit_service::AuditRuntime;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use base64::Engine as _;
+use hmac::{Hmac, Mac};
 use http_body_util::BodyExt;
 use im_adapters_local_disk::FileCommitJournal;
-use im_auth_context::{AuthContext, encode_hs256_bearer_token};
+use im_app_context::AppContext;
 use im_domain_core::social::direct_chat_pair_hash;
 use im_domain_events::social::{
     DirectChatBoundPayload, SocialCommitEnvelopeInput, SocialEventType, social_commit_envelope,
@@ -20,6 +21,7 @@ use im_domain_events::{AggregateType, EventActor};
 use im_platform_contracts::CommitJournal;
 use ops_service::OpsRuntime;
 use session_gateway::RealtimeClusterBridge;
+use sha2::Sha256;
 use tower::ServiceExt;
 
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
@@ -91,8 +93,18 @@ fn replace_friend_request_cursor_payload(cursor: &str, payload: &serde_json::Val
 }
 
 fn sign_friend_request_cursor_for_test(payload: &serde_json::Value) -> String {
-    encode_hs256_bearer_token(payload, TEST_FRIEND_REQUEST_CURSOR_SECRET)
-        .expect("friend request cursor test token should encode")
+    let header_segment = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(br#"{"alg":"HS256","typ":"JWT"}"#);
+    let payload_segment = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
+        serde_json::to_vec(payload).expect("friend request cursor payload should serialize"),
+    );
+    let signing_input = format!("{header_segment}.{payload_segment}");
+    let mut mac = Hmac::<Sha256>::new_from_slice(TEST_FRIEND_REQUEST_CURSOR_SECRET.as_bytes())
+        .expect("friend request cursor test secret should initialize HMAC");
+    mac.update(signing_input.as_bytes());
+    let signature_segment =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes());
+    format!("{signing_input}.{signature_segment}")
 }
 
 fn unique_runtime_dir() -> PathBuf {
@@ -187,11 +199,11 @@ async fn test_control_plane_social_friend_request_write_persists_snapshot_commit
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -240,11 +252,11 @@ async fn test_control_plane_social_friend_request_write_persists_snapshot_commit
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -269,13 +281,20 @@ async fn test_control_plane_social_friend_request_write_persists_snapshot_commit
         "friend_request.submitted"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_admin".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
+        app_id: Some("craw-chat".into()),
+        environment: None,
+        deployment_mode: None,
         device_id: None,
-        permissions: BTreeSet::new(),
+        permission_scope: BTreeSet::new(),
+        data_scope: BTreeSet::new(),
+        auth_level: None,
     };
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 1);
@@ -314,11 +333,11 @@ async fn test_control_plane_social_file_runtime_second_instance_accepts_request_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -340,11 +359,11 @@ async fn test_control_plane_social_file_runtime_second_instance_accepts_request_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_cross_instance_accept_001/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_cross_instance_accept_001/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -372,11 +391,11 @@ async fn test_control_plane_social_file_runtime_second_instance_accepts_request_
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_cross_instance_accept_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_cross_instance_accept_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -415,11 +434,11 @@ async fn test_control_plane_social_file_runtime_concurrent_submit_same_pair_acro
 
     let submit_from_alice = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friend-requests")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri("/backend/v3/api/control/social/friend_requests")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -433,11 +452,11 @@ async fn test_control_plane_social_file_runtime_concurrent_submit_same_pair_acro
         .unwrap();
     let submit_from_bob = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friend-requests")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri("/backend/v3/api/control/social/friend_requests")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -508,12 +527,12 @@ async fn test_control_plane_social_file_runtime_concurrent_submit_same_pair_acro
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/social/friend-requests/{winning_request_id}"
+                    "/backend/v3/api/control/social/friend_requests/{winning_request_id}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -531,12 +550,12 @@ async fn test_control_plane_social_file_runtime_concurrent_submit_same_pair_acro
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/social/friend-requests/{rejected_request_id}"
+                    "/backend/v3/api/control/social/friend_requests/{rejected_request_id}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -569,11 +588,11 @@ async fn test_control_plane_social_file_runtime_concurrent_accept_and_cancel_acr
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -592,11 +611,13 @@ async fn test_control_plane_social_file_runtime_concurrent_accept_and_cancel_acr
 
     let accept_request = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friend-requests/fr_cross_accept_cancel_race_001/accept")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri(
+            "/backend/v3/api/control/social/friend_requests/fr_cross_accept_cancel_race_001/accept",
+        )
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -608,11 +629,13 @@ async fn test_control_plane_social_file_runtime_concurrent_accept_and_cancel_acr
         .unwrap();
     let cancel_request = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friend-requests/fr_cross_accept_cancel_race_001/cancel")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri(
+            "/backend/v3/api/control/social/friend_requests/fr_cross_accept_cancel_race_001/cancel",
+        )
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -684,12 +707,12 @@ async fn test_control_plane_social_file_runtime_concurrent_accept_and_cancel_acr
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_cross_accept_cancel_race_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_cross_accept_cancel_race_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -737,11 +760,11 @@ async fn test_control_plane_social_file_runtime_concurrent_remove_and_submit_acr
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -762,11 +785,11 @@ async fn test_control_plane_social_file_runtime_concurrent_remove_and_submit_acr
 
     let remove_request = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friendships/fs_cross_remove_submit_race_001/remove")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri("/backend/v3/api/control/social/friendships/fs_cross_remove_submit_race_001/remove")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -778,11 +801,11 @@ async fn test_control_plane_social_file_runtime_concurrent_remove_and_submit_acr
         .unwrap();
     let submit_request = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friend-requests")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri("/backend/v3/api/control/social/friend_requests")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -837,11 +860,11 @@ async fn test_control_plane_social_file_runtime_concurrent_remove_and_submit_acr
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friendships/fs_cross_remove_submit_race_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friendships/fs_cross_remove_submit_race_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -866,12 +889,12 @@ async fn test_control_plane_social_file_runtime_concurrent_remove_and_submit_acr
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_cross_remove_submit_race_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_cross_remove_submit_race_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -912,11 +935,11 @@ async fn test_control_plane_social_friend_request_rejects_identical_user_pair() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -955,11 +978,11 @@ async fn test_control_plane_social_friend_request_rejects_duplicate_open_pair_an
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -980,11 +1003,11 @@ async fn test_control_plane_social_friend_request_rejects_duplicate_open_pair_an
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1025,11 +1048,11 @@ async fn test_control_plane_social_friend_request_concurrent_submit_same_pair_co
 
     let submit_from_alice = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friend-requests")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri("/backend/v3/api/control/social/friend_requests")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -1043,11 +1066,11 @@ async fn test_control_plane_social_friend_request_concurrent_submit_same_pair_co
         .unwrap();
     let submit_from_bob = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friend-requests")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri("/backend/v3/api/control/social/friend_requests")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -1127,12 +1150,12 @@ async fn test_control_plane_social_friend_request_concurrent_submit_same_pair_co
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/social/friend-requests/{winning_request_id}"
+                    "/backend/v3/api/control/social/friend_requests/{winning_request_id}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1159,12 +1182,12 @@ async fn test_control_plane_social_friend_request_concurrent_submit_same_pair_co
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/social/friend-requests/{rejected_request_id}"
+                    "/backend/v3/api/control/social/friend_requests/{rejected_request_id}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1183,11 +1206,11 @@ async fn test_control_plane_social_friend_request_concurrent_accept_and_cancel_c
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1206,11 +1229,11 @@ async fn test_control_plane_social_friend_request_concurrent_accept_and_cancel_c
 
     let accept_request = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friend-requests/fr_accept_cancel_race_001/accept")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri("/backend/v3/api/control/social/friend_requests/fr_accept_cancel_race_001/accept")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -1222,11 +1245,11 @@ async fn test_control_plane_social_friend_request_concurrent_accept_and_cancel_c
         .unwrap();
     let cancel_request = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friend-requests/fr_accept_cancel_race_001/cancel")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri("/backend/v3/api/control/social/friend_requests/fr_accept_cancel_race_001/cancel")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -1297,11 +1320,11 @@ async fn test_control_plane_social_friend_request_concurrent_accept_and_cancel_c
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_cancel_race_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_accept_cancel_race_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1339,11 +1362,11 @@ async fn test_control_plane_social_friendship_concurrent_remove_and_submit_never
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1362,11 +1385,11 @@ async fn test_control_plane_social_friendship_concurrent_remove_and_submit_never
 
     let remove_request = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friendships/fs_remove_submit_race_001/remove")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri("/backend/v3/api/control/social/friendships/fs_remove_submit_race_001/remove")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -1378,11 +1401,11 @@ async fn test_control_plane_social_friendship_concurrent_remove_and_submit_never
         .unwrap();
     let submit_request = Request::builder()
         .method("POST")
-        .uri("/api/v1/control/social/friend-requests")
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_admin")
-        .header("x-actor-kind", "admin")
-        .header("x-permissions", "control.write")
+        .uri("/backend/v3/api/control/social/friend_requests")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_admin")
+        .header("x-sdkwork-actor-kind", "admin")
+        .header("x-sdkwork-permission-scope", "control.write")
         .header("content-type", "application/json")
         .body(Body::from(
             r#"{
@@ -1435,11 +1458,11 @@ async fn test_control_plane_social_friendship_concurrent_remove_and_submit_never
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friendships/fs_remove_submit_race_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friendships/fs_remove_submit_race_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1461,11 +1484,11 @@ async fn test_control_plane_social_friendship_concurrent_remove_and_submit_never
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_remove_submit_race_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_remove_submit_race_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1501,11 +1524,11 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_active_frie
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1526,11 +1549,11 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_active_frie
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1573,11 +1596,11 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_pair_with_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1599,12 +1622,12 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_pair_with_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_submit_guard_accepted_existing/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_submit_guard_accepted_existing/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.write")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1624,11 +1647,11 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_pair_with_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1667,11 +1690,11 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_pair_with_a
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_submit_guard_accepted_duplicate")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_submit_guard_accepted_duplicate")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1689,11 +1712,11 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1715,11 +1738,11 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1741,11 +1764,11 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_list_canceled_001/cancel")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_list_canceled_001/cancel")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1765,11 +1788,11 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests?userId=u_bob&direction=incoming")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests?userId=u_bob&direction=incoming")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1797,11 +1820,11 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests?userId=u_bob&direction=outgoing")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests?userId=u_bob&direction=outgoing")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1826,13 +1849,13 @@ async fn test_control_plane_social_friend_request_list_filters_by_direction_and_
             Request::builder()
                 .method("GET")
                 .uri(
-                    "/api/v1/control/social/friend-requests?userId=u_bob&direction=outgoing&status=canceled",
+                    "/backend/v3/api/control/social/friend_requests?userId=u_bob&direction=outgoing&status=canceled",
                 )
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1867,11 +1890,11 @@ async fn test_control_plane_social_friend_request_list_applies_limit_after_sorti
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1893,11 +1916,11 @@ async fn test_control_plane_social_friend_request_list_applies_limit_after_sorti
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1918,12 +1941,12 @@ async fn test_control_plane_social_friend_request_list_applies_limit_after_sorti
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests?userId=u_alice&direction=outgoing&limit=1")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .uri("/backend/v3/api/control/social/friend_requests?userId=u_alice&direction=outgoing&limit=1")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1973,11 +1996,11 @@ async fn test_control_plane_social_friend_request_list_uses_cursor_for_next_page
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/control/social/friend-requests")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_admin")
-                    .header("x-actor-kind", "admin")
-                    .header("x-permissions", "control.write")
+                    .uri("/backend/v3/api/control/social/friend_requests")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_admin")
+                    .header("x-sdkwork-actor-kind", "admin")
+                    .header("x-sdkwork-permission-scope", "control.write")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -2001,13 +2024,13 @@ async fn test_control_plane_social_friend_request_list_uses_cursor_for_next_page
             Request::builder()
                 .method("GET")
                 .uri(
-                    "/api/v1/control/social/friend-requests?userId=u_alice&direction=outgoing&limit=1",
+                    "/backend/v3/api/control/social/friend_requests?userId=u_alice&direction=outgoing&limit=1",
                 )
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2036,13 +2059,13 @@ async fn test_control_plane_social_friend_request_list_uses_cursor_for_next_page
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/social/friend-requests?userId=u_alice&direction=outgoing&limit=1&cursor={next_cursor}"
+                    "/backend/v3/api/control/social/friend_requests?userId=u_alice&direction=outgoing&limit=1&cursor={next_cursor}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2074,13 +2097,13 @@ async fn test_control_plane_social_friend_request_list_rejects_invalid_cursor() 
             Request::builder()
                 .method("GET")
                 .uri(
-                    "/api/v1/control/social/friend-requests?userId=u_alice&direction=outgoing&cursor=not-valid",
+                    "/backend/v3/api/control/social/friend_requests?userId=u_alice&direction=outgoing&cursor=not-valid",
                 )
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2120,11 +2143,11 @@ async fn test_control_plane_social_friend_request_list_emits_signed_versioned_cu
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/control/social/friend-requests")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_admin")
-                    .header("x-actor-kind", "admin")
-                    .header("x-permissions", "control.write")
+                    .uri("/backend/v3/api/control/social/friend_requests")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_admin")
+                    .header("x-sdkwork-actor-kind", "admin")
+                    .header("x-sdkwork-permission-scope", "control.write")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -2148,12 +2171,12 @@ async fn test_control_plane_social_friend_request_list_emits_signed_versioned_cu
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests?userId=u_alice&direction=outgoing&limit=1")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .uri("/backend/v3/api/control/social/friend_requests?userId=u_alice&direction=outgoing&limit=1")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2201,11 +2224,11 @@ async fn test_control_plane_social_friend_request_list_rejects_tampered_cursor_s
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/control/social/friend-requests")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_admin")
-                    .header("x-actor-kind", "admin")
-                    .header("x-permissions", "control.write")
+                    .uri("/backend/v3/api/control/social/friend_requests")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_admin")
+                    .header("x-sdkwork-actor-kind", "admin")
+                    .header("x-sdkwork-permission-scope", "control.write")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -2230,12 +2253,12 @@ async fn test_control_plane_social_friend_request_list_rejects_tampered_cursor_s
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests?userId=u_alice&direction=outgoing&limit=1")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .uri("/backend/v3/api/control/social/friend_requests?userId=u_alice&direction=outgoing&limit=1")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2262,13 +2285,13 @@ async fn test_control_plane_social_friend_request_list_rejects_tampered_cursor_s
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/social/friend-requests?userId=u_alice&direction=outgoing&limit=1&cursor={tampered_cursor}"
+                    "/backend/v3/api/control/social/friend_requests?userId=u_alice&direction=outgoing&limit=1&cursor={tampered_cursor}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2307,13 +2330,13 @@ async fn test_control_plane_social_friend_request_list_rejects_unsupported_curso
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/social/friend-requests?userId=u_alice&direction=outgoing&cursor={cursor}"
+                    "/backend/v3/api/control/social/friend_requests?userId=u_alice&direction=outgoing&cursor={cursor}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
 
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2353,11 +2376,11 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2380,11 +2403,11 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_001/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_accept_001/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2440,11 +2463,11 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_accept_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2474,12 +2497,12 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/social/friendships/{friendship_id}"
+                    "/backend/v3/api/control/social/friendships/{friendship_id}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2502,12 +2525,12 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/social/direct-chats/{direct_chat_id}"
+                    "/backend/v3/api/control/social/direct_chats/{direct_chat_id}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2529,13 +2552,20 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
         conversation_id
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_admin".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
+        app_id: Some("craw-chat".into()),
+        environment: None,
+        deployment_mode: None,
         device_id: None,
-        permissions: BTreeSet::new(),
+        permission_scope: BTreeSet::new(),
+        data_scope: BTreeSet::new(),
+        auth_level: None,
     };
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 4);
@@ -2612,11 +2642,11 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2644,11 +2674,13 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_failpoint_001/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri(
+                    "/backend/v3/api/control/social/friend_requests/fr_accept_failpoint_001/accept",
+                )
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2722,12 +2754,12 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/social/friendships/{friendship_id}"
+                    "/backend/v3/api/control/social/friendships/{friendship_id}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2741,12 +2773,12 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/social/direct-chats/{direct_chat_id}"
+                    "/backend/v3/api/control/social/direct_chats/{direct_chat_id}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2771,11 +2803,11 @@ async fn test_control_plane_social_file_runtime_restart_repairs_atomic_friend_re
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_failpoint_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_accept_failpoint_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2795,11 +2827,11 @@ async fn test_control_plane_social_friend_request_submit_rejects_active_friendsh
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/user-blocks")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/user_blocks")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2821,11 +2853,11 @@ async fn test_control_plane_social_friend_request_submit_rejects_active_friendsh
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2868,11 +2900,11 @@ async fn test_control_plane_social_friend_request_accept_rejects_active_friendsh
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2894,11 +2926,11 @@ async fn test_control_plane_social_friend_request_accept_rejects_active_friendsh
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/user-blocks")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/user_blocks")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2921,11 +2953,11 @@ async fn test_control_plane_social_friend_request_accept_rejects_active_friendsh
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_blocked_001/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_accept_blocked_001/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2960,11 +2992,11 @@ async fn test_control_plane_social_friend_request_accept_rejects_active_friendsh
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_blocked_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_accept_blocked_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3004,11 +3036,11 @@ async fn test_control_plane_social_friend_request_decline_updates_snapshot_and_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3031,11 +3063,11 @@ async fn test_control_plane_social_friend_request_decline_updates_snapshot_and_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_decline_001/decline")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_decline_001/decline")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3076,11 +3108,11 @@ async fn test_control_plane_social_friend_request_decline_updates_snapshot_and_a
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_decline_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_decline_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3104,13 +3136,20 @@ async fn test_control_plane_social_friend_request_decline_updates_snapshot_and_a
         "friend_request.declined"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_admin".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
+        app_id: Some("craw-chat".into()),
+        environment: None,
+        deployment_mode: None,
         device_id: None,
-        permissions: BTreeSet::new(),
+        permission_scope: BTreeSet::new(),
+        data_scope: BTreeSet::new(),
+        auth_level: None,
     };
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 2);
@@ -3149,11 +3188,11 @@ async fn test_control_plane_social_friend_request_cancel_updates_snapshot_and_au
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3176,11 +3215,11 @@ async fn test_control_plane_social_friend_request_cancel_updates_snapshot_and_au
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_cancel_001/cancel")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_cancel_001/cancel")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3221,11 +3260,11 @@ async fn test_control_plane_social_friend_request_cancel_updates_snapshot_and_au
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_cancel_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_cancel_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3249,13 +3288,20 @@ async fn test_control_plane_social_friend_request_cancel_updates_snapshot_and_au
         "friend_request.canceled"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_admin".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
+        app_id: Some("craw-chat".into()),
+        environment: None,
+        deployment_mode: None,
         device_id: None,
-        permissions: BTreeSet::new(),
+        permission_scope: BTreeSet::new(),
+        data_scope: BTreeSet::new(),
+        auth_level: None,
     };
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 2);
@@ -3294,11 +3340,11 @@ async fn test_control_plane_social_friendship_activation_persists_snapshot_commi
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3353,11 +3399,11 @@ async fn test_control_plane_social_friendship_activation_persists_snapshot_commi
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friendships/fs_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friendships/fs_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3382,13 +3428,20 @@ async fn test_control_plane_social_friendship_activation_persists_snapshot_commi
         "friendship.activated"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_admin".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
+        app_id: Some("craw-chat".into()),
+        environment: None,
+        deployment_mode: None,
         device_id: None,
-        permissions: BTreeSet::new(),
+        permission_scope: BTreeSet::new(),
+        data_scope: BTreeSet::new(),
+        auth_level: None,
     };
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 1);
@@ -3411,11 +3464,11 @@ async fn test_control_plane_social_friendship_activation_rejects_active_friendsh
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/user-blocks")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/user_blocks")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3437,11 +3490,11 @@ async fn test_control_plane_social_friendship_activation_rejects_active_friendsh
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3485,11 +3538,11 @@ async fn test_control_plane_social_friend_request_accept_replays_duplicate_event
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3517,11 +3570,11 @@ async fn test_control_plane_social_friend_request_accept_replays_duplicate_event
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_replay_001/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_accept_replay_001/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(accept_body))
                 .unwrap(),
@@ -3542,11 +3595,11 @@ async fn test_control_plane_social_friend_request_accept_replays_duplicate_event
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_replay_001/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_accept_replay_001/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(accept_body))
                 .unwrap(),
@@ -3584,11 +3637,11 @@ async fn test_control_plane_social_friend_request_accept_rejects_new_event_after
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3610,11 +3663,11 @@ async fn test_control_plane_social_friend_request_accept_rejects_new_event_after
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_reject_new_event_001/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_accept_reject_new_event_001/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3634,11 +3687,11 @@ async fn test_control_plane_social_friend_request_accept_rejects_new_event_after
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_reject_new_event_001/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_accept_reject_new_event_001/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3667,11 +3720,13 @@ async fn test_control_plane_social_friend_request_accept_rejects_new_event_after
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_accept_reject_new_event_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri(
+                    "/backend/v3/api/control/social/friend_requests/fr_accept_reject_new_event_001",
+                )
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3699,11 +3754,11 @@ async fn test_control_plane_social_friend_request_decline_replays_duplicate_even
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3731,11 +3786,11 @@ async fn test_control_plane_social_friend_request_decline_replays_duplicate_even
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_decline_replay_001/decline")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_decline_replay_001/decline")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(decline_body))
                 .unwrap(),
@@ -3757,11 +3812,11 @@ async fn test_control_plane_social_friend_request_decline_replays_duplicate_even
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_decline_replay_001/decline")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_decline_replay_001/decline")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(decline_body))
                 .unwrap(),
@@ -3798,11 +3853,11 @@ async fn test_control_plane_social_friend_request_cancel_replays_duplicate_event
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3830,11 +3885,11 @@ async fn test_control_plane_social_friend_request_cancel_replays_duplicate_event
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_cancel_replay_001/cancel")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_cancel_replay_001/cancel")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(cancel_body))
                 .unwrap(),
@@ -3856,11 +3911,11 @@ async fn test_control_plane_social_friend_request_cancel_replays_duplicate_event
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests/fr_cancel_replay_001/cancel")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_cancel_replay_001/cancel")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(cancel_body))
                 .unwrap(),
@@ -3910,11 +3965,11 @@ async fn test_control_plane_social_friendship_removal_updates_snapshot_and_audit
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3937,11 +3992,11 @@ async fn test_control_plane_social_friendship_removal_updates_snapshot_and_audit
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships/fs_remove_001/remove")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships/fs_remove_001/remove")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3982,11 +4037,11 @@ async fn test_control_plane_social_friendship_removal_updates_snapshot_and_audit
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friendships/fs_remove_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friendships/fs_remove_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4010,13 +4065,20 @@ async fn test_control_plane_social_friendship_removal_updates_snapshot_and_audit
         "friendship.removed"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_admin".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
+        app_id: Some("craw-chat".into()),
+        environment: None,
+        deployment_mode: None,
         device_id: None,
-        permissions: BTreeSet::new(),
+        permission_scope: BTreeSet::new(),
+        data_scope: BTreeSet::new(),
+        auth_level: None,
     };
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 2);
@@ -4043,11 +4105,11 @@ async fn test_control_plane_social_friendship_removal_archives_direct_chat_pair_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4070,11 +4132,11 @@ async fn test_control_plane_social_friendship_removal_archives_direct_chat_pair_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4097,11 +4159,11 @@ async fn test_control_plane_social_friendship_removal_archives_direct_chat_pair_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships/fs_remove_archives_dc_001/remove")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships/fs_remove_archives_dc_001/remove")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4121,11 +4183,11 @@ async fn test_control_plane_social_friendship_removal_archives_direct_chat_pair_
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/direct-chats/dc_remove_archives_dc_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/direct_chats/dc_remove_archives_dc_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4150,11 +4212,11 @@ async fn test_control_plane_social_friendship_removal_archives_direct_chat_pair_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4182,11 +4244,11 @@ async fn test_control_plane_social_friendship_remove_replays_duplicate_event_ide
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4214,11 +4276,11 @@ async fn test_control_plane_social_friendship_remove_replays_duplicate_event_ide
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships/fs_remove_replay_001/remove")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships/fs_remove_replay_001/remove")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(remove_body))
                 .unwrap(),
@@ -4239,11 +4301,11 @@ async fn test_control_plane_social_friendship_remove_replays_duplicate_event_ide
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships/fs_remove_replay_001/remove")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships/fs_remove_replay_001/remove")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(remove_body))
                 .unwrap(),
@@ -4280,11 +4342,11 @@ async fn test_control_plane_social_friendship_rejects_duplicate_active_pair() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4305,11 +4367,11 @@ async fn test_control_plane_social_friendship_rejects_duplicate_active_pair() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friendships")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friendships")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4360,11 +4422,11 @@ async fn test_control_plane_social_direct_chat_binding_persists_snapshot_commit_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4417,11 +4479,11 @@ async fn test_control_plane_social_direct_chat_binding_persists_snapshot_commit_
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/direct-chats/dc_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/direct_chats/dc_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4446,13 +4508,20 @@ async fn test_control_plane_social_direct_chat_binding_persists_snapshot_commit_
         "direct_chat.bound"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_admin".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
+        app_id: Some("craw-chat".into()),
+        environment: None,
+        deployment_mode: None,
         device_id: None,
-        permissions: BTreeSet::new(),
+        permission_scope: BTreeSet::new(),
+        data_scope: BTreeSet::new(),
+        auth_level: None,
     };
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 1);
@@ -4475,11 +4544,11 @@ async fn test_control_plane_social_direct_chat_rejects_duplicate_active_pair() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4501,11 +4570,11 @@ async fn test_control_plane_social_direct_chat_rejects_duplicate_active_pair() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4557,11 +4626,11 @@ async fn test_control_plane_social_user_block_persists_snapshot_commit_and_audit
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4584,11 +4653,11 @@ async fn test_control_plane_social_user_block_persists_snapshot_commit_and_audit
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/user-blocks")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/user_blocks")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4645,11 +4714,11 @@ async fn test_control_plane_social_user_block_persists_snapshot_commit_and_audit
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/user-blocks/ub_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/user_blocks/ub_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4674,13 +4743,20 @@ async fn test_control_plane_social_user_block_persists_snapshot_commit_and_audit
         "user_block.blocked"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_admin".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
+        app_id: Some("craw-chat".into()),
+        environment: None,
+        deployment_mode: None,
         device_id: None,
-        permissions: BTreeSet::new(),
+        permission_scope: BTreeSet::new(),
+        data_scope: BTreeSet::new(),
+        auth_level: None,
     };
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 2);
@@ -4706,11 +4782,11 @@ async fn test_control_plane_social_user_block_rejects_duplicate_active_scope() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/user-blocks")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/user_blocks")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4732,11 +4808,11 @@ async fn test_control_plane_social_user_block_rejects_duplicate_active_scope() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/user-blocks")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/user_blocks")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4774,11 +4850,11 @@ async fn test_control_plane_social_user_block_rejects_direct_chat_scope_for_unkn
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/user-blocks")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/user_blocks")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4835,11 +4911,11 @@ async fn test_control_plane_social_file_runtime_restores_friend_request_snapshot
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4883,11 +4959,11 @@ async fn test_control_plane_social_file_runtime_restores_friend_request_snapshot
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_persist_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_persist_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4937,11 +5013,11 @@ async fn test_control_plane_social_file_runtime_restores_direct_chat_pair_unique
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4970,11 +5046,11 @@ async fn test_control_plane_social_file_runtime_restores_direct_chat_pair_unique
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5029,11 +5105,11 @@ async fn test_control_plane_social_file_runtime_replays_friend_request_when_snap
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5065,11 +5141,11 @@ async fn test_control_plane_social_file_runtime_replays_friend_request_when_snap
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_replay_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_replay_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5116,11 +5192,11 @@ async fn test_control_plane_social_file_runtime_fails_closed_when_journal_replay
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5155,11 +5231,11 @@ async fn test_control_plane_social_file_runtime_fails_closed_when_journal_replay
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_corrupt_journal_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_corrupt_journal_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5183,11 +5259,11 @@ async fn test_control_plane_social_file_runtime_fails_closed_when_journal_replay
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5246,11 +5322,11 @@ async fn test_control_plane_social_file_runtime_fails_closed_when_snapshot_is_in
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_missing_invalid_snapshot")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_missing_invalid_snapshot")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5304,11 +5380,11 @@ async fn test_control_plane_social_file_runtime_replaces_existing_snapshot_atomi
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/control/social/friend-requests")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_admin")
-                    .header("x-actor-kind", "admin")
-                    .header("x-permissions", "control.write")
+                    .uri("/backend/v3/api/control/social/friend_requests")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_admin")
+                    .header("x-sdkwork-actor-kind", "admin")
+                    .header("x-sdkwork-permission-scope", "control.write")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -5384,11 +5460,11 @@ async fn test_control_plane_social_file_runtime_replays_direct_chat_pair_guard_w
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5420,11 +5496,11 @@ async fn test_control_plane_social_file_runtime_replays_direct_chat_pair_guard_w
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5480,11 +5556,11 @@ async fn test_control_plane_social_file_runtime_discards_friend_request_snapshot
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5512,11 +5588,11 @@ async fn test_control_plane_social_file_runtime_discards_friend_request_snapshot
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5550,11 +5626,11 @@ async fn test_control_plane_social_file_runtime_discards_friend_request_snapshot
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/friend-requests/fr_phantom_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/friend_requests/fr_phantom_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5590,11 +5666,11 @@ async fn test_control_plane_social_file_runtime_discards_direct_chat_snapshot_ah
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5623,11 +5699,11 @@ async fn test_control_plane_social_file_runtime_discards_direct_chat_snapshot_ah
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5662,11 +5738,11 @@ async fn test_control_plane_social_file_runtime_discards_direct_chat_snapshot_ah
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5713,11 +5789,11 @@ async fn test_control_plane_social_file_runtime_keeps_direct_chat_pair_guard_aft
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5747,11 +5823,11 @@ async fn test_control_plane_social_file_runtime_keeps_direct_chat_pair_guard_aft
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5798,11 +5874,11 @@ async fn test_control_plane_social_file_runtime_keeps_direct_chat_pair_guard_aft
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5859,11 +5935,11 @@ async fn test_control_plane_social_file_runtime_replays_same_event_id_after_snap
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5893,11 +5969,11 @@ async fn test_control_plane_social_file_runtime_replays_same_event_id_after_snap
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5935,11 +6011,11 @@ async fn test_control_plane_social_file_runtime_replays_same_event_id_after_snap
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6022,11 +6098,11 @@ async fn test_control_plane_social_file_runtime_failpoint_forces_next_snapshot_s
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6080,11 +6156,11 @@ async fn test_control_plane_social_file_runtime_failpoint_forces_next_snapshot_s
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6153,11 +6229,11 @@ async fn test_control_plane_social_file_runtime_operator_repair_rebuilds_snapsho
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6194,11 +6270,11 @@ async fn test_control_plane_social_file_runtime_operator_repair_rebuilds_snapsho
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/runtime/repair-derived-snapshot")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/runtime/repair_derived_snapshot")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6239,11 +6315,11 @@ async fn test_control_plane_social_file_runtime_operator_repair_rebuilds_snapsho
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/direct-chats/dc_operator_repair_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/direct_chats/dc_operator_repair_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6286,11 +6362,11 @@ async fn test_control_plane_social_file_runtime_leaves_pending_tx_marker_after_s
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/direct-chats/bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/direct_chats/bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6358,11 +6434,11 @@ async fn test_control_plane_social_file_runtime_leaves_pending_tx_marker_after_s
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/direct-chats/dc_tx_marker_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/direct_chats/dc_tx_marker_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6429,11 +6505,11 @@ async fn test_control_plane_social_file_runtime_operator_repair_replays_external
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/runtime/repair-derived-snapshot")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/runtime/repair_derived_snapshot")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6459,11 +6535,11 @@ async fn test_control_plane_social_file_runtime_operator_repair_replays_external
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/direct-chats/dc_operator_repair_journal_001")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/direct_chats/dc_operator_repair_journal_001")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )

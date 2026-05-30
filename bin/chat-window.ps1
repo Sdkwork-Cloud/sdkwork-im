@@ -262,14 +262,8 @@ function Invoke-ImUserLogin {
         SessionId = $ResolvedSessionId
         DeviceId = $ResolvedDeviceId
         BearerToken = $accessToken
-        PublicBearerSecret = $null
         AuthMode = "real-login"
     }
-}
-
-function Resolve-PublicBearerSecret {
-    $configFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".runtime\local-minimal\config\local-minimal.env"
-    return Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"
 }
 
 function Resolve-ChatAuthContext {
@@ -290,7 +284,6 @@ function Resolve-ChatAuthContext {
             SessionId = $ResolvedSessionId
             DeviceId = $ResolvedDeviceId
             BearerToken = $BearerToken
-            PublicBearerSecret = $null
             AuthMode = "provided-bearer"
         }
     }
@@ -317,14 +310,12 @@ function Resolve-ChatAuthContext {
             -ResolvedDeviceId $ResolvedDeviceId
     }
 
-    $publicBearerSecret = Resolve-PublicBearerSecret
     return [pscustomobject]@{
         UserId = $RequestedUserId
         SessionId = $ResolvedSessionId
         DeviceId = $ResolvedDeviceId
         BearerToken = $null
-        PublicBearerSecret = $publicBearerSecret
-        AuthMode = if ([string]::IsNullOrWhiteSpace($publicBearerSecret)) { "implicit-cli-default" } else { "config-public-secret" }
+        AuthMode = "implicit-cli-default"
     }
 }
 
@@ -369,9 +360,6 @@ $cliArgs += @(
 
 if (-not [string]::IsNullOrWhiteSpace([string]$resolvedAuthContext.BearerToken)) {
     $cliArgs += @("--bearer-token", [string]$resolvedAuthContext.BearerToken)
-}
-elseif (-not [string]::IsNullOrWhiteSpace([string]$resolvedAuthContext.PublicBearerSecret)) {
-    $cliArgs += @("--public-bearer-secret", [string]$resolvedAuthContext.PublicBearerSecret)
 }
 
 $cliArgs += @(

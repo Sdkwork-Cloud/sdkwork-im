@@ -21,12 +21,12 @@ fn registry_rejects_duplicate_method_path_owner() {
         http_route(
             "projection-service",
             HttpMethod::Get,
-            "/api/v1/conversations/{conversationId}/messages",
+            "/im/v3/api/chat/conversations/{conversationId}/messages",
         ),
         http_route(
             "conversation-runtime",
             HttpMethod::Get,
-            "/api/v1/conversations/{conversationId}/messages",
+            "/im/v3/api/chat/conversations/{conversationId}/messages",
         ),
     ]);
 
@@ -35,7 +35,7 @@ fn registry_rejects_duplicate_method_path_owner() {
     assert!(
         error
             .message
-            .contains("/api/v1/conversations/{conversationId}/messages"),
+            .contains("/im/v3/api/chat/conversations/{conversationId}/messages"),
         "unexpected error message: {}",
         error.message
     );
@@ -47,12 +47,12 @@ fn registry_allows_method_level_split_ownership_on_same_path() {
         http_route(
             "projection-service",
             HttpMethod::Get,
-            "/api/v1/conversations/{conversationId}/messages",
+            "/im/v3/api/chat/conversations/{conversationId}/messages",
         ),
         http_route(
             "conversation-runtime",
             HttpMethod::Post,
-            "/api/v1/conversations/{conversationId}/messages",
+            "/im/v3/api/chat/conversations/{conversationId}/messages",
         ),
     ])
     .expect("method-level split ownership should be valid");
@@ -60,7 +60,7 @@ fn registry_allows_method_level_split_ownership_on_same_path() {
     let read_owner = registry
         .resolve(
             HttpMethod::Get,
-            "/api/v1/conversations/{conversationId}/messages",
+            "/im/v3/api/chat/conversations/{conversationId}/messages",
         )
         .expect("read owner should exist");
     assert_eq!(read_owner.service_id, "projection-service");
@@ -68,7 +68,7 @@ fn registry_allows_method_level_split_ownership_on_same_path() {
     let write_owner = registry
         .resolve(
             HttpMethod::Post,
-            "/api/v1/conversations/{conversationId}/messages",
+            "/im/v3/api/chat/conversations/{conversationId}/messages",
         )
         .expect("write owner should exist");
     assert_eq!(write_owner.service_id, "conversation-runtime");
@@ -79,12 +79,15 @@ fn registry_resolves_templated_paths_against_runtime_paths() {
     let registry = build_registry(vec![http_route(
         "projection-service",
         HttpMethod::Get,
-        "/api/v1/conversations/{conversation_id}/messages",
+        "/im/v3/api/chat/conversations/{conversation_id}/messages",
     )])
     .expect("templated path route should be valid");
 
     let route = registry
-        .resolve(HttpMethod::Get, "/api/v1/conversations/c_1/messages")
+        .resolve(
+            HttpMethod::Get,
+            "/im/v3/api/chat/conversations/c_1/messages",
+        )
         .expect("templated route should resolve for runtime path");
     assert_eq!(route.service_id, "projection-service");
 }
@@ -94,7 +97,7 @@ fn registry_preserves_visibility_and_sdk_targets() {
     let registry = build_registry(vec![RouteDescriptor {
         service_id: "session-gateway".to_owned(),
         methods: vec![HttpMethod::Post],
-        path_pattern: "/api/v1/sessions/resume".to_owned(),
+        path_pattern: "/im/v3/api/device/sessions/resume".to_owned(),
         visibility: RouteVisibility::Public,
         sdk_targets: vec![SdkTarget::CrawChatAppSdk],
         operation_group: "session".to_owned(),
@@ -104,7 +107,7 @@ fn registry_preserves_visibility_and_sdk_targets() {
     .expect("public route should build");
 
     let route = registry
-        .resolve(HttpMethod::Post, "/api/v1/sessions/resume")
+        .resolve(HttpMethod::Post, "/im/v3/api/device/sessions/resume")
         .expect("session route should exist");
     assert_eq!(route.visibility, RouteVisibility::Public);
     assert_eq!(route.sdk_targets, vec![SdkTarget::CrawChatAppSdk]);
@@ -116,7 +119,7 @@ fn registry_keeps_websocket_protocol_metadata() {
     let registry = build_registry(vec![RouteDescriptor {
         service_id: "session-gateway".to_owned(),
         methods: vec![HttpMethod::Get],
-        path_pattern: "/api/v1/realtime/ws".to_owned(),
+        path_pattern: "/im/v3/api/realtime/ws".to_owned(),
         visibility: RouteVisibility::Public,
         sdk_targets: vec![SdkTarget::CrawChatAppSdk],
         operation_group: "realtime".to_owned(),
@@ -126,7 +129,7 @@ fn registry_keeps_websocket_protocol_metadata() {
     .expect("websocket route should build");
 
     let route = registry
-        .resolve(HttpMethod::Get, "/api/v1/realtime/ws")
+        .resolve(HttpMethod::Get, "/im/v3/api/realtime/ws")
         .expect("websocket route should exist");
     assert_eq!(route.protocol, RouteProtocol::Websocket);
     assert_eq!(route.websocket_subprotocols, vec!["ccp.v1".to_owned()]);
@@ -137,7 +140,7 @@ fn registry_rejects_websocket_route_without_subprotocol_metadata() {
     let result = build_registry(vec![RouteDescriptor {
         service_id: "session-gateway".to_owned(),
         methods: vec![HttpMethod::Get],
-        path_pattern: "/api/v1/realtime/ws".to_owned(),
+        path_pattern: "/im/v3/api/realtime/ws".to_owned(),
         visibility: RouteVisibility::Public,
         sdk_targets: vec![SdkTarget::CrawChatAppSdk],
         operation_group: "realtime".to_owned(),

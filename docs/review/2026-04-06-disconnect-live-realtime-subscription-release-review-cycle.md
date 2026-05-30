@@ -48,7 +48,7 @@ Observed pre-fix behavior:
 1. device synced realtime subscriptions
 2. device called `session.disconnect`
 3. another device published a new message
-4. disconnected device still read the new event from `/api/v1/realtime/events`
+4. disconnected device still read the new event from `/im/v3/api/realtime/events`
 
 ## 4. Fix Design
 

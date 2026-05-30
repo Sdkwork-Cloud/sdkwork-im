@@ -1,0 +1,1 @@
+{"version":3,"file":"route-migration-result.d.ts","sourceRoot":"","sources":["../../src/types/route-migration-result.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,oBAAoB;IACnC,kBAAkB,EAAE,MAAM,CAAC;IAC3B,iBAAiB,EAAE,MAAM,CAAC;IAC1B,YAAY,EAAE,MAAM,CAAC;IACrB,oBAAoB,EAAE,MAAM,CAAC;IAC7B,iBAAiB,EAAE,MAAM,CAAC;IAC1B,YAAY,EAAE,MAAM,CAAC;IACrB,oBAAoB,EAAE,MAAM,CAAC;CAC9B"}

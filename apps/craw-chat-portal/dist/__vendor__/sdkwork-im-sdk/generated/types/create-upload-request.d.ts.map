@@ -1,1 +1,0 @@
-{"version":3,"file":"create-upload-request.d.ts","sourceRoot":"","sources":["../../../src/generated/types/create-upload-request.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,qBAAqB,CAAC;AAEzD,MAAM,WAAW,mBAAmB;IAClC,YAAY,EAAE,MAAM,CAAC;IACrB,MAAM,EAAE,MAAM,CAAC;IACf,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,gBAAgB,CAAC,EAAE,MAAM,CAAC;IAC1B,QAAQ,EAAE,aAAa,CAAC;CACzB"}

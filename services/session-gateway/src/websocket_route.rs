@@ -1,23 +1,23 @@
 use std::sync::Arc;
 
 use axum::http::HeaderMap;
-use im_auth_context::{AuthContext, resolve_auth_context};
+use im_app_context::{AppContext, resolve_app_context};
 
-use crate::device_registration::SessionDeviceRegistration;
+use crate::device_registration::DeviceRouteRegistration;
 use crate::{ApiError, AppState, RealtimeDeliveryRuntime, resolve_requested_device_id};
 
 pub(crate) struct RealtimeWebsocketRouteContext {
-    pub auth: AuthContext,
+    pub auth: AppContext,
     pub device_id: String,
     pub runtime: Arc<RealtimeDeliveryRuntime>,
-    pub route_owner: SessionDeviceRegistration,
+    pub route_owner: DeviceRouteRegistration,
 }
 
 pub(crate) fn prepare_realtime_websocket_route(
     headers: &HeaderMap,
     state: &AppState,
 ) -> Result<RealtimeWebsocketRouteContext, ApiError> {
-    let auth = resolve_auth_context(headers)?;
+    let auth = resolve_app_context(headers)?;
     let device_id = resolve_requested_device_id(&auth, None)?;
     state.prepare_active_device_route(&auth, device_id.as_str(), "websocket", false)?;
     Ok(RealtimeWebsocketRouteContext {

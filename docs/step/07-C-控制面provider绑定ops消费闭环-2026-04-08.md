@@ -19,9 +19,9 @@
   - `update_provider_binding_snapshot(...)`
   - `provider_bindings_view()`
 - `ops-service` 新增只读接口：
-  - `GET /api/v1/ops/provider-bindings`
+  - `GET /backend/v3/api/ops/provider_bindings`
 - `ops diagnostics` 现在会同时携带 `providerBindings`，不再只暴露 cluster / lag / projection。
-- `control-plane-api` 在返回 `GET /api/v1/control/provider-bindings` 时，会把同一份求值结果镜像写入 `OpsRuntime`。
+- `control-plane-api` 在返回 `GET /backend/v3/api/control/provider_bindings` 时，会把同一份求值结果镜像写入 `OpsRuntime`。
 - 新增带自定义 provider registry 的治理装配入口：
   - `build_app_with_cluster_provider_registry_and_governance_sinks(...)`
 

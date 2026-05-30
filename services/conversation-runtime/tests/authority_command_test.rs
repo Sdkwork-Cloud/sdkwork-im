@@ -9,11 +9,11 @@ use conversation_runtime::{
     RemoveMessageReactionCommand, ResolveAgentHandoffCommand, TransferConversationOwnerCommand,
     UnpinMessageCommand, UpdateReadCursorCommand,
 };
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_core::message::{ContentPart, MessageBody, MessageType};
 
-fn demo_auth() -> AuthContext {
-    AuthContext {
+fn demo_auth() -> AppContext {
+    AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "svc_ops".into(),
         actor_kind: "system".into(),

@@ -2,7 +2,7 @@
 
 This page describes the topology that is implemented today, not a future target topology.
 
-## App-facing Topology
+## IM Open-Platform Topology
 
 ```text
 Client / SDK / CLI
@@ -39,7 +39,7 @@ External Client / Operator / SDK
               +-- service-schema proxies
               +-- websocket route ownership on the same external port
               |
-              +--> app-facing upstream routes
+              +--> IM open-platform upstream routes
               |
               +--> control-plane and operator-facing upstream routes
 ```
@@ -55,28 +55,28 @@ External Client / Operator / SDK
 - `/docs`
 - `/docs/services/*`
 
-### App-facing domains
+### IM open-platform domains
 
-- `/api/v1/sessions/*`
-- `/api/v1/presence/*`
-- `/api/v1/realtime/*`
-- `/api/v1/devices/*`
-- `/api/v1/inbox`
-- `/api/v1/conversations/*`
-- `/api/v1/messages/*`
-- `/api/v1/media/*`
-- `/api/v1/streams/*`
-- `/api/v1/rtc/*`
+- `/im/v3/api/device/sessions/*`
+- `/im/v3/api/presence/*`
+- `/im/v3/api/realtime/*`
+- `/im/v3/api/devices/*`
+- `/im/v3/api/chat/inbox`
+- `/im/v3/api/chat/conversations/*`
+- `/im/v3/api/chat/messages/*`
+- `/im/v3/api/media/*`
+- `/im/v3/api/streams/*`
+- `/im/v3/api/rtc/*`
 
 ### Platform and operator domains exposed by the same app node
 
-- `/api/v1/notifications/*`
-- `/api/v1/automation/*`
-- `/api/v1/audit/*`
-- `/api/v1/ops/*`
-- `/api/v1/user-module/provider-health`
-- `/api/v1/media/provider-health`
-- `/api/v1/iot/*`
+- `/im/v3/api/notifications/*`
+- `/im/v3/api/automation/*`
+- `/backend/v3/api/audit/*`
+- `/backend/v3/api/ops/*`
+- `/backend/v3/api/principal/profiles/provider_health`
+- `/backend/v3/api/media/provider_health`
+- `/backend/v3/api/iot/*`
 
 ## Control-plane Topology
 
@@ -111,7 +111,7 @@ The formal packaged server install flow uses the unified gateway as the operator
 | --- | --- | --- |
 | `rtc` | `rtc-volcengine` | Platform default provider registry |
 | `object-storage` | `object-storage-volcengine` | Platform default provider registry plus media and RTC tests |
-| `user-module` | `user-module-local` | Local node provider wiring and provider-health tests |
+| `principal-profile` | `principal-profile-upstream-context` | Upstream-context default; `principal-profile-external-catalog` is the read-only external catalog mode |
 | `iot-access` | `iot-access-local` | Local node provider wiring and IoT provider-health tests |
 | `iot-protocol` | `iot-mqtt` | Local node adapter wiring and IoT provider-health tests |
 
@@ -131,14 +131,14 @@ The formal packaged server install flow uses the unified gateway as the operator
 Public runtime entry uses `build_public_app()`:
 
 - `/healthz` and `/readyz` stay open
-- the rest of the public app surface requires bearer auth
-- the signing secret comes from `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`
+- the rest of the public app surface consumes verified SDKWork AppContext projection
+- token validation, login, IAM sessions, tenant, user, and organization context are owned by `sdkwork-appbase`
 
 ### Embedded and test path
 
-Internal tests and embedded compositions often use `build_default_app()` and trusted headers for
-auth-context injection. That is an implementation and testing convenience layer, not the public
-internet-facing consumer contract.
+Internal tests and embedded compositions use `build_default_app()` with `x-sdkwork-*` AppContext
+projection headers. That is an implementation and testing convenience layer; public clients still
+authenticate through SDKWork appbase.
 
 ## What To Read Next
 

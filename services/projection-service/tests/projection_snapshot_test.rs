@@ -1,5 +1,5 @@
 use im_adapters_local_memory::{MemoryMetadataStore, MemoryTimelineProjectionStore};
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_core::conversation::{
     MembershipRole, build_conversation_member, build_default_read_cursor,
 };
@@ -781,7 +781,7 @@ fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_d
         "snapshot should exist"
     );
 
-    let user_auth = AuthContext {
+    let user_auth = AppContext {
         tenant_id: "t_alpha".into(),
         actor_id: "u_dual".into(),
         actor_kind: "user".into(),
@@ -789,7 +789,7 @@ fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_d
         device_id: Some("d_shared".into()),
         permissions: Default::default(),
     };
-    let agent_auth = AuthContext {
+    let agent_auth = AppContext {
         tenant_id: "t_alpha".into(),
         actor_id: "u_dual".into(),
         actor_kind: "agent".into(),

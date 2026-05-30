@@ -5,8 +5,8 @@ pub(super) async fn create_conversation(
     State(state): State<AppState>,
     Json(request): Json<CreateConversationRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
-    let (_, creator_attributes) = user_module::resolve_member_principal(
+    let auth = resolve_app_context(&headers)?;
+    let (_, creator_attributes) = principal_profile::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
         auth.actor_id.as_str(),
@@ -29,8 +29,8 @@ pub(super) async fn create_agent_dialog(
     State(state): State<AppState>,
     Json(request): Json<CreateAgentDialogRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
-    let (_, requester_attributes) = user_module::resolve_member_principal(
+    let auth = resolve_app_context(&headers)?;
+    let (_, requester_attributes) = principal_profile::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
         auth.actor_id.as_str(),
@@ -54,7 +54,7 @@ pub(super) async fn create_agent_handoff(
     Json(request): Json<CreateAgentHandoffRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
     let auth = access::resolve_active_auth_context(&state, &headers)?;
-    let (target_kind, target_attributes) = user_module::resolve_member_principal(
+    let (target_kind, target_attributes) = principal_profile::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
         request.target_id.as_str(),
@@ -81,7 +81,7 @@ pub(super) async fn create_system_channel(
     Json(request): Json<CreateSystemChannelRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
     let auth = access::resolve_active_auth_context(&state, &headers)?;
-    let (_, subscriber_attributes) = user_module::resolve_member_principal(
+    let (_, subscriber_attributes) = principal_profile::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
         request.subscriber_id.as_str(),
@@ -123,13 +123,13 @@ pub(super) async fn bind_direct_chat_conversation(
     Json(request): Json<BindDirectChatConversationRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
     let auth = access::resolve_active_auth_context(&state, &headers)?;
-    user_module::ensure_active_principal(
+    principal_profile::ensure_active_principal(
         &state,
         auth.tenant_id.as_str(),
         request.left_actor_id.as_str(),
         request.left_actor_kind.as_str(),
     )?;
-    user_module::ensure_active_principal(
+    principal_profile::ensure_active_principal(
         &state,
         auth.tenant_id.as_str(),
         request.right_actor_id.as_str(),

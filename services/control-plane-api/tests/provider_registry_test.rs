@@ -15,11 +15,11 @@ async fn test_control_plane_exposes_provider_registry_snapshot_to_control_reader
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-registry")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_registry")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -38,7 +38,7 @@ async fn test_control_plane_exposes_provider_registry_snapshot_to_control_reader
         serde_json::from_slice(&body).expect("provider registry body should be valid json");
 
     assert_eq!(json["status"], "registry");
-    assert_eq!(json["interfaceVersion"], "provider-registry/v1");
+    assert_eq!(json["interfaceVersion"], "provider_registry/v1");
     assert_eq!(
         json["precedence"],
         serde_json::json!(["tenant_override", "deployment_profile", "global_default"])
@@ -62,8 +62,8 @@ async fn test_control_plane_exposes_provider_registry_snapshot_to_control_reader
     assert!(
         plugins
             .iter()
-            .any(|plugin| plugin["pluginId"] == "user-module-local"),
-        "provider registry should surface the local user-module provider"
+            .any(|plugin| plugin["pluginId"] == "principal-profile-upstream-context"),
+        "provider registry should surface the upstream-context principal-profile provider"
     );
     assert!(
         plugins
@@ -87,11 +87,14 @@ async fn test_control_plane_exposes_provider_registry_snapshot_to_control_reader
         .expect("rtc binding should be present");
     assert_eq!(rtc_binding["selectedPluginId"], "rtc-volcengine");
 
-    let user_module_binding = effective_bindings
+    let principal_profile_binding = effective_bindings
         .iter()
-        .find(|binding| binding["domain"] == "user-module")
-        .expect("user-module binding should be present");
-    assert_eq!(user_module_binding["selectedPluginId"], "user-module-local");
+        .find(|binding| binding["domain"] == "principal-profile")
+        .expect("principal-profile binding should be present");
+    assert_eq!(
+        principal_profile_binding["selectedPluginId"],
+        "principal-profile-upstream-context"
+    );
 
     let object_storage_binding = effective_bindings
         .iter()
@@ -123,11 +126,11 @@ async fn test_control_plane_exposes_deployment_profile_provider_bindings_to_cont
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -146,7 +149,7 @@ async fn test_control_plane_exposes_deployment_profile_provider_bindings_to_cont
         serde_json::from_slice(&body).expect("provider bindings body should be valid json");
 
     assert_eq!(json["status"], "bindings");
-    assert_eq!(json["interfaceVersion"], "provider-registry/v1");
+    assert_eq!(json["interfaceVersion"], "provider_registry/v1");
     assert_eq!(json["tenantId"], serde_json::Value::Null);
     assert_eq!(
         json["precedence"],
@@ -198,11 +201,11 @@ async fn test_control_plane_exposes_tenant_override_provider_bindings_to_control
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-bindings?tenantId=t_provider_combo")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_bindings?tenantId=t_provider_combo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -258,11 +261,11 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -312,11 +315,11 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-policies/preview")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_policies/preview")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"t_provider_combo","domain":"rtc","pluginId":"rtc-aliyun"}"#,
@@ -342,11 +345,11 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"t_provider_combo","domain":"rtc","pluginId":"rtc-aliyun","expectedBaseVersion":2}"#,
@@ -404,11 +407,11 @@ async fn test_control_plane_allows_control_writers_to_update_provider_policies_a
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-bindings?tenantId=t_provider_combo")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_bindings?tenantId=t_provider_combo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -446,11 +449,11 @@ async fn test_control_plane_rejects_cross_domain_provider_policy_write() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"rtc","pluginId":"object-storage-aws"}"#,
@@ -485,11 +488,11 @@ async fn test_control_plane_returns_explicit_noop_without_advancing_provider_pol
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -505,11 +508,11 @@ async fn test_control_plane_returns_explicit_noop_without_advancing_provider_pol
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine","expectedBaseVersion":2}"#,
@@ -549,11 +552,11 @@ async fn test_control_plane_returns_explicit_noop_without_advancing_provider_pol
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-policies")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_policies")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -585,11 +588,11 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -605,11 +608,11 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"t_provider_combo","domain":"rtc","pluginId":"rtc-aliyun"}"#,
@@ -625,11 +628,11 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-policies")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_policies")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -661,11 +664,11 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-policies/rollback")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_policies/rollback")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"targetVersion":1}"#))
                 .unwrap(),
@@ -690,11 +693,11 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -724,11 +727,11 @@ async fn test_control_plane_exposes_provider_policy_history_and_supports_rollbac
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-bindings?tenantId=t_provider_combo")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_bindings?tenantId=t_provider_combo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -767,11 +770,11 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -787,11 +790,11 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-aws"}"#,
@@ -807,11 +810,11 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"t_provider_combo","domain":"rtc","pluginId":"rtc-aliyun"}"#,
@@ -826,11 +829,11 @@ async fn test_control_plane_exposes_provider_policy_diff_between_committed_versi
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-policies/diff?fromVersion=2&toVersion=4")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_policies/diff?fromVersion=2&toVersion=4")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -887,11 +890,11 @@ async fn test_control_plane_exposes_provider_policy_preview_without_mutation() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-policies/preview")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_policies/preview")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"t_provider_combo","domain":"rtc","pluginId":"rtc-aliyun"}"#,
@@ -942,11 +945,11 @@ async fn test_control_plane_exposes_provider_policy_preview_without_mutation() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-policies")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_policies")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -978,11 +981,11 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-policies/preview")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_policies/preview")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"t_provider_combo","domain":"rtc","pluginId":"rtc-aliyun"}"#,
@@ -1007,11 +1010,11 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -1027,11 +1030,11 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"t_provider_combo","domain":"rtc","pluginId":"rtc-aliyun","expectedBaseVersion":1}"#,
@@ -1064,11 +1067,11 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-policies")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_policies")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1098,11 +1101,11 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-bindings?tenantId=t_provider_combo")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_bindings?tenantId=t_provider_combo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1139,31 +1142,31 @@ async fn test_control_plane_returns_unavailable_status_when_provider_policy_runt
     for (method, uri, body, expected_code) in [
         (
             "POST",
-            "/api/v1/control/provider-bindings",
+            "/backend/v3/api/control/provider_bindings",
             Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
             "provider_policy_write_unavailable",
         ),
         (
             "POST",
-            "/api/v1/control/provider-policies/preview",
+            "/backend/v3/api/control/provider_policies/preview",
             Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
             "provider_policy_preview_unavailable",
         ),
         (
             "GET",
-            "/api/v1/control/provider-policies",
+            "/backend/v3/api/control/provider_policies",
             None,
             "provider_policy_history_unavailable",
         ),
         (
             "GET",
-            "/api/v1/control/provider-policies/diff?fromVersion=1&toVersion=2",
+            "/backend/v3/api/control/provider_policies/diff?fromVersion=1&toVersion=2",
             None,
             "provider_policy_diff_unavailable",
         ),
         (
             "POST",
-            "/api/v1/control/provider-policies/rollback",
+            "/backend/v3/api/control/provider_policies/rollback",
             Some(r#"{"targetVersion":1}"#),
             "provider_policy_rollback_unavailable",
         ),
@@ -1171,10 +1174,10 @@ async fn test_control_plane_returns_unavailable_status_when_provider_policy_runt
         let mut request = Request::builder()
             .method(method)
             .uri(uri)
-            .header("x-tenant-id", "t_demo")
-            .header("x-user-id", "u_admin")
-            .header("x-actor-kind", "user")
-            .header("x-permissions", "control.write");
+            .header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_admin")
+            .header("x-sdkwork-actor-kind", "user")
+            .header("x-sdkwork-permission-scope", "control.write");
         if body.is_some() {
             request = request.header("content-type", "application/json");
         }
@@ -1213,13 +1216,13 @@ async fn test_control_plane_returns_conflict_status_for_unknown_provider_policy_
     for (method, uri, permission, body) in [
         (
             "GET",
-            "/api/v1/control/provider-policies/diff?fromVersion=1&toVersion=9",
+            "/backend/v3/api/control/provider_policies/diff?fromVersion=1&toVersion=9",
             "control.read",
             None,
         ),
         (
             "POST",
-            "/api/v1/control/provider-policies/rollback",
+            "/backend/v3/api/control/provider_policies/rollback",
             "control.write",
             Some(r#"{"targetVersion":9}"#),
         ),
@@ -1227,10 +1230,10 @@ async fn test_control_plane_returns_conflict_status_for_unknown_provider_policy_
         let mut request = Request::builder()
             .method(method)
             .uri(uri)
-            .header("x-tenant-id", "t_demo")
-            .header("x-user-id", "u_admin")
-            .header("x-actor-kind", "user")
-            .header("x-permissions", permission);
+            .header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_admin")
+            .header("x-sdkwork-actor-kind", "user")
+            .header("x-sdkwork-permission-scope", permission);
         if body.is_some() {
             request = request.header("content-type", "application/json");
         }
@@ -1278,11 +1281,11 @@ async fn test_control_plane_rejects_provider_policy_diff_with_reversed_version_r
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -1297,11 +1300,11 @@ async fn test_control_plane_rejects_provider_policy_diff_with_reversed_version_r
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-policies/diff?fromVersion=2&toVersion=1")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_policies/diff?fromVersion=2&toVersion=1")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )

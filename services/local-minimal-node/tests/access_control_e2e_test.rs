@@ -3,13 +3,74 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
-const OWNER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X293bmVyIiwic2lkIjoic19vd25lciIsImRpZCI6ImRfb3duZXIiLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
-const OWNER_AS_AGENT_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X293bmVyIiwic2lkIjoic19vd25lciIsImRpZCI6ImRfb3duZXIiLCJhY3Rvcl9raW5kIjoiYWdlbnQifQ.";
-const ADMIN_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2FkbWluIiwic2lkIjoic19hZG1pbiIsImRpZCI6ImRfYWRtaW4iLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
-const MEMBER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X21lbWJlciIsInNpZCI6InNfbWVtYmVyIiwiZGlkIjoiZF9tZW1iZXIiLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
-const INTRUDER_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2ludHJ1ZGVyIiwic2lkIjoic19pbnRydWRlciIsImRpZCI6ImRfaW50cnVkZXIiLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
-const AGENT_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJhZ19zb3VyY2UiLCJzaWQiOiJzX2FnZW50IiwiZGlkIjoiZF9hZ2VudCIsImFjdG9yX2tpbmQiOiJhZ2VudCJ9.";
-const SYSTEM_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJzdmNfb3BzIiwic2lkIjoic19zeXN0ZW0iLCJkaWQiOiJkX3N5c3RlbSIsImFjdG9yX2tpbmQiOiJzeXN0ZW0ifQ.";
+trait AppContextRequestBuilderExt {
+    fn owner_app_context(self) -> Self;
+    fn owner_as_agent_app_context(self) -> Self;
+    fn admin_app_context(self) -> Self;
+    fn member_app_context(self) -> Self;
+    fn intruder_app_context(self) -> Self;
+    fn agent_app_context(self) -> Self;
+    fn system_app_context(self) -> Self;
+}
+
+impl AppContextRequestBuilderExt for axum::http::request::Builder {
+    fn owner_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_owner")
+            .header("x-sdkwork-actor-kind", "user")
+            .header("x-sdkwork-session-id", "s_owner")
+            .header("x-sdkwork-device-id", "d_owner")
+    }
+
+    fn owner_as_agent_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_owner")
+            .header("x-sdkwork-actor-id", "u_owner")
+            .header("x-sdkwork-actor-kind", "agent")
+            .header("x-sdkwork-session-id", "s_owner")
+            .header("x-sdkwork-device-id", "d_owner")
+    }
+
+    fn admin_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_admin")
+            .header("x-sdkwork-actor-kind", "user")
+            .header("x-sdkwork-session-id", "s_admin")
+            .header("x-sdkwork-device-id", "d_admin")
+    }
+
+    fn member_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_member")
+            .header("x-sdkwork-actor-kind", "user")
+            .header("x-sdkwork-session-id", "s_member")
+            .header("x-sdkwork-device-id", "d_member")
+    }
+
+    fn intruder_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_intruder")
+            .header("x-sdkwork-actor-kind", "user")
+            .header("x-sdkwork-session-id", "s_intruder")
+            .header("x-sdkwork-device-id", "d_intruder")
+    }
+
+    fn agent_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "ag_source")
+            .header("x-sdkwork-actor-kind", "agent")
+            .header("x-sdkwork-session-id", "s_agent")
+            .header("x-sdkwork-device-id", "d_agent")
+    }
+
+    fn system_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "svc_ops")
+            .header("x-sdkwork-actor-kind", "system")
+            .header("x-sdkwork-session-id", "s_system")
+            .header("x-sdkwork-device-id", "d_system")
+    }
+}
 
 #[tokio::test]
 async fn test_non_member_cannot_read_private_conversation_views() {
@@ -20,8 +81,8 @@ async fn test_non_member_cannot_read_private_conversation_views() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -40,8 +101,8 @@ async fn test_non_member_cannot_read_private_conversation_views() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_private_view/messages")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_private_view/messages")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -60,8 +121,8 @@ async fn test_non_member_cannot_read_private_conversation_views() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_private_view/members")
-                .header("authorization", INTRUDER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_private_view/members")
+                .intruder_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -73,8 +134,8 @@ async fn test_non_member_cannot_read_private_conversation_views() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_private_view/messages")
-                .header("authorization", INTRUDER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_private_view/messages")
+                .intruder_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -85,8 +146,8 @@ async fn test_non_member_cannot_read_private_conversation_views() {
     let summary = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_private_view")
-                .header("authorization", INTRUDER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_private_view")
+                .intruder_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -104,8 +165,8 @@ async fn test_non_member_cannot_create_conversation_bound_rtc_session() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -123,8 +184,8 @@ async fn test_non_member_cannot_create_conversation_bound_rtc_session() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("authorization", INTRUDER_BEARER)
+                .uri("/im/v3/api/rtc/sessions")
+                .intruder_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -158,8 +219,8 @@ async fn test_non_member_cannot_mutate_conversation_bound_rtc_signal_state() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -178,8 +239,8 @@ async fn test_non_member_cannot_mutate_conversation_bound_rtc_signal_state() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/rtc/sessions")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -199,8 +260,8 @@ async fn test_non_member_cannot_mutate_conversation_bound_rtc_signal_state() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_private_signal/signals")
-                .header("authorization", INTRUDER_BEARER)
+                .uri("/im/v3/api/rtc/sessions/rtc_private_signal/signals")
+                .intruder_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -233,8 +294,8 @@ async fn test_non_member_cannot_mutate_conversation_bound_rtc_signal_state() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_private_signal/signals")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/rtc/sessions/rtc_private_signal/signals")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -271,8 +332,8 @@ async fn test_non_member_cannot_open_conversation_bound_stream() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -290,8 +351,8 @@ async fn test_non_member_cannot_open_conversation_bound_stream() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("authorization", INTRUDER_BEARER)
+                .uri("/im/v3/api/streams")
+                .intruder_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -328,8 +389,8 @@ async fn test_non_member_cannot_mutate_or_read_conversation_bound_stream_state()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -348,8 +409,8 @@ async fn test_non_member_cannot_mutate_or_read_conversation_bound_stream_state()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/streams")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -372,8 +433,8 @@ async fn test_non_member_cannot_mutate_or_read_conversation_bound_stream_state()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_private_state/frames")
-                .header("authorization", INTRUDER_BEARER)
+                .uri("/im/v3/api/streams/st_private_state/frames")
+                .intruder_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -395,8 +456,8 @@ async fn test_non_member_cannot_mutate_or_read_conversation_bound_stream_state()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_private_state/checkpoint")
-                .header("authorization", INTRUDER_BEARER)
+                .uri("/im/v3/api/streams/st_private_state/checkpoint")
+                .intruder_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"frameSeq":9}"#))
                 .unwrap(),
@@ -410,8 +471,8 @@ async fn test_non_member_cannot_mutate_or_read_conversation_bound_stream_state()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_private_state/complete")
-                .header("authorization", INTRUDER_BEARER)
+                .uri("/im/v3/api/streams/st_private_state/complete")
+                .intruder_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"frameSeq":9}"#))
                 .unwrap(),
@@ -425,8 +486,8 @@ async fn test_non_member_cannot_mutate_or_read_conversation_bound_stream_state()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_private_state/abort")
-                .header("authorization", INTRUDER_BEARER)
+                .uri("/im/v3/api/streams/st_private_state/abort")
+                .intruder_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"frameSeq":9,"reason":"intruder"}"#))
                 .unwrap(),
@@ -439,8 +500,8 @@ async fn test_non_member_cannot_mutate_or_read_conversation_bound_stream_state()
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/streams/st_private_state/frames?afterFrameSeq=0&limit=10")
-                .header("authorization", INTRUDER_BEARER)
+                .uri("/im/v3/api/streams/st_private_state/frames?afterFrameSeq=0&limit=10")
+                .intruder_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -462,8 +523,8 @@ async fn test_non_member_cannot_mutate_or_read_conversation_bound_stream_state()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_private_state/frames")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/streams/st_private_state/frames")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -483,8 +544,8 @@ async fn test_non_member_cannot_mutate_or_read_conversation_bound_stream_state()
     let owner_list = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/streams/st_private_state/frames?afterFrameSeq=0&limit=10")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/streams/st_private_state/frames?afterFrameSeq=0&limit=10")
+                .owner_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -516,8 +577,8 @@ async fn test_group_member_governance_requires_owner_or_admin() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -536,8 +597,8 @@ async fn test_group_member_governance_requires_owner_or_admin() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_member_governance_http/members/add")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_member_governance_http/members/add")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -557,8 +618,8 @@ async fn test_group_member_governance_requires_owner_or_admin() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_member_governance_http/members/add")
-                .header("authorization", MEMBER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_member_governance_http/members/add")
+                .member_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -592,8 +653,8 @@ async fn test_group_member_governance_rejects_bearer_actor_kind_mismatch() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -612,8 +673,8 @@ async fn test_group_member_governance_rejects_bearer_actor_kind_mismatch() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_member_kind_guard_http/members/add")
-                .header("authorization", OWNER_AS_AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_member_kind_guard_http/members/add")
+                .owner_as_agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -647,8 +708,8 @@ async fn test_read_cursor_rejects_bearer_actor_kind_mismatch() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -667,8 +728,8 @@ async fn test_read_cursor_rejects_bearer_actor_kind_mismatch() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_cursor_kind_guard_http/messages")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_cursor_kind_guard_http/messages")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -687,8 +748,8 @@ async fn test_read_cursor_rejects_bearer_actor_kind_mismatch() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_cursor_kind_guard_http/read-cursor")
-                .header("authorization", OWNER_AS_AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_cursor_kind_guard_http/read_cursor")
+                .owner_as_agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -721,8 +782,8 @@ async fn test_conversation_bound_stream_writes_reject_bearer_actor_kind_mismatch
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -741,8 +802,8 @@ async fn test_conversation_bound_stream_writes_reject_bearer_actor_kind_mismatch
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("authorization", OWNER_AS_AGENT_BEARER)
+                .uri("/im/v3/api/streams")
+                .owner_as_agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -777,8 +838,8 @@ async fn test_conversation_bound_stream_writes_reject_bearer_actor_kind_mismatch
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/streams")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -801,8 +862,8 @@ async fn test_conversation_bound_stream_writes_reject_bearer_actor_kind_mismatch
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_stream_actor_kind_guard_http/frames")
-                .header("authorization", OWNER_AS_AGENT_BEARER)
+                .uri("/im/v3/api/streams/st_stream_actor_kind_guard_http/frames")
+                .owner_as_agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -834,8 +895,8 @@ async fn test_conversation_bound_stream_writes_reject_bearer_actor_kind_mismatch
     let owner_frames = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/streams/st_stream_actor_kind_guard_http/frames?afterFrameSeq=0&limit=10")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/streams/st_stream_actor_kind_guard_http/frames?afterFrameSeq=0&limit=10")
+                .owner_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -865,8 +926,8 @@ async fn test_conversation_bound_rtc_writes_reject_bearer_actor_kind_mismatch() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -885,8 +946,8 @@ async fn test_conversation_bound_rtc_writes_reject_bearer_actor_kind_mismatch() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("authorization", OWNER_AS_AGENT_BEARER)
+                .uri("/im/v3/api/rtc/sessions")
+                .owner_as_agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -918,8 +979,8 @@ async fn test_conversation_bound_rtc_writes_reject_bearer_actor_kind_mismatch() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/rtc/sessions")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -939,8 +1000,8 @@ async fn test_conversation_bound_rtc_writes_reject_bearer_actor_kind_mismatch() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_actor_kind_guard_http/signals")
-                .header("authorization", OWNER_AS_AGENT_BEARER)
+                .uri("/im/v3/api/rtc/sessions/rtc_actor_kind_guard_http/signals")
+                .owner_as_agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -971,8 +1032,8 @@ async fn test_conversation_bound_rtc_writes_reject_bearer_actor_kind_mismatch() 
     let owner_messages = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_rtc_actor_kind_guard_http/messages")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_rtc_actor_kind_guard_http/messages")
+                .owner_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1002,8 +1063,8 @@ async fn test_direct_conversation_member_management_is_restricted() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1022,8 +1083,8 @@ async fn test_direct_conversation_member_management_is_restricted() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_direct_member_governance_http/members/add")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_direct_member_governance_http/members/add")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1043,8 +1104,8 @@ async fn test_direct_conversation_member_management_is_restricted() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_direct_member_governance_http/members/add")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_direct_member_governance_http/members/add")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1078,8 +1139,8 @@ async fn test_group_member_can_leave_and_then_loses_conversation_access() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1098,8 +1159,8 @@ async fn test_group_member_can_leave_and_then_loses_conversation_access() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_leave_http/members/add")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_leave_http/members/add")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1119,8 +1180,8 @@ async fn test_group_member_can_leave_and_then_loses_conversation_access() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_leave_http/members/leave")
-                .header("authorization", MEMBER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_leave_http/members/leave")
+                .member_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1141,8 +1202,8 @@ async fn test_group_member_can_leave_and_then_loses_conversation_access() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_group_leave_http")
-                .header("authorization", MEMBER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_leave_http")
+                .member_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1153,8 +1214,8 @@ async fn test_group_member_can_leave_and_then_loses_conversation_access() {
     let owner_members = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_group_leave_http/members")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_leave_http/members")
+                .owner_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1182,8 +1243,8 @@ async fn test_left_member_rejoin_gets_new_member_identity_and_fresh_cursor() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1202,8 +1263,8 @@ async fn test_left_member_rejoin_gets_new_member_identity_and_fresh_cursor() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_rejoin_http/members/add")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_rejoin_http/members/add")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1235,8 +1296,8 @@ async fn test_left_member_rejoin_gets_new_member_identity_and_fresh_cursor() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_rejoin_http/messages")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_rejoin_http/messages")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1256,8 +1317,8 @@ async fn test_left_member_rejoin_gets_new_member_identity_and_fresh_cursor() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_rejoin_http/read-cursor")
-                .header("authorization", MEMBER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_rejoin_http/read_cursor")
+                .member_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1276,8 +1337,8 @@ async fn test_left_member_rejoin_gets_new_member_identity_and_fresh_cursor() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_rejoin_http/members/leave")
-                .header("authorization", MEMBER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_rejoin_http/members/leave")
+                .member_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1290,8 +1351,8 @@ async fn test_left_member_rejoin_gets_new_member_identity_and_fresh_cursor() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_rejoin_http/members/add")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_rejoin_http/members/add")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1324,8 +1385,8 @@ async fn test_left_member_rejoin_gets_new_member_identity_and_fresh_cursor() {
     let read_cursor = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_group_rejoin_http/read-cursor")
-                .header("authorization", MEMBER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_rejoin_http/read_cursor")
+                .member_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1357,8 +1418,8 @@ async fn test_group_role_change_requires_owner_and_updates_target_role() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1377,8 +1438,8 @@ async fn test_group_role_change_requires_owner_and_updates_target_role() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_role_change_http/members/add")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_role_change_http/members/add")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1398,8 +1459,8 @@ async fn test_group_role_change_requires_owner_and_updates_target_role() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_role_change_http/members/add")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_role_change_http/members/add")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1419,8 +1480,8 @@ async fn test_group_role_change_requires_owner_and_updates_target_role() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_role_change_http/members/change-role")
-                .header("authorization", ADMIN_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_role_change_http/members/change_role")
+                .admin_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1448,8 +1509,8 @@ async fn test_group_role_change_requires_owner_and_updates_target_role() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_role_change_http/members/change-role")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_role_change_http/members/change_role")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1476,8 +1537,8 @@ async fn test_group_role_change_requires_owner_and_updates_target_role() {
     let owner_members = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_group_role_change_http/members")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_role_change_http/members")
+                .owner_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1510,8 +1571,8 @@ async fn test_group_owner_transfer_allows_safe_handoff_and_leave() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1530,8 +1591,8 @@ async fn test_group_owner_transfer_allows_safe_handoff_and_leave() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_transfer_http/members/add")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_transfer_http/members/add")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1551,8 +1612,8 @@ async fn test_group_owner_transfer_allows_safe_handoff_and_leave() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_transfer_http/members/transfer-owner")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_transfer_http/members/transfer_owner")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1580,8 +1641,8 @@ async fn test_group_owner_transfer_allows_safe_handoff_and_leave() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_group_transfer_http/members/leave")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_transfer_http/members/leave")
+                .owner_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1593,8 +1654,8 @@ async fn test_group_owner_transfer_allows_safe_handoff_and_leave() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_group_transfer_http")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_transfer_http")
+                .owner_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1605,8 +1666,8 @@ async fn test_group_owner_transfer_allows_safe_handoff_and_leave() {
     let new_owner_members = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_group_transfer_http/members")
-                .header("authorization", MEMBER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_group_transfer_http/members")
+                .member_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1643,8 +1704,8 @@ async fn test_generic_create_rejects_reserved_special_types_in_local_profile() {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/conversations")
-                    .header("authorization", SYSTEM_BEARER)
+                    .uri("/im/v3/api/chat/conversations")
+                    .system_app_context()
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -1682,8 +1743,8 @@ async fn test_agent_dialog_create_in_local_profile_creates_user_and_agent_member
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/agent-dialogs")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/agent_dialogs")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1700,8 +1761,8 @@ async fn test_agent_dialog_create_in_local_profile_creates_user_and_agent_member
     let list_members = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_agent_dialog_local/members")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_dialog_local/members")
+                .owner_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1741,8 +1802,8 @@ async fn test_agent_dialog_create_rejects_non_user_creator_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/agent-dialogs")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/chat/conversations/agent_dialogs")
+                .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1775,8 +1836,8 @@ async fn test_agent_handoff_create_in_local_profile_creates_agent_and_target_mem
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/agent-handoffs")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/agent_handoffs")
+                .agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1796,8 +1857,8 @@ async fn test_agent_handoff_create_in_local_profile_creates_agent_and_target_mem
     let list_members = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_agent_handoff_local/members")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_handoff_local/members")
+                .agent_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1837,8 +1898,8 @@ async fn test_agent_handoff_create_rejects_non_agent_creator_in_local_profile() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/agent-handoffs")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/agent_handoffs")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1874,8 +1935,8 @@ async fn test_agent_handoff_target_can_post_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/agent-handoffs")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/agent_handoffs")
+                .agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1896,8 +1957,8 @@ async fn test_agent_handoff_target_can_post_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_agent_handoff_post_local/messages")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_handoff_post_local/messages")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1921,8 +1982,8 @@ async fn test_agent_handoff_accept_resolve_close_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/agent-handoffs")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/agent_handoffs")
+                .agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1944,8 +2005,8 @@ async fn test_agent_handoff_accept_resolve_close_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_agent_handoff_lifecycle_local/agent-handoff/accept")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_handoff_lifecycle_local/agent_handoff/accept")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -1968,8 +2029,8 @@ async fn test_agent_handoff_accept_resolve_close_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_agent_handoff_lifecycle_local/agent-handoff/resolve")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_handoff_lifecycle_local/agent_handoff/resolve")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -1983,8 +2044,8 @@ async fn test_agent_handoff_accept_resolve_close_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_agent_handoff_lifecycle_local/agent-handoff/close")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_handoff_lifecycle_local/agent_handoff/close")
+                .agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -1997,8 +2058,8 @@ async fn test_agent_handoff_accept_resolve_close_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_agent_handoff_lifecycle_local/messages")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_handoff_lifecycle_local/messages")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2023,8 +2084,8 @@ async fn test_agent_handoff_accept_rejects_source_actor_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/agent-handoffs")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/agent_handoffs")
+                .agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2045,8 +2106,8 @@ async fn test_agent_handoff_accept_rejects_source_actor_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_agent_handoff_accept_invalid_local/agent-handoff/accept")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_handoff_accept_invalid_local/agent_handoff/accept")
+                .agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -2065,8 +2126,8 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_lo
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/agent-handoffs")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/agent_handoffs")
+                .agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2088,8 +2149,8 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_lo
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/streams")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2113,9 +2174,9 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_lo
             Request::builder()
                 .method("POST")
                 .uri(
-                    "/api/v1/conversations/c_agent_handoff_stream_closed_local/agent-handoff/close",
+                    "/im/v3/api/chat/conversations/c_agent_handoff_stream_closed_local/agent_handoff/close",
                 )
-                .header("authorization", AGENT_BEARER)
+                .agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -2129,8 +2190,8 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_lo
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_handoff_closed_local/frames")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/streams/st_handoff_closed_local/frames")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2161,8 +2222,8 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_lo
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/streams")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2199,8 +2260,8 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/agent-handoffs")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/agent_handoffs")
+                .agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2222,8 +2283,8 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/rtc/sessions")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2243,8 +2304,8 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_agent_handoff_rtc_closed_local/agent-handoff/close")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_handoff_rtc_closed_local/agent_handoff/close")
+                .agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -2258,8 +2319,8 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_handoff_closed_local/signals")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/rtc/sessions/rtc_handoff_closed_local/signals")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2288,8 +2349,8 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/rtc/sessions")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2324,8 +2385,8 @@ async fn test_agent_handoff_summary_and_inbox_projection_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/agent-handoffs")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/agent_handoffs")
+                .agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2346,8 +2407,8 @@ async fn test_agent_handoff_summary_and_inbox_projection_in_local_profile() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_agent_handoff_projection_local")
-                .header("authorization", AGENT_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_handoff_projection_local")
+                .agent_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2381,8 +2442,8 @@ async fn test_agent_handoff_summary_and_inbox_projection_in_local_profile() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/inbox")
-                .header("authorization", MEMBER_BEARER)
+                .uri("/im/v3/api/chat/inbox")
+                .member_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2412,8 +2473,8 @@ async fn test_agent_handoff_summary_and_inbox_projection_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_agent_handoff_projection_local/agent-handoff/accept")
-                .header("authorization", MEMBER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_handoff_projection_local/agent_handoff/accept")
+                .member_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -2426,8 +2487,8 @@ async fn test_agent_handoff_summary_and_inbox_projection_in_local_profile() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_agent_handoff_projection_local")
-                .header("authorization", MEMBER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_agent_handoff_projection_local")
+                .member_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2451,8 +2512,8 @@ async fn test_agent_handoff_summary_and_inbox_projection_in_local_profile() {
     let accepted_inbox = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/inbox")
-                .header("authorization", MEMBER_BEARER)
+                .uri("/im/v3/api/chat/inbox")
+                .member_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2482,8 +2543,8 @@ async fn test_system_channel_create_in_local_profile_creates_system_and_subscrib
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/system-channels")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/chat/conversations/system_channels")
+                .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2500,8 +2561,8 @@ async fn test_system_channel_create_in_local_profile_creates_system_and_subscrib
     let list_members = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_system_channel_local/members")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_system_channel_local/members")
+                .system_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2541,8 +2602,8 @@ async fn test_system_channel_create_rejects_non_system_creator_in_local_profile(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/system-channels")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/system_channels")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2575,8 +2636,8 @@ async fn test_system_channel_subscriber_cannot_post_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/system-channels")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/chat/conversations/system_channels")
+                .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2594,8 +2655,8 @@ async fn test_system_channel_subscriber_cannot_post_in_local_profile() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_system_channel_post_local/messages")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_system_channel_post_local/messages")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2628,8 +2689,8 @@ async fn test_system_channel_publisher_must_use_dedicated_publish_in_local_profi
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/system-channels")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/chat/conversations/system_channels")
+                .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2647,8 +2708,8 @@ async fn test_system_channel_publisher_must_use_dedicated_publish_in_local_profi
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_system_channel_publish_local/messages")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_system_channel_publish_local/messages")
+                .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2681,8 +2742,8 @@ async fn test_system_channel_dedicated_publish_allows_only_publisher_in_local_pr
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/system-channels")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/chat/conversations/system_channels")
+                .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2701,8 +2762,8 @@ async fn test_system_channel_dedicated_publish_allows_only_publisher_in_local_pr
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_system_channel_publish_local_dedicated/system-channel/publish")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_system_channel_publish_local_dedicated/system_channel/publish")
+                .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2729,8 +2790,8 @@ async fn test_system_channel_dedicated_publish_allows_only_publisher_in_local_pr
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_system_channel_publish_local_dedicated/system-channel/publish")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_system_channel_publish_local_dedicated/system_channel/publish")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2763,8 +2824,8 @@ async fn test_system_channel_subscriber_cannot_write_conversation_bound_streams_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/system-channels")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/chat/conversations/system_channels")
+                .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2783,8 +2844,8 @@ async fn test_system_channel_subscriber_cannot_write_conversation_bound_streams_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/streams")
+                .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2807,8 +2868,8 @@ async fn test_system_channel_subscriber_cannot_write_conversation_bound_streams_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams/st_system_channel_local/frames")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/streams/st_system_channel_local/frames")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2838,8 +2899,8 @@ async fn test_system_channel_subscriber_cannot_write_conversation_bound_streams_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/streams")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2876,8 +2937,8 @@ async fn test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_l
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/system-channels")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/chat/conversations/system_channels")
+                .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2896,8 +2957,8 @@ async fn test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_l
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("authorization", SYSTEM_BEARER)
+                .uri("/im/v3/api/rtc/sessions")
+                .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2917,8 +2978,8 @@ async fn test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_l
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_system_channel_local/signals")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/rtc/sessions/rtc_system_channel_local/signals")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2946,8 +3007,8 @@ async fn test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_l
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("authorization", OWNER_BEARER)
+                .uri("/im/v3/api/rtc/sessions")
+                .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

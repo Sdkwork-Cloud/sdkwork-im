@@ -6,6 +6,7 @@ use im_platform_contracts::{
     ContractError, PresenceStateRecord, PresenceStateStore, RtcStateRecord, RtcStateStore,
     StreamStateRecord, StreamStateStore,
 };
+use im_time::{rfc3339_cmp, rfc3339_le};
 
 use crate::shared::{
     principal_scope_key, read_json_records_or_default, rtc_scope_key, scope_key, stream_scope_key,
@@ -267,9 +268,14 @@ impl PresenceStateStore for FilePresenceStateStore {
             .lock()
             .expect("presence state file store lock should lock");
         let records = self.read_records()?;
-        Ok(records
+        let mut stale_entries = records
             .online_by_seen_at
-            .range(..=cutoff_seen_at.to_owned())
+            .iter()
+            .filter(|(last_seen_at, _)| rfc3339_le(last_seen_at.as_str(), cutoff_seen_at))
+            .collect::<Vec<_>>();
+        stale_entries.sort_by(|left, right| rfc3339_cmp(left.0.as_str(), right.0.as_str()));
+        Ok(stale_entries
+            .into_iter()
             .flat_map(|(_, device_keys)| device_keys.iter())
             .take(limit)
             .filter_map(|device_key| records.by_device.get(device_key.as_str()).cloned())

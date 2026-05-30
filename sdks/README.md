@@ -1,101 +1,117 @@
 # SDK Workspace Overview
 
-`sdks/` is the repository home for the Craw Chat SDK workspaces. The directory is organized by
-consumer-facing SDK family, not by one-off generated package dumps.
+`sdks/` is the repository home for Craw Chat SDK workspaces. The directory is organized by public
+consumer SDK family and by authoritative API boundary, not by historical generated-package dumps.
 
-The repository currently maintains four SDK families:
+The current standard model has three OpenAPI-generated HTTP SDK families plus one independent RTC
+provider-standard SDK family:
 
 - `sdkwork-im-sdk`
-  App-facing product SDKs for the public chat surface.
-- `sdkwork-control-plane-sdk`
-  Control-plane SDKs for `/api/v1/control/*`.
-- `sdkwork-im-admin-sdk`
-  IM admin SDKs for `/api/admin/*`.
+  IM standardized development SDKs for `/im/v3/api`.
+- `sdkwork-im-app-sdk`
+  App-business and non-management HTTP SDKs for `/app/v3/api`.
+- `sdkwork-im-backend-sdk`
+  Backend management, operator, control-plane, and admin SDKs for `/backend/v3/api`.
 - `sdkwork-rtc-sdk`
-  Provider-standard RTC SDKs for unified multi-provider audio/video integration.
+  Provider-standard RTC SDKs for multi-provider audio/video runtime integration.
 
 ## Current Repository Truth
 
-For day-to-day engineering, the checked-in SDK workspaces and their
-`.sdkwork-assembly.json` snapshots are the current source of truth.
+For day-to-day engineering, the checked-in SDK workspaces and their `.sdkwork-assembly.json`
+snapshots are the source of truth.
 
-At the repository level, all three API-contract SDK families now have materialized language
-workspaces for:
+The three Craw Chat HTTP-contract SDK families are separated by target surface:
+
+- `sdkwork-im-sdk` owns the IM standardized development API under `/im/v3/api/*`.
+- `sdkwork-im-app-sdk` owns app-business API under `/app/v3/api/*`.
+- `sdkwork-im-backend-sdk` owns backend management API under `/backend/v3/api/*`.
+
+The RTC workspace is intentionally separate from the OpenAPI-generated HTTP SDK families:
+
+- `sdkwork-rtc-sdk` owns provider standards, driver contracts, provider catalogs, runtime surface
+  rules, and provider package boundaries.
+- It is not a route-generated SDK workspace and must not be collapsed into app or backend generated
+  transport packages.
+
+## API Boundary Rules
+
+Every API must map to exactly one SDK family:
+
+- IM standardized development API: `/im/v3/api/*` -> `sdkwork-im-sdk`.
+- App-business and non-management API: `/app/v3/api/*` -> `sdkwork-im-app-sdk`.
+- Backend management, operator, governance, control-plane, and admin API:
+  `/backend/v3/api/*` -> `sdkwork-im-backend-sdk`.
+- RTC provider/runtime standard: `sdkwork-rtc-sdk`, not an OpenAPI HTTP family.
+
+Backend management modules currently include:
+
+- `/backend/v3/api/ops/*`
+- `/backend/v3/api/audit/*`
+- `/backend/v3/api/automation/*`
+- `/backend/v3/api/control/*`
+- `/backend/v3/api/admin/*`
+
+App API absorbs HTTP surfaces that are not management-system APIs and are not part of the IM
+standardized development API. Representative examples include provider health, IoT protocol, and
+RTC provider callback or health routes after they are exposed under `/app/v3/api/*`.
+
+## Language Baseline
+
+The official OpenAPI-generated language set for the three HTTP SDK families is:
 
 - TypeScript
 - Flutter
+- Rust
+- Java
+- C#
+- Swift
+- Kotlin
+- Go
+- Python
 
-Across those language workspaces, the standard package layering is:
+For OpenAPI-generated SDK families, generator-owned transport output is always under
+`generated/server-openapi`. Manual-owned consumer-facing facades live under `composed` only when a
+family has a semantic SDK layer. `sdkwork-im-app-sdk` and `sdkwork-im-backend-sdk` currently publish
+generated transport packages directly and verify the generated primary clients `SdkworkAppClient`
+and `SdkworkBackendClient`.
 
-- `generated/server-openapi`
-  Generator-owned HTTP transport package output.
-- `composed`
-  Manual-owned, consumer-facing SDK package built above the generated transport layer.
+## Workspace Matrix
 
-This means the repository no longer treats the SDK families as placeholder-only scaffolding.
-Generated packages, composed packages, regeneration wrappers, verification entrypoints, and package
-documentation all exist in-repo for the currently supported language lines.
+| Workspace | Audience | Languages | Primary package boundary |
+| --- | --- | --- | --- |
+| `sdkwork-im-sdk` | IM standardized development integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Semantic IM SDK package plus generated IM transport |
+| `sdkwork-im-app-sdk` | App developers and app-business integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated app transport package with `SdkworkAppClient` |
+| `sdkwork-im-backend-sdk` | Backend, operator, control-plane, and admin integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated backend transport package with `SdkworkBackendClient` |
+| `sdkwork-rtc-sdk` | RTC provider-standard integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Provider-standard packages and adapters, not OpenAPI-generated transport |
 
-## Compatibility And Validation Inputs
+All current package lines remain `not_published` until a release freeze assigns publishable
+versions. The release snapshot is recorded in
+`artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`.
 
-The SDK workspace index also tracks the shared contract vocabulary that downstream verification
-consumes.
-
-- The public app-facing family remains pinned to the current `compatibility matrix` vocabulary and
-  recovery registry.
-- Control-plane governance remains the upstream source for protocol registry, protocol governance,
-  compatibility visibility, and recovery-state terminology shared across SDK families.
-- The single verification index for SDK, CLI, and operator consumers is
-  `docs/部署/兼容矩阵与SDK-CLI-operator验证索引.md`.
-
-## Release Snapshot
-
-The machine-readable release catalog under
-`artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json` is now aligned with the checked-in
-workspace generation state for all three API-contract SDK families.
-
-Current release-catalog values include:
-
-- `state = generated_pending_publication`
-- `generationStatus = generated`
+- `state = template_only_pending_generation`
+- IM, App API, and Backend API HTTP SDK artifacts use `generationStatus = generated`.
+- RTC provider-runtime SDK artifacts use `generationStatus = template_only_pending_generation`.
 - `releaseStatus = not_published`
 - `plannedVersion = null`
 - `versionStatus = version_unassigned_pending_freeze`
 - `versionDecisionSourcePath = null`
 
-Use that catalog for release-state auditing. For package boundaries, consumer surfaces, and
-regeneration behavior, the checked-in workspaces and `.sdkwork-assembly.json` snapshots remain the
-richer engineering truth.
-
-## Workspace Matrix
-
-| Workspace | Audience | Languages | Primary composed package(s) | Primary generated package(s) |
-| --- | --- | --- | --- | --- |
-| `sdkwork-im-sdk` | App and product integrations | TypeScript, Flutter | `@sdkwork/im-sdk`, `im_sdk` | `@sdkwork-internal/im-sdk-generated`, `im_sdk_generated` |
-| `sdkwork-control-plane-sdk` | Control-plane integrations | TypeScript, Flutter | `@sdkwork/control-plane-sdk`, `control_plane_sdk` | `@sdkwork/control-plane-backend-sdk`, `control_plane_backend_sdk` |
-| `sdkwork-im-admin-sdk` | IM admin and operator-console integrations | TypeScript, Flutter | `@sdkwork/im-admin-sdk`, `im_admin_sdk` | `@sdkwork/im-admin-backend-sdk`, `im_admin_backend_sdk` |
-| `sdkwork-rtc-sdk` | RTC provider-standard integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | `@sdkwork/rtc-sdk` | Provider-adapter workspaces, not OpenAPI-generated transport packages |
-
-All current package lines are materialized locally and remain `not_published` until a release
-freeze assigns publishable versions.
-
-For `sdkwork-im-sdk`, the TypeScript generated package name
-`@sdkwork-internal/im-sdk-generated` is a workspace-internal identity only. App consumers
-should install `@sdkwork/im-sdk`, not the generated package directly.
-
 ## Standard Package Boundary
 
-Every SDK family follows the same boundary rules:
+Every OpenAPI-generated SDK family follows the same boundary rules:
 
 - The OpenAPI 3.x authority contract is checked into the workspace under `openapi/`.
 - Generator-compatible derived contracts stay in the same workspace and remain traceable to the
   authority contract.
 - Generated code is owned only under `generated/server-openapi`.
 - Consumer-facing orchestration, ergonomic client facades, and manual integration helpers live only
-  under `composed`.
+  under `composed` when that SDK family has a semantic manual layer.
 - Manual code must consume generated output through package root entrypoints only.
 - Downstream code must not import generated private source paths such as
   `generated/server-openapi/src/*` or language-specific private internals.
+- `/app/v3/api` and `/backend/v3/api` SDK families use the shared `sdkwork-v3` generation profile,
+  dual-token `AuthToken` plus `AccessToken` security, and `application/problem+json` error
+  responses.
 
 `sdkwork-rtc-sdk` intentionally differs from the OpenAPI-first families:
 
@@ -103,42 +119,35 @@ Every SDK family follows the same boundary rules:
 - it standardizes `Driver`, `DriverManager`, `DataSource`, `capabilities`, and `unwrap()`
 - it materializes provider adapters instead of generated transport packages
 
-## Endpoint Targeting Model
-
-The SDK families are intentionally split by runtime surface:
-
-- App SDK clients target the app-facing public surface. In packaged installs, that is the unified
-  `craw-chat-server` / `web-gateway` public origin.
-- Control-plane SDK clients may target `control-plane-api` directly during standalone governance
-  development, but packaged installs should also move to the unified public origin.
-- IM admin SDK clients target the deployed `/api/admin/*` surface, which is likewise served from
-  the unified public origin in packaged installs.
-
 ## Regeneration And Verification
 
-Each workspace owns its own wrappers under `bin/` and supports the same high-level loop:
+The standard SDK boundary materialization entrypoint is:
 
-1. Refresh or materialize the checked-in authority contract.
-2. Produce derived generator inputs.
-3. Generate the language-specific transport package.
-4. Reapply workspace-owned normalization rules.
-5. Refresh the composed package and assembly metadata.
-6. Run workspace verification before treating the output as valid.
+```powershell
+node .\sdks\materialize-im-v3-openapi-boundaries.mjs
+```
 
-Current verification coverage includes:
+That command consolidates backend control/admin authority into `sdkwork-im-backend-sdk`, keeps
+non-management HTTP APIs in `sdkwork-im-app-sdk`, and refreshes derived OpenAPI inputs.
 
-- generated package artifact checks
-- composed package boundary validation
-- discovery-surface alignment checks
-- README and package metadata quality gates
-- Flutter workspace structure validation
-- TypeScript workspace build and smoke verification
+Each OpenAPI workspace then owns its own wrappers under `bin/`:
+
+```powershell
+node .\sdks\sdkwork-im-sdk\bin\verify-sdk.mjs
+node .\sdks\sdkwork-im-app-sdk\bin\verify-sdk.mjs
+node .\sdks\sdkwork-im-backend-sdk\bin\verify-sdk.mjs
+```
+
+Use the RTC verifier for the independent provider-standard SDK:
+
+```powershell
+node .\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
+```
 
 ## Recommended Reading
 
 - [`sdks/sdkwork-im-sdk/README.md`](./sdkwork-im-sdk/README.md)
-- [`sdks/sdkwork-control-plane-sdk/README.md`](./sdkwork-control-plane-sdk/README.md)
-- [`sdks/sdkwork-im-admin-sdk/README.md`](./sdkwork-im-admin-sdk/README.md)
+- [`sdks/sdkwork-im-app-sdk/README.md`](./sdkwork-im-app-sdk/README.md)
+- [`sdks/sdkwork-im-backend-sdk/README.md`](./sdkwork-im-backend-sdk/README.md)
 - [`sdks/sdkwork-rtc-sdk/README.md`](./sdkwork-rtc-sdk/README.md)
-- [`docs/部署/兼容矩阵与SDK-CLI-operator验证索引.md`](../docs/部署/兼容矩阵与SDK-CLI-operator验证索引.md)
 - [`docs/sites/sdk/index.md`](../docs/sites/sdk/index.md)

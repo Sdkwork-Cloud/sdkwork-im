@@ -5,6 +5,9 @@ use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursor, DeviceSyncFeedEntry, MembershipRole,
     MembershipState,
 };
+use im_domain_core::device_session::{
+    DevicePresenceStatus, DevicePresenceView, DeviceSessionResumeView, PresenceSnapshotView,
+};
 use im_domain_core::media::{MediaResource, MediaResourceType};
 use im_domain_core::message::{
     CRAW_CHAT_CUSTOM_MESSAGE_SCHEMA_PREFIX, CRAW_CHAT_MESSAGE_SCHEMA_AGENT,
@@ -20,9 +23,6 @@ use im_domain_core::realtime::{
     RealtimeSubscriptionSnapshot,
 };
 use im_domain_core::rtc::{RtcSession, RtcSessionState, RtcSignalEvent};
-use im_domain_core::session::{
-    DevicePresenceStatus, DevicePresenceView, PresenceSnapshotView, SessionResumeView,
-};
 use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
 };
@@ -536,8 +536,8 @@ fn test_device_sync_feed_entry_serializes_sync_shape() {
 }
 
 #[test]
-fn test_session_resume_view_serializes_presence_snapshot_shape() {
-    let view = SessionResumeView {
+fn test_device_session_resume_view_serializes_presence_snapshot_shape() {
+    let view = DeviceSessionResumeView {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -578,7 +578,7 @@ fn test_session_resume_view_serializes_presence_snapshot_shape() {
         },
     };
 
-    let value = serde_json::to_value(view).expect("session resume view should serialize");
+    let value = serde_json::to_value(view).expect("device session resume view should serialize");
 
     assert_eq!(value["deviceId"], Value::String("d_demo".into()));
     assert_eq!(value["resumeRequired"], Value::Bool(true));

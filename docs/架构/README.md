@@ -262,16 +262,16 @@
 - [150BF-start-local-cmd-help-gnu-surface-contract-design-2026-04-09](./150BF-start-local-cmd-help-gnu-surface-contract-design-2026-04-09.md)
 - [09BG-status-local-cmd-help-gnu-surface-contract-implementation-plan-2026-04-09](./09BG-status-local-cmd-help-gnu-surface-contract-implementation-plan-2026-04-09.md)
 - [150BG-status-local-cmd-help-gnu-surface-contract-design-2026-04-09](./150BG-status-local-cmd-help-gnu-surface-contract-design-2026-04-09.md)
-- [09BH-user-module-runtime-provider-selection-implementation-plan-2026-04-09](./09BH-user-module-runtime-provider-selection-implementation-plan-2026-04-09.md)
-- [150BH-user-module-runtime-provider-selection-design-2026-04-09](./150BH-user-module-runtime-provider-selection-design-2026-04-09.md)
+- [09BH-principal-profile-runtime-provider-selection-implementation-plan-2026-04-09](./09BH-principal-profile-runtime-provider-selection-implementation-plan-2026-04-09.md)
+- [150BH-principal-profile-runtime-provider-selection-design-2026-04-09](./150BH-principal-profile-runtime-provider-selection-design-2026-04-09.md)
 - [09BI-install-deploy-cmd-help-gnu-surface-contract-implementation-plan-2026-04-09](./09BI-install-deploy-cmd-help-gnu-surface-contract-implementation-plan-2026-04-09.md)
 - [150BI-install-deploy-cmd-help-gnu-surface-contract-design-2026-04-09](./150BI-install-deploy-cmd-help-gnu-surface-contract-design-2026-04-09.md)
-- [09BJ-user-module-external-missing-catalog-unavailable-contract-implementation-plan-2026-04-09](./09BJ-user-module-external-missing-catalog-unavailable-contract-implementation-plan-2026-04-09.md)
-- [150BJ-user-module-external-missing-catalog-unavailable-contract-design-2026-04-09](./150BJ-user-module-external-missing-catalog-unavailable-contract-design-2026-04-09.md)
+- [09BJ-principal-profile-external-catalog-missing-catalog-unavailable-contract-implementation-plan-2026-04-09](./09BJ-principal-profile-external-catalog-missing-catalog-unavailable-contract-implementation-plan-2026-04-09.md)
+- [150BJ-principal-profile-external-catalog-missing-catalog-unavailable-contract-design-2026-04-09](./150BJ-principal-profile-external-catalog-missing-catalog-unavailable-contract-design-2026-04-09.md)
 ## 2026-04-09 Addendum
 
-- [09BK-user-module-provider-health-http-surface-implementation-plan-2026-04-09](./09BK-user-module-provider-health-http-surface-implementation-plan-2026-04-09.md)
-- [150BK-user-module-provider-health-http-surface-design-2026-04-09](./150BK-user-module-provider-health-http-surface-design-2026-04-09.md)
+- [09BK-principal-profile-provider-health-http-surface-implementation-plan-2026-04-09](./09BK-principal-profile-provider-health-http-surface-implementation-plan-2026-04-09.md)
+- [150BK-principal-profile-provider-health-http-surface-design-2026-04-09](./150BK-principal-profile-provider-health-http-surface-design-2026-04-09.md)
 ## 2026-04-09 Addendum
 
 - [09BL-local-minimal-ops-provider-bindings-runtime-visibility-implementation-plan-2026-04-09](./09BL-local-minimal-ops-provider-bindings-runtime-visibility-implementation-plan-2026-04-09.md)

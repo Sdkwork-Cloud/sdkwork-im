@@ -8,7 +8,7 @@
 ## 实施范围
 
 1. `OpsRuntime` 新增 provider binding snapshot 存储能力
-2. `ops-service` 新增 `GET /api/v1/ops/provider-bindings`
+2. `ops-service` 新增 `GET /backend/v3/api/ops/provider_bindings`
 3. `diagnostic bundle` 携带 `providerBindings`
 4. `control-plane-api` 在 provider binding 查询时，把同一份求值结果镜像到 `OpsRuntime`
 

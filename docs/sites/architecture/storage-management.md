@@ -123,7 +123,7 @@ backed path instead of in-memory-only storage behavior.
 ## Current Admin Route Contract
 
 Read [Admin Storage Contract](/reference/admin-storage-contract) when you need the actual
-`/api/admin/storage/*` route catalog, write payload shape, validation semantics, and sandbox
+`/backend/v3/api/admin/storage/*` route catalog, write payload shape, validation semantics, and sandbox
 promotion boundary.
 
 That reference is intentionally separate from the OpenAPI-style API section because the storage

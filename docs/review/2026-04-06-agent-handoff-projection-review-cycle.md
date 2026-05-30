@@ -18,7 +18,7 @@
   - 旧实现只在 `message.posted` 时创建 `ConversationSummaryView`。
   - `conversation.created` 只更新了 `conversations` catalog，没有初始化 summary 基线记录。
 - Impact:
-  - `agent_handoff` 刚创建且尚未发送消息时，`GET /api/v1/conversations/{conversationId}` 无法返回状态。
+  - `agent_handoff` 刚创建且尚未发送消息时，`GET /im/v3/api/chat/conversations/{conversationId}` 无法返回状态。
   - 本轮新增 handoff 生命周期读模型需求无法成立，因为“无消息但有生命周期”的会话最先就被 `404` 截断。
 
 ### 1.3 Medium: inbox 排序没有把 handoff 生命周期变化视为会话活动

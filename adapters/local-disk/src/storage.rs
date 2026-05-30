@@ -25,15 +25,12 @@ impl FileStorageDomainSnapshotStore {
         self.file_path.as_path()
     }
 
-    pub fn snapshot(&self, domain: &str) -> Option<StorageDomainSnapshot> {
+    pub fn snapshot(&self, domain: &str) -> Result<Option<StorageDomainSnapshot>, ContractError> {
         let _guard = self
             .io_lock
             .lock()
             .expect("storage domain snapshot file store lock should lock");
-        self.read_records()
-            .expect("storage domain snapshot store should parse")
-            .get(domain)
-            .cloned()
+        Ok(self.read_records()?.get(domain).cloned())
     }
 
     fn read_records(&self) -> Result<BTreeMap<String, StorageDomainSnapshot>, ContractError> {
@@ -54,7 +51,7 @@ impl FileStorageDomainSnapshotStore {
 
 impl StorageDomainSnapshotStore for FileStorageDomainSnapshotStore {
     fn load_snapshot(&self, domain: &str) -> Result<Option<StorageDomainSnapshot>, ContractError> {
-        Ok(self.snapshot(domain))
+        self.snapshot(domain)
     }
 
     fn save_snapshot(&self, snapshot: StorageDomainSnapshot) -> Result<(), ContractError> {

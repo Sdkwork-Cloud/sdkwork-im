@@ -19,7 +19,7 @@
 
 - [ ] Add a `notification-service` rebuild test using a shared durable store and verify `list_notifications(...)` still returns a pre-restart notification after rebuild.
 - [ ] Add an `automation-service` rebuild test using a shared durable store and verify `get_execution(...)` still returns a pre-restart execution after rebuild.
-- [ ] Add a managed `local-minimal` runtime-dir rebuild test proving both `/api/v1/notifications` and `/api/v1/automation/executions/{id}` continue working after restart.
+- [ ] Add a managed `local-minimal` runtime-dir rebuild test proving both `/im/v3/api/notifications` and `/im/v3/api/automation/executions/{id}` continue working after restart.
 - [ ] Run the focused tests and capture the red state before runtime changes.
 
 ### Task 2: Add Projection Store Contracts And Adapters

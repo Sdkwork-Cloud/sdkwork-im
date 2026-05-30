@@ -4,7 +4,7 @@
 
 - 新增 `07-C5 / 09H / 150H` 文档闭环。
 - `RuntimeProviderRegistry` 支持 `diff_versions(fromVersion, toVersion)`。
-- control-plane 新增 `GET /api/v1/control/provider-policies/diff`。
+- control-plane 新增 `GET /backend/v3/api/control/provider-policies/diff`。
 - 新响应冻结 `deploymentProfileChanges`、`tenantOverrideChanges`、`changeKind`。
 - public auth 已覆盖新读接口的 `control.read` 权限约束。
 

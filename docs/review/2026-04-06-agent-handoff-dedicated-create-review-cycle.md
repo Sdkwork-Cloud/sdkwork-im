@@ -5,7 +5,7 @@
 ### 1.1 High: `agent_handoff` still had no dedicated create contract
 
 - Root cause:
-  - The generic `POST /api/v1/conversations` path was already correctly frozen to `group / direct`.
+  - The generic `POST /im/v3/api/chat/conversations` path was already correctly frozen to `group / direct`.
   - `agent_handoff` remained a reserved model type without a dedicated create command or route.
 - Impact:
   - The platform could not create a semantically correct handoff conversation carrying source actor, target actor, and handoff metadata.
@@ -21,11 +21,11 @@
 
 The current safest vertical slice is:
 
-- Keep generic `POST /api/v1/conversations` limited to:
+- Keep generic `POST /im/v3/api/chat/conversations` limited to:
   - `group`
   - `direct`
 - Open a dedicated create route only for `agent_handoff`:
-  - `POST /api/v1/conversations/agent-handoffs`
+  - `POST /im/v3/api/chat/conversations/agent_handoffs`
 - Request body accepts:
   - `conversationId`
   - `targetId`
@@ -59,7 +59,7 @@ The current safest vertical slice is:
   - enforced non-empty `handoffSessionId`
   - created source and target memberships together
   - initialized read cursors for both members
-  - exposed `POST /api/v1/conversations/agent-handoffs`
+  - exposed `POST /im/v3/api/chat/conversations/agent_handoffs`
   - extended message post policy so `agent_handoff` can carry real handoff dialogue
 - `services/local-minimal-node/src/lib.rs`
   - exposed the same dedicated create route on the local profile

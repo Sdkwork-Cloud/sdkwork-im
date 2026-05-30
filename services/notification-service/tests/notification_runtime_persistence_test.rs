@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 
 use im_adapters_local_memory::MemoryNotificationTaskStore;
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
 
@@ -23,7 +23,7 @@ impl CommitJournal for RecordingJournal {
 fn test_runtime_restores_notification_projection_on_rebuild_with_shared_store() {
     let journal = Arc::new(RecordingJournal::default());
     let task_store = Arc::new(MemoryNotificationTaskStore::default());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -71,7 +71,7 @@ fn test_runtime_restores_notification_projection_on_rebuild_with_shared_store() 
 fn test_runtime_restores_actor_kind_scoped_automation_notifications_after_rebuild() {
     let journal = Arc::new(RecordingJournal::default());
     let task_store = Arc::new(MemoryNotificationTaskStore::default());
-    let user_auth = AuthContext {
+    let user_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -79,7 +79,7 @@ fn test_runtime_restores_actor_kind_scoped_automation_notifications_after_rebuil
         device_id: None,
         permissions: BTreeSet::new(),
     };
-    let system_auth = AuthContext {
+    let system_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "system".into(),

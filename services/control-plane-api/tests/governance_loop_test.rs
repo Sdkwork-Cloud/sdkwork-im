@@ -5,7 +5,7 @@ use audit_service::AuditRuntime;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_platform_contracts::{ProviderDomain, RuntimeProviderRegistry, StaticProviderRegistry};
 use ops_service::OpsRuntime;
 use session_gateway::{
@@ -64,11 +64,11 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/nodes/node_a/drain")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/nodes/node_a/drain")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -86,11 +86,11 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/nodes/node_a/routes/migrate")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/nodes/node_a/routes/migrate")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"targetNodeId":"node_b"}"#))
                 .unwrap(),
@@ -113,7 +113,7 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
     assert_eq!(migrated_cluster.nodes[0].drain_status, "drained");
     assert_eq!(migrated_cluster.nodes[0].device_route_count, 0);
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
@@ -175,11 +175,11 @@ async fn test_control_plane_provider_bindings_feed_ops_runtime() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -191,11 +191,11 @@ async fn test_control_plane_provider_bindings_feed_ops_runtime() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-bindings?tenantId=t_provider_combo")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_bindings?tenantId=t_provider_combo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -267,11 +267,11 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -286,11 +286,11 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"t_provider_combo","domain":"rtc","pluginId":"rtc-aliyun"}"#,
@@ -320,7 +320,7 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
                 && binding.selection_source == "tenant_override")
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
@@ -380,11 +380,11 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -400,11 +400,11 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"t_provider_combo","domain":"rtc","pluginId":"rtc-aliyun"}"#,
@@ -419,11 +419,11 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-policies/rollback")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_policies/rollback")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"targetVersion":1}"#))
                 .unwrap(),
@@ -457,7 +457,7 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
         "rollback should clear tenant drift when all tenant overrides are removed"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
@@ -506,11 +506,11 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -525,11 +525,11 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-aws"}"#,
@@ -551,7 +551,7 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
                 && binding.selection_source == "deployment_profile")
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
@@ -611,11 +611,11 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -630,11 +630,11 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine","expectedBaseVersion":2}"#,
@@ -666,7 +666,7 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
                 && binding.selection_source == "deployment_profile")
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
@@ -707,11 +707,11 @@ async fn test_control_plane_provider_policy_preview_does_not_touch_ops_or_audit(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-policies/preview")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_policies/preview")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -740,7 +740,7 @@ async fn test_control_plane_provider_policy_preview_does_not_touch_ops_or_audit(
         "preview must not create provider drift"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
@@ -778,11 +778,11 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-policies/preview")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_policies/preview")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"t_provider_combo","domain":"rtc","pluginId":"rtc-aliyun"}"#,
@@ -807,11 +807,11 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#,
@@ -826,11 +826,11 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"t_provider_combo","domain":"rtc","pluginId":"rtc-aliyun","expectedBaseVersion":1}"#,
@@ -857,7 +857,7 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
         "stale confirm write must not create tenant drift"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
@@ -902,11 +902,11 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -918,11 +918,11 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-bindings?tenantId=")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_bindings?tenantId=")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -979,11 +979,11 @@ async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_m
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"tenantId":"","domain":"rtc","pluginId":"rtc-aliyun"}"#,
@@ -1017,7 +1017,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_m
         "invalid tenant writes must not mutate ops provider bindings"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
@@ -1059,11 +1059,11 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1076,12 +1076,12 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/api/v1/control/provider-bindings?tenantId={tenant_id}"
+                    "/backend/v3/api/control/provider_bindings?tenantId={tenant_id}"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1139,11 +1139,11 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "admin")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "admin")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{"tenantId":"{tenant_id}","domain":"rtc","pluginId":"rtc-aliyun"}}"#
@@ -1177,7 +1177,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
         "oversized tenant writes must not mutate ops provider bindings"
     );
 
-    let audit_auth = AuthContext {
+    let audit_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),

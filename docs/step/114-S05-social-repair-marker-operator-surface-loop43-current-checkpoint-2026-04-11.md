@@ -4,7 +4,7 @@
 - 状态: `not_closed / local_closure`
 - 本轮已兑现:
   - `SocialRuntimeRepairResponse` 新增 `transactionMarkerCleared`
-  - `POST /api/v1/control/social/runtime/repair-derived-snapshot` 现会显式返回本次是否清理了 pending transaction marker
+  - `POST /backend/v3/api/control/social/runtime/repair-derived-snapshot` 现会显式返回本次是否清理了 pending transaction marker
   - `control-plane-api repair-social-runtime-dir --json` 现会显式返回 `transactionMarkerCleared`
   - 文本型 CLI 输出新增 `transaction-marker-cleared: <bool>` 行
   - fresh targeted regression：`cargo test -p control-plane-api --offline --test social_runtime_cli_test test_control_plane_repair_social_runtime_dir_cli_reports_transaction_marker_clearance_after_snapshot_failure -- --nocapture` = `passed`

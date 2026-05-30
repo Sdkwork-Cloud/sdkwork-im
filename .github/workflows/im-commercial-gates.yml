@@ -7,11 +7,11 @@ on:
   pull_request:
     paths:
       - '.github/workflows/im-commercial-gates.yml'
-      - '.github/workflows/user-center-upstream-sync.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'package.json'
       - 'README.md'
+      - 'adapters/**'
       - 'apps/craw-chat-admin/**'
       - 'apps/craw-chat-portal/**'
       - 'crates/**'
@@ -28,12 +28,6 @@ on:
       - 'scripts/im-commercial-gates-workflow.test.mjs'
       - 'scripts/run-commercial-gates-governance-node-tests.mjs'
       - 'scripts/run-commercial-gates-governance-node-tests.test.mjs'
-      - 'scripts/run-user-center-standard.mjs'
-      - 'scripts/run-user-center-standard.test.mjs'
-      - 'scripts/server-user-center-entrypoint-contract.test.mjs'
-      - 'scripts/user-center-upstream-sync-payload.mjs'
-      - 'scripts/user-center-upstream-sync-payload.test.mjs'
-      - 'scripts/user-center-upstream-sync-workflow.test.mjs'
       - 'scripts/strict-contract-catalog.mjs'
       - 'scripts/strict-contract-catalog.test.mjs'
       - 'scripts/dev/**'
@@ -58,6 +52,20 @@ jobs:
     name: Core Runtime Tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: craw_chat_test
+          POSTGRES_USER: craw_chat_test
+          POSTGRES_PASSWORD: craw_chat_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -130,10 +138,10 @@ jobs:
         run: cargo test -p session-gateway --tests
 
       - name: Test session-gateway device registration actor-kind conflict
-        run: cargo test -p session-gateway --test http_smoke_test test_session_resume_rejects_same_device_id_with_different_actor_kind_over_http -- --exact
+        run: cargo test -p session-gateway --test http_smoke_test test_device_session_resume_rejects_same_device_id_with_different_actor_kind_over_http -- --exact
 
       - name: Test session-gateway device registration principal conflict
-        run: cargo test -p session-gateway --test http_smoke_test test_session_resume_rejects_same_device_id_with_different_principal_over_http -- --exact
+        run: cargo test -p session-gateway --test http_smoke_test test_device_session_resume_rejects_same_device_id_with_different_principal_over_http -- --exact
 
       - name: Test session-gateway oversized realtime event types payload
         run: cargo test -p session-gateway --test http_smoke_test test_realtime_subscription_sync_rejects_oversized_event_types_payload_over_http -- --exact
@@ -148,7 +156,40 @@ jobs:
         run: cargo test -p session-gateway --test websocket_smoke_test test_realtime_websocket_rejects_oversized_frame_type -- --exact
 
       - name: Test session-gateway device registration suppresses conflicting provider side effects
-        run: cargo test -p session-gateway --test device_access_provider_mainline_test test_conflicting_session_resume_does_not_call_provider_for_second_owner -- --exact
+        run: cargo test -p session-gateway --test device_access_provider_mainline_test test_conflicting_device_session_resume_does_not_call_provider_for_second_owner -- --exact
+
+      - name: Test PostgreSQL realtime SQL contracts
+        run: cargo test -p im-postgres-realtime-contracts --test postgres_realtime_contracts_test
+
+      - name: Test PostgreSQL realtime checkpoint adapter
+        run: cargo test -p im-adapters-postgres-realtime --test postgres_realtime_checkpoint_store_test
+
+      - name: Test PostgreSQL realtime live integration gate
+        env:
+          CRAW_CHAT_POSTGRES_TEST_DATABASE_URL: postgres://craw_chat_test:craw_chat_test@localhost:5432/craw_chat_test
+        run: cargo test -p im-adapters-postgres-realtime --test postgres_realtime_live_integration_test -- --nocapture
+
+      - name: Test session-gateway PostgreSQL realtime runtime live integration gate
+        env:
+          CRAW_CHAT_POSTGRES_TEST_DATABASE_URL: postgres://craw_chat_test:craw_chat_test@localhost:5432/craw_chat_test
+        run: cargo test -p session-gateway --test postgres_realtime_live_runtime_test -- --nocapture
+
+      - name: Test session-gateway PostgreSQL realtime websocket live drill gate
+        env:
+          CRAW_CHAT_POSTGRES_TEST_DATABASE_URL: postgres://craw_chat_test:craw_chat_test@localhost:5432/craw_chat_test
+        run: cargo test -p session-gateway --test postgres_realtime_websocket_live_drill_test -- --nocapture
+
+      - name: Test local-minimal realtime storage provider contract
+        run: cargo test -p local-minimal-node --test realtime_storage_provider_contract_test
+
+      - name: Strict clippy PostgreSQL realtime storage scope
+        run: cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime --tests -- -D warnings
+
+      - name: Strict clippy PostgreSQL realtime session-gateway runtime scope
+        run: cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime -p session-gateway --tests -- -D warnings
+
+      - name: Strict clippy PostgreSQL realtime local-minimal wiring scope
+        run: cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime -p local-minimal-node --tests -- -D warnings
 
       - name: Test admin architecture release safety
         working-directory: apps/craw-chat-admin
@@ -157,9 +198,6 @@ jobs:
       - name: Test portal dist release safety
         working-directory: apps/craw-chat-portal
         run: node --test tests/portal-build-smoke.test.mjs
-
-      - name: Test portal user-center standard
-        run: node scripts/run-user-center-standard.mjs
 
       - name: Test portal real auth boundary
         working-directory: apps/craw-chat-portal
@@ -190,29 +228,44 @@ jobs:
       - name: Test local-minimal end-to-end flow
         run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact
 
-      - name: Test local-minimal portal auth snapshot redaction
-        run: cargo test -p local-minimal-node --test real_auth_e2e_test test_portal_public_snapshots_are_open_but_workspace_requires_operator_token -- --exact
-
       - name: Test local-minimal preserves add-member request attributes
         run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_preserves_add_member_request_attributes_for_non_user_principal -- --exact
 
       - name: Test local-minimal oversized render hints
         run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_oversized_render_hints_on_post_message -- --exact
 
+      - name: Test local-minimal OpenAPI schema exports
+        run: cargo test -p local-minimal-node --test openapi_schema_export_test
+
+      - name: Test local-minimal IM v3 OpenAPI contract
+        run: cargo test -p local-minimal-node --test openapi_im_v3_contract_test
+
+      - name: Test local-minimal chat runtime route namespace
+        run: cargo test -p local-minimal-node --test chat_runtime_session_namespace_test
+
+      - name: Test local-minimal runtime config contract
+        run: cargo test -p local-minimal-node --test runtime_config_test
+
       - name: Test local-minimal commercial gate contract
         run: cargo test -p local-minimal-node --test commercial_gate_contract_test
+
+      - name: Test commercial readiness gate
+        run: cargo test -p local-minimal-node --test commercial_readiness_gate_test
+
+      - name: Test commercial readiness CLI gate
+        run: cargo test -p local-minimal-node --test runtime_cli_error_handling_test
 
       - name: Test local-minimal device registration suppresses conflicting provider side effects
         run: cargo test -p local-minimal-node --test device_access_provider_mainline_test test_conflicting_device_register_does_not_call_provider_for_second_owner -- --exact
 
-      - name: Test local-minimal user-module oversized creator attributes
-        run: cargo test -p local-minimal-node --test user_module_provider_mainline_test test_local_user_module_provider_rejects_oversized_creator_attributes_on_create_conversation -- --exact
+      - name: Test local-minimal principal-profile oversized creator attributes
+        run: cargo test -p local-minimal-node --test principal_profile_provider_mainline_test test_local_principal_profile_provider_rejects_oversized_creator_attributes_on_create_conversation -- --exact
 
-      - name: Test local-minimal user-module oversized sender metadata
-        run: cargo test -p local-minimal-node --test user_module_provider_mainline_test test_local_user_module_provider_rejects_oversized_sender_metadata_on_post_message -- --exact
+      - name: Test local-minimal principal-profile oversized sender metadata
+        run: cargo test -p local-minimal-node --test principal_profile_provider_mainline_test test_local_principal_profile_provider_rejects_oversized_sender_metadata_on_post_message -- --exact
 
-      - name: Test local-minimal user-module merges add-member request attributes
-        run: cargo test -p local-minimal-node --test user_module_provider_mainline_test test_local_user_module_provider_merges_add_member_request_attributes -- --exact
+      - name: Test local-minimal principal-profile merges add-member request attributes
+        run: cargo test -p local-minimal-node --test principal_profile_provider_mainline_test test_local_principal_profile_provider_merges_add_member_request_attributes -- --exact
 
       - name: Strict clippy core runtime scope
         run: cargo clippy -p conversation-runtime -p control-plane-api --tests -- -D warnings

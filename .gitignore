@@ -9,11 +9,15 @@
 
 # Local helper output
 /.codex-submit-probe/
+/.codex-tmp/
+/.npm-cache/
+/.sdkwork/
 /$jsonFile
 /$outputFile
 *.log
 *.pid
 *.tmp
+*.zip
 
 # IDE / OS
 .DS_Store

@@ -28,10 +28,10 @@
 ## Actions This Loop
 - actual_changes:
   - `SocialControlState` 当前新增 dead-letter -> pending 的显式状态迁移函数，并保留原 request payload 与 failure metadata
-  - 控制面新增 `POST /api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync`
+  - 控制面新增 `POST /backend/v3/api/control/social/runtime/requeue-dead-letter-shared-channel-sync`
   - 新 route 当前返回 `status / pendingBefore / deadLetterBefore / requeued / pendingAfter / deadLetterAfter`
   - requeue 行为当前写入 `control.social_runtime_shared_channel_sync_dead_letter_requeued` audit 事件
-  - operator 可在 requeue 后复用既有 `POST /api/v1/control/social/runtime/repair-shared-channel-sync` 路径，把 request 重新投递到 remote runtime 并清空 backlog
+  - operator 可在 requeue 后复用既有 `POST /backend/v3/api/control/social/runtime/repair-shared-channel-sync` 路径，把 request 重新投递到 remote runtime 并清空 backlog
   - 新增 dual-service e2e：request 先进入 dead-letter；healthy requeue 后回到 pending；随后 repair 真正 materialize remote runtime linked member truth
 - changed_files:
   - `services/control-plane-api/src/lib.rs`

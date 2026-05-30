@@ -14,8 +14,8 @@
   - RTC state
 - notification task projections still reset to empty memory after restart.
 - the operational effect was immediate:
-  - `GET /api/v1/notifications` returned an empty list after rebuild
-  - `GET /api/v1/notifications/{id}` returned `404 notification_not_found`
+  - `GET /im/v3/api/notifications` returned an empty list after rebuild
+  - `GET /im/v3/api/notifications/{id}` returned `404 notification_not_found`
   - automation side-effect notifications created before restart were no longer queryable
 
 ### 1.2 High: managed `local-minimal` rebuilds lost automation execution continuity after restart
@@ -23,7 +23,7 @@
 - `automation-service` kept execution projections only in an in-memory `HashMap<String, AutomationExecution>`.
 - managed runtime-dir builders never replaced the default execution runtime with a file-backed store.
 - the operational effect was direct:
-  - `GET /api/v1/automation/executions/{id}` returned `404 automation_execution_not_found`
+  - `GET /im/v3/api/automation/executions/{id}` returned `404 automation_execution_not_found`
   - idempotent retries after restart could not observe the previous execution projection
 
 ### 1.3 Medium: projection durability needed its own replaceable seam instead of being hidden inside domain replay

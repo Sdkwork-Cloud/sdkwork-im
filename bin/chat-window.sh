@@ -297,7 +297,6 @@ resolve_base_url
 
 auth_user_id="$user_id"
 auth_mode="implicit-cli-default"
-public_bearer_secret=""
 
 if [[ -n "$bearer_token" ]]; then
   auth_mode="provided-bearer"
@@ -316,11 +315,6 @@ else
       login_im_user "$user_id" "$resolved_login" "$resolved_password" "$session_id" "$device_id"
     )
     auth_mode="real-login"
-  else
-    public_bearer_secret="$(read_config_value CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET || true)"
-    if [[ -n "$public_bearer_secret" ]]; then
-      auth_mode="config-public-secret"
-    fi
   fi
 fi
 
@@ -344,8 +338,6 @@ args+=(
 
 if [[ -n "$bearer_token" ]]; then
   args+=(--bearer-token "$bearer_token")
-elif [[ -n "$public_bearer_secret" ]]; then
-  args+=(--public-bearer-secret "$public_bearer_secret")
 fi
 
 if [[ -n "$message_prefix" ]]; then

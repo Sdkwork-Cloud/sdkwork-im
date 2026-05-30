@@ -1,0 +1,1 @@
+{"version":3,"file":"client-compatibility-response.d.ts","sourceRoot":"","sources":["../../src/types/client-compatibility-response.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,2BAA2B;IAC1C,+BAA+B,EAAE,MAAM,EAAE,CAAC;IAC1C,UAAU,EAAE,MAAM,CAAC;IACnB,sBAAsB,EAAE,MAAM,CAAC;IAC/B,iBAAiB,EAAE,MAAM,EAAE,CAAC;IAC5B,qBAAqB,EAAE,MAAM,EAAE,CAAC;IAChC,eAAe,EAAE,MAAM,EAAE,CAAC;CAC3B"}

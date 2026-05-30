@@ -1,6 +1,7 @@
 use craw_chat_contract_core::ContractError;
 use im_domain_core::automation::AutomationExecution;
 use im_domain_core::message::{MessageAttributes, Sender};
+use im_time::{max_optional_rfc3339_string, max_rfc3339_string, rfc3339_cmp};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,18 +42,17 @@ pub struct AutomationExecutionRecord {
 
 impl AutomationExecutionRecord {
     pub fn merge_monotonic(self, next: Self) -> Self {
-        let mut selected =
-            if automation_execution_merge_score(&next) > automation_execution_merge_score(&self) {
-                next.clone()
-            } else {
-                self.clone()
-            };
+        let mut selected = if automation_execution_record_precedes(&self, &next) {
+            next.clone()
+        } else {
+            self.clone()
+        };
 
-        selected.updated_at = self.updated_at.max(next.updated_at);
+        selected.updated_at = max_rfc3339_string(self.updated_at, next.updated_at);
         selected.execution.retry_count = self.execution.retry_count.max(next.execution.retry_count);
-        selected.execution.completed_at = max_optional_string(
+        selected.execution.completed_at = max_optional_rfc3339_string(
             selected.execution.completed_at,
-            max_optional_string(self.execution.completed_at, next.execution.completed_at),
+            max_optional_rfc3339_string(self.execution.completed_at, next.execution.completed_at),
         );
         if selected.execution.output_payload.is_none() {
             selected.execution.output_payload = self
@@ -92,12 +92,20 @@ pub trait AutomationExecutionStore: Send + Sync {
     fn save_execution(&self, record: AutomationExecutionRecord) -> Result<(), ContractError>;
 }
 
-fn automation_execution_merge_score(record: &AutomationExecutionRecord) -> (u8, &str, u8) {
-    (
-        automation_execution_state_group_rank(&record.execution.state),
-        record.updated_at.as_str(),
-        automation_execution_state_tie_rank(&record.execution.state),
-    )
+fn automation_execution_record_precedes(
+    left: &AutomationExecutionRecord,
+    right: &AutomationExecutionRecord,
+) -> bool {
+    automation_execution_state_group_rank(&left.execution.state)
+        .cmp(&automation_execution_state_group_rank(
+            &right.execution.state,
+        ))
+        .then_with(|| rfc3339_cmp(left.updated_at.as_str(), right.updated_at.as_str()))
+        .then_with(|| {
+            automation_execution_state_tie_rank(&left.execution.state)
+                .cmp(&automation_execution_state_tie_rank(&right.execution.state))
+        })
+        .is_lt()
 }
 
 fn automation_execution_state_group_rank(
@@ -119,14 +127,6 @@ fn automation_execution_state_tie_rank(
         im_domain_core::automation::AutomationExecutionState::Running => 1,
         im_domain_core::automation::AutomationExecutionState::Failed => 2,
         im_domain_core::automation::AutomationExecutionState::Succeeded => 3,
-    }
-}
-
-fn max_optional_string(left: Option<String>, right: Option<String>) -> Option<String> {
-    match (left, right) {
-        (Some(left), Some(right)) => Some(left.max(right)),
-        (Some(value), None) | (None, Some(value)) => Some(value),
-        (None, None) => None,
     }
 }
 
@@ -199,5 +199,35 @@ mod tests {
             Some("2026-05-06T00:00:02.000Z")
         );
         assert_eq!(merged.updated_at, "2026-05-06T00:00:02.000Z");
+    }
+
+    #[test]
+    fn test_automation_execution_record_merge_compares_rfc3339_by_instant() {
+        let whole_second = automation_execution_record(
+            AutomationExecutionState::Succeeded,
+            1,
+            Some("{\"accepted\":true}"),
+            Some("2026-05-06T00:00:00Z"),
+            None,
+            "2026-05-06T00:00:00Z",
+        );
+        let later_fraction = automation_execution_record(
+            AutomationExecutionState::Succeeded,
+            2,
+            Some("{\"accepted\":true}"),
+            Some("2026-05-06T00:00:00.100Z"),
+            None,
+            "2026-05-06T00:00:00.100Z",
+        );
+
+        let merged = whole_second.merge_monotonic(later_fraction);
+
+        assert_eq!(merged.execution.state, AutomationExecutionState::Succeeded);
+        assert_eq!(merged.execution.retry_count, 2);
+        assert_eq!(
+            merged.execution.completed_at.as_deref(),
+            Some("2026-05-06T00:00:00.100Z")
+        );
+        assert_eq!(merged.updated_at, "2026-05-06T00:00:00.100Z");
     }
 }

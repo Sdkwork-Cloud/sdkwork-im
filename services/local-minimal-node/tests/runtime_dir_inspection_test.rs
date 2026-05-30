@@ -124,26 +124,26 @@ async fn test_managed_runtime_dir_inspection_reports_all_expected_files_when_par
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/runtime-dir")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_ops_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/runtime_dir")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_ops_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("runtime-dir inspection should return response");
+        .expect("runtime_dir inspection should return response");
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = response
         .into_body()
         .collect()
         .await
-        .expect("runtime-dir inspection body should collect")
+        .expect("runtime_dir inspection body should collect")
         .to_bytes();
     let json: serde_json::Value =
-        serde_json::from_slice(&body).expect("runtime-dir inspection body should be valid json");
+        serde_json::from_slice(&body).expect("runtime_dir inspection body should be valid json");
 
     assert_eq!(json["status"], "ok");
     assert_eq!(json["healthyFileCount"], MANAGED_RUNTIME_STATE_FILES.len());
@@ -198,26 +198,26 @@ async fn test_managed_runtime_dir_inspection_reports_missing_and_corrupt_files_a
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/runtime-dir")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_ops_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/runtime_dir")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_ops_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("runtime-dir inspection should return response");
+        .expect("runtime_dir inspection should return response");
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = response
         .into_body()
         .collect()
         .await
-        .expect("runtime-dir inspection body should collect")
+        .expect("runtime_dir inspection body should collect")
         .to_bytes();
     let json: serde_json::Value =
-        serde_json::from_slice(&body).expect("runtime-dir inspection body should be valid json");
+        serde_json::from_slice(&body).expect("runtime_dir inspection body should be valid json");
 
     assert_eq!(json["status"], "degraded");
     assert_eq!(
@@ -259,26 +259,26 @@ async fn test_managed_runtime_dir_inspection_reports_typed_store_shape_violation
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/runtime-dir")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_ops_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/runtime_dir")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_ops_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("runtime-dir inspection should return response");
+        .expect("runtime_dir inspection should return response");
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = response
         .into_body()
         .collect()
         .await
-        .expect("runtime-dir inspection body should collect")
+        .expect("runtime_dir inspection body should collect")
         .to_bytes();
     let json: serde_json::Value =
-        serde_json::from_slice(&body).expect("runtime-dir inspection body should be valid json");
+        serde_json::from_slice(&body).expect("runtime_dir inspection body should be valid json");
 
     assert_eq!(json["status"], "degraded");
     let files = json["files"].as_array().expect("files should be an array");

@@ -17,7 +17,7 @@ use craw_chat_runtime_link::{
     session_disconnect_goaway,
 };
 use futures_util::StreamExt;
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_core::realtime::RealtimeEventWindow;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -26,7 +26,7 @@ use tokio::time::{Duration, timeout};
 
 use crate::{
     RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
-    device_registration::SessionDeviceRegistration, realtime::RealtimeWindowCheckpoint,
+    device_registration::DeviceRouteRegistration, realtime::RealtimeWindowCheckpoint,
 };
 
 pub const CCP_WEBSOCKET_SUBPROTOCOL: &str = LINK_WEBSOCKET_SUBPROTOCOL;
@@ -104,17 +104,17 @@ impl RealtimeRouteOwnerError {
 pub trait RealtimeRouteOwner: Send + Sync {
     fn ensure_active_device_route_current_session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<(), RealtimeRouteOwnerError>;
 
     fn subscribe_active_device_route_epoch(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<watch::Receiver<u64>, RealtimeRouteOwnerError>;
 
-    fn release_active_device_route_if_current_session(&self, auth: &AuthContext, device_id: &str);
+    fn release_active_device_route_if_current_session(&self, auth: &AppContext, device_id: &str);
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -229,10 +229,10 @@ fn ccp_client_route_metadata_error() -> String {
     "client websocket frames must not supply ccp route metadata".into()
 }
 
-impl RealtimeRouteOwner for SessionDeviceRegistration {
+impl RealtimeRouteOwner for DeviceRouteRegistration {
     fn ensure_active_device_route_current_session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<(), RealtimeRouteOwnerError> {
         self.ensure_active_device_route_current_session(auth, device_id)
@@ -241,14 +241,14 @@ impl RealtimeRouteOwner for SessionDeviceRegistration {
 
     fn subscribe_active_device_route_epoch(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<watch::Receiver<u64>, RealtimeRouteOwnerError> {
         self.subscribe_active_device_route_epoch(auth, device_id)
             .map_err(|error| RealtimeRouteOwnerError::new(error.code, error.message))
     }
 
-    fn release_active_device_route_if_current_session(&self, auth: &AuthContext, device_id: &str) {
+    fn release_active_device_route_if_current_session(&self, auth: &AppContext, device_id: &str) {
         self.release_active_device_route_if_current_session(auth, device_id);
     }
 }
@@ -357,7 +357,7 @@ impl CcpWebsocketRuntime {
 
 pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
     socket: WebSocket,
-    auth: AuthContext,
+    auth: AppContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
     route_owner: R,
@@ -761,7 +761,7 @@ struct CcpHandshakeContext<'a> {
     route: &'a CcpRoute,
     checkpoint: &'a RealtimeWindowCheckpoint,
     route_owner: &'a dyn RealtimeRouteOwner,
-    auth: &'a AuthContext,
+    auth: &'a AppContext,
     device_id: &'a str,
 }
 
@@ -770,7 +770,7 @@ async fn handle_route_epoch_change(
     socket: &mut WebSocket,
     runtime: &RealtimeDeliveryRuntime,
     route_owner: &dyn RealtimeRouteOwner,
-    auth: &AuthContext,
+    auth: &AppContext,
     tenant_id: &str,
     principal_id: &str,
     principal_kind: &str,
@@ -1055,7 +1055,7 @@ async fn receive_next_control_frame(
     route: &CcpRoute,
     route_epoch_receiver: &mut watch::Receiver<u64>,
     route_owner: &dyn RealtimeRouteOwner,
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
 ) -> Result<ControlFrame, ()> {
     loop {
@@ -1219,7 +1219,7 @@ struct BufferedPushDrainDriver<'a> {
     socket: &'a mut WebSocket,
     runtime: &'a RealtimeDeliveryRuntime,
     route_owner: &'a dyn RealtimeRouteOwner,
-    auth: &'a AuthContext,
+    auth: &'a AppContext,
     tenant_id: &'a str,
     principal_id: &'a str,
     principal_kind: &'a str,
@@ -1295,7 +1295,7 @@ async fn handle_client_message(
     socket: &mut WebSocket,
     runtime: &RealtimeDeliveryRuntime,
     route_owner: &dyn RealtimeRouteOwner,
-    auth: &AuthContext,
+    auth: &AppContext,
     tenant_id: &str,
     principal_id: &str,
     principal_kind: &str,
@@ -1583,7 +1583,7 @@ async fn drain_runtime_owned_buffered_push(
     socket: &mut WebSocket,
     runtime: &RealtimeDeliveryRuntime,
     route_owner: &dyn RealtimeRouteOwner,
-    auth: &AuthContext,
+    auth: &AppContext,
     tenant_id: &str,
     principal_id: &str,
     principal_kind: &str,
@@ -1759,7 +1759,7 @@ async fn send_control_error_and_close(
 async fn ensure_current_route_session_or_close(
     socket: &mut WebSocket,
     route_owner: &dyn RealtimeRouteOwner,
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
 ) -> bool {
     match route_owner.ensure_active_device_route_current_session(auth, device_id) {
@@ -1775,7 +1775,7 @@ async fn ensure_current_route_session_or_close(
 async fn ensure_current_route_session_for_request_or_close(
     socket: &mut WebSocket,
     route_owner: &dyn RealtimeRouteOwner,
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
     wire_mode: RealtimeWebsocketMode,
     ccp_runtime: &CcpWebsocketRuntime,
@@ -1895,7 +1895,7 @@ fn control_schema(frame: &ControlFrame) -> &'static str {
     }
 }
 
-fn build_link_session(auth: &AuthContext, device_id: &str) -> LinkSession {
+fn build_link_session(auth: &AppContext, device_id: &str) -> LinkSession {
     LinkSession::new(
         auth.tenant_id.as_str(),
         auth.actor_id.as_str(),
@@ -1922,13 +1922,13 @@ mod tests {
     use craw_chat_ccp_control::HelloFrame;
     use craw_chat_ccp_core::{CapabilitySet, ProtocolVersion, TransportBinding};
     use craw_chat_runtime_link::{LinkConnectionState, OutboundQueuePolicy, ResumeWindow};
-    use im_auth_context::AuthContext;
+    use im_app_context::AppContext;
     use std::collections::BTreeSet;
 
     use super::*;
 
-    fn demo_auth_context() -> AuthContext {
-        AuthContext {
+    fn demo_auth_context() -> AppContext {
+        AppContext {
             tenant_id: "t_demo".into(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),

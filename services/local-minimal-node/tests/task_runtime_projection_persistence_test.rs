@@ -27,10 +27,10 @@ async fn test_default_local_minimal_profile_restores_task_runtime_projections_af
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/notifications/requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/notifications/requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -57,11 +57,11 @@ async fn test_default_local_minimal_profile_restores_task_runtime_projections_af
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -99,10 +99,10 @@ async fn test_default_local_minimal_profile_restores_task_runtime_projections_af
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/notifications")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/notifications")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -134,11 +134,11 @@ async fn test_default_local_minimal_profile_restores_task_runtime_projections_af
     let automation_after_restart = app_after
         .oneshot(
             Request::builder()
-                .uri("/api/v1/automation/executions/ae_restart_demo")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.read")
+                .uri("/im/v3/api/automation/executions/ae_restart_demo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
         )

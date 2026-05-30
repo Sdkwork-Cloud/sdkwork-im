@@ -24,6 +24,8 @@ sdkwork-api-product-runtime = { path = "../../crates/sdkwork-api-product-runtime
 tokio.workspace = true
 tokio-tungstenite = "0.28.0"
 tower.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
 
 [dev-dependencies]
 futures-util.workspace = true

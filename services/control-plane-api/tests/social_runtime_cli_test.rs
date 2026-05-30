@@ -103,8 +103,8 @@ fn test_control_plane_repair_social_runtime_dir_cli_replays_journal_into_snapsho
     write_social_direct_chat_commit(runtime_dir.as_path());
 
     let output = run_control_plane_cli(&[
-        "repair-social-runtime-dir",
-        "--runtime-dir",
+        "repair-social-runtime_dir",
+        "--runtime_dir",
         runtime_dir
             .to_str()
             .expect("runtime dir should be valid utf-8"),
@@ -113,7 +113,7 @@ fn test_control_plane_repair_social_runtime_dir_cli_replays_journal_into_snapsho
 
     assert!(
         output.status.success(),
-        "repair-social-runtime-dir should exit successfully. stdout: {} stderr: {}",
+        "repair-social-runtime_dir should exit successfully. stdout: {} stderr: {}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
@@ -159,8 +159,8 @@ fn test_control_plane_repair_social_runtime_dir_cli_reports_transaction_marker_c
     .expect("pending social tx marker should be written");
 
     let output = run_control_plane_cli(&[
-        "repair-social-runtime-dir",
-        "--runtime-dir",
+        "repair-social-runtime_dir",
+        "--runtime_dir",
         runtime_dir
             .to_str()
             .expect("runtime dir should be valid utf-8"),
@@ -169,7 +169,7 @@ fn test_control_plane_repair_social_runtime_dir_cli_reports_transaction_marker_c
 
     assert!(
         output.status.success(),
-        "repair-social-runtime-dir should exit successfully. stdout: {} stderr: {}",
+        "repair-social-runtime_dir should exit successfully. stdout: {} stderr: {}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
@@ -195,19 +195,19 @@ fn test_control_plane_repair_social_runtime_dir_cli_reports_transaction_marker_c
 
 #[test]
 fn test_control_plane_repair_social_runtime_dir_cli_rejects_missing_runtime_dir_value() {
-    let output = run_control_plane_cli(&["repair-social-runtime-dir", "--runtime-dir"]);
+    let output = run_control_plane_cli(&["repair-social-runtime_dir", "--runtime_dir"]);
 
     assert!(
         !output.status.success(),
-        "repair-social-runtime-dir must fail when --runtime-dir has no value. stdout: {} stderr: {}",
+        "repair-social-runtime_dir must fail when --runtime_dir has no value. stdout: {} stderr: {}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("--runtime-dir requires a value"),
-        "cli stderr should explain missing --runtime-dir value. stderr: {stderr}"
+        stderr.contains("--runtime_dir requires a value"),
+        "cli stderr should explain missing --runtime_dir value. stderr: {stderr}"
     );
     assert!(
         !stderr.to_lowercase().contains("panicked"),

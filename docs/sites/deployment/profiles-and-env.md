@@ -1,7 +1,7 @@
 # Profiles and Environment
 
 Use this page to choose the right local profile and confirm the environment variables required for
-startup, auth hardening, and shared-channel sync behavior.
+startup, AppContext projection, and shared-channel sync behavior.
 
 ## Profile Matrix
 
@@ -19,17 +19,19 @@ startup, auth hardening, and shared-channel sync behavior.
 | --- | --- |
 | `CRAW_CHAT_BIND_ADDR` | Listener bind address |
 | `CRAW_CHAT_RUNTIME_DIR` | Managed runtime directory |
-| `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET` | Public HS256 bearer signing secret |
+| `CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET` | Domain signing secret for friend-request pagination cursors |
 
-### Why `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET` matters
+### Authentication Boundary
 
-It is required for:
+`sdkwork-appbase` owns login, IAM sessions, dual-token validation, users, tenants, organizations,
+and the authoritative IAM context. `craw-chat` consumes the verified AppContext projection only.
+The local smoke scripts therefore send these headers instead of generating local Craw Chat tokens:
 
-- public bearer validation in `build_public_app()`
-- locally generated smoke tokens
-- public app access in Docker Compose
-
-If it is missing, the local start scripts reject startup.
+- `x-sdkwork-tenant-id`
+- `x-sdkwork-user-id`
+- `x-sdkwork-session-id`
+- `x-sdkwork-device-id`
+- `x-sdkwork-permission-scope`
 
 ## Security Hardening Variables
 
@@ -38,11 +40,7 @@ For public or commercial deployments, keep these enabled and explicit:
 | Variable | Purpose |
 | --- | --- |
 | `CRAW_CHAT_BROWSER_ORIGINS` | Comma-separated explicit browser origins allowed to call the public app routes. Defaults to the local portal preview origins only when unset. |
-| `CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP` | Requires `exp` in public bearer tokens (`1/true/yes/on`). |
-| `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS` | Rejects public bearer tokens whose lifetime exceeds this maximum. |
-| `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS` | Optional strict issuer match. When set, public bearer `iss` must equal this value. |
-| `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD` | Optional strict audience match. When set, public bearer `aud` must include this value. |
-| `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS` | Per-tenant request ceiling for `/api/v1/conversations/shared-channel-links/sync` inside each process (clamped to `1..10000`). |
+| `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS` | Per-tenant request ceiling for `/im/v3/api/chat/conversations/shared_channel_links/sync` inside each process (clamped to `1..10000`). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS` | Sliding window used by the shared-channel sync per-tenant limiter (clamped to `1..3600`). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS` | Maximum active tenant buckets retained by the in-process shared-channel sync limiter (default `10000`, clamped to `1..200000`). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS` | Outbound HTTP timeout (milliseconds) for control-plane shared-channel sync trigger dispatch. |
@@ -82,15 +80,15 @@ runtime guards.
 
 ## Optional Provider-related Variables
 
-The current repository also uses a user-module provider selection boundary:
+The current repository also uses a principal-profile provider selection boundary:
 
 | Variable | Purpose |
 | --- | --- |
-| `CRAW_CHAT_USER_MODULE_PROVIDER` | Selects the user-module provider mode |
-| `CRAW_CHAT_USER_MODULE_EXTERNAL_CATALOG_PATH` | Catalog path for the external user-module provider |
-| `CRAW_CHAT_USER_MODULE_EXTERNAL_SYSTEM` | External system identifier for that provider |
+| `CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER` | Selects the principal-profile provider mode |
+| `CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH` | Catalog path for the external principal-profile provider |
+| `CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_SYSTEM` | External system identifier for that provider |
 
-When `CRAW_CHAT_USER_MODULE_PROVIDER=external` is selected without the required external catalog
+When `CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER=external` is selected without the required external catalog
 path, the provider-health surface reports the external mode as unavailable.
 
 ## Desktop Admin Sandbox Variables
@@ -99,7 +97,7 @@ The desktop admin runtime has its own small environment surface when it is runni
 
 | Variable | Purpose |
 | --- | --- |
-| `SDKWORK_ADMIN_PROXY_TARGET` | Proxies desktop `/api/admin/*` calls to a compatible backend when set |
+| `SDKWORK_ADMIN_PROXY_TARGET` | Proxies desktop `/backend/v3/api/admin/*` calls to a compatible backend when set |
 | `SDKWORK_ADMIN_SANDBOX` | Enables the built-in admin sandbox when no proxy target is configured |
 | `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE` | Optional JSON snapshot path used to persist generic storage-management state across sandbox restarts |
 
@@ -124,11 +122,7 @@ CRAW_CHAT_BIND_ADDR=127.0.0.1:18090
 CRAW_CHAT_RUNTIME_DIR=.runtime/local-minimal
 CRAW_CHAT_RUNTIME_PROFILE=local-minimal
 CRAW_CHAT_BROWSER_ORIGINS=http://127.0.0.1:4176,http://localhost:4176
-CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=replace-with-local-minimal-secret
-CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP=true
-CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS=900
-CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS=
-CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD=
+CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=replace-with-local-minimal-friend-request-cursor-secret
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=120
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=60
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS=10000
@@ -151,11 +145,7 @@ CRAW_CHAT_BIND_ADDR=127.0.0.1:18090
 CRAW_CHAT_RUNTIME_DIR=.runtime/local-minimal
 CRAW_CHAT_RUNTIME_PROFILE=local-default
 CRAW_CHAT_BROWSER_ORIGINS=http://127.0.0.1:4176,http://localhost:4176
-CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=replace-with-local-default-secret
-CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP=true
-CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS=900
-CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS=
-CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD=
+CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=replace-with-local-default-friend-request-cursor-secret
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=120
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=60
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS=10000

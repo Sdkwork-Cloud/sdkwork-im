@@ -14,8 +14,8 @@
 
 ## 实施点
 
-- 新增路由级回归测试，覆盖 `GET /api/v1/control/provider-policies/diff` 未知版本
-- 新增路由级回归测试，覆盖 `POST /api/v1/control/provider-policies/rollback` 未知版本
+- 新增路由级回归测试，覆盖 `GET /backend/v3/api/control/provider-policies/diff` 未知版本
+- 新增路由级回归测试，覆盖 `POST /backend/v3/api/control/provider-policies/rollback` 未知版本
 - 同步 step / review / 架构文档中的错误词汇说明
 
 ## 冻结语义

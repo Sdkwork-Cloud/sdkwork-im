@@ -1,1 +1,0 @@
-{"version":3,"file":"create-agent-handoff-request.d.ts","sourceRoot":"","sources":["../../../src/generated/types/create-agent-handoff-request.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,yBAAyB;IACxC,cAAc,EAAE,MAAM,CAAC;IACvB,QAAQ,EAAE,MAAM,CAAC;IACjB,UAAU,EAAE,MAAM,CAAC;IACnB,gBAAgB,EAAE,MAAM,CAAC;IACzB,aAAa,CAAC,EAAE,MAAM,CAAC;CACxB"}

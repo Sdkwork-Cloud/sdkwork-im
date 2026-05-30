@@ -56,7 +56,7 @@ async fn run_preflight(origin: &str) -> axum::response::Response {
     app.oneshot(
         Request::builder()
             .method("OPTIONS")
-            .uri("/api/v1/portal/home")
+            .uri("/im/v3/api/portal/home")
             .header("origin", origin)
             .header("access-control-request-method", "GET")
             .header(

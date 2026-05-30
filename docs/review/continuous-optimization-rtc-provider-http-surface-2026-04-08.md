@@ -1,4 +1,4 @@
-﻿# Continuous Optimization - RTC Provider HTTP Surface - 2026-04-08
+# Continuous Optimization - RTC Provider HTTP Surface - 2026-04-08
 
 ## 本轮目标
 在 Step 06 / Wave B 中把 RTC provider 能力从 runtime 内部闭环推进到外部 HTTP surface，补齐 credential 与 provider health。
@@ -6,8 +6,8 @@
 ## 实际完成
 - `services/rtc-signaling-service/src/lib.rs`
   - 新增 `IssueRtcParticipantCredentialRequest`
-  - 新增 `POST /api/v1/rtc/sessions/{rtc_session_id}/credentials`
-  - 新增 `GET /api/v1/rtc/provider-health`
+  - 新增 `POST /im/v3/api/rtc/sessions/{rtc_session_id}/credentials`
+  - 新增 `GET /backend/v3/api/rtc/provider_health`
   - 对外复用 `RtcRuntime::issue_participant_credential(...)` 与 `provider_health_snapshot(...)`
 - `services/local-minimal-node/src/node/rtc.rs`
   - 新增同等能力的本地节点 handler

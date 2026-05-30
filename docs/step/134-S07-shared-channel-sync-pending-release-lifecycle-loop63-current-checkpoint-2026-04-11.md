@@ -27,7 +27,7 @@
 
 ## Actions This Loop
 - actual_changes:
-  - 控制面新增 `POST /api/v1/control/social/runtime/release-pending-shared-channel-sync-targeted`
+  - 控制面新增 `POST /backend/v3/api/control/social/runtime/release-pending-shared-channel-sync-targeted`
   - pending claim 当前支持 owner-only release，释放后 request 返回 unowned pool
   - foreign operator 对已 claim request 的 targeted release 当前会得到 `409 shared_channel_sync_owner_conflict`
   - released request 当前可被其他 operator 重新 claim，再复用既有 targeted republish 路径

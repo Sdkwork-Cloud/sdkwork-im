@@ -6,7 +6,7 @@
 ## 2. 目标
 
 - 以 `RuntimeProviderRegistry` 中的历史快照为唯一真源。
-- 提供 `GET /api/v1/control/provider-policies/diff` 标准读接口。
+- 提供 `GET /backend/v3/api/control/provider-policies/diff` 标准读接口。
 - 同时覆盖 `deployment profile` 与 `tenant override` 两类变更。
 - 输出稳定、可序列化、可直接给控制面或后续 preview 复用的差异模型。
 
@@ -51,7 +51,7 @@
 
 ## 6. HTTP 面
 
-- 路径: `GET /api/v1/control/provider-policies/diff`
+- 路径: `GET /backend/v3/api/control/provider-policies/diff`
 - Query: `fromVersion`、`toVersion`
 - 权限: `control.read` 或 `control.write`
 - 不写审计，不刷新 `replace_provider_binding_snapshots`

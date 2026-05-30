@@ -7,8 +7,8 @@ behavior.
 
 Every official language starts from the same live contract export:
 
-- endpoint: `/openapi/craw-chat-app.openapi.yaml`
-- checked-in authority snapshot: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
+- endpoint: `/im/v3/openapi.json`
+- checked-in authority snapshot: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
 
 The root wrappers refresh that authority snapshot before generation. Language-specific SDK delivery
 then starts from the same contract instead of diverging per workspace.
@@ -90,7 +90,7 @@ multiple verifiers while still keeping the live-schema generation chain tightly 
 
 This split keeps the SDK family stable:
 
-- generated transport can be refreshed from the live schema without rewriting app-facing design
+- generated transport can be refreshed from the live schema without rewriting IM consumer design
 - semantic SDKs can improve ergonomics without forking raw OpenAPI output
 - docs can be honest about what is route-generated and what is handwritten
 - verification can detect generator drift separately from semantic design drift
@@ -111,5 +111,5 @@ When a new language grows beyond transport-standardized delivery, keep the rule 
   that exposes generated transport under `src/generated/**`.
 - Read [Language Support](/sdk/language-support) when you need the full cross-language maturity
   matrix and current delivery status.
-- Read [Control-Plane SDK](/sdk/control-plane-sdk) when your consumer boundary is governance or control-plane
+- Read [Backend SDK](/sdk/backend-sdk) when your consumer boundary is governance, control-plane, operator, or admin
   rather than the public app runtime.

@@ -25,14 +25,14 @@ async fn request_status(app: Router, expectation: &StatusExpectation<'_>) -> (St
         .method(expectation.method)
         .uri(expectation.uri);
     if let Some(tenant_id) = expectation.tenant_id {
-        request = request.header("x-tenant-id", tenant_id);
+        request = request.header("x-sdkwork-tenant-id", tenant_id);
     }
     if let Some(user_id) = expectation.user_id {
-        request = request.header("x-user-id", user_id);
-        request = request.header("x-actor-kind", "user");
+        request = request.header("x-sdkwork-user-id", user_id);
+        request = request.header("x-sdkwork-actor-kind", "user");
     }
     if let Some(permission) = expectation.permission {
-        request = request.header("x-permissions", permission);
+        request = request.header("x-sdkwork-permission-scope", permission);
     }
     if expectation.body.is_some() {
         request = request.header("content-type", "application/json");
@@ -101,7 +101,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app.clone(),
             StatusExpectation {
                 method: "GET",
-                uri: "/api/v1/control/provider-registry",
+                uri: "/backend/v3/api/control/provider_registry",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: Some("control.read"),
@@ -117,7 +117,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app.clone(),
             StatusExpectation {
                 method: "GET",
-                uri: "/api/v1/control/provider-bindings",
+                uri: "/backend/v3/api/control/provider_bindings",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: Some("control.read"),
@@ -133,7 +133,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app.clone(),
             StatusExpectation {
                 method: "POST",
-                uri: "/api/v1/control/provider-policies/preview",
+                uri: "/backend/v3/api/control/provider_policies/preview",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: Some("control.write"),
@@ -149,7 +149,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app.clone(),
             StatusExpectation {
                 method: "POST",
-                uri: "/api/v1/control/provider-bindings",
+                uri: "/backend/v3/api/control/provider_bindings",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: Some("control.write"),
@@ -165,7 +165,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app.clone(),
             StatusExpectation {
                 method: "POST",
-                uri: "/api/v1/control/provider-bindings",
+                uri: "/backend/v3/api/control/provider_bindings",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: Some("control.write"),
@@ -183,7 +183,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app.clone(),
             StatusExpectation {
                 method: "GET",
-                uri: "/api/v1/control/provider-policies",
+                uri: "/backend/v3/api/control/provider_policies",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: Some("control.read"),
@@ -199,7 +199,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app.clone(),
             StatusExpectation {
                 method: "GET",
-                uri: "/api/v1/control/provider-policies/diff?fromVersion=1&toVersion=2",
+                uri: "/backend/v3/api/control/provider_policies/diff?fromVersion=1&toVersion=2",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: Some("control.read"),
@@ -215,7 +215,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app.clone(),
             StatusExpectation {
                 method: "POST",
-                uri: "/api/v1/control/provider-policies/rollback",
+                uri: "/backend/v3/api/control/provider_policies/rollback",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: Some("control.write"),
@@ -231,7 +231,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app.clone(),
             StatusExpectation {
                 method: "POST",
-                uri: "/api/v1/control/provider-bindings",
+                uri: "/backend/v3/api/control/provider_bindings",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: Some("control.write"),
@@ -247,7 +247,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app.clone(),
             StatusExpectation {
                 method: "GET",
-                uri: "/api/v1/control/provider-policies/diff?fromVersion=1&toVersion=9",
+                uri: "/backend/v3/api/control/provider_policies/diff?fromVersion=1&toVersion=9",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: Some("control.read"),
@@ -263,7 +263,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             static_app.clone(),
             StatusExpectation {
                 method: "POST",
-                uri: "/api/v1/control/provider-policies/preview",
+                uri: "/backend/v3/api/control/provider_policies/preview",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: Some("control.write"),
@@ -279,7 +279,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app.clone(),
             StatusExpectation {
                 method: "GET",
-                uri: "/api/v1/control/provider-registry",
+                uri: "/backend/v3/api/control/provider_registry",
                 tenant_id: Some("t_demo"),
                 user_id: Some("u_admin"),
                 permission: None,
@@ -295,7 +295,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
             runtime_app,
             StatusExpectation {
                 method: "GET",
-                uri: "/api/v1/control/provider-registry",
+                uri: "/backend/v3/api/control/provider_registry",
                 tenant_id: None,
                 user_id: None,
                 permission: None,

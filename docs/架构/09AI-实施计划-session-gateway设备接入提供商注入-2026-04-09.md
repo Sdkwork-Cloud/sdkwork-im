@@ -2,7 +2,7 @@
 
 ## 目标
 
-在不新增伪接口的前提下，把 `DeviceAccessProvider` 注入到 `session-gateway` 的真实首设备接入主链路 `POST /api/v1/sessions/resume`。
+在不新增伪接口的前提下，把 `DeviceAccessProvider` 注入到 `session-gateway` 的真实首设备接入主链路 `POST /im/v3/api/device/sessions/resume`。
 
 ## 输入
 
@@ -34,13 +34,13 @@
 
 ## 执行步骤
 
-1. 先写失败测试，覆盖 `POST /api/v1/sessions/resume` 调用注入 provider。
+1. 先写失败测试，覆盖 `POST /im/v3/api/device/sessions/resume` 调用注入 provider。
 2. 补 builder seam，支持传入 `Arc<dyn DeviceAccessProvider>`。
 3. 把默认 provider 固定为 `iot-access-local`。
 4. 在 `SessionDeviceRegistration` 中接入：
    - `register_device`
    - `bind_owner`
-5. 用 `SessionSyncState::has_registered_device` 做首注册保护，避免 heartbeat / route preflight 重复触发。
+5. 用 `DeviceSyncState::has_registered_device` 做首注册保护，避免 heartbeat / route preflight 重复触发。
 6. 补 provider 错误映射。
 7. 回写 `step / 架构 / review` 与文档测试。
 
@@ -54,7 +54,7 @@
 ## 退出标准
 
 - `session-gateway` 真实支持 provider 注入
-- `POST /api/v1/sessions/resume` 真实触发 `register_device / bind_owner`
+- `POST /im/v3/api/device/sessions/resume` 真实触发 `register_device / bind_owner`
 - heartbeat 不重复调用 provider
 - 默认运行时仍能直接启动
 - 文档与测试同步闭环

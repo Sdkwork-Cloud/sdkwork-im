@@ -5,7 +5,7 @@
 ### 1.1 High: `system_channel` had no dedicated create contract
 
 - Root cause:
-  - The generic `POST /api/v1/conversations` path was already correctly frozen to `group / direct`.
+  - The generic `POST /im/v3/api/chat/conversations` path was already correctly frozen to `group / direct`.
   - `system_channel` remained a reserved data-model type without a dedicated create route, so the platform could not build a correct system-to-subscriber broadcast conversation through a public contract.
 - Impact:
   - The model exposed `system_channel`, but runtime and gateway had no safe way to create the required publisher/subscriber topology.
@@ -22,11 +22,11 @@
 
 The safest vertical slice is:
 
-- Keep generic `POST /api/v1/conversations` limited to:
+- Keep generic `POST /im/v3/api/chat/conversations` limited to:
   - `group`
   - `direct`
 - Open a dedicated create route only for `system_channel`:
-  - `POST /api/v1/conversations/system-channels`
+  - `POST /im/v3/api/chat/conversations/system_channels`
 - Request body accepts only:
   - `conversationId`
   - `subscriberId`
@@ -40,7 +40,7 @@ The safest vertical slice is:
   - publisher: `principalKind=system`, `role=owner`, `attributes.channelRole=publisher`
   - subscriber: `principalKind=user`, `role=member`, `attributes.channelRole=subscriber`
 - Read cursors are initialized for both members.
-- `POST /api/v1/conversations/{id}/messages` is constrained by conversation type:
+- `POST /im/v3/api/chat/conversations/{id}/messages` is constrained by conversation type:
   - `group / direct / agent_dialog`: active member may post
   - `system_channel`: only the system publisher may post
 - Generic member governance for `system_channel` remains closed:
@@ -54,7 +54,7 @@ The safest vertical slice is:
   - enforced `requester_kind == system`
   - created publisher and subscriber memberships together
   - initialized read cursors for both members
-  - exposed `POST /api/v1/conversations/system-channels`
+  - exposed `POST /im/v3/api/chat/conversations/system_channels`
   - added `ensure_message_post_allowed(...)` and enforced system-channel publisher-only posting
 - `services/local-minimal-node/src/lib.rs`
   - exposed the same dedicated create route on the local profile

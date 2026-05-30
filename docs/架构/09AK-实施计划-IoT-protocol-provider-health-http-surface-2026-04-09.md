@@ -16,7 +16,7 @@
 
 本轮包含：
 
-- `GET /api/v1/iot/protocol/provider-health`
+- `GET /backend/v3/api/iot/protocol/provider_health`
 - `IotProtocolAdapter::provider_health_snapshot()` 的 HTTP 暴露
 - `build_default_app_with_iot_protocol_adapter`
 - 默认 `iot-mqtt` health 可见性
@@ -44,7 +44,7 @@
 
 ## 退出标准
 
-- `GET /api/v1/iot/protocol/provider-health` 返回 `200`
+- `GET /backend/v3/api/iot/protocol/provider_health` 返回 `200`
 - 响应包含当前协议插件的真实 `ProviderHealthSnapshot`
 - 默认 `iot-mqtt` 响应可见：
   - `providerKind = mqtt`

@@ -10,7 +10,7 @@ This standard applies when all conditions hold:
 
 - the device already owns live realtime subscriptions
 - the device explicitly calls:
-  - `POST /api/v1/sessions/disconnect`
+  - `POST /im/v3/api/device/sessions/disconnect`
 - later business events are committed after that disconnect
 
 The standard governs only the live realtime delivery boundary. It does not yet define route release.
@@ -49,7 +49,7 @@ This freezes the distinction:
 
 At minimum this rule applies to:
 
-- `POST /api/v1/sessions/disconnect`
+- `POST /im/v3/api/device/sessions/disconnect`
 - any internal handler that implements the same explicit device disconnect semantic
 
 ## 6. Minimal Implementation Rule
@@ -68,7 +68,7 @@ Those remain future hardening layers.
 ## 7. Relationship To Resume And Realtime Sync
 
 - `session.resume` still establishes or refreshes online device activity
-- `POST /api/v1/realtime/subscriptions/sync` still defines which scopes receive live realtime delivery
+- `POST /im/v3/api/realtime/subscriptions/sync` still defines which scopes receive live realtime delivery
 - `session.disconnect` revokes the existing live subscription effect for that device
 
 So the platform must not treat an explicitly disconnected device as still live-subscribed only because old subscription rows remain in memory.
@@ -80,8 +80,8 @@ Regression coverage must prove:
 1. a device syncs realtime subscriptions
 2. the same device calls `session.disconnect`
 3. another committed event happens afterward
-4. `/api/v1/realtime/events` for that device shows no new live event from the post-disconnect publish
-5. `/api/v1/devices/{deviceId}/sync-feed` still exposes the durable event
+4. `/im/v3/api/realtime/events` for that device shows no new live event from the post-disconnect publish
+5. `/im/v3/api/devices/{deviceId}/sync-feed` still exposes the durable event
 
 Coverage must exist at both levels:
 

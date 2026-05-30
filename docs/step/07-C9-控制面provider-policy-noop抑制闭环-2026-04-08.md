@@ -12,7 +12,7 @@
   - 不追加 history
   - 不增加版本
   - `diff` 为空
-- `POST /api/v1/control/provider-bindings` 成功回包新增：
+- `POST /backend/v3/api/control/provider_bindings` 成功回包新增：
   - `applied=true` 表示真实写入
   - `applied=false` 表示 no-op
 - no-op 时保持无额外副作用：
@@ -21,7 +21,7 @@
 
 ## 接口冻结
 
-- 路径: `POST /api/v1/control/provider-bindings`
+- 路径: `POST /backend/v3/api/control/provider_bindings`
 - 权限: `control.write`
 - Success Response:
   - `applied`

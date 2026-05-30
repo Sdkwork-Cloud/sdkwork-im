@@ -27,7 +27,7 @@
 
 ### 3.1 专用路由
 
-- `POST /api/v1/conversations/system-channels`
+- `POST /im/v3/api/chat/conversations/system_channels`
 
 请求体：
 
@@ -105,7 +105,7 @@
 
 如果 subscriber 调用：
 
-- `POST /api/v1/conversations/{id}/messages`
+- `POST /im/v3/api/chat/conversations/{id}/messages`
 
 则必须返回权限拒绝，而不能把该消息写入 durable log。
 
@@ -157,7 +157,7 @@
 ## 9. Gateway 标准
 
 - app-facing 与 local profile 必须暴露相同专用路由：
-  - `POST /api/v1/conversations/system-channels`
+  - `POST /im/v3/api/chat/conversations/system_channels`
 - 网关层不得允许客户端显式提交：
   - `tenantId`
   - `requesterId`

@@ -44,7 +44,7 @@ pub(super) async fn get_contacts(
     Ok(Json(ContactsResponse { items }))
 }
 
-fn ensure_contact_user_actor(auth: &AuthContext) -> Result<(), ApiError> {
+fn ensure_contact_user_actor(auth: &AppContext) -> Result<(), ApiError> {
     if auth.actor_kind == "user" {
         return Ok(());
     }
@@ -57,7 +57,7 @@ fn ensure_contact_user_actor(auth: &AuthContext) -> Result<(), ApiError> {
 
 fn contact_view_from_authoritative_friendship(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     friendship: Friendship,
 ) -> Result<ContactView, ApiError> {
     let target_user_id = if friendship.user_low_id == auth.actor_id {
@@ -141,7 +141,7 @@ pub(super) async fn get_read_cursor(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ConversationReadCursorView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
     let cursor = state
         .projection_service
@@ -160,7 +160,7 @@ pub(super) async fn update_read_cursor(
     State(state): State<AppState>,
     Json(request): Json<UpdateReadCursorRequest>,
 ) -> Result<Json<ConversationReadCursorView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
     access::ensure_registered_device(&state, &auth)?;
     let cursor = state
@@ -208,7 +208,7 @@ pub(super) async fn get_timeline(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<projection_service::TimelineWindowView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
     Ok(Json(
         state.projection_service.timeline_window_from_auth_context(
@@ -225,7 +225,7 @@ pub(super) async fn get_conversation_summary(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<projection_service::ConversationSummaryView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
     let summary = state
         .projection_service
@@ -243,7 +243,7 @@ pub(super) async fn get_member_directory(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<MemberDirectoryResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
     Ok(Json(MemberDirectoryResponse {
         items: state
@@ -257,7 +257,7 @@ pub(super) async fn get_pinned_messages(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<PinnedMessagesResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
     Ok(Json(PinnedMessagesResponse {
         items: state
@@ -271,7 +271,7 @@ pub(super) async fn get_message_interaction_summary(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<projection_service::MessageInteractionSummaryView>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_conversation_read_access(&state, &auth, conversation_id.as_str())?;
     let summary = state
         .projection_service

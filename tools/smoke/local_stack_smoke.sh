@@ -3,7 +3,7 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: bash tools/smoke/local_stack_smoke.sh [--base-url <url>] [--public-bearer-secret <secret>] [--bearer-token <token>]
+Usage: bash tools/smoke/local_stack_smoke.sh [--base-url <url>]
 
 Run a minimal local-stack smoke check against the local-minimal deployment profile.
 EOF
@@ -11,12 +11,7 @@ EOF
 
 DEFAULT_BASE_URL="http://127.0.0.1:18090"
 DEFAULT_HEALTH_URL="http://127.0.0.1:18090/healthz"
-DEFAULT_DOCKER_PUBLIC_BEARER_SECRET="local-minimal-public-dev-secret"
 base_url="$DEFAULT_BASE_URL"
-public_bearer_secret="${CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET:-}"
-bearer_token="${CRAW_CHAT_SMOKE_BEARER_TOKEN:-}"
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-LOCAL_CONFIG_FILE="${ROOT_DIR}/.runtime/local-minimal/config/local-minimal.env"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -26,22 +21,6 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       base_url="$2"
-      shift 2
-      ;;
-    --public-bearer-secret)
-      if [[ $# -lt 2 ]]; then
-        echo "--public-bearer-secret requires a value" >&2
-        exit 1
-      fi
-      public_bearer_secret="$2"
-      shift 2
-      ;;
-    --bearer-token)
-      if [[ $# -lt 2 ]]; then
-        echo "--bearer-token requires a value" >&2
-        exit 1
-      fi
-      bearer_token="$2"
       shift 2
       ;;
     -h|--help)
@@ -56,87 +35,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+APP_CONTEXT_HEADERS=(
+  "x-sdkwork-tenant-id: t_demo"
+  "x-sdkwork-user-id: u_demo"
+  "x-sdkwork-actor-id: u_demo"
+  "x-sdkwork-actor-kind: user"
+  "x-sdkwork-session-id: s_demo"
+  "x-sdkwork-device-id: d_demo"
+  "x-sdkwork-permission-scope: chat.write"
+)
 CONTENT_TYPE_HEADER="Content-Type: application/json"
-
-read_config_value() {
-  local key="$1"
-
-  if [[ ! -f "$LOCAL_CONFIG_FILE" ]]; then
-    return 1
-  fi
-
-  grep -E "^${key}=" "$LOCAL_CONFIG_FILE" \
-    | tail -n 1 \
-    | cut -d= -f2- \
-    | tr -d '\r'
-}
-
-have_openssl() {
-  command -v openssl >/dev/null 2>&1
-}
-
-base64url_encode() {
-  openssl base64 -A | tr '+/' '-_' | tr -d '='
-}
-
-normalize_bearer_header() {
-  local value="$1"
-
-  if [[ "$value" == Bearer\ * || "$value" == bearer\ * ]]; then
-    printf '%s' "$value"
-    return
-  fi
-
-  printf 'Bearer %s' "$value"
-}
-
-resolve_public_bearer_secret() {
-  local resolved="$public_bearer_secret"
-
-  if [[ -z "$resolved" ]]; then
-    resolved="$(read_config_value "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET" || true)"
-  fi
-
-  if [[ -z "$resolved" ]]; then
-    resolved="$DEFAULT_DOCKER_PUBLIC_BEARER_SECRET"
-  fi
-
-  printf '%s' "$resolved"
-}
-
-generate_hs256_bearer() {
-  local secret="$1"
-  local header_segment payload_segment signing_input signature_segment
-
-  if ! have_openssl; then
-    echo "openssl is required to generate HS256 smoke bearer tokens. Install openssl or pass --bearer-token." >&2
-    exit 1
-  fi
-
-  header_segment="$(printf '%s' '{"alg":"HS256","typ":"JWT"}' | base64url_encode)"
-  payload_segment="$(printf '%s' '{"tenant_id":"t_demo","sub":"u_demo","actor_kind":"user","sid":"s_demo"}' | base64url_encode)"
-  signing_input="${header_segment}.${payload_segment}"
-  signature_segment="$(
-    printf '%s' "$signing_input" \
-      | openssl dgst -binary -sha256 -hmac "$secret" \
-      | base64url_encode
-  )"
-
-  printf 'Bearer %s.%s' "$signing_input" "$signature_segment"
-}
-
-resolve_authorization_header() {
-  if [[ -n "$bearer_token" ]]; then
-    normalize_bearer_header "$bearer_token"
-    return
-  fi
-
-  local resolved_secret
-  resolved_secret="$(resolve_public_bearer_secret)"
-  generate_hs256_bearer "$resolved_secret"
-}
-
-AUTHORIZATION_HEADER="Authorization: $(resolve_authorization_header)"
 
 have_curl() {
   command -v curl >/dev/null 2>&1
@@ -146,20 +54,36 @@ have_wget() {
   command -v wget >/dev/null 2>&1
 }
 
+curl_app_context_args() {
+  local args=()
+  local header
+  for header in "${APP_CONTEXT_HEADERS[@]}"; do
+    args+=("-H" "$header")
+  done
+  printf '%s\n' "${args[@]}"
+}
+
+wget_app_context_args() {
+  local args=()
+  local header
+  for header in "${APP_CONTEXT_HEADERS[@]}"; do
+    args+=("--header=$header")
+  done
+  printf '%s\n' "${args[@]}"
+}
+
 http_get() {
   local url="$1"
 
   if have_curl; then
-    curl --fail --silent --show-error \
-      -H "$AUTHORIZATION_HEADER" \
-      "$url"
+    mapfile -t app_context_args < <(curl_app_context_args)
+    curl --fail --silent --show-error "${app_context_args[@]}" "$url"
     return
   fi
 
   if have_wget; then
-    wget -q -O - \
-      --header="$AUTHORIZATION_HEADER" \
-      "$url"
+    mapfile -t app_context_args < <(wget_app_context_args)
+    wget -q -O - "${app_context_args[@]}" "$url"
     return
   fi
 
@@ -172,9 +96,10 @@ http_post() {
   local body="$2"
 
   if have_curl; then
+    mapfile -t app_context_args < <(curl_app_context_args)
     curl --fail --silent --show-error \
       -X POST \
-      -H "$AUTHORIZATION_HEADER" \
+      "${app_context_args[@]}" \
       -H "$CONTENT_TYPE_HEADER" \
       -d "$body" \
       "$url"
@@ -182,9 +107,10 @@ http_post() {
   fi
 
   if have_wget; then
+    mapfile -t app_context_args < <(wget_app_context_args)
     wget -q -O - \
       --method=POST \
-      --header="$AUTHORIZATION_HEADER" \
+      "${app_context_args[@]}" \
       --header="$CONTENT_TYPE_HEADER" \
       --body-data="$body" \
       "$url"
@@ -236,15 +162,15 @@ create_body="$(cat <<EOF
 {"conversationId":"${conversation_id}","conversationType":"group"}
 EOF
 )"
-http_post "${base_url}/api/v1/conversations" "$create_body" >/dev/null
+http_post "${base_url}/im/v3/api/chat/conversations" "$create_body" >/dev/null
 
 message_body="$(cat <<'EOF'
 {"clientMsgId":"smoke_client","summary":"smoke","text":"smoke"}
 EOF
 )"
-http_post "${base_url}/api/v1/conversations/${conversation_id}/messages" "$message_body" >/dev/null
+http_post "${base_url}/im/v3/api/chat/conversations/${conversation_id}/messages" "$message_body" >/dev/null
 
-summary_response="$(http_get "${base_url}/api/v1/conversations/${conversation_id}")"
+summary_response="$(http_get "${base_url}/im/v3/api/chat/conversations/${conversation_id}")"
 summary_compact="$(printf '%s' "$summary_response" | normalize_json)"
 if [[ "$summary_compact" != *'"lastSummary":"smoke"'* ]]; then
   echo "Unexpected conversation summary payload" >&2

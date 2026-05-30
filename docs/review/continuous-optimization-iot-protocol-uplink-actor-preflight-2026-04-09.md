@@ -70,7 +70,7 @@
 ## 关键词冻结
 
 - `local-minimal-node`
-- `/api/v1/iot/protocol/uplink`
+- `/backend/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `ensure_iot_protocol_uplink_actor_preflight`

@@ -183,11 +183,6 @@ function Resolve-ImPassword {
     throw "No password was provided for login '$ResolvedLogin'. Supply -Login/-Password for non-seeded accounts."
 }
 
-function Resolve-PublicBearerSecret {
-    $configFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".runtime\local-minimal\config\local-minimal.env"
-    return Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"
-}
-
 function Get-HttpErrorDetail {
     param(
         [Parameter(Mandatory = $true)]
@@ -274,7 +269,7 @@ function Ensure-RtcSessionExistsForInvite {
         -ResolvedBaseUrl $ResolvedBaseUrl `
         -BearerToken $BearerToken `
         -Method "POST" `
-        -Path "/api/v1/rtc/sessions" `
+        -Path "/im/v3/api/rtc/sessions" `
         -Body ([ordered]@{
                 rtcSessionId = $RtcSessionId
                 conversationId = $ConversationId
@@ -488,7 +483,6 @@ function Invoke-ImUserLogin {
         SessionId = $ResolvedSessionId
         DeviceId = $ResolvedDeviceId
         BearerToken = $accessToken
-        PublicBearerSecret = $null
         AuthMode = "real-login"
     }
 }
@@ -506,7 +500,6 @@ function Resolve-ChatAuthContext {
             SessionId = $resolvedSessionId
             DeviceId = $resolvedDeviceId
             BearerToken = $BearerToken
-            PublicBearerSecret = $null
             AuthMode = "provided-bearer"
         }
         Write-Diagnostic "auth mode=provided-bearer"
@@ -534,7 +527,6 @@ function Resolve-ChatAuthContext {
         SessionId = $resolvedSessionId
         DeviceId = $resolvedDeviceId
         BearerToken = $null
-        PublicBearerSecret = $null
         AuthMode = "manual-login-pending"
     }
     Write-Diagnostic ("auth mode=" + [string]$script:resolvedAuthContext.AuthMode)
@@ -550,7 +542,7 @@ function New-ClientMessageId {
 
 function Get-ChatCliAuthArguments {
     $authContext = Resolve-ChatAuthContext
-    if ([string]::IsNullOrWhiteSpace([string]$authContext.BearerToken) -and [string]::IsNullOrWhiteSpace([string]$authContext.PublicBearerSecret)) {
+    if ([string]::IsNullOrWhiteSpace([string]$authContext.BearerToken)) {
         throw "manual login is required before sending chat or RTC requests"
     }
 
@@ -564,9 +556,6 @@ function Get-ChatCliAuthArguments {
 
     if (-not [string]::IsNullOrWhiteSpace([string]$authContext.BearerToken)) {
         $arguments += @("--bearer-token", [string]$authContext.BearerToken)
-    }
-    elseif (-not [string]::IsNullOrWhiteSpace([string]$authContext.PublicBearerSecret)) {
-        $arguments += @("--public-bearer-secret", [string]$authContext.PublicBearerSecret)
     }
 
     return $arguments
@@ -1030,7 +1019,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/api/v1/rtc/sessions" `
+                    -Path "/im/v3/api/rtc/sessions" `
                     -Body ([ordered]@{
                             rtcSessionId = $rtcSessionId
                             conversationId = $conversationIdValue
@@ -1048,7 +1037,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/api/v1/rtc/sessions/$rtcSessionId/invite" `
+                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/invite" `
                     -Body ([ordered]@{
                             signalingStreamId = $signalingStreamTextBox.Text.Trim()
                         })
@@ -1058,7 +1047,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/api/v1/rtc/sessions/$rtcSessionId/accept" `
+                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/accept" `
                     -Body ([ordered]@{
                             artifactMessageId = $artifactMessageTextBox.Text.Trim()
                         })
@@ -1068,7 +1057,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/api/v1/rtc/sessions/$rtcSessionId/reject" `
+                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/reject" `
                     -Body ([ordered]@{
                             artifactMessageId = $artifactMessageTextBox.Text.Trim()
                         })
@@ -1078,7 +1067,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/api/v1/rtc/sessions/$rtcSessionId/end" `
+                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/end" `
                     -Body ([ordered]@{
                             artifactMessageId = $artifactMessageTextBox.Text.Trim()
                         })
@@ -1094,7 +1083,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/api/v1/rtc/sessions/$rtcSessionId/signals" `
+                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/signals" `
                     -Body ([ordered]@{
                             signalType = $signalTypeTextBox.Text.Trim()
                             schemaRef = $schemaRefTextBox.Text.Trim()
@@ -1110,7 +1099,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/api/v1/rtc/sessions/$rtcSessionId/credentials" `
+                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/credentials" `
                     -Body ([ordered]@{
                             participantId = $participantId
                         })
@@ -1120,7 +1109,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "GET" `
-                    -Path "/api/v1/rtc/sessions/$rtcSessionId/artifacts/recording" `
+                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/artifacts/recording" `
                     -Body $null
             }
             default {
@@ -1286,7 +1275,7 @@ $sendCurrent = {
 [void]$form.Add_Shown({
     Write-Diagnostic "form shown"
     $authContext = Resolve-ChatAuthContext
-    if ([string]::IsNullOrWhiteSpace([string]$authContext.BearerToken) -and [string]::IsNullOrWhiteSpace([string]$authContext.PublicBearerSecret)) {
+    if ([string]::IsNullOrWhiteSpace([string]$authContext.BearerToken)) {
         & $setManualPendingState
     }
     else {
@@ -1297,7 +1286,7 @@ $sendCurrent = {
         $statusLabel.Text = "offline launch: $resolvedLabel @ $resolvedBaseUrl"
         Write-Diagnostic "skip-connect launch requested"
     }
-    elseif (-not [string]::IsNullOrWhiteSpace([string]$authContext.BearerToken) -or -not [string]::IsNullOrWhiteSpace([string]$authContext.PublicBearerSecret)) {
+    elseif (-not [string]::IsNullOrWhiteSpace([string]$authContext.BearerToken)) {
         & $refreshTimeline
         $refreshTimer.Start()
     }

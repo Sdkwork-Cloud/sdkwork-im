@@ -38,17 +38,17 @@
 
 ## 6. provider-policy 关键场景
 
-- `POST /api/v1/control/provider-bindings`
+- `POST /backend/v3/api/control/provider_bindings`
   - `invalid_provider_policy` -> `status=invalid`
   - `provider_policy_conflict` -> `status=conflict`
   - `provider_policy_write_unavailable` -> `status=unavailable`
-- `POST /api/v1/control/provider-policies/preview`
+- `POST /backend/v3/api/control/provider-policies/preview`
   - `provider_policy_preview_unavailable` -> `status=unavailable`
-- `GET /api/v1/control/provider-policies`
+- `GET /backend/v3/api/control/provider-policies`
   - `provider_policy_history_unavailable` -> `status=unavailable`
-- `GET /api/v1/control/provider-policies/diff`
+- `GET /backend/v3/api/control/provider-policies/diff`
   - `provider_policy_diff_unavailable` -> `status=unavailable`
-- `POST /api/v1/control/provider-policies/rollback`
+- `POST /backend/v3/api/control/provider-policies/rollback`
   - `provider_policy_rollback_unavailable` -> `status=unavailable`
 - 权限不足
   - `permission_denied` -> `status=forbidden`
@@ -71,4 +71,4 @@
 
 - provider-policy routes do not emit `status=not_found`
 - `unknown provider policy version` 表示同一条 provider-policy 版本流上的冲突，不是独立资源缺失
-- `GET /api/v1/control/provider-policies/diff` 与 `POST /api/v1/control/provider-policies/rollback` 命中未知版本时，保持 `provider_policy_conflict + status=conflict`
+- `GET /backend/v3/api/control/provider-policies/diff` 与 `POST /backend/v3/api/control/provider-policies/rollback` 命中未知版本时，保持 `provider_policy_conflict + status=conflict`

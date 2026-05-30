@@ -60,7 +60,7 @@ This preserves backward compatibility while giving commercial clients a stable t
 - `services/local-minimal-node/tests/http_e2e_test.rs`
   - strengthened `test_local_minimal_profile_fanouts_agent_handoff_lifecycle_realtime_events_to_other_device`
   - after verifying realtime fanout, now also queries:
-    - `/api/v1/devices/d_pad/sync-feed?afterSeq=0`
+    - `/im/v3/api/devices/d_pad/sync-feed?afterSeq=0`
   - asserts:
     - `originEventType`
     - `payloadSchema`

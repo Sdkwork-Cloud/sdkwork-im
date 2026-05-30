@@ -52,15 +52,15 @@ to the matching HTTP reference:
 
 | Transport concern | Generated transport focus today | Exact API reference |
 | --- | --- | --- |
-| Auth and portal shell reads | auth and portal route groups on `ImTransportClient` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Conversation lifecycle and handoff | conversation route groups on `ImTransportClient` | [Conversations](/api-reference/app/conversations) |
-| Membership and read cursors | conversation membership and read-state route groups | [Membership and Read State](/api-reference/app/membership-and-read-state) |
-| Message send payloads and timeline schemas | message route groups and DTOs | [Messages](/api-reference/app/messages) |
-| Upload and attachment lifecycle | media route groups and DTOs | [Media](/api-reference/app/media) |
-| Session, presence, and realtime coordination | session, presence, and realtime route groups | [Session and Realtime](/api-reference/app/session-and-realtime) |
-| Device registration and sync feeds | device route groups | [Device Sync](/api-reference/app/device-sync) |
-| RTC lifecycle and signaling-side HTTP operations | rtc route groups | [RTC](/api-reference/app/rtc) |
-| Stream ingestion and checkpoints | stream route groups | [Streams](/api-reference/app/streams) |
+| SDKWork appbase credential pass-through and portal reads | generated token hooks and portal route groups on `ImTransportClient` | [Portal Access](/api-reference/app/portal-access) |
+| Conversation lifecycle and handoff | conversation route groups on `ImTransportClient` | [Conversations](/api-reference/im/conversations) |
+| Membership and read cursors | conversation membership and read-state route groups | [Membership and Read State](/api-reference/im/membership-and-read-state) |
+| Message send payloads and timeline schemas | message route groups and DTOs | [Messages](/api-reference/im/messages) |
+| Upload and attachment lifecycle | media route groups and DTOs | [Media](/api-reference/im/media) |
+| Device Sessions, presence, and realtime coordination | session, presence, and realtime route groups | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
+| Device registration and sync feeds | device route groups | [Device Sync](/api-reference/im/device-sync) |
+| RTC lifecycle and signaling-side HTTP operations | rtc route groups | [RTC](/api-reference/im/rtc) |
+| Stream ingestion and checkpoints | stream route groups | [Streams](/api-reference/im/streams) |
 
 This keeps the C# page precise: the repo-standard delivery today is transport-first, so the API
 reference plus `generated/server-openapi/README.md` remains the exact route authority until a
@@ -121,8 +121,8 @@ C# workspace wrappers:
   between `generated/server-openapi` and `composed`.
 - Read [TypeScript SDK](/sdk/typescript-sdk) when you need the current semantic baseline rather
   than the C# transport-first workspace.
-- Read [Portal and Auth](/api-reference/app/portal-and-auth), [Conversations](/api-reference/app/conversations),
-  and [Messages](/api-reference/app/messages) when you need the exact HTTP contract behind the
+- Read [Portal Access](/api-reference/app/portal-access), [Conversations](/api-reference/im/conversations),
+  and [Messages](/api-reference/im/messages) when you need the exact HTTP contract behind the
   generated C# transport.
-- Read [Session and Realtime](/api-reference/app/session-and-realtime) and [RTC](/api-reference/app/rtc)
+- Read [Device Sessions and Realtime](/api-reference/im/session-and-realtime) and [RTC](/api-reference/im/rtc)
   when you need the route-level transport contract for live coordination and RTC workflows.

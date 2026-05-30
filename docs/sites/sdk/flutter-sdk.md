@@ -36,7 +36,7 @@ The checked-in Flutter standard is:
 | Composed client | `im_sdk` | `package:im_sdk/im_sdk.dart` | `ImSdkClient`, semantic app modules, helper builders | You want a higher-level client for the app runtime surface |
 
 For most Flutter app integrations, start from `package:im_sdk/im_sdk.dart`.
-`im_sdk` is the official app-facing package and re-exports `im_sdk_generated`, so generated
+`im_sdk` is the official IM consumer package and re-exports `im_sdk_generated`, so generated
 models and low-level route groups remain available without making `im_sdk_generated` the first package
 most teams import.
 
@@ -59,10 +59,10 @@ import 'package:im_sdk_generated/im_sdk_generated.dart';
 
 final client = ImTransportClient.withBaseUrl(
   baseUrl: 'http://127.0.0.1:18090',
-  authToken: 'your-bearer-token',
+  authToken: 'sdkwork-appbase-credential',
 );
 
-await client.auth.me();
+final presence = await client.presence.getPresenceMe();
 final workspace = await client.portal.getWorkspace();
 final inbox = await client.inbox.getInbox();
 ```
@@ -70,9 +70,8 @@ final inbox = await client.inbox.getInbox();
 The checked-in generated Flutter client currently exports these route groups through
 `ImTransportClient`:
 
-- `auth`
 - `portal`
-- `session`
+- `deviceSessions`
 - `presence`
 - `realtime`
 - `device`
@@ -90,10 +89,10 @@ import 'package:im_sdk/im_sdk.dart';
 
 final sdk = ImSdkClient.create(
   baseUrl: 'http://127.0.0.1:18090',
-  authToken: 'your-bearer-token',
+  authToken: 'sdkwork-appbase-credential',
 );
 
-await sdk.auth.me();
+// Tokens are issued by sdkwork-appbase and passed into Craw Chat.
 final workspace = await sdk.portal.getWorkspace();
 
 await sdk.conversations.postText(
@@ -130,9 +129,9 @@ await sdk.rtc.postJsonSignal(
 
 The composed Flutter client currently exposes:
 
-- `sdk.auth`
+- `authToken`
 - `sdk.portal`
-- `sdk.session`
+- `sdk.deviceSessions`
 - `sdk.presence`
 - `sdk.realtime`
 - `sdk.devices`
@@ -177,18 +176,17 @@ await sdk.media.attachText(
 );
 ```
 
-That is the standard presigned upload session flow documented in [Media](/api-reference/app/media).
+That is the standard presigned upload session flow documented in [Media](/api-reference/im/media).
 
 ## Current Surface Reality
 
 The checked-in Dart surface is intentionally narrower than the TypeScript SDK:
 
-- `im_sdk` re-exports `im_sdk_generated`, the generated package root exports `AuthApi` and
-  `PortalApi`, `ImTransportClient` mounts `client.auth` and `client.portal`, and
-  `ImSdkClient` exposes `sdk.auth` and `sdk.portal`.
-- `sdk.auth.login(...)` automatically applies the returned `accessToken` when present, while
-  `sdk.auth.useToken(...)`, `sdk.auth.clearToken()`, and `sdk.auth.me()` give the composed layer a
-  standard auth workflow.
+- `im_sdk` re-exports `im_sdk_generated`, the generated package root exports `PortalApi`,
+  `ImTransportClient` mounts `client.portal` and `client.deviceSessions`, and `ImSdkClient`
+  exposes `sdk.portal`, `sdk.deviceSessions`, and `sdk.setAuthToken(...)`.
+- Tokens are issued by `sdkwork-appbase`; Flutter consumers pass them through `authToken` at
+  construction time or update them with `sdk.setAuthToken(...)`.
 - The Flutter runtime is WebSocket-first for interactive realtime delivery through
   `sdk.connect(...)` and the delivered adapter in `im_sdk`.
 - The generated transport and `sdk.realtime.*` modules still expose explicit HTTP coordination
@@ -209,7 +207,7 @@ The checked-in Dart surface is intentionally narrower than the TypeScript SDK:
 final sdk = ImSdkClient.create(
   baseUrl: 'https://api.example.com',
   websocketBaseUrl: 'wss://realtime.example.com',
-  authToken: 'your-bearer-token',
+  authToken: 'sdkwork-appbase-credential',
 );
 
 final live = await sdk.connect(
@@ -238,8 +236,8 @@ transport package.
 
 `ImWebSocketAuthOptions.automatic()` is the standard default:
 
-- Flutter mobile and desktop use bearer authentication in the WebSocket upgrade header
-- Flutter Web falls back to query bearer auth because the browser runtime cannot attach custom
+- Flutter mobile and desktop pass SDKWork credentials in the WebSocket upgrade header
+- Flutter Web falls back to a query credential because the browser runtime cannot attach custom
   upgrade headers through the default connector
 - Flutter Web should prefer `credentialProvider` with a short-lived realtime ticket or exchanged
   query credential when the gateway supports it
@@ -249,16 +247,17 @@ transport package.
 
 | Concern | Generated transport | Composed client | Primary HTTP reference |
 | --- | --- | --- | --- |
-| Portal auth | `client.auth` | `sdk.auth` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Portal snapshots | `client.portal` | `sdk.portal` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Session, presence, realtime | `client.session`, `client.presence`, `client.realtime` | `sdk.session`, `sdk.presence`, `sdk.realtime` | [Session and Realtime](/api-reference/app/session-and-realtime) |
-| Device sync | `client.device` | `sdk.devices` | [Device Sync](/api-reference/app/device-sync) |
-| Inbox and conversations | `client.inbox`, `client.conversation` | `sdk.inbox`, `sdk.conversations` | [Conversations and Handoff](/api-reference/app/conversations) |
-| Membership and read state | `client.conversation` | `sdk.conversations` | [Membership and Read State](/api-reference/app/membership-and-read-state) |
-| Messages | `client.message` | `sdk.messages`, `sdk.conversations` helpers | [Messages](/api-reference/app/messages) |
-| Media | `client.media` | `sdk.media` | [Media](/api-reference/app/media) |
-| Streams | `client.stream` | `sdk.streams` | [Streams](/api-reference/app/streams) |
-| RTC | `client.rtc` | `sdk.rtc` | [RTC](/api-reference/app/rtc) |
+| SDKWork credential pass-through | `client.setAuthToken(...)` | `sdk.setAuthToken(...)` | [Portal Access](/api-reference/app/portal-access) |
+| Portal access | `client.portal` | `sdk.portal` | [Portal Access](/api-reference/app/portal-access) |
+| Portal snapshots | `client.portal` | `sdk.portal` | [Portal Access](/api-reference/app/portal-access) |
+| Device Sessions, presence, realtime | `client.deviceSessions`, `client.presence`, `client.realtime` | `sdk.deviceSessions`, `sdk.presence`, `sdk.realtime` | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
+| Device sync | `client.device` | `sdk.devices` | [Device Sync](/api-reference/im/device-sync) |
+| Inbox and conversations | `client.inbox`, `client.conversation` | `sdk.inbox`, `sdk.conversations` | [Conversations and Handoff](/api-reference/im/conversations) |
+| Membership and read state | `client.conversation` | `sdk.conversations` | [Membership and Read State](/api-reference/im/membership-and-read-state) |
+| Messages | `client.message` | `sdk.messages`, `sdk.conversations` helpers | [Messages](/api-reference/im/messages) |
+| Media | `client.media` | `sdk.media` | [Media](/api-reference/im/media) |
+| Streams | `client.stream` | `sdk.streams` | [Streams](/api-reference/im/streams) |
+| RTC | `client.rtc` | `sdk.rtc` | [RTC](/api-reference/im/rtc) |
 
 ## Current Parity Gap
 
@@ -275,7 +274,7 @@ This page intentionally documents the checked-in exported surface, not only the 
 
 The corresponding HTTP surface is still documented in:
 
-- [Portal and Auth](/api-reference/app/portal-and-auth)
+- [Portal Access](/api-reference/app/portal-access)
 - [App API Overview](/api-reference/app-api)
 
 If your product needs the richer message-first outbound surface, the current documented fallback is
@@ -295,8 +294,8 @@ semantic helpers with explicit generated request types.
 
 ## Auth And Transport Rules
 
-- Public auth is bearer-token only.
-- Prefer `sdk.auth.useToken(...)` and `sdk.auth.clearToken()` at the composed layer.
+- Public auth is SDKWork appbase based.
+- Prefer constructor `authToken` or `sdk.setAuthToken(...)` at the composed layer.
 - `setAuthToken()` remains available on `ImTransportClient` and `ImSdkClient` for low-level
   fallback control.
 - The WebSocket endpoint is documented at the API layer and the delivered WebSocket adapter now
@@ -336,7 +335,7 @@ layers aligned:
 Recommended local loop:
 
 1. Run generation and verification from the Flutter workspace root.
-2. Start app-facing integration work from `composed` and `package:im_sdk/im_sdk.dart`.
+2. Start IM consumer integration work from `composed` and `package:im_sdk/im_sdk.dart`.
 3. Drop to `generated/server-openapi` only when you intentionally want the standalone generated
    transport boundary or raw generated request and response models.
 4. Mirror the same `dependency_overrides` structure in any local consumer app, adjusting the paths
@@ -400,7 +399,7 @@ process in the current environment.
 
 ## Source-of-Truth Notes
 
-- Authority contract: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
+- Authority contract: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
 - Generated transport manifest: `sdkwork-im-sdk-flutter/generated/server-openapi/pubspec.yaml`
 - Composed package manifest: `sdkwork-im-sdk-flutter/composed/pubspec.yaml`
 - Assembly metadata: `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
@@ -410,5 +409,5 @@ process in the current environment.
 - Read [App SDK](/sdk/app-sdk) for family-wide audience, release, and contract-source rules.
 - Read [Language Support](/sdk/language-support) for the current TypeScript versus Flutter parity
   snapshot.
-- Read [Portal and Auth](/api-reference/app/portal-and-auth) when you need the underlying HTTP
-  contract behind `client.auth`, `client.portal`, `sdk.auth`, and `sdk.portal`.
+- Read [Portal Access](/api-reference/app/portal-access) when you need the underlying HTTP
+  contract behind `client.setAuthToken(...)`, `client.portal`, `authToken`, and `sdk.portal`.

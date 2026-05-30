@@ -1,7 +1,7 @@
 # 150P control-plane provider snapshot status 设计
 ## 1. 背景
 
-`07-C10` 到 `07-C12` 已经把 provider-policy 的 success/error 路径都补齐显式 `status`，但 `GET /api/v1/control/provider-registry` 与 `GET /api/v1/control/provider-bindings` 仍然没有统一状态语义。这样 provider control-plane 仍然存在一小块读面不一致。
+`07-C10` 到 `07-C12` 已经把 provider-policy 的 success/error 路径都补齐显式 `status`，但 `GET /backend/v3/api/control/provider-registry` 与 `GET /backend/v3/api/control/provider_bindings` 仍然没有统一状态语义。这样 provider control-plane 仍然存在一小块读面不一致。
 
 ## 2. 目标
 
@@ -17,9 +17,9 @@
 
 ## 4. HTTP 面
 
-- `GET /api/v1/control/provider-registry`
+- `GET /backend/v3/api/control/provider-registry`
   - 返回 `status=registry`
-- `GET /api/v1/control/provider-bindings`
+- `GET /backend/v3/api/control/provider_bindings`
   - 返回 `status=bindings`
 
 原有字段继续平铺：

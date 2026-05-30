@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn post_message_with_side_effects(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: String,
     client_msg_id: Option<String>,
     message_type: MessageType,
@@ -22,7 +22,7 @@ pub(super) fn post_message_with_side_effects(
         .post_message(PostMessageCommand {
             tenant_id: auth.tenant_id.clone(),
             conversation_id: conversation_id.clone(),
-            sender: user_module::resolve_sender_from_auth_context(state, auth)?,
+            sender: principal_profile::resolve_sender_from_auth_context(state, auth)?,
             client_msg_id,
             message_type,
             body,
@@ -40,7 +40,7 @@ pub(super) fn post_message_with_side_effects(
 
 pub(super) fn publish_system_channel_message_with_side_effects(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: String,
     client_msg_id: Option<String>,
     body: MessageBody,
@@ -51,7 +51,7 @@ pub(super) fn publish_system_channel_message_with_side_effects(
         PublishSystemChannelMessageCommand {
             tenant_id: auth.tenant_id.clone(),
             conversation_id: conversation_id.clone(),
-            publisher: user_module::resolve_sender_from_auth_context(state, auth)?,
+            publisher: principal_profile::resolve_sender_from_auth_context(state, auth)?,
             client_msg_id,
             body,
         },
@@ -69,7 +69,7 @@ pub(super) fn publish_system_channel_message_with_side_effects(
 
 fn finalize_post_message_with_side_effects(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: String,
     message_type_name: &str,
     summary: Option<String>,
@@ -215,7 +215,7 @@ fn finalize_post_message_with_side_effects(
 
 fn record_message_side_effect_store_failure(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
     message_id: &str,
     message_seq: u64,
@@ -236,7 +236,7 @@ fn record_message_side_effect_store_failure(
 
 fn record_message_side_effect_failure(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
     message_id: &str,
     message_seq: u64,
@@ -273,7 +273,7 @@ fn record_message_side_effect_failure(
 #[allow(clippy::too_many_arguments)]
 fn fanout_message_notifications(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
     message_id: &str,
     message_seq: u64,
@@ -371,7 +371,7 @@ fn fanout_message_notifications(
 
 pub(super) fn publish_realtime_conversation_message_event(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
     event_type: &str,
     payload: String,
@@ -391,7 +391,7 @@ pub(super) fn publish_realtime_conversation_message_event(
 
 pub(super) fn publish_realtime_event_to_scope(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     scope_type: &str,
     scope_id: &str,
     event_type: &str,
@@ -412,7 +412,7 @@ pub(super) fn publish_realtime_event_to_scope(
 
 pub(super) fn publish_realtime_membership_event(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
     event_type: &str,
     payload: String,
@@ -434,7 +434,7 @@ pub(super) fn publish_realtime_membership_event(
 
 pub(super) fn publish_realtime_agent_handoff_status_changed_event(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     previous_state: &AgentHandoffStateView,
     current_state: &AgentHandoffStateView,
 ) -> Result<(), ApiError> {
@@ -471,7 +471,7 @@ pub(super) fn publish_realtime_agent_handoff_status_changed_event(
 
 pub(super) fn publish_realtime_stream_frame_event(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     frame: &im_domain_core::stream::StreamFrame,
 ) -> Result<(), ApiError> {
     let recipients = stream_target_principal_recipients(
@@ -502,7 +502,7 @@ pub(super) fn publish_realtime_stream_frame_event(
 
 pub(super) fn publish_realtime_stream_lifecycle_event(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     session: &im_domain_core::stream::StreamSession,
     event_type: &str,
     reason: Option<String>,
@@ -539,7 +539,7 @@ pub(super) fn publish_realtime_stream_lifecycle_event(
 
 fn stream_target_principal_recipients(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     scope_kind: &str,
     scope_id: &str,
 ) -> Result<BTreeSet<NotificationRecipientView>, ApiError> {
@@ -555,7 +555,7 @@ fn stream_target_principal_recipients(
 
 pub(super) fn conversation_member_principal_recipients_from_auth_context(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
 ) -> Result<BTreeSet<NotificationRecipientView>, ApiError> {
     Ok(state
@@ -567,7 +567,7 @@ pub(super) fn conversation_member_principal_recipients_from_auth_context(
 
 fn publish_realtime_event_to_recipients(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     recipients: BTreeSet<NotificationRecipientView>,
     scope_type: &str,
     scope_id: &str,
@@ -658,7 +658,7 @@ pub(super) fn build_message_body(
 
 pub(super) fn emit_rtc_signal_message(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     session: &im_domain_core::rtc::RtcSession,
     signal_type: &'static str,
 ) -> Result<(), ApiError> {
@@ -697,7 +697,7 @@ pub(super) fn emit_rtc_signal_message(
 
 pub(super) fn emit_rtc_custom_signal_message(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     signal: &im_domain_core::rtc::RtcSignalEvent,
 ) -> Result<(), ApiError> {
     let Some(conversation_id) = signal.conversation_id.clone() else {
@@ -740,7 +740,7 @@ pub(super) fn emit_rtc_custom_signal_message(
 
 pub(super) fn record_membership_audit(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
     action: &str,
     member: &ConversationMember,
@@ -768,7 +768,7 @@ pub(super) fn record_membership_audit(
 
 pub(super) fn record_owner_transfer_audit(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
     transfer: &TransferConversationOwnerResult,
 ) {
@@ -800,7 +800,7 @@ pub(super) fn record_owner_transfer_audit(
 
 pub(super) fn record_member_role_change_audit(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
     change: &ChangeConversationMemberRoleResult,
 ) {

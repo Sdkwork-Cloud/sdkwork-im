@@ -14,10 +14,10 @@ async fn test_create_complete_and_get_media_asset_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -79,10 +79,10 @@ async fn test_create_complete_and_get_media_asset_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads/ma_demo/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads/ma_demo/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -121,10 +121,10 @@ async fn test_create_complete_and_get_media_asset_over_http() {
     let get_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/media/ma_demo")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/ma_demo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -154,10 +154,10 @@ async fn test_media_asset_timestamps_advance_between_create_and_complete_request
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -197,10 +197,10 @@ async fn test_media_asset_timestamps_advance_between_create_and_complete_request
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -240,10 +240,10 @@ async fn test_media_asset_timestamps_advance_between_create_and_complete_request
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads/ma_time_one/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads/ma_time_one/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -277,10 +277,10 @@ async fn test_media_asset_timestamps_advance_between_create_and_complete_request
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads/ma_time_two/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads/ma_time_two/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -322,10 +322,10 @@ async fn test_duplicate_create_upload_rejects_conflicting_resource_for_same_owne
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -350,10 +350,10 @@ async fn test_duplicate_create_upload_rejects_conflicting_resource_for_same_owne
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -394,10 +394,10 @@ async fn test_duplicate_complete_upload_rejects_conflicting_storage_target() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -423,10 +423,10 @@ async fn test_duplicate_complete_upload_rejects_conflicting_storage_target() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads/ma_conflicting_complete/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads/ma_conflicting_complete/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -447,10 +447,10 @@ async fn test_duplicate_complete_upload_rejects_conflicting_storage_target() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads/ma_conflicting_complete/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads/ma_conflicting_complete/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -499,10 +499,10 @@ async fn test_duplicate_media_upload_requests_expose_delivery_proof_over_http() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(create_request))
                 .unwrap(),
@@ -529,10 +529,10 @@ async fn test_duplicate_media_upload_requests_expose_delivery_proof_over_http() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(create_request))
                 .unwrap(),
@@ -571,10 +571,10 @@ async fn test_duplicate_media_upload_requests_expose_delivery_proof_over_http() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads/ma_delivery_proof/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads/ma_delivery_proof/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(complete_request))
                 .unwrap(),
@@ -600,10 +600,10 @@ async fn test_duplicate_media_upload_requests_expose_delivery_proof_over_http() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads/ma_delivery_proof/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads/ma_delivery_proof/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(complete_request))
                 .unwrap(),
@@ -652,10 +652,10 @@ async fn test_create_upload_rejects_oversized_media_asset_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -689,10 +689,10 @@ async fn test_complete_upload_rejects_oversized_object_key_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -727,10 +727,10 @@ async fn test_complete_upload_rejects_oversized_object_key_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads/ma_oversized_object_key/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads/ma_oversized_object_key/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -765,11 +765,11 @@ async fn test_complete_upload_rejects_oversized_path_media_asset_id_over_http() 
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/api/v1/media/uploads/{oversized_media_asset_id}/complete"
+                    "/im/v3/api/media/uploads/{oversized_media_asset_id}/complete"
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

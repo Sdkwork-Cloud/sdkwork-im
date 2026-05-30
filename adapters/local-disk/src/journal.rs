@@ -161,6 +161,10 @@ impl CommitJournal for FileCommitJournal {
             self.append_events_unlocked(envelopes.as_slice())
         })
     }
+
+    fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
+        FileCommitJournal::recorded(self)
+    }
 }
 
 pub fn read_commit_journal_file(

@@ -9,44 +9,42 @@ export const overviewItems = [
   { text: "API Overview", link: "/api-reference/index" },
   { text: "Gateway OpenAPI", link: "/api-reference/gateway-openapi" },
   { text: "Authentication and Errors", link: "/api-reference/auth-and-errors" },
+  { text: "IM Standard API Overview", link: "/api-reference/im-api" },
   { text: "App API Overview", link: "/api-reference/app-api" },
-  { text: "Platform API Overview", link: "/api-reference/platform-api" },
-  { text: "IoT API Overview", link: "/api-reference/iot-api" },
-  { text: "Control Plane Overview", link: "/api-reference/control-plane-api" },
+  { text: "Backend API Overview", link: "/api-reference/backend-api" },
+  { text: "Control Module Overview", link: "/api-reference/control-plane-api" },
 ];
 
 export const groupedPages = [
   {
+    text: "IM Standard API",
+    pages: [
+      { text: "Device Sessions and Realtime", link: "/api-reference/im/session-and-realtime" },
+      { text: "Device Sync", link: "/api-reference/im/device-sync" },
+      { text: "Conversations and Handoff", link: "/api-reference/im/conversations" },
+      { text: "Membership and Read State", link: "/api-reference/im/membership-and-read-state" },
+      { text: "Messages", link: "/api-reference/im/messages" },
+      { text: "Media", link: "/api-reference/im/media" },
+      { text: "Streams", link: "/api-reference/im/streams" },
+      { text: "RTC Signaling", link: "/api-reference/im/rtc" },
+    ],
+  },
+  {
     text: "App API",
     pages: [
-      { text: "Portal and Auth", link: "/api-reference/app/portal-and-auth" },
-      { text: "Session and Realtime", link: "/api-reference/app/session-and-realtime" },
-      { text: "Device Sync", link: "/api-reference/app/device-sync" },
-      { text: "Conversations and Handoff", link: "/api-reference/app/conversations" },
-      { text: "Membership and Read State", link: "/api-reference/app/membership-and-read-state" },
-      { text: "Messages", link: "/api-reference/app/messages" },
-      { text: "Media", link: "/api-reference/app/media" },
-      { text: "Streams", link: "/api-reference/app/streams" },
-      { text: "RTC", link: "/api-reference/app/rtc" },
+      { text: "Portal Access", link: "/api-reference/app/portal-access" },
+      { text: "Device Twin", link: "/api-reference/app/device-twin" },
+      { text: "Notifications", link: "/api-reference/app/notifications" },
+      { text: "Automation", link: "/api-reference/app/automation" },
+      { text: "Provider Health", link: "/api-reference/app/provider-health" },
+      { text: "IoT Protocol and Health", link: "/api-reference/app/iot-protocol-and-health" },
     ],
   },
   {
-    text: "Platform API",
+    text: "Backend API",
     pages: [
-      { text: "Notifications", link: "/api-reference/platform/notifications" },
-      { text: "Automation", link: "/api-reference/platform/automation" },
-      { text: "Audit", link: "/api-reference/platform/audit" },
-      { text: "Operations", link: "/api-reference/platform/ops" },
-      { text: "Provider Health", link: "/api-reference/platform/provider-health" },
-    ],
-  },
-  {
-    text: "IoT API",
-    pages: [{ text: "Protocol and Health", link: "/api-reference/iot/protocol-and-health" }],
-  },
-  {
-    text: "Control Plane API",
-    pages: [
+      { text: "Audit", link: "/api-reference/backend/audit" },
+      { text: "Operations", link: "/api-reference/backend/ops" },
       { text: "Protocol Governance", link: "/api-reference/control-plane/protocol" },
       { text: "Provider Governance", link: "/api-reference/control-plane/providers" },
       { text: "Social Graph Control", link: "/api-reference/control-plane/social" },
@@ -57,14 +55,10 @@ export const groupedPages = [
 ];
 
 export const pageOperationGroups = {
-  "/api-reference/app/portal-and-auth": [
-    {
-      text: "Authentication",
-      anchors: ["login", "me"],
-    },
+  "/api-reference/app/portal-access": [
     {
       text: "Public Portal Snapshots",
-      anchors: ["get-home", "get-auth"],
+      anchors: ["get-home", "get-access"],
     },
     {
       text: "Authenticated Portal Views",
@@ -79,9 +73,9 @@ export const pageOperationGroups = {
       ],
     },
   ],
-  "/api-reference/app/session-and-realtime": [
+  "/api-reference/im/session-and-realtime": [
     { text: "Health and Probes", anchors: ["get-healthz", "get-readyz"] },
-    { text: "Session Lifecycle", anchors: ["resume-session", "disconnect-session"] },
+    { text: "Device Route Lifecycle", anchors: ["resume-session", "disconnect-session"] },
     { text: "Presence", anchors: ["heartbeat-presence", "get-presence-me"] },
     {
       text: "Realtime Delivery",
@@ -93,11 +87,11 @@ export const pageOperationGroups = {
       ],
     },
   ],
-  "/api-reference/app/device-sync": [
+  "/api-reference/im/device-sync": [
     { text: "Registration", anchors: ["register-device"] },
     { text: "Projection Sync Feed", anchors: ["get-device-sync-feed"] },
   ],
-  "/api-reference/app/conversations": [
+  "/api-reference/im/conversations": [
     {
       text: "Inbox and Provisioning",
       anchors: [
@@ -122,7 +116,7 @@ export const pageOperationGroups = {
       ],
     },
   ],
-  "/api-reference/app/membership-and-read-state": [
+  "/api-reference/im/membership-and-read-state": [
     {
       text: "Membership",
       anchors: [
@@ -136,7 +130,7 @@ export const pageOperationGroups = {
     },
     { text: "Read Cursor", anchors: ["get-read-cursor", "update-read-cursor"] },
   ],
-  "/api-reference/app/messages": [
+  "/api-reference/im/messages": [
     { text: "Timeline Read", anchors: ["get-timeline"] },
     {
       text: "Message Submission and Mutation",
@@ -148,7 +142,7 @@ export const pageOperationGroups = {
       ],
     },
   ],
-  "/api-reference/app/media": [
+  "/api-reference/im/media": [
     {
       text: "Upload Lifecycle",
       anchors: ["create-media-upload", "complete-media-upload"],
@@ -156,16 +150,16 @@ export const pageOperationGroups = {
     { text: "Asset Access", anchors: ["get-media", "get-media-download-url"] },
     { text: "Conversation Attachment", anchors: ["attach-media"] },
   ],
-  "/api-reference/app/streams": [
+  "/api-reference/im/streams": [
     {
-      text: "Session Lifecycle",
+      text: "Stream Lifecycle",
       anchors: ["open-stream", "checkpoint-stream", "complete-stream", "abort-stream"],
     },
     { text: "Frame Transport", anchors: ["append-stream-frame", "list-stream-frames"] },
   ],
-  "/api-reference/app/rtc": [
+  "/api-reference/im/rtc": [
     {
-      text: "Session Lifecycle",
+      text: "RTC Lifecycle",
       anchors: [
         "create-rtc-session",
         "invite-rtc-session",
@@ -175,38 +169,55 @@ export const pageOperationGroups = {
       ],
     },
     { text: "Signals and Credentials", anchors: ["post-rtc-signal", "issue-rtc-participant-credential"] },
-    { text: "Artifacts and Provider Integration", anchors: ["get-rtc-recording-artifact", "map-rtc-provider-callback"] },
+    { text: "Artifacts", anchors: ["get-rtc-recording-artifact"] },
   ],
-  "/api-reference/platform/notifications": [
+  "/api-reference/app/notifications": [
     { text: "Submission", anchors: ["request-notification"] },
     { text: "Read Models", anchors: ["list-notifications", "get-notification"] },
   ],
-  "/api-reference/platform/automation": [
-    { text: "Executions", anchors: ["request-automation-execution", "get-automation-execution"] },
+  "/api-reference/app/device-twin": [
+    { text: "Read Model", anchors: ["get-device-twin"] },
+    { text: "State Mutation", anchors: ["update-device-twin-desired", "update-device-twin-reported"] },
   ],
-  "/api-reference/platform/audit": [
-    { text: "Write", anchors: ["record-audit-anchor"] },
+  "/api-reference/app/automation": [
+    { text: "Executions", anchors: ["request-automation-execution", "get-automation-execution"] },
     {
-      text: "Read, Export, and Verify",
-      anchors: ["list-audit-records", "export-audit-bundle", "verify-audit-chain"],
+      text: "Agent Responses",
+      anchors: [
+        "start-agent-response",
+        "append-agent-response-frame",
+        "complete-agent-response",
+      ],
+    },
+    {
+      text: "Agent Tool Calls",
+      anchors: ["request-agent-tool-call", "complete-agent-tool-call"],
     },
   ],
-  "/api-reference/platform/ops": [
+  "/api-reference/backend/audit": [
+    { text: "Write", anchors: ["record-audit-anchor"] },
+    {
+      text: "Read and Export",
+      anchors: ["list-audit-records", "verify-audit-chain", "export-audit-bundle"],
+    },
+  ],
+  "/api-reference/backend/ops": [
     { text: "Health and Topology", anchors: ["get-ops-health", "get-ops-cluster", "get-ops-lag", "get-ops-replay-status"] },
     { text: "Runtime and Provider Mirrors", anchors: ["get-ops-runtime-dir", "get-ops-provider-bindings", "get-ops-provider-binding-drift"] },
     { text: "Diagnostics", anchors: ["get-ops-diagnostics"] },
   ],
-  "/api-reference/platform/provider-health": [
+  "/api-reference/app/provider-health": [
     {
       text: "Provider Probes",
       anchors: [
         "get-media-provider-health",
         "get-rtc-provider-health",
-        "get-user-module-provider-health",
+        "get-principal-profile-provider-health",
+        "map-rtc-provider-callback",
       ],
     },
   ],
-  "/api-reference/iot/protocol-and-health": [
+  "/api-reference/app/iot-protocol-and-health": [
     {
       text: "Provider Health",
       anchors: ["get-iot-access-provider-health", "get-iot-protocol-provider-health"],
@@ -302,7 +313,11 @@ export function formatOperationText(operationTitle) {
   }
 
   const [, method, route] = match;
-  const cleanRoute = route.startsWith("/api/v1") ? route.slice("/api/v1".length) || "/" : route;
+  const cleanRoute = route
+    .replace(/^\/im\/v3\/api/, "")
+    .replace(/^\/app\/v3\/api/, "")
+    .replace(/^\/backend\/v3\/api/, "")
+    .replace(/^\/api\/v1/, "") || "/";
   return `${method} ${cleanRoute}`;
 }
 

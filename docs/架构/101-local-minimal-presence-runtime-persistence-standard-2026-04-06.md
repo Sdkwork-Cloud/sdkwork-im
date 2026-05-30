@@ -65,15 +65,15 @@ Default unmanaged/in-process builders may continue to use a memory-backed store.
 
 ## 6. Recovery Rule
 
-`SessionPresenceRuntime` must restore presence lazily on access.
+`DevicePresenceRuntime` must restore presence lazily on access.
 
 Typical sequences:
 
 1. process restarts with the same runtime dir
 2. a client calls:
-   - `GET /api/v1/presence/me`
-   - `POST /api/v1/presence/heartbeat`
-   - `POST /api/v1/sessions/resume`
+   - `GET /im/v3/api/presence/me`
+   - `POST /im/v3/api/presence/heartbeat`
+   - `POST /im/v3/api/device/sessions/resume`
 3. runtime loads persisted state for `tenant + principal`
 4. restored records become in-memory runtime entries
 5. the operation continues against restored state
@@ -107,7 +107,7 @@ This includes flows such as:
 - `register_device`
 - equivalent device bootstrap paths that are not `session.resume`
 
-Only a successful `POST /api/v1/sessions/resume` may clear the restart-time resume requirement.
+Only a successful `POST /im/v3/api/device/sessions/resume` may clear the restart-time resume requirement.
 
 ## 9. Mutation Contract
 
@@ -142,7 +142,7 @@ The platform must fail closed instead of silently degrading to empty or misleadi
 Regression coverage must prove:
 
 1. the local file adapter persists presence state across reopen
-2. a fresh `SessionPresenceRuntime` with the same store restores previous device state as `offline`
+2. a fresh `DevicePresenceRuntime` with the same store restores previous device state as `offline`
 3. restored `online` entries require a fresh resume before heartbeat succeeds
 4. a managed `local-minimal` rebuild with the same runtime dir restores device inventory and timestamps
 5. the managed profile writes `presence-state.json` under the runtime state dir

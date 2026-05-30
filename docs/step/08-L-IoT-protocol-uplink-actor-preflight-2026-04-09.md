@@ -5,7 +5,7 @@
 在 `08-K` 已把 known-device uplink 的预检鉴权前移之后，再收敛一个更小但真实的边界：
 
 - `local-minimal-node`
-- `/api/v1/iot/protocol/uplink`
+- `/backend/v3/api/iot/protocol/uplink`
 - 当 `request.deviceId` 为空，目标设备只能后续由 `payload.deviceId` 推断时
 - 仍然可以只依据 auth 先拒绝明显不合法的 actor
 - 避免未授权请求先进入 `IotProtocolAdapter::decode_uplink()`
@@ -30,7 +30,7 @@
 
 ## 本轮决策
 
-- 在 `/api/v1/iot/protocol/uplink` 入口先执行：
+- 在 `/backend/v3/api/iot/protocol/uplink` 入口先执行：
   - `ensure_iot_protocol_uplink_actor_preflight`
 - 规则冻结为：
   - `auth.actor_kind != "device"` -> `device_permission_denied`
@@ -44,7 +44,7 @@
 ## 关键词冻结
 
 - `local-minimal-node`
-- `/api/v1/iot/protocol/uplink`
+- `/backend/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `ensure_iot_protocol_uplink_actor_preflight`
@@ -71,7 +71,7 @@
 
 ## 结果
 
-- `/api/v1/iot/protocol/uplink` 现在具备两层 decode 前收敛：
+- `/backend/v3/api/iot/protocol/uplink` 现在具备两层 decode 前收敛：
   - actor preflight
   - known-device preflight
 - 未授权的非 device actor 请求不再先进入 `decode_uplink()`

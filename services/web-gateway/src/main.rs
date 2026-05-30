@@ -13,10 +13,17 @@ use sdkwork_api_product_runtime::{
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
     match run().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("{error}");
+            tracing::error!("{error}");
             ExitCode::FAILURE
         }
     }
@@ -57,6 +64,9 @@ async fn run() -> Result<(), String> {
             Some(product_runtime_router),
         ),
     )
+    .with_graceful_shutdown(async {
+        tokio::signal::ctrl_c().await.ok();
+    })
     .await
     .map_err(|error| format!("web-gateway server should run: {error}"))?;
     Ok(())

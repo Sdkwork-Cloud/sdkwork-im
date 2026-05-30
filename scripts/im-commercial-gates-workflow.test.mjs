@@ -140,11 +140,6 @@ test('repository exposes a governed im commercial gates workflow with repository
     packageJson.scripts['test:workflow-commercial-gates'],
     'node scripts/run-commercial-gates-governance-node-tests.mjs',
   );
-  assert.equal(
-    packageJson.scripts['test:user-center-standard'],
-    'node scripts/run-user-center-standard.mjs',
-  );
-
   assert.match(workflow, /pull_request:\s*[\s\S]*?paths:/);
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /permissions:\s*contents:\s*read/);
@@ -228,23 +223,6 @@ test('im commercial gates workflow contract helper rejects workflows that still 
       repoRoot: fixtureRoot,
     }),
     /retired control-plane path|apps\/control-plane/i,
-  );
-});
-
-test('im commercial gates workflow contract helper rejects governed node test sets that omit the root user-center standard runner contract test', async () => {
-  const contracts = await loadContracts();
-
-  const fixtureRoot = writeImCommercialGatesFixture({
-    testFiles: DEFAULT_COMMERCIAL_GATES_GOVERNANCE_NODE_TESTS.filter(
-      (testFile) => testFile !== 'scripts/run-user-center-standard.test.mjs',
-    ),
-  });
-
-  await assert.rejects(
-    contracts.assertImCommercialGatesWorkflowContracts({
-      repoRoot: fixtureRoot,
-    }),
-    /user-center standard runner|run-user-center-standard/i,
   );
 });
 

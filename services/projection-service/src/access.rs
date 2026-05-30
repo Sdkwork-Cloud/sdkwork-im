@@ -1,5 +1,5 @@
 use axum::http::StatusCode;
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_core::conversation::{ConversationInboxEntry, ConversationReadCursorView};
 use im_domain_core::social::DirectChatStatus;
 
@@ -23,7 +23,7 @@ pub struct ProjectionAccessError {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DeviceSyncSessionState {
+pub struct DeviceSyncStateSnapshot {
     pub registered_devices: Vec<String>,
     pub latest_sync_seq: Option<u64>,
 }
@@ -129,7 +129,7 @@ impl TimelineProjectionService {
 
     pub fn ensure_active_member_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<(), ProjectionAccessError> {
         validate_conversation_id(conversation_id)?;
@@ -160,7 +160,7 @@ impl TimelineProjectionService {
 
     pub fn ensure_history_reader_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<(), ProjectionAccessError> {
         validate_conversation_id(conversation_id)?;
@@ -192,7 +192,7 @@ impl TimelineProjectionService {
 
     pub fn active_conversation_principal_recipients_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<Vec<NotificationRecipientView>, ProjectionAccessError> {
         self.ensure_active_member_from_auth_context(auth, conversation_id)?;
@@ -207,7 +207,7 @@ impl TimelineProjectionService {
 
     pub fn message_posted_notification_recipients_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<Vec<NotificationRecipientView>, ProjectionAccessError> {
         self.ensure_active_member_from_auth_context(auth, conversation_id)?;
@@ -240,7 +240,7 @@ impl TimelineProjectionService {
 
     pub fn register_device_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         requested_device_id: Option<String>,
     ) -> Result<RegisteredDeviceView, ProjectionAccessError> {
         let device_id =
@@ -255,7 +255,7 @@ impl TimelineProjectionService {
 
     pub fn ensure_device_registration_allowed_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         requested_device_id: Option<String>,
     ) -> Result<String, ProjectionAccessError> {
         let device_id = resolve_requested_device_id(auth, requested_device_id)?;
@@ -265,7 +265,7 @@ impl TimelineProjectionService {
 
     pub fn registered_devices_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
     ) -> Vec<RegisteredDeviceView> {
         self.registered_devices_for_principal_kind(
             auth.tenant_id.as_str(),
@@ -274,11 +274,11 @@ impl TimelineProjectionService {
         )
     }
 
-    pub fn device_sync_session_state_from_auth_context(
+    pub fn device_sync_state_snapshot_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         requested_device_id: Option<&str>,
-    ) -> Result<DeviceSyncSessionState, ProjectionAccessError> {
+    ) -> Result<DeviceSyncStateSnapshot, ProjectionAccessError> {
         let registered_devices = self
             .registered_devices_from_auth_context(auth)
             .into_iter()
@@ -298,7 +298,7 @@ impl TimelineProjectionService {
             None => None,
         };
 
-        Ok(DeviceSyncSessionState {
+        Ok(DeviceSyncStateSnapshot {
             registered_devices,
             latest_sync_seq,
         })
@@ -306,7 +306,7 @@ impl TimelineProjectionService {
 
     pub fn realtime_fanout_targets_for_recipients_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         recipients: impl IntoIterator<Item = NotificationRecipientView>,
     ) -> Vec<RealtimeFanoutTarget> {
         super::device_sync::realtime_fanout_targets_for_recipients(
@@ -318,7 +318,7 @@ impl TimelineProjectionService {
 
     pub fn latest_device_sync_seq_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<u64, ProjectionAccessError> {
         validate_device_scope(auth, device_id)?;
@@ -333,7 +333,7 @@ impl TimelineProjectionService {
 
     pub fn device_sync_feed_window_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         after_seq: Option<u64>,
         limit: Option<usize>,
@@ -351,7 +351,7 @@ impl TimelineProjectionService {
         ))
     }
 
-    pub fn inbox_from_auth_context(&self, auth: &AuthContext) -> Vec<ConversationInboxEntry> {
+    pub fn inbox_from_auth_context(&self, auth: &AppContext) -> Vec<ConversationInboxEntry> {
         self.inbox_for_principal_kind(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
@@ -369,7 +369,7 @@ impl TimelineProjectionService {
 
     pub fn contacts_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
     ) -> Result<Vec<ContactView>, ProjectionAccessError> {
         ensure_user_contact_owner(auth)?;
         Ok(self.contacts(auth.tenant_id.as_str(), auth.actor_id.as_str()))
@@ -377,7 +377,7 @@ impl TimelineProjectionService {
 
     pub fn timeline_window_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
         after_seq: Option<u64>,
         limit: Option<usize>,
@@ -389,7 +389,7 @@ impl TimelineProjectionService {
 
     pub fn conversation_summary_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<Option<ConversationSummaryView>, ProjectionAccessError> {
         self.ensure_active_member_from_auth_context(auth, conversation_id)?;
@@ -398,7 +398,7 @@ impl TimelineProjectionService {
 
     pub fn message_interaction_summary_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
         message_id: &str,
     ) -> Result<Option<MessageInteractionSummaryView>, ProjectionAccessError> {
@@ -409,7 +409,7 @@ impl TimelineProjectionService {
 
     pub fn pinned_messages_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<Vec<MessageInteractionSummaryView>, ProjectionAccessError> {
         self.ensure_active_member_from_auth_context(auth, conversation_id)?;
@@ -418,7 +418,7 @@ impl TimelineProjectionService {
 
     pub fn read_cursor_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<Option<ConversationReadCursorView>, ProjectionAccessError> {
         self.ensure_active_member_from_auth_context(auth, conversation_id)?;
@@ -432,7 +432,7 @@ impl TimelineProjectionService {
 
     pub fn member_directory_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<Vec<ConversationMemberDirectoryEntry>, ProjectionAccessError> {
         self.ensure_active_member_from_auth_context(auth, conversation_id)?;
@@ -441,7 +441,7 @@ impl TimelineProjectionService {
 }
 
 fn resolve_requested_device_id(
-    auth: &AuthContext,
+    auth: &AppContext,
     requested_device_id: Option<String>,
 ) -> Result<String, ProjectionAccessError> {
     match (requested_device_id, auth.device_id.clone()) {
@@ -471,7 +471,7 @@ fn resolve_requested_device_id(
     }
 }
 
-fn validate_device_scope(auth: &AuthContext, device_id: &str) -> Result<(), ProjectionAccessError> {
+fn validate_device_scope(auth: &AppContext, device_id: &str) -> Result<(), ProjectionAccessError> {
     validate_device_id(device_id)?;
     if let Some(bound_device_id) = auth.device_id.as_deref() {
         validate_device_id(bound_device_id)?;
@@ -487,7 +487,7 @@ fn validate_device_scope(auth: &AuthContext, device_id: &str) -> Result<(), Proj
 
 fn ensure_device_registration_available(
     service: &TimelineProjectionService,
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
 ) -> Result<(), ProjectionAccessError> {
     let has_conflict =
@@ -511,7 +511,7 @@ fn ensure_device_registration_available(
 
 fn device_registration_is_compatible_with_auth(
     device: &RegisteredDeviceView,
-    auth: &AuthContext,
+    auth: &AppContext,
 ) -> bool {
     device.principal_id == auth.actor_id
         && (device.principal_kind == auth.actor_kind
@@ -523,7 +523,7 @@ fn device_registration_is_compatible_with_auth(
 
 fn ensure_device_owned_by_auth_kind(
     service: &TimelineProjectionService,
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
 ) -> Result<(), ProjectionAccessError> {
     if service
@@ -544,7 +544,7 @@ fn ensure_device_owned_by_auth_kind(
     ))
 }
 
-fn ensure_user_contact_owner(auth: &AuthContext) -> Result<(), ProjectionAccessError> {
+fn ensure_user_contact_owner(auth: &AppContext) -> Result<(), ProjectionAccessError> {
     if auth.actor_kind == "user" {
         return Ok(());
     }

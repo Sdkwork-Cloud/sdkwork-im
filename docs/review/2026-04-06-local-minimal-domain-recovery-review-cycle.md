@@ -9,7 +9,7 @@
   - realtime checkpoint truth
 - But `ConversationRuntime` and `TimelineProjectionService` still rebuilt from empty memory on process restart.
 - The effect was operationally severe for private deployment:
-  - `GET /api/v1/conversations/{conversation_id}` returned `404`
+  - `GET /im/v3/api/chat/conversations/{conversation_id}` returned `404`
   - membership lookups failed
   - posting after restart failed unless the conversation was recreated externally
 

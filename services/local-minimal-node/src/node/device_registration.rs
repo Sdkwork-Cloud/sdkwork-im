@@ -7,18 +7,18 @@ use tokio::sync::watch;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DisconnectActiveDeviceRouteOutcome {
-    FenceMatchedSession,
+    FenceMatchedDeviceSession,
     DeviceDisconnected,
 }
 
 const LOCAL_MINIMAL_DEVICE_PRODUCT_ID: &str = "local-minimal-device";
-const LOCAL_MINIMAL_DEVICE_CREDENTIAL_KIND: &str = "session";
+const LOCAL_MINIMAL_DEVICE_CREDENTIAL_KIND: &str = "device_route";
 
 #[derive(Clone)]
 pub(crate) struct LocalNodeDeviceRegistration {
     node_id: String,
     realtime_cluster: Arc<RealtimeClusterBridge>,
-    session_presence_runtime: Arc<SessionPresenceRuntime>,
+    device_presence_runtime: Arc<DevicePresenceRuntime>,
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
     projection_service: Arc<TimelineProjectionService>,
     snapshot_stores: Option<ProjectionSnapshotStores>,
@@ -29,7 +29,7 @@ impl LocalNodeDeviceRegistration {
     pub(crate) fn new(
         node_id: String,
         realtime_cluster: Arc<RealtimeClusterBridge>,
-        session_presence_runtime: Arc<SessionPresenceRuntime>,
+        device_presence_runtime: Arc<DevicePresenceRuntime>,
         realtime_runtime: Arc<RealtimeDeliveryRuntime>,
         projection_service: Arc<TimelineProjectionService>,
         snapshot_stores: Option<ProjectionSnapshotStores>,
@@ -38,7 +38,7 @@ impl LocalNodeDeviceRegistration {
         Self {
             node_id,
             realtime_cluster,
-            session_presence_runtime,
+            device_presence_runtime,
             realtime_runtime,
             projection_service,
             snapshot_stores,
@@ -49,7 +49,7 @@ impl LocalNodeDeviceRegistration {
     pub(crate) fn ensure_registered_device(
         &self,
         state: &AppState,
-        auth: &AuthContext,
+        auth: &AppContext,
     ) -> Result<(), ApiError> {
         if let Some(device_id) = auth.device_id.as_deref() {
             self.bind_registered_device(state, auth, device_id, "command", false)?;
@@ -132,7 +132,7 @@ impl LocalNodeDeviceRegistration {
     pub(crate) fn bind_registered_device(
         &self,
         state: &AppState,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         connection_kind: &str,
         allow_session_takeover: bool,
@@ -149,7 +149,7 @@ impl LocalNodeDeviceRegistration {
                     principal_kind,
                     device_id,
                 )?;
-            self.session_presence_runtime
+            self.device_presence_runtime
                 .ensure_device_resume_not_required(auth, device_id)?;
             self.ensure_route_session_current(
                 tenant_id,
@@ -184,7 +184,7 @@ impl LocalNodeDeviceRegistration {
                 device_id,
             );
         }
-        self.session_presence_runtime
+        self.device_presence_runtime
             .register_device(auth, device_id)?;
         self.realtime_runtime
             .ensure_device_state_for_principal_kind(
@@ -223,7 +223,7 @@ impl LocalNodeDeviceRegistration {
     pub(crate) fn prepare_active_device_route(
         &self,
         state: &AppState,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         connection_kind: &str,
     ) -> Result<projection_service::RegisteredDeviceView, ApiError> {
@@ -233,7 +233,7 @@ impl LocalNodeDeviceRegistration {
     pub(crate) fn disconnect_active_device_route(
         &self,
         state: &AppState,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         connection_kind: &str,
     ) -> Result<DisconnectActiveDeviceRouteOutcome, ApiError> {
@@ -258,7 +258,7 @@ impl LocalNodeDeviceRegistration {
                     principal_kind,
                     device_id,
                 )?;
-            return Ok(DisconnectActiveDeviceRouteOutcome::FenceMatchedSession);
+            return Ok(DisconnectActiveDeviceRouteOutcome::FenceMatchedDeviceSession);
         }
 
         self.prepare_active_device_route(state, auth, device_id, connection_kind)?;
@@ -310,7 +310,7 @@ impl LocalNodeDeviceRegistration {
 impl session_gateway::RealtimeRouteOwner for LocalNodeDeviceRegistration {
     fn ensure_active_device_route_current_session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<(), session_gateway::RealtimeRouteOwnerError> {
         self.ensure_route_session_current(
@@ -325,7 +325,7 @@ impl session_gateway::RealtimeRouteOwner for LocalNodeDeviceRegistration {
 
     fn subscribe_active_device_route_epoch(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<watch::Receiver<u64>, session_gateway::RealtimeRouteOwnerError> {
         Ok(self
@@ -338,7 +338,7 @@ impl session_gateway::RealtimeRouteOwner for LocalNodeDeviceRegistration {
             ))
     }
 
-    fn release_active_device_route_if_current_session(&self, auth: &AuthContext, device_id: &str) {
+    fn release_active_device_route_if_current_session(&self, auth: &AppContext, device_id: &str) {
         if self
             .ensure_route_session_current(
                 auth.tenant_id.as_str(),

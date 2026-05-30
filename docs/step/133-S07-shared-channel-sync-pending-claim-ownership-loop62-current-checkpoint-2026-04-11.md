@@ -27,7 +27,7 @@
 
 ## Actions This Loop
 - actual_changes:
-  - 控制面新增 `POST /api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted`
+  - 控制面新增 `POST /backend/v3/api/control/social/runtime/claim-pending-shared-channel-sync-targeted`
   - pending/dead-letter inventory item 当前显式暴露 `ownerActorId / ownerActorKind`
   - durable `PendingSharedChannelSyncRequest` 当前保留可选 owner 元数据
   - targeted claim 当前会把被选中的 pending request 绑定到当前 control operator

@@ -35,7 +35,7 @@ pub(super) async fn get_iot_access_provider_health(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<im_platform_contracts::ProviderHealthSnapshot>, ApiError> {
-    let _auth = resolve_auth_context(&headers)?;
+    let _auth = resolve_app_context(&headers)?;
     Ok(Json(state.iot_access_provider_health()))
 }
 
@@ -43,7 +43,7 @@ pub(super) async fn get_iot_protocol_provider_health(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<im_platform_contracts::ProviderHealthSnapshot>, ApiError> {
-    let _auth = resolve_auth_context(&headers)?;
+    let _auth = resolve_app_context(&headers)?;
     Ok(Json(state.iot_protocol_provider_health()))
 }
 
@@ -52,7 +52,7 @@ pub(super) async fn ingest_iot_protocol_uplink(
     State(state): State<AppState>,
     Json(request): Json<IngestIotProtocolUplinkRequest>,
 ) -> Result<Json<im_domain_core::stream::StreamFrame>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_iot_protocol_uplink_actor_preflight(&auth)?;
     let preflight_device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
     access::ensure_iot_protocol_uplink_access(&state, &auth, preflight_device_id.as_str())?;
@@ -109,7 +109,7 @@ pub(super) async fn ingest_iot_protocol_downlink(
     State(state): State<AppState>,
     Json(request): Json<IngestIotProtocolDownlinkRequest>,
 ) -> Result<Json<IotProtocolDownlinkResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_iot_protocol_downlink_access(&state, &auth, request.device_id.as_str())?;
 
     let protocol_payload = state.iot_protocol_adapter.encode_downlink(

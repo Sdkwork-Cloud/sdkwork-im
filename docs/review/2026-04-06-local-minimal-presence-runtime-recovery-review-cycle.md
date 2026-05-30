@@ -4,7 +4,7 @@
 
 ### 1.1 High: managed `local-minimal` rebuilds lost presence device inventory and timestamps after restart
 
-- `SessionPresenceRuntime` kept all device presence state in a node-local `HashMap`.
+- `DevicePresenceRuntime` kept all device presence state in a node-local `HashMap`.
 - managed runtime-dir builders already persisted:
   - disconnect fences
   - realtime checkpoints
@@ -15,7 +15,7 @@
   - notification and automation projections
 - presence still reset to empty memory on rebuild.
 - the operational effect was direct:
-  - `GET /api/v1/presence/me` lost previously known devices unless the process re-registered them
+  - `GET /im/v3/api/presence/me` lost previously known devices unless the process re-registered them
   - `lastResumeAt` / `lastSeenAt` continuity disappeared after restart
 
 ### 1.2 High: stale pre-restart device traffic could silently become online again without a fresh resume
@@ -39,7 +39,7 @@
 The root cause was an unfinished runtime boundary:
 
 1. there was no pluggable `PresenceStateStore`
-2. `SessionPresenceRuntime` stored state only in process memory
+2. `DevicePresenceRuntime` stored state only in process memory
 3. managed runtime-dir builders never replaced the default runtime with a file-backed presence store
 4. registration inventory, presence timestamps, and pre-restart online truth were therefore lost or incorrectly re-inferred after rebuild
 
@@ -55,7 +55,7 @@ This review cycle completed the missing presence recovery path:
 - added adapters:
   - `MemoryPresenceStateStore`
   - `FilePresenceStateStore`
-- extended `SessionPresenceRuntime`
+- extended `DevicePresenceRuntime`
   - added `with_store(...)`
   - persisted offline placeholder records for explicit device registration
   - restored principal-scoped presence lazily on access
@@ -83,7 +83,7 @@ The standardized restart behavior is:
    - `session_id = null`
    - preserved timestamps and sync sequence
    - `resume required = true`
-4. reject stale device-bound non-resume traffic until a fresh `POST /api/v1/sessions/resume`
+4. reject stale device-bound non-resume traffic until a fresh `POST /im/v3/api/device/sessions/resume`
 5. allow fresh resume to reactivate the device and clear the restart fence
 
 This preserves commercial correctness: restart-safe visibility without pretending that process survival and client liveness are the same thing.

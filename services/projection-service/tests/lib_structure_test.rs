@@ -70,14 +70,14 @@ fn test_projection_service_access_module_exposes_auth_context_entrypoints() {
 
     for required_symbol in [
         "pub struct ProjectionAccessError {",
-        "pub struct DeviceSyncSessionState {",
+        "pub struct DeviceSyncStateSnapshot {",
         "pub fn ensure_active_member_from_auth_context(",
         "pub fn active_conversation_principal_recipients_from_auth_context(",
         "pub fn message_posted_notification_recipients_from_auth_context(",
         "pub fn register_device_from_auth_context(",
         "pub fn ensure_device_registration_allowed_from_auth_context(",
         "pub fn registered_devices_from_auth_context(",
-        "pub fn device_sync_session_state_from_auth_context(",
+        "pub fn device_sync_state_snapshot_from_auth_context(",
         "pub fn realtime_fanout_targets_for_recipients_from_auth_context(",
         "pub fn latest_device_sync_seq_from_auth_context(",
         "pub fn device_sync_feed_window_from_auth_context(",
@@ -91,7 +91,7 @@ fn test_projection_service_access_module_exposes_auth_context_entrypoints() {
     ] {
         assert!(
             access_source.contains(required_symbol),
-            "projection-service access module should own auth-context authority wrapper: {required_symbol}"
+            "projection-service access module should own principal-context authority wrapper: {required_symbol}"
         );
     }
 
@@ -101,7 +101,7 @@ fn test_projection_service_access_module_exposes_auth_context_entrypoints() {
     ] {
         assert!(
             !access_source.contains(forbidden_symbol),
-            "projection-service access module must not expose unbounded auth-context read entrypoint: {forbidden_symbol}"
+            "projection-service access module must not expose unbounded principal-context read entrypoint: {forbidden_symbol}"
         );
     }
 }
@@ -206,7 +206,7 @@ fn test_projection_service_http_surface_uses_auth_context_entrypoints() {
     ] {
         assert!(
             http_source.contains(required_symbol),
-            "projection-service http surface should consume projection auth-context entrypoint: {required_symbol}"
+            "projection-service http surface should consume projection principal-context entrypoint: {required_symbol}"
         );
     }
 
@@ -253,7 +253,7 @@ fn test_projection_service_device_sync_entry_assembly_moves_out_of_lib_impl() {
     );
     assert!(
         lib_source.matches(".append_device_sync_draft(").count() >= 5,
-        "services/projection-service/src/lib.rs should route message, mutation, read-cursor, handoff, and member-governance sync fanout through the shared device-sync draft owner seam"
+        "services/projection-service/src/lib.rs should route message, mutation, read_cursor, handoff, and member-governance sync fanout through the shared device-sync draft owner seam"
     );
 }
 
@@ -498,7 +498,7 @@ fn test_projection_service_member_store_uses_principal_inbox_index() {
     );
     assert!(
         member_store_source.contains("fn active_member_scopes_for_principal_kind("),
-        "projection-service member cache must expose indexed typed active scope lookup for auth-context inbox reads"
+        "projection-service member cache must expose indexed typed active scope lookup for principal-context inbox reads"
     );
     assert!(
         !lib_source.contains("for (scope, scope_members) in members.iter()"),
@@ -506,11 +506,11 @@ fn test_projection_service_member_store_uses_principal_inbox_index() {
     );
     assert!(
         inbox_source.contains("pub fn inbox_for_principal_kind("),
-        "projection-service must expose a typed inbox path so auth-context reads do not fetch same principalId across other actor kinds"
+        "projection-service must expose a typed inbox path so principal-context reads do not fetch same principalId across other actor kinds"
     );
     assert!(
         !access_source.contains("self.inbox(auth.tenant_id.as_str(), auth.actor_id.as_str())"),
-        "projection-service auth-context inbox must not call the untyped inbox and then filter by actor kind"
+        "projection-service principal-context inbox must not call the untyped inbox and then filter by actor kind"
     );
     assert!(
         snapshot_source.contains(".insert_member("),

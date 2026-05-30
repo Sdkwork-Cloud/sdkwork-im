@@ -19,8 +19,8 @@ use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_auth_context::{
-    AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
+use im_app_context::{
+    AppContext, AppContextError, resolve_app_context,
 };
 use im_domain_core::message::Sender;
 use im_domain_core::stream::{
@@ -319,7 +319,7 @@ impl StreamingRuntime {
 
     pub fn session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
     ) -> Result<StreamSession, StreamingError> {
         self.ensure_stream_state(auth.tenant_id.as_str(), stream_id)?;
@@ -337,7 +337,7 @@ impl StreamingRuntime {
 
     pub fn open_stream(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: OpenStreamRequest,
     ) -> Result<StreamSession, StreamingError> {
         Ok(self.open_stream_with_outcome(auth, request)?.session)
@@ -345,7 +345,7 @@ impl StreamingRuntime {
 
     pub fn open_stream_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: OpenStreamRequest,
     ) -> Result<StreamSessionMutationOutcome, StreamingError> {
         validate_open_stream_request_payload_size(&request)?;
@@ -419,7 +419,7 @@ impl StreamingRuntime {
 
     pub fn append_frame(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
         request: AppendStreamFrameRequest,
     ) -> Result<StreamFrame, StreamingError> {
@@ -430,7 +430,7 @@ impl StreamingRuntime {
 
     pub fn append_frame_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
         request: AppendStreamFrameRequest,
     ) -> Result<AppendStreamFrameOutcome, StreamingError> {
@@ -535,7 +535,7 @@ impl StreamingRuntime {
 
     pub fn checkpoint_stream(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
         request: CheckpointStreamRequest,
     ) -> Result<StreamSession, StreamingError> {
@@ -546,7 +546,7 @@ impl StreamingRuntime {
 
     pub fn checkpoint_stream_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
         request: CheckpointStreamRequest,
     ) -> Result<StreamSessionMutationOutcome, StreamingError> {
@@ -604,7 +604,7 @@ impl StreamingRuntime {
 
     pub fn complete_stream(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
         request: CompleteStreamRequest,
     ) -> Result<StreamSession, StreamingError> {
@@ -615,7 +615,7 @@ impl StreamingRuntime {
 
     pub fn complete_stream_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
         request: CompleteStreamRequest,
     ) -> Result<StreamSessionMutationOutcome, StreamingError> {
@@ -666,7 +666,7 @@ impl StreamingRuntime {
 
     pub fn abort_stream(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
         request: AbortStreamRequest,
     ) -> Result<StreamSession, StreamingError> {
@@ -677,7 +677,7 @@ impl StreamingRuntime {
 
     pub fn abort_stream_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
         request: AbortStreamRequest,
     ) -> Result<StreamSessionMutationOutcome, StreamingError> {
@@ -730,7 +730,7 @@ impl StreamingRuntime {
 
     pub fn list_frames(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
         query: ListStreamFramesQuery,
     ) -> Result<StreamFrameWindow, StreamingError> {
@@ -866,8 +866,8 @@ impl Default for StreamingRuntime {
     }
 }
 
-impl From<AuthContextError> for StreamingError {
-    fn from(value: AuthContextError) -> Self {
+impl From<AppContextError> for StreamingError {
+    fn from(value: AppContextError) -> Self {
         Self {
             status: axum::http::StatusCode::UNAUTHORIZED,
             code: value.code(),
@@ -881,7 +881,7 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_public_bearer_auth))
+    build_default_app().layer(middleware::from_fn(require_app_context))
 }
 
 pub fn build_app(runtime: Arc<StreamingRuntime>) -> Router {
@@ -890,27 +890,27 @@ pub fn build_app(runtime: Arc<StreamingRuntime>) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .route("/api/v1/streams", post(open_stream))
+        .route("/im/v3/api/streams", post(open_stream))
         .route(
-            "/api/v1/streams/{stream_id}/frames",
+            "/im/v3/api/streams/{stream_id}/frames",
             post(append_stream_frame).get(list_stream_frames),
         )
         .route(
-            "/api/v1/streams/{stream_id}/checkpoint",
+            "/im/v3/api/streams/{stream_id}/checkpoint",
             post(checkpoint_stream),
         )
         .route(
-            "/api/v1/streams/{stream_id}/complete",
+            "/im/v3/api/streams/{stream_id}/complete",
             post(complete_stream),
         )
-        .route("/api/v1/streams/{stream_id}/abort", post(abort_stream))
+        .route("/im/v3/api/streams/{stream_id}/abort", post(abort_stream))
         .with_state(AppState { runtime })
 }
 
-async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_public_bearer_auth_context(request.headers()) {
+        _ => match resolve_app_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => StreamingError::from(error).into_response(),
         },
@@ -953,7 +953,7 @@ fn build_streaming_service_openapi_document() -> Result<serde_json::Value, Strin
         &streaming_service_openapi_spec(),
         &routes,
         streaming_service_tag,
-        streaming_service_requires_bearer,
+        streaming_service_requires_app_context,
         streaming_service_summary,
     ))
 }
@@ -975,7 +975,7 @@ fn streaming_service_tag(path: &str, _method: HttpMethod) -> String {
     }
 }
 
-fn streaming_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+fn streaming_service_requires_app_context(path: &str, _method: HttpMethod) -> bool {
     !matches!(path, "/healthz" | "/readyz")
 }
 
@@ -1008,7 +1008,7 @@ async fn open_stream(
     State(state): State<AppState>,
     Json(request): Json<OpenStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_stream_open_allowed(&request)?;
     let request_key = stream_open_request_key(&auth, request.stream_id.as_str());
     Ok(Json(StreamSessionMutationResponse::from_outcome(
@@ -1023,7 +1023,7 @@ async fn checkpoint_stream(
     State(state): State<AppState>,
     Json(request): Json<CheckpointStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
     let request_key = stream_checkpoint_request_key(&auth, stream_id.as_str(), request.frame_seq);
     Ok(Json(StreamSessionMutationResponse::from_outcome(
@@ -1040,7 +1040,7 @@ async fn append_stream_frame(
     State(state): State<AppState>,
     Json(request): Json<AppendStreamFrameRequest>,
 ) -> Result<Json<StreamFrameMutationResponse>, StreamingError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
     let request_key = stream_append_request_key(&auth, stream_id.as_str(), request.frame_seq);
     Ok(Json(StreamFrameMutationResponse::from_outcome(
@@ -1057,7 +1057,7 @@ async fn list_stream_frames(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<StreamFrameWindow>, StreamingError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
     Ok(Json(state.runtime.list_frames(
         &auth,
@@ -1072,7 +1072,7 @@ async fn complete_stream(
     State(state): State<AppState>,
     Json(request): Json<CompleteStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
     let request_key = stream_complete_request_key(&auth, stream_id.as_str());
     Ok(Json(StreamSessionMutationResponse::from_outcome(
@@ -1089,7 +1089,7 @@ async fn abort_stream(
     State(state): State<AppState>,
     Json(request): Json<AbortStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
     let request_key = stream_abort_request_key(&auth, stream_id.as_str());
     Ok(Json(StreamSessionMutationResponse::from_outcome(
@@ -1212,7 +1212,7 @@ fn lock_stream_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> Mut
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!("warn: recovered poisoned stream mutex lock={lock_name}");
+            tracing::warn!("recovered poisoned stream mutex lock={lock_name}");
             poisoned.into_inner()
         }
     }
@@ -1242,7 +1242,7 @@ fn stream_frame_index(frames: Vec<StreamFrame>) -> BTreeMap<u64, StreamFrame> {
     )
 }
 
-pub fn stream_open_request_key(auth: &AuthContext, stream_id: &str) -> String {
+pub fn stream_open_request_key(auth: &AppContext, stream_id: &str) -> String {
     encode_stream_key_segments([
         auth.tenant_id.as_str(),
         auth.actor_kind.as_str(),
@@ -1252,7 +1252,7 @@ pub fn stream_open_request_key(auth: &AuthContext, stream_id: &str) -> String {
     ])
 }
 
-pub fn stream_complete_request_key(auth: &AuthContext, stream_id: &str) -> String {
+pub fn stream_complete_request_key(auth: &AppContext, stream_id: &str) -> String {
     encode_stream_key_segments([
         auth.tenant_id.as_str(),
         auth.actor_kind.as_str(),
@@ -1263,7 +1263,7 @@ pub fn stream_complete_request_key(auth: &AuthContext, stream_id: &str) -> Strin
 }
 
 pub fn stream_checkpoint_request_key(
-    auth: &AuthContext,
+    auth: &AppContext,
     stream_id: &str,
     frame_seq: u64,
 ) -> String {
@@ -1278,7 +1278,7 @@ pub fn stream_checkpoint_request_key(
     ])
 }
 
-pub fn stream_abort_request_key(auth: &AuthContext, stream_id: &str) -> String {
+pub fn stream_abort_request_key(auth: &AppContext, stream_id: &str) -> String {
     encode_stream_key_segments([
         auth.tenant_id.as_str(),
         auth.actor_kind.as_str(),
@@ -1288,7 +1288,7 @@ pub fn stream_abort_request_key(auth: &AuthContext, stream_id: &str) -> String {
     ])
 }
 
-pub fn stream_append_request_key(auth: &AuthContext, stream_id: &str, frame_seq: u64) -> String {
+pub fn stream_append_request_key(auth: &AppContext, stream_id: &str, frame_seq: u64) -> String {
     let frame_seq = frame_seq.to_string();
     encode_stream_key_segments([
         auth.tenant_id.as_str(),
@@ -1317,7 +1317,7 @@ fn ensure_standalone_stream_open_allowed(
 
 fn ensure_standalone_stream_session_allowed(
     runtime: &StreamingRuntime,
-    auth: &AuthContext,
+    auth: &AppContext,
     stream_id: &str,
 ) -> Result<(), StreamingError> {
     let session = runtime.session(auth, stream_id)?;
@@ -1343,7 +1343,7 @@ fn conversation_gateway_required(message: &str) -> StreamingError {
 
 fn stream_session_matches_open_request(
     session: &StreamSession,
-    auth: &AuthContext,
+    auth: &AppContext,
     request: &OpenStreamRequest,
     durability_class: &StreamDurabilityClass,
 ) -> bool {
@@ -1358,7 +1358,7 @@ fn stream_session_matches_open_request(
 
 fn stream_checkpoint_matches_request(
     session: &StreamSession,
-    auth: &AuthContext,
+    auth: &AppContext,
     request: &CheckpointStreamRequest,
 ) -> bool {
     stream_session_matches_owner_principal(session, auth)
@@ -1367,7 +1367,7 @@ fn stream_checkpoint_matches_request(
 
 fn stream_completion_matches_request(
     session: &StreamSession,
-    auth: &AuthContext,
+    auth: &AppContext,
     request: &CompleteStreamRequest,
 ) -> bool {
     stream_session_matches_owner_principal(session, auth)
@@ -1378,7 +1378,7 @@ fn stream_completion_matches_request(
 
 fn stream_abort_matches_request(
     session: &StreamSession,
-    auth: &AuthContext,
+    auth: &AppContext,
     request: &AbortStreamRequest,
 ) -> bool {
     stream_session_matches_owner_principal(session, auth)
@@ -1387,13 +1387,13 @@ fn stream_abort_matches_request(
         && session.abort_reason == request.reason
 }
 
-fn stream_session_matches_owner_principal(session: &StreamSession, auth: &AuthContext) -> bool {
+fn stream_session_matches_owner_principal(session: &StreamSession, auth: &AppContext) -> bool {
     session.owner_principal_id == auth.actor_id && session.owner_principal_kind == auth.actor_kind
 }
 
 fn ensure_stream_session_actor_access(
     session: &StreamSession,
-    auth: &AuthContext,
+    auth: &AppContext,
     stream_id: &str,
 ) -> Result<(), StreamingError> {
     if session.scope_kind != "conversation"
@@ -1410,7 +1410,7 @@ fn ensure_stream_session_actor_access(
     Ok(())
 }
 
-fn resolve_stream_frame_sender(auth: &AuthContext, session: &StreamSession) -> Sender {
+fn resolve_stream_frame_sender(auth: &AppContext, session: &StreamSession) -> Sender {
     if session.scope_kind == DEVICE_SCOPE_KIND
         && session.stream_type == DEVICE_TELEMETRY_STREAM_TYPE
         && auth.actor_kind == "device"
@@ -1550,7 +1550,7 @@ mod tests {
 
     #[test]
     fn test_stream_request_keys_are_segment_safe() {
-        let first = AuthContext {
+        let first = AppContext {
             tenant_id: "tenant:a".into(),
             actor_id: "b".into(),
             actor_kind: "user".into(),
@@ -1558,7 +1558,7 @@ mod tests {
             device_id: None,
             permissions: Default::default(),
         };
-        let second = AuthContext {
+        let second = AppContext {
             tenant_id: "tenant".into(),
             actor_id: "b".into(),
             actor_kind: "a:user".into(),

@@ -21,7 +21,6 @@ test('im commercial gates workflow watch catalog publishes the exact governed wa
     module.listImCommercialGatesWorkflowWatchPaths(),
     [
       '.github/workflows/im-commercial-gates.yml',
-      '.github/workflows/user-center-upstream-sync.yml',
       'Cargo.toml',
       'Cargo.lock',
       'package.json',
@@ -42,12 +41,6 @@ test('im commercial gates workflow watch catalog publishes the exact governed wa
       'scripts/im-commercial-gates-workflow.test.mjs',
       'scripts/run-commercial-gates-governance-node-tests.mjs',
       'scripts/run-commercial-gates-governance-node-tests.test.mjs',
-      'scripts/run-user-center-standard.mjs',
-      'scripts/run-user-center-standard.test.mjs',
-      'scripts/server-user-center-entrypoint-contract.test.mjs',
-      'scripts/user-center-upstream-sync-payload.mjs',
-      'scripts/user-center-upstream-sync-payload.test.mjs',
-      'scripts/user-center-upstream-sync-workflow.test.mjs',
       'scripts/strict-contract-catalog.mjs',
       'scripts/strict-contract-catalog.test.mjs',
       'scripts/dev/**',
@@ -84,11 +77,11 @@ test('im commercial gates workflow watch catalog exposes strict path lookup help
   assert.deepEqual(
     module.listImCommercialGatesWorkflowWatchRequirementsByPaths([
       'scripts/strict-contract-catalog.mjs',
-      'scripts/run-user-center-standard.mjs',
+      'scripts/run-commercial-gates-governance-node-tests.mjs',
     ]).map(({ path }) => path),
     [
       'scripts/strict-contract-catalog.mjs',
-      'scripts/run-user-center-standard.mjs',
+      'scripts/run-commercial-gates-governance-node-tests.mjs',
     ],
   );
 });

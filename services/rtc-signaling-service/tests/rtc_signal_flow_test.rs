@@ -14,10 +14,10 @@ async fn test_invite_accept_and_end_rtc_session_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/rtc/sessions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -36,10 +36,10 @@ async fn test_invite_accept_and_end_rtc_session_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_flow/invite")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/rtc/sessions/rtc_flow/invite")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -67,10 +67,10 @@ async fn test_invite_accept_and_end_rtc_session_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_flow/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_peer")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/rtc/sessions/rtc_flow/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_peer")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -97,10 +97,10 @@ async fn test_invite_accept_and_end_rtc_session_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_flow/end")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/rtc/sessions/rtc_flow/end")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -133,10 +133,10 @@ async fn test_reject_rtc_session_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/rtc/sessions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -154,10 +154,10 @@ async fn test_reject_rtc_session_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_reject/reject")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_peer")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/rtc/sessions/rtc_reject/reject")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_peer")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -190,12 +190,12 @@ async fn test_post_rtc_signal_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -214,12 +214,12 @@ async fn test_post_rtc_signal_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_signal_http/invite")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions/rtc_signal_http/invite")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -236,12 +236,12 @@ async fn test_post_rtc_signal_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_signal_http/signals")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions/rtc_signal_http/signals")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -280,12 +280,12 @@ async fn test_list_rtc_signals_returns_bounded_cursor_window_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -305,12 +305,12 @@ async fn test_list_rtc_signals_returns_bounded_cursor_window_over_http() {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/rtc/sessions/rtc_signal_window/signals")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_demo")
-                    .header("x-actor-kind", "user")
-                    .header("x-device-id", "d_demo")
-                    .header("x-session-id", "s_demo")
+                    .uri("/im/v3/api/rtc/sessions/rtc_signal_window/signals")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_demo")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-device-id", "d_demo")
+                    .header("x-sdkwork-session-id", "s_demo")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -331,10 +331,10 @@ async fn test_list_rtc_signals_returns_bounded_cursor_window_over_http() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/rtc/sessions/rtc_signal_window/signals?afterSignalSeq=0&limit=2")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/rtc/sessions/rtc_signal_window/signals?afterSignalSeq=0&limit=2")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -360,10 +360,10 @@ async fn test_list_rtc_signals_returns_bounded_cursor_window_over_http() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/rtc/sessions/rtc_signal_window/signals?afterSignalSeq=2&limit=2")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/rtc/sessions/rtc_signal_window/signals?afterSignalSeq=2&limit=2")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -398,12 +398,12 @@ async fn test_rtc_runtime_timestamps_advance_between_session_and_signal_mutation
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -436,12 +436,12 @@ async fn test_rtc_runtime_timestamps_advance_between_session_and_signal_mutation
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_timestamps/signals")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions/rtc_timestamps/signals")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -476,12 +476,12 @@ async fn test_rtc_runtime_timestamps_advance_between_session_and_signal_mutation
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_timestamps/signals")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions/rtc_timestamps/signals")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -514,10 +514,10 @@ async fn test_rtc_runtime_timestamps_advance_between_session_and_signal_mutation
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_timestamps/end")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/rtc/sessions/rtc_timestamps/end")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -556,12 +556,12 @@ async fn test_post_rtc_signal_rejects_oversized_payload_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -586,12 +586,12 @@ async fn test_post_rtc_signal_rejects_oversized_payload_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_signal_oversized_payload/signals")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions/rtc_signal_oversized_payload/signals")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -610,12 +610,12 @@ async fn test_post_rtc_signal_rejects_oversized_signal_type_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -639,12 +639,12 @@ async fn test_post_rtc_signal_rejects_oversized_signal_type_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_signal_oversized_type/signals")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions/rtc_signal_oversized_type/signals")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

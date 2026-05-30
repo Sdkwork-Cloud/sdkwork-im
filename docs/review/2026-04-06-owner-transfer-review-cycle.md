@@ -56,7 +56,7 @@
 
 ### 4.1 API 标准
 
-- 新增 `POST /api/v1/conversations/{conversationId}/members/transfer-owner`
+- 新增 `POST /im/v3/api/chat/conversations/{conversationId}/members/transfer-owner`
 - 请求体：
 
 ```json

@@ -16,14 +16,54 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-const ADMIN_SANDBOX_SEED_JSON: &str =
-    include_str!("../../../apps/craw-chat-admin/dev/admin-sandbox-seed.json");
-const DEFAULT_ADMIN_SANDBOX_PASSWORD: &str = "ChangeMe123!";
+const ADMIN_SANDBOX_SEED_JSON: &str = include_str!("admin_sandbox_seed.json");
+const BACKEND_ADMIN_API_PREFIX: &str = "/backend/v3/api/admin";
+pub const BACKEND_ADMIN_API_ROUTES: &[&str] = &[
+    "/backend/v3/api/admin/api_key_groups",
+    "/backend/v3/api/admin/api_key_groups/{groupId}",
+    "/backend/v3/api/admin/api_key_groups/{groupId}/status",
+    "/backend/v3/api/admin/api_keys",
+    "/backend/v3/api/admin/api_keys/{hashedKey}",
+    "/backend/v3/api/admin/api_keys/{hashedKey}/status",
+    "/backend/v3/api/admin/billing/events",
+    "/backend/v3/api/admin/billing/events/summary",
+    "/backend/v3/api/admin/billing/summary",
+    "/backend/v3/api/admin/channel_models",
+    "/backend/v3/api/admin/channel_models/{channelId}/models/{modelId}",
+    "/backend/v3/api/admin/channels",
+    "/backend/v3/api/admin/channels/{channelId}",
+    "/backend/v3/api/admin/credentials",
+    "/backend/v3/api/admin/credentials/{tenantId}/providers/{providerId}/keys/{keyReference}",
+    "/backend/v3/api/admin/extensions/runtime_reloads",
+    "/backend/v3/api/admin/extensions/runtime_statuses",
+    "/backend/v3/api/admin/gateway/rate_limit_policies",
+    "/backend/v3/api/admin/gateway/rate_limit_windows",
+    "/backend/v3/api/admin/marketing/campaigns",
+    "/backend/v3/api/admin/marketing/campaigns/{marketingCampaignId}/status",
+    "/backend/v3/api/admin/model_prices",
+    "/backend/v3/api/admin/model_prices/{channelId}/models/{modelId}/providers/{proxyProviderId}",
+    "/backend/v3/api/admin/models",
+    "/backend/v3/api/admin/models/{externalName}/providers/{providerId}",
+    "/backend/v3/api/admin/providers",
+    "/backend/v3/api/admin/providers/{providerId}",
+    "/backend/v3/api/admin/routing/decision_logs",
+    "/backend/v3/api/admin/routing/health_snapshots",
+    "/backend/v3/api/admin/routing/profiles",
+    "/backend/v3/api/admin/routing/snapshots",
+    "/backend/v3/api/admin/storage/audit",
+    "/backend/v3/api/admin/storage/config",
+    "/backend/v3/api/admin/storage/config/tenants/{tenantId}",
+    "/backend/v3/api/admin/storage/effective/tenants/{tenantId}",
+    "/backend/v3/api/admin/storage/providers",
+    "/backend/v3/api/admin/storage/validate",
+    "/backend/v3/api/admin/storage/validate/tenants/{tenantId}",
+    "/backend/v3/api/admin/usage/records",
+    "/backend/v3/api/admin/usage/summary",
+];
 
 #[derive(Clone)]
 pub struct SharedAdminSandboxState {
     inner: Arc<Mutex<AdminSandboxState>>,
-    login_credentials: AdminSandboxCredentials,
 }
 
 #[derive(Clone)]
@@ -44,58 +84,24 @@ enum AdminSandboxStorageStore {
 #[serde(rename_all = "camelCase")]
 struct AdminSandboxSeed {
     clock_ms: u64,
-    #[serde(default = "default_admin_sandbox_seed_password")]
-    sandbox_password: String,
     #[serde(flatten)]
     store: std::collections::BTreeMap<String, Value>,
-}
-
-#[derive(Clone)]
-pub struct AdminSandboxCredentials {
-    pub email: String,
-    pub password: String,
-    pub source: &'static str,
 }
 
 type SandboxErrorResponse = Box<Response>;
 
 impl SharedAdminSandboxState {
     pub fn seeded() -> Self {
-        let credentials = resolve_admin_sandbox_credentials_from_env();
-        Self::seeded_from_credentials(None, credentials)
+        Self::seeded_from_store(None)
     }
 
     pub fn seeded_with_storage_file(file_path: impl Into<PathBuf>) -> Self {
-        let credentials = resolve_admin_sandbox_credentials_from_env();
-        Self::seeded_from_credentials(Some(file_path.into()), credentials)
+        Self::seeded_from_store(Some(file_path.into()))
     }
 
-    #[cfg(test)]
-    pub fn seeded_with_credentials(email: impl Into<String>, password: impl Into<String>) -> Self {
-        Self::seeded_from_credentials(
-            None,
-            AdminSandboxCredentials {
-                email: email.into(),
-                password: password.into(),
-                source: "explicit",
-            },
-        )
-    }
-
-    pub fn login_credentials(&self) -> AdminSandboxCredentials {
-        self.login_credentials.clone()
-    }
-
-    fn seeded_from_credentials(
-        storage_file_path: Option<PathBuf>,
-        credentials: AdminSandboxCredentials,
-    ) -> Self {
+    fn seeded_from_store(storage_file_path: Option<PathBuf>) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(AdminSandboxState::seeded(
-                storage_file_path,
-                &credentials,
-            ))),
-            login_credentials: credentials,
+            inner: Arc::new(Mutex::new(AdminSandboxState::seeded(storage_file_path))),
         }
     }
 
@@ -113,11 +119,10 @@ impl SharedAdminSandboxState {
 }
 
 impl AdminSandboxState {
-    fn seeded(storage_file_path: Option<PathBuf>, credentials: &AdminSandboxCredentials) -> Self {
+    fn seeded(storage_file_path: Option<PathBuf>) -> Self {
         let seed: AdminSandboxSeed =
             serde_json::from_str(ADMIN_SANDBOX_SEED_JSON).expect("admin sandbox seed should parse");
         let mut store = Value::Object(seed.store.into_iter().collect());
-        apply_login_credentials_to_store(&mut store, credentials);
         sync_provider_credential_readiness(&mut store);
         let storage_runtime = StoreBackedStorageRuntime::load(
             storage_file_path
@@ -148,68 +153,6 @@ impl AdminSandboxState {
 
     fn next_id(&mut self, prefix: &str) -> String {
         format!("{prefix}_{}", self.next_sequence())
-    }
-}
-
-fn trimmed_env_var(key: &str) -> Option<String> {
-    std::env::var(key)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
-}
-
-fn default_sandbox_login_email(store: &Value) -> String {
-    auth_user(store)
-        .get("email")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or("admin@sdkwork.local")
-        .to_owned()
-}
-
-fn default_admin_sandbox_seed_password() -> String {
-    DEFAULT_ADMIN_SANDBOX_PASSWORD.to_owned()
-}
-
-fn resolve_admin_sandbox_credentials_from_env() -> AdminSandboxCredentials {
-    let seed: AdminSandboxSeed =
-        serde_json::from_str(ADMIN_SANDBOX_SEED_JSON).expect("admin sandbox seed should parse");
-    let store = Value::Object(seed.store.into_iter().collect());
-    let email = trimmed_env_var("SDKWORK_ADMIN_SANDBOX_EMAIL")
-        .unwrap_or_else(|| default_sandbox_login_email(&store));
-
-    match trimmed_env_var("SDKWORK_ADMIN_SANDBOX_PASSWORD") {
-        Some(password) => AdminSandboxCredentials {
-            email,
-            password,
-            source: "env",
-        },
-        None => AdminSandboxCredentials {
-            email,
-            password: seed.sandbox_password,
-            source: "seed",
-        },
-    }
-}
-
-fn apply_login_credentials_to_store(store: &mut Value, credentials: &AdminSandboxCredentials) {
-    let auth_user_id = store
-        .pointer("/authSession/user/id")
-        .and_then(Value::as_str)
-        .map(str::to_owned);
-    store["sandboxPassword"] = Value::String(credentials.password.clone());
-
-    if let Some(user) = store.pointer_mut("/authSession/user") {
-        user["email"] = Value::String(credentials.email.clone());
-    }
-
-    if let Some(auth_user_id) = auth_user_id {
-        for operator in array_mut(store, "operatorUsers") {
-            if string_field(operator, "id") == Some(auth_user_id.as_str()) {
-                operator["email"] = Value::String(credentials.email.clone());
-            }
-        }
     }
 }
 
@@ -254,7 +197,7 @@ fn empty_response(status: StatusCode) -> Response {
 
 fn admin_api_segments(uri: &Uri) -> Vec<String> {
     uri.path()
-        .trim_start_matches("/api/admin")
+        .trim_start_matches(BACKEND_ADMIN_API_PREFIX)
         .trim_matches('/')
         .split('/')
         .filter(|segment| !segment.is_empty())
@@ -300,48 +243,27 @@ fn bool_field(value: &Value, key: &str) -> Option<bool> {
     value.get(key).and_then(Value::as_bool)
 }
 
-fn auth_token(store: &Value) -> Option<&str> {
-    store.pointer("/authSession/token").and_then(Value::as_str)
-}
-
-fn auth_user(store: &Value) -> Value {
-    store
-        .pointer("/authSession/user")
-        .cloned()
-        .unwrap_or(Value::Null)
-}
-
-fn sandbox_password(store: &Value) -> Option<&str> {
-    store.get("sandboxPassword").and_then(Value::as_str)
-}
-
-fn require_session(store: &Value, headers: &HeaderMap) -> Result<Value, SandboxErrorResponse> {
+fn require_appbase_bearer(headers: &HeaderMap) -> Result<(), SandboxErrorResponse> {
     let header_value = headers
         .get(header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default();
-    let Some(expected_token) = auth_token(store) else {
-        return Err(Box::new(json_error_response(
-            StatusCode::UNAUTHORIZED,
-            "Admin sandbox session token not found.",
-        )));
-    };
 
     let Some(token) = header_value.strip_prefix("Bearer ").map(str::trim) else {
         return Err(Box::new(json_error_response(
             StatusCode::UNAUTHORIZED,
-            "Admin sandbox session token not found.",
+            "Admin sandbox requires an sdkwork-appbase bearer token.",
         )));
     };
 
-    if token != expected_token {
+    if token.is_empty() {
         return Err(Box::new(json_error_response(
             StatusCode::UNAUTHORIZED,
-            "Admin sandbox session token is invalid.",
+            "Admin sandbox requires an sdkwork-appbase bearer token.",
         )));
     }
 
-    Ok(auth_user(store))
+    Ok(())
 }
 
 fn find_index_by(records: &[Value], key: &str, needle: &str) -> Option<usize> {
@@ -377,54 +299,6 @@ fn sync_provider_credential_readiness(store: &mut Value) {
 
 fn object_response(value: Value) -> Response {
     json_response(StatusCode::OK, value)
-}
-
-fn update_auth_session_for_user(state: &mut AdminSandboxState, user: Value) -> Value {
-    let issued_at_ms = state.next_timestamp();
-    let issued_at_seconds = (issued_at_ms / 1000) as i64;
-    let user_id = string_field(&user, "id").unwrap_or("sandbox-operator");
-    let session = json!({
-        "token": format!("sandbox-admin-session-{user_id}"),
-        "claims": {
-            "sub": user_id,
-            "iss": "sdkwork-admin-sandbox",
-            "aud": "sdkwork-control-plane",
-            "exp": issued_at_seconds + 7 * 24 * 60 * 60,
-            "iat": issued_at_seconds,
-        },
-        "user": user,
-    });
-    state.store["authSession"] = session.clone();
-    session
-}
-
-fn login_user(state: &mut AdminSandboxState, input: &Value) -> Response {
-    let email = string_field(input, "email").unwrap_or_default();
-    let password = string_field(input, "password").unwrap_or_default();
-
-    if sandbox_password(&state.store) != Some(password) {
-        return json_error_response(
-            StatusCode::UNAUTHORIZED,
-            "Operator email or password is incorrect.",
-        );
-    }
-
-    let user = array_ref(&state.store, "operatorUsers")
-        .iter()
-        .find(|user| string_field(user, "email") == Some(email))
-        .cloned()
-        .or_else(|| {
-            let current_user = auth_user(&state.store);
-            (string_field(&current_user, "email") == Some(email)).then_some(current_user)
-        });
-
-    match user {
-        Some(user) => object_response(update_auth_session_for_user(state, user)),
-        None => json_error_response(
-            StatusCode::UNAUTHORIZED,
-            "Operator email or password is incorrect.",
-        ),
-    }
 }
 
 fn list_response(store: &Value, key: &str) -> Response {
@@ -529,76 +403,6 @@ fn existing_record_by_key(
         .cloned()
 }
 
-fn save_operator_user(state: &mut AdminSandboxState, input: &Value) -> Value {
-    let requested_id = trimmed_string_field(input, "id");
-    let existing = requested_id
-        .as_deref()
-        .and_then(|user_id| existing_record_by_key(&state.store, "operatorUsers", "id", user_id));
-    let operator_id = requested_id.unwrap_or_else(|| state.next_id("operator"));
-    let created_at_ms = existing
-        .as_ref()
-        .and_then(|record| record.get("created_at_ms").cloned())
-        .unwrap_or_else(|| json!(state.next_timestamp()));
-    let record = json!({
-        "id": operator_id,
-        "email": string_field(input, "email").unwrap_or_default(),
-        "display_name": string_field(input, "display_name").unwrap_or_default(),
-        "active": bool_or_default(input, "active", true),
-        "created_at_ms": created_at_ms,
-    });
-    let operator_id = string_field(&record, "id")
-        .expect("operator record should include an id")
-        .to_owned();
-    let saved = {
-        let records = array_mut(&mut state.store, "operatorUsers");
-        upsert_record(
-            records,
-            |user| string_field(user, "id") == Some(operator_id.as_str()),
-            record,
-        )
-    };
-
-    let current_user_id = string_field(&auth_user(&state.store), "id").map(str::to_owned);
-    if current_user_id.as_deref() == Some(operator_id.as_str()) {
-        return update_auth_session_for_user(state, saved.clone())
-            .get("user")
-            .cloned()
-            .unwrap_or(saved);
-    }
-
-    saved
-}
-
-fn save_portal_user(state: &mut AdminSandboxState, input: &Value) -> Value {
-    let requested_id = trimmed_string_field(input, "id");
-    let existing = requested_id
-        .as_deref()
-        .and_then(|user_id| existing_record_by_key(&state.store, "portalUsers", "id", user_id));
-    let portal_id = requested_id.unwrap_or_else(|| state.next_id("portal"));
-    let created_at_ms = existing
-        .as_ref()
-        .and_then(|record| record.get("created_at_ms").cloned())
-        .unwrap_or_else(|| json!(state.next_timestamp()));
-    let record = json!({
-        "id": portal_id,
-        "email": string_field(input, "email").unwrap_or_default(),
-        "display_name": string_field(input, "display_name").unwrap_or_default(),
-        "workspace_tenant_id": string_field(input, "workspace_tenant_id").unwrap_or_default(),
-        "workspace_project_id": string_field(input, "workspace_project_id").unwrap_or_default(),
-        "active": bool_or_default(input, "active", true),
-        "created_at_ms": created_at_ms,
-    });
-    let portal_id = string_field(&record, "id")
-        .expect("portal record should include an id")
-        .to_owned();
-    let records = array_mut(&mut state.store, "portalUsers");
-    upsert_record(
-        records,
-        |user| string_field(user, "id") == Some(portal_id.as_str()),
-        record,
-    )
-}
-
 fn save_marketing_campaign(state: &mut AdminSandboxState, input: &Value) -> Value {
     let campaign_id = string_field(input, "marketing_campaign_id")
         .unwrap_or_default()
@@ -629,35 +433,6 @@ fn save_marketing_campaign(state: &mut AdminSandboxState, input: &Value) -> Valu
     upsert_record(
         records,
         |campaign| string_field(campaign, "marketing_campaign_id") == Some(campaign_id.as_str()),
-        record,
-    )
-}
-
-fn save_tenant(state: &mut AdminSandboxState, input: &Value) -> Value {
-    let tenant_id = string_field(input, "id").unwrap_or_default().to_owned();
-    let record = json!({
-        "id": tenant_id,
-        "name": string_field(input, "name").unwrap_or_default(),
-    });
-    let records = array_mut(&mut state.store, "tenants");
-    upsert_record(
-        records,
-        |tenant| string_field(tenant, "id") == Some(tenant_id.as_str()),
-        record,
-    )
-}
-
-fn save_project(state: &mut AdminSandboxState, input: &Value) -> Value {
-    let project_id = string_field(input, "id").unwrap_or_default().to_owned();
-    let record = json!({
-        "tenant_id": string_field(input, "tenant_id").unwrap_or_default(),
-        "id": project_id,
-        "name": string_field(input, "name").unwrap_or_default(),
-    });
-    let records = array_mut(&mut state.store, "projects");
-    upsert_record(
-        records,
-        |project| string_field(project, "id") == Some(project_id.as_str()),
         record,
     )
 }
@@ -1191,63 +966,6 @@ fn save_runtime_reload(state: &mut AdminSandboxState, input: &Value) -> Value {
     })
 }
 
-fn update_operator_user_status(
-    state: &mut AdminSandboxState,
-    user_id: &str,
-    active: bool,
-) -> Response {
-    let updated_user = {
-        let records = array_mut(&mut state.store, "operatorUsers");
-        let Some(index) = find_index_by(records, "id", user_id) else {
-            return json_error_response(StatusCode::NOT_FOUND, "Operator user not found.");
-        };
-        records[index]["active"] = json!(active);
-        records[index].clone()
-    };
-    let current_user_id = string_field(&auth_user(&state.store), "id").map(str::to_owned);
-    if current_user_id.as_deref() == Some(user_id) {
-        return object_response(
-            update_auth_session_for_user(state, updated_user)
-                .get("user")
-                .cloned()
-                .unwrap_or_else(|| auth_user(&state.store)),
-        );
-    }
-
-    object_response(updated_user)
-}
-
-fn reset_operator_user_password(state: &AdminSandboxState, user_id: &str) -> Response {
-    match existing_record_by_key(&state.store, "operatorUsers", "id", user_id) {
-        Some(user) => object_response(user),
-        None => json_error_response(StatusCode::NOT_FOUND, "Operator user not found."),
-    }
-}
-
-fn update_portal_user_status(
-    state: &mut AdminSandboxState,
-    user_id: &str,
-    active: bool,
-) -> Response {
-    let updated_user = {
-        let records = array_mut(&mut state.store, "portalUsers");
-        let Some(index) = find_index_by(records, "id", user_id) else {
-            return json_error_response(StatusCode::NOT_FOUND, "Portal user not found.");
-        };
-        records[index]["active"] = json!(active);
-        records[index].clone()
-    };
-
-    object_response(updated_user)
-}
-
-fn reset_portal_user_password(state: &AdminSandboxState, user_id: &str) -> Response {
-    match existing_record_by_key(&state.store, "portalUsers", "id", user_id) {
-        Some(user) => object_response(user),
-        None => json_error_response(StatusCode::NOT_FOUND, "Portal user not found."),
-    }
-}
-
 fn update_marketing_campaign_status(
     state: &mut AdminSandboxState,
     campaign_id: &str,
@@ -1303,67 +1021,6 @@ fn update_api_key_status(
     object_response(updated_api_key)
 }
 
-fn delete_operator_user(state: &mut AdminSandboxState, user_id: &str) {
-    let current_user_id = string_field(&auth_user(&state.store), "id").map(str::to_owned);
-    remove_by(array_mut(&mut state.store, "operatorUsers"), "id", user_id);
-
-    if current_user_id.as_deref() == Some(user_id) {
-        let replacement_user = array_ref(&state.store, "operatorUsers")
-            .first()
-            .cloned()
-            .unwrap_or_else(|| auth_user(&state.store));
-        let _ = update_auth_session_for_user(state, replacement_user);
-    }
-}
-
-fn cascade_delete_project(store: &mut Value, project_id: &str) {
-    remove_by(array_mut(store, "projects"), "id", project_id);
-    remove_where(array_mut(store, "portalUsers"), |user| {
-        string_field(user, "workspace_project_id") == Some(project_id)
-    });
-    remove_where(array_mut(store, "apiKeys"), |api_key| {
-        string_field(api_key, "project_id") == Some(project_id)
-    });
-    remove_where(array_mut(store, "apiKeyGroups"), |group| {
-        string_field(group, "project_id") == Some(project_id)
-    });
-    remove_where(array_mut(store, "routingProfiles"), |profile| {
-        string_field(profile, "project_id") == Some(project_id)
-    });
-    remove_where(array_mut(store, "compiledRoutingSnapshots"), |snapshot| {
-        string_field(snapshot, "project_id") == Some(project_id)
-    });
-    remove_where(array_mut(store, "rateLimitPolicies"), |policy| {
-        string_field(policy, "project_id") == Some(project_id)
-    });
-    remove_where(array_mut(store, "rateLimitWindows"), |window_record| {
-        string_field(window_record, "project_id") == Some(project_id)
-    });
-    remove_where(array_mut(store, "usageRecords"), |usage_record| {
-        string_field(usage_record, "project_id") == Some(project_id)
-    });
-    remove_where(array_mut(store, "billingEvents"), |billing_event| {
-        string_field(billing_event, "project_id") == Some(project_id)
-    });
-}
-
-fn cascade_delete_tenant(store: &mut Value, tenant_id: &str) {
-    let project_ids = array_ref(store, "projects")
-        .iter()
-        .filter(|project| string_field(project, "tenant_id") == Some(tenant_id))
-        .filter_map(|project| string_field(project, "id").map(str::to_owned))
-        .collect::<Vec<_>>();
-
-    remove_by(array_mut(store, "tenants"), "id", tenant_id);
-    for project_id in project_ids {
-        cascade_delete_project(store, &project_id);
-    }
-    remove_where(array_mut(store, "credentials"), |credential| {
-        string_field(credential, "tenant_id") == Some(tenant_id)
-    });
-    sync_provider_credential_readiness(store);
-}
-
 fn cascade_delete_provider(store: &mut Value, provider_id: &str) {
     remove_by(array_mut(store, "providers"), "id", provider_id);
     remove_where(array_mut(store, "credentials"), |credential| {
@@ -1401,33 +1058,27 @@ pub async fn handle_admin_sandbox_request(
     uri: Uri,
     body: Bytes,
 ) -> Response {
+    debug_assert!(
+        BACKEND_ADMIN_API_ROUTES
+            .iter()
+            .all(|route| route.starts_with(BACKEND_ADMIN_API_PREFIX)),
+        "admin sandbox route registry must stay under the backend admin API prefix"
+    );
+
     let segments = admin_api_segments(&uri);
     let segment_refs = segments.iter().map(String::as_str).collect::<Vec<_>>();
 
     let mut guard = state.lock("handle_admin_sandbox_request");
 
-    if method == Method::POST && segment_refs.as_slice() == ["auth", "login"] {
-        let input = match parse_body(&body) {
-            Ok(input) => input,
-            Err(response) => return *response,
-        };
-        return login_user(&mut guard, &input);
-    }
-
-    if let Err(response) = require_session(&guard.store, &headers) {
+    if let Err(response) = require_appbase_bearer(&headers) {
         return *response;
     }
 
     if method == Method::GET {
         match segment_refs.as_slice() {
-            ["auth", "me"] => return object_response(auth_user(&guard.store)),
-            ["users", "operators"] => return list_response(&guard.store, "operatorUsers"),
-            ["users", "portal"] => return list_response(&guard.store, "portalUsers"),
             ["marketing", "campaigns"] => return list_response(&guard.store, "marketingCampaigns"),
-            ["tenants"] => return list_response(&guard.store, "tenants"),
-            ["projects"] => return list_response(&guard.store, "projects"),
-            ["api-keys"] => return list_response(&guard.store, "apiKeys"),
-            ["api-key-groups"] => return list_response(&guard.store, "apiKeyGroups"),
+            ["api_keys"] => return list_response(&guard.store, "apiKeys"),
+            ["api_key_groups"] => return list_response(&guard.store, "apiKeyGroups"),
             ["routing", "profiles"] => return list_response(&guard.store, "routingProfiles"),
             ["routing", "snapshots"] => {
                 return list_response(&guard.store, "compiledRoutingSnapshots")
@@ -1436,8 +1087,8 @@ pub async fn handle_admin_sandbox_request(
             ["providers"] => return list_response(&guard.store, "providers"),
             ["credentials"] => return list_response(&guard.store, "credentials"),
             ["models"] => return list_response(&guard.store, "models"),
-            ["channel-models"] => return list_response(&guard.store, "channelModels"),
-            ["model-prices"] => return list_response(&guard.store, "modelPrices"),
+            ["channel_models"] => return list_response(&guard.store, "channelModels"),
+            ["model_prices"] => return list_response(&guard.store, "modelPrices"),
             ["usage", "records"] => return list_response(&guard.store, "usageRecords"),
             ["usage", "summary"] => {
                 return object_response(store_value(&guard.store, "usageSummary").clone())
@@ -1449,17 +1100,17 @@ pub async fn handle_admin_sandbox_request(
             ["billing", "events", "summary"] => {
                 return object_response(store_value(&guard.store, "billingEventSummary").clone())
             }
-            ["routing", "decision-logs"] => return list_response(&guard.store, "routingLogs"),
-            ["gateway", "rate-limit-policies"] => {
+            ["routing", "decision_logs"] => return list_response(&guard.store, "routingLogs"),
+            ["gateway", "rate_limit_policies"] => {
                 return list_response(&guard.store, "rateLimitPolicies")
             }
-            ["gateway", "rate-limit-windows"] => {
+            ["gateway", "rate_limit_windows"] => {
                 return list_response(&guard.store, "rateLimitWindows")
             }
-            ["routing", "health-snapshots"] => {
+            ["routing", "health_snapshots"] => {
                 return list_response(&guard.store, "providerHealth")
             }
-            ["extensions", "runtime-statuses"] => {
+            ["extensions", "runtime_statuses"] => {
                 return list_response(&guard.store, "runtimeStatuses")
             }
             ["storage", "providers"] => {
@@ -1498,32 +1149,26 @@ pub async fn handle_admin_sandbox_request(
 
     if method == Method::POST {
         match segment_refs.as_slice() {
-            ["users", "operators"] => {
-                return object_response(save_operator_user(&mut guard, &input))
-            }
-            ["users", "portal"] => return object_response(save_portal_user(&mut guard, &input)),
             ["marketing", "campaigns"] => {
                 return object_response(save_marketing_campaign(&mut guard, &input))
             }
-            ["tenants"] => return object_response(save_tenant(&mut guard, &input)),
-            ["projects"] => return object_response(save_project(&mut guard, &input)),
-            ["api-key-groups"] => {
+            ["api_key_groups"] => {
                 return object_response(save_api_key_group(&mut guard, &input, None))
             }
             ["routing", "profiles"] => {
                 return object_response(save_routing_profile(&mut guard, &input))
             }
-            ["api-keys"] => return object_response(create_api_key_record(&mut guard, &input)),
+            ["api_keys"] => return object_response(create_api_key_record(&mut guard, &input)),
             ["channels"] => return object_response(save_channel(&mut guard, &input)),
             ["providers"] => return object_response(save_provider(&mut guard, &input)),
             ["credentials"] => return object_response(save_credential(&mut guard, &input)),
             ["models"] => return object_response(save_model(&mut guard, &input)),
-            ["channel-models"] => return object_response(save_channel_model(&mut guard, &input)),
-            ["model-prices"] => return object_response(save_model_price(&mut guard, &input)),
-            ["gateway", "rate-limit-policies"] => {
+            ["channel_models"] => return object_response(save_channel_model(&mut guard, &input)),
+            ["model_prices"] => return object_response(save_model_price(&mut guard, &input)),
+            ["gateway", "rate_limit_policies"] => {
                 return object_response(save_rate_limit_policy(&mut guard, &input))
             }
-            ["extensions", "runtime-reloads"] => {
+            ["extensions", "runtime_reloads"] => {
                 return object_response(save_runtime_reload(&mut guard, &input))
             }
             ["storage", "config"] => {
@@ -1604,26 +1249,6 @@ pub async fn handle_admin_sandbox_request(
         }
 
         match segment_refs.as_slice() {
-            ["users", "operators", user_id, "status"] => {
-                return update_operator_user_status(
-                    &mut guard,
-                    user_id,
-                    bool_or_default(&input, "active", false),
-                )
-            }
-            ["users", "operators", user_id, "password"] => {
-                return reset_operator_user_password(&guard, user_id)
-            }
-            ["users", "portal", user_id, "status"] => {
-                return update_portal_user_status(
-                    &mut guard,
-                    user_id,
-                    bool_or_default(&input, "active", false),
-                )
-            }
-            ["users", "portal", user_id, "password"] => {
-                return reset_portal_user_password(&guard, user_id)
-            }
             ["marketing", "campaigns", campaign_id, "status"] => {
                 return update_marketing_campaign_status(
                     &mut guard,
@@ -1631,14 +1256,14 @@ pub async fn handle_admin_sandbox_request(
                     string_field(&input, "status").unwrap_or_default(),
                 )
             }
-            ["api-key-groups", group_id, "status"] => {
+            ["api_key_groups", group_id, "status"] => {
                 return update_api_key_group_status(
                     &mut guard,
                     group_id,
                     bool_or_default(&input, "active", false),
                 )
             }
-            ["api-keys", hashed_key, "status"] => {
+            ["api_keys", hashed_key, "status"] => {
                 return update_api_key_status(
                     &mut guard,
                     hashed_key,
@@ -1650,7 +1275,7 @@ pub async fn handle_admin_sandbox_request(
     }
 
     if method == Method::PATCH {
-        if let ["api-key-groups", group_id] = segment_refs.as_slice() {
+        if let ["api_key_groups", group_id] = segment_refs.as_slice() {
             let Some(existing_group) =
                 existing_record_by_key(&guard.store, "apiKeyGroups", "group_id", group_id)
             else {
@@ -1666,7 +1291,7 @@ pub async fn handle_admin_sandbox_request(
     }
 
     if method == Method::PUT {
-        if let ["api-keys", hashed_key] = segment_refs.as_slice() {
+        if let ["api_keys", hashed_key] = segment_refs.as_slice() {
             return object_response(save_api_key_update(&mut guard, hashed_key, &input));
         }
     }
@@ -1682,23 +1307,7 @@ pub async fn handle_admin_sandbox_request(
                 }
                 return empty_response(StatusCode::NO_CONTENT);
             }
-            ["users", "operators", user_id] => {
-                delete_operator_user(&mut guard, user_id);
-                return empty_response(StatusCode::NO_CONTENT);
-            }
-            ["users", "portal", user_id] => {
-                remove_by(array_mut(&mut guard.store, "portalUsers"), "id", user_id);
-                return empty_response(StatusCode::NO_CONTENT);
-            }
-            ["tenants", tenant_id] => {
-                cascade_delete_tenant(&mut guard.store, tenant_id);
-                return empty_response(StatusCode::NO_CONTENT);
-            }
-            ["projects", project_id] => {
-                cascade_delete_project(&mut guard.store, project_id);
-                return empty_response(StatusCode::NO_CONTENT);
-            }
-            ["api-key-groups", group_id] => {
+            ["api_key_groups", group_id] => {
                 remove_by(
                     array_mut(&mut guard.store, "apiKeyGroups"),
                     "group_id",
@@ -1706,7 +1315,7 @@ pub async fn handle_admin_sandbox_request(
                 );
                 return empty_response(StatusCode::NO_CONTENT);
             }
-            ["api-keys", hashed_key] => {
+            ["api_keys", hashed_key] => {
                 remove_by(
                     array_mut(&mut guard.store, "apiKeys"),
                     "hashed_key",
@@ -1742,7 +1351,7 @@ pub async fn handle_admin_sandbox_request(
                 cascade_delete_model(&mut guard.store, external_name, provider_id);
                 return empty_response(StatusCode::NO_CONTENT);
             }
-            ["channel-models", channel_id, "models", model_id] => {
+            ["channel_models", channel_id, "models", model_id] => {
                 remove_where(
                     array_mut(&mut guard.store, "channelModels"),
                     |channel_model| {
@@ -1752,7 +1361,7 @@ pub async fn handle_admin_sandbox_request(
                 );
                 return empty_response(StatusCode::NO_CONTENT);
             }
-            ["model-prices", channel_id, "models", model_id, "providers", provider_id] => {
+            ["model_prices", channel_id, "models", model_id, "providers", provider_id] => {
                 remove_where(array_mut(&mut guard.store, "modelPrices"), |model_price| {
                     string_field(model_price, "channel_id") == Some(channel_id)
                         && string_field(model_price, "model_id") == Some(model_id)
@@ -1837,103 +1446,59 @@ mod tests {
         (status, payload)
     }
 
-    async fn login(state: &SharedAdminSandboxState) -> String {
-        let credentials = state.login_credentials();
-        let (status, payload) = send_request(
-            state,
-            Method::POST,
-            "/api/admin/auth/login",
-            None,
-            Some(json!({
-                "email": credentials.email,
-                "password": credentials.password,
-            })),
-        )
-        .await;
-
-        assert_eq!(status, StatusCode::OK);
-        payload
-            .and_then(|value| {
-                value
-                    .get("token")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned)
-            })
-            .expect("sandbox login should return a token")
-    }
+    const TEST_APPBASE_BEARER: &str = "appbase-issued-admin-token";
 
     #[tokio::test]
-    async fn sandbox_login_exposes_authenticated_me_profile() {
+    async fn sandbox_requires_appbase_bearer_token() {
         let state = SharedAdminSandboxState::seeded();
-        let token = login(&state).await;
+
+        let (missing_status, missing_payload) = send_request(
+            &state,
+            Method::GET,
+            "/backend/v3/api/admin/storage/providers",
+            None,
+            None,
+        )
+        .await;
+        assert_eq!(
+            missing_status,
+            StatusCode::UNAUTHORIZED,
+            "sandbox must not mint or infer local appbase account sessions"
+        );
+        let missing_payload =
+            missing_payload.expect("missing bearer response should return a payload");
+        assert_eq!(
+            missing_payload
+                .get("error")
+                .and_then(|error| string_field(error, "message")),
+            Some("Admin sandbox requires an sdkwork-appbase bearer token.")
+        );
 
         let (status, payload) = send_request(
             &state,
             Method::GET,
-            "/api/admin/auth/me",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/providers",
+            Some(TEST_APPBASE_BEARER),
             None,
         )
         .await;
-
         assert_eq!(status, StatusCode::OK);
-        let me = payload.expect("auth me should return a payload");
-        assert_eq!(string_field(&me, "email"), Some("admin@sdkwork.local"));
-        assert_eq!(string_field(&me, "display_name"), Some("Operations Lead"));
-    }
-
-    #[tokio::test]
-    async fn sandbox_login_accepts_explicit_credentials_overrides() {
-        let state = SharedAdminSandboxState::seeded_with_credentials(
-            "ops-sandbox@example.invalid",
-            "Sandbox#Custom2026",
-        );
-
-        let (status, payload) = send_request(
-            &state,
-            Method::POST,
-            "/api/admin/auth/login",
-            None,
-            Some(json!({
-                "email": "ops-sandbox@example.invalid",
-                "password": "Sandbox#Custom2026",
-            })),
-        )
-        .await;
-
-        assert_eq!(status, StatusCode::OK);
-        let login = payload.expect("sandbox login should return a payload");
-        assert_eq!(
-            login
-                .get("user")
-                .and_then(|user| string_field(user, "email")),
-            Some("ops-sandbox@example.invalid")
-        );
-
-        let (legacy_status, _) = send_request(
-            &state,
-            Method::POST,
-            "/api/admin/auth/login",
-            None,
-            Some(json!({
-                "email": "admin@sdkwork.local",
-                "password": "legacy-password",
-            })),
-        )
-        .await;
-        assert_eq!(legacy_status, StatusCode::UNAUTHORIZED);
+        assert!(payload
+            .as_ref()
+            .and_then(Value::as_array)
+            .is_some_and(|providers| !providers.is_empty()));
     }
 
     #[tokio::test]
     async fn sandbox_manages_storage_providers_configs_validation_and_fallback() {
         let state = SharedAdminSandboxState::seeded();
-        let token = login(&state).await;
+        let token = TEST_APPBASE_BEARER;
 
         let (status, providers_payload) = send_request(
             &state,
             Method::GET,
-            "/api/admin/storage/providers",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/providers",
+            Some(token),
             None,
         )
         .await;
@@ -1964,8 +1529,8 @@ mod tests {
         let (status, global_payload) = send_request(
             &state,
             Method::POST,
-            "/api/admin/storage/config",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/config",
+            Some(token),
             Some(json!({
                 "binding": {
                     "providerPluginId": "object-storage-aws",
@@ -1998,8 +1563,8 @@ mod tests {
         let (status, global_read_payload) = send_request(
             &state,
             Method::GET,
-            "/api/admin/storage/config",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/config",
+            Some(token),
             None,
         )
         .await;
@@ -2015,8 +1580,8 @@ mod tests {
         let (status, global_validation_payload) = send_request(
             &state,
             Method::POST,
-            "/api/admin/storage/validate",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/validate",
+            Some(token),
             Some(json!({})),
         )
         .await;
@@ -2029,8 +1594,8 @@ mod tests {
         let (status, tenant_payload) = send_request(
             &state,
             Method::POST,
-            "/api/admin/storage/config/tenants/tenant_northstar",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/config/tenants/tenant_northstar",
+            Some(token),
             Some(json!({
                 "binding": {
                     "providerPluginId": "object-storage-google",
@@ -2067,8 +1632,8 @@ mod tests {
         let (status, tenant_read_payload) = send_request(
             &state,
             Method::GET,
-            "/api/admin/storage/config/tenants/tenant_northstar",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/config/tenants/tenant_northstar",
+            Some(token),
             None,
         )
         .await;
@@ -2084,8 +1649,8 @@ mod tests {
         let (status, tenant_validation_payload) = send_request(
             &state,
             Method::POST,
-            "/api/admin/storage/validate/tenants/tenant_northstar",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/validate/tenants/tenant_northstar",
+            Some(token),
             Some(json!({})),
         )
         .await;
@@ -2101,8 +1666,8 @@ mod tests {
         let (status, effective_payload) = send_request(
             &state,
             Method::GET,
-            "/api/admin/storage/effective/tenants/tenant_northstar",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/effective/tenants/tenant_northstar",
+            Some(token),
             None,
         )
         .await;
@@ -2124,8 +1689,8 @@ mod tests {
         let (status, audit_payload) = send_request(
             &state,
             Method::GET,
-            "/api/admin/storage/audit",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/audit",
+            Some(token),
             None,
         )
         .await;
@@ -2140,8 +1705,8 @@ mod tests {
         let (status, payload) = send_request(
             &state,
             Method::DELETE,
-            "/api/admin/storage/config/tenants/tenant_northstar",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/config/tenants/tenant_northstar",
+            Some(token),
             None,
         )
         .await;
@@ -2151,8 +1716,8 @@ mod tests {
         let (status, fallback_payload) = send_request(
             &state,
             Method::GET,
-            "/api/admin/storage/effective/tenants/tenant_northstar",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/effective/tenants/tenant_northstar",
+            Some(token),
             None,
         )
         .await;
@@ -2178,13 +1743,13 @@ mod tests {
         let file_path = unique_storage_snapshot_file("storage_state");
 
         let state = SharedAdminSandboxState::seeded_with_storage_file(&file_path);
-        let token = login(&state).await;
+        let token = TEST_APPBASE_BEARER;
 
         let (status, _) = send_request(
             &state,
             Method::POST,
-            "/api/admin/storage/config",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/config",
+            Some(token),
             Some(json!({
                 "binding": {
                     "providerPluginId": "object-storage-aws",
@@ -2209,8 +1774,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            "/api/admin/storage/config/tenants/tenant_northstar",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/config/tenants/tenant_northstar",
+            Some(token),
             Some(json!({
                 "binding": {
                     "providerPluginId": "object-storage-google",
@@ -2232,13 +1797,13 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
 
         let reopened = SharedAdminSandboxState::seeded_with_storage_file(&file_path);
-        let reopened_token = login(&reopened).await;
+        let reopened_token = TEST_APPBASE_BEARER;
 
         let (status, global_payload) = send_request(
             &reopened,
             Method::GET,
-            "/api/admin/storage/config",
-            Some(reopened_token.as_str()),
+            "/backend/v3/api/admin/storage/config",
+            Some(reopened_token),
             None,
         )
         .await;
@@ -2254,8 +1819,8 @@ mod tests {
         let (status, tenant_payload) = send_request(
             &reopened,
             Method::GET,
-            "/api/admin/storage/config/tenants/tenant_northstar",
-            Some(reopened_token.as_str()),
+            "/backend/v3/api/admin/storage/config/tenants/tenant_northstar",
+            Some(reopened_token),
             None,
         )
         .await;
@@ -2271,20 +1836,20 @@ mod tests {
         let (status, _) = send_request(
             &reopened,
             Method::DELETE,
-            "/api/admin/storage/config/tenants/tenant_northstar",
-            Some(reopened_token.as_str()),
+            "/backend/v3/api/admin/storage/config/tenants/tenant_northstar",
+            Some(reopened_token),
             None,
         )
         .await;
         assert_eq!(status, StatusCode::NO_CONTENT);
 
         let reopened_again = SharedAdminSandboxState::seeded_with_storage_file(&file_path);
-        let reopened_again_token = login(&reopened_again).await;
+        let reopened_again_token = TEST_APPBASE_BEARER;
         let (status, effective_payload) = send_request(
             &reopened_again,
             Method::GET,
-            "/api/admin/storage/effective/tenants/tenant_northstar",
-            Some(reopened_again_token.as_str()),
+            "/backend/v3/api/admin/storage/effective/tenants/tenant_northstar",
+            Some(reopened_again_token),
             None,
         )
         .await;
@@ -2311,95 +1876,13 @@ mod tests {
     #[tokio::test]
     async fn sandbox_supports_workbench_write_contract() {
         let state = SharedAdminSandboxState::seeded();
-        let token = login(&state).await;
-
-        let (status, operator_payload) = send_request(
-            &state,
-            Method::POST,
-            "/api/admin/users/operators",
-            Some(token.as_str()),
-            Some(json!({
-                "email": "operator-contract@sdkwork.local",
-                "display_name": "Contract Operator",
-                "active": true,
-            })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK);
-        let operator_id = operator_payload
-            .as_ref()
-            .and_then(|value| value.get("id"))
-            .and_then(Value::as_str)
-            .expect("operator save should return an id")
-            .to_owned();
-
-        let (status, _) = send_request(
-            &state,
-            Method::POST,
-            &format!("/api/admin/users/operators/{operator_id}/status"),
-            Some(token.as_str()),
-            Some(json!({ "active": false })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK);
-
-        let (status, _) = send_request(
-            &state,
-            Method::POST,
-            &format!("/api/admin/users/operators/{operator_id}/password"),
-            Some(token.as_str()),
-            Some(json!({ "new_password": "ChangeAgain123!" })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK);
-
-        let (status, portal_payload) = send_request(
-            &state,
-            Method::POST,
-            "/api/admin/users/portal",
-            Some(token.as_str()),
-            Some(json!({
-                "email": "portal-contract@sdkwork.local",
-                "display_name": "Portal Contract",
-                "workspace_tenant_id": "tenant_contract",
-                "workspace_project_id": "project_contract",
-                "active": true,
-            })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK);
-        let portal_id = portal_payload
-            .as_ref()
-            .and_then(|value| value.get("id"))
-            .and_then(Value::as_str)
-            .expect("portal save should return an id")
-            .to_owned();
-
-        let (status, _) = send_request(
-            &state,
-            Method::POST,
-            &format!("/api/admin/users/portal/{portal_id}/status"),
-            Some(token.as_str()),
-            Some(json!({ "active": false })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK);
-
-        let (status, _) = send_request(
-            &state,
-            Method::POST,
-            &format!("/api/admin/users/portal/{portal_id}/password"),
-            Some(token.as_str()),
-            Some(json!({ "new_password": "ChangeAgain123!" })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK);
+        let token = TEST_APPBASE_BEARER;
 
         let (status, campaign_payload) = send_request(
             &state,
             Method::POST,
-            "/api/admin/marketing/campaigns",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/marketing/campaigns",
+            Some(token),
             Some(json!({
                 "marketing_campaign_id": "campaign_contract",
                 "display_name": "Contract Campaign",
@@ -2420,36 +1903,9 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            &format!("/api/admin/marketing/campaigns/{campaign_id}/status"),
-            Some(token.as_str()),
+            &format!("/backend/v3/api/admin/marketing/campaigns/{campaign_id}/status"),
+            Some(token),
             Some(json!({ "status": "active" })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK);
-
-        let (status, _) = send_request(
-            &state,
-            Method::POST,
-            "/api/admin/tenants",
-            Some(token.as_str()),
-            Some(json!({
-                "id": "tenant_contract",
-                "name": "Contract Tenant",
-            })),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK);
-
-        let (status, _) = send_request(
-            &state,
-            Method::POST,
-            "/api/admin/projects",
-            Some(token.as_str()),
-            Some(json!({
-                "tenant_id": "tenant_contract",
-                "id": "project_contract",
-                "name": "Contract Project",
-            })),
         )
         .await;
         assert_eq!(status, StatusCode::OK);
@@ -2457,8 +1913,8 @@ mod tests {
         let (status, api_key_group_payload) = send_request(
             &state,
             Method::POST,
-            "/api/admin/api-key-groups",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/api_key_groups",
+            Some(token),
             Some(json!({
                 "tenant_id": "tenant_contract",
                 "project_id": "project_contract",
@@ -2478,8 +1934,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::PATCH,
-            &format!("/api/admin/api-key-groups/{api_key_group_id}"),
-            Some(token.as_str()),
+            &format!("/backend/v3/api/admin/api_key_groups/{api_key_group_id}"),
+            Some(token),
             Some(json!({
                 "description": "patched contract group",
             })),
@@ -2490,8 +1946,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            &format!("/api/admin/api-key-groups/{api_key_group_id}/status"),
-            Some(token.as_str()),
+            &format!("/backend/v3/api/admin/api_key_groups/{api_key_group_id}/status"),
+            Some(token),
             Some(json!({ "active": false })),
         )
         .await;
@@ -2500,8 +1956,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            "/api/admin/routing/profiles",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/routing/profiles",
+            Some(token),
             Some(json!({
                 "tenant_id": "tenant_contract",
                 "project_id": "project_contract",
@@ -2514,8 +1970,8 @@ mod tests {
         let (status, api_key_payload) = send_request(
             &state,
             Method::POST,
-            "/api/admin/api-keys",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/api_keys",
+            Some(token),
             Some(json!({
                 "tenant_id": "tenant_contract",
                 "project_id": "project_contract",
@@ -2536,8 +1992,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::PUT,
-            &format!("/api/admin/api-keys/{hashed_key}"),
-            Some(token.as_str()),
+            &format!("/backend/v3/api/admin/api_keys/{hashed_key}"),
+            Some(token),
             Some(json!({
                 "tenant_id": "tenant_contract",
                 "project_id": "project_contract",
@@ -2554,8 +2010,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            &format!("/api/admin/api-keys/{hashed_key}/status"),
-            Some(token.as_str()),
+            &format!("/backend/v3/api/admin/api_keys/{hashed_key}/status"),
+            Some(token),
             Some(json!({ "active": false })),
         )
         .await;
@@ -2564,8 +2020,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            "/api/admin/channels",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/channels",
+            Some(token),
             Some(json!({
                 "id": "channel_contract",
                 "name": "Contract Channel",
@@ -2577,8 +2033,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            "/api/admin/providers",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/providers",
+            Some(token),
             Some(json!({
                 "id": "provider_contract",
                 "channel_id": "channel_contract",
@@ -2601,8 +2057,8 @@ mod tests {
         let (status, providers_payload) = send_request(
             &state,
             Method::GET,
-            "/api/admin/providers",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/providers",
+            Some(token),
             None,
         )
         .await;
@@ -2627,8 +2083,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            "/api/admin/credentials",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/credentials",
+            Some(token),
             Some(json!({
                 "tenant_id": "tenant_contract",
                 "provider_id": "provider_contract",
@@ -2642,8 +2098,8 @@ mod tests {
         let (status, providers_payload) = send_request(
             &state,
             Method::GET,
-            "/api/admin/providers",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/providers",
+            Some(token),
             None,
         )
         .await;
@@ -2668,8 +2124,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            "/api/admin/models",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/models",
+            Some(token),
             Some(json!({
                 "external_name": "model-contract",
                 "provider_id": "provider_contract",
@@ -2684,8 +2140,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            "/api/admin/channel-models",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/channel_models",
+            Some(token),
             Some(json!({
                 "channel_id": "channel_contract",
                 "model_id": "model-contract",
@@ -2701,8 +2157,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            "/api/admin/model-prices",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/model_prices",
+            Some(token),
             Some(json!({
                 "channel_id": "channel_contract",
                 "model_id": "model-contract",
@@ -2723,8 +2179,8 @@ mod tests {
         let (status, _) = send_request(
             &state,
             Method::POST,
-            "/api/admin/gateway/rate-limit-policies",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/gateway/rate_limit_policies",
+            Some(token),
             Some(json!({
                 "policy_id": "policy_contract",
                 "project_id": "project_contract",
@@ -2744,8 +2200,8 @@ mod tests {
         let (status, windows_payload) = send_request(
             &state,
             Method::GET,
-            "/api/admin/gateway/rate-limit-windows",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/gateway/rate_limit_windows",
+            Some(token),
             None,
         )
         .await;
@@ -2763,8 +2219,8 @@ mod tests {
         let (status, reload_payload) = send_request(
             &state,
             Method::POST,
-            "/api/admin/extensions/runtime-reloads",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/extensions/runtime_reloads",
+            Some(token),
             Some(json!({
                 "extension_id": "runtime_contract",
             })),
@@ -2781,53 +2237,37 @@ mod tests {
 
         for (path, expected_status) in [
             (
-                "/api/admin/channel-models/channel_contract/models/model-contract".to_owned(),
+                "/backend/v3/api/admin/channel_models/channel_contract/models/model-contract".to_owned(),
                 StatusCode::NO_CONTENT,
             ),
             (
-                "/api/admin/model-prices/channel_contract/models/model-contract/providers/provider_contract"
+                "/backend/v3/api/admin/model_prices/channel_contract/models/model-contract/providers/provider_contract"
                     .to_owned(),
                 StatusCode::NO_CONTENT,
             ),
             (
-                "/api/admin/credentials/tenant_contract/providers/provider_contract/keys/contract-key-ref"
+                "/backend/v3/api/admin/credentials/tenant_contract/providers/provider_contract/keys/contract-key-ref"
                     .to_owned(),
                 StatusCode::NO_CONTENT,
             ),
             (
-                "/api/admin/models/model-contract/providers/provider_contract".to_owned(),
+                "/backend/v3/api/admin/models/model-contract/providers/provider_contract".to_owned(),
                 StatusCode::NO_CONTENT,
             ),
             (
-                "/api/admin/providers/provider_contract".to_owned(),
+                "/backend/v3/api/admin/providers/provider_contract".to_owned(),
                 StatusCode::NO_CONTENT,
             ),
             (
-                "/api/admin/channels/channel_contract".to_owned(),
+                "/backend/v3/api/admin/channels/channel_contract".to_owned(),
                 StatusCode::NO_CONTENT,
             ),
             (
-                format!("/api/admin/api-keys/{hashed_key}"),
+                format!("/backend/v3/api/admin/api_keys/{hashed_key}"),
                 StatusCode::NO_CONTENT,
             ),
             (
-                format!("/api/admin/api-key-groups/{api_key_group_id}"),
-                StatusCode::NO_CONTENT,
-            ),
-            (
-                "/api/admin/projects/project_contract".to_owned(),
-                StatusCode::NO_CONTENT,
-            ),
-            (
-                "/api/admin/tenants/tenant_contract".to_owned(),
-                StatusCode::NO_CONTENT,
-            ),
-            (
-                format!("/api/admin/users/portal/{portal_id}"),
-                StatusCode::NO_CONTENT,
-            ),
-            (
-                format!("/api/admin/users/operators/{operator_id}"),
+                format!("/backend/v3/api/admin/api_key_groups/{api_key_group_id}"),
                 StatusCode::NO_CONTENT,
             ),
         ] {
@@ -2835,7 +2275,7 @@ mod tests {
                 &state,
                 Method::DELETE,
                 &path,
-                Some(token.as_str()),
+                Some(token),
                 None,
             )
             .await;
@@ -2847,13 +2287,13 @@ mod tests {
     #[tokio::test]
     async fn sandbox_rejects_storage_credentials_missing_required_mode_fields() {
         let state = SharedAdminSandboxState::seeded();
-        let token = login(&state).await;
+        let token = TEST_APPBASE_BEARER;
 
         let (status, payload) = send_request(
             &state,
             Method::POST,
-            "/api/admin/storage/config",
-            Some(token.as_str()),
+            "/backend/v3/api/admin/storage/config",
+            Some(token),
             Some(json!({
                 "binding": {
                     "providerPluginId": "object-storage-google",

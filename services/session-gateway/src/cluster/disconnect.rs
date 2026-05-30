@@ -1,5 +1,6 @@
 use craw_chat_contract_control::{RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore};
 use craw_chat_contract_core::ContractError;
+use im_time::rfc3339_le;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -79,7 +80,7 @@ impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
         let mut fences = self.fences.lock_cluster_disconnect_fences();
         let should_clear = fences
             .get(key.as_str())
-            .map(|record| record.disconnected_at.as_str() <= cutoff_disconnected_at)
+            .map(|record| rfc3339_le(record.disconnected_at.as_str(), cutoff_disconnected_at))
             .unwrap_or(false);
         if !should_clear {
             return Ok(false);
@@ -420,7 +421,7 @@ fn disconnect_fence_token(
     owner_node_id: &str,
     disconnected_at: &str,
 ) -> String {
-    let (session_state, session_value) = match session_id {
+    let (device_sync_state, session_value) = match session_id {
         Some(session_id) => ("some-session", session_id),
         None => ("no-session", ""),
     };
@@ -430,7 +431,7 @@ fn disconnect_fence_token(
         principal_kind,
         principal_id,
         device_id,
-        session_state,
+        device_sync_state,
         session_value,
         owner_node_id,
         disconnected_at,

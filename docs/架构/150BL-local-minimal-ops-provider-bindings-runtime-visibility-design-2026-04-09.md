@@ -10,7 +10,7 @@
   - global runtime provider binding visibility for local-minimal
   - RTC binding
   - object-storage binding
-  - user-module binding
+  - principal-profile binding
   - IoT access binding
   - IoT protocol binding
 - Out of scope:
@@ -31,7 +31,7 @@
 - Source of truth by domain:
   - `rtc`: `RtcRuntime` provider registry
   - `object-storage`: `MediaRuntime` provider registry
-  - `user-module`: active provider descriptor over platform-registry baseline
+  - `principal-profile`: active provider descriptor over platform-registry baseline
   - `iot-access`: active provider descriptor over platform-registry baseline
   - `iot-protocol`: active provider descriptor over platform-registry baseline
 
@@ -48,6 +48,6 @@
 
 ## Acceptance
 
-- `GET /api/v1/ops/diagnostics` returns one global `providerBindings` snapshot.
+- `GET /backend/v3/api/ops/diagnostics` returns one global `providerBindings` snapshot.
 - The snapshot exposes the selected plugins for all five provider domains.
 - Existing local-minimal tests remain green.

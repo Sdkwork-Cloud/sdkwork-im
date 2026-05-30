@@ -7,7 +7,7 @@
 
 ## 本轮落点
 
-- 在 `07-C4` 的 `GET /api/v1/control/provider-policies` 与 `POST /api/v1/control/provider-policies/rollback` 基础上，新增版本间差异读取面。
+- 在 `07-C4` 的 `GET /backend/v3/api/control/provider-policies` 与 `POST /backend/v3/api/control/provider-policies/rollback` 基础上，新增版本间差异读取面。
 - 范围严格限定为 committed version diff，不扩展 preview、草稿态、批量回滚。
 
 ## 代码动作
@@ -17,7 +17,7 @@
   - 新增 `ProviderPolicyChangeKind`
   - 新增 `diff_versions(fromVersion, toVersion)`
 - `services/control-plane-api/src/lib.rs`
-  - 新增 `GET /api/v1/control/provider-policies/diff`
+  - 新增 `GET /backend/v3/api/control/provider-policies/diff`
   - 新增 `ProviderPolicyDiffQuery`
   - 接口继续复用 `control.read`
 

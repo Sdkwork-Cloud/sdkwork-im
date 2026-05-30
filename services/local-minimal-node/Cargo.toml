@@ -12,15 +12,13 @@ control-plane-api = { path = "../control-plane-api" }
 conversation-runtime = { path = "../conversation-runtime" }
 fs4 = "0.13.1"
 futures-util.workspace = true
-getrandom = "0.3.4"
-hex = "0.4.3"
-hmac = "0.12.1"
 http-body-util.workspace = true
 im-adapter-iot-access-local = { path = "../../adapters/iot-access-local" }
 im-adapter-iot-mqtt = { path = "../../adapters/iot-mqtt" }
 im-adapters-local-disk = { path = "../../adapters/local-disk" }
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
-im-auth-context = { path = "../../crates/im-auth-context" }
+im-adapters-postgres-realtime = { path = "../../adapters/postgres-realtime" }
+im-app-context = { path = "../../crates/im-app-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
@@ -28,23 +26,24 @@ im-time = { path = "../../crates/im-time" }
 media-service = { path = "../media-service" }
 notification-service = { path = "../notification-service" }
 ops-service = { path = "../ops-service" }
-pbkdf2 = "0.12.2"
 projection-service = { path = "../projection-service" }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 rtc-signaling-service = { path = "../rtc-signaling-service" }
 session-gateway = { path = "../session-gateway" }
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml = "0.9.34"
 sha2 = "0.10"
 streaming-service = { path = "../streaming-service" }
-subtle = "2.6.1"
 tokio.workspace = true
 tower.workspace = true
-tower-http = { version = "0.6.6", features = ["cors"] }
+tower-http = { version = "0.6.6", features = ["cors", "limit"] }
+tracing.workspace = true
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 [dev-dependencies]
 craw-chat-ccp-control = { path = "../../crates/craw-chat-ccp-control" }
 craw-chat-ccp-core = { path = "../../crates/craw-chat-ccp-core" }
 craw-chat-ccp-registry = { path = "../../crates/craw-chat-ccp-registry" }
 craw-chat-runtime-link = { path = "../../crates/craw-chat-runtime-link" }
+regex = "1.11.1"
 tokio-tungstenite = "0.28.0"

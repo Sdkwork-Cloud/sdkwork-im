@@ -39,5 +39,5 @@ cargo fmt --all --check
 ## Next Round
 
 - Continue from the now smaller backlog:
-  - validate failure behavior for invalid `user-module-external` runtime selection
+  - validate failure behavior for invalid `principal-profile-external-catalog` runtime selection
   - deepen real provider/plugin adapters instead of only tightening operator seams

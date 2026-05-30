@@ -30,7 +30,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
     assert_eq!(value["openapi"], "3.1.0");
     assert_eq!(value["info"]["title"], "Craw Chat Audit Service API");
-    assert!(value["paths"]["/api/v1/audit/records"].is_object());
+    assert!(value["paths"]["/backend/v3/api/audit/records"].is_object());
 }
 
 #[tokio::test]
@@ -66,11 +66,11 @@ async fn test_record_list_and_export_audit_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/audit/records")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/records")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -91,11 +91,11 @@ async fn test_record_list_and_export_audit_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/records")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/records")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -119,11 +119,11 @@ async fn test_record_list_and_export_audit_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/export")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/export")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -144,11 +144,11 @@ async fn test_record_list_and_export_audit_over_http() {
     let verify_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/verify")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/verify")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -186,11 +186,11 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/audit/records")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_demo")
-                    .header("x-actor-kind", "user")
-                    .header("x-permissions", "audit.write,audit.read")
+                    .uri("/backend/v3/api/audit/records")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_demo")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -212,11 +212,11 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/records?afterAuditSeq=0&limit=2")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.read")
+                .uri("/backend/v3/api/audit/records?afterAuditSeq=0&limit=2")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -240,11 +240,11 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
     let second_window_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/records?afterAuditSeq=2&limit=2")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.read")
+                .uri("/backend/v3/api/audit/records?afterAuditSeq=2&limit=2")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -278,11 +278,11 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/audit/records")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/records")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -317,11 +317,11 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/audit/records")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/records")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -355,11 +355,11 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/records")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/records")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -380,11 +380,11 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/audit/records")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/records")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -421,12 +421,12 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/audit/records")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_before")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/records")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_before")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -457,12 +457,12 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/audit/records")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_after")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/records")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_after")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -495,11 +495,11 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
     let list_records = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/records")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/records")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -533,11 +533,11 @@ async fn test_record_audit_rejects_oversized_payload_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/audit/records")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "audit.write,audit.read")
+                .uri("/backend/v3/api/audit/records")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

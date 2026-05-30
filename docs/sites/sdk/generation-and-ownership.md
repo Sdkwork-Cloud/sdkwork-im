@@ -42,7 +42,7 @@ Do not patch generated files by hand.
 
 ## Source-Of-Truth Hierarchy
 
-1. `openapi/craw-chat-app.openapi.yaml`
+1. `openapi/craw-chat-im.openapi.yaml`
 2. derived sdkgen inputs under `openapi/`
 3. root generation and verification wrappers under `bin/`
 4. generated transport output under `generated/server-openapi`

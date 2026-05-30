@@ -7,8 +7,8 @@
 ## Scope
 
 - In scope:
-  - `GET /api/v1/ops/provider-bindings`
-  - `GET /api/v1/ops/provider-bindings/drift`
+  - `GET /backend/v3/api/ops/provider_bindings`
+  - `GET /backend/v3/api/ops/provider_bindings/drift`
   - auth and refresh parity with the other ops routes
 - Out of scope:
   - new provider snapshot assembly

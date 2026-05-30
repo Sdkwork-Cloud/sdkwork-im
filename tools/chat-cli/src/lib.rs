@@ -11,7 +11,6 @@ use hyper::{Method, Request};
 use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
-use im_auth_context::encode_hs256_bearer_token;
 use serde_json::{Value, json};
 use tokio::io::{self, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::time::timeout;
@@ -24,6 +23,8 @@ use realtime::{
     connect_realtime_socket,
 };
 
+const CHAT_CONVERSATIONS_PATH: &str = "/im/v3/api/chat/conversations";
+
 pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliError> {
     match command.operation {
         CommandOperation::Health => {
@@ -31,54 +32,30 @@ pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliEr
                 http_request_json(&command.context, Method::GET, "/healthz", None, false).await?;
             Ok(CommandOutput::Json(value))
         }
-        CommandOperation::Login {
-            login,
-            password,
-            client_kind,
-        } => {
-            let value = http_request_json(
-                &command.context,
-                Method::POST,
-                "/api/v1/auth/login",
-                Some(json!({
-                    "tenantId": command.context.auth.tenant_id.clone(),
-                    "login": login,
-                    "password": password,
-                    "deviceId": command.context.auth.device_id.clone(),
-                    "sessionId": command.context.auth.session_id.clone(),
-                    "clientKind": client_kind,
-                })),
-                false,
-            )
-            .await?;
-            Ok(CommandOutput::Json(value))
-        }
         CommandOperation::Token {
             authorization_header,
         } => {
-            let uses_provided_bearer_token = command.context.auth.bearer_token.is_some();
-            let claims = if uses_provided_bearer_token {
-                Value::Null
-            } else {
-                auth_claims(&command.context.auth)
-            };
-            let authorization = resolve_authorization_header(&command.context.auth)?;
-            let token = strip_bearer_prefix(authorization.as_str())
-                .unwrap_or(authorization.as_str())
+            let authorization = command
+                .context
+                .auth
+                .bearer_token
+                .as_deref()
+                .map(normalize_bearer_header);
+            let token = authorization
+                .as_deref()
+                .and_then(strip_bearer_prefix)
+                .unwrap_or_default()
                 .to_owned();
             Ok(CommandOutput::Json(json!({
-                "source": if uses_provided_bearer_token {
-                    "providedBearerToken"
-                } else {
-                    "generatedBearerToken"
-                },
+                "source": if authorization.is_some() { "providedBearerToken" } else { "appContextProjection" },
                 "authorization": if authorization_header {
-                    authorization.clone()
+                    authorization.clone().unwrap_or_default()
                 } else {
                     token.clone()
                 },
                 "token": token,
-                "claims": claims
+                "claims": Value::Null,
+                "appContextProjection": app_context_projection_debug_json(&command.context.auth)
             })))
         }
         CommandOperation::CreateConversation {
@@ -88,7 +65,7 @@ pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliEr
             let value = http_request_json(
                 &command.context,
                 Method::POST,
-                "/api/v1/conversations",
+                CHAT_CONVERSATIONS_PATH,
                 Some(json!({
                     "conversationId": conversation_id,
                     "conversationType": conversation_type,
@@ -107,7 +84,7 @@ pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliEr
             let value = http_request_json(
                 &command.context,
                 Method::POST,
-                format!("/api/v1/conversations/{conversation_id}/members/add").as_str(),
+                format!("{CHAT_CONVERSATIONS_PATH}/{conversation_id}/members/add").as_str(),
                 Some(json!({
                     "principalId": principal_id,
                     "principalKind": principal_kind,
@@ -122,7 +99,7 @@ pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliEr
             let value = http_request_json(
                 &command.context,
                 Method::GET,
-                format!("/api/v1/conversations/{conversation_id}/members").as_str(),
+                format!("{CHAT_CONVERSATIONS_PATH}/{conversation_id}/members").as_str(),
                 None,
                 true,
             )
@@ -138,7 +115,7 @@ pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliEr
             let value = http_request_json(
                 &command.context,
                 Method::POST,
-                format!("/api/v1/conversations/{conversation_id}/messages").as_str(),
+                format!("{CHAT_CONVERSATIONS_PATH}/{conversation_id}/messages").as_str(),
                 Some(json!({
                     "clientMsgId": client_msg_id,
                     "summary": summary,
@@ -159,7 +136,7 @@ pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliEr
             let value = http_request_json(
                 &command.context,
                 Method::GET,
-                format!("/api/v1/conversations/{conversation_id}/messages").as_str(),
+                format!("{CHAT_CONVERSATIONS_PATH}/{conversation_id}/messages").as_str(),
                 None,
                 true,
             )
@@ -286,8 +263,10 @@ async fn http_request_json(
         .uri(uri.as_str())
         .header(CONTENT_TYPE, "application/json");
     if require_auth {
-        let authorization = resolve_authorization_header(&context.auth)?;
-        request_builder = request_builder.header(AUTHORIZATION, authorization.as_str());
+        request_builder = apply_app_context_projection_headers(request_builder, &context.auth);
+        if let Some(authorization) = resolve_authorization_header(&context.auth) {
+            request_builder = request_builder.header(AUTHORIZATION, authorization.as_str());
+        }
     }
 
     let request = request_builder.body(Full::new(payload)).map_err(|error| {
@@ -537,39 +516,39 @@ fn build_websocket_url(base_url: &str, path: &str) -> Result<String, CliError> {
     )))
 }
 
-fn auth_claims(auth: &AuthInput) -> Value {
-    let mut claims = json!({
-        "tenant_id": auth.tenant_id,
-        "sub": auth.user_id,
-        "actor_kind": auth.actor_kind,
-        "sid": auth.session_id,
-        "did": auth.device_id,
-    });
-    if !auth.permissions.is_empty() {
-        claims["permissions"] = json!(auth.permissions);
-    }
-    claims
+pub(crate) fn resolve_authorization_header(auth: &AuthInput) -> Option<String> {
+    auth.bearer_token
+        .as_deref()
+        .map(normalize_bearer_header)
 }
 
-fn resolve_authorization_header(auth: &AuthInput) -> Result<String, CliError> {
-    if let Some(token) = auth.bearer_token.as_deref() {
-        return Ok(normalize_bearer_header(token));
+pub(crate) fn apply_app_context_projection_headers(
+    mut builder: hyper::http::request::Builder,
+    auth: &AuthInput,
+) -> hyper::http::request::Builder {
+    builder = builder
+        .header("x-sdkwork-tenant-id", auth.tenant_id.as_str())
+        .header("x-sdkwork-user-id", auth.user_id.as_str())
+        .header("x-sdkwork-actor-id", auth.user_id.as_str())
+        .header("x-sdkwork-actor-kind", auth.actor_kind.as_str())
+        .header("x-sdkwork-session-id", auth.session_id.as_str())
+        .header("x-sdkwork-device-id", auth.device_id.as_str());
+    if !auth.permissions.is_empty() {
+        builder = builder.header("x-sdkwork-permission-scope", auth.permissions.join(" "));
     }
+    builder
+}
 
-    let Some(secret) = auth.public_bearer_secret.as_deref() else {
-        return Err(CliError::runtime(format!(
-            "missing public bearer secret; provide --public-bearer-secret, set {}, or configure .runtime/local-minimal/config/local-minimal.env",
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV
-        )));
-    };
-
-    let token = encode_hs256_bearer_token(&auth_claims(auth), secret).map_err(|error| {
-        CliError::runtime(format!(
-            "failed to encode bearer token for {}: {error}",
-            auth.user_id
-        ))
-    })?;
-    Ok(format!("Bearer {token}"))
+fn app_context_projection_debug_json(auth: &AuthInput) -> Value {
+    json!({
+        "x-sdkwork-tenant-id": auth.tenant_id,
+        "x-sdkwork-user-id": auth.user_id,
+        "x-sdkwork-actor-id": auth.user_id,
+        "x-sdkwork-actor-kind": auth.actor_kind,
+        "x-sdkwork-session-id": auth.session_id,
+        "x-sdkwork-device-id": auth.device_id,
+        "x-sdkwork-permission-scope": auth.permissions.join(" ")
+    })
 }
 
 fn normalize_bearer_header(value: &str) -> String {
@@ -708,7 +687,7 @@ async fn send_message_request(
     http_request_json(
         context,
         Method::POST,
-        format!("/api/v1/conversations/{conversation_id}/messages").as_str(),
+        format!("{CHAT_CONVERSATIONS_PATH}/{conversation_id}/messages").as_str(),
         Some(json!({
             "clientMsgId": client_msg_id,
             "summary": summary,

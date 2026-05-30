@@ -7,7 +7,7 @@
 本轮只闭环：
 
 - `local-minimal-node`
-- `GET /api/v1/iot/access/provider-health`
+- `GET /backend/v3/api/iot/access/provider_health`
 - `iot-access-local` health 可见性
 
 本轮不闭环：
@@ -29,7 +29,7 @@
 
 - 只补 health surface，不顺手扩成设备管理 API。
 - 路由固定为：
-  - `GET /api/v1/iot/access/provider-health`
+  - `GET /backend/v3/api/iot/access/provider_health`
 - 继续复用统一鉴权入口。
 - route handler 只返回当前注入的 `DeviceAccessProvider::provider_health_snapshot()`。
 - health 数据仍来自默认 `iot-access-local`，不伪造 protocol surface。
@@ -57,7 +57,7 @@
 ## 结果
 
 - `local-minimal-node` 已新增：
-  - `GET /api/v1/iot/access/provider-health`
+  - `GET /backend/v3/api/iot/access/provider_health`
 - 当前返回值来自：
   - `DeviceAccessProvider::provider_health_snapshot()`
 - 默认 `iot-access-local` 已可通过 HTTP 直接观测：

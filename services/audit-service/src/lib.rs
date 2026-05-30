@@ -14,8 +14,8 @@ use craw_chat_api_registry::HttpMethod;
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_auth_context::{
-    AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
+use im_app_context::{
+    AppContext, AppContextError, resolve_app_context,
 };
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
@@ -218,8 +218,8 @@ pub struct AuditError {
     message: String,
 }
 
-impl From<AuthContextError> for AuditError {
-    fn from(value: AuthContextError) -> Self {
+impl From<AppContextError> for AuditError {
+    fn from(value: AppContextError) -> Self {
         Self {
             status: axum::http::StatusCode::UNAUTHORIZED,
             code: value.code(),
@@ -282,7 +282,7 @@ impl axum::response::IntoResponse for AuditError {
 impl AuditRuntime {
     pub fn record_anchor(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RecordAuditAnchor,
     ) -> Result<AuditRecord, AuditError> {
         Ok(self.record_anchor_with_outcome(auth, request)?.record)
@@ -290,7 +290,7 @@ impl AuditRuntime {
 
     pub fn record_anchor_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RecordAuditAnchor,
     ) -> Result<AuditRecordMutationOutcome, AuditError> {
         validate_record_audit_anchor_request(&request)?;
@@ -346,7 +346,7 @@ impl AuditRuntime {
         })
     }
 
-    pub fn list_records(&self, auth: &AuthContext) -> Vec<AuditRecord> {
+    pub fn list_records(&self, auth: &AppContext) -> Vec<AuditRecord> {
         self.read_records("list_records")
             .get(auth.tenant_id.as_str())
             .map(TenantAuditRecords::ordered_items)
@@ -355,7 +355,7 @@ impl AuditRuntime {
 
     pub fn list_records_window(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         query: ListAuditRecordsQuery,
     ) -> Result<AuditRecordListResponse, AuditError> {
         let after_audit_seq = query.after_audit_seq.unwrap_or(0);
@@ -388,7 +388,7 @@ impl AuditRuntime {
             }))
     }
 
-    pub fn export_bundle(&self, auth: &AuthContext) -> AuditExportBundle {
+    pub fn export_bundle(&self, auth: &AppContext) -> AuditExportBundle {
         let items = self.list_records(auth);
         let chain_head_hash = items.last().map(|record| record.chain_hash.clone());
         let chain_valid = verify_audit_records_chain(auth.tenant_id.as_str(), items.as_slice());
@@ -402,7 +402,7 @@ impl AuditRuntime {
         }
     }
 
-    pub fn verify_chain(&self, auth: &AuthContext) -> AuditChainVerification {
+    pub fn verify_chain(&self, auth: &AppContext) -> AuditChainVerification {
         let items = self.list_records(auth);
         let chain_head_hash = items.last().map(|record| record.chain_hash.clone());
         let chain_valid = verify_audit_records_chain(auth.tenant_id.as_str(), items.as_slice());
@@ -422,8 +422,8 @@ impl AuditRuntime {
         match self.records.read() {
             Ok(guard) => guard,
             Err(poisoned) => {
-                eprintln!(
-                    "warning: recovering poisoned audit-service records read lock during {operation}"
+                tracing::warn!(
+                    "recovering poisoned audit-service records read lock during {operation}"
                 );
                 poisoned.into_inner()
             }
@@ -437,8 +437,8 @@ impl AuditRuntime {
         match self.records.write() {
             Ok(guard) => guard,
             Err(poisoned) => {
-                eprintln!(
-                    "warning: recovering poisoned audit-service records write lock during {operation}"
+                tracing::warn!(
+                    "recovering poisoned audit-service records write lock during {operation}"
                 );
                 poisoned.into_inner()
             }
@@ -587,7 +587,7 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_public_bearer_auth))
+    build_default_app().layer(middleware::from_fn(require_app_context))
 }
 
 pub fn build_app(runtime: Arc<AuditRuntime>) -> Router {
@@ -596,17 +596,17 @@ pub fn build_app(runtime: Arc<AuditRuntime>) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .route("/api/v1/audit/records", post(record_anchor))
-        .route("/api/v1/audit/records", get(list_records))
-        .route("/api/v1/audit/export", get(export_bundle))
-        .route("/api/v1/audit/verify", get(verify_chain))
+        .route("/backend/v3/api/audit/records", post(record_anchor))
+        .route("/backend/v3/api/audit/records", get(list_records))
+        .route("/backend/v3/api/audit/export", get(export_bundle))
+        .route("/backend/v3/api/audit/verify", get(verify_chain))
         .with_state(AppState { runtime })
 }
 
-async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_public_bearer_auth_context(request.headers()) {
+        _ => match resolve_app_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => AuditError::from(error).into_response(),
         },
@@ -649,7 +649,7 @@ fn build_audit_service_openapi_document() -> Result<serde_json::Value, String> {
         &audit_service_openapi_spec(),
         &routes,
         audit_service_tag,
-        audit_service_requires_bearer,
+        audit_service_requires_app_context,
         audit_service_summary,
     ))
 }
@@ -671,7 +671,7 @@ fn audit_service_tag(path: &str, _method: HttpMethod) -> String {
     }
 }
 
-fn audit_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+fn audit_service_requires_app_context(path: &str, _method: HttpMethod) -> bool {
     !matches!(path, "/healthz" | "/readyz")
 }
 
@@ -704,7 +704,7 @@ async fn record_anchor(
     State(state): State<AppState>,
     Json(request): Json<RecordAuditAnchor>,
 ) -> Result<Json<AuditRecordMutationResponse>, AuditError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_audit_write_access(&auth)?;
     validate_record_audit_anchor_request(&request)?;
     let request_key = audit_record_request_key(&auth, request.record_id.as_str());
@@ -719,7 +719,7 @@ async fn list_records(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AuditRecordListResponse>, AuditError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_audit_read_access(&auth)?;
     Ok(Json(state.runtime.list_records_window(&auth, query)?))
 }
@@ -728,7 +728,7 @@ async fn export_bundle(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AuditExportBundle>, AuditError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_audit_read_access(&auth)?;
     Ok(Json(state.runtime.export_bundle(&auth)))
 }
@@ -737,12 +737,12 @@ async fn verify_chain(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AuditChainVerification>, AuditError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_audit_read_access(&auth)?;
     Ok(Json(state.runtime.verify_chain(&auth)))
 }
 
-fn ensure_audit_read_access(auth: &AuthContext) -> Result<(), AuditError> {
+fn ensure_audit_read_access(auth: &AppContext) -> Result<(), AuditError> {
     if auth.has_permission("audit.read") {
         return Ok(());
     }
@@ -750,7 +750,7 @@ fn ensure_audit_read_access(auth: &AuthContext) -> Result<(), AuditError> {
     Err(AuditError::forbidden("audit.read"))
 }
 
-fn ensure_audit_write_access(auth: &AuthContext) -> Result<(), AuditError> {
+fn ensure_audit_write_access(auth: &AppContext) -> Result<(), AuditError> {
     if auth.has_permission("audit.write") {
         return Ok(());
     }
@@ -758,13 +758,13 @@ fn ensure_audit_write_access(auth: &AuthContext) -> Result<(), AuditError> {
     Err(AuditError::forbidden("audit.write"))
 }
 
-pub fn audit_record_request_key(auth: &AuthContext, record_id: &str) -> String {
+pub fn audit_record_request_key(auth: &AppContext, record_id: &str) -> String {
     format!("{}:audit-record:{}", auth.tenant_id, record_id)
 }
 
 fn audit_record_matches_request(
     existing: &AuditRecord,
-    auth: &AuthContext,
+    auth: &AppContext,
     request: &RecordAuditAnchor,
 ) -> bool {
     existing.tenant_id == auth.tenant_id

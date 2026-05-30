@@ -21,10 +21,10 @@
 
 ## HTTP 面
 
-- `GET /api/v1/control/provider-policies`
+- `GET /backend/v3/api/control/provider-policies`
   - 权限：`control.read`
   - 返回：`ProviderPolicyHistory`
-- `POST /api/v1/control/provider-policies/rollback`
+- `POST /backend/v3/api/control/provider-policies/rollback`
   - 权限：`control.write`
   - 请求：`targetVersion`
   - 返回：最新 `ProviderPolicyHistory`
@@ -50,7 +50,7 @@
 - `07-C4`
 - `09G`
 - `150G`
-- `GET /api/v1/control/provider-policies`
-- `POST /api/v1/control/provider-policies/rollback`
+- `GET /backend/v3/api/control/provider-policies`
+- `POST /backend/v3/api/control/provider-policies/rollback`
 - `rollbackFromVersion`
 - `control.provider_policy_rolled_back`

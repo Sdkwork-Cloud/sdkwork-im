@@ -4,11 +4,11 @@ use craw_chat_runtime_link::decide_resume;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use im_auth_context::AuthContext;
-use im_domain_core::session::{
-    DevicePresenceStatus, DevicePresenceView, PresenceSnapshotView, SessionResumeView,
+use im_app_context::AppContext;
+use im_domain_core::device_session::{
+    DevicePresenceStatus, DevicePresenceView, DeviceSessionResumeView, PresenceSnapshotView,
 };
-use im_time::utc_now_rfc3339_millis;
+use im_time::{rfc3339_cmp, rfc3339_gt, rfc3339_le, utc_now_rfc3339_millis};
 
 use crate::principal_scope::{typed_device_scope_key, typed_principal_scope_key};
 
@@ -21,7 +21,7 @@ struct PresenceRuntimeEntry {
 }
 
 #[derive(Clone)]
-pub struct SessionPresenceRuntime {
+pub struct DevicePresenceRuntime {
     entries: Arc<Mutex<HashMap<String, HashMap<String, PresenceRuntimeEntry>>>>,
     restored_principals: Arc<Mutex<HashSet<String>>>,
     state_store: Arc<dyn PresenceStateStore>,
@@ -116,10 +116,17 @@ impl PresenceStateStore for RuntimeMemoryPresenceStateStore {
             return Ok(Vec::new());
         }
         let state = lock_presence_mutex(&self.state, "presence state store");
-        Ok(state
+        let mut stale_keys = state
             .online_by_seen_at
             .iter()
-            .take_while(|key| key.last_seen_at.as_str() <= cutoff_seen_at)
+            .filter(|key| rfc3339_le(key.last_seen_at.as_str(), cutoff_seen_at))
+            .collect::<Vec<_>>();
+        stale_keys.sort_by(|left, right| {
+            rfc3339_cmp(left.last_seen_at.as_str(), right.last_seen_at.as_str())
+                .then_with(|| left.device_key.cmp(&right.device_key))
+        });
+        Ok(stale_keys
+            .into_iter()
             .take(limit)
             .filter_map(|key| state.by_device.get(key.device_key.as_str()).cloned())
             .collect())
@@ -194,7 +201,7 @@ impl PresenceRuntimeError {
     }
 }
 
-impl SessionPresenceRuntime {
+impl DevicePresenceRuntime {
     pub fn with_store<S>(state_store: Arc<S>) -> Self
     where
         S: PresenceStateStore + 'static,
@@ -208,7 +215,7 @@ impl SessionPresenceRuntime {
 
     pub fn register_device(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<(), PresenceRuntimeError> {
         self.ensure_device_entry(auth, device_id).map(|_| ())
@@ -216,7 +223,7 @@ impl SessionPresenceRuntime {
 
     pub fn ensure_device_resume_not_required(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<(), PresenceRuntimeError> {
         let entry = self.ensure_device_entry(auth, device_id)?;
@@ -228,12 +235,12 @@ impl SessionPresenceRuntime {
 
     pub fn resume(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: String,
         last_seen_sync_seq: u64,
         latest_sync_seq: u64,
         registered_devices: Vec<String>,
-    ) -> Result<SessionResumeView, PresenceRuntimeError> {
+    ) -> Result<DeviceSessionResumeView, PresenceRuntimeError> {
         self.ensure_device_entry(auth, device_id.as_str())?;
         let resumed_at = session_timestamp();
         let updated_entry = {
@@ -269,7 +276,7 @@ impl SessionPresenceRuntime {
         let presence = self.presence_snapshot(auth, Some(device_id.clone()), registered_devices)?;
         let resume = decide_resume(last_seen_sync_seq, latest_sync_seq);
 
-        Ok(SessionResumeView {
+        Ok(DeviceSessionResumeView {
             tenant_id: auth.tenant_id.clone(),
             actor_id: auth.actor_id.clone(),
             actor_kind: auth.actor_kind.clone(),
@@ -285,7 +292,7 @@ impl SessionPresenceRuntime {
 
     pub fn presence_snapshot(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         current_device_id: Option<String>,
         registered_devices: Vec<String>,
     ) -> Result<PresenceSnapshotView, PresenceRuntimeError> {
@@ -351,7 +358,7 @@ impl SessionPresenceRuntime {
 
     pub fn heartbeat(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: String,
         latest_sync_seq: u64,
         registered_devices: Vec<String>,
@@ -373,7 +380,7 @@ impl SessionPresenceRuntime {
 
     pub fn disconnect(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: String,
         registered_devices: Vec<String>,
     ) -> Result<PresenceSnapshotView, PresenceRuntimeError> {
@@ -421,7 +428,7 @@ impl SessionPresenceRuntime {
             let Some(last_seen_at) = record.presence.last_seen_at.as_deref() else {
                 continue;
             };
-            if last_seen_at > cutoff_seen_at {
+            if rfc3339_gt(last_seen_at, cutoff_seen_at) {
                 continue;
             }
 
@@ -455,7 +462,7 @@ impl SessionPresenceRuntime {
         Ok(expired_count)
     }
 
-    fn ensure_principal_state(&self, auth: &AuthContext) -> Result<(), PresenceRuntimeError> {
+    fn ensure_principal_state(&self, auth: &AppContext) -> Result<(), PresenceRuntimeError> {
         let scope_key = typed_principal_scope_key(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
@@ -504,7 +511,7 @@ impl SessionPresenceRuntime {
 
     fn ensure_device_entry(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<PresenceRuntimeEntry, PresenceRuntimeError> {
         self.ensure_principal_state(auth)?;
@@ -554,7 +561,7 @@ impl SessionPresenceRuntime {
     #[allow(clippy::too_many_arguments)]
     fn update_presence_entry(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: String,
         latest_sync_seq: u64,
         session_id: Option<Option<String>>,
@@ -641,7 +648,7 @@ impl SessionPresenceRuntime {
     }
 }
 
-impl Default for SessionPresenceRuntime {
+impl Default for DevicePresenceRuntime {
     fn default() -> Self {
         Self::with_store(Arc::new(RuntimeMemoryPresenceStateStore::default()))
     }
@@ -695,7 +702,7 @@ fn remove_presence_online_seen_at_index(
     }
 }
 
-fn empty_presence_view(auth: &AuthContext, device_id: &str) -> DevicePresenceView {
+fn empty_presence_view(auth: &AppContext, device_id: &str) -> DevicePresenceView {
     empty_presence_view_for_scope(auth.tenant_id.as_str(), auth.actor_id.as_str(), device_id)
 }
 
@@ -763,7 +770,7 @@ fn lock_presence_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> M
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!("warn: recovered poisoned presence mutex lock={lock_name}");
+            tracing::warn!("recovered poisoned presence mutex lock={lock_name}");
             poisoned.into_inner()
         }
     }
@@ -772,6 +779,29 @@ fn lock_presence_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> M
 #[cfg(test)]
 mod tests {
     use super::*;
+    use im_domain_core::device_session::{DevicePresenceStatus, DevicePresenceView};
+
+    fn presence_record(device_id: &str, last_seen_at: &str) -> PresenceStateRecord {
+        PresenceStateRecord {
+            tenant_id: "t_demo".into(),
+            principal_kind: "user".into(),
+            principal_id: "u_demo".into(),
+            device_id: device_id.into(),
+            presence: DevicePresenceView {
+                tenant_id: "t_demo".into(),
+                principal_id: "u_demo".into(),
+                device_id: device_id.into(),
+                platform: None,
+                session_id: Some(format!("s_{device_id}")),
+                status: DevicePresenceStatus::Online,
+                last_sync_seq: 0,
+                last_resume_at: Some(last_seen_at.into()),
+                last_seen_at: Some(last_seen_at.into()),
+            },
+            resume_required: false,
+            updated_at: last_seen_at.into(),
+        }
+    }
 
     #[test]
     fn test_presence_state_store_load_recovers_from_poisoned_lock() {
@@ -788,5 +818,31 @@ mod tests {
             .load_state("t_demo", "user", "u_demo", "d_poison")
             .expect("poisoned lock should be recovered");
         assert!(restored.is_none());
+    }
+
+    #[test]
+    fn test_presence_state_store_seen_at_cutoff_compares_rfc3339_by_instant() {
+        let store = RuntimeMemoryPresenceStateStore::default();
+        store
+            .save_state(presence_record(
+                "d_later_fraction",
+                "2026-05-06T00:00:00.100Z",
+            ))
+            .expect("later presence save should succeed");
+        store
+            .save_state(presence_record("d_whole_second", "2026-05-06T00:00:00Z"))
+            .expect("whole-second presence save should succeed");
+
+        let stale = store
+            .list_online_states_seen_at_or_before("2026-05-06T00:00:00Z", 10)
+            .expect("stale online list should succeed");
+
+        assert_eq!(
+            stale
+                .iter()
+                .map(|record| record.device_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["d_whole_second"]
+        );
     }
 }

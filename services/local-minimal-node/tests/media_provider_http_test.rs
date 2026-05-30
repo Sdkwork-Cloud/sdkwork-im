@@ -10,10 +10,10 @@ async fn test_local_minimal_profile_gets_media_provider_health_over_http() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/media/provider-health")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/backend/v3/api/media/provider_health")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -44,10 +44,10 @@ async fn test_local_minimal_profile_gets_media_download_url_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -102,10 +102,10 @@ async fn test_local_minimal_profile_gets_media_download_url_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads/ma_local_provider_http/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads/ma_local_provider_http/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -124,10 +124,10 @@ async fn test_local_minimal_profile_gets_media_download_url_over_http() {
     let download_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/media/ma_local_provider_http/download-url?expiresInSeconds=1200")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/ma_local_provider_http/download_url?expiresInSeconds=1200")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )

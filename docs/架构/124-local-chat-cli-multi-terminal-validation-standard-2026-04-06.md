@@ -56,7 +56,7 @@ CLI 必须允许不同终端通过以下身份参数自由切换：
 
 ### 3.5 实时监听标准
 
-1. `watch` 必须复用 `/api/v1/realtime/ws`。
+1. `watch` 必须复用 `/im/v3/api/realtime/ws`。
 2. `watch` 必须自动发送 `subscriptions.sync`。
 3. 收到 `event.window` 后应自动 ack，避免窗口无限堆积。
 4. 必须支持按事件数量退出和按空闲超时退出，便于自动化测试与脚本执行。

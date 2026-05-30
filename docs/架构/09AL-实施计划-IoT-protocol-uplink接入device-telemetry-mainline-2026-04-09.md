@@ -16,7 +16,7 @@
 
 本轮包含：
 
-- `POST /api/v1/iot/protocol/uplink`
+- `POST /backend/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter::decode_uplink()`
 - `build_default_app_with_iot_protocol_adapter` 的 runtime 主链路消费
 - `device.telemetry` stream 写入
@@ -33,7 +33,7 @@
 
 ## 执行步骤
 
-1. 先写失败测试，确认当前 `POST /api/v1/iot/protocol/uplink` 返回 `404`。
+1. 先写失败测试，确认当前 `POST /backend/v3/api/iot/protocol/uplink` 返回 `404`。
 2. 在 `iot.rs` 增加 uplink handler，消费当前注入的 `IotProtocolAdapter`。
 3. 在 `access.rs` 增加最小访问控制，确保写入来自已绑定设备且设备已注册。
 4. 归一写入 `device.telemetry` stream，并复用现有 realtime stream-frame side effect。
@@ -47,7 +47,7 @@
 
 ## 退出标准
 
-- `POST /api/v1/iot/protocol/uplink` 返回 `200`
+- `POST /backend/v3/api/iot/protocol/uplink` 返回 `200`
 - 响应是统一 `device.telemetry` frame
 - 默认 `iot-mqtt` uplink 可落到 `streamType = device.telemetry`
 - 注入式 adapter 测试证明 route 真实消费 `build_default_app_with_iot_protocol_adapter`

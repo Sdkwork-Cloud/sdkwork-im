@@ -33,7 +33,7 @@ fn test_conversation_runtime_state_uses_domain_roster_for_member_and_cursor_stat
 
     assert!(
         runtime_source.contains("roster: ConversationRoster,"),
-        "services/conversation-runtime/src/runtime.rs should use ConversationRoster as the domain owner for member/read-cursor state"
+        "services/conversation-runtime/src/runtime.rs should use ConversationRoster as the domain owner for member/read_cursor state"
     );
 }
 
@@ -142,7 +142,7 @@ fn test_message_mutation_commands_offer_auth_context_constructors() {
     let runtime_source = include_str!("../src/runtime.rs").replace("\r\n", "\n");
 
     assert!(
-        runtime_source.contains("fn sender_from_auth_context(auth: &AuthContext) -> Sender {"),
+        runtime_source.contains("fn sender_from_auth_context(auth: &AppContext) -> Sender {"),
         "services/conversation-runtime/src/runtime.rs should centralize message sender snapshot projection behind sender_from_auth_context"
     );
 
@@ -154,7 +154,7 @@ fn test_message_mutation_commands_offer_auth_context_constructors() {
     ] {
         assert!(
             runtime_source.contains(required_symbol),
-            "services/conversation-runtime/src/runtime.rs should expose auth-context-backed message mutation constructor: {required_symbol}"
+            "services/conversation-runtime/src/runtime.rs should expose principal-context-backed message mutation constructor: {required_symbol}"
         );
     }
 }
@@ -165,7 +165,7 @@ fn test_http_message_surface_uses_auth_context_command_constructors() {
 
     assert!(
         http_source.contains("from_auth_context("),
-        "services/conversation-runtime/src/runtime/http.rs should construct message mutation commands from AuthContext in one place"
+        "services/conversation-runtime/src/runtime/http.rs should construct message mutation commands from AppContext in one place"
     );
 
     for forbidden_symbol in [
@@ -204,7 +204,7 @@ fn test_non_message_commands_offer_auth_context_constructors() {
     ] {
         assert!(
             runtime_source.contains(required_symbol),
-            "services/conversation-runtime/src/runtime.rs should expose auth-context-backed non-message constructor: {required_symbol}"
+            "services/conversation-runtime/src/runtime.rs should expose principal-context-backed non-message constructor: {required_symbol}"
         );
     }
 }
@@ -232,7 +232,7 @@ fn test_http_non_message_surface_uses_auth_context_command_constructors() {
     ] {
         assert!(
             http_source.contains(required_symbol),
-            "services/conversation-runtime/src/runtime/http.rs should consume runtime non-message auth-context entrypoint in one place: {required_symbol}"
+            "services/conversation-runtime/src/runtime/http.rs should consume runtime non-message principal-context entrypoint in one place: {required_symbol}"
         );
     }
 
@@ -268,7 +268,7 @@ fn test_http_non_message_surface_uses_auth_context_command_constructors() {
     ] {
         assert!(
             !http_source.contains(forbidden_symbol),
-            "services/conversation-runtime/src/runtime/http.rs should not keep non-message authority capture outside runtime auth-context entrypoint: {forbidden_symbol}"
+            "services/conversation-runtime/src/runtime/http.rs should not keep non-message authority capture outside runtime principal-context entrypoint: {forbidden_symbol}"
         );
     }
 }
@@ -301,7 +301,7 @@ fn test_runtime_exposes_non_message_auth_context_entrypoints() {
     ] {
         assert!(
             combined.contains(required_symbol),
-            "conversation-runtime should expose auth-context-backed non-message runtime entrypoint: {required_symbol}"
+            "conversation-runtime should expose principal-context-backed non-message runtime entrypoint: {required_symbol}"
         );
     }
 }
@@ -326,7 +326,7 @@ fn test_runtime_exposes_read_query_auth_context_entrypoints() {
     ] {
         assert!(
             combined.contains(required_symbol),
-            "conversation-runtime should expose auth-context-backed read query entrypoint: {required_symbol}"
+            "conversation-runtime should expose principal-context-backed read query entrypoint: {required_symbol}"
         );
     }
 
@@ -349,7 +349,7 @@ fn test_runtime_exposes_conversation_bound_write_access_auth_context_entrypoint(
     assert!(
         runtime_source
             .contains("pub fn ensure_conversation_bound_write_allowed_from_auth_context("),
-        "services/conversation-runtime/src/runtime.rs should expose auth-context-backed conversation-bound write access guard"
+        "services/conversation-runtime/src/runtime.rs should expose principal-context-backed conversation-bound write access guard"
     );
 }
 
@@ -376,7 +376,7 @@ fn test_http_non_message_surface_uses_runtime_auth_context_entrypoints() {
     ] {
         assert!(
             http_source.contains(required_symbol),
-            "services/conversation-runtime/src/runtime/http.rs should consume runtime auth-context entrypoint: {required_symbol}"
+            "services/conversation-runtime/src/runtime/http.rs should consume runtime principal-context entrypoint: {required_symbol}"
         );
     }
 
@@ -385,7 +385,7 @@ fn test_http_non_message_surface_uses_runtime_auth_context_entrypoints() {
             && !http_source.contains("with_creator_kind(")
             && !http_source.contains("with_requester_kind(")
             && !http_source.contains("with_source_kind("),
-        "services/conversation-runtime/src/runtime/http.rs should not thread non-message authority through the old *with_*kind entrypoints once runtime owns the auth-context boundary"
+        "services/conversation-runtime/src/runtime/http.rs should not thread non-message authority through the old *with_*kind entrypoints once runtime owns the principal-context boundary"
     );
 }
 
@@ -402,7 +402,7 @@ fn test_http_read_query_surface_uses_runtime_auth_context_entrypoints() {
     ] {
         assert!(
             http_source.contains(required_symbol),
-            "services/conversation-runtime/src/runtime/http.rs should consume runtime read query auth-context entrypoint: {required_symbol}"
+            "services/conversation-runtime/src/runtime/http.rs should consume runtime read query principal-context entrypoint: {required_symbol}"
         );
     }
 
@@ -415,7 +415,7 @@ fn test_http_read_query_surface_uses_runtime_auth_context_entrypoints() {
     ] {
         assert!(
             !http_source.contains(forbidden_symbol),
-            "services/conversation-runtime/src/runtime/http.rs should not keep read query authority capture outside runtime auth-context entrypoint: {forbidden_symbol}"
+            "services/conversation-runtime/src/runtime/http.rs should not keep read query authority capture outside runtime principal-context entrypoint: {forbidden_symbol}"
         );
     }
 }
@@ -437,7 +437,7 @@ fn test_auth_context_runtime_entrypoints_keep_typed_principal_identity() {
     ] {
         assert!(
             !source.contains("from_auth_context(\n") || source.contains("auth.actor_kind.as_str()"),
-            "services/conversation-runtime/src/runtime/{source_name} auth-context entrypoints must keep actor_kind in the runtime boundary"
+            "services/conversation-runtime/src/runtime/{source_name} principal-context entrypoints must keep actor_kind in the runtime boundary"
         );
     }
 

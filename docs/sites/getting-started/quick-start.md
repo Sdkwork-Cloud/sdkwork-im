@@ -52,14 +52,14 @@ Minimum expected keys:
 ```dotenv
 CRAW_CHAT_BIND_ADDR=127.0.0.1:18090
 CRAW_CHAT_RUNTIME_DIR=.runtime/local-minimal
-CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=<generated-or-manually-set-secret>
+CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=<generated-or-manually-set-secret>
 ```
 
 If the browser UI is not served from the default local preview origins, also set
 `CRAW_CHAT_BROWSER_ORIGINS` to the explicit comma-separated allowlist for that deployment.
 
-If `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET` is missing, `start-local.*` refuses to start the public
-app node.
+`start-local.*` no longer requires a craw-chat-owned public bearer secret. SDKWork auth validation
+happens before craw-chat, and the local node consumes the verified AppContext projection.
 
 ## 3. Start the Local Node
 
@@ -159,8 +159,8 @@ powershell -ExecutionPolicy Bypass -File tools\smoke\local_stack_smoke.ps1 -Base
 bash bin/deploy-local.sh --profile local-default --smoke-base-url http://127.0.0.1:28090
 ```
 
-The smoke script waits for health, generates a signed local bearer token, creates a conversation,
-posts a message, and verifies the resulting conversation summary.
+The smoke script waits for health, sends `x-sdkwork-*` AppContext projection headers, creates a
+conversation, posts a message, and verifies the resulting conversation summary.
 
 ## 7. Use the Local Verification Tools
 
@@ -179,9 +179,11 @@ healthy.
 
 The easiest path is to reuse the smoke script. If you call the HTTP API directly, use:
 
-- `Authorization: Bearer <HS256 JWT>`
-- The same signing secret configured in `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`
-- Claims that at least identify tenant and subject
+- `x-sdkwork-tenant-id`
+- `x-sdkwork-user-id`
+- `x-sdkwork-session-id`
+- `x-sdkwork-device-id`
+- `x-sdkwork-permission-scope`
 
 The public app surface is documented in [App API Overview](/api-reference/app-api).
 

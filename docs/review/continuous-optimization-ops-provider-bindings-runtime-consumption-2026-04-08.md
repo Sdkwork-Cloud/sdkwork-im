@@ -10,7 +10,7 @@
 
 `07-A` 已完成：
 
-- `GET /api/v1/control/provider-bindings`
+- `GET /backend/v3/api/control/provider_bindings`
 - `tenant override / deployment_profile / global default` 的控制面求值可见性
 
 但仍缺：
@@ -29,7 +29,7 @@
 - `OpsRuntime` 新增：
   - `update_provider_binding_snapshot(...)`
   - `provider_bindings_view()`
-- `ops-service` 新增 `GET /api/v1/ops/provider-bindings`
+- `ops-service` 新增 `GET /backend/v3/api/ops/provider_bindings`
 - `diagnostic bundle` 新增 `providerBindings`
 - `control-plane-api` 在 provider binding 查询后，会把结果镜像进 `OpsRuntime`
 - 新增治理装配入口：

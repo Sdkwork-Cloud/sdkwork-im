@@ -68,7 +68,7 @@ struct TestServer {
 
 impl TestServer {
     fn websocket_url(&self) -> String {
-        format!("ws://{}/api/v1/realtime/ws", self.address)
+        format!("ws://{}/im/v3/api/realtime/ws", self.address)
     }
 
     async fn shutdown(self) {
@@ -228,11 +228,11 @@ fn envelope_payload_json(envelope: CcpEnvelope) -> Value {
 async fn connect_ccp_device(url: &str, device_id: &str) -> (ConnectedDevice, f64) {
     let request = ClientRequestBuilder::new(url.parse().expect("websocket url should parse"))
         .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-        .with_header("x-tenant-id", TENANT_ID)
-        .with_header("x-user-id", PRINCIPAL_ID)
-        .with_header("x-actor-kind", PRINCIPAL_KIND)
-        .with_header("x-session-id", SESSION_ID)
-        .with_header("x-device-id", device_id);
+        .with_header("x-sdkwork-tenant-id", TENANT_ID)
+        .with_header("x-sdkwork-user-id", PRINCIPAL_ID)
+        .with_header("x-sdkwork-actor-kind", PRINCIPAL_KIND)
+        .with_header("x-sdkwork-session-id", SESSION_ID)
+        .with_header("x-sdkwork-device-id", device_id);
 
     let started = Instant::now();
     let (mut socket, response) = connect_async(request)

@@ -29,7 +29,7 @@
 - actual_changes:
   - `control-plane-api` 在 `SocialControlState` 中新增 `pending_shared_channel_sync_requests`
   - dispatch 逻辑当前会在 `shared_channel_sync_trigger` 缺失或 dispatch 失败时，把 ready pair sync 请求 durable 持久化为 pending backlog
-  - 控制面新增 `POST /api/v1/control/social/runtime/repair-shared-channel-sync`，用于显式重放 pending backlog 并在成功后清空
+  - 控制面新增 `POST /backend/v3/api/control/social/runtime/repair-shared-channel-sync`，用于显式重放 pending backlog 并在成功后清空
   - `repair-derived-snapshot` 与 `repair-social-runtime-dir` 当前 replay `social-commit-journal.json` 时会保留 pending backlog，不再把 operator backlog 抹掉
   - 新增 dual-service e2e：先失败持久化 backlog，再 repair 重放到 public `conversation-runtime`，最终 linked actor 成功读取 shared history
 - changed_files:

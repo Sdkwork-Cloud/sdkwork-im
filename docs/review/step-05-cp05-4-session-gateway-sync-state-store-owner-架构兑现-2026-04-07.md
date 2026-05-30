@@ -22,7 +22,7 @@
 - session/presence handler 与 storage owner 的边界已分层：
   - `session.rs` 负责业务入口与编排
   - `session_state.rs` 负责 sync-state owner
-  - `SessionPresenceRuntime` 继续负责 presence runtime 行为
+  - `DevicePresenceRuntime` 继续负责 presence runtime 行为
 
 ## 本轮未兑现
 

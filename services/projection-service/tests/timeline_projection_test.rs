@@ -1,4 +1,4 @@
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_core::conversation::MembershipRole;
 use projection_service::{
     MessageReactionCountView, NotificationRecipientView, RealtimeFanoutTarget,
@@ -143,7 +143,7 @@ fn test_timeline_window_returns_cursor_metadata_and_rejects_oversized_limit() {
     assert_eq!(second.next_after_seq, Some(3));
     assert!(!second.has_more);
 
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -835,7 +835,7 @@ fn test_inbox_from_auth_context_isolates_same_actor_id_by_principal_kind() {
             .expect("typed inbox member projection should succeed");
     }
 
-    let user_auth = AuthContext {
+    let user_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_dual".into(),
         actor_kind: "user".into(),
@@ -843,7 +843,7 @@ fn test_inbox_from_auth_context_isolates_same_actor_id_by_principal_kind() {
         device_id: None,
         permissions: Default::default(),
     };
-    let agent_auth = AuthContext {
+    let agent_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_dual".into(),
         actor_kind: "agent".into(),
@@ -1171,7 +1171,7 @@ fn test_device_sync_feed_window_from_auth_context_hides_archived_direct_chat_ent
     service.register_device_for_principal_kind("t_demo", "u_alice", "user", "d_alice_phone");
     service.register_device_for_principal_kind("t_demo", "u_alice", "user", "d_alice_pad");
 
-    let alice_auth = AuthContext {
+    let alice_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_alice".into(),
         actor_kind: "user".into(),
@@ -1469,7 +1469,7 @@ fn test_device_sync_feed_window_is_bounded_and_reports_trimmed_boundary() {
     service.register_device_for_principal_kind("t_demo", "u_owner", "user", "d_owner");
     service.register_device_for_principal_kind("t_demo", "u_owner", "user", "d_pad");
 
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_owner".into(),
         actor_kind: "user".into(),
@@ -1958,7 +1958,7 @@ fn test_realtime_fanout_targets_for_recipients_return_registered_principal_devic
     service.register_device("t_demo", "u_a", "d_watch");
     service.register_device("t_demo", "u_a", "d_pad");
 
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_a".into(),
         actor_kind: "user".into(),
@@ -2192,7 +2192,7 @@ fn test_active_conversation_principal_recipients_from_auth_context_returns_curre
             .expect("member projection should succeed");
     }
 
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_owner".into(),
         actor_kind: "user".into(),
@@ -2302,7 +2302,7 @@ fn test_message_posted_notification_recipients_from_auth_context_include_shared_
             .expect("member projection should accept notification target events");
     }
 
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_owner".into(),
         actor_kind: "user".into(),
@@ -2413,7 +2413,7 @@ fn test_member_directory_and_notification_recipients_preserve_same_actor_id_acro
             .expect("typed member projection should succeed");
     }
 
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_dual".into(),
         actor_kind: "user".into(),
@@ -2520,7 +2520,7 @@ fn test_typed_realtime_recipients_exclude_non_member_devices_sharing_same_actor_
     service.register_device_for_principal_kind("t_demo", "u_dual", "user", "d_dual_user");
     service.register_device_for_principal_kind("t_demo", "u_dual", "agent", "d_dual_agent");
 
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_owner".into(),
         actor_kind: "user".into(),
@@ -2629,7 +2629,7 @@ fn test_device_sync_state_isolated_for_same_actor_and_device_across_principal_ki
     service.register_device_for_principal_kind("t_demo", "u_dual", "user", "d_shared");
     service.register_device_for_principal_kind("t_demo", "u_dual", "agent", "d_shared");
 
-    let user_auth = AuthContext {
+    let user_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_dual".into(),
         actor_kind: "user".into(),
@@ -2637,7 +2637,7 @@ fn test_device_sync_state_isolated_for_same_actor_and_device_across_principal_ki
         device_id: Some("d_shared".into()),
         permissions: Default::default(),
     };
-    let agent_auth = AuthContext {
+    let agent_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_dual".into(),
         actor_kind: "agent".into(),

@@ -4,7 +4,7 @@
 
 - 新增 `07-C6 / 09I / 150I` 文档闭环。
 - `RuntimeProviderRegistry` 支持 `preview_upsert(...)`。
-- control-plane 新增 `POST /api/v1/control/provider-policies/preview`。
+- control-plane 新增 `POST /backend/v3/api/control/provider-policies/preview`。
 - 新响应固定为 `baseVersion`、`previewVersion`、`previewBinding`、`diff`。
 - preview 权限固定为 `control.write`。
 - governance 回归已证明 preview 无副作用，不触碰 ops 与 audit。

@@ -16,8 +16,8 @@ use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskSt
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_auth_context::{
-    AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
+use im_app_context::{
+    AppContext, AppContextError, resolve_app_context,
 };
 pub use im_domain_core::notification::{NotificationStatus, NotificationTask};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
@@ -256,8 +256,8 @@ impl NotificationError {
     }
 }
 
-impl From<AuthContextError> for NotificationError {
-    fn from(value: AuthContextError) -> Self {
+impl From<AppContextError> for NotificationError {
+    fn from(value: AppContextError) -> Self {
         Self {
             status: axum::http::StatusCode::UNAUTHORIZED,
             code: value.code(),
@@ -420,7 +420,7 @@ impl NotificationRuntime {
 
     pub fn request_notification(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RequestNotification,
     ) -> Result<NotificationTask, NotificationError> {
         Ok(self.request_notification_with_outcome(auth, request)?.task)
@@ -428,7 +428,7 @@ impl NotificationRuntime {
 
     pub fn request_notification_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RequestNotification,
     ) -> Result<NotificationRequestResult, NotificationError> {
         validate_notification_request_payload_size(&request)?;
@@ -498,24 +498,22 @@ impl NotificationRuntime {
         })
     }
 
-    pub fn request_notification_from_public_api(
+    pub fn request_notification_from_app_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RequestNotification,
-        is_bearer_request: bool,
     ) -> Result<NotificationRequestResult, NotificationError> {
         ensure_notification_request_access(
             auth,
             request.recipient_id.as_str(),
             request.recipient_kind.as_str(),
-            is_bearer_request,
         )?;
         self.request_notification_with_outcome(auth, request)
     }
 
     pub fn request_notification_fanout(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RequestNotificationFanout,
     ) -> Result<Vec<NotificationTask>, NotificationError> {
         let mut tasks = Vec::new();
@@ -548,7 +546,7 @@ impl NotificationRuntime {
 
     pub fn request_message_posted_notifications(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RequestMessagePostedNotifications,
     ) -> Result<Vec<NotificationTask>, NotificationError> {
         let RequestMessagePostedNotifications {
@@ -603,7 +601,7 @@ impl NotificationRuntime {
 
     pub fn request_automation_result_notification(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RequestAutomationResultNotification,
     ) -> Result<NotificationTask, NotificationError> {
         self.request_notification(
@@ -631,7 +629,7 @@ impl NotificationRuntime {
 
     pub fn list_notifications(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
     ) -> Result<Vec<NotificationTask>, NotificationError> {
         self.ensure_recipient_tasks(
             auth.tenant_id.as_str(),
@@ -658,7 +656,7 @@ impl NotificationRuntime {
 
     pub fn get_notification(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         notification_id: &str,
     ) -> Result<NotificationTask, NotificationError> {
         self.ensure_notification_task(auth.tenant_id.as_str(), notification_id)?;
@@ -682,7 +680,7 @@ impl NotificationRuntime {
 
     fn append_event(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         task: &NotificationTask,
         event_type: &str,
         ordering_seq: u64,
@@ -815,7 +813,7 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_public_bearer_auth))
+    build_default_app().layer(middleware::from_fn(require_app_context))
 }
 
 pub fn build_app(runtime: Arc<NotificationRuntime>) -> Router {
@@ -824,19 +822,22 @@ pub fn build_app(runtime: Arc<NotificationRuntime>) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .route("/api/v1/notifications/requests", post(request_notification))
-        .route("/api/v1/notifications", get(list_notifications))
         .route(
-            "/api/v1/notifications/{notification_id}",
+            "/im/v3/api/notifications/requests",
+            post(request_notification),
+        )
+        .route("/im/v3/api/notifications", get(list_notifications))
+        .route(
+            "/im/v3/api/notifications/{notification_id}",
             get(get_notification),
         )
         .with_state(AppState { runtime })
 }
 
-async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_public_bearer_auth_context(request.headers()) {
+        _ => match resolve_app_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => NotificationError::from(error).into_response(),
         },
@@ -880,7 +881,7 @@ fn build_notification_service_openapi_document() -> Result<serde_json::Value, St
         &notification_service_openapi_spec(),
         &routes,
         notification_service_tag,
-        notification_service_requires_bearer,
+        notification_service_requires_app_context,
         notification_service_summary,
     ))
 }
@@ -902,7 +903,7 @@ fn notification_service_tag(path: &str, _method: HttpMethod) -> String {
     }
 }
 
-fn notification_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+fn notification_service_requires_app_context(path: &str, _method: HttpMethod) -> bool {
     !matches!(path, "/healthz" | "/readyz")
 }
 
@@ -935,12 +936,11 @@ async fn request_notification(
     State(state): State<AppState>,
     Json(request): Json<RequestNotification>,
 ) -> Result<Json<NotificationRequestResponse>, NotificationError> {
-    let is_bearer_request = headers.contains_key(axum::http::header::AUTHORIZATION);
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(
         state
             .runtime
-            .request_notification_from_public_api(&auth, request, is_bearer_request)?
+            .request_notification_from_app_context(&auth, request)?
             .into(),
     ))
 }
@@ -949,7 +949,7 @@ async fn list_notifications(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<NotificationListResponse>, NotificationError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(NotificationListResponse {
         items: state.runtime.list_notifications(&auth)?,
     }))
@@ -960,7 +960,7 @@ async fn get_notification(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<NotificationTask>, NotificationError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(
         state
             .runtime
@@ -1137,13 +1137,11 @@ fn notification_matches_request(task: &NotificationTask, request: &RequestNotifi
 }
 
 fn ensure_notification_request_access(
-    auth: &AuthContext,
+    auth: &AppContext,
     recipient_id: &str,
     recipient_kind: &str,
-    is_bearer_request: bool,
 ) -> Result<(), NotificationError> {
-    if !is_bearer_request
-        || (recipient_id == auth.actor_id && recipient_kind == auth.actor_kind.as_str())
+    if (recipient_id == auth.actor_id && recipient_kind == auth.actor_kind.as_str())
         || auth.has_permission("notification.write")
     {
         return Ok(());
@@ -1232,7 +1230,7 @@ fn validate_notification_request_payload_size(
     Ok(())
 }
 
-fn notification_visible_to_actor(task: &NotificationTask, auth: &AuthContext) -> bool {
+fn notification_visible_to_actor(task: &NotificationTask, auth: &AppContext) -> bool {
     task.recipient_id == auth.actor_id && task.recipient_kind == auth.actor_kind
 }
 
@@ -1260,7 +1258,7 @@ impl<T> NotificationMutexExt<T> for Mutex<T> {
         match self.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
-                eprintln!("warning: recovering poisoned mutex in notification-service");
+                tracing::warn!("recovering poisoned mutex in notification-service");
                 poisoned.into_inner()
             }
         }
@@ -1305,8 +1303,8 @@ mod tests {
         }
     }
 
-    fn demo_auth_context() -> AuthContext {
-        AuthContext {
+    fn demo_auth_context() -> AppContext {
+        AppContext {
             tenant_id: "t_demo".into(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),

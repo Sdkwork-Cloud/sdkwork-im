@@ -67,7 +67,7 @@
 ## 关键词冻结
 
 - `local-minimal-node`
-- `/api/v1/iot/protocol/uplink`
+- `/backend/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `request.device_id.clone().or_else(|| auth.device_id.clone())`

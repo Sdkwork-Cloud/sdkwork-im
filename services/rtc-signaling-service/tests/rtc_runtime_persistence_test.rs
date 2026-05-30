@@ -9,7 +9,7 @@ use im_adapter_rtc_aliyun::AliyunRtcProvider;
 use im_adapter_rtc_tencent::TencentRtcProvider;
 use im_adapter_rtc_volcengine::VolcengineRtcProvider;
 use im_adapters_local_memory::MemoryRtcStateStore;
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_core::rtc::RtcSessionState;
 use im_platform_contracts::{
     ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
@@ -32,12 +32,12 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -56,12 +56,12 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_rebuild/invite")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions/rtc_rebuild/invite")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -79,12 +79,12 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_rebuild/signals")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/rtc/sessions/rtc_rebuild/signals")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -108,12 +108,12 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_rebuild/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_peer")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_peer")
-                .header("x-session-id", "s_peer")
+                .uri("/im/v3/api/rtc/sessions/rtc_rebuild/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_peer")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_peer")
+                .header("x-sdkwork-session-id", "s_peer")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -142,12 +142,12 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_rebuild/signals")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_peer")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_peer")
-                .header("x-session-id", "s_peer")
+                .uri("/im/v3/api/rtc/sessions/rtc_rebuild/signals")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_peer")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_peer")
+                .header("x-sdkwork-session-id", "s_peer")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -176,12 +176,12 @@ async fn test_runtime_restores_rtc_state_on_rebuild_with_shared_store() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/rtc/sessions/rtc_rebuild/end")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_demo")
-                .header("x-session-id", "s_demo_new")
+                .uri("/im/v3/api/rtc/sessions/rtc_rebuild/end")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("x-sdkwork-session-id", "s_demo_new")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -420,8 +420,8 @@ impl RtcProviderPort for TrackingRtcProvider {
     }
 }
 
-fn demo_auth_context() -> AuthContext {
-    AuthContext {
+fn demo_auth_context() -> AppContext {
+    AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),

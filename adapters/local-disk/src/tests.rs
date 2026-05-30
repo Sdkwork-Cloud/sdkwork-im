@@ -5,10 +5,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::*;
 use im_domain_core::automation::{AutomationExecution, AutomationExecutionState};
+use im_domain_core::device_session::{DevicePresenceStatus, DevicePresenceView};
 use im_domain_core::notification::{NotificationStatus, NotificationTask};
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
 use im_domain_core::rtc::{RtcSession, RtcSessionState, RtcSignalEvent};
-use im_domain_core::session::{DevicePresenceStatus, DevicePresenceView};
 use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
 };
@@ -912,6 +912,41 @@ fn test_file_disconnect_fence_store_conditionally_clears_only_old_fence() {
 }
 
 #[test]
+fn test_file_disconnect_fence_store_compares_cutoff_by_rfc3339_instant() {
+    let file_path = unique_store_file();
+    let store = FileRealtimeDisconnectFenceStore::new(&file_path);
+    store
+        .save_fence(realtime_disconnect_fence_record(
+            "u_demo",
+            "s_new",
+            "node_b",
+            "2026-05-06T00:00:00.100Z",
+        ))
+        .expect("fence save should succeed");
+
+    let cleared = store
+        .clear_fence_disconnected_at_or_before(
+            "t_demo",
+            "user",
+            "u_demo",
+            "d_pad",
+            "2026-05-06T00:00:00Z",
+        )
+        .expect("conditional fence clear should succeed");
+
+    assert!(!cleared);
+    assert!(
+        store
+            .load_fence("t_demo", "user", "u_demo", "d_pad")
+            .expect("disconnect fence load should succeed")
+            .is_some(),
+        "fractional-second later disconnect fence must not be deleted by whole-second cutoff"
+    );
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
 fn test_file_disconnect_fence_store_clears_only_exact_matching_fence() {
     let file_path = unique_store_file();
     let store = FileRealtimeDisconnectFenceStore::new(&file_path);
@@ -1162,6 +1197,48 @@ fn test_file_subscription_store_does_not_clear_newer_subscription() {
             .expect("subscription load should succeed")
             .is_some(),
         "newer subscription must not be deleted by an older disconnect cleanup"
+    );
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_subscription_store_compares_cutoff_by_rfc3339_instant() {
+    let file_path = unique_subscription_store_file();
+    let store = FileRealtimeSubscriptionStore::new(&file_path);
+    store
+        .save_subscriptions(RealtimeSubscriptionRecord {
+            tenant_id: "t_demo".into(),
+            principal_kind: "user".into(),
+            principal_id: "u_demo".into(),
+            device_id: "d_pad".into(),
+            items: vec![RealtimeSubscription {
+                scope_type: "conversation".into(),
+                scope_id: "c_demo".into(),
+                event_types: Vec::new(),
+                subscribed_at: "2026-05-06T00:00:00.100Z".into(),
+            }],
+            synced_at: "2026-05-06T00:00:00.100Z".into(),
+        })
+        .expect("subscription save should succeed");
+
+    let cleared = store
+        .clear_subscriptions_synced_at_or_before(
+            "t_demo",
+            "user",
+            "u_demo",
+            "d_pad",
+            "2026-05-06T00:00:00Z",
+        )
+        .expect("conditional clear should succeed");
+
+    assert!(!cleared);
+    assert!(
+        store
+            .load_subscriptions("t_demo", "user", "u_demo", "d_pad")
+            .expect("subscription load should succeed")
+            .is_some(),
+        "fractional-second later subscription must not be deleted by whole-second cutoff"
     );
 
     let _ = fs::remove_file(file_path);
@@ -1786,6 +1863,52 @@ fn test_file_presence_state_store_lists_stale_online_devices_by_seen_at() {
         .list_online_states_seen_at_or_before("2026-05-06T00:00:02.000Z", 1)
         .expect("limited stale online list should succeed");
     assert_eq!(limited[0].device_id, "d_old_1");
+
+    let _ = fs::remove_file(file_path);
+}
+
+#[test]
+fn test_file_presence_state_store_seen_at_cutoff_compares_rfc3339_by_instant() {
+    let file_path = unique_presence_state_store_file();
+    let store = FilePresenceStateStore::new(&file_path);
+    for (device_id, last_seen_at) in [
+        ("d_later_fraction", "2026-05-06T00:00:00.100Z"),
+        ("d_whole_second", "2026-05-06T00:00:00Z"),
+    ] {
+        store
+            .save_state(PresenceStateRecord {
+                tenant_id: "t_demo".into(),
+                principal_kind: "user".into(),
+                principal_id: "u_demo".into(),
+                device_id: device_id.into(),
+                presence: DevicePresenceView {
+                    tenant_id: "t_demo".into(),
+                    principal_id: "u_demo".into(),
+                    device_id: device_id.into(),
+                    platform: None,
+                    session_id: Some(format!("s_{device_id}")),
+                    status: DevicePresenceStatus::Online,
+                    last_sync_seq: 0,
+                    last_resume_at: Some(last_seen_at.into()),
+                    last_seen_at: Some(last_seen_at.into()),
+                },
+                resume_required: false,
+                updated_at: last_seen_at.into(),
+            })
+            .expect("presence state save should succeed");
+    }
+
+    let stale = store
+        .list_online_states_seen_at_or_before("2026-05-06T00:00:00Z", 10)
+        .expect("stale online list should succeed");
+
+    assert_eq!(
+        stale
+            .iter()
+            .map(|record| record.device_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["d_whole_second"]
+    );
 
     let _ = fs::remove_file(file_path);
 }

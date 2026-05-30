@@ -14,11 +14,11 @@
 
 Affected request classes included:
 
-- `POST /api/v1/devices/register`
-- `POST /api/v1/presence/heartbeat`
-- `POST /api/v1/sessions/disconnect`
-- `GET /api/v1/realtime/events`
-- `POST /api/v1/realtime/events/ack`
+- `POST /im/v3/api/devices/register`
+- `POST /im/v3/api/presence/heartbeat`
+- `POST /im/v3/api/device/sessions/disconnect`
+- `GET /im/v3/api/realtime/events`
+- `POST /im/v3/api/realtime/events/ack`
 - websocket attach
 
 ## 2. Impact
@@ -49,7 +49,7 @@ Observed pre-fix behavior:
 
 1. device resumed on `node_a` with `s_old`
 2. device resumed on `node_b` with `s_new`
-3. a sessionless `POST /api/v1/devices/register` on `node_a` still succeeded
+3. a sessionless `POST /im/v3/api/devices/register` on `node_a` still succeeded
 4. current-session fencing was therefore bypassable by omitting `session_id`
 
 ## 4. Fix Design

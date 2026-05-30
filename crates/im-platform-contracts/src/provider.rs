@@ -13,7 +13,7 @@ const PROVIDER_POLICY_MAX_TENANT_ID_BYTES: usize = 256;
 pub enum ProviderDomain {
     Rtc,
     ObjectStorage,
-    UserModule,
+    PrincipalProfile,
     IotAccess,
     IotProtocol,
 }
@@ -22,7 +22,7 @@ impl ProviderDomain {
     pub const ALL: [Self; 5] = [
         Self::Rtc,
         Self::ObjectStorage,
-        Self::UserModule,
+        Self::PrincipalProfile,
         Self::IotAccess,
         Self::IotProtocol,
     ];
@@ -31,7 +31,7 @@ impl ProviderDomain {
         match self {
             Self::Rtc => "rtc",
             Self::ObjectStorage => "object-storage",
-            Self::UserModule => "user-module",
+            Self::PrincipalProfile => "principal-profile",
             Self::IotAccess => "iot-access",
             Self::IotProtocol => "iot-protocol",
         }
@@ -354,20 +354,20 @@ impl StaticProviderRegistry {
             )
             .with_required_capabilities(["s3-gateway", "presign"]),
             ProviderPluginDescriptor::new(
-                "user-module-local",
-                ProviderDomain::UserModule,
-                "local",
+                "principal-profile-upstream-context",
+                ProviderDomain::PrincipalProfile,
+                "upstream-context",
                 "本地实现",
             )
             .with_default_selected(true)
-            .with_required_capabilities(["query", "profile", "bind"]),
+            .with_required_capabilities(["read", "profile"]),
             ProviderPluginDescriptor::new(
-                "user-module-external",
-                ProviderDomain::UserModule,
-                "external",
+                "principal-profile-external-catalog",
+                ProviderDomain::PrincipalProfile,
+                "external-catalog",
                 "外部系统集成",
             )
-            .with_required_capabilities(["query", "bind", "external-mapping"]),
+            .with_required_capabilities(["read", "profile", "external-mapping"]),
             ProviderPluginDescriptor::new(
                 "iot-access-local",
                 ProviderDomain::IotAccess,
@@ -1345,67 +1345,43 @@ pub trait ObjectStorageProvider: Send + Sync {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UserModuleUser {
+pub struct PrincipalProfile {
     pub tenant_id: String,
-    pub user_id: String,
+    pub principal_id: String,
     pub display_name: String,
     pub external_system: Option<String>,
     pub external_principal_id: Option<String>,
     pub attributes: BTreeMap<String, String>,
-    pub disabled: bool,
+    pub inactive: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UserModuleCreateOrBindRequest {
-    pub tenant_id: String,
-    pub user_id: String,
-    pub display_name: String,
-    pub external_system: Option<String>,
-    pub external_principal_id: Option<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UserModuleUpdateProfileRequest {
-    pub tenant_id: String,
-    pub user_id: String,
-    pub display_name: Option<String>,
-    pub attributes: BTreeMap<String, String>,
-}
-
-pub trait UserModuleProvider: Send + Sync {
+pub trait PrincipalProfileProvider: Send + Sync {
     fn descriptor(&self) -> ProviderPluginDescriptor;
-    fn get_user(
+    fn get_profile(
         &self,
         tenant_id: &str,
-        user_id: &str,
-    ) -> Result<Option<UserModuleUser>, ContractError>;
-    fn batch_get_users(
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Result<Option<PrincipalProfile>, ContractError>;
+    fn batch_get_profiles(
         &self,
         tenant_id: &str,
-        user_ids: &[String],
-    ) -> Result<Vec<UserModuleUser>, ContractError>;
-    fn search_users(
+        principal_kind: &str,
+        principal_ids: &[String],
+    ) -> Result<Vec<PrincipalProfile>, ContractError>;
+    fn search_profiles(
         &self,
         tenant_id: &str,
+        principal_kind: &str,
         keyword: &str,
-    ) -> Result<Vec<UserModuleUser>, ContractError>;
-    fn create_or_bind_user(
-        &self,
-        request: UserModuleCreateOrBindRequest,
-    ) -> Result<UserModuleUser, ContractError>;
-    fn update_user_profile(
-        &self,
-        request: UserModuleUpdateProfileRequest,
-    ) -> Result<UserModuleUser, ContractError>;
-    fn disable_user(&self, tenant_id: &str, user_id: &str) -> Result<bool, ContractError>;
+    ) -> Result<Vec<PrincipalProfile>, ContractError>;
     fn map_external_principal(
         &self,
         tenant_id: &str,
+        principal_kind: &str,
         external_system: &str,
         external_principal_id: &str,
-    ) -> Result<Option<UserModuleUser>, ContractError>;
+    ) -> Result<Option<PrincipalProfile>, ContractError>;
     fn provider_health_snapshot(&self) -> ProviderHealthSnapshot;
 }
 

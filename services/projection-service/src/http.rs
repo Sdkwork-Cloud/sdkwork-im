@@ -12,7 +12,7 @@ use craw_chat_api_registry::HttpMethod;
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_auth_context::{AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context};
+use im_app_context::{AppContextError, resolve_app_context};
 use im_domain_core::conversation::{ConversationInboxEntry, ConversationReadCursorView};
 use serde::{Deserialize, Serialize};
 
@@ -94,8 +94,8 @@ impl ProjectionApiError {
     }
 }
 
-impl From<AuthContextError> for ProjectionApiError {
-    fn from(value: AuthContextError) -> Self {
+impl From<AppContextError> for ProjectionApiError {
+    fn from(value: AppContextError) -> Self {
         Self {
             status: axum::http::StatusCode::UNAUTHORIZED,
             code: value.code(),
@@ -132,11 +132,11 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_public_bearer_auth))
+    build_default_app().layer(middleware::from_fn(require_app_context))
 }
 
 pub fn build_public_app_with_service(service: Arc<TimelineProjectionService>) -> Router {
-    build_app(service).layer(middleware::from_fn(require_public_bearer_auth))
+    build_app(service).layer(middleware::from_fn(require_app_context))
 }
 
 pub fn build_app(service: Arc<TimelineProjectionService>) -> Router {
@@ -145,44 +145,44 @@ pub fn build_app(service: Arc<TimelineProjectionService>) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .route("/api/v1/devices/register", post(register_device))
+        .route("/im/v3/api/devices/register", post(register_device))
         .route(
-            "/api/v1/devices/{device_id}/sync-feed",
+            "/im/v3/api/devices/{device_id}/sync_feed",
             get(get_device_sync_feed),
         )
-        .route("/api/v1/contacts", get(get_contacts))
-        .route("/api/v1/inbox", get(get_inbox))
+        .route("/im/v3/api/chat/contacts", get(get_contacts))
+        .route("/im/v3/api/chat/inbox", get(get_inbox))
         .route(
-            "/api/v1/conversations/{conversation_id}",
+            "/im/v3/api/chat/conversations/{conversation_id}",
             get(get_conversation_summary),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/read-cursor",
+            "/im/v3/api/chat/conversations/{conversation_id}/read_cursor",
             get(get_read_cursor),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/member-directory",
+            "/im/v3/api/chat/conversations/{conversation_id}/member_directory",
             get(get_member_directory),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/pins",
+            "/im/v3/api/chat/conversations/{conversation_id}/pins",
             get(get_pinned_messages),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/messages/{message_id}/interaction-summary",
+            "/im/v3/api/chat/conversations/{conversation_id}/messages/{message_id}/interaction_summary",
             get(get_message_interaction_summary),
         )
         .route(
-            "/api/v1/conversations/{conversation_id}/messages",
+            "/im/v3/api/chat/conversations/{conversation_id}/messages",
             get(get_timeline),
         )
         .with_state(service)
 }
 
-async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_public_bearer_auth_context(request.headers()) {
+        _ => match resolve_app_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => ProjectionApiError::from(error).into_response(),
         },
@@ -225,7 +225,7 @@ fn build_projection_service_openapi_document() -> Result<serde_json::Value, Stri
         &projection_service_openapi_spec(),
         &routes,
         projection_service_tag,
-        projection_service_requires_bearer,
+        projection_service_requires_app_context,
         projection_service_summary,
     ))
 }
@@ -234,7 +234,7 @@ fn projection_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
         title: "Craw Chat Projection Service API",
         version: env!("CARGO_PKG_VERSION"),
-        description: "Live OpenAPI contract generated from the projection-service router for inbox, timeline, contacts, read cursor, sync-feed, and interaction summary queries.",
+        description: "Live OpenAPI contract generated from the projection-service router for inbox, timeline, contacts, read cursor, sync_feed, and interaction summary queries.",
         openapi_path: "/openapi.json",
         docs_path: "/docs",
     }
@@ -243,14 +243,14 @@ fn projection_service_openapi_spec() -> OpenApiServiceSpec<'static> {
 fn projection_service_tag(path: &str, _method: HttpMethod) -> String {
     match path {
         "/healthz" | "/readyz" => "system".to_owned(),
-        path if path.starts_with("/api/v1/devices/") => "devices".to_owned(),
-        "/api/v1/contacts" => "contacts".to_owned(),
-        "/api/v1/inbox" => "inbox".to_owned(),
+        path if path.starts_with("/im/v3/api/devices/") => "devices".to_owned(),
+        "/im/v3/api/chat/contacts" => "contacts".to_owned(),
+        "/im/v3/api/chat/inbox" => "inbox".to_owned(),
         _ => "conversations".to_owned(),
     }
 }
 
-fn projection_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+fn projection_service_requires_app_context(path: &str, _method: HttpMethod) -> bool {
     !matches!(path, "/healthz" | "/readyz")
 }
 
@@ -283,7 +283,7 @@ async fn register_device(
     State(service): State<Arc<TimelineProjectionService>>,
     Json(request): Json<RegisterDeviceRequest>,
 ) -> Result<Json<RegisteredDeviceView>, ProjectionApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(service.register_device_from_auth_context(
         &auth,
         request.device_id,
@@ -296,7 +296,7 @@ async fn get_device_sync_feed(
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<DeviceSyncFeedResponse>, ProjectionApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(service.device_sync_feed_window_from_auth_context(
         &auth,
         device_id.as_str(),
@@ -311,7 +311,7 @@ async fn get_timeline(
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<TimelineResponse>, ProjectionApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(service.timeline_window_from_auth_context(
         &auth,
         conversation_id.as_str(),
@@ -324,7 +324,7 @@ async fn get_inbox(
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<InboxResponse>, ProjectionApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(InboxResponse {
         items: service.inbox_from_auth_context(&auth),
     }))
@@ -334,7 +334,7 @@ async fn get_contacts(
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<ContactsResponse>, ProjectionApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(ContactsResponse {
         items: service.contacts_from_auth_context(&auth)?,
     }))
@@ -345,7 +345,7 @@ async fn get_conversation_summary(
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<ConversationSummaryView>, ProjectionApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let summary = service
         .conversation_summary_from_auth_context(&auth, conversation_id.as_str())?
         .ok_or_else(|| ProjectionApiError {
@@ -361,7 +361,7 @@ async fn get_read_cursor(
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<ConversationReadCursorView>, ProjectionApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let cursor = service
         .read_cursor_from_auth_context(&auth, conversation_id.as_str())?
         .ok_or_else(|| ProjectionApiError {
@@ -377,7 +377,7 @@ async fn get_member_directory(
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<MemberDirectoryResponse>, ProjectionApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(MemberDirectoryResponse {
         items: service.member_directory_from_auth_context(&auth, conversation_id.as_str())?,
     }))
@@ -388,7 +388,7 @@ async fn get_pinned_messages(
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<PinnedMessagesResponse>, ProjectionApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(PinnedMessagesResponse {
         items: service.pinned_messages_from_auth_context(&auth, conversation_id.as_str())?,
     }))
@@ -399,7 +399,7 @@ async fn get_message_interaction_summary(
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<MessageInteractionSummaryView>, ProjectionApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let summary = service
         .message_interaction_summary_from_auth_context(
             &auth,

@@ -14,7 +14,7 @@
 
 本轮冻结路由：
 
-- `GET /api/v1/iot/protocol/provider-health`
+- `GET /backend/v3/api/iot/protocol/provider_health`
 
 返回体直接复用 `ProviderHealthSnapshot`，不额外包装。
 
@@ -67,7 +67,7 @@
 采用 TDD：
 
 - 先新增 `iot_provider_http_test`
-- 确认 `GET /api/v1/iot/protocol/provider-health` 初始返回 `404`
+- 确认 `GET /backend/v3/api/iot/protocol/provider_health` 初始返回 `404`
 - 再补最小 route / injection / owner seam
 - 绿灯验证：
   - `pluginId = iot-mqtt`

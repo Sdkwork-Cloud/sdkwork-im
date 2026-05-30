@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use tokio::sync::watch;
 
 use super::ApiError;
 use super::cluster::RealtimeClusterBridge;
-use super::presence::SessionPresenceRuntime;
+use super::device_sync_state::DeviceSyncState;
+use super::presence::DevicePresenceRuntime;
 use super::realtime::RealtimeDeliveryRuntime;
-use super::session_state::SessionSyncState;
 use im_platform_contracts::{
     ContractError, DeviceAccessOwnerBindingRequest, DeviceAccessProvider,
     DeviceAccessRegistrationRequest,
@@ -15,30 +15,30 @@ use im_platform_contracts::{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DisconnectActiveDeviceRouteOutcome {
-    FenceMatchedSession,
+    FenceMatchedDeviceSession,
     DeviceDisconnected,
 }
 
-const SESSION_GATEWAY_DEVICE_PRODUCT_ID: &str = "session-gateway-device";
-const SESSION_GATEWAY_DEVICE_CREDENTIAL_KIND: &str = "session";
+const DEVICE_ROUTE_GATEWAY_DEVICE_PRODUCT_ID: &str = "device-route-gateway-device";
+const DEVICE_ROUTE_GATEWAY_DEVICE_CREDENTIAL_KIND: &str = "device_route";
 
 #[derive(Clone)]
-pub(crate) struct SessionDeviceRegistration {
+pub(crate) struct DeviceRouteRegistration {
     node_id: String,
     realtime_cluster: Arc<RealtimeClusterBridge>,
-    presence_runtime: Arc<SessionPresenceRuntime>,
+    presence_runtime: Arc<DevicePresenceRuntime>,
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
-    session_state: SessionSyncState,
+    device_sync_state: DeviceSyncState,
     device_access_provider: Arc<dyn DeviceAccessProvider>,
 }
 
-impl SessionDeviceRegistration {
+impl DeviceRouteRegistration {
     pub(crate) fn new(
         node_id: String,
         realtime_cluster: Arc<RealtimeClusterBridge>,
-        presence_runtime: Arc<SessionPresenceRuntime>,
+        presence_runtime: Arc<DevicePresenceRuntime>,
         realtime_runtime: Arc<RealtimeDeliveryRuntime>,
-        session_state: SessionSyncState,
+        device_sync_state: DeviceSyncState,
         device_access_provider: Arc<dyn DeviceAccessProvider>,
     ) -> Self {
         Self {
@@ -46,7 +46,7 @@ impl SessionDeviceRegistration {
             realtime_cluster,
             presence_runtime,
             realtime_runtime,
-            session_state,
+            device_sync_state,
             device_access_provider,
         }
     }
@@ -54,12 +54,12 @@ impl SessionDeviceRegistration {
     #[rustfmt::skip]
     pub(crate) fn register_device(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         connection_kind: &str,
         allow_session_takeover: bool,
     ) -> Result<(), ApiError> {
-        self.session_state
+        self.device_sync_state
             .ensure_device_kind_available(auth, device_id)?;
         let tenant_id = auth.tenant_id.as_str();
         let principal_id = auth.actor_id.as_str();
@@ -86,7 +86,7 @@ impl SessionDeviceRegistration {
                 principal_kind,
                 device_id,
             )?;
-        self.session_state.register_device(auth, device_id);
+        self.device_sync_state.register_device(auth, device_id);
         self.realtime_cluster.bind_device_route_for_principal_kind(
             tenant_id,
             principal_id,
@@ -111,12 +111,12 @@ impl SessionDeviceRegistration {
 
     pub(crate) fn prepare_active_device_route(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         connection_kind: &str,
         allow_session_takeover: bool,
     ) -> Result<(), ApiError> {
-        self.session_state
+        self.device_sync_state
             .ensure_device_kind_available(auth, device_id)?;
         self.ensure_route_session_current(auth, device_id, auth.session_id.as_deref())?;
         self.register_device(auth, device_id, connection_kind, allow_session_takeover)?;
@@ -125,7 +125,7 @@ impl SessionDeviceRegistration {
 
     pub(crate) fn current_active_device_route(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Option<super::RealtimeDeviceRoute> {
         self.realtime_cluster
@@ -148,7 +148,7 @@ impl SessionDeviceRegistration {
 
     pub(crate) fn release_active_device_route_if_current_session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) {
         if self
@@ -171,20 +171,20 @@ impl SessionDeviceRegistration {
 
     pub(crate) fn ensure_active_device_route_current_session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<(), ApiError> {
-        self.session_state
+        self.device_sync_state
             .ensure_device_kind_available(auth, device_id)?;
         self.ensure_route_session_current(auth, device_id, auth.session_id.as_deref())
     }
 
     pub(crate) fn subscribe_active_device_route_epoch(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
     ) -> Result<watch::Receiver<u64>, ApiError> {
-        self.session_state
+        self.device_sync_state
             .ensure_device_kind_available(auth, device_id)?;
         Ok(self
             .realtime_cluster
@@ -198,11 +198,11 @@ impl SessionDeviceRegistration {
 
     pub(crate) fn disconnect_active_device_route(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         connection_kind: &str,
     ) -> Result<DisconnectActiveDeviceRouteOutcome, ApiError> {
-        self.session_state
+        self.device_sync_state
             .ensure_device_kind_available(auth, device_id)?;
         let tenant_id = auth.tenant_id.as_str();
         let principal_id = auth.actor_id.as_str();
@@ -225,7 +225,7 @@ impl SessionDeviceRegistration {
                     principal_kind,
                     device_id,
                 )?;
-            return Ok(DisconnectActiveDeviceRouteOutcome::FenceMatchedSession);
+            return Ok(DisconnectActiveDeviceRouteOutcome::FenceMatchedDeviceSession);
         }
 
         self.prepare_active_device_route(auth, device_id, connection_kind, false)?;
@@ -266,7 +266,7 @@ impl SessionDeviceRegistration {
 
     fn ensure_route_session_current(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         session_id: Option<&str>,
     ) -> Result<(), ApiError> {
@@ -285,11 +285,14 @@ impl SessionDeviceRegistration {
 
     fn ensure_device_access_registered(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         session_id: Option<&str>,
     ) -> Result<(), ApiError> {
-        if self.session_state.has_registered_device(auth, device_id) {
+        if self
+            .device_sync_state
+            .has_registered_device(auth, device_id)
+        {
             return Ok(());
         }
 
@@ -299,8 +302,8 @@ impl SessionDeviceRegistration {
             .register_device(DeviceAccessRegistrationRequest {
                 tenant_id: tenant_id.into(),
                 device_id: device_id.into(),
-                product_id: SESSION_GATEWAY_DEVICE_PRODUCT_ID.into(),
-                credential_kind: SESSION_GATEWAY_DEVICE_CREDENTIAL_KIND.into(),
+                product_id: DEVICE_ROUTE_GATEWAY_DEVICE_PRODUCT_ID.into(),
+                credential_kind: DEVICE_ROUTE_GATEWAY_DEVICE_CREDENTIAL_KIND.into(),
                 owner_principal_id: Some(principal_id.into()),
             })?;
         let owner_bound =

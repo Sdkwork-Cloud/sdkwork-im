@@ -14,7 +14,7 @@
 
 本轮冻结路由：
 
-- `GET /api/v1/iot/access/provider-health`
+- `GET /backend/v3/api/iot/access/provider_health`
 
 返回体直接复用 `ProviderHealthSnapshot`，不再额外包一层自定义对象。
 

@@ -16,29 +16,29 @@ async fn json_body(response: axum::response::Response) -> serde_json::Value {
 
 fn device_actor(builder: RequestBuilder) -> RequestBuilder {
     builder
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_owner")
-        .header("x-actor-kind", "device")
-        .header("x-device-id", "d_sensor")
-        .header("x-session-id", "s_sensor")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_owner")
+        .header("x-sdkwork-actor-kind", "device")
+        .header("x-sdkwork-device-id", "d_sensor")
+        .header("x-sdkwork-session-id", "s_sensor")
 }
 
 fn owner_actor(builder: RequestBuilder) -> RequestBuilder {
     builder
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_owner")
-        .header("x-actor-kind", "user")
-        .header("x-device-id", "d_console")
-        .header("x-session-id", "s_console")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_owner")
+        .header("x-sdkwork-actor-kind", "user")
+        .header("x-sdkwork-device-id", "d_console")
+        .header("x-sdkwork-session-id", "s_console")
 }
 
 fn system_actor(builder: RequestBuilder) -> RequestBuilder {
     builder
-        .header("x-tenant-id", "t_demo")
-        .header("x-user-id", "u_owner")
-        .header("x-actor-kind", "system")
-        .header("x-device-id", "d_system_console")
-        .header("x-session-id", "s_system_console")
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", "u_owner")
+        .header("x-sdkwork-actor-kind", "system")
+        .header("x-sdkwork-device-id", "d_system_console")
+        .header("x-sdkwork-session-id", "s_system_console")
 }
 
 #[tokio::test]
@@ -52,7 +52,7 @@ async fn test_local_minimal_profile_device_telemetry_uses_device_sender_and_requ
             device_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/devices/register"),
+                    .uri("/im/v3/api/devices/register"),
             )
             .header("content-type", "application/json")
             .body(Body::from(r#"{}"#))
@@ -65,7 +65,7 @@ async fn test_local_minimal_profile_device_telemetry_uses_device_sender_and_requ
     let open_response = app
         .clone()
         .oneshot(
-            device_actor(Request::builder().method("POST").uri("/api/v1/streams"))
+            device_actor(Request::builder().method("POST").uri("/im/v3/api/streams"))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -89,7 +89,7 @@ async fn test_local_minimal_profile_device_telemetry_uses_device_sender_and_requ
             device_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/streams/st_device_telemetry/frames"),
+                    .uri("/im/v3/api/streams/st_device_telemetry/frames"),
             )
             .header("content-type", "application/json")
             .body(Body::from(
@@ -117,7 +117,7 @@ async fn test_local_minimal_profile_device_telemetry_uses_device_sender_and_requ
         .oneshot(
             owner_actor(
                 Request::builder()
-                    .uri("/api/v1/streams/st_device_telemetry/frames?afterFrameSeq=0&limit=10"),
+                    .uri("/im/v3/api/streams/st_device_telemetry/frames?afterFrameSeq=0&limit=10"),
             )
             .body(Body::empty())
             .unwrap(),
@@ -133,9 +133,9 @@ async fn test_local_minimal_profile_device_telemetry_uses_device_sender_and_requ
         .oneshot(
             owner_actor(
                 Request::builder()
-                    .uri("/api/v1/streams/st_device_telemetry/frames?afterFrameSeq=0&limit=10"),
+                    .uri("/im/v3/api/streams/st_device_telemetry/frames?afterFrameSeq=0&limit=10"),
             )
-            .header("x-permissions", "device.telemetry.read")
+            .header("x-sdkwork-permission-scope", "device.telemetry.read")
             .body(Body::empty())
             .unwrap(),
         )
@@ -162,7 +162,7 @@ async fn test_local_minimal_profile_device_stream_rejects_same_actor_id_differen
             device_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/devices/register"),
+                    .uri("/im/v3/api/devices/register"),
             )
             .header("content-type", "application/json")
             .body(Body::from(r#"{}"#))
@@ -175,7 +175,7 @@ async fn test_local_minimal_profile_device_stream_rejects_same_actor_id_differen
     let open_response = app
         .clone()
         .oneshot(
-            device_actor(Request::builder().method("POST").uri("/api/v1/streams"))
+            device_actor(Request::builder().method("POST").uri("/im/v3/api/streams"))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -199,7 +199,7 @@ async fn test_local_minimal_profile_device_stream_rejects_same_actor_id_differen
             device_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/streams/st_device_telemetry_kind_guard/frames"),
+                    .uri("/im/v3/api/streams/st_device_telemetry_kind_guard/frames"),
             )
             .header("content-type", "application/json")
             .body(Body::from(
@@ -220,9 +220,9 @@ async fn test_local_minimal_profile_device_stream_rejects_same_actor_id_differen
     let forbidden_list = app
         .oneshot(
             system_actor(Request::builder().uri(
-                "/api/v1/streams/st_device_telemetry_kind_guard/frames?afterFrameSeq=0&limit=10",
+                "/im/v3/api/streams/st_device_telemetry_kind_guard/frames?afterFrameSeq=0&limit=10",
             ))
-            .header("x-permissions", "device.telemetry.read")
+            .header("x-sdkwork-permission-scope", "device.telemetry.read")
             .body(Body::empty())
             .unwrap(),
         )
@@ -244,7 +244,7 @@ async fn test_local_minimal_profile_device_command_requires_send_capability_and_
             device_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/devices/register"),
+                    .uri("/im/v3/api/devices/register"),
             )
             .header("content-type", "application/json")
             .body(Body::from(r#"{}"#))
@@ -257,7 +257,7 @@ async fn test_local_minimal_profile_device_command_requires_send_capability_and_
     let forbidden_open = app
         .clone()
         .oneshot(
-            owner_actor(Request::builder().method("POST").uri("/api/v1/streams"))
+            owner_actor(Request::builder().method("POST").uri("/im/v3/api/streams"))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -280,8 +280,8 @@ async fn test_local_minimal_profile_device_command_requires_send_capability_and_
     let allowed_open = app
         .clone()
         .oneshot(
-            owner_actor(Request::builder().method("POST").uri("/api/v1/streams"))
-                .header("x-permissions", "device.command.send")
+            owner_actor(Request::builder().method("POST").uri("/im/v3/api/streams"))
+                .header("x-sdkwork-permission-scope", "device.command.send")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -305,9 +305,9 @@ async fn test_local_minimal_profile_device_command_requires_send_capability_and_
             owner_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/streams/st_device_command/frames"),
+                    .uri("/im/v3/api/streams/st_device_command/frames"),
             )
-            .header("x-permissions", "device.command.send")
+            .header("x-sdkwork-permission-scope", "device.command.send")
             .header("content-type", "application/json")
             .body(Body::from(
                 r#"{
@@ -332,7 +332,7 @@ async fn test_local_minimal_profile_device_command_requires_send_capability_and_
         .oneshot(
             device_actor(
                 Request::builder()
-                    .uri("/api/v1/streams/st_device_command/frames?afterFrameSeq=0&limit=10"),
+                    .uri("/im/v3/api/streams/st_device_command/frames?afterFrameSeq=0&limit=10"),
             )
             .body(Body::empty())
             .unwrap(),
@@ -361,7 +361,7 @@ async fn test_local_minimal_profile_user_actor_cannot_inherit_system_device_comm
             system_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/devices/register"),
+                    .uri("/im/v3/api/devices/register"),
             )
             .header("content-type", "application/json")
             .body(Body::from(r#"{}"#))
@@ -373,8 +373,8 @@ async fn test_local_minimal_profile_user_actor_cannot_inherit_system_device_comm
 
     let forbidden_open = app
         .oneshot(
-            owner_actor(Request::builder().method("POST").uri("/api/v1/streams"))
-                .header("x-permissions", "device.command.send")
+            owner_actor(Request::builder().method("POST").uri("/im/v3/api/streams"))
+                .header("x-sdkwork-permission-scope", "device.command.send")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

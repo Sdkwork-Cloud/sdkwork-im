@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "generator": "@sdkwork/sdk-generator",
+  "sdk": {
+    "name": "sdkwork-im-app-sdk",
+    "version": "0.1.0",
+    "language": "rust",
+    "sdkType": "app",
+    "packageName": "sdkwork-im-app-api-generated"
+  },
+  "generatedFiles": [
+    {
+      "path": "bin/publish-core.mjs",
+      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+    },
+    {
+      "path": "bin/publish.ps1",
+      "sha256": "eb779f44a5ba8879a9d79c708d0ba4bd412221f102e4430b953f0449327827bf"
+    },
+    {
+      "path": "bin/publish.sh",
+      "sha256": "ae8a89ddb314afce79fe910de28017951c3c31f24a67d72915c4153711173b23"
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "e63f95b79d3ffda66d4461f6dde5186240711fef030675b22e75c1b594665e23"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "fb941a0806986a54fc192f98a98f6d9c282b8d350b2b19a3e71dda404e92d545"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "7840cc7d2b36ff364ac16c2fc5ec15b861bfe96854eecf81fb59b00edb8b1447"
+    },
+    {
+      "path": "README.md",
+      "sha256": "2601f7589487db0728be28ec9dfe084a4776dc39a98115914b9d02e3092391d6"
+    },
+    {
+      "path": "sdkwork-sdk.json",
+      "sha256": "8975c7e27d92b6adf79e10e686d19ec490b933dd2bcc7578dced6c67100c8939"
+    },
+    {
+      "path": "src/api/automation.rs",
+      "sha256": "de5ddf616faa827cff2b0180b324c33a453f07e919c049f662c68d03c400c638"
+    },
+    {
+      "path": "src/api/base.rs",
+      "sha256": "69ec31a1e73f40a0185789f36ea94e95fafbffc22734f4ad5493161c6cc639f9"
+    },
+    {
+      "path": "src/api/device.rs",
+      "sha256": "12555477710604f38df321f105af9cf98b2f2a7351ab57eebfe978ff6bc74bc5"
+    },
+    {
+      "path": "src/api/iot.rs",
+      "sha256": "74e457bf54af8ed97cacedf823b146d727c57ae28e0c12a9f309affb0b7510ee"
+    },
+    {
+      "path": "src/api/mod.rs",
+      "sha256": "abdce7277df4340df9e94412a9b3b1fb4225068a6ed922f5c0d929a072d06a50"
+    },
+    {
+      "path": "src/api/notification.rs",
+      "sha256": "79d4f09821e4eacc954e10eb5c65fec59d4943fd01ac823e68ae9209b1793534"
+    },
+    {
+      "path": "src/api/paths.rs",
+      "sha256": "6a1767fd9cdbeca0f69fa7dd61b1c4ba2f82bebf1a43b0a2fc8fa1d9f4e423b2"
+    },
+    {
+      "path": "src/api/portal.rs",
+      "sha256": "1d52d366585a6c22b78aeb1d7e7e24c44a8168ed6a407ed6b25faa467d20f8e5"
+    },
+    {
+      "path": "src/api/provider.rs",
+      "sha256": "9bb43c09a6b1408a84ab247d32d391aac7d193ed697921c5305c2063aefd4de1"
+    },
+    {
+      "path": "src/api/rtc.rs",
+      "sha256": "7196f4d0be084305a30adacee137ddec4a92434941a42803720b759f5034ebfb"
+    },
+    {
+      "path": "src/client.rs",
+      "sha256": "73a217effef084aee36029c1ecbe680a17c64d65b963a6830140ef5ebe499d3a"
+    },
+    {
+      "path": "src/http/client.rs",
+      "sha256": "71567159850fdd8b855c72439bf9d9104151dcd8a6ed687918b6015ce86b1c94"
+    },
+    {
+      "path": "src/http/mod.rs",
+      "sha256": "fdf16d487ebd9180fb423d5630d4401ff18180721b86636dec085ad83940bb3d"
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "851fdaf6863fa8d592a6b9bd4c91084ee727b3854d88cc0ea68645fb919bbab5"
+    },
+    {
+      "path": "src/models/agent_subject.rs",
+      "sha256": "8e7f9f25f9bba4dd95315b0c1d735a9aa7730aa24c252b397b5a4dffc8071926"
+    },
+    {
+      "path": "src/models/agent_tool_call.rs",
+      "sha256": "5ca01f03a76488be000a1d709106e38432ddaa5d586e5a1ab9bdf60509383903"
+    },
+    {
+      "path": "src/models/append_agent_response_delta_request.rs",
+      "sha256": "bfe2c0dcdfbc2417d789d577d6a17a755f3c3a0296badf58f8ffd65b5586134a"
+    },
+    {
+      "path": "src/models/automation_execution_request_response.rs",
+      "sha256": "3e655ed7f94ec5e4db526143a657f4c74ccc5224d42c9a9a434a1fa0a560345b"
+    },
+    {
+      "path": "src/models/automation_execution.rs",
+      "sha256": "eaecf6a4dd9d4b24138bae032839db66c1f176da4478004bf774a56aac314b06"
+    },
+    {
+      "path": "src/models/common.rs",
+      "sha256": "fce0239d85066b1c42435ab8c96676ea2d5300e5dcb87c52fd3e33d29a603a5e"
+    },
+    {
+      "path": "src/models/complete_agent_response_request.rs",
+      "sha256": "80d64031aa94ca3de663aff318fc91ac5a29df06e7328e5b5b4573b90e54ec08"
+    },
+    {
+      "path": "src/models/complete_agent_tool_call_request.rs",
+      "sha256": "46b6c134954e53103b4b03338af2818f523c85e2c9f51e4b89e680b53a621b48"
+    },
+    {
+      "path": "src/models/device_twin_view.rs",
+      "sha256": "627439dba2827cb216e50f0362810cd08c00c78d3d9fba983eed49e8fc7e0fa6"
+    },
+    {
+      "path": "src/models/mod.rs",
+      "sha256": "b17e0e0071c72c80b324336426f60692e6842e3e4feb53d1609f58070f9ab293"
+    },
+    {
+      "path": "src/models/notification_list_response.rs",
+      "sha256": "27f529bdeecf74ece38efb4630cfe00fcf8b4f465cc81d361203d94313821858"
+    },
+    {
+      "path": "src/models/notification_request_response.rs",
+      "sha256": "2b9a9d1f4ba166d8cc9bc21f5f33c8141e1ad4d902399e9080fea4b7250ea705"
+    },
+    {
+      "path": "src/models/notification_task.rs",
+      "sha256": "b0616b2924e82f8f76b1b321013749f94d93ae438e2fade2316e2cc2c2469cd7"
+    },
+    {
+      "path": "src/models/portal_workspace_view.rs",
+      "sha256": "eb8997d176553d71bd98701886c17fda100ba6d6a2537f28d0ff3cdebc137248"
+    },
+    {
+      "path": "src/models/problem_detail.rs",
+      "sha256": "7b44b0d291296a98a65a41b337346f9a1e739d32d3af84514ebad02949478986"
+    },
+    {
+      "path": "src/models/request_agent_tool_call_request.rs",
+      "sha256": "65e098d84813b09b6bbb019eae19352a62a8b06259ed3ce4aed16656f41e3234"
+    },
+    {
+      "path": "src/models/request_automation_execution.rs",
+      "sha256": "124ad64b5e76f710651bcaaf53e0429d4f26fba04bb79c5e044f6027ea97c11e"
+    },
+    {
+      "path": "src/models/request_notification.rs",
+      "sha256": "34229c1ee559978a02fb642f1b3a8d6c7747fa79a005495017fb8f6b6933c23d"
+    },
+    {
+      "path": "src/models/sender.rs",
+      "sha256": "89eb329e16307abaee4c3ef0e23765224d50d716e1763a715ddcb892738f85ca"
+    },
+    {
+      "path": "src/models/start_agent_response_request.rs",
+      "sha256": "af9e84e6a760ac32e280470edfef65a3fb08e10e661c1993d9e6d0347561233c"
+    },
+    {
+      "path": "src/models/stream_frame.rs",
+      "sha256": "48e417b1f45627beba94940fbb5bc6e574c1e6eb56b1ea7ddd2e958d30d748c6"
+    },
+    {
+      "path": "src/models/stream_session.rs",
+      "sha256": "61cfce74f2a95ae885ef10b9c2b3f254472132532218c07e229008f6ffd5b387"
+    },
+    {
+      "path": "src/models/update_device_twin_desired_request.rs",
+      "sha256": "55fbeffac1725cf26d0207e365d2489e095b818e04d52cc0876150077a830f1e"
+    },
+    {
+      "path": "src/models/update_device_twin_reported_request.rs",
+      "sha256": "3288d7db99f5de3cff87332d5df6c703caea88f96ec99980934512527735ff31"
+    }
+  ],
+  "scaffoldFiles": [
+    "custom/README.md"
+  ],
+  "customRoots": [
+    "custom/"
+  ]
+}

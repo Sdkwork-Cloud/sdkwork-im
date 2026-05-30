@@ -24,10 +24,10 @@ Cover this flow:
 - create conversation
 - post first message
 - rebuild app with the same runtime dir
-- verify `GET /api/v1/conversations/{conversation_id}` succeeds
-- verify `GET /api/v1/conversations/{conversation_id}/members` succeeds
-- verify `POST /api/v1/conversations/{conversation_id}/messages` succeeds without recreating the conversation
-- verify `GET /api/v1/conversations/{conversation_id}/messages` still contains the pre-restart message and the post-restart message
+- verify `GET /im/v3/api/chat/conversations/{conversation_id}` succeeds
+- verify `GET /im/v3/api/chat/conversations/{conversation_id}/members` succeeds
+- verify `POST /im/v3/api/chat/conversations/{conversation_id}/messages` succeeds without recreating the conversation
+- verify `GET /im/v3/api/chat/conversations/{conversation_id}/messages` still contains the pre-restart message and the post-restart message
 
 - [ ] **Step 2: Run the new test to verify it fails**
 

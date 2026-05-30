@@ -12,7 +12,7 @@
 
 - `ProviderRegistry`
 - `StaticProviderRegistry`
-- `GET /api/v1/control/provider-registry`
+- `GET /backend/v3/api/control/provider-registry`
 
 但仍缺：
 
@@ -24,14 +24,14 @@
 
 ## 3. 本轮实际完成
 
-- 新增 `GET /api/v1/control/provider-bindings`
+- 新增 `GET /backend/v3/api/control/provider_bindings`
 - 新增 `tenantId` 查询参数，允许查看租户视角下的 provider 求值结果
 - 返回体新增：
   - `interfaceVersion`
   - `tenantId`
   - `effectiveBindings`
   - `precedence`
-- 保留 `GET /api/v1/control/provider-registry` 作为静态矩阵接口，不兼容式修改旧响应
+- 保留 `GET /backend/v3/api/control/provider-registry` 作为静态矩阵接口，不兼容式修改旧响应
 - 新增 `build_app_with_cluster_and_provider_registry(...)`，把 provider registry 注入能力显式暴露给控制面装配与测试
 - 新增红绿测试，冻结：
   - RTC 默认 `rtc-volcengine`

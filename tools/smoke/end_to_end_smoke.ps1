@@ -5,7 +5,13 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $headers = @{
-    "Authorization" = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8ifQ."
+    "x-sdkwork-tenant-id" = "t_demo"
+    "x-sdkwork-user-id" = "u_demo"
+    "x-sdkwork-actor-id" = "u_demo"
+    "x-sdkwork-actor-kind" = "user"
+    "x-sdkwork-session-id" = "s_demo"
+    "x-sdkwork-device-id" = "d_demo"
+    "x-sdkwork-permission-scope" = "automation.execute automation.read audit.read ops.read"
     "Content-Type" = "application/json"
 }
 
@@ -39,7 +45,7 @@ $createConversationBody = @{
     conversationType = "group"
 } | ConvertTo-Json -Depth 6
 
-$null = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/conversations" -Headers $headers -Body $createConversationBody
+$null = Invoke-RestMethod -Method Post -Uri "$BaseUrl/im/v3/api/chat/conversations" -Headers $headers -Body $createConversationBody
 
 $messageBody = @{
     clientMsgId = "e2e_client_$suffix"
@@ -47,9 +53,9 @@ $messageBody = @{
     text = "e2e hello"
 } | ConvertTo-Json -Depth 6
 
-$null = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/conversations/$conversationId/messages" -Headers $headers -Body $messageBody
+$null = Invoke-RestMethod -Method Post -Uri "$BaseUrl/im/v3/api/chat/conversations/$conversationId/messages" -Headers $headers -Body $messageBody
 
-$notifications = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/notifications" -Headers $headers
+$notifications = Invoke-RestMethod -Method Get -Uri "$BaseUrl/im/v3/api/notifications" -Headers $headers
 if ($notifications.items.Count -lt 1) {
     throw "Expected at least one notification"
 }
@@ -65,22 +71,22 @@ $automationBody = @{
     inputPayload = "{""conversationId"":""$conversationId""}"
 } | ConvertTo-Json -Depth 6
 
-$automation = Invoke-RestMethod -Method Post -Uri "$BaseUrl/api/v1/automation/executions" -Headers $headers -Body $automationBody
+$automation = Invoke-RestMethod -Method Post -Uri "$BaseUrl/im/v3/api/automation/executions" -Headers $headers -Body $automationBody
 if ($automation.state -ne "succeeded") {
     throw "Unexpected automation execution state"
 }
 
-$auditExport = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/audit/export" -Headers $headers
+$auditExport = Invoke-RestMethod -Method Get -Uri "$BaseUrl/backend/v3/api/audit/export" -Headers $headers
 if ($auditExport.total -lt 2) {
     throw "Expected at least two audit records"
 }
 
-$opsCluster = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/ops/cluster" -Headers $headers
+$opsCluster = Invoke-RestMethod -Method Get -Uri "$BaseUrl/backend/v3/api/ops/cluster" -Headers $headers
 if ($opsCluster.nodes[0].profile -ne "local-minimal") {
     throw "Unexpected ops cluster profile"
 }
 
-$opsDiagnostics = Invoke-RestMethod -Method Get -Uri "$BaseUrl/api/v1/ops/diagnostics" -Headers $headers
+$opsDiagnostics = Invoke-RestMethod -Method Get -Uri "$BaseUrl/backend/v3/api/ops/diagnostics" -Headers $headers
 if (-not $opsDiagnostics.nodeId) {
     throw "Missing ops diagnostic nodeId"
 }

@@ -7,10 +7,6 @@ export const COMMERCIAL_GATES_GOVERNANCE_NODE_TEST_FILES = [
   'scripts/im-commercial-gates-watch-catalog.test.mjs',
   'scripts/im-commercial-gates-step-contract-catalog.test.mjs',
   'scripts/im-commercial-gates-workflow.test.mjs',
-  'scripts/run-user-center-standard.test.mjs',
-  'scripts/server-user-center-entrypoint-contract.test.mjs',
-  'scripts/user-center-upstream-sync-payload.test.mjs',
-  'scripts/user-center-upstream-sync-workflow.test.mjs',
   'scripts/release/commercial-readiness.test.mjs',
   'apps/craw-chat-portal/tests/product-entrypoint-scripts.test.mjs',
 ];

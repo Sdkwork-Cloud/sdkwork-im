@@ -107,7 +107,7 @@ where
 {
     pub fn list_members_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<Vec<ConversationMember>, RuntimeError> {
         self.require_active_member_from_auth_context(auth, conversation_id)?;
@@ -116,7 +116,7 @@ where
 
     pub fn list_messages_window_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
         after_seq: Option<u64>,
         limit: usize,
@@ -133,7 +133,7 @@ where
 
     pub fn read_cursor_view_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<ConversationReadCursorView, RuntimeError> {
         self.read_cursor_view_with_actor_kind(
@@ -146,7 +146,7 @@ where
 
     pub fn add_member_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         principal_id: String,
         principal_kind: String,
@@ -169,7 +169,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn sync_shared_channel_linked_member_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         shared_channel_policy_id: String,
         external_connection_id: String,
@@ -192,7 +192,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn sync_shared_channel_linked_member_from_auth_context_with_result(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         shared_channel_policy_id: String,
         external_connection_id: String,
@@ -580,7 +580,7 @@ where
 
     pub fn remove_member_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         member_id: String,
     ) -> Result<ConversationMember, RuntimeError> {
@@ -678,7 +678,7 @@ where
 
     pub fn leave_conversation_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
     ) -> Result<ConversationMember, RuntimeError> {
         self.leave_conversation_with_actor_kind(
@@ -765,7 +765,7 @@ where
 
     pub fn transfer_conversation_owner_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         target_member_id: String,
     ) -> Result<TransferConversationOwnerResult, RuntimeError> {
@@ -886,7 +886,7 @@ where
 
     pub fn change_conversation_member_role_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         target_member_id: String,
         new_role: MembershipRole,
@@ -1031,7 +1031,7 @@ where
 
     pub fn update_read_cursor_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         read_seq: u64,
         last_read_message_id: Option<String>,

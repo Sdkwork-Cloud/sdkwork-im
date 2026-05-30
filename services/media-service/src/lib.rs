@@ -20,8 +20,8 @@ use im_adapter_object_storage_s3::{
     MICROSOFT_OBJECT_STORAGE_PLUGIN_ID, S3CompatibleObjectStorageProvider,
     TENCENT_OBJECT_STORAGE_PLUGIN_ID, VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID,
 };
-use im_auth_context::{
-    AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
+use im_app_context::{
+    AppContext, AppContextError, resolve_app_context,
 };
 use im_domain_core::media::{MediaAsset, MediaProcessingState, MediaResource};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
@@ -320,8 +320,8 @@ impl From<ContractError> for MediaError {
     }
 }
 
-impl From<AuthContextError> for MediaError {
-    fn from(value: AuthContextError) -> Self {
+impl From<AppContextError> for MediaError {
+    fn from(value: AppContextError) -> Self {
         Self {
             status: axum::http::StatusCode::UNAUTHORIZED,
             code: value.code(),
@@ -381,7 +381,7 @@ impl MediaRuntime {
 
     pub fn create_upload(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: CreateUploadRequest,
     ) -> Result<MediaAsset, MediaError> {
         Ok(self.create_upload_with_outcome(auth, request)?.asset)
@@ -389,7 +389,7 @@ impl MediaRuntime {
 
     pub fn create_upload_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: CreateUploadRequest,
     ) -> Result<MediaUploadMutationOutcome, MediaError> {
         validate_create_upload_request_payload_size(&request)?;
@@ -452,7 +452,7 @@ impl MediaRuntime {
 
     pub fn prepare_upload_session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         asset: &MediaAsset,
         expires_in_seconds: Option<u32>,
     ) -> Result<MediaUploadSession, MediaError> {
@@ -495,7 +495,7 @@ impl MediaRuntime {
 
     pub fn complete_upload(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         media_asset_id: &str,
         request: CompleteUploadRequest,
     ) -> Result<MediaAsset, MediaError> {
@@ -506,7 +506,7 @@ impl MediaRuntime {
 
     pub fn complete_upload_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         media_asset_id: &str,
         request: CompleteUploadRequest,
     ) -> Result<MediaUploadMutationOutcome, MediaError> {
@@ -584,7 +584,7 @@ impl MediaRuntime {
 
     pub fn get_asset(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         media_asset_id: &str,
     ) -> Result<MediaAsset, MediaError> {
         validate_media_asset_id(media_asset_id)?;
@@ -601,7 +601,7 @@ impl MediaRuntime {
 
     pub fn download_url(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         media_asset_id: &str,
         expires_in_seconds: u32,
     ) -> Result<MediaDownloadUrlResponse, MediaError> {
@@ -704,7 +704,7 @@ impl MediaRuntime {
 
     fn append_media_asset_created(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         asset: &MediaAsset,
     ) -> Result<(), MediaError> {
         let committed_at = asset
@@ -749,9 +749,7 @@ impl MediaRuntime {
         match self.assets.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
-                eprintln!(
-                    "warning: recovering poisoned media-service assets lock during {operation}"
-                );
+                tracing::warn!("recovering poisoned media-service assets lock during {operation}");
                 poisoned.into_inner()
             }
         }
@@ -763,7 +761,7 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_public_bearer_auth))
+    build_default_app().layer(middleware::from_fn(require_app_context))
 }
 
 pub fn build_app(runtime: Arc<MediaRuntime>) -> Router {
@@ -772,24 +770,27 @@ pub fn build_app(runtime: Arc<MediaRuntime>) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .route("/api/v1/media/uploads", post(create_upload))
+        .route("/im/v3/api/media/uploads", post(create_upload))
         .route(
-            "/api/v1/media/uploads/{media_asset_id}/complete",
+            "/im/v3/api/media/uploads/{media_asset_id}/complete",
             post(complete_upload),
         )
-        .route("/api/v1/media/provider-health", get(get_provider_health))
         .route(
-            "/api/v1/media/{media_asset_id}/download-url",
+            "/backend/v3/api/media/provider_health",
+            get(get_provider_health),
+        )
+        .route(
+            "/im/v3/api/media/{media_asset_id}/download_url",
             get(get_download_url),
         )
-        .route("/api/v1/media/{media_asset_id}", get(get_media))
+        .route("/im/v3/api/media/{media_asset_id}", get(get_media))
         .with_state(AppState { runtime })
 }
 
-async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_public_bearer_auth_context(request.headers()) {
+        _ => match resolve_app_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => MediaError::from(error).into_response(),
         },
@@ -832,7 +833,7 @@ fn build_media_service_openapi_document() -> Result<serde_json::Value, String> {
         &media_service_openapi_spec(),
         &routes,
         media_service_tag,
-        media_service_requires_bearer,
+        media_service_requires_app_context,
         media_service_summary,
     ))
 }
@@ -850,12 +851,12 @@ fn media_service_openapi_spec() -> OpenApiServiceSpec<'static> {
 fn media_service_tag(path: &str, _method: HttpMethod) -> String {
     match path {
         "/healthz" | "/readyz" => "system".to_owned(),
-        path if path.contains("provider-health") => "providers".to_owned(),
+        path if path.contains("provider_health") => "providers".to_owned(),
         _ => "media".to_owned(),
     }
 }
 
-fn media_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+fn media_service_requires_app_context(path: &str, _method: HttpMethod) -> bool {
     !matches!(path, "/healthz" | "/readyz")
 }
 
@@ -888,7 +889,7 @@ async fn create_upload(
     State(state): State<AppState>,
     Json(request): Json<CreateUploadRequest>,
 ) -> Result<Json<MediaUploadMutationResponse>, MediaError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let expires_in_seconds = request.expires_in_seconds;
     let request_key = media_create_upload_request_key(&auth, request.media_asset_id.as_str());
     let outcome = state.runtime.create_upload_with_outcome(&auth, request)?;
@@ -908,7 +909,7 @@ async fn complete_upload(
     State(state): State<AppState>,
     Json(request): Json<CompleteUploadRequest>,
 ) -> Result<Json<MediaUploadMutationResponse>, MediaError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     validate_media_asset_id(media_asset_id.as_str())?;
     let request_key = media_complete_upload_request_key(&auth, media_asset_id.as_str());
     Ok(Json(MediaUploadMutationResponse::from_outcome(
@@ -925,7 +926,7 @@ async fn get_media(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<MediaAsset>, MediaError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     validate_media_asset_id(media_asset_id.as_str())?;
     Ok(Json(
         state.runtime.get_asset(&auth, media_asset_id.as_str())?,
@@ -938,7 +939,7 @@ async fn get_download_url(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<MediaDownloadUrlResponse>, MediaError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     validate_media_asset_id(media_asset_id.as_str())?;
     Ok(Json(
         state.runtime.download_url(
@@ -955,7 +956,7 @@ async fn get_provider_health(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderHealthSnapshot>, MediaError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(
         state
             .runtime
@@ -1156,7 +1157,7 @@ fn encode_media_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) ->
     encoded
 }
 
-pub fn media_create_upload_request_key(auth: &AuthContext, media_asset_id: &str) -> String {
+pub fn media_create_upload_request_key(auth: &AppContext, media_asset_id: &str) -> String {
     encode_media_key_segments([
         auth.tenant_id.as_str(),
         auth.actor_kind.as_str(),
@@ -1166,7 +1167,7 @@ pub fn media_create_upload_request_key(auth: &AuthContext, media_asset_id: &str)
     ])
 }
 
-pub fn media_complete_upload_request_key(auth: &AuthContext, media_asset_id: &str) -> String {
+pub fn media_complete_upload_request_key(auth: &AppContext, media_asset_id: &str) -> String {
     encode_media_key_segments([
         auth.tenant_id.as_str(),
         auth.actor_kind.as_str(),
@@ -1176,7 +1177,7 @@ pub fn media_complete_upload_request_key(auth: &AuthContext, media_asset_id: &st
     ])
 }
 
-fn is_asset_owner(asset: &MediaAsset, auth: &AuthContext) -> bool {
+fn is_asset_owner(asset: &MediaAsset, auth: &AppContext) -> bool {
     asset.principal_id == auth.actor_id && asset.principal_kind == auth.actor_kind
 }
 
@@ -1255,8 +1256,8 @@ fn sanitize_media_object_path_segment(value: &str) -> String {
 mod tests {
     use super::*;
 
-    fn auth(tenant_id: &str, actor_kind: &str, actor_id: &str) -> AuthContext {
-        AuthContext {
+    fn auth(tenant_id: &str, actor_kind: &str, actor_id: &str) -> AppContext {
+        AppContext {
             tenant_id: tenant_id.into(),
             actor_id: actor_id.into(),
             actor_kind: actor_kind.into(),

@@ -23,7 +23,8 @@ mod admin_sandbox;
 use admin_sandbox::{handle_admin_sandbox_request, SharedAdminSandboxState};
 
 const JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
-const ADMIN_BACKEND_NOT_CONFIGURED_MESSAGE: &str = "Admin backend proxy target is not configured. Set SDKWORK_ADMIN_PROXY_TARGET to a compatible /api/admin backend.";
+const BACKEND_ADMIN_API_PREFIX: &str = "/backend/v3/api/admin";
+const ADMIN_BACKEND_NOT_CONFIGURED_MESSAGE: &str = "Admin backend proxy target is not configured. Set SDKWORK_ADMIN_PROXY_TARGET to a backend that serves /backend/v3/api/admin.";
 const CACHE_CONTROL_HEADER: &str = "cache-control";
 const CONTENT_SECURITY_POLICY_HEADER: &str = "content-security-policy";
 const CROSS_ORIGIN_RESOURCE_POLICY_HEADER: &str = "cross-origin-resource-policy";
@@ -134,8 +135,11 @@ pub async fn build_product_runtime_router(
     let state = build_runtime_proxy_state(config, site_dirs.clone());
 
     Ok(Router::new()
-        .route("/api/admin", any(proxy_admin_request))
-        .route("/api/admin/{*path}", any(proxy_admin_request))
+        .route(BACKEND_ADMIN_API_PREFIX, any(proxy_admin_request))
+        .route(
+            format!("{BACKEND_ADMIN_API_PREFIX}/{{*path}}").as_str(),
+            any(proxy_admin_request),
+        )
         .route("/api", any(api_not_found))
         .route("/api/{*path}", any(api_not_found))
         .route("/admin", get(redirect_admin_root))
@@ -156,10 +160,8 @@ fn build_runtime_proxy_state(
             Some(storage_file) => SharedAdminSandboxState::seeded_with_storage_file(storage_file),
             None => SharedAdminSandboxState::seeded(),
         };
-        let credentials = state.login_credentials();
         eprintln!(
-            "warning: SDKWORK_ADMIN_SANDBOX is enabled. Admin sandbox login: {} / {} ({}). Override with SDKWORK_ADMIN_SANDBOX_EMAIL and SDKWORK_ADMIN_SANDBOX_PASSWORD.",
-            credentials.email, credentials.password, credentials.source
+            "warning: SDKWORK_ADMIN_SANDBOX is enabled. Admin sandbox consumes sdkwork-appbase bearer tokens and does not provide craw-chat login endpoints."
         );
         Some(state)
     } else {
@@ -229,24 +231,11 @@ fn trim_trailing_slash(value: String) -> String {
     value.trim().trim_end_matches('/').to_owned()
 }
 
-fn rewrite_admin_proxy_path(uri: &Uri) -> String {
-    let path_and_query = uri
-        .path_and_query()
+fn admin_proxy_path_and_query(uri: &Uri) -> String {
+    uri.path_and_query()
         .map(|value| value.as_str())
-        .unwrap_or("/api/admin");
-    let suffix = path_and_query
-        .strip_prefix("/api/admin")
-        .unwrap_or_default();
-
-    if suffix.is_empty() {
-        return "/admin".to_owned();
-    }
-
-    if suffix.starts_with('/') || suffix.starts_with('?') {
-        return format!("/admin{suffix}");
-    }
-
-    format!("/admin/{suffix}")
+        .unwrap_or(BACKEND_ADMIN_API_PREFIX)
+        .to_owned()
 }
 
 async fn api_not_found() -> Response {
@@ -599,7 +588,7 @@ async fn proxy_admin_request(
     let upstream_url = format!(
         "{}{}",
         state.admin_proxy_target,
-        rewrite_admin_proxy_path(&uri),
+        admin_proxy_path_and_query(&uri),
     );
     let mut request_builder = state.client.request(method, upstream_url);
 
@@ -761,7 +750,7 @@ mod tests {
             }),
             Method::GET,
             HeaderMap::new(),
-            Uri::from_static("/api/admin/auth/login"),
+            Uri::from_static("/backend/v3/api/admin/storage/config"),
             Bytes::new(),
         )
         .await;
@@ -783,7 +772,7 @@ mod tests {
             Some("application/json; charset=utf-8")
         );
         assert!(body_text.contains("SDKWORK_ADMIN_PROXY_TARGET"));
-        assert!(body_text.contains("/api/admin"));
+        assert!(body_text.contains("/backend/v3/api/admin"));
     }
 
     #[tokio::test]
@@ -1122,7 +1111,8 @@ mod tests {
             .expect("unknown api body should be readable")
             .contains("portal-shell"));
 
-        let admin_api = fetch_response(base_url.as_str(), "/api/admin/auth/login").await;
+        let admin_api =
+            fetch_response(base_url.as_str(), "/backend/v3/api/admin/storage/config").await;
         assert_eq!(admin_api.status(), StatusCode::SERVICE_UNAVAILABLE);
         assert!(admin_api
             .text()

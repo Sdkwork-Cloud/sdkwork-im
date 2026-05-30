@@ -1,4 +1,5 @@
 use craw_chat_contract_core::ContractError;
+use im_time::max_rfc3339_string;
 use std::collections::BTreeMap;
 
 use im_domain_core::rtc::{RtcSession, RtcSessionState, RtcSignalEvent};
@@ -31,7 +32,7 @@ impl RtcStateRecord {
             rtc_session_id: next.rtc_session_id,
             session,
             signals: signals_by_seq.into_values().collect(),
-            updated_at: self.updated_at.max(next.updated_at),
+            updated_at: max_rfc3339_string(self.updated_at, next.updated_at),
         }
     }
 }
@@ -132,6 +133,33 @@ mod tests {
 
         assert_eq!(merged.session.state, RtcSessionState::Accepted);
         assert_eq!(merged.updated_at, "2026-05-06T00:00:03.000Z");
+        assert_eq!(
+            merged
+                .signals
+                .iter()
+                .map(|signal| signal.signal_seq)
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+    }
+
+    #[test]
+    fn test_rtc_state_record_merge_compares_updated_at_by_rfc3339_instant() {
+        let whole_second = rtc_state_record(
+            RtcSessionState::Accepted,
+            "2026-05-06T00:00:00Z",
+            vec![rtc_signal_event(1)],
+        );
+        let later_fraction = rtc_state_record(
+            RtcSessionState::Accepted,
+            "2026-05-06T00:00:00.100Z",
+            vec![rtc_signal_event(2)],
+        );
+
+        let merged = whole_second.merge_monotonic(later_fraction);
+
+        assert_eq!(merged.session.state, RtcSessionState::Accepted);
+        assert_eq!(merged.updated_at, "2026-05-06T00:00:00.100Z");
         assert_eq!(
             merged
                 .signals

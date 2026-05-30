@@ -8,7 +8,7 @@
 
 - `local-minimal-node`
 - `DeviceAccessProvider`
-- `/api/v1/devices/register` 主链路
+- `/im/v3/api/devices/register` 主链路
 - 默认 `iot-access-local` 装配
 
 本轮不闭环：
@@ -26,7 +26,7 @@
 
 ## 本轮决策
 
-- 在 `build.rs` 新增 `DeviceAccessProvider` 注入入口，模式对齐已有 `UserModuleProvider` 注入方式。
+- 在 `build.rs` 新增 `DeviceAccessProvider` 注入入口，模式对齐已有 `PrincipalProfileProvider` 注入方式。
 - 默认 provider 直接使用 `im-adapter-iot-access-local::LocalDeviceAccessProvider`。
 - `LocalNodeDeviceRegistration` 负责消费 provider。
 - provider 调用只发生在“首次设备注册”时：
@@ -35,7 +35,7 @@
 - 如果设备已经存在于 projection 注册视图中，后续 route preflight、heartbeat、realtime 等请求不重复调用 provider。
 - 当前固定本地基线参数：
   - `product_id = local-minimal-device`
-  - `credential_kind = session`
+  - `credential_kind = device_route`
 
 ## 实际落地
 
@@ -63,7 +63,7 @@
   - `build_default_app_with_device_access_provider`
   - `build_default_app_with_runtime_dir_and_device_access_provider`
 - 默认运行时已真实装配 `iot-access-local`
-- `/api/v1/devices/register` 已真实调用：
+- `/im/v3/api/devices/register` 已真实调用：
   - `DeviceAccessProvider::register_device`
   - `DeviceAccessProvider::bind_owner`
 - `session-gateway` 仍未接入，不能宣称 IoT provider 注入已全局闭环

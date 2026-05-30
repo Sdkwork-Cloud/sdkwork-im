@@ -78,7 +78,7 @@ async fn handle_echo_socket(mut socket: WebSocket) {
 
 #[tokio::test]
 async fn gateway_proxies_realtime_websocket_upgrade_and_frames() {
-    let upstream_app = Router::new().route("/api/v1/realtime/ws", get(websocket_echo));
+    let upstream_app = Router::new().route("/im/v3/api/realtime/ws", get(websocket_echo));
     let (upstream_address, upstream_handle) = spawn_server(upstream_app).await;
 
     let gateway_app = web_gateway::build_app(test_gateway_config(vec![service_upstream(
@@ -88,7 +88,7 @@ async fn gateway_proxies_realtime_websocket_upgrade_and_frames() {
     let (gateway_address, gateway_handle) = spawn_server(gateway_app).await;
 
     let request = ClientRequestBuilder::new(
-        format!("ws://{gateway_address}/api/v1/realtime/ws")
+        format!("ws://{gateway_address}/im/v3/api/realtime/ws")
             .parse()
             .unwrap(),
     )

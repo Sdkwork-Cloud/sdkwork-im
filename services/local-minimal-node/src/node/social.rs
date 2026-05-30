@@ -29,7 +29,7 @@ struct PendingFriendRequestAcceptRepairLockGuard {
 impl Drop for PendingFriendRequestAcceptRepairLockGuard {
     fn drop(&mut self) {
         if let Err(error) = self.file.unlock() {
-            eprintln!("failed to unlock pending friend request accept repair lock: {error}");
+            tracing::warn!("failed to unlock pending friend request accept repair lock: {error}");
         }
     }
 }
@@ -79,7 +79,7 @@ pub(super) async fn submit_friend_request(
     State(state): State<AppState>,
     Json(request): Json<SubmitFriendRequestAppRequest>,
 ) -> Result<Json<SocialFriendRequestMutationResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_social_user_actor(&auth)?;
     maybe_repair_pending_friend_request_acceptances(&state).await?;
     ensure_social_friend_request_users_active(
@@ -120,7 +120,7 @@ pub(super) async fn submit_friend_request(
         &state,
         &auth,
         "POST",
-        "/api/v1/control/social/friend-requests".into(),
+        "/backend/v3/api/control/social/friend-requests".into(),
         "control.write",
         Some(serde_json::json!({
             "requestId": request_id,
@@ -144,7 +144,7 @@ pub(super) async fn submit_friend_request(
             &state,
             &auth,
             "GET",
-            format!("/api/v1/control/social/friend-requests/{existing_request_id}"),
+            format!("/backend/v3/api/control/social/friend-requests/{existing_request_id}"),
             "control.read",
             None,
         )
@@ -184,7 +184,7 @@ pub(super) async fn accept_friend_request(
         &state,
         &auth,
         "GET",
-        format!("/api/v1/control/social/friend-requests/{request_id}"),
+        format!("/backend/v3/api/control/social/friend-requests/{request_id}"),
         "control.read",
         None,
     )
@@ -239,7 +239,7 @@ pub(super) async fn accept_friend_request(
             &state,
             &auth,
             "POST",
-            format!("/api/v1/control/social/friend-requests/{request_id}/accept"),
+            format!("/backend/v3/api/control/social/friend-requests/{request_id}/accept"),
             "control.write",
             Some(serde_json::json!({
                 "eventId": deterministic_social_id("evt_fr_accept_", request_id.as_str()),
@@ -387,7 +387,7 @@ pub(super) async fn decline_friend_request(
         &state,
         &auth,
         "GET",
-        format!("/api/v1/control/social/friend-requests/{request_id}"),
+        format!("/backend/v3/api/control/social/friend-requests/{request_id}"),
         "control.read",
         None,
     )
@@ -420,7 +420,7 @@ pub(super) async fn decline_friend_request(
         &state,
         &auth,
         "POST",
-        format!("/api/v1/control/social/friend-requests/{request_id}/decline"),
+        format!("/backend/v3/api/control/social/friend-requests/{request_id}/decline"),
         "control.write",
         Some(serde_json::json!({
             "eventId": deterministic_social_id("evt_fr_decline_", request_id.as_str()),
@@ -468,7 +468,7 @@ pub(super) async fn cancel_friend_request(
         &state,
         &auth,
         "GET",
-        format!("/api/v1/control/social/friend-requests/{request_id}"),
+        format!("/backend/v3/api/control/social/friend-requests/{request_id}"),
         "control.read",
         None,
     )
@@ -501,7 +501,7 @@ pub(super) async fn cancel_friend_request(
         &state,
         &auth,
         "POST",
-        format!("/api/v1/control/social/friend-requests/{request_id}/cancel"),
+        format!("/backend/v3/api/control/social/friend-requests/{request_id}/cancel"),
         "control.write",
         Some(serde_json::json!({
             "eventId": deterministic_social_id("evt_fr_cancel_", request_id.as_str()),
@@ -549,7 +549,7 @@ pub(super) async fn remove_friendship(
         &state,
         &auth,
         "GET",
-        format!("/api/v1/control/social/friendships/{friendship_id}"),
+        format!("/backend/v3/api/control/social/friendships/{friendship_id}"),
         "control.read",
         None,
     )
@@ -572,7 +572,7 @@ pub(super) async fn remove_friendship(
         &state,
         &auth,
         "POST",
-        format!("/api/v1/control/social/friendships/{friendship_id}/remove"),
+        format!("/backend/v3/api/control/social/friendships/{friendship_id}/remove"),
         "control.write",
         Some(serde_json::json!({
             "eventId": deterministic_social_id("evt_fs_remove_", friendship_id.as_str()),
@@ -610,7 +610,7 @@ pub(super) async fn remove_friendship(
 
 async fn ensure_friendship_for_acceptance(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     friend_request: &FriendRequest,
     request_id: &str,
     friendship_id: &str,
@@ -621,7 +621,7 @@ async fn ensure_friendship_for_acceptance(
         state,
         auth,
         "POST",
-        "/api/v1/control/social/friendships".into(),
+        "/backend/v3/api/control/social/friendships".into(),
         "control.write",
         Some(serde_json::json!({
             "friendshipId": friendship_id,
@@ -651,7 +651,7 @@ async fn ensure_friendship_for_acceptance(
                 state,
                 auth,
                 "GET",
-                format!("/api/v1/control/social/friendships/{snapshot_friendship_id}"),
+                format!("/backend/v3/api/control/social/friendships/{snapshot_friendship_id}"),
                 "control.read",
                 None,
             )
@@ -672,7 +672,7 @@ async fn ensure_friendship_for_acceptance(
 
 async fn ensure_direct_chat_for_acceptance(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     friend_request: &FriendRequest,
     request_id: &str,
     direct_chat_id: &str,
@@ -683,7 +683,7 @@ async fn ensure_direct_chat_for_acceptance(
         state,
         auth,
         "POST",
-        "/api/v1/control/social/direct-chats/bindings".into(),
+        "/backend/v3/api/control/social/direct_chats/bindings".into(),
         "control.write",
         Some(serde_json::json!({
             "directChatId": direct_chat_id,
@@ -707,7 +707,7 @@ async fn ensure_direct_chat_for_acceptance(
                 state,
                 auth,
                 "GET",
-                format!("/api/v1/control/social/direct-chats/{snapshot_direct_chat_id}"),
+                format!("/backend/v3/api/control/social/direct_chats/{snapshot_direct_chat_id}"),
                 "control.read",
                 None,
             )
@@ -812,7 +812,7 @@ pub(super) fn load_pending_friend_request_accept_repairs(
     runtime_dir: Option<&StdPath>,
 ) -> PendingFriendRequestAcceptanceRepairStore {
     if let Err(error) = recover_pending_friend_request_accept_repairs_temp_file(runtime_dir) {
-        eprintln!(
+        tracing::warn!(
             "failed to recover pending friend request accept repair store temp file: {}",
             error.message
         );
@@ -825,7 +825,7 @@ pub(super) fn load_pending_friend_request_accept_repairs(
     };
     maybe_pause_pending_friend_request_accept_repair_store_io();
     serde_json::from_str(&content).unwrap_or_else(|error| {
-        eprintln!(
+        tracing::warn!(
             "failed to parse pending friend request accept repair store {}: {error}. starting with empty repair store",
             path.display()
         );
@@ -842,7 +842,7 @@ pub(super) fn spawn_pending_friend_request_accept_repair(state: AppState) {
     };
     handle.spawn(async move {
         if let Err(error) = maybe_repair_pending_friend_request_acceptances(&state).await {
-            eprintln!(
+            tracing::warn!(
                 "failed to repair pending friend request acceptances during startup: {}",
                 error.message
             );
@@ -872,9 +872,7 @@ fn pending_friend_request_accept_repairs_snapshot(
         .pending_friend_request_accept_repairs
         .lock()
         .unwrap_or_else(|poisoned| {
-            eprintln!(
-                "warning: recovering poisoned pending friend request accept repair store lock"
-            );
+            tracing::warn!("recovering poisoned pending friend request accept repair store lock");
             poisoned.into_inner()
         })
         .clone()
@@ -904,7 +902,7 @@ async fn clear_pending_friend_request_accept_repair(
 
 async fn try_clear_pending_friend_request_accept_repair(state: &AppState, request_id: &str) {
     if let Err(error) = clear_pending_friend_request_accept_repair(state, request_id).await {
-        eprintln!(
+        tracing::warn!(
             "failed to clear pending friend request accept repair entry {request_id}: {}",
             error.message
         );
@@ -941,9 +939,7 @@ async fn update_pending_friend_request_accept_repairs(
         .pending_friend_request_accept_repairs
         .lock()
         .unwrap_or_else(|poisoned| {
-            eprintln!(
-                "warning: recovering poisoned pending friend request accept repair store lock"
-            );
+            tracing::warn!("recovering poisoned pending friend request accept repair store lock");
             poisoned.into_inner()
         });
     if state.runtime_dir.is_none() {
@@ -980,9 +976,7 @@ async fn refresh_pending_friend_request_accept_repairs_from_authority(
         .pending_friend_request_accept_repairs
         .lock()
         .unwrap_or_else(|poisoned| {
-            eprintln!(
-                "warning: recovering poisoned pending friend request accept repair store lock"
-            );
+            tracing::warn!("recovering poisoned pending friend request accept repair store lock");
             poisoned.into_inner()
         }) = authoritative.clone();
     Ok(authoritative)
@@ -1300,20 +1294,27 @@ async fn repair_pending_friend_request_acceptance(
     state: &AppState,
     repair: &PendingFriendRequestAcceptanceRepair,
 ) -> Result<(), ApiError> {
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: repair.tenant_id.clone(),
+        organization_id: None,
+        user_id: repair.target_user_id.clone(),
         actor_id: repair.target_user_id.clone(),
         actor_kind: "user".into(),
         session_id: None,
+        app_id: Some("craw-chat".into()),
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: BTreeSet::new(),
+        permission_scope: BTreeSet::new(),
         device_id: None,
-        permissions: BTreeSet::new(),
     };
     let snapshot = match dispatch_control_plane_json(
         state,
         &auth,
         "GET",
         format!(
-            "/api/v1/control/social/friend-requests/{}",
+            "/backend/v3/api/control/social/friend-requests/{}",
             repair.request_id
         ),
         "control.read",
@@ -1336,9 +1337,10 @@ async fn repair_pending_friend_request_acceptance(
         friend_request.target_user_id.as_str(),
     ) {
         if is_terminal_social_user_resolution_error(&error) {
-            eprintln!(
-                "warning: clearing pending friend request accept repair {} because participant resolution failed: {}",
-                repair.request_id, error.message
+            tracing::warn!(
+                "clearing pending friend request accept repair {} because participant resolution failed: {}",
+                repair.request_id,
+                error.message
             );
             try_clear_pending_friend_request_accept_repair(state, repair.request_id.as_str()).await;
             return Ok(());
@@ -1353,7 +1355,7 @@ async fn repair_pending_friend_request_acceptance(
                 &auth,
                 "POST",
                 format!(
-                    "/api/v1/control/social/friend-requests/{}/accept",
+                    "/backend/v3/api/control/social/friend-requests/{}/accept",
                     repair.request_id
                 ),
                 "control.write",
@@ -1426,7 +1428,7 @@ async fn repair_pending_friend_request_acceptance(
 
 async fn recover_pending_friend_request_accept_repair_after_not_pending(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     repair: &PendingFriendRequestAcceptanceRepair,
 ) -> Result<bool, ApiError> {
     let Some(latest_friend_request) =
@@ -1464,7 +1466,7 @@ async fn recover_pending_friend_request_accept_repair_after_not_pending(
 
 async fn reconcile_accept_friend_request_after_not_pending(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     request_id: &str,
     repair: &PendingFriendRequestAcceptanceRepair,
 ) -> Result<Option<FriendRequest>, ApiError> {
@@ -1485,7 +1487,7 @@ async fn reconcile_accept_friend_request_after_not_pending(
 
 async fn reconcile_friend_request_mutation_after_not_pending(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     request_id: &str,
     expected_status: FriendRequestStatus,
 ) -> Result<Option<FriendRequest>, ApiError> {
@@ -1502,7 +1504,7 @@ async fn reconcile_friend_request_mutation_after_not_pending(
 
 async fn reconcile_friendship_remove_after_not_active(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     friendship_id: &str,
 ) -> Result<Option<Friendship>, ApiError> {
     let Some(latest_friendship) =
@@ -1518,14 +1520,14 @@ async fn reconcile_friendship_remove_after_not_active(
 
 async fn load_latest_friend_request_for_acceptance(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     request_id: &str,
 ) -> Result<Option<FriendRequest>, ApiError> {
     let snapshot = match dispatch_control_plane_json(
         state,
         auth,
         "GET",
-        format!("/api/v1/control/social/friend-requests/{request_id}"),
+        format!("/backend/v3/api/control/social/friend-requests/{request_id}"),
         "control.read",
         None,
     )
@@ -1540,14 +1542,14 @@ async fn load_latest_friend_request_for_acceptance(
 
 async fn load_latest_friendship_for_mutation(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     friendship_id: &str,
 ) -> Result<Option<Friendship>, ApiError> {
     let snapshot = match dispatch_control_plane_json(
         state,
         auth,
         "GET",
-        format!("/api/v1/control/social/friendships/{friendship_id}"),
+        format!("/backend/v3/api/control/social/friendships/{friendship_id}"),
         "control.read",
         None,
     )
@@ -1562,7 +1564,7 @@ async fn load_latest_friendship_for_mutation(
 
 async fn finalize_friend_request_acceptance_repair(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     friend_request: &FriendRequest,
     repair: &PendingFriendRequestAcceptanceRepair,
 ) -> Result<(), ApiError> {
@@ -1655,7 +1657,7 @@ async fn maybe_pause_friend_request_accept_before_request_commit() {}
 
 async fn existing_pending_friend_request_id_for_pair(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     requester_user_id: &str,
     target_user_id: &str,
 ) -> Result<Option<String>, ApiError> {
@@ -1814,7 +1816,7 @@ fn maybe_pause_pending_friend_request_accept_repair_store_io() {
 #[cfg(not(debug_assertions))]
 fn maybe_pause_pending_friend_request_accept_repair_store_io() {}
 
-fn ensure_social_user_actor(auth: &AuthContext) -> Result<(), ApiError> {
+fn ensure_social_user_actor(auth: &AppContext) -> Result<(), ApiError> {
     if auth.actor_kind == "user" {
         return Ok(());
     }
@@ -1823,7 +1825,7 @@ fn ensure_social_user_actor(auth: &AuthContext) -> Result<(), ApiError> {
         status: axum::http::StatusCode::FORBIDDEN,
         code: "social_user_required",
         message: format!(
-            "social app-facing routes require user actor kind, got {}",
+            "social IM open-platform routes require user actor kind, got {}",
             auth.actor_kind
         ),
     })
@@ -1835,15 +1837,15 @@ fn ensure_social_friend_request_users_active(
     requester_user_id: &str,
     target_user_id: &str,
 ) -> Result<(), ApiError> {
-    user_module::ensure_active_user(state, tenant_id, requester_user_id)?;
-    user_module::ensure_active_user(state, tenant_id, target_user_id)?;
+    principal_profile::ensure_active_user(state, tenant_id, requester_user_id)?;
+    principal_profile::ensure_active_user(state, tenant_id, target_user_id)?;
     Ok(())
 }
 
 fn is_terminal_social_user_resolution_error(error: &ApiError) -> bool {
     matches!(
         error.code,
-        "user_module_user_not_found" | "user_module_user_disabled"
+        "principal_profile_not_found" | "principal_profile_inactive"
     )
 }
 
@@ -1873,9 +1875,10 @@ async fn maybe_clear_terminal_friend_request_accept_repair_error(
     if !is_terminal_friend_request_accept_repair_error(error) {
         return false;
     }
-    eprintln!(
-        "warning: clearing pending friend request accept repair {} because repair reached terminal state: {}",
-        repair.request_id, error.message
+    tracing::warn!(
+        "clearing pending friend request accept repair {} because repair reached terminal state: {}",
+        repair.request_id,
+        error.message
     );
     try_clear_pending_friend_request_accept_repair(state, repair.request_id.as_str()).await;
     true
@@ -1883,7 +1886,7 @@ async fn maybe_clear_terminal_friend_request_accept_repair_error(
 
 async fn dispatch_control_plane_json(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     method: &str,
     uri: String,
     permissions: &str,
@@ -1900,7 +1903,7 @@ async fn dispatch_control_plane_json(
 
 async fn dispatch_control_plane_json_response(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     method: &str,
     uri: String,
     permissions: &str,
@@ -1909,15 +1912,15 @@ async fn dispatch_control_plane_json_response(
     let mut builder = Request::builder()
         .method(method)
         .uri(uri)
-        .header("x-tenant-id", auth.tenant_id.as_str())
-        .header("x-user-id", auth.actor_id.as_str())
-        .header("x-actor-kind", auth.actor_kind.as_str())
-        .header("x-permissions", permissions);
+        .header("x-sdkwork-tenant-id", auth.tenant_id.as_str())
+        .header("x-sdkwork-user-id", auth.actor_id.as_str())
+        .header("x-sdkwork-actor-kind", auth.actor_kind.as_str())
+        .header("x-sdkwork-permission-scope", permissions);
     if let Some(session_id) = auth.session_id.as_deref() {
-        builder = builder.header("x-session-id", session_id);
+        builder = builder.header("x-sdkwork-session-id", session_id);
     }
     if let Some(device_id) = auth.device_id.as_deref() {
-        builder = builder.header("x-device-id", device_id);
+        builder = builder.header("x-sdkwork-device-id", device_id);
     }
     let body = match body {
         Some(value) => {
@@ -2067,7 +2070,7 @@ fn build_friend_request_inventory_control_plane_uri(
     cursor: Option<&str>,
 ) -> String {
     let mut uri = format!(
-        "/api/v1/control/social/friend-requests?userId={}&direction={}&status={}&limit={}",
+        "/backend/v3/api/control/social/friend-requests?userId={}&direction={}&status={}&limit={}",
         encode_query_component(user_id),
         encode_query_component(social_friend_request_direction_wire(direction)),
         encode_query_component(social_friend_request_status_wire(status)),

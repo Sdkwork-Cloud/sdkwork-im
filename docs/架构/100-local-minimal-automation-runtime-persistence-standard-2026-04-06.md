@@ -64,8 +64,8 @@ Typical sequences:
 
 1. process restarts with the same runtime dir
 2. a client calls:
-   - `GET /api/v1/automation/executions/{id}`
-   - `POST /api/v1/automation/executions`
+   - `GET /im/v3/api/automation/executions/{id}`
+   - `POST /im/v3/api/automation/executions`
 3. runtime loads persisted state for `tenant + principal + execution_id`
 4. the operation continues against restored in-memory state
 

@@ -30,7 +30,7 @@ The disconnect fence file remains:
 
 - `CRAW_CHAT_BIND_ADDR`
 - `CRAW_CHAT_RUNTIME_DIR`
-- `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`
+- `CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET`
 
 Managed startup scripts must export `CRAW_CHAT_RUNTIME_DIR` before launching the binary.
 

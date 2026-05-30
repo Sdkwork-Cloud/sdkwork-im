@@ -4,7 +4,7 @@
 
 - 新增 `07-C12 / 09O / 150O` 文档闭环
 - `ControlPlaneError` 响应新增 `status`
-- `POST /api/v1/control/provider-bindings` 与 `POST /api/v1/control/provider-policies/preview` 的失败响应现在都稳定输出 `status + code + message`
+- `POST /backend/v3/api/control/provider_bindings` 与 `POST /backend/v3/api/control/provider-policies/preview` 的失败响应现在都稳定输出 `status + code + message`
 - provider-policy 失败路径补齐显式错误分类:
   - `invalid`
   - `conflict`
@@ -38,4 +38,4 @@
 
 - `unknown provider policy version` 已确认为 `provider_policy_conflict`
 - provider-policy routes do not emit `status=not_found`
-- `GET /api/v1/control/provider-policies/diff` / `POST /api/v1/control/provider-policies/rollback` 的未知版本分支应稳定返回 `status=conflict`
+- `GET /backend/v3/api/control/provider-policies/diff` / `POST /backend/v3/api/control/provider-policies/rollback` 的未知版本分支应稳定返回 `status=conflict`

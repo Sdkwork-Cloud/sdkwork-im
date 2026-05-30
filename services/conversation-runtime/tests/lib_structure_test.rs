@@ -64,8 +64,8 @@ fn test_conversation_runtime_keys_use_segment_safe_encoding() {
     for forbidden in [
         "format!(\"{tenant_id}:{creator_kind}:{creator_id}:create-conversation:{conversation_id}\")",
         "format!(\"{tenant_id}:{requester_kind}:{requester_id}:create-agent-dialog:{conversation_id}\")",
-        "format!(\"{tenant_id}:{requester_kind}:{requester_id}:create-system-channel:{conversation_id}\")",
-        "format!(\"{tenant_id}:{source_kind}:{source_id}:create-agent-handoff:{conversation_id}\")",
+        "format!(\"{tenant_id}:{requester_kind}:{requester_id}:create-system_channel:{conversation_id}\")",
+        "format!(\"{tenant_id}:{source_kind}:{source_id}:create-agent_handoff:{conversation_id}\")",
         "format!(\"{tenant_id}:{creator_kind}:{creator_id}:create-thread:{conversation_id}\")",
         "format!(\"{tenant_id}:{binder_kind}:{bound_by}:bind-direct-chat:{conversation_id}\")",
         "{}:{}:{}:message:{}:{}",

@@ -14,8 +14,8 @@
 - `services/rtc-signaling-service/src/lib.rs`
   - 新增 `RtcRuntime::map_provider_callback(...)`
   - 新增 `RtcRuntime::recording_artifact(...)`
-  - 新增 `POST /api/v1/rtc/provider-callbacks`
-  - 新增 `GET /api/v1/rtc/sessions/{rtc_session_id}/artifacts/recording`
+  - 新增 `POST /backend/v3/api/rtc/provider_callbacks`
+  - 新增 `GET /im/v3/api/rtc/sessions/{rtc_session_id}/artifacts/recording`
 - `services/local-minimal-node/src/node/rtc.rs`
   - 新增 callback handler
   - 新增 recording artifact handler

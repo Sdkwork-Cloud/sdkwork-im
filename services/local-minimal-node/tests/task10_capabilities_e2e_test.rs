@@ -7,9 +7,36 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tower::ServiceExt;
 
-const DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8iLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
-const AUTOMATION_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8iLCJhY3Rvcl9raW5kIjoidXNlciIsInBlcm1pc3Npb25zIjpbImF1dG9tYXRpb24uZXhlY3V0ZSIsImF1dG9tYXRpb24ucmVhZCJdfQ.";
-const PRIVILEGED_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X29wc19hdWRpdF9kZW1vIiwic2lkIjoic19vcHNfYXVkaXRfZGVtbyIsImFjdG9yX2tpbmQiOiJ1c2VyIiwicGVybWlzc2lvbnMiOlsiYXVkaXQucmVhZCIsIm9wcy5yZWFkIl19.";
+trait AppContextRequestBuilderExt {
+    fn demo_app_context(self) -> Self;
+    fn automation_app_context(self) -> Self;
+    fn privileged_app_context(self) -> Self;
+}
+
+impl AppContextRequestBuilderExt for axum::http::request::Builder {
+    fn demo_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_demo")
+            .header("x-sdkwork-actor-kind", "user")
+            .header("x-sdkwork-session-id", "sdkwork_iam_session_demo")
+    }
+
+    fn automation_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_demo")
+            .header("x-sdkwork-actor-kind", "user")
+            .header("x-sdkwork-session-id", "sdkwork_iam_session_automation")
+            .header("x-sdkwork-permission-scope", "automation.execute automation.read")
+    }
+
+    fn privileged_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_ops_audit_demo")
+            .header("x-sdkwork-actor-kind", "user")
+            .header("x-sdkwork-session-id", "sdkwork_iam_session_ops_audit")
+            .header("x-sdkwork-permission-scope", "audit.read ops.read")
+    }
+}
 
 async fn json_body(response: axum::response::Response) -> serde_json::Value {
     let body = response
@@ -101,12 +128,12 @@ async fn test_local_minimal_profile_retries_pending_message_notification_outbox_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -125,12 +152,12 @@ async fn test_local_minimal_profile_retries_pending_message_notification_outbox_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -144,12 +171,12 @@ async fn test_local_minimal_profile_retries_pending_message_notification_outbox_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_notification_outbox_retry/members/add")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
+                .uri("/im/v3/api/chat/conversations/c_notification_outbox_retry/members/add")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -170,12 +197,12 @@ async fn test_local_minimal_profile_retries_pending_message_notification_outbox_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_notification_outbox_retry/messages")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
+                .uri("/im/v3/api/chat/conversations/c_notification_outbox_retry/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -198,13 +225,13 @@ async fn test_local_minimal_profile_retries_pending_message_notification_outbox_
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/diagnostics")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/diagnostics")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -228,12 +255,12 @@ async fn test_local_minimal_profile_retries_pending_message_notification_outbox_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_notification_outbox_retry/messages")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
+                .uri("/im/v3/api/chat/conversations/c_notification_outbox_retry/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -264,10 +291,10 @@ async fn test_local_minimal_profile_retries_pending_message_notification_outbox_
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/notifications")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_member")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/notifications")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_member")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -295,13 +322,13 @@ async fn test_local_minimal_profile_retries_pending_message_notification_outbox_
     let diagnostics_after_recovery = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/diagnostics")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/diagnostics")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -330,8 +357,8 @@ async fn test_local_minimal_profile_exposes_notification_automation_audit_and_op
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", DEMO_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -350,8 +377,8 @@ async fn test_local_minimal_profile_exposes_notification_automation_audit_and_op
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_task10_demo/messages")
-                .header("authorization", DEMO_BEARER)
+                .uri("/im/v3/api/chat/conversations/c_task10_demo/messages")
+                .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -370,8 +397,8 @@ async fn test_local_minimal_profile_exposes_notification_automation_audit_and_op
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/notifications")
-                .header("authorization", DEMO_BEARER)
+                .uri("/im/v3/api/notifications")
+                .demo_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -399,8 +426,8 @@ async fn test_local_minimal_profile_exposes_notification_automation_audit_and_op
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/executions")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -437,8 +464,8 @@ async fn test_local_minimal_profile_exposes_notification_automation_audit_and_op
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/notifications")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/notifications")
+                .automation_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -471,8 +498,8 @@ async fn test_local_minimal_profile_exposes_notification_automation_audit_and_op
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/export")
-                .header("authorization", PRIVILEGED_BEARER)
+                .uri("/backend/v3/api/audit/export")
+                .privileged_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -493,8 +520,8 @@ async fn test_local_minimal_profile_exposes_notification_automation_audit_and_op
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/cluster")
-                .header("authorization", PRIVILEGED_BEARER)
+                .uri("/backend/v3/api/ops/cluster")
+                .privileged_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -514,8 +541,8 @@ async fn test_local_minimal_profile_exposes_notification_automation_audit_and_op
     let diagnostics = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/diagnostics")
-                .header("authorization", PRIVILEGED_BEARER)
+                .uri("/backend/v3/api/ops/diagnostics")
+                .privileged_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -533,14 +560,14 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
+                .uri("/im/v3/api/automation/executions")
                 .header(
-                    "x-permissions",
+                    "x-sdkwork-permission-scope",
                     "automation.execute automation.read audit.read",
                 )
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -571,14 +598,14 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
+                .uri("/im/v3/api/automation/executions")
                 .header(
-                    "x-permissions",
+                    "x-sdkwork-permission-scope",
                     "automation.execute automation.read audit.read",
                 )
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -609,10 +636,10 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/notifications")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/notifications")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -643,11 +670,11 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/export")
-                .header("x-permissions", "audit.read")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/backend/v3/api/audit/export")
+                .header("x-sdkwork-permission-scope", "audit.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -669,14 +696,14 @@ async fn test_local_minimal_profile_treats_duplicate_automation_request_as_idemp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
+                .uri("/im/v3/api/automation/executions")
                 .header(
-                    "x-permissions",
+                    "x-sdkwork-permission-scope",
                     "automation.execute automation.read audit.read",
                 )
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -712,11 +739,11 @@ async fn test_local_minimal_profile_isolates_automation_notifications_by_actor_k
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-permissions", "automation.execute automation.read")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -747,11 +774,11 @@ async fn test_local_minimal_profile_isolates_automation_notifications_by_actor_k
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-permissions", "automation.execute automation.read")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "system")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -781,10 +808,10 @@ async fn test_local_minimal_profile_isolates_automation_notifications_by_actor_k
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/notifications")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/notifications")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -815,10 +842,10 @@ async fn test_local_minimal_profile_isolates_automation_notifications_by_actor_k
     let system_notifications = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/notifications")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "system")
+                .uri("/im/v3/api/notifications")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -856,14 +883,14 @@ async fn test_local_minimal_profile_records_automation_audit_per_actor_kind() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
+                .uri("/im/v3/api/automation/executions")
                 .header(
-                    "x-permissions",
+                    "x-sdkwork-permission-scope",
                     "automation.execute automation.read audit.read",
                 )
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -887,14 +914,14 @@ async fn test_local_minimal_profile_records_automation_audit_per_actor_kind() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
+                .uri("/im/v3/api/automation/executions")
                 .header(
-                    "x-permissions",
+                    "x-sdkwork-permission-scope",
                     "automation.execute automation.read audit.read",
                 )
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "system")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -916,11 +943,11 @@ async fn test_local_minimal_profile_records_automation_audit_per_actor_kind() {
     let audit_export = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/export")
-                .header("x-permissions", "audit.read")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/backend/v3/api/audit/export")
+                .header("x-sdkwork-permission-scope", "audit.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -965,14 +992,14 @@ async fn test_local_minimal_profile_preserves_automation_audit_for_max_length_ex
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
+                .uri("/im/v3/api/automation/executions")
                 .header(
-                    "x-permissions",
+                    "x-sdkwork-permission-scope",
                     "automation.execute automation.read audit.read",
                 )
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -996,11 +1023,11 @@ async fn test_local_minimal_profile_preserves_automation_audit_for_max_length_ex
     let audit_export = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/export")
-                .header("x-permissions", "audit.read")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/backend/v3/api/audit/export")
+                .header("x-sdkwork-permission-scope", "audit.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1030,8 +1057,8 @@ async fn test_local_minimal_profile_exposes_agent_response_and_tool_call_lifecyc
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/executions")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1053,8 +1080,8 @@ async fn test_local_minimal_profile_exposes_agent_response_and_tool_call_lifecyc
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1088,8 +1115,8 @@ async fn test_local_minimal_profile_exposes_agent_response_and_tool_call_lifecyc
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses/st_local_agent/frames")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses/st_local_agent/frames")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1115,8 +1142,8 @@ async fn test_local_minimal_profile_exposes_agent_response_and_tool_call_lifecyc
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1139,8 +1166,8 @@ async fn test_local_minimal_profile_exposes_agent_response_and_tool_call_lifecyc
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions/ae_local_agent/agent-tool-calls/tc_local_lookup/complete")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/executions/ae_local_agent/agent_tool_calls/tc_local_lookup/complete")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1160,8 +1187,8 @@ async fn test_local_minimal_profile_exposes_agent_response_and_tool_call_lifecyc
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses/st_local_agent/complete")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses/st_local_agent/complete")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1181,8 +1208,8 @@ async fn test_local_minimal_profile_exposes_agent_response_and_tool_call_lifecyc
     let audit_export = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/export")
-                .header("authorization", PRIVILEGED_BEARER)
+                .uri("/backend/v3/api/audit/export")
+                .privileged_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1230,8 +1257,8 @@ async fn test_local_minimal_profile_preserves_agent_response_audit_for_max_lengt
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/executions")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1253,8 +1280,8 @@ async fn test_local_minimal_profile_preserves_agent_response_audit_for_max_lengt
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1287,8 +1314,8 @@ async fn test_local_minimal_profile_preserves_agent_response_audit_for_max_lengt
     let audit_export = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/export")
-                .header("authorization", PRIVILEGED_BEARER)
+                .uri("/backend/v3/api/audit/export")
+                .privileged_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1326,8 +1353,11 @@ async fn test_local_minimal_profile_rejects_oversized_get_execution_path_id() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/automation/executions/{}", "e".repeat(257)))
-                .header("authorization", AUTOMATION_BEARER)
+                .uri(format!(
+                    "/im/v3/api/automation/executions/{}",
+                    "e".repeat(257)
+                ))
+                .automation_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1353,8 +1383,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_response_stream_id()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/executions")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1375,8 +1405,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_response_stream_id()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1421,8 +1451,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_response_member_id()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/executions")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1443,8 +1473,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_response_member_id()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1488,8 +1518,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_response_execution_i
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1535,10 +1565,10 @@ async fn test_local_minimal_profile_rejects_oversized_agent_response_stream_path
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/api/v1/automation/agent-responses/{}/frames",
+                    "/im/v3/api/automation/agent_responses/{}/frames",
                     "s".repeat(257)
                 ))
-                .header("authorization", AUTOMATION_BEARER)
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1562,10 +1592,10 @@ async fn test_local_minimal_profile_rejects_oversized_agent_response_stream_path
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/api/v1/automation/agent-responses/{}/complete",
+                    "/im/v3/api/automation/agent_responses/{}/complete",
                     "s".repeat(257)
                 ))
-                .header("authorization", AUTOMATION_BEARER)
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1590,8 +1620,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_metadata() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/executions")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1612,8 +1642,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_metadata() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1657,8 +1687,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_result_message_id() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/executions")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1680,8 +1710,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_result_message_id() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1711,8 +1741,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_result_message_id() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses/st_local_oversized_result_message_id/complete")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses/st_local_oversized_result_message_id/complete")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1757,8 +1787,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_identity_fields() {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/automation/executions")
-                    .header("authorization", AUTOMATION_BEARER)
+                    .uri("/im/v3/api/automation/executions")
+                    .automation_app_context()
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -1780,8 +1810,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_identity_fields() {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/automation/agent-responses")
-                    .header("authorization", AUTOMATION_BEARER)
+                    .uri("/im/v3/api/automation/agent_responses")
+                    .automation_app_context()
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -1823,8 +1853,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_tool_call_id() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/executions")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1846,8 +1876,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_tool_call_id() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1877,8 +1907,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_tool_call_id() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1912,8 +1942,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_tool_call_execution_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1953,10 +1983,10 @@ async fn test_local_minimal_profile_rejects_oversized_complete_agent_tool_call_p
                 Request::builder()
                     .method("POST")
                     .uri(format!(
-                        "/api/v1/automation/executions/{}/agent-tool-calls/{}/complete",
+                        "/im/v3/api/automation/executions/{}/agent_tool_calls/{}/complete",
                         execution_id, tool_call_id
                     ))
-                    .header("authorization", AUTOMATION_BEARER)
+                    .automation_app_context()
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -1985,8 +2015,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_tool_name() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/executions")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2008,8 +2038,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_tool_name() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_responses")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2039,8 +2069,8 @@ async fn test_local_minimal_profile_rejects_oversized_agent_tool_name() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("authorization", AUTOMATION_BEARER)
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .automation_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -2074,11 +2104,11 @@ async fn test_local_minimal_profile_exposes_automation_governance_and_override_a
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/automation/governance")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.read")
+                .uri("/backend/v3/api/automation/governance")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2094,11 +2124,11 @@ async fn test_local_minimal_profile_exposes_automation_governance_and_override_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2120,11 +2150,11 @@ async fn test_local_minimal_profile_exposes_automation_governance_and_override_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2155,11 +2185,11 @@ async fn test_local_minimal_profile_exposes_automation_governance_and_override_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2182,12 +2212,12 @@ async fn test_local_minimal_profile_exposes_automation_governance_and_override_a
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header(
-                    "x-permissions",
+                    "x-sdkwork-permission-scope",
                     "automation.execute automation.read automation.operator_override",
                 )
                 .header("content-type", "application/json")
@@ -2210,8 +2240,8 @@ async fn test_local_minimal_profile_exposes_automation_governance_and_override_a
     let audit_export = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/export")
-                .header("authorization", PRIVILEGED_BEARER)
+                .uri("/backend/v3/api/audit/export")
+                .privileged_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2248,11 +2278,11 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/notifications/requests")
-                .header("x-permissions", "audit.read")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/notifications/requests")
+                .header("x-sdkwork-permission-scope", "audit.read notification.write")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2298,11 +2328,11 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/notifications/requests")
-                .header("x-permissions", "audit.read")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/notifications/requests")
+                .header("x-sdkwork-permission-scope", "audit.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2339,10 +2369,10 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/notifications")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/notifications")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2373,11 +2403,11 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/audit/export")
-                .header("x-permissions", "audit.read")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/backend/v3/api/audit/export")
+                .header("x-sdkwork-permission-scope", "audit.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2402,11 +2432,11 @@ async fn test_local_minimal_profile_treats_duplicate_notification_request_as_ide
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/notifications/requests")
-                .header("x-permissions", "audit.read")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/notifications/requests")
+                .header("x-sdkwork-permission-scope", "audit.read notification.write")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

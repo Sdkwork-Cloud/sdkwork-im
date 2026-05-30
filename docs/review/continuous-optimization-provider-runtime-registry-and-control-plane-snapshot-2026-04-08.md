@@ -8,7 +8,7 @@
 
 ## 2. 本轮为什么做
 
-上一轮已经冻结了 `rtc / object-storage / user-module / iot-access / iot-protocol` 的 provider/plugin 文档标准，但真实代码仍停留在：
+上一轮已经冻结了 `rtc / object-storage / principal-profile / iot-access / iot-protocol` 的 provider/plugin 文档标准，但真实代码仍停留在：
 
 - 有架构标准，没有统一 runtime contract
 - 有 provider 矩阵，没有控制面可读的 provider registry snapshot
@@ -28,17 +28,17 @@
   - `StaticProviderRegistry`
   - `RtcProviderPort`
   - `ObjectStorageProvider`
-  - `UserModuleProvider`
+  - `PrincipalProfileProvider`
   - `DeviceAccessProvider`
   - `IotProtocolAdapter`
 - `StaticProviderRegistry::platform_default()` 已冻结默认运行时快照：
   - RTC 默认 `rtc-volcengine`
-  - 用户模块默认 `user-module-local`
+  - 用户模块默认 `principal-profile-upstream-context`
   - 设备接入默认 `iot-access-local`
   - IoT 协议默认 `iot-mqtt`
   - 对象存储保留多云矩阵，但默认选择保持 `deployment_required`
 - 在 `services/control-plane-api` 新增：
-  - `GET /api/v1/control/provider-registry`
+  - `GET /backend/v3/api/control/provider-registry`
   - 权限模型沿用 `control.read / control.write`
   - 返回 `ProviderRegistrySnapshot`
 - 新增契约测试：
@@ -71,12 +71,12 @@
 
 - `RtcProviderPort` 还没有真正接入 `rtc-signaling-service / local-minimal-node`
 - `ObjectStorageProvider` 还没有替换现有 `ObjectStore / BlobStore` 装配路径
-- `UserModuleProvider` 还没有进入 conversation / member / sender 主链
+- `PrincipalProfileProvider` 还没有进入 conversation / member / sender 主链
 - `DeviceAccessProvider / IotProtocolAdapter` 还没有接管现有设备注册与协议上下行主路径
 - provider registry 还没有持久化真源，也没有 tenant override 写接口
 
 ## 8. 下一轮做什么
 
-1. 先做 `user-module-local / user-module-external` 的最小 provider 实现，并接入 `sender / member` 主链。
+1. 先做 `principal-profile-upstream-context / principal-profile-external-catalog` 的最小 provider 实现，并接入 `sender / member` 主链。
 2. 再把 `RtcProviderPort` 接入 `rtc-signaling-service` 或 `local-minimal-node`，落 `rtc-volcengine` 默认 provider。
 3. 再推进 `object-storage-s3` 和 `iot-mqtt` 的最小实现与 conformance 测试。

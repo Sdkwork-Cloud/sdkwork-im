@@ -12,9 +12,9 @@
   - stream runtime state
 - RTC state still rebuilt from empty memory after restart.
 - The operational effect was direct:
-  - `POST /api/v1/rtc/sessions/{id}/accept` returned `404 rtc_session_not_found`
-  - `POST /api/v1/rtc/sessions/{id}/signals` returned `404 rtc_session_not_found`
-  - `POST /api/v1/rtc/sessions/{id}/end` returned `404 rtc_session_not_found`
+  - `POST /im/v3/api/rtc/sessions/{id}/accept` returned `404 rtc_session_not_found`
+  - `POST /im/v3/api/rtc/sessions/{id}/signals` returned `404 rtc_session_not_found`
+  - `POST /im/v3/api/rtc/sessions/{id}/end` returned `404 rtc_session_not_found`
   - conversation-bound RTC flows could not continue across restart unless clients recreated the same `rtcSessionId`
 
 ### 1.2 High: `RtcRuntime` had no durable seam and `local-minimal-node` always composed it as memory-only

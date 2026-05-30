@@ -53,11 +53,11 @@ Reason:
 
 At minimum this rule applies to:
 
-- `POST /api/v1/devices/register`
-- `POST /api/v1/presence/heartbeat`
-- `POST /api/v1/sessions/disconnect`
-- `GET /api/v1/realtime/events`
-- `POST /api/v1/realtime/events/ack`
+- `POST /im/v3/api/devices/register`
+- `POST /im/v3/api/presence/heartbeat`
+- `POST /im/v3/api/device/sessions/disconnect`
+- `GET /im/v3/api/realtime/events`
+- `POST /im/v3/api/realtime/events/ack`
 - websocket attach
 - any gateway helper that implicitly ensures device registration before business writes
 

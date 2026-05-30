@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "generator": "@sdkwork/sdk-generator",
+  "sdk": {
+    "name": "sdkwork-im-app-sdk",
+    "version": "0.1.0",
+    "language": "csharp",
+    "sdkType": "app",
+    "packageName": "Sdkwork.Im.AppApi.Generated"
+  },
+  "generatedFiles": [
+    {
+      "path": "Api/Api.cs",
+      "sha256": "185251ea1c89983543898f3e5d6dc76b0320f693d159336df9a34a528933b85f"
+    },
+    {
+      "path": "Api/ApiPaths.cs",
+      "sha256": "2681ba7e6a7e9655b01927c15fc9a4abd966f2f71129feb11fbf0ff4cab90ea6"
+    },
+    {
+      "path": "Api/AutomationApi.cs",
+      "sha256": "70c049716a6a576ccfb58a9f9a9e023f2ec144d44b44e57cd3278e8a088b4820"
+    },
+    {
+      "path": "Api/DeviceApi.cs",
+      "sha256": "6aa03e569c35645e572208ebf1e4e64a9b5b7113f1a5daf47de6015aa2bf35c2"
+    },
+    {
+      "path": "Api/IotApi.cs",
+      "sha256": "530b1ee513038d1c5378b746bff575bc29820213804b8e5d2062e74dc49dfd14"
+    },
+    {
+      "path": "Api/NotificationApi.cs",
+      "sha256": "13143b1df23670190b91a07d58c369560515f729be17c86f1042e3f125ddeb6a"
+    },
+    {
+      "path": "Api/PortalApi.cs",
+      "sha256": "dfbace1f34c94bd8d1f87d82d2c5f951cd14595f27539d313b38f54bbf16f10c"
+    },
+    {
+      "path": "Api/ProviderApi.cs",
+      "sha256": "d35774080894c996f37cc20b66596f86a50d30d69b8cb6723c77257d37b8f6d9"
+    },
+    {
+      "path": "Api/RtcApi.cs",
+      "sha256": "b69c62a034d48a26fa3a7fa8d0ff6c21497072af0cc9071373db04c80124a677"
+    },
+    {
+      "path": "bin/publish-core.mjs",
+      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+    },
+    {
+      "path": "bin/publish.ps1",
+      "sha256": "64a1727613d4b6b088129400427b90dd4b37047f48beacade665a76418398740"
+    },
+    {
+      "path": "bin/publish.sh",
+      "sha256": "9f2030a8a491d26598cbd3a1b858d55e4f8e7bb70c9bf4b6024cd8c425a84e0b"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "fb941a0806986a54fc192f98a98f6d9c282b8d350b2b19a3e71dda404e92d545"
+    },
+    {
+      "path": "Http/HttpClient.cs",
+      "sha256": "8a36deea09645fbde53c6359dfd6762ce537af562a60541155b0e94c5d85ca4a"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "7840cc7d2b36ff364ac16c2fc5ec15b861bfe96854eecf81fb59b00edb8b1447"
+    },
+    {
+      "path": "Models/AgentSubject.cs",
+      "sha256": "a5d3796bd7f2c9dc29a886823e00c67b7f7b2112ec0b6da986a3c467dd2096d0"
+    },
+    {
+      "path": "Models/AgentToolCall.cs",
+      "sha256": "24b7a0afd59ef99d55e6b71538113df764ada3c093bfec7ea7c633ad09008d3a"
+    },
+    {
+      "path": "Models/AppendAgentResponseDeltaRequest.cs",
+      "sha256": "2b2ef60ec107713ca7e9ed8b13fd11ebea7a6a6602aa8493ebf17f601ac36e3a"
+    },
+    {
+      "path": "Models/AutomationExecution.cs",
+      "sha256": "06f5a3cdc7203e7f95dffd4ce51810ab8229f5bc9cdcc843258d2515a16a111a"
+    },
+    {
+      "path": "Models/AutomationExecutionRequestResponse.cs",
+      "sha256": "4b1dc7d362ece5ba8bd64247baa49cb0bf41b3507017069db850cf67a0aa2220"
+    },
+    {
+      "path": "Models/CompleteAgentResponseRequest.cs",
+      "sha256": "578a49f2fe0ac481e5e2d343ad65a4675b4baee41d98799560024e55c775e52f"
+    },
+    {
+      "path": "Models/CompleteAgentToolCallRequest.cs",
+      "sha256": "67be0f8a140d08dc7267c109f9c9f39376df72633629086d551757ada59233ab"
+    },
+    {
+      "path": "Models/DeviceTwinView.cs",
+      "sha256": "a24c8026a377ca6b0d8ad98ce77ced78edfe100c01df04513a06b5d9bd92e90c"
+    },
+    {
+      "path": "Models/NotificationListResponse.cs",
+      "sha256": "f0e6abb447128058252c9a6ea8db7ab8ed1552c20261642ac062577632e22529"
+    },
+    {
+      "path": "Models/NotificationRequestResponse.cs",
+      "sha256": "ac70e6b86624e4add72580f054e3d4444323bfa2400170a7d8684ff3f2165b59"
+    },
+    {
+      "path": "Models/NotificationTask.cs",
+      "sha256": "d3a4ad20ce4c7f9e9200be1527f327360796c8fb58df4de43a4cf310456fda77"
+    },
+    {
+      "path": "Models/PortalWorkspaceView.cs",
+      "sha256": "a02f2b88c61be1894b4126897328a24a66cdb45ccc5185257882a01422ae15a5"
+    },
+    {
+      "path": "Models/ProblemDetail.cs",
+      "sha256": "16000add4d908b0b90415e7baa73bd79dd7b922d106c9c469a0969afc0c43fe1"
+    },
+    {
+      "path": "Models/RequestAgentToolCallRequest.cs",
+      "sha256": "89b41f73b02f7a804b8c31c73c5766dfdc8a5e9212af1add3c9892d755224c48"
+    },
+    {
+      "path": "Models/RequestAutomationExecution.cs",
+      "sha256": "ce27f238abc20ad1109b2b7f8e8f51b6c5aacf0e3406dca4990af100dc185c0c"
+    },
+    {
+      "path": "Models/RequestNotification.cs",
+      "sha256": "67f1ecf241f002977a78fa9effe8d2f01bec570bea5a2437ed889c9f54f941a8"
+    },
+    {
+      "path": "Models/Sender.cs",
+      "sha256": "401a3e07a7efc857ab52dd4d90359f222ddc4313e608f63cfff09ac0315395a3"
+    },
+    {
+      "path": "Models/StartAgentResponseRequest.cs",
+      "sha256": "5c2f8f1737ee85f99fec233a84cc0c713ceb926200eb754c548fa2943f4a81c9"
+    },
+    {
+      "path": "Models/StreamFrame.cs",
+      "sha256": "5552c05c489d471e42ab364ea763819bf098c459e96f431c937a329523f10aea"
+    },
+    {
+      "path": "Models/StreamSession.cs",
+      "sha256": "43629b8bf7f9adc4e06af3195eae236fce37c3d2087ca5bad519f8e316645b9f"
+    },
+    {
+      "path": "Models/UpdateDeviceTwinDesiredRequest.cs",
+      "sha256": "40b5806b916652bc6f9454f4160741d79cec77b649a89c0f2da4345f05248b75"
+    },
+    {
+      "path": "Models/UpdateDeviceTwinReportedRequest.cs",
+      "sha256": "4919d69b3d599ef256a2757ee46f8766d62d73ac1f7989c7fd8d2b5a5a98c07a"
+    },
+    {
+      "path": "README.md",
+      "sha256": "d115ba52262a260103018877d35ac6e6c2354766d18ee8c9acb4e19e32bd997c"
+    },
+    {
+      "path": "sdkwork-sdk.json",
+      "sha256": "b1d902572a3726b97fd70d12b888ae1fcf654c39745d45703da404298439c756"
+    },
+    {
+      "path": "Sdkwork.Im.AppApi.Generated.csproj",
+      "sha256": "fba18b8f3dd101c2408ff2b5e001471ca565ce5ece8005bb58261c1d9e12aa5d"
+    },
+    {
+      "path": "SdkworkAppClient.cs",
+      "sha256": "e909a2f8ba777e1d01b5ae82fa37a11b66c896306f82c6def6cb6e6e78d40e7b"
+    }
+  ],
+  "scaffoldFiles": [
+    "custom/README.md"
+  ],
+  "customRoots": [
+    "custom/"
+  ]
+}

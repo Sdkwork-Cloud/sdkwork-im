@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add first-class storage configuration management for global and tenant object-storage binding, provider-specific schemas, secret handling, validation, and admin UX, while keeping the workspace-local admin sandbox and docs aligned with the production `/api/admin/storage/*` contract.
+**Goal:** Add first-class storage configuration management for global and tenant object-storage binding, provider-specific schemas, secret handling, validation, and admin UX, while keeping the workspace-local admin sandbox and docs aligned with the production `/backend/v3/api/admin/storage/*` contract.
 
-**Architecture:** Keep the storage domain isolated from generic provider credentials. Model config, secrets, and effective resolution as separate records; expose them through the local admin sandbox first so the admin UI can render against live workspace data; then add a dedicated admin module package and shell route that reads from the admin workspace snapshot. Treat the SDK upload/session alignment as a companion integration so docs, upload helpers, and media terminology stay consistent with the storage contract. The repository does not contain the live production admin backend, so the workspace-local sandbox is the executable verification surface and the production `/api/admin/storage/*` service is the contract consumer.
+**Architecture:** Keep the storage domain isolated from generic provider credentials. Model config, secrets, and effective resolution as separate records; expose them through the local admin sandbox first so the admin UI can render against live workspace data; then add a dedicated admin module package and shell route that reads from the admin workspace snapshot. Treat the SDK upload/session alignment as a companion integration so docs, upload helpers, and media terminology stay consistent with the storage contract. The repository does not contain the live production admin backend, so the workspace-local sandbox is the executable verification surface and the production `/backend/v3/api/admin/storage/*` service is the contract consumer.
 
 **Tech Stack:** Rust, Axum, TypeScript, React, Node.js, pnpm, Vite, Node test runner, workspace JSON sandbox, Markdown docs
 
@@ -133,14 +133,14 @@ git commit -m "feat(storage): define admin storage contract"
 - [ ] **Step 1: Write the failing sandbox and client tests**
 
 Add tests that require:
-- `GET /api/admin/storage/providers`
-- `GET /api/admin/storage/config`
-- `POST /api/admin/storage/config`
-- `GET /api/admin/storage/config/tenants/{tenantId}`
-- `POST /api/admin/storage/config/tenants/{tenantId}`
-- `GET /api/admin/storage/effective/tenants/{tenantId}`
-- `POST /api/admin/storage/validate`
-- `GET /api/admin/storage/audit`
+- `GET /backend/v3/api/admin/storage/providers`
+- `GET /backend/v3/api/admin/storage/config`
+- `POST /backend/v3/api/admin/storage/config`
+- `GET /backend/v3/api/admin/storage/config/tenants/{tenantId}`
+- `POST /backend/v3/api/admin/storage/config/tenants/{tenantId}`
+- `GET /backend/v3/api/admin/storage/effective/tenants/{tenantId}`
+- `POST /backend/v3/api/admin/storage/validate`
+- `GET /backend/v3/api/admin/storage/audit`
 
 The tests should also verify:
 - a tenant override hides the global config as the effective source

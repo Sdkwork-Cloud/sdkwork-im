@@ -6,6 +6,7 @@ use craw_chat_contract_core::ContractError;
 use im_platform_contracts::{
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord, RealtimeEventWindowStore,
 };
+use im_time::rfc3339_le;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -154,7 +155,7 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
             lock_realtime_mutex(&self.subscriptions, "runtime subscription store");
         let should_clear = subscriptions
             .get(key.as_str())
-            .map(|record| record.synced_at.as_str() <= cutoff_synced_at)
+            .map(|record| rfc3339_le(record.synced_at.as_str(), cutoff_synced_at))
             .unwrap_or(false);
         if !should_clear {
             return Ok(false);
@@ -558,6 +559,48 @@ mod tests {
                 .expect("subscription load should succeed")
                 .is_some(),
             "newer subscription must not be deleted by an older disconnect cleanup"
+        );
+    }
+
+    #[test]
+    fn test_runtime_subscription_store_compares_synced_at_by_rfc3339_instant() {
+        let store = RuntimeMemorySubscriptionStore::default();
+        store
+            .save_subscriptions(RealtimeSubscriptionRecord {
+                tenant_id: "t_demo".into(),
+                principal_kind: "user".into(),
+                principal_id: "u_demo".into(),
+                device_id: "d_pad".into(),
+                items: vec![RealtimeSubscription {
+                    scope_type: "conversation".into(),
+                    scope_id: "c_demo".into(),
+                    event_types: Vec::new(),
+                    subscribed_at: "2026-05-06T00:00:00.100Z".into(),
+                }],
+                synced_at: "2026-05-06T00:00:00.100Z".into(),
+            })
+            .expect("subscription save should succeed");
+
+        let cleared = store
+            .clear_subscriptions_synced_at_or_before(
+                "t_demo",
+                "user",
+                "u_demo",
+                "d_pad",
+                "2026-05-06T00:00:00Z",
+            )
+            .expect("conditional clear should succeed");
+
+        assert!(
+            !cleared,
+            "a later fractional timestamp must not be cleared by an earlier whole-second cutoff"
+        );
+        assert!(
+            store
+                .load_subscriptions("t_demo", "user", "u_demo", "d_pad")
+                .expect("subscription load should succeed")
+                .is_some(),
+            "subscription must remain after an earlier cutoff"
         );
     }
 }

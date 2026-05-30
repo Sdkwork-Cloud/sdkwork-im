@@ -27,8 +27,8 @@ The documentation should optimize for the path from "I need to integrate chat" t
 - Current API docs: `docs/sites/api-reference/**/*.md`
 - App SDK workspace root: `sdks/sdkwork-im-sdk`
 - Trilang implementation-aligned worktree: `.worktrees/im-sdk-trilanguage-expansion`
-- App SDK authority contract: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
-- App SDK derived generator input: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.sdkgen.yaml`
+- App SDK authority contract: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
+- App SDK derived generator input: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.sdkgen.yaml`
 - TypeScript composed SDK: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/src`
 - Flutter composed SDK: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/composed/lib`
 - Rust composed SDK: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src`

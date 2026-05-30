@@ -51,7 +51,7 @@
   - `ProjectionPlaneHealthView` / `ProjectionPlaneDiagnosticsView` 新增 `replay`
   - `OpsRuntime` 的 lag 状态改为可更新
   - 新增 `update_projection_replay_lag(...)`
-  - 默认 `/api/v1/ops/lag` 现在包含零值 `projection_replay` 项，而不是完全缺字段
+  - 默认 `/backend/v3/api/ops/lag` 现在包含零值 `projection_replay` 项，而不是完全缺字段
 
 ### 4. `local-minimal-node` 把 replay 指标与 lag 一并映射到 ops 面
 - `services/local-minimal-node/src/node/platform.rs`
@@ -77,7 +77,7 @@
     - 重启后验证：
       - `projectionPlane.replay.backlogSize >= 1`
       - `projectionPlane.replay.replayedEventCount >= 1`
-      - `/api/v1/ops/lag` 存在对应 conversation scope 的 `projection_replay` 项
+      - `/backend/v3/api/ops/lag` 存在对应 conversation scope 的 `projection_replay` 项
       - timeline 被 replay 恢复为两条消息
 
 ## 改动范围

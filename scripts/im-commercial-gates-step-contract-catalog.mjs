@@ -7,11 +7,6 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_STEP_CONTRACTS = [
     message: 'im commercial gates workflow must provision Node via actions/setup-node@v5 before delegating governance node tests to the repository-owned runner',
   },
   {
-    id: 'governance-runner-before-portal-user-center-standard',
-    patternSource: String.raw`Run commercial gates governance node tests[\s\S]*?run:\s*node scripts\/run-commercial-gates-governance-node-tests\.mjs[\s\S]*?Test portal user-center standard[\s\S]*?run:\s*node scripts\/run-user-center-standard\.mjs`,
-    message: 'im commercial gates workflow must run the repository-owned governance node test runner before executing the portal user-center standard gate',
-  },
-  {
     id: 'admin-release-safety-uses-craw-chat-admin-workspace',
     patternSource: String.raw`Test admin architecture release safety[\s\S]*?working-directory:\s*apps\/craw-chat-admin[\s\S]*?run:\s*node --test --experimental-test-isolation=none tests\/admin-architecture\.test\.mjs`,
     message: 'im commercial gates workflow must execute the admin release safety contract inside apps/craw-chat-admin instead of the retired control-plane path',

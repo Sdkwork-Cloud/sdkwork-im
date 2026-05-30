@@ -35,7 +35,7 @@ Today the normal Rust consumption boundary is the composed crate under `composed
   inbox, conversations, messages, media, streams, and rtc
 - builder helpers for text messages, text stream frames, and JSON RTC signals
 - re-exported generated transport types so application code can still drop down to `ImTransportClient`
-  when it needs raw auth, portal, or DTO-level access
+  when it needs transport-level token hooks, portal, or DTO-level access
 
 ## Normal Client Entry
 
@@ -52,7 +52,7 @@ client.set_auth_token(token);
 
 - Start from `ImSdkClient` when you want route-aligned Rust helpers above the generated transport.
 - Drop to `ImTransportClient` or the generated DTO exports re-exported by `im_sdk` when you need
-  raw auth, portal, or exact route-group access.
+  transport-level token hooks, portal, or exact route-group access.
 - Use `generated/server-openapi/README.md` when you need the raw transport installation contract
   and exact generated route-group examples.
 - Do not hand-edit generated Rust files under `generated/server-openapi`.
@@ -63,15 +63,15 @@ Use the map below to jump from the Rust surface you are using to the matching HT
 
 | Concern | Preferred Rust surface today | Exact API reference |
 | --- | --- | --- |
-| Auth and portal shell reads | `ImTransportClient` fallback via generated exports or `client.transport_client()` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Session, presence, and realtime coordination | `ImSdkClient::session()`, `presence()`, `realtime()` | [Session and Realtime](/api-reference/app/session-and-realtime) |
-| Device registration and sync feeds | `ImSdkClient::devices()` | [Device Sync](/api-reference/app/device-sync) |
-| Inbox and conversation lifecycle | `ImSdkClient::inbox()`, `conversations()` | [Conversations](/api-reference/app/conversations) |
-| Membership and read cursors | `ImSdkClient::conversations()` plus generated DTOs | [Membership and Read State](/api-reference/app/membership-and-read-state) |
-| Message posting and mutation helpers | `ImSdkClient::conversations()`, `messages()`, `build_text_message(...)` | [Messages](/api-reference/app/messages) |
-| Upload and attachment lifecycle | `ImSdkClient::media()` | [Media](/api-reference/app/media) |
-| Stream ingestion and checkpoints | `ImSdkClient::streams()`, `build_text_stream_frame(...)` | [Streams](/api-reference/app/streams) |
-| RTC lifecycle and JSON signaling helpers | `ImSdkClient::rtc()`, `build_json_rtc_signal(...)` | [RTC](/api-reference/app/rtc) |
+| SDKWork appbase credential pass-through and portal reads | `ImTransportClient` fallback via generated exports or `client.transport_client()` | [Portal Access](/api-reference/app/portal-access) |
+| Device Sessions, presence, and realtime coordination | `ImSdkClient::device_sessions()`, `presence()`, `realtime()` | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
+| Device registration and sync feeds | `ImSdkClient::devices()` | [Device Sync](/api-reference/im/device-sync) |
+| Inbox and conversation lifecycle | `ImSdkClient::inbox()`, `conversations()` | [Conversations](/api-reference/im/conversations) |
+| Membership and read cursors | `ImSdkClient::conversations()` plus generated DTOs | [Membership and Read State](/api-reference/im/membership-and-read-state) |
+| Message posting and mutation helpers | `ImSdkClient::conversations()`, `messages()`, `build_text_message(...)` | [Messages](/api-reference/im/messages) |
+| Upload and attachment lifecycle | `ImSdkClient::media()` | [Media](/api-reference/im/media) |
+| Stream ingestion and checkpoints | `ImSdkClient::streams()`, `build_text_stream_frame(...)` | [Streams](/api-reference/im/streams) |
+| RTC lifecycle and JSON signaling helpers | `ImSdkClient::rtc()`, `build_json_rtc_signal(...)` | [RTC](/api-reference/im/rtc) |
 
 When you need the exact generated route groups or transport-level DTO usage examples, pair this
 page with `generated/server-openapi/README.md`.
@@ -88,7 +88,7 @@ Rust now ships a composed client, but it still trails the TypeScript baseline in
 
 Use the generated crate directly when you need:
 
-- raw auth or portal route groups
+- transport-level token hooks or portal route groups
 - exact generated DTOs and low-level route-group calls
 - transport-level debugging against the generated boundary
 
@@ -117,7 +117,7 @@ Rust workspace wrappers:
 
 ## When To Choose Rust
 
-- Choose Rust when you want a checked-in app-facing Rust client with route-aligned helpers above
+- Choose Rust when you want a checked-in IM consumer Rust client with route-aligned helpers above
   the generated transport.
 - Choose Rust when service-side or systems-side integration benefits from a strongly typed generated
   fallback under the same crate family.
@@ -132,8 +132,8 @@ Rust workspace wrappers:
   between `generated/server-openapi` and `composed`.
 - Read [TypeScript SDK](/sdk/typescript-sdk) when you need the current semantic baseline with the
   richest checked-in live runtime.
-- Read [Portal and Auth](/api-reference/app/portal-and-auth), [Conversations](/api-reference/app/conversations),
-  and [Messages](/api-reference/app/messages) when you need the exact HTTP contract behind the Rust
+- Read [Portal Access](/api-reference/app/portal-access), [Conversations](/api-reference/im/conversations),
+  and [Messages](/api-reference/im/messages) when you need the exact HTTP contract behind the Rust
   semantic and generated layers.
-- Read [Session and Realtime](/api-reference/app/session-and-realtime) and [RTC](/api-reference/app/rtc)
+- Read [Device Sessions and Realtime](/api-reference/im/session-and-realtime) and [RTC](/api-reference/im/rtc)
   when you need the route-level contract for live coordination and RTC workflows.

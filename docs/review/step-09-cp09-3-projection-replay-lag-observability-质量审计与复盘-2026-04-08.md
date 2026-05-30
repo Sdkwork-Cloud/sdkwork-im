@@ -25,7 +25,7 @@
   - backlog 有多少
   - 实际 replay 了多少事件
   - replay 花了多久
-- `/api/v1/ops/lag` 现在不再只有静态 `commit_journal` 占位项，而是能给出按 scope 的 `projection_replay` lag 证据。
+- `/backend/v3/api/ops/lag` 现在不再只有静态 `commit_journal` 占位项，而是能给出按 scope 的 `projection_replay` lag 证据。
 - stale snapshot restart 的回归测试证明：
   - projection snapshot 可以落后于 journal
   - 重启后 replay 会把缺失消息补回

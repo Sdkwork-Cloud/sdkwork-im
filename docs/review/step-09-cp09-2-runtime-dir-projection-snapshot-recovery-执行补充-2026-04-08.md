@@ -52,10 +52,10 @@
   - 把 `commit-journal.json` 直接替换成空数组
   - 重启 `local-minimal-node`
   - 验证：
-    - `/api/v1/inbox`
-    - `/api/v1/conversations/{id}`
-    - `/api/v1/conversations/{id}/messages`
-    - `/api/v1/conversations/{id}/read-cursor`
+    - `/im/v3/api/chat/inbox`
+    - `/im/v3/api/chat/conversations/{id}`
+    - `/im/v3/api/chat/conversations/{id}/messages`
+    - `/im/v3/api/chat/conversations/{id}/read-cursor`
     仍可从 snapshot 恢复
 
 ## 改动范围

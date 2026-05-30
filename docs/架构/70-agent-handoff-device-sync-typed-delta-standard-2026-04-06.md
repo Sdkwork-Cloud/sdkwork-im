@@ -90,7 +90,7 @@ The projection layer must not produce a divergent handoff-specific JSON shape.
 At minimum, implementations must carry:
 
 1. a projection test proving handoff sync entries expose `payloadSchema + payload`
-2. an end-to-end node test proving `/api/v1/devices/{deviceId}/sync-feed` exposes the same typed payload after a real handoff transition
+2. an end-to-end node test proving `/im/v3/api/devices/{deviceId}/sync-feed` exposes the same typed payload after a real handoff transition
 
 Recommended assertions:
 

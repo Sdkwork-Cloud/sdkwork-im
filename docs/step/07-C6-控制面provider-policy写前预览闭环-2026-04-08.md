@@ -9,8 +9,8 @@
 
 - `RuntimeProviderRegistry` 新增 `ProviderPolicyPreview`。
 - 新增 `preview_upsert(tenantId, domain, pluginId)`，复用现有校验逻辑做虚拟预演。
-- control-plane 新增 `POST /api/v1/control/provider-policies/preview`。
-- 请求体与 `POST /api/v1/control/provider-bindings` 保持一致。
+- control-plane 新增 `POST /backend/v3/api/control/provider-policies/preview`。
+- 请求体与 `POST /backend/v3/api/control/provider_bindings` 保持一致。
 - 响应固定返回：
   - `baseVersion`
   - `previewVersion`
@@ -25,7 +25,7 @@
 
 ## 接口冻结
 
-- 路径: `POST /api/v1/control/provider-policies/preview`
+- 路径: `POST /backend/v3/api/control/provider-policies/preview`
 - 权限: `control.write`
 - Body:
   - `tenantId`

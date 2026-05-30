@@ -3,8 +3,8 @@
 ## 本轮交付
 
 - 新增 `07-C13 / 09P / 150P` 文档闭环
-- `GET /api/v1/control/provider-registry` 返回 `status=registry`
-- `GET /api/v1/control/provider-bindings` 返回 `status=bindings`
+- `GET /backend/v3/api/control/provider-registry` 返回 `status=registry`
+- `GET /backend/v3/api/control/provider_bindings` 返回 `status=bindings`
 - provider control-plane 的 registry / bindings / policy 读写与错误路径现在都带显式 `status`
 
 ## 验证

@@ -10,7 +10,7 @@ where
 {
     pub fn get_agent_handoff_state_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<AgentHandoffStateView, RuntimeError> {
         self.get_agent_handoff_state_with_actor_kind(
@@ -23,7 +23,7 @@ where
 
     pub fn accept_agent_handoff_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
     ) -> Result<AgentHandoffStateView, RuntimeError> {
         self.accept_agent_handoff_with_actor_kind(
@@ -34,7 +34,7 @@ where
 
     pub fn resolve_agent_handoff_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
     ) -> Result<AgentHandoffStateView, RuntimeError> {
         self.resolve_agent_handoff_with_actor_kind(
@@ -45,7 +45,7 @@ where
 
     pub fn close_agent_handoff_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
     ) -> Result<AgentHandoffStateView, RuntimeError> {
         self.close_agent_handoff_with_actor_kind(

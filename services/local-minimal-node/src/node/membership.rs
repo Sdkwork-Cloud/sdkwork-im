@@ -5,7 +5,7 @@ pub(super) async fn list_members(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ListMembersResponse>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
     Ok(Json(ListMembersResponse {
         items: state
@@ -20,7 +20,7 @@ pub(super) async fn add_member(
     State(state): State<AppState>,
     Json(request): Json<AddConversationMemberRequest>,
 ) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let AddConversationMemberRequest {
         principal_id,
         principal_kind,
@@ -34,7 +34,7 @@ pub(super) async fn add_member(
         &auth,
         conversation_id.as_str(),
     )?;
-    let (principal_kind, resolved_attributes) = user_module::resolve_member_principal(
+    let (principal_kind, resolved_attributes) = principal_profile::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
         principal_id.as_str(),
@@ -89,7 +89,7 @@ pub(super) async fn remove_member(
     State(state): State<AppState>,
     Json(request): Json<RemoveConversationMemberRequest>,
 ) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
     let base_recipients = effects::conversation_member_principal_recipients_from_auth_context(
@@ -141,7 +141,7 @@ pub(super) async fn transfer_conversation_owner(
     State(state): State<AppState>,
     Json(request): Json<TransferConversationOwnerRequest>,
 ) -> Result<Json<TransferConversationOwnerResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
     let transfer = state
@@ -163,7 +163,7 @@ pub(super) async fn change_conversation_member_role(
     State(state): State<AppState>,
     Json(request): Json<ChangeConversationMemberRoleRequest>,
 ) -> Result<Json<ChangeConversationMemberRoleResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
     let base_recipients = effects::conversation_member_principal_recipients_from_auth_context(
@@ -218,7 +218,7 @@ pub(super) async fn leave_conversation(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
     let base_recipients = effects::conversation_member_principal_recipients_from_auth_context(

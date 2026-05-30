@@ -45,8 +45,8 @@ The minimum direct-rebind handoff payload is the same as route migration:
 
 Without these fields, the new owner cannot safely continue:
 
-- `GET /api/v1/realtime/events`
-- `POST /api/v1/realtime/events/ack`
+- `GET /im/v3/api/realtime/events`
+- `POST /im/v3/api/realtime/events/ack`
 - subscription-filtered delivery after reconnect
 
 ## 5. Lifecycle Reconciliation Rule

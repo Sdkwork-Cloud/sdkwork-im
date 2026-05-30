@@ -31,7 +31,7 @@
 - `local-minimal-node` 在真实 runtime-dir 恢复路径下，已经把：
   - conversation snapshot restore
   - device-sync snapshot restore
-  的观测证据带到 `/api/v1/ops/diagnostics`。
+  的观测证据带到 `/backend/v3/api/ops/diagnostics`。
 
 ## 本轮发现并修正的问题
 - `CP09-2` 已经落地了 snapshot/recovery 路径，但此前完全不可观测，无法通过 `ops` 面证明恢复真实发生。

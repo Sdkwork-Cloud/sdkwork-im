@@ -10,7 +10,7 @@ This standard tightens Standard 88 for restart, failover, and service-rebuild sc
 
 This standard applies when:
 
-- a device successfully calls `POST /api/v1/sessions/disconnect`
+- a device successfully calls `POST /im/v3/api/device/sessions/disconnect`
 - the access plane later rebuilds the `RealtimeClusterBridge`
 - the device sends later device-bound traffic before a fresh `session.resume`
 

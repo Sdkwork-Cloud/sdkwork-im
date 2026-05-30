@@ -18,7 +18,7 @@ This section answers two practical questions:
 
 ### Realtime and session delivery
 
-- session resume and disconnect
+- device route resume and disconnect
 - presence heartbeat and current-presence reads
 - realtime subscription sync, poll windows, ack flow, and websocket upgrade
 - device registration and sync-feed reads
@@ -37,7 +37,7 @@ This section answers two practical questions:
 
 ### Governance and extension
 
-- provider health for media, RTC, user-module, IoT access, and IoT protocol
+- provider health for media, RTC, principal-profile, IoT access, and IoT protocol
 - IoT uplink and downlink ingestion
 - protocol registry and governance
 - provider registry and policy lifecycle

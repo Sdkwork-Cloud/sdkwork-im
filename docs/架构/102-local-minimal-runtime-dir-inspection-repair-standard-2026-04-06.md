@@ -111,7 +111,7 @@ The platform must not silently rewrite files during inspection.
 Authorized ops clients must be able to query:
 
 ```text
-GET /api/v1/ops/runtime-dir
+GET /backend/v3/api/ops/runtime_dir
 ```
 
 Authorization remains:
@@ -147,7 +147,7 @@ This standard intentionally does not require semantic auto-repair or silent rese
 
 Regression coverage must prove:
 
-1. `ops-service` exposes `/api/v1/ops/runtime-dir`
+1. `ops-service` exposes `/backend/v3/api/ops/runtime_dir`
 2. unmanaged default ops runtime reports `unmanaged`
 3. managed local-minimal runtime-dir inspection reports `ok` when all required files are parseable
 4. managed local-minimal runtime-dir inspection reports `degraded` when files are missing or corrupt

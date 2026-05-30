@@ -9,8 +9,8 @@
 
 ## 覆盖路径
 
-- `GET /api/v1/control/provider-policies/diff`
-- `POST /api/v1/control/provider-policies/rollback`
+- `GET /backend/v3/api/control/provider-policies/diff`
+- `POST /backend/v3/api/control/provider-policies/rollback`
 
 ## 验证
 

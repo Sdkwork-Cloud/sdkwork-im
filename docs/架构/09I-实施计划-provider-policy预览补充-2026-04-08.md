@@ -17,7 +17,7 @@
   - 新增 `ProviderPolicyPreview`
   - 新增 `preview_upsert(...)`
 - `services/control-plane-api/src/lib.rs`
-  - 新增 `POST /api/v1/control/provider-policies/preview`
+  - 新增 `POST /backend/v3/api/control/provider-policies/preview`
   - 直接复用现有写请求体
 
 ## 契约冻结

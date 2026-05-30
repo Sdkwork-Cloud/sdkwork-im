@@ -23,8 +23,8 @@
   - `device_sync_feed(...)`
   - `latest_device_sync_seq(...)`
 - `local-minimal-node` 现在即使在 `commit-journal.json = []` 的情况下，也能从同一份 projection snapshot 恢复：
-  - `/api/v1/sessions/resume`
-  - `/api/v1/devices/{device}/sync-feed`
+  - `/im/v3/api/device/sessions/resume`
+  - `/im/v3/api/devices/{device}/sync-feed`
 - device registration 路径已复用同一份 `ProjectionSnapshotStores`，没有引入第二套旁路落盘机制。
 - device-sync scope catalog 让恢复逻辑继续停留在统一平台抽象上，而不是把 file-only 发现能力上推到所有 store 实现。
 

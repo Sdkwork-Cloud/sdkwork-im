@@ -115,12 +115,12 @@ async fn test_device_register_route_calls_injected_device_access_provider() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_device_provider")
-                .header("x-user-id", "u_device_provider")
-                .header("x-actor-kind", "device")
-                .header("x-device-id", "d_device_provider")
-                .header("x-session-id", "s_device_provider")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_device_provider")
+                .header("x-sdkwork-user-id", "u_device_provider")
+                .header("x-sdkwork-actor-kind", "device")
+                .header("x-sdkwork-device-id", "d_device_provider")
+                .header("x-sdkwork-session-id", "s_device_provider")
                 .header("content-type", "application/json")
                 .body(Body::from("{}"))
                 .unwrap(),
@@ -149,7 +149,7 @@ async fn test_device_register_route_calls_injected_device_access_provider() {
             tenant_id: "t_device_provider".into(),
             device_id: "d_device_provider".into(),
             product_id: "local-minimal-device".into(),
-            credential_kind: "session".into(),
+            credential_kind: "device_route".into(),
             owner_principal_id: Some("u_device_provider".into()),
         }
     );
@@ -182,12 +182,12 @@ async fn test_conflicting_device_register_does_not_call_provider_for_second_owne
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_device_provider")
-                .header("x-user-id", "u_owner_a")
-                .header("x-actor-kind", "device")
-                .header("x-device-id", "d_conflict_provider")
-                .header("x-session-id", "s_owner_a")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_device_provider")
+                .header("x-sdkwork-user-id", "u_owner_a")
+                .header("x-sdkwork-actor-kind", "device")
+                .header("x-sdkwork-device-id", "d_conflict_provider")
+                .header("x-sdkwork-session-id", "s_owner_a")
                 .header("content-type", "application/json")
                 .body(Body::from("{}"))
                 .unwrap(),
@@ -200,12 +200,12 @@ async fn test_conflicting_device_register_does_not_call_provider_for_second_owne
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_device_provider")
-                .header("x-user-id", "u_owner_b")
-                .header("x-actor-kind", "device")
-                .header("x-device-id", "d_conflict_provider")
-                .header("x-session-id", "s_owner_b")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_device_provider")
+                .header("x-sdkwork-user-id", "u_owner_b")
+                .header("x-sdkwork-actor-kind", "device")
+                .header("x-sdkwork-device-id", "d_conflict_provider")
+                .header("x-sdkwork-session-id", "s_owner_b")
                 .header("content-type", "application/json")
                 .body(Body::from("{}"))
                 .unwrap(),

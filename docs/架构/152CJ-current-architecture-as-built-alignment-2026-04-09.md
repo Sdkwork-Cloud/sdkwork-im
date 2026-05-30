@@ -49,11 +49,11 @@
    - `AgentSubject / DeviceSubject -> Sender` 统一主体模型
    - `session-gateway` resume / heartbeat 注入 device access provider
    - `local-minimal-node` register / owner binding / device stream 主链
-   - `GET /api/v1/devices/{device_id}/twin`
-   - `POST /api/v1/devices/{device_id}/twin/desired`
-   - `POST /api/v1/devices/{device_id}/twin/reported`
-   - `/api/v1/iot/access/provider-health`
-   - `/api/v1/iot/protocol/provider-health`
+   - `GET /im/v3/api/devices/{device_id}/twin`
+   - `POST /im/v3/api/devices/{device_id}/twin/desired`
+   - `POST /im/v3/api/devices/{device_id}/twin/reported`
+   - `/backend/v3/api/iot/access/provider_health`
+   - `/backend/v3/api/iot/protocol/provider_health`
    - uplink -> `device.telemetry`
    - downlink -> `device.command`
    - runtime-dir managed `device-twin-state.json`
@@ -61,11 +61,11 @@
    - `ConversationPolicy / policy_epoch`
    - `ConversationBusinessBinding`
    - `conversation.policy_applied`
-   - `POST /api/v1/conversations`
-   - `POST /api/v1/conversations/threads`
-   - `POST /api/v1/conversations/direct-chats/bindings`
-   - `GET /api/v1/conversations/{conversation_id}/binding`
-   - `GET /api/v1/conversations/{conversation_id}/messages`
+   - `POST /im/v3/api/chat/conversations`
+   - `POST /im/v3/api/chat/conversations/threads`
+   - `POST /im/v3/api/chat/conversations/direct-chats/bindings`
+   - `GET /im/v3/api/chat/conversations/{conversation_id}/binding`
+   - `GET /im/v3/api/chat/conversations/{conversation_id}/messages`
    - `direct_chat` 绑定已走专用 runtime 入口与回放恢复
    - `thread` 现已作为最小子会话 runtime truth：必须锚定到 `group conversation + root message`，并通过 `businessType = thread / businessId = rootMessageId` 暴露 binding
    - `thread` 创建时，若 root message author 与 creator 不同且仍是 parent conversation 的 active member，则会把 root author 一并 materialize 为 thread active member，使现有 projection / notification fanout 可以消费同一 active principal 集合
@@ -94,22 +94,22 @@
   - `shared_channel_policy` 必须依赖 active `external_connection`
   - `shared_channel_policy` 只允许 `history_visibility = shared`
   - `control-plane-api` 现在会在 `external_member_link / shared_channel_policy` ready pair 成立时，通过注入的 `SharedChannelLinkedMemberSyncTrigger` 自动 dispatch shared-channel sync request
-  - `local-minimal-node` 默认/公开装配面当前会 merge embedded `/api/v1/control/*` surface，并把该 trigger 注入为同进程 `ConversationRuntime` consumer
-  - standalone `control-plane-api` 当前也可通过 `CRAW_CHAT_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` 装配 public HTTP trigger，并以 public bearer 身份调用 standalone `conversation-runtime` 的 `/api/v1/conversations/shared-channel-links/sync`
+  - `local-minimal-node` 默认/公开装配面当前会 merge embedded `/backend/v3/api/control/*` surface，并把该 trigger 注入为同进程 `ConversationRuntime` consumer
+  - standalone `control-plane-api` 当前也可通过 `CRAW_CHAT_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` 装配 public HTTP trigger，并以 public bearer 身份调用 standalone `conversation-runtime` 的 `/im/v3/api/chat/conversations/shared-channel-links/sync`
 - `control-plane-api` 当前会把 shared-channel sync 的未投递请求 durable 记入 `SocialControlState.pending_shared_channel_sync_requests`；当 trigger 缺失或 dispatch 失败时，social durable truth 继续保持 committed，而 backlog 会随 runtime-dir snapshot 一并持久化
 - 当同一 request 连续失败达到固定阈值时，control-plane 当前会把它从 `pending_shared_channel_sync_requests` 转入 `dead_letter_shared_channel_sync_requests`；dead-lettered request 不再进入 `next healthy ready-pair write` 自动重试队列，也不再被 `repair-shared-channel-sync` 继续消费
 - 当 trigger 恢复健康且后续再次出现新的 ready pair 写入时，dispatch 路径当前会先重放已有 pending backlog，再投递本次新请求；成功项会沿成功路径 best-effort 清理 backlog
 - `dispatch_shared_channel_sync_requests(...)` 当前会在系统 dispatch / backlog queue evaluation 前主动回收 stale pending claim metadata；这条 write-triggered normalization seam 即使在 `trigger_unconfigured` 分支也会先执行，但在系统 idle 且没有后续写入时仍不会自动触发
-- 控制面新增 `POST /api/v1/control/social/runtime/repair-shared-channel-sync`；operator 可显式重放 pending backlog，且 `repair-derived-snapshot` / `repair-social-runtime-dir` replay journal 时都会保留 pending backlog 与 dead-letter backlog；repair response 与 aggregate/report surface 当前也会显式暴露 dead-letter 计数
-- 控制面新增 `GET /api/v1/control/social/runtime/pending-shared-channel-sync`；operator 当前可读取 pending inventory，并拿到稳定的 `requestKey`、原始 request payload、`failureCount`、`lastError`、`ownerActorId / ownerActorKind / claimedAt / leaseExpiresAt`
-- 控制面新增 `POST /api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted`；operator 当前可先按 `requestKey` claim 选中的 pending request，pending/dead-letter inventory item 也会显式暴露 `ownerActorId / ownerActorKind / claimedAt / leaseExpiresAt`
-- 控制面新增 `POST /api/v1/control/social/runtime/republish-pending-shared-channel-sync-targeted`；operator 当前可按 `requestKey` 定点把选中的 pending request 显式 republish 到 remote runtime；成功项会从 pending backlog 清理，未选中的 pending request 保持不动
+- 控制面新增 `POST /backend/v3/api/control/social/runtime/repair-shared-channel-sync`；operator 可显式重放 pending backlog，且 `repair-derived-snapshot` / `repair-social-runtime-dir` replay journal 时都会保留 pending backlog 与 dead-letter backlog；repair response 与 aggregate/report surface 当前也会显式暴露 dead-letter 计数
+- 控制面新增 `GET /backend/v3/api/control/social/runtime/pending-shared-channel-sync`；operator 当前可读取 pending inventory，并拿到稳定的 `requestKey`、原始 request payload、`failureCount`、`lastError`、`ownerActorId / ownerActorKind / claimedAt / leaseExpiresAt`
+- 控制面新增 `POST /backend/v3/api/control/social/runtime/claim-pending-shared-channel-sync-targeted`；operator 当前可先按 `requestKey` claim 选中的 pending request，pending/dead-letter inventory item 也会显式暴露 `ownerActorId / ownerActorKind / claimedAt / leaseExpiresAt`
+- 控制面新增 `POST /backend/v3/api/control/social/runtime/republish-pending-shared-channel-sync-targeted`；operator 当前可按 `requestKey` 定点把选中的 pending request 显式 republish 到 remote runtime；成功项会从 pending backlog 清理，未选中的 pending request 保持不动
 - `republish_pending_shared_channel_sync_targeted(...)` 当前会在 dispatch 前校验 owner contract；foreign-owned 或 unclaimed request 会得到 `409 shared_channel_sync_owner_conflict`；对于 same-owner stale request，targeted republish 当前会先刷新 `claimedAt / leaseExpiresAt`，再进入 dispatch / failure persistence，或在 `trigger_unconfigured` 早返回前持久化刷新后的状态
-- 控制面新增 `POST /api/v1/control/social/runtime/release-pending-shared-channel-sync-targeted`；owner operator 当前可显式释放 selected pending request 的 owner 元数据、`claimedAt` 与 `leaseExpiresAt`，使 request 返回 unowned pool；foreign-owned request 的 release 会得到 `409 shared_channel_sync_owner_conflict`
-- 控制面新增 `POST /api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted`；operator 当前可显式接管 selected `foreign-owned` pending request，并刷新 `claimedAt / leaseExpiresAt`
+- 控制面新增 `POST /backend/v3/api/control/social/runtime/release-pending-shared-channel-sync-targeted`；owner operator 当前可显式释放 selected pending request 的 owner 元数据、`claimedAt` 与 `leaseExpiresAt`，使 request 返回 unowned pool；foreign-owned request 的 release 会得到 `409 shared_channel_sync_owner_conflict`
+- 控制面新增 `POST /backend/v3/api/control/social/runtime/takeover-pending-shared-channel-sync-targeted`；operator 当前可显式接管 selected `foreign-owned` pending request，并刷新 `claimedAt / leaseExpiresAt`
 - `PendingSharedChannelSyncRequest` 当前已具备 durable `claimedAt / leaseExpiresAt`；首次 owner claim 会写入 UTC RFC3339 毫秒时间戳与固定 `15m` lease deadline，同 owner 重复 claim 在 lease 仍然 active 时会保留原元数据，但 same-owner stale re-claim 现在会刷新 `claimedAt / leaseExpiresAt`；这仍然只是 stale-claim metadata seam，而不是 stale-age policy / SLA 执行
-- 控制面新增 `GET /api/v1/control/social/runtime/dead-letter-shared-channel-sync`；operator 当前可读取 dead-letter inventory，并拿到稳定的 `requestKey`、原始 request payload、`failureCount` 与 `lastError`
-- 控制面新增 `POST /api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted`；operator 当前可按 `requestKey` 定点把选中的 dead-letter request 回灌到 pending；同一迁移会重置被选中 request 的 `failureCount = 0`，保留 `lastError`，未选中的 dead-letter request 继续隔离
+- 控制面新增 `GET /backend/v3/api/control/social/runtime/dead-letter-shared-channel-sync`；operator 当前可读取 dead-letter inventory，并拿到稳定的 `requestKey`、原始 request payload、`failureCount` 与 `lastError`
+- 控制面新增 `POST /backend/v3/api/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted`；operator 当前可按 `requestKey` 定点把选中的 dead-letter request 回灌到 pending；同一迁移会重置被选中 request 的 `failureCount = 0`，保留 `lastError`，未选中的 dead-letter request 继续隔离
 - projection 已覆盖：
   - friendship-derived contacts
   - direct-chat conversation enrich / backfill
@@ -117,7 +117,7 @@
   - `pinned_messages`
   - `timeline_from_auth_context(...)` 当前已接受 `can_read_shared_history()` 的 linked member 读取 shared history
 - 当前已具备 `durable snapshot + social outbox + journal-authoritative startup replay` 样板；若 `social-commit-journal` 存在，则启动时从默认空状态 replay 并回写 snapshot；仅在 journal 缺失时才回退到 snapshot。
-- social 持久化当前顺序已改为 `append social-commit-journal -> write state/social-transaction-marker.json -> save social-state -> clear marker`；snapshot 被收敛为 derived cache；若 `journal append` 成功但 `snapshot save` 失败，live state 仍推进到已提交 truth，避免后续写入继续基于旧内存放大冲突；写口现在直接返回 committed result，并显式暴露 `persistence.journalAuthority + persistence.snapshotStatus = repair_required`，同时把 `social-transaction-marker.json` 保留下来作为 pending snapshot repair 边界；当前 `same tenant + same eventId` 已可直接回放 committed result、避免重复追加 journal，并会 best-effort 修复 snapshot cache，把 `snapshotStatus` 收敛回 `current` 且清除 marker；runtime-dir 模式新增 `state/social-failpoints.json` 的一次性 `failNextSnapshotSave` 注入点，控制面新增 `POST /api/v1/control/social/runtime/repair-derived-snapshot` 作为 derived snapshot repair 入口，且该入口现在会直接 replay `social-commit-journal.json` 并同步刷新 live state、snapshot 与 pending marker；`SocialRuntimeRepairResponse` 现已显式暴露 `transactionMarkerCleared`，使 HTTP repair 与 `control-plane-api repair-social-runtime-dir --runtime-dir <path> [--json]` 这两个 operator surface 都能直接报告 pending marker 是否在本次修复中被清除；`repair-runtime-local.ps1/.sh` 也已统一为 `generic repair -> conditional social repair` 的 operator 入口；当前已具备 `repair-marker` 形式的 `atomic multi-file tx` 最小边界，这条证据链已足够支撑 `S05 = step_closure`，而更强 staged/manifest 级事务转入 deferred durability hardening。
+- social 持久化当前顺序已改为 `append social-commit-journal -> write state/social-transaction-marker.json -> save social-state -> clear marker`；snapshot 被收敛为 derived cache；若 `journal append` 成功但 `snapshot save` 失败，live state 仍推进到已提交 truth，避免后续写入继续基于旧内存放大冲突；写口现在直接返回 committed result，并显式暴露 `persistence.journalAuthority + persistence.snapshotStatus = repair_required`，同时把 `social-transaction-marker.json` 保留下来作为 pending snapshot repair 边界；当前 `same tenant + same eventId` 已可直接回放 committed result、避免重复追加 journal，并会 best-effort 修复 snapshot cache，把 `snapshotStatus` 收敛回 `current` 且清除 marker；runtime-dir 模式新增 `state/social-failpoints.json` 的一次性 `failNextSnapshotSave` 注入点，控制面新增 `POST /backend/v3/api/control/social/runtime/repair-derived-snapshot` 作为 derived snapshot repair 入口，且该入口现在会直接 replay `social-commit-journal.json` 并同步刷新 live state、snapshot 与 pending marker；`SocialRuntimeRepairResponse` 现已显式暴露 `transactionMarkerCleared`，使 HTTP repair 与 `control-plane-api repair-social-runtime-dir --runtime-dir <path> [--json]` 这两个 operator surface 都能直接报告 pending marker 是否在本次修复中被清除；`repair-runtime-local.ps1/.sh` 也已统一为 `generic repair -> conditional social repair` 的 operator 入口；当前已具备 `repair-marker` 形式的 `atomic multi-file tx` 最小边界，这条证据链已足够支撑 `S05 = step_closure`，而更强 staged/manifest 级事务转入 deferred durability hardening。
 - `projection-service` 只负责读模型与 rebuild，不反写 truth。
 
 ## 5. 当前 device / IoT As-Built 口径
@@ -216,7 +216,7 @@
 
 ## 11. Loop67 补充事实（2026-04-11）
 - `shared-channel sync` 当前新增 `pending stale-lease takeover guard seam`。
-- `POST /api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted` 当前不再应被解释为“无条件接管 foreign-owned request”；它现在只允许接管 `expired foreign claim`。
+- `POST /backend/v3/api/control/social/runtime/takeover-pending-shared-channel-sync-targeted` 当前不再应被解释为“无条件接管 foreign-owned request”；它现在只允许接管 `expired foreign claim`。
 - 当 selected pending request 仍被其他 operator active claim 且 `leaseExpiresAt > now` 时，control-plane 当前会返回 `409 shared_channel_sync_owner_conflict`。
 - 当 selected pending request 的 `leaseExpiresAt <= now` 时，既有 targeted takeover 路径仍会刷新 `ownerActorId / ownerActorKind / claimedAt / leaseExpiresAt`。
 - `leaseExpiresAt` 缺失的 legacy pending claim 当前保持最小兼容，不会被 stale guard 阻断；本轮没有把它扩展成 migration / rewrite pass。
@@ -413,7 +413,7 @@
 ## Loop 91 Addendum - 2026-04-12
 - shared-channel sync trigger trait 现在支持返回结构化 `delivery proof`（`transport_accepted / applied / already_linked`），不再仅有裸 `Result<(), String>` 语义。
 - 社交控制面持久化状态新增 delivered-proof 账本，并在 replay/repair merge、retention/capacity prune 路径保持一致收敛。
-- 控制面新增 `GET /api/v1/control/social/runtime/delivered-shared-channel-sync` 读取面，operator 可直接看到 `requestKey / deliveredAt / status / proofVersion / target`。
+- 控制面新增 `GET /backend/v3/api/control/social/runtime/delivered-shared-channel-sync` 读取面，operator 可直接看到 `requestKey / deliveredAt / status / proofVersion / target`。
 - Remaining S07 gap after Loop91:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `cross-service idempotency governance still needs strict delivery-state machine (accepted/applied/replayed/failed) with deterministic replay contract`
@@ -441,7 +441,7 @@
 - shared-channel sync delivery proof status 扩展到 `replayed / failed`，不再只覆盖 `transport_accepted / applied / already_linked`。
 - control-plane 失败路径现在会在 social durable state 中记录 `failed` delivery proof，并把 pending/dead-letter item 的 `lastFailedAt` 显式持久化。
 - repair 与 targeted republish 的成功路径现在会把已在 backlog 中的请求标记为 `replayed`，使 operator 能区分“首次成功”与“失败后重放成功”。
-- 控制面新增 `GET /api/v1/control/social/runtime/delivery-state-shared-channel-sync`，统一返回 delivered/pending/dead-letter 的 delivery-state 视图（含 `status / updatedAt / failureCount / lastError / pending / deadLetter`）。
+- 控制面新增 `GET /backend/v3/api/control/social/runtime/delivery-state-shared-channel-sync`，统一返回 delivered/pending/dead-letter 的 delivery-state 视图（含 `status / updatedAt / failureCount / lastError / pending / deadLetter`）。
 - 回归证据：
   - `control-plane-api` 新增 `failed/replayed` 状态单测
   - `http_smoke_test` 新增 delivery-state inventory 路由合同测试
@@ -660,7 +660,7 @@
   - `formal cross-service idempotency governance and deterministic replay SLO still needs downstream commit-fence propagation across non-shared-sync consumer categories`
 ## Loop 108 Addendum - 2026-04-12
 - Extended non-shared-sync consumer commit-fence semantics in `automation-service` and embedded `local-minimal-node` automation route:
-  - `POST /api/v1/automation/executions` now returns deterministic delivery-proof metadata:
+  - `POST /im/v3/api/automation/executions` now returns deterministic delivery-proof metadata:
     - `deliveryStatus`: `accepted | applied | replayed | failed`
     - `requestKey`: stable tenant/principal/execution scoped fence key
     - `proofVersion`: `automation.execution.delivery-proof.v1`
@@ -788,7 +788,7 @@
 ## Loop 114 Addendum - 2026-04-12
 - Closed an agent-response stream identity ambiguity in `automation-service`:
   - `start_agent_response` now rejects `stream_id` reuse within the same tenant + principal scope (including `principal_kind`) even when `execution_id` differs.
-  - this prevents ambiguous routing for `/api/v1/automation/agent-responses/{stream_id}/...` operations, which identify stream state by `stream_id` path segment.
+  - this prevents ambiguous routing for `/im/v3/api/automation/agent-responses/{stream_id}/...` operations, which identify stream state by `stream_id` path segment.
 - Strengthened principal isolation consistency in runtime state matching:
   - `AgentResponseRuntimeState` now tracks `principal_kind`.
   - append/complete/tool-call lookup paths now match on tenant + `principal_id` + `principal_kind`.
@@ -969,7 +969,7 @@
   - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation execution path`
 ## Loop 123 Addendum - 2026-04-12
 - Extended non-shared-sync delivery-proof semantics to `notification-service` notification request path:
-  - `POST /api/v1/notifications/requests` now returns deterministic delivery-proof metadata alongside existing notification fields (flattened payload kept for backward compatibility):
+  - `POST /im/v3/api/notifications/requests` now returns deterministic delivery-proof metadata alongside existing notification fields (flattened payload kept for backward compatibility):
     - `deliveryStatus`: `accepted | applied | replayed | failed`
     - `requestKey`: stable request fence key
     - `proofVersion`: `notification.request.delivery-proof.v1`
@@ -1328,7 +1328,7 @@
     - `action <= 128 bytes`
     - `payload <= 128 KiB`
   - oversized requests now fail fast with machine-readable `413 payload_too_large`.
-  - validation is exposed as a shared helper and is now reused by both standalone `audit-service` and embedded `local-minimal-node` `/api/v1/audit/records` ingress, so the operator-facing audit write path is hardened consistently across deployment shapes.
+  - validation is exposed as a shared helper and is now reused by both standalone `audit-service` and embedded `local-minimal-node` `/backend/v3/api/audit/records` ingress, so the operator-facing audit write path is hardened consistently across deployment shapes.
 - Added regression evidence in this loop:
   - `services/audit-service/tests/http_smoke_test.rs`:
     - `test_record_audit_rejects_oversized_payload_over_http`
@@ -1346,8 +1346,8 @@
 ## Loop 136 Addendum - 2026-04-12
 - Added `deviceId` ingress hardening on `projection-service` and embedded `local-minimal-node` device access flows to close another unbounded identifier / memory-pressure seam:
   - shared projection access validation now enforces `deviceId <= 256 bytes` for:
-    - `/api/v1/devices/register`
-    - `/api/v1/devices/{device_id}/sync-feed`
+    - `/im/v3/api/devices/register`
+    - `/im/v3/api/devices/{device_id}/sync-feed`
     - auth-bound `latest sync seq` and device-scope resolution paths reused by embedded consumers
   - embedded `local-minimal-node` access validation now enforces the same `deviceId <= 256 bytes` contract across shared device access helpers, not only the standalone register route:
     - request/body or auth-bound device resolution
@@ -1373,7 +1373,7 @@
   - `cargo clippy --no-deps -p projection-service -p local-minimal-node --tests -- -D warnings`
 - Verification housekeeping completed in this loop so package-local commercial gates can run cleanly:
   - reduced pre-existing `projection-service` clippy debt in message-interaction fanout and contact snapshot helpers without changing business behavior
-  - reduced pre-existing `local-minimal-node` test-only clippy debt in deployment/profile and user-module test helpers
+  - reduced pre-existing `local-minimal-node` test-only clippy debt in deployment/profile and principal-profile test helpers
 - Remaining S07 gap after Loop136:
   - `release-ready exactly-once semantics across downstream fanout boundaries`
   - `deterministic failed-state replay and commit-fence governance still needs propagation to additional non-shared-sync consumer categories beyond automation+notification request paths`
@@ -1386,12 +1386,12 @@
     - oversized timeline conversation queries previously returned `403 conversation_permission_denied`
     - oversized interaction-summary message queries previously returned `404 message_interaction_summary_not_found`
   - hardened standalone projection read routes now include:
-    - `/api/v1/conversations/{conversation_id}/messages`
-    - `/api/v1/conversations/{conversation_id}`
-    - `/api/v1/conversations/{conversation_id}/read-cursor`
-    - `/api/v1/conversations/{conversation_id}/member-directory`
-    - `/api/v1/conversations/{conversation_id}/pins`
-    - `/api/v1/conversations/{conversation_id}/messages/{message_id}/interaction-summary`
+    - `/im/v3/api/chat/conversations/{conversation_id}/messages`
+    - `/im/v3/api/chat/conversations/{conversation_id}`
+    - `/im/v3/api/chat/conversations/{conversation_id}/read-cursor`
+    - `/im/v3/api/chat/conversations/{conversation_id}/member-directory`
+    - `/im/v3/api/chat/conversations/{conversation_id}/pins`
+    - `/im/v3/api/chat/conversations/{conversation_id}/messages/{message_id}/interaction-summary`
   - embedded `local-minimal-node` timeline / summary / read-cursor routes inherit the same protection because they route through the shared projection access helpers.
   - oversized identifiers now fail fast with machine-readable `413 payload_too_large`.
 - Added regression evidence in this loop:
@@ -1413,10 +1413,10 @@
 ## Loop 138 Addendum - 2026-04-12
 - Closed a deployment-shape feature parity gap between standalone `projection-service` and embedded `local-minimal-node` projection reads:
   - embedded `local-minimal-node` now exposes the same projected read routes that were previously only available on standalone `projection-service`:
-    - `/api/v1/contacts`
-    - `/api/v1/conversations/{conversation_id}/member-directory`
-    - `/api/v1/conversations/{conversation_id}/pins`
-    - `/api/v1/conversations/{conversation_id}/messages/{message_id}/interaction-summary`
+    - `/im/v3/api/chat/contacts`
+    - `/im/v3/api/chat/conversations/{conversation_id}/member-directory`
+    - `/im/v3/api/chat/conversations/{conversation_id}/pins`
+    - `/im/v3/api/chat/conversations/{conversation_id}/messages/{message_id}/interaction-summary`
   - the new local-node handlers delegate directly to shared `projection_service` auth-context access helpers instead of introducing parallel read logic, so permission checks, bounded identifier validation, and data ordering now stay aligned across both deployment shapes.
   - `interaction-summary` on embedded local-node now preserves the standalone `404 message_interaction_summary_not_found` contract when the projection is absent, rather than failing earlier at missing route resolution.
 - Added regression evidence in this loop:
@@ -1451,7 +1451,7 @@
 - Hardened `chat-cli` realtime diagnostics so websocket-based operator flows now fail with actionable service-unreachable guidance instead of raw transport `IO error` text:
   - `watch` / `chat-session` and any other commands using `connect_realtime_socket` now report:
     - the requested `base_url`
-    - the resolved realtime endpoint `/api/v1/realtime/ws`
+    - the resolved realtime endpoint `/im/v3/api/realtime/ws`
     - an explicit `unable to connect realtime websocket` diagnosis
     - an operator hint to verify the service is running and that `--base-url` is correct
   - this closes the remaining supportability gap left after Loop139, where HTTP commands had actionable diagnostics but realtime commands still surfaced opaque low-level connection text.
@@ -1483,11 +1483,11 @@
 ## Loop 142 Addendum - 2026-04-12
 - Extended non-shared-sync delivery-proof semantics to `rtc-signaling-service` session mutation write paths and embedded `local-minimal-node` RTC routes:
   - standalone `rtc-signaling-service` write routes now return explicit delivery-proof metadata alongside flattened RTC session fields:
-    - `POST /api/v1/rtc/sessions`
-    - `POST /api/v1/rtc/sessions/{rtc_session_id}/invite`
-    - `POST /api/v1/rtc/sessions/{rtc_session_id}/accept`
-    - `POST /api/v1/rtc/sessions/{rtc_session_id}/reject`
-    - `POST /api/v1/rtc/sessions/{rtc_session_id}/end`
+    - `POST /im/v3/api/rtc/sessions`
+    - `POST /im/v3/api/rtc/sessions/{rtc_session_id}/invite`
+    - `POST /im/v3/api/rtc/sessions/{rtc_session_id}/accept`
+    - `POST /im/v3/api/rtc/sessions/{rtc_session_id}/reject`
+    - `POST /im/v3/api/rtc/sessions/{rtc_session_id}/end`
   - embedded `local-minimal-node` RTC routes now preserve the same contract instead of returning only business state:
     - `requestKey`
     - `deliveryStatus`
@@ -1563,8 +1563,8 @@
 ## Loop 145 Addendum - 2026-04-12
 - Extended explicit delivery-proof semantics to `media-service` write surfaces and embedded `local-minimal-node` media routes:
   - standalone media write routes now return the committed asset together with explicit replay-proof metadata:
-    - `POST /api/v1/media/uploads`
-    - `POST /api/v1/media/uploads/{media_asset_id}/complete`
+    - `POST /im/v3/api/media/uploads`
+    - `POST /im/v3/api/media/uploads/{media_asset_id}/complete`
   - embedded `local-minimal-node` media write routes now preserve the same response contract instead of returning only flattened asset state
   - new response contract is intentionally aligned with other hardened non-shared-sync seams:
     - `requestKey`
@@ -1590,8 +1590,8 @@
 ## Loop 146 Addendum - 2026-04-12
 - Hardened `streaming-service` open/complete write semantics and embedded `local-minimal-node` completion fanout behavior:
   - standalone stream open and stream complete routes now return explicit delivery-proof metadata together with flattened session state:
-    - `POST /api/v1/streams`
-    - `POST /api/v1/streams/{stream_id}/complete`
+    - `POST /im/v3/api/streams`
+    - `POST /im/v3/api/streams/{stream_id}/complete`
   - embedded `local-minimal-node` stream open and complete routes now preserve the same contract:
     - `requestKey`
     - `deliveryStatus = applied | replayed`
@@ -1623,7 +1623,7 @@
 ### Loop147 Addendum - stream append delivery-proof contract
 
 - Extended explicit delivery-proof semantics to streaming append write surfaces in both standalone `streaming-service` and embedded `local-minimal-node` routes:
-  - `POST /api/v1/streams/{stream_id}/frames` now returns explicit append delivery-proof metadata while preserving the flattened frame payload:
+  - `POST /im/v3/api/streams/{stream_id}/frames` now returns explicit append delivery-proof metadata while preserving the flattened frame payload:
     - `requestKey = tenant:principalKind:principalId:append:streamId:frameSeq`
     - `deliveryStatus = applied | replayed`
     - `proofVersion = stream.frame.delivery-proof.v1`
@@ -1645,7 +1645,7 @@
 ### Loop148 Addendum - stream abort replay-proof closure and duplicate fanout suppression
 
 - Closed a commercial replay seam on stream abort write paths by making abort closure state caller-visible and replay-deterministic:
-  - standalone `POST /api/v1/streams/{stream_id}/abort` and embedded `local-minimal-node` abort route now return the same explicit `StreamSessionMutationResponse` proof envelope used by other stream session writes:
+  - standalone `POST /im/v3/api/streams/{stream_id}/abort` and embedded `local-minimal-node` abort route now return the same explicit `StreamSessionMutationResponse` proof envelope used by other stream session writes:
     - `requestKey = tenant:principalKind:principalId:abort:streamId`
     - `deliveryStatus = applied | replayed`
     - `proofVersion = stream.session.delivery-proof.v1`
@@ -1674,7 +1674,7 @@
 ### Loop149 Addendum - stream checkpoint delivery-proof and close-safe replay semantics
 
 - Extended explicit delivery-proof semantics to streaming checkpoint write surfaces in both standalone `streaming-service` and embedded `local-minimal-node` routes:
-  - `POST /api/v1/streams/{stream_id}/checkpoint` now returns explicit `StreamSessionMutationResponse` proof metadata instead of a bare session:
+  - `POST /im/v3/api/streams/{stream_id}/checkpoint` now returns explicit `StreamSessionMutationResponse` proof metadata instead of a bare session:
     - `requestKey = tenant:principalKind:principalId:checkpoint:streamId:frameSeq`
     - `deliveryStatus = applied | replayed`
     - `proofVersion = stream.session.delivery-proof.v1`
@@ -1710,7 +1710,7 @@
 ### Loop150 Addendum - audit anchor delivery-proof and same-runtime replay fence
 
 - Extended explicit delivery-proof semantics to `audit-service` record anchoring and the embedded `local-minimal-node` audit route:
-  - standalone `POST /api/v1/audit/records` and embedded local route now return explicit proof metadata alongside flattened audit record fields:
+  - standalone `POST /backend/v3/api/audit/records` and embedded local route now return explicit proof metadata alongside flattened audit record fields:
     - `requestKey = tenant:audit-record:recordId`
     - `deliveryStatus = applied | replayed`
     - `proofVersion = audit.record.delivery-proof.v1`
@@ -1740,7 +1740,7 @@
 ### Loop151 Addendum - conversation message post delivery-proof and replay-safe embedded fanout
 
 - Extended explicit delivery-proof semantics to conversation message post write surfaces in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
-  - `POST /api/v1/conversations/{conversation_id}/messages` and the dedicated system-channel publish path now return explicit message mutation proof metadata in addition to the existing message identifiers:
+  - `POST /im/v3/api/chat/conversations/{conversation_id}/messages` and the dedicated system-channel publish path now return explicit message mutation proof metadata in addition to the existing message identifiers:
     - `requestKey = tenant:principalKind:principalId:message:conversationId:clientMsgId` when `clientMsgId` is supplied
     - `deliveryStatus = applied | replayed`
     - `proofVersion = conversation.message.delivery-proof.v1`
@@ -1773,7 +1773,7 @@
 ### Loop152 Addendum - generic conversation create delivery-proof and replay-safe policy reconciliation
 
 - Extended explicit delivery-proof semantics to the generic conversation creation surface in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
-  - `POST /api/v1/conversations` now returns explicit create proof metadata in addition to the created conversation identifiers:
+  - `POST /im/v3/api/chat/conversations` now returns explicit create proof metadata in addition to the created conversation identifiers:
     - `requestKey = tenant:creatorKind:creatorId:create-conversation:conversationId`
     - `deliveryStatus = applied | replayed`
     - `proofVersion = conversation.create.delivery-proof.v1`
@@ -1809,7 +1809,7 @@
 ### Loop153 Addendum - agent dialog create delivery-proof and recovery-safe replay fence
 
 - Extended explicit delivery-proof semantics to agent dialog creation in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
-  - `POST /api/v1/conversations/agent-dialogs` now returns explicit create proof metadata in addition to the created conversation identifiers:
+  - `POST /im/v3/api/chat/conversations/agent_dialogs` now returns explicit create proof metadata in addition to the created conversation identifiers:
     - `requestKey = tenant:requesterKind:requesterId:create-agent-dialog:conversationId`
     - `deliveryStatus = applied | replayed`
     - `proofVersion = conversation.create.delivery-proof.v1`
@@ -1840,7 +1840,7 @@
 ### Loop154 Addendum - system channel create delivery-proof and recovery-safe replay fence
 
 - Extended explicit delivery-proof semantics to system channel creation in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
-  - `POST /api/v1/conversations/system-channels` now returns explicit create proof metadata in addition to the created conversation identifiers:
+  - `POST /im/v3/api/chat/conversations/system_channels` now returns explicit create proof metadata in addition to the created conversation identifiers:
     - `requestKey = tenant:requesterKind:requesterId:create-system-channel:conversationId`
     - `deliveryStatus = applied | replayed`
     - `proofVersion = conversation.create.delivery-proof.v1`
@@ -1871,7 +1871,7 @@
 ### Loop155 Addendum - agent handoff create delivery-proof and recovery-safe replay fence
 
 - Extended explicit delivery-proof semantics to agent handoff creation in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
-  - `POST /api/v1/conversations/agent-handoffs` now returns explicit create proof metadata in addition to the created conversation identifiers:
+  - `POST /im/v3/api/chat/conversations/agent_handoffs` now returns explicit create proof metadata in addition to the created conversation identifiers:
     - `requestKey = tenant:sourceKind:sourceId:create-agent-handoff:conversationId`
     - `deliveryStatus = applied | replayed`
     - `proofVersion = conversation.create.delivery-proof.v1`
@@ -1902,7 +1902,7 @@
 ### Loop156 Addendum - thread create delivery-proof and recovery-safe replay fence
 
 - Extended explicit delivery-proof semantics to thread creation in both standalone `conversation-runtime` and embedded `local-minimal-node` routes:
-  - `POST /api/v1/conversations/threads` now returns explicit create proof metadata in addition to the created conversation identifiers:
+  - `POST /im/v3/api/chat/conversations/threads` now returns explicit create proof metadata in addition to the created conversation identifiers:
     - `requestKey = tenant:creatorKind:creatorId:create-thread:conversationId`
     - `deliveryStatus = applied | replayed`
     - `proofVersion = conversation.create.delivery-proof.v1`
@@ -1911,7 +1911,7 @@
 - Closed the recovery seam on thread creation:
   - before this loop, thread creation still returned a plain `CreateConversationResult::new(...)` and recovery had no dedicated replay fence, so lost-response retries after runtime rebuild collapsed into ordinary conflict handling
   - `conversation-runtime` now keeps a thread-create replay fence in runtime state and rebuilds it from the recovered `conversation.created` payload plus actor envelope, using the committed `parentConversationId` and `rootMessageId` tuple to preserve deterministic replay after journal reconstruction
-  - embedded `local-minimal-node` now exposes the same replay-proof contract on `/api/v1/conversations/threads`; this route was added for parity because the minimal profile previously lacked a dedicated thread-create HTTP surface
+  - embedded `local-minimal-node` now exposes the same replay-proof contract on `/im/v3/api/chat/conversations/threads`; this route was added for parity because the minimal profile previously lacked a dedicated thread-create HTTP surface
 - Added regression evidence in this loop:
   - `services/conversation-runtime/tests/conversation_flow_test.rs`:
     - `test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry_is_rejected`
@@ -1933,7 +1933,7 @@
 ### Loop157 Addendum - direct-chat binding delivery-proof and recovery-safe replay fence
 
 - Extended explicit delivery-proof semantics to standalone direct-chat binding in `conversation-runtime`:
-  - `POST /api/v1/conversations/direct-chats/bindings` now returns explicit binding proof metadata in addition to the bound conversation identifiers:
+  - `POST /im/v3/api/chat/conversations/direct-chats/bindings` now returns explicit binding proof metadata in addition to the bound conversation identifiers:
     - `requestKey = tenant:binderKind:boundBy:bind-direct-chat:conversationId`
     - `deliveryStatus = applied | replayed`
     - `proofVersion = conversation.create.delivery-proof.v1`
@@ -1984,7 +1984,7 @@
   - `cargo clippy --no-deps -p rtc-signaling-service -p media-service -p streaming-service -p audit-service -p local-minimal-node --tests -- -D warnings`
 - Remaining S07 gap after Loop157:
   - `release-ready exactly-once semantics across downstream fanout boundaries` still need broader cross-service policy unification beyond the now-hardened conversation create/message/direct-chat binding, stream, and audit seams
-  - `local-minimal-node` 当前已经暴露 dedicated `/api/v1/conversations/direct-chats/bindings` route，并具备对应 replay-proof regression；commercial gate 现已显式纳入 duplicate notification/automation/direct-chat/message/stream exactly-once 回归、standalone `rtc-signaling-service / media-service / streaming-service / audit-service` 整包测试、对应 local-minimal downstream replay/fanout 回归，以及 Windows smoke 与 downstream service strict clippy，剩余缺口应继续收敛到更广泛的 cross-service policy unification，而不是这些已锁定回归是否进入发布门禁
+  - `local-minimal-node` 当前已经暴露 dedicated `/im/v3/api/chat/conversations/direct-chats/bindings` route，并具备对应 replay-proof regression；commercial gate 现已显式纳入 duplicate notification/automation/direct-chat/message/stream exactly-once 回归、standalone `rtc-signaling-service / media-service / streaming-service / audit-service` 整包测试、对应 local-minimal downstream replay/fanout 回归，以及 Windows smoke 与 downstream service strict clippy，剩余缺口应继续收敛到更广泛的 cross-service policy unification，而不是这些已锁定回归是否进入发布门禁
 
 ## Loop158 Addendum - 2026-04-13
 - Closed a real audit exactly-once seam on session churn:

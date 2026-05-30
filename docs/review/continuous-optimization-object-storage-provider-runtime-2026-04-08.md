@@ -23,8 +23,8 @@
   - Added built-in object storage provider map.
   - Added deployment-profile default selection to `object-storage-volcengine`.
   - `complete_upload(...)` now canonicalizes storage provider and resource URL through `ObjectStorageProvider`.
-  - Added `GET /api/v1/media/{media_asset_id}/download-url`.
-  - Added `GET /api/v1/media/provider-health`.
+  - Added `GET /im/v3/api/media/{media_asset_id}/download-url`.
+  - Added `GET /backend/v3/api/media/provider_health`.
 - `services/local-minimal-node`
   - Mirrored media provider health and signed download URL HTTP surface.
 

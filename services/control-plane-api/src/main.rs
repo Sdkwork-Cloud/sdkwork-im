@@ -1,11 +1,21 @@
 use std::process::ExitCode;
 
+const BIND_ADDR_ENV: &str = "CRAW_CHAT_CONTROL_PLANE_API_BIND_ADDR";
+const DEFAULT_BIND_ADDR: &str = "127.0.0.1:18081";
+
 #[tokio::main]
 async fn main() -> ExitCode {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
     match run().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("{error}");
+            tracing::error!("{error}");
             ExitCode::FAILURE
         }
     }
@@ -21,14 +31,14 @@ async fn run() -> Result<(), String> {
             return Ok(());
         }
 
-        if command == "repair-social-runtime-dir" {
+        if command == "repair-social-runtime_dir" {
             let mut runtime_dir = None;
             let mut json_output = false;
 
             while let Some(argument) = args.next() {
                 match argument.as_str() {
-                    "--runtime-dir" => {
-                        let value = next_option_value(&mut args, "--runtime-dir")?;
+                    "--runtime_dir" => {
+                        let value = next_option_value(&mut args, "--runtime_dir")?;
                         runtime_dir = Some(std::path::PathBuf::from(value));
                     }
                     "--json" => {
@@ -36,13 +46,13 @@ async fn run() -> Result<(), String> {
                     }
                     "-h" | "--help" => {
                         eprintln!(
-                            "Usage: control-plane-api repair-social-runtime-dir [--runtime-dir <path>] [--json]"
+                            "Usage: control-plane-api repair-social-runtime_dir [--runtime_dir <path>] [--json]"
                         );
                         return Ok(());
                     }
                     _ => {
                         return Err(format!(
-                            "Unknown argument for repair-social-runtime-dir: {argument}"
+                            "Unknown argument for repair-social-runtime_dir: {argument}"
                         ));
                     }
                 }
@@ -51,13 +61,13 @@ async fn run() -> Result<(), String> {
             let Some(runtime_dir) = runtime_dir.or_else(control_plane_api::configured_runtime_dir)
             else {
                 return Err(
-                    "--runtime-dir is required for repair-social-runtime-dir when CRAW_CHAT_RUNTIME_DIR is unset"
+                    "--runtime_dir is required for repair-social-runtime_dir when CRAW_CHAT_RUNTIME_DIR is unset"
                         .to_owned(),
                 );
             };
 
             let report = control_plane_api::repair_social_runtime_dir(runtime_dir)
-                .map_err(|error| format!("failed to repair social runtime-dir: {error}"))?;
+                .map_err(|error| format!("failed to repair social runtime_dir: {error}"))?;
             if json_output {
                 let body = serde_json::to_string_pretty(&report).map_err(|error| {
                     format!("social runtime repair report should serialize: {error}")
@@ -75,11 +85,12 @@ async fn run() -> Result<(), String> {
         return Err(format!("Unknown command for control-plane-api: {command}"));
     }
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:18081")
+    let bind_addr = std::env::var(BIND_ADDR_ENV).unwrap_or_else(|_| DEFAULT_BIND_ADDR.to_owned());
+    let listener = tokio::net::TcpListener::bind(bind_addr.as_str())
         .await
         .map_err(|error| format!("control-plane-api failed to bind local listener: {error}"))?;
 
-    let app = match control_plane_api::configured_public_shared_channel_sync_trigger().map_err(
+    let app = match control_plane_api::configured_app_context_header_shared_channel_sync_trigger().map_err(
         |error| format!("standalone shared-channel sync trigger config should be valid: {error}"),
     )? {
         Some(trigger) => {
@@ -89,6 +100,9 @@ async fn run() -> Result<(), String> {
     };
 
     axum::serve(listener, app)
+        .with_graceful_shutdown(async {
+            tokio::signal::ctrl_c().await.ok();
+        })
         .await
         .map_err(|error| format!("control-plane-api server should run: {error}"))?;
     Ok(())

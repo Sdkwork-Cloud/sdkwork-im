@@ -5,7 +5,7 @@
 本页把当前仓库里已经分散落地的几类资产收敛到一个入口：
 
 - `compatibility matrix`
-- app/admin `SDK facade`
+- IM/App/Backend/RTC `SDK facade`
 - `craw-chat-cli`
 - `open-chat-test` 与 operator 验证入口
 - 对应的 contract / E2E / control-plane / registry 证据
@@ -25,7 +25,9 @@
 3. SDK facade 边界
    - [`../../sdks/README.md`](../../sdks/README.md)
    - [`../../sdks/sdkwork-im-sdk/README.md`](../../sdks/sdkwork-im-sdk/README.md)
-   - [`../../sdks/sdkwork-control-plane-sdk/README.md`](../../sdks/sdkwork-control-plane-sdk/README.md)
+   - [`../../sdks/sdkwork-im-app-sdk/README.md`](../../sdks/sdkwork-im-app-sdk/README.md)
+   - [`../../sdks/sdkwork-im-backend-sdk/README.md`](../../sdks/sdkwork-im-backend-sdk/README.md)
+   - [`../../sdks/sdkwork-rtc-sdk/README.md`](../../sdks/sdkwork-rtc-sdk/README.md)
 
 ## 3. 从 compatibility matrix 到消费者
 
@@ -41,7 +43,7 @@
 
 ### 3.2 admin-facing
 
-- `sdkwork-control-plane-sdk`
+- `sdkwork-im-backend-sdk`
 - 负责：
   - `compatibility matrix`
   - `protocol governance`
@@ -75,7 +77,7 @@
   - 冻结：
     - CLI authority model
     - `token` 默认 header 输出与 `--token-only` 裸 token 边界
-    - `generatedBearerToken / providedBearerToken` 来源语义
+    - `appContextProjection / providedBearerToken` 来源语义
     - `--bearer-token` 大小写无关前缀归一化边界，`bearer <token>` 必须收敛为 `Bearer <token>` / `<token>`
     - `providedBearerToken` 的 `claims = null` 边界，禁止把本地 CLI 输入伪装成外部 token 已解码 claims
     - SDK facade 边界
@@ -131,7 +133,7 @@
    - `protocol_governance_test.rs`
 2. 再看 SDK facade 边界：
    - `sdkwork-im-sdk`
-   - `sdkwork-control-plane-sdk`
+   - `sdkwork-im-backend-sdk`
 3. 再看 CLI / operator 入口：
    - `craw-chat-cli`
    - `open-chat-test`

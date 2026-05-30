@@ -30,7 +30,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
     assert_eq!(value["openapi"], "3.1.0");
     assert_eq!(value["info"]["title"], "Craw Chat Streaming Service API");
-    assert!(value["paths"]["/api/v1/streams"].is_object());
+    assert!(value["paths"]["/im/v3/api/streams"].is_object());
 }
 
 #[tokio::test]
@@ -65,10 +65,10 @@ async fn test_open_stream_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -107,10 +107,10 @@ async fn test_standalone_streaming_service_rejects_conversation_scope_over_http(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -158,10 +158,10 @@ async fn test_open_stream_rejects_oversized_stream_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -190,10 +190,10 @@ async fn test_open_stream_rejects_oversized_durability_class_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

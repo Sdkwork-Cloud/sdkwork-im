@@ -1,0 +1,459 @@
+{
+  "schemaVersion": 1,
+  "generator": "@sdkwork/sdk-generator",
+  "artifacts": {
+    "stateDir": ".sdkwork",
+    "manifestPath": ".sdkwork/sdkwork-generator-manifest.json",
+    "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
+    "executionReportPath": ".sdkwork/sdkwork-generator-report.json",
+    "manualBackupDir": ".sdkwork/manual-backups"
+  },
+  "status": "ok",
+  "mode": "apply",
+  "hasChanges": true,
+  "hasDestructiveChanges": true,
+  "changeFingerprint": "f3af57b314e894b64f07bda18fa5642ec044664727adc6bdbfd434c9bcf8ccce",
+  "changeImpact": {
+    "schemaVersion": 1,
+    "areas": [
+      "api-surface",
+      "runtime",
+      "documentation"
+    ],
+    "details": [
+      {
+        "area": "api-surface",
+        "paths": [
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/AcceptFriendRequestRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ActivateFriendshipRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/AdminApi.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/Api.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/ControlApi.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/IotApi.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/ProviderApi.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/RtcApi.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ApplySharedChannelPolicyRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/BindDirectChatRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/BindExternalMemberLinkRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/BlockUserRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/BusinessPolicyVocabularyResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/CancelFriendRequestRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/CapabilityProfileResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ClientCompatibilityResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/DeclineFriendRequestRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/EffectiveProtocolSnapshotResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/EstablishExternalConnectionRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/http/HttpClient.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/KillSwitchResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/MigrateRoutesRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProtocolGovernanceResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProtocolRegistryResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProtocolSchemaResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderBindingCommitResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderBindingsResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderPolicyDiffResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderPolicyHistoryResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderPolicyRollbackRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderRegistrySnapshotResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/QuotaProfileResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/RemoveFriendshipRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/RolloutPolicyResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/RouteMigrationResult.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/RouteNodeLifecycle.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SdkCompatibilityBaselineResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SdkworkBackendClient.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialDirectChatCommitResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialDirectChatSnapshotResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalConnectionCommitResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalConnectionSnapshotResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalMemberLinkCommitResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalMemberLinkSnapshotResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendRequestCommitResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendRequestSnapshotResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendshipCommitResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendshipSnapshotResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialRuntimeRepairResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelPolicyCommitResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelPolicySnapshotResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterInventoryResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterRequeueResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterTargetedRequeueRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterTargetedRequeueResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeliveredInventoryResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeliveryStateInventoryResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingClaimResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingInventoryResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingReleaseResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingStaleReclaimResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTakeoverResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTargetedClaimRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTargetedReleaseRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTargetedTakeoverRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncRepairResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncTargetedRepublishRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncTargetedRepublishResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialUserBlockCommitResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialUserBlockSnapshotResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/SubmitFriendRequestRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/UpsertProviderBindingPolicyRequest.kt"
+        ]
+      },
+      {
+        "area": "runtime",
+        "paths": [
+          "src/main/kotlin/com/sdkwork/im/backend/api/generated/http/HttpClient.kt"
+        ]
+      },
+      {
+        "area": "documentation",
+        "paths": [
+          "README.md"
+        ]
+      }
+    ],
+    "requiresVerification": true,
+    "summary": "Detected impact areas: api-surface, runtime, documentation. Verification is required."
+  },
+  "executionDecision": {
+    "schemaVersion": 1,
+    "riskLevel": "high",
+    "nextAction": "verify",
+    "requiresManualReview": false,
+    "applyRequiresExpectedFingerprint": false,
+    "summary": "Changes have been applied. Run the required verification plan now.",
+    "reasons": [
+      "backed-up-generated-files",
+      "deleted-generated-files",
+      "manual-review-required",
+      "verification-required"
+    ]
+  },
+  "executionHandoff": {
+    "schemaVersion": 1,
+    "summary": "Run the required verification commands now.",
+    "steps": [
+      {
+        "id": "verify-check",
+        "title": "Unified package check",
+        "required": true,
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, documentation.",
+        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-kotlin\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "kotlin",
+          "--project-dir",
+          ".",
+          "--action",
+          "check"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language kotlin --project-dir . --action check"
+      }
+    ]
+  },
+  "verificationPlan": {
+    "shouldRun": true,
+    "runPhase": "now",
+    "summary": "Detected impact areas: api-surface, runtime, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "steps": [
+      {
+        "id": "check",
+        "title": "Unified package check",
+        "required": true,
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, documentation.",
+        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-kotlin\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "kotlin",
+          "--project-dir",
+          ".",
+          "--action",
+          "check"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language kotlin --project-dir . --action check"
+      }
+    ]
+  },
+  "sdk": {
+    "name": "sdkwork-im-backend-sdk",
+    "version": "0.1.0",
+    "language": "kotlin",
+    "sdkType": "backend",
+    "outputPath": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-kotlin\\generated\\server-openapi",
+    "packageName": "com.sdkwork:im-backend-api-generated"
+  },
+  "versioning": {
+    "resolvedVersion": "0.1.0",
+    "localVersions": []
+  },
+  "stats": {
+    "totalFiles": 84,
+    "models": 65,
+    "apis": 5,
+    "types": 0
+  },
+  "warnings": [],
+  "syncSummary": {
+    "dryRun": false,
+    "writtenFiles": 70,
+    "skippedScaffoldFiles": 1,
+    "skippedUnchangedGeneratedFiles": 13,
+    "deletedGeneratedFiles": 3,
+    "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
+    "changeFingerprint": "f3af57b314e894b64f07bda18fa5642ec044664727adc6bdbfd434c9bcf8ccce",
+    "changes": {
+      "createdGeneratedFiles": [
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/AcceptFriendRequestRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ActivateFriendshipRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/AdminApi.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/ControlApi.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ApplySharedChannelPolicyRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/BindDirectChatRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/BindExternalMemberLinkRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/BlockUserRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/BusinessPolicyVocabularyResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/CancelFriendRequestRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/CapabilityProfileResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ClientCompatibilityResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/DeclineFriendRequestRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/EffectiveProtocolSnapshotResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/EstablishExternalConnectionRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/KillSwitchResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/MigrateRoutesRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProtocolGovernanceResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProtocolRegistryResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProtocolSchemaResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderBindingCommitResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderBindingsResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderPolicyDiffResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderPolicyHistoryResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderPolicyRollbackRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderRegistrySnapshotResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/QuotaProfileResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/RemoveFriendshipRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/RolloutPolicyResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/RouteMigrationResult.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/RouteNodeLifecycle.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SdkCompatibilityBaselineResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialDirectChatCommitResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialDirectChatSnapshotResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalConnectionCommitResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalConnectionSnapshotResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalMemberLinkCommitResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalMemberLinkSnapshotResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendRequestCommitResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendRequestSnapshotResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendshipCommitResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendshipSnapshotResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialRuntimeRepairResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelPolicyCommitResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelPolicySnapshotResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterInventoryResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterRequeueResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterTargetedRequeueRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterTargetedRequeueResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeliveredInventoryResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeliveryStateInventoryResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingClaimResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingInventoryResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingReleaseResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingStaleReclaimResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTakeoverResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTargetedClaimRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTargetedReleaseRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTargetedTakeoverRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncRepairResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncTargetedRepublishRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncTargetedRepublishResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialUserBlockCommitResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialUserBlockSnapshotResponse.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SubmitFriendRequestRequest.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/UpsertProviderBindingPolicyRequest.kt"
+      ],
+      "updatedGeneratedFiles": [
+        "README.md",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/Api.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/http/HttpClient.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SdkworkBackendClient.kt"
+      ],
+      "unchangedGeneratedFiles": [
+        "bin/publish-core.mjs",
+        "bin/publish.ps1",
+        "bin/publish.sh",
+        "build.gradle.kts",
+        "CHANGELOG.md",
+        "LICENSE",
+        "sdkwork-sdk.json",
+        "settings.gradle.kts",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/ApiPaths.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/AuditApi.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/AutomationApi.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/OpsApi.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProblemDetail.kt"
+      ],
+      "deletedGeneratedFiles": [
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/IotApi.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/ProviderApi.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/RtcApi.kt"
+      ],
+      "scaffoldedFiles": [],
+      "preservedScaffoldFiles": [
+        "custom/README.md"
+      ],
+      "backedUpFiles": [
+        "README.md",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/http/HttpClient.kt",
+        "src/main/kotlin/com/sdkwork/im/backend/api/generated/SdkworkBackendClient.kt"
+      ]
+    },
+    "impact": {
+      "schemaVersion": 1,
+      "areas": [
+        "api-surface",
+        "runtime",
+        "documentation"
+      ],
+      "details": [
+        {
+          "area": "api-surface",
+          "paths": [
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/AcceptFriendRequestRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ActivateFriendshipRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/AdminApi.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/Api.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/ControlApi.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/IotApi.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/ProviderApi.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/api/RtcApi.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ApplySharedChannelPolicyRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/BindDirectChatRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/BindExternalMemberLinkRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/BlockUserRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/BusinessPolicyVocabularyResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/CancelFriendRequestRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/CapabilityProfileResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ClientCompatibilityResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/DeclineFriendRequestRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/EffectiveProtocolSnapshotResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/EstablishExternalConnectionRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/http/HttpClient.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/KillSwitchResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/MigrateRoutesRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProtocolGovernanceResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProtocolRegistryResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProtocolSchemaResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderBindingCommitResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderBindingsResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderPolicyDiffResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderPolicyHistoryResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderPolicyRollbackRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/ProviderRegistrySnapshotResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/QuotaProfileResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/RemoveFriendshipRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/RolloutPolicyResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/RouteMigrationResult.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/RouteNodeLifecycle.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SdkCompatibilityBaselineResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SdkworkBackendClient.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialDirectChatCommitResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialDirectChatSnapshotResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalConnectionCommitResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalConnectionSnapshotResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalMemberLinkCommitResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialExternalMemberLinkSnapshotResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendRequestCommitResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendRequestSnapshotResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendshipCommitResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialFriendshipSnapshotResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialRuntimeRepairResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelPolicyCommitResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelPolicySnapshotResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterInventoryResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterRequeueResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterTargetedRequeueRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeadLetterTargetedRequeueResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeliveredInventoryResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncDeliveryStateInventoryResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingClaimResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingInventoryResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingReleaseResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingStaleReclaimResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTakeoverResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTargetedClaimRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTargetedReleaseRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncPendingTargetedTakeoverRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncRepairResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncTargetedRepublishRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialSharedChannelSyncTargetedRepublishResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialUserBlockCommitResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialUserBlockSnapshotResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/SubmitFriendRequestRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/UpsertProviderBindingPolicyRequest.kt"
+          ]
+        },
+        {
+          "area": "runtime",
+          "paths": [
+            "src/main/kotlin/com/sdkwork/im/backend/api/generated/http/HttpClient.kt"
+          ]
+        },
+        {
+          "area": "documentation",
+          "paths": [
+            "README.md"
+          ]
+        }
+      ],
+      "requiresVerification": true,
+      "summary": "Detected impact areas: api-surface, runtime, documentation. Verification is required."
+    },
+    "verificationPlan": {
+      "shouldRun": true,
+      "runPhase": "now",
+      "summary": "Detected impact areas: api-surface, runtime, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+      "steps": [
+        {
+          "id": "check",
+          "title": "Unified package check",
+          "required": true,
+          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, documentation.",
+          "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-kotlin\\generated\\server-openapi",
+          "command": "node",
+          "args": [
+            "./bin/publish-core.mjs",
+            "--language",
+            "kotlin",
+            "--project-dir",
+            ".",
+            "--action",
+            "check"
+          ],
+          "displayCommand": "node ./bin/publish-core.mjs --language kotlin --project-dir . --action check"
+        }
+      ]
+    },
+    "executionDecision": {
+      "schemaVersion": 1,
+      "riskLevel": "high",
+      "nextAction": "verify",
+      "requiresManualReview": false,
+      "applyRequiresExpectedFingerprint": false,
+      "summary": "Changes have been applied. Run the required verification plan now.",
+      "reasons": [
+        "backed-up-generated-files",
+        "deleted-generated-files",
+        "manual-review-required",
+        "verification-required"
+      ]
+    },
+    "backedUpFiles": [
+      "README.md",
+      "src/main/kotlin/com/sdkwork/im/backend/api/generated/http/HttpClient.kt",
+      "src/main/kotlin/com/sdkwork/im/backend/api/generated/SdkworkBackendClient.kt"
+    ],
+    "preservedLegacyFiles": false
+  }
+}

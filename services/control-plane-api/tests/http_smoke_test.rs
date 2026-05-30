@@ -59,7 +59,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
     assert_eq!(value["openapi"], "3.0.3");
     assert_eq!(value["info"]["title"], "Control Plane API");
-    assert!(value["paths"]["/api/v1/control/protocol-registry"].is_object());
+    assert!(value["paths"]["/backend/v3/api/control/protocol_registry"].is_object());
 }
 
 #[tokio::test]
@@ -94,11 +94,11 @@ async fn test_delivered_shared_channel_sync_inventory_route_returns_snapshot() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/runtime/delivered-shared-channel-sync")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_control_reader")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/runtime/delivered_shared_channel_sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_control_reader")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -134,11 +134,11 @@ async fn test_delivery_state_shared_channel_sync_inventory_route_returns_snapsho
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/runtime/delivery-state-shared-channel-sync")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_control_reader")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/runtime/delivery_state_shared_channel_sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_control_reader")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -177,11 +177,11 @@ async fn test_shared_channel_sync_inventory_rejects_invalid_limit() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/social/runtime/pending-shared-channel-sync?limit=0")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_control_reader")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync?limit=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_control_reader")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -216,11 +216,11 @@ async fn test_control_plane_social_friend_request_rejects_oversized_request_id_o
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/friend-requests")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/friend_requests")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -264,11 +264,11 @@ async fn test_control_plane_external_member_link_rejects_oversized_display_name_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/external-member-links")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/external_member_links")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -305,11 +305,11 @@ async fn test_control_plane_targeted_pending_claim_rejects_oversized_request_key
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.write")
+                .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

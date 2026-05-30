@@ -58,7 +58,7 @@
 
 ### 4.1 接口标准
 
-- 新增 `POST /api/v1/conversations/{conversationId}/members/leave`
+- 新增 `POST /im/v3/api/chat/conversations/{conversationId}/members/leave`
 - 不接受 `tenantId`、`principalId`、`memberId`
 - 当前操作者身份必须从认证上下文推导
 - 请求体允许为空
@@ -101,7 +101,7 @@
 ### 5.3 接入层
 
 - `services/local-minimal-node/src/lib.rs`
-  - 新增 `/api/v1/conversations/{conversation_id}/members/leave`
+  - 新增 `/im/v3/api/chat/conversations/{conversation_id}/members/leave`
   - 新增 `leave_conversation(...)`
   - 新增审计动作 `conversation.member_left`
 

@@ -3,16 +3,16 @@
 ## Context
 
 - `ops-service` already exposed:
-  - `GET /api/v1/ops/provider-bindings`
-  - `GET /api/v1/ops/provider-bindings/drift`
+  - `GET /backend/v3/api/ops/provider_bindings`
+  - `GET /backend/v3/api/ops/provider_bindings/drift`
 - `local-minimal-node` had already mirrored provider binding snapshots into `OpsRuntime`.
 - The same node still returned `404` for the standalone routes, so its operator surface lagged behind the frozen ops contract.
 
 ## Confirmed Bug
 
-- `GET /api/v1/ops/provider-bindings` returned `404` in `local-minimal-node`.
-- `GET /api/v1/ops/provider-bindings/drift` was also missing.
-- Operators could read the data only through `GET /api/v1/ops/diagnostics`, which broke route-level parity with standalone ops deployment.
+- `GET /backend/v3/api/ops/provider_bindings` returned `404` in `local-minimal-node`.
+- `GET /backend/v3/api/ops/provider_bindings/drift` was also missing.
+- Operators could read the data only through `GET /backend/v3/api/ops/diagnostics`, which broke route-level parity with standalone ops deployment.
 
 ## Root Cause
 

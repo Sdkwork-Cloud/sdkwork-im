@@ -14,10 +14,49 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const docsRoot = path.resolve(currentDir, "..");
 const issues = [];
 const sourceOperationLinks = [];
+
+function marker(...parts) {
+  return parts.join("");
+}
+
 const forbiddenPublicPortalCredentialMarkers = [
   "ops_demo",
   "Portal#2026",
   "acct_portal_demo",
+];
+
+const forbiddenApiPathMarkers = [
+  ["/api", "/v1"].join(""),
+  ["/auth", "/login"].join(""),
+  ["/auth", "/me"].join(""),
+  ["/portal", "/auth"].join(""),
+  ["/device", "-sessions"].join(""),
+  ["/chat", "-runtime"].join(""),
+];
+
+const forbiddenMechanicalSessionRenames = [
+  "RtcDevice Sessions",
+  "StreamDevice Sessions",
+  "durableDevice Sessions",
+  "Device SessionsRequest",
+  "Device SessionsId",
+  "operationId: createRtcDevice Sessions",
+  "operationId: inviteRtcDevice Sessions",
+  "operationId: acceptRtcDevice Sessions",
+  "operationId: rejectRtcDevice Sessions",
+  "operationId: endRtcDevice Sessions",
+  "operationId: disconnectDevice Sessions",
+];
+
+const forbiddenRetiredSdkMarkers = [
+  marker("sdkwork", "-control", "-plane", "-sdk"),
+  marker("sdkwork", "-im", "-admin", "-sdk"),
+  marker("@sdkwork", "/control", "-plane", "-sdk"),
+  marker("@sdkwork", "/im", "-admin", "-sdk"),
+  marker("/sdk", "/control", "-plane", "-sdk"),
+  marker("/sdk", "/control", "-plane", "-typescript", "-sdk"),
+  marker("/sdk", "/control", "-plane", "-flutter", "-sdk"),
+  marker("/sdk", "/im", "-admin", "-sdk"),
 ];
 
 const blockPattern =
@@ -36,6 +75,98 @@ function requireIncludes(source, relativePath, needle, message) {
 function requireExcludes(source, relativePath, needle, message) {
   if (source.includes(needle)) {
     issues.push(`${relativePath}: ${message}`);
+  }
+}
+
+function collectMarkdownFiles(root) {
+  const entries = fs.readdirSync(root, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    if (entry.name === "node_modules") {
+      continue;
+    }
+
+    const entryPath = path.join(root, entry.name);
+
+    if (entry.isDirectory()) {
+      files.push(...collectMarkdownFiles(entryPath));
+      continue;
+    }
+
+    if (entry.isFile() && path.extname(entry.name) === ".md") {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
+}
+
+function sourceFamily(relativePath) {
+  if (relativePath.startsWith("api-reference/im/")) {
+    return "im";
+  }
+  if (relativePath.startsWith("api-reference/app/")) {
+    return "app";
+  }
+  if (
+    relativePath.startsWith("api-reference/backend/") ||
+    relativePath.startsWith("api-reference/control-plane/")
+  ) {
+    return "backend";
+  }
+  return "other";
+}
+
+function routeAllowedForFamily(relativePath, family, route) {
+  if (family === "im") {
+    return route.startsWith("/im/v3/api/") || route === "/healthz" || route === "/readyz";
+  }
+  if (family === "app") {
+    return route.startsWith("/app/v3/api/");
+  }
+  if (family === "backend") {
+    return (
+      route.startsWith("/backend/v3/api/") ||
+      (relativePath === "api-reference/control-plane/protocol.md" && route === "/healthz")
+    );
+  }
+  return true;
+}
+
+function verifySdkFamilyMeta(location, relativePath, route, metaText) {
+  const family = sourceFamily(relativePath);
+  const isProbe = route === "/healthz" || route === "/readyz";
+
+  if (!routeAllowedForFamily(relativePath, family, route)) {
+    issues.push(`${location}: route ${route} is outside the ${family} API authority`);
+  }
+
+  if (family === "im") {
+    if (!isProbe && !metaText.includes("@sdkwork/im-sdk")) {
+      issues.push(`${location}: IM Standard API operation must reference @sdkwork/im-sdk`);
+    }
+    if (metaText.includes("sdkwork-im-app-sdk") || metaText.includes("sdkwork-im-backend-sdk")) {
+      issues.push(`${location}: IM Standard API operation must not reference app or backend SDK families`);
+    }
+  }
+
+  if (family === "app") {
+    if (!metaText.includes("sdkwork-im-app-sdk")) {
+      issues.push(`${location}: App API operation must reference sdkwork-im-app-sdk`);
+    }
+    if (metaText.includes("@sdkwork/im-sdk") || metaText.includes("sdkwork-im-backend-sdk")) {
+      issues.push(`${location}: App API operation must not reference IM or backend SDK families`);
+    }
+  }
+
+  if (family === "backend") {
+    if (!isProbe && !metaText.includes("sdkwork-im-backend-sdk")) {
+      issues.push(`${location}: Backend API operation must reference sdkwork-im-backend-sdk`);
+    }
+    if (metaText.includes("@sdkwork/im-sdk") || metaText.includes("sdkwork-im-app-sdk")) {
+      issues.push(`${location}: Backend API operation must not reference IM or app SDK families`);
+    }
   }
 }
 
@@ -74,45 +205,28 @@ function verifySourceOperationBlock(filePath, anchor, block) {
   if (!metaMatch) {
     issues.push(`${location}: missing api-meta-grid`);
   } else {
+    const metaText = metaMatch[1];
     for (const label of ["Security", "SDK", "Permission", "Success"]) {
-      if (!metaMatch[1].includes(`<strong>${label}</strong>`)) {
+      if (!metaText.includes(`<strong>${label}</strong>`)) {
         issues.push(`${location}: missing api-meta-grid label "${label}"`);
       }
     }
 
-    if (
-      (relativePath.startsWith("api-reference/platform/") ||
-        relativePath.startsWith("api-reference/iot/")) &&
-      metaMatch[1].includes("`sdkwork-im-sdk`")
-    ) {
-      issues.push(
-        `${location}: platform and IoT operation docs must not claim sdkwork-im-sdk as the SDK surface`,
-      );
-    }
+    verifySdkFamilyMeta(location, relativePath, route, metaText);
 
     if (
       (relativePath.startsWith("api-reference/control-plane/social") ||
         relativePath.startsWith("api-reference/control-plane/social-runtime")) &&
-      metaMatch[1].includes("`sdkwork-im-sdk`")
-    ) {
-      issues.push(
-        `${location}: control-plane social docs must use the control-plane SDK family instead of sdkwork-im-sdk`,
-      );
-    }
-
-    if (
-      (relativePath.startsWith("api-reference/control-plane/social") ||
-        relativePath.startsWith("api-reference/control-plane/social-runtime")) &&
-      metaMatch[1].includes("Authenticated principal.")
+      metaText.includes("Authenticated principal.")
     ) {
       issues.push(
         `${location}: control-plane social docs must use explicit control-plane permissions, not generic authenticated principal text`,
       );
     }
 
-    if (!isOpenProbe && metaMatch[1].includes("trusted headers")) {
+    if (!isOpenProbe && !metaText.includes("SDKWork dual token + AppContext")) {
       issues.push(
-        `${location}: public Security metadata must describe the bearer-auth contract only; keep trusted-header details in shared auth docs or endpoint notes`,
+        `${location}: public Security metadata must describe SDKWork dual-token validation plus AppContext projection`,
       );
     }
   }
@@ -120,30 +234,6 @@ function verifySourceOperationBlock(filePath, anchor, block) {
   if (!isOpenProbe && !block.includes("### Error Responses")) {
     issues.push(`${location}: missing error responses section`);
   }
-}
-
-function collectMarkdownFiles(root) {
-  const entries = fs.readdirSync(root, { withFileTypes: true });
-  const files = [];
-
-  for (const entry of entries) {
-    if (entry.name === "node_modules") {
-      continue;
-    }
-
-    const entryPath = path.join(root, entry.name);
-
-    if (entry.isDirectory()) {
-      files.push(...collectMarkdownFiles(entryPath));
-      continue;
-    }
-
-    if (entry.isFile() && path.extname(entry.name) === ".md") {
-      files.push(entryPath);
-    }
-  }
-
-  return files;
 }
 
 for (const group of groupedPages) {
@@ -182,26 +272,33 @@ for (const link of sidebarLinks) {
   if (!/### Response `\d+`/.test(markdownContent)) {
     issues.push(`sidebar ${link}: missing explicit response section`);
   }
-  if (link.startsWith("/api-reference/operations/app/portal-and-auth/")) {
-    if (!markdownContent.includes("@sdkwork/im-sdk")) {
-      issues.push(`${link}: portal/auth operation page must reference @sdkwork/im-sdk`);
-    }
-    if (markdownContent.includes("`sdkwork-im-sdk`")) {
-      issues.push(`${link}: portal/auth operation page must not use workspace-level sdkwork-im-sdk labels`);
-    }
+  if (
+    link.startsWith("/api-reference/operations/im/") &&
+    !markdownContent.includes("@sdkwork/im-sdk") &&
+    !markdownContent.includes("Direct HTTP probe")
+  ) {
+    issues.push(`${link}: IM operation page must reference @sdkwork/im-sdk`);
+  }
+  if (link.startsWith("/api-reference/operations/app/") && !markdownContent.includes("sdkwork-im-app-sdk")) {
+    issues.push(`${link}: app operation page must reference sdkwork-im-app-sdk`);
   }
   if (
-    link.startsWith("/api-reference/operations/control-plane/social/") ||
-    link.startsWith("/api-reference/operations/control-plane/social-runtime/")
+    (link.startsWith("/api-reference/operations/backend/") ||
+      link.startsWith("/api-reference/operations/control-plane/")) &&
+    !markdownContent.includes("sdkwork-im-backend-sdk") &&
+    !markdownContent.includes("Direct HTTP probe")
   ) {
-    if (!markdownContent.includes("sdkwork-control-plane-sdk")) {
-      issues.push(`${link}: control-plane social operation page must reference sdkwork-control-plane-sdk`);
-    }
-    if (markdownContent.includes("`sdkwork-im-sdk`")) {
-      issues.push(`${link}: control-plane social operation page must not claim sdkwork-im-sdk`);
-    }
-    if (markdownContent.includes("Authenticated principal.")) {
-      issues.push(`${link}: control-plane social operation page must not use generic authenticated principal permission text`);
+    issues.push(`${link}: backend operation page must reference sdkwork-im-backend-sdk`);
+  }
+  for (const legacyAuthMarker of [
+    ["/auth", "/login"].join(""),
+    ["/auth", "/me"].join(""),
+    ["/portal", "/auth"].join(""),
+    ["sdk", "auth", "login"].join("."),
+    ["sdk", ".auth.me"].join(""),
+  ]) {
+    if (markdownContent.includes(legacyAuthMarker)) {
+      issues.push(`${link}: operation page must not document craw-chat-owned identity marker ${legacyAuthMarker}`);
     }
   }
 }
@@ -212,15 +309,34 @@ for (const link of expectedSidebarLinks) {
   }
 }
 
+for (const group of groupedPages) {
+  if (group.text === "Platform API" || group.text === "IoT API") {
+    issues.push(`sidebar group ${group.text}: legacy API groups must not be active`);
+  }
+}
+
 for (const markdownFile of collectMarkdownFiles(docsRoot)) {
   const content = fs.readFileSync(markdownFile, "utf8");
   const relativePath = path.relative(docsRoot, markdownFile).replaceAll("\\", "/");
 
   for (const marker of forbiddenPublicPortalCredentialMarkers) {
     if (content.includes(marker)) {
-      issues.push(
-        `${relativePath}: contains retired public portal credential marker "${marker}"`,
-      );
+      issues.push(`${relativePath}: contains retired public portal credential marker "${marker}"`);
+    }
+  }
+  for (const marker of forbiddenApiPathMarkers) {
+    if (content.includes(marker)) {
+      issues.push(`${relativePath}: contains retired API path marker "${marker}"`);
+    }
+  }
+  for (const marker of forbiddenMechanicalSessionRenames) {
+    if (content.includes(marker)) {
+      issues.push(`${relativePath}: contains mechanical session rename residue "${marker}"`);
+    }
+  }
+  for (const marker of forbiddenRetiredSdkMarkers) {
+    if (content.includes(marker)) {
+      issues.push(`${relativePath}: contains retired public SDK marker "${marker}"`);
     }
   }
 }
@@ -245,431 +361,135 @@ for (const group of groupedPages) {
   }
 }
 
-const appApiPath = "api-reference/app-api.md";
-const appApiSource = read(appApiPath);
-requireIncludes(
-  appApiSource,
-  appApiPath,
-  "@sdkwork/im-sdk",
-  "must point TypeScript consumers to the official root package",
-);
-requireIncludes(
-  appApiSource,
-  appApiPath,
-  "im_sdk",
-  "must point Flutter consumers to the official consumer package",
-);
-requireExcludes(
-  appApiSource,
-  appApiPath,
-  "consumer-layer decision between generated transport and composed clients",
-  "must not describe the app SDK choice as a generated-versus-composed decision",
-);
+const sidebarSource = read(".vitepress/api-reference-sidebar.mjs");
+requireIncludes(sidebarSource, ".vitepress/api-reference-sidebar.mjs", 'text: "IM Standard API"', "must publish IM Standard API group");
+requireIncludes(sidebarSource, ".vitepress/api-reference-sidebar.mjs", 'text: "App API"', "must publish App API group");
+requireIncludes(sidebarSource, ".vitepress/api-reference-sidebar.mjs", 'text: "Backend API"', "must publish Backend API group");
+requireExcludes(sidebarSource, ".vitepress/api-reference-sidebar.mjs", 'text: "Platform API"', "must not publish standalone Platform API group");
+requireExcludes(sidebarSource, ".vitepress/api-reference-sidebar.mjs", 'text: "IoT API"', "must not publish standalone IoT API group");
 
-for (const relativePath of [
-  "api-reference/app/conversations.md",
-  "api-reference/app/device-sync.md",
-  "api-reference/app/messages.md",
-  "api-reference/app/media.md",
-  "api-reference/app/rtc.md",
-  "api-reference/app/session-and-realtime.md",
-  "api-reference/app/streams.md",
-]) {
-  const source = read(relativePath);
-  requireIncludes(
-    source,
-    relativePath,
-    "@sdkwork/im-sdk",
-    "must reference the official TypeScript root package when linking SDK usage",
-  );
-  requireIncludes(
-    source,
-    relativePath,
-    "im_sdk",
-    "must reference the official Flutter consumer package when linking SDK usage",
-  );
+const indexPath = "api-reference/index.md";
+const indexSource = read(indexPath);
+for (const marker of ["IM Standard API", "App API", "Backend API"]) {
+  requireIncludes(indexSource, indexPath, marker, `must include ${marker}`);
+}
+requireExcludes(indexSource, indexPath, "Open Platform API overview", "must not publish legacy Platform API overview");
+requireExcludes(indexSource, indexPath, "Open IoT API overview", "must not publish legacy IoT API overview");
+
+const imApiPath = "api-reference/im-api.md";
+const imApiSource = read(imApiPath);
+for (const marker of ["/im/v3/api/*", "sdkwork-im-sdk", "@sdkwork/im-sdk", "im_sdk"]) {
+  requireIncludes(imApiSource, imApiPath, marker, `must include ${marker}`);
+}
+for (const marker of ["sdkwork-im-app-sdk", "sdkwork-im-backend-sdk"]) {
+  requireIncludes(imApiSource, imApiPath, marker, `must route ${marker} away from IM Standard API`);
 }
 
-const conversationsPath = "api-reference/app/conversations.md";
-const conversationsSource = read(conversationsPath);
-requireIncludes(
-  conversationsSource,
-  conversationsPath,
-  "sdk.conversations.createAgentDialog(...)",
-  "must document sdk.conversations.createAgentDialog(...) on the conversations API page",
-);
-requireIncludes(
-  conversationsSource,
-  conversationsPath,
-  "sdk.conversations.getAgentHandoffState(...)",
-  "must document sdk.conversations.getAgentHandoffState(...) on the conversations API page",
-);
-requireIncludes(
-  conversationsSource,
-  conversationsPath,
-  "sdk.generated.inbox.getInbox()",
-  "must document sdk.generated.inbox.getInbox() on the conversations API page",
-);
-requireExcludes(
-  conversationsSource,
-  conversationsPath,
-  "composed TypeScript client",
-  "must not describe the TypeScript SDK as a composed client",
-);
+const appApiPath = "api-reference/app-api.md";
+const appApiSource = read(appApiPath);
+for (const marker of [
+  "/app/v3/api/*",
+  "sdkwork-im-app-sdk",
+  "Portal Access",
+  "Device Twin",
+  "Notifications",
+  "Automation",
+  "Provider Health",
+  "IoT Protocol",
+]) {
+  requireIncludes(appApiSource, appApiPath, marker, `must include ${marker}`);
+}
+for (const marker of ["Conversation Runtime", "Media and Streams", "Device Sessions and Realtime"]) {
+  requireExcludes(appApiSource, appApiPath, marker, `must not include IM Standard API domain ${marker}`);
+}
 
-const messagesPath = "api-reference/app/messages.md";
-const messagesSource = read(messagesPath);
-requireIncludes(
-  messagesSource,
-  messagesPath,
-  "sdk.uploadAndSendMessage(...)",
-  "must document sdk.uploadAndSendMessage(...) on the messages API page",
-);
-requireIncludes(
-  messagesSource,
-  messagesPath,
-  "sdk.decodeMessage(...)",
-  "must document sdk.decodeMessage(...) on the messages API page",
-);
-requireIncludes(
-  messagesSource,
-  messagesPath,
-  "sdk.createTextMessage(...)",
-  "must document sdk.createTextMessage(...) on the messages API page",
-);
-requireIncludes(
-  messagesSource,
-  messagesPath,
-  "sdk.send(message)",
-  "must document sdk.send(message) on the messages API page",
-);
-requireIncludes(
-  messagesSource,
-  messagesPath,
-  "createLocationMessage(...)",
-  "must document standard rich message builders on the messages API page",
-);
-requireIncludes(
-  messagesSource,
-  messagesPath,
-  "createAiImageGenerationMessage(...)",
-  "must document AI message builders on the messages API page",
-);
-requireIncludes(
-  messagesSource,
-  messagesPath,
-  "createWorkflowEventMessage(...)",
-  "must document workflow and agent-era message builders on the messages API page",
-);
-requireIncludes(
-  messagesSource,
-  messagesPath,
-  "sdk.conversations.postText(...)",
-  "must document sdk.conversations.postText(...) on the messages API page",
-);
-requireIncludes(
-  messagesSource,
-  messagesPath,
-  "sdk.conversations.publishSystemText(...)",
-  "must document sdk.conversations.publishSystemText(...) on the messages API page",
-);
-requireExcludes(
-  messagesSource,
-  messagesPath,
-  "Composed helpers",
-  "must not describe shared SDK helpers only as composed helpers",
-);
+const backendApiPath = "api-reference/backend-api.md";
+const backendApiSource = read(backendApiPath);
+for (const marker of [
+  "/backend/v3/api/*",
+  "sdkwork-im-backend-sdk",
+  "/backend/v3/api/control/*",
+  "/backend/v3/api/admin/*",
+  "no standalone admin SDK family",
+  "no standalone",
+]) {
+  requireIncludes(backendApiSource, backendApiPath, marker, `must include ${marker}`);
+}
 
-const mediaPath = "api-reference/app/media.md";
-const mediaSource = read(mediaPath);
-requireIncludes(
-  mediaSource,
-  mediaPath,
-  "sdk.media.uploadAndComplete(...)",
-  "must document sdk.media.uploadAndComplete(...) on the media API page",
-);
-requireIncludes(
-  mediaSource,
-  mediaPath,
-  "sdk.media.attachText(...)",
-  "must document sdk.media.attachText(...) on the media API page",
-);
-requireExcludes(
-  mediaSource,
-  mediaPath,
-  "Both app SDK languages expose media helpers on the composed client",
-  "must not describe media helpers as living on a generic composed client across languages",
-);
-
-const rtcPath = "api-reference/app/rtc.md";
-const rtcSource = read(rtcPath);
-requireIncludes(
-  rtcSource,
-  rtcPath,
-  "sdk.rtc.create(...)",
-  "must document sdk.rtc.create(...) on the RTC API page",
-);
-requireIncludes(
-  rtcSource,
-  rtcPath,
-  "sdk.rtc.postJsonSignal(...)",
-  "must document sdk.rtc.postJsonSignal(...) on the RTC API page",
-);
-requireIncludes(
-  rtcSource,
-  rtcPath,
-  "live.signals.onRtcSession(...)",
-  "must document live.signals.onRtcSession(...) as the inbound RTC signaling path",
-);
-requireIncludes(
-  rtcSource,
-  rtcPath,
-  "sdk.rtc.issueParticipantCredential(...)",
-  "must document sdk.rtc.issueParticipantCredential(...) on the RTC API page",
-);
-requireIncludes(
-  rtcSource,
-  rtcPath,
-  "sdk.rtc.getRecordingArtifact(...)",
-  "must document sdk.rtc.getRecordingArtifact(...) on the RTC API page",
-);
-requireExcludes(
-  rtcSource,
-  rtcPath,
-  "Both app SDK languages currently expose RTC helpers on the composed client",
-  "must not describe RTC helpers as living on a generic composed client across languages",
-);
-requireExcludes(
-  rtcSource,
-  rtcPath,
-  "`sdkwork-im-sdk` / rtc",
-  "must not use the retired sdkwork-im-sdk / rtc meta label on the RTC API page",
-);
-
-const sessionRealtimePath = "api-reference/app/session-and-realtime.md";
-const sessionRealtimeSource = read(sessionRealtimePath);
-requireIncludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "sdk.sync.ack(...)",
-  "must document sdk.sync.ack(...) on the session and realtime API page",
-);
-requireIncludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "context.ack()",
-  "must document context.ack() on the session and realtime API page",
-);
-requireIncludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "live.messages.on(...)",
-  "must document live.messages.on(...) on the session and realtime API page",
-);
-requireIncludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "live.data.on(...)",
-  "must document live.data.on(...) on the session and realtime API page",
-);
-requireIncludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "live.signals.on(...)",
-  "must document live.signals.on(...) on the session and realtime API page",
-);
-requireIncludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "live.events.on(...)",
-  "must document live.events.on(...) on the session and realtime API page",
-);
-requireIncludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "live.lifecycle.onStateChange(...)",
-  "must document live.lifecycle.onStateChange(...) on the session and realtime API page",
-);
-requireIncludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "live.lifecycle.onError(...)",
-  "must document live.lifecycle.onError(...) on the session and realtime API page",
-);
-requireIncludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "sdk.generated.session.disconnect(...)",
-  "must document sdk.generated.session.disconnect(...) on the session and realtime API page",
-);
-requireIncludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "sdk.generated.presence.heartbeat(...)",
-  "must document sdk.generated.presence.heartbeat(...) on the session and realtime API page",
-);
-requireIncludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "sdk.generated.realtime.listRealtimeEvents(...)",
-  "must document sdk.generated.realtime.listRealtimeEvents(...) on the session and realtime API page",
-);
-requireExcludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "Generated and composed app clients cover the HTTP resume, sync, poll, and ACK flows",
-  "must not describe app SDK coverage as generated-versus-composed clients",
-);
-requireExcludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "live.onMessage(...)",
-  "must not teach live.onMessage(...) on the session and realtime API page",
-);
-requireExcludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "live.onData(...)",
-  "must not teach live.onData(...) on the session and realtime API page",
-);
-requireExcludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "live.onSignal(...)",
-  "must not teach live.onSignal(...) on the session and realtime API page",
-);
-requireExcludes(
-  sessionRealtimeSource,
-  sessionRealtimePath,
-  "`sdkwork-im-sdk` / session",
-  "must not use the retired sdkwork-im-sdk / session meta label on the session and realtime API page",
-);
-
-const deviceSyncPath = "api-reference/app/device-sync.md";
-const deviceSyncSource = read(deviceSyncPath);
-requireIncludes(
-  deviceSyncSource,
-  deviceSyncPath,
-  "sdk.generated.device.register(...)",
-  "must document sdk.generated.device.register(...) on the device sync API page",
-);
-requireIncludes(
-  deviceSyncSource,
-  deviceSyncPath,
-  "sdk.generated.device.getDeviceSyncFeed(...)",
-  "must document sdk.generated.device.getDeviceSyncFeed(...) on the device sync API page",
-);
-requireExcludes(
-  deviceSyncSource,
-  deviceSyncPath,
-  "SDK device modules",
-  "must not imply a dedicated semantic device module on the device sync API page",
-);
-requireExcludes(
-  deviceSyncSource,
-  deviceSyncPath,
-  "`sdkwork-im-sdk` / device-sync",
-  "must not use the retired sdkwork-im-sdk / device-sync meta label on the device sync API page",
-);
-
-const streamsPath = "api-reference/app/streams.md";
-const streamsSource = read(streamsPath);
-requireIncludes(
-  streamsSource,
-  streamsPath,
-  "sdk.generated.stream.open(...)",
-  "must document sdk.generated.stream.open(...) on the streams API page",
-);
-requireIncludes(
-  streamsSource,
-  streamsPath,
-  "sdk.generated.stream.appendStreamFrame(...)",
-  "must document sdk.generated.stream.appendStreamFrame(...) on the streams API page",
-);
-requireExcludes(
-  streamsSource,
-  streamsPath,
-  "Composed app SDKs expose stream helpers and builders on top of these routes",
-  "must not describe stream helpers only in terms of composed SDKs",
-);
-requireExcludes(
-  streamsSource,
-  streamsPath,
-  "`sdkwork-im-sdk` / streams",
-  "must not use the retired sdkwork-im-sdk / streams meta label on the streams API page",
-);
-
-const membershipPath = "api-reference/app/membership-and-read-state.md";
-const membershipSource = read(membershipPath);
-requireIncludes(
-  membershipSource,
-  membershipPath,
-  "sdk.conversations.listMembers(...)",
-  "must document sdk.conversations.listMembers(...) on the membership API page",
-);
-requireIncludes(
-  membershipSource,
-  membershipPath,
-  "sdk.conversations.updateReadCursor(...)",
-  "must document sdk.conversations.updateReadCursor(...) on the membership API page",
-);
-requireExcludes(
-  membershipSource,
-  membershipPath,
-  "/ membership",
-  "must not refer to a nonexistent membership SDK module on the membership API page",
-);
-
-const portalAuthPath = "api-reference/app/portal-and-auth.md";
-const portalAuthSource = read(portalAuthPath);
-requireIncludes(
-  portalAuthSource,
-  portalAuthPath,
-  "@sdkwork/im-sdk",
-  "must describe the TypeScript portal surface through the official root package",
-);
-requireIncludes(
-  portalAuthSource,
-  portalAuthPath,
-  "im_sdk",
-  "must describe the current Flutter portal gap through the official Flutter package naming",
-);
-requireIncludes(
-  portalAuthSource,
-  portalAuthPath,
-  "im_sdk_generated",
-  "must describe the current Flutter portal gap through the generated package naming",
-);
-requireExcludes(
-  portalAuthSource,
-  portalAuthPath,
-  "`sdkwork-im-sdk`",
-  "must not use workspace-level sdkwork-im-sdk meta labels on the portal and auth API page",
-);
-requireExcludes(
-  portalAuthSource,
-  portalAuthPath,
-  "generated and composed layers",
-  "must not describe TypeScript or Flutter package surfaces as generic generated-and-composed layers",
-);
-
-for (const [relativePath, requiredSdkLabel] of [
-  ["api-reference/control-plane/social.md", "sdkwork-control-plane-sdk"],
-  ["api-reference/control-plane/social-runtime.md", "sdkwork-control-plane-sdk"],
+for (const relativePath of [
+  "api-reference/im/conversations.md",
+  "api-reference/im/device-sync.md",
+  "api-reference/im/messages.md",
+  "api-reference/im/media.md",
+  "api-reference/im/rtc.md",
+  "api-reference/im/session-and-realtime.md",
+  "api-reference/im/streams.md",
+  "api-reference/im/membership-and-read-state.md",
 ]) {
   const source = read(relativePath);
-  requireIncludes(
-    source,
-    relativePath,
-    requiredSdkLabel,
-    "must use the control-plane SDK family for control-plane social surfaces",
-  );
-  requireExcludes(
-    source,
-    relativePath,
-    "`sdkwork-im-sdk`",
-    "must not claim the app SDK family on control-plane social surfaces",
-  );
+  requireIncludes(source, relativePath, "@sdkwork/im-sdk", "must reference the official TypeScript root package");
+  requireIncludes(source, relativePath, "im_sdk", "must reference the official Flutter consumer package");
+  requireExcludes(source, relativePath, "sdkwork-im-app-sdk", "must not route IM Standard API through app SDK");
+}
+
+for (const relativePath of [
+  "api-reference/app/portal-access.md",
+  "api-reference/app/device-twin.md",
+  "api-reference/app/notifications.md",
+  "api-reference/app/automation.md",
+  "api-reference/app/provider-health.md",
+  "api-reference/app/iot-protocol-and-health.md",
+]) {
+  const source = read(relativePath);
+  requireIncludes(source, relativePath, "sdkwork-im-app-sdk", "must use the app SDK family");
+  requireExcludes(source, relativePath, "@sdkwork/im-sdk", "must not route App API through IM SDK");
+  requireExcludes(source, relativePath, "/im/v3/api/", "must not document IM Standard API routes");
+}
+
+const portalAccessPath = "api-reference/app/portal-access.md";
+const portalAccessSource = read(portalAccessPath);
+requireIncludes(portalAccessSource, portalAccessPath, "/app/v3/api/portal/access", "must document app portal path");
+requireIncludes(portalAccessSource, portalAccessPath, "client.portal.access.retrieve()", "must document generated app portal method");
+requireExcludes(portalAccessSource, portalAccessPath, "sdk.portal.getAccess()", "must not document retired IM portal helper");
+
+const deviceTwinPath = "api-reference/app/device-twin.md";
+const deviceTwinSource = read(deviceTwinPath);
+for (const marker of [
+  "/app/v3/api/devices/{deviceId}/twin",
+  "client.device.twin.list(deviceId)",
+  "client.device.twin.desired.create(deviceId, body)",
+  "client.device.twin.reported.create(deviceId, body)",
+]) {
+  requireIncludes(deviceTwinSource, deviceTwinPath, marker, `must include ${marker}`);
+}
+
+const automationPath = "api-reference/app/automation.md";
+const automationSource = read(automationPath);
+for (const marker of [
+  "/app/v3/api/automation/agent_responses",
+  "/app/v3/api/automation/agent_responses/{streamId}/frames",
+  "/app/v3/api/automation/agent_responses/{streamId}/complete",
+  "/app/v3/api/automation/agent_tool_calls",
+  "/app/v3/api/automation/executions/{executionId}/agent_tool_calls/{toolCallId}/complete",
+  "client.automation.agentResponses.create(body)",
+  "client.automation.agentToolCalls.complete(executionId, toolCallId, body)",
+]) {
+  requireIncludes(automationSource, automationPath, marker, `must include ${marker}`);
+}
+
+for (const [relativePath, requiredSdkLabel] of [
+  ["api-reference/backend/audit.md", "sdkwork-im-backend-sdk"],
+  ["api-reference/backend/ops.md", "sdkwork-im-backend-sdk"],
+  ["api-reference/control-plane/social.md", "sdkwork-im-backend-sdk"],
+  ["api-reference/control-plane/social-runtime.md", "sdkwork-im-backend-sdk"],
+  ["api-reference/control-plane/protocol.md", "sdkwork-im-backend-sdk"],
+  ["api-reference/control-plane/providers.md", "sdkwork-im-backend-sdk"],
+  ["api-reference/control-plane/nodes.md", "sdkwork-im-backend-sdk"],
+]) {
+  const source = read(relativePath);
+  requireIncludes(source, relativePath, requiredSdkLabel, "must use the backend SDK family");
+  requireExcludes(source, relativePath, "`sdkwork-im-sdk`", "must not claim the IM SDK family");
+  requireExcludes(source, relativePath, "sdkwork-im-app-sdk", "must not claim the app SDK family");
 }
 
 if (issues.length > 0) {

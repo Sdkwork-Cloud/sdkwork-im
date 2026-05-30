@@ -10,7 +10,7 @@ This standard applies when:
 
 - a device currently owns a route entry in the shared route directory
 - the same device explicitly calls:
-  - `POST /api/v1/sessions/disconnect`
+  - `POST /im/v3/api/device/sessions/disconnect`
 
 This standard refines:
 

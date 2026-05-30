@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 
@@ -8,6 +8,21 @@ import * as viteRuntimeLib from '../../../scripts/dev/vite-runtime-lib.mjs';
 const docsRoot = path.resolve(import.meta.dirname, '..');
 const currentWorkspaceRoot = path.resolve(docsRoot, '..', '..');
 const removedRustCompatClientPattern = new RegExp(['Craw', 'Chat', 'Client'].join(''));
+const retiredSdkPattern = (...parts) => new RegExp(parts.join(''));
+
+function listMarkdownFiles(root) {
+  const files = [];
+  for (const entry of readdirSync(root)) {
+    const fullPath = path.join(root, entry);
+    const stat = statSync(fullPath);
+    if (stat.isDirectory()) {
+      files.push(...listMarkdownFiles(fullPath));
+    } else if (entry.endsWith('.md')) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
 
 function resolveCanonicalDocsRoot(workspaceRoot) {
   const isWorktreeCheckout = path.basename(path.dirname(workspaceRoot)) === '.worktrees';
@@ -44,8 +59,95 @@ test('workspace donor roots include the canonical docs site when local docs node
   );
 });
 
+test('api reference docs use SDKWork dual-token and AppContext security terminology', () => {
+  const apiReferenceRoot = path.join(docsRoot, 'api-reference');
+  const forbiddenPatterns = [
+    /Security<\/strong><span>Bearer token<\/span>/,
+    /Shared bearer/i,
+    /trusted-header/i,
+    /trusted headers/i,
+    /missing_authorization/,
+    /invalid_token/,
+  ];
+
+  for (const filePath of listMarkdownFiles(apiReferenceRoot)) {
+    const relativePath = path.relative(currentWorkspaceRoot, filePath);
+    const source = readFileSync(filePath, 'utf8');
+    for (const forbidden of forbiddenPatterns) {
+      assert.doesNotMatch(
+        source,
+        forbidden,
+        `${relativePath} must describe SDKWork dual-token validation plus AppContext projection, not legacy bearer/trusted-header auth`,
+      );
+    }
+  }
+});
+
+test('api reference generation scripts preserve AppContext security terminology', () => {
+  const scriptPaths = [
+    path.join(docsRoot, 'scripts', 'generate-operation-pages.mjs'),
+    path.join(docsRoot, 'scripts', 'standardize-api-docs.mjs'),
+    path.join(docsRoot, 'scripts', 'verify-api-docs.mjs'),
+  ];
+  const forbiddenPatterns = [
+    /Bearer token/,
+    /Shared bearer/i,
+    /trusted-header/i,
+    /trusted headers/i,
+    /missing_authorization/,
+    /invalid_token/,
+    /Authentication failed\./,
+  ];
+
+  for (const filePath of scriptPaths) {
+    const relativePath = path.relative(currentWorkspaceRoot, filePath);
+    const source = readFileSync(filePath, 'utf8');
+    for (const forbidden of forbiddenPatterns) {
+      assert.doesNotMatch(
+        source,
+        forbidden,
+        `${relativePath} must generate SDKWork dual-token and AppContext terminology`,
+      );
+    }
+  }
+});
+
+test('sdk docs preserve SDKWork credential and Craw Chat device-session terminology', () => {
+  const checkedRoots = [
+    path.join(docsRoot, 'sdk'),
+    path.join(docsRoot, 'api-reference'),
+    path.join(docsRoot, 'reference'),
+    path.join(currentWorkspaceRoot, 'sdks', 'sdkwork-im-sdk', 'docs'),
+  ];
+  const forbiddenPatterns = [
+    /bearer-token/i,
+    /appbase bearer/i,
+    /appbase-issued bearer/i,
+    /\bquery bearer\b/i,
+    /\bheader bearer\b/i,
+    /Public auth is bearer-token only/i,
+    /\bsession resume\b/i,
+    /\.session\(\)/,
+    /ResumeSessionRequest/,
+  ];
+
+  for (const checkedRoot of checkedRoots) {
+    for (const filePath of listMarkdownFiles(checkedRoot)) {
+      const relativePath = path.relative(currentWorkspaceRoot, filePath);
+      const source = readFileSync(filePath, 'utf8');
+      for (const forbidden of forbiddenPatterns) {
+        assert.doesNotMatch(
+          source,
+          forbidden,
+          `${relativePath} must use SDKWork appbase credential wording and Craw Chat device-session naming`,
+        );
+      }
+    }
+  }
+});
+
 test('media API reference documents upload session mutation responses', () => {
-  const mediaDoc = readFileSync(path.join(docsRoot, 'api-reference', 'app', 'media.md'), 'utf8');
+  const mediaDoc = readFileSync(path.join(docsRoot, 'api-reference', 'im', 'media.md'), 'utf8');
 
   assert.match(mediaDoc, /Success<\/strong><span>`200 MediaUploadMutationResponse`<\/span>/);
   assert.match(mediaDoc, /ApiSchemaTable schema="MediaUploadMutationResponse"/);
@@ -60,12 +162,12 @@ test('authority openapi contract exposes media upload mutation schemas', () => {
     'sdks',
     'sdkwork-im-sdk',
     'openapi',
-    'craw-chat-app.openapi.yaml',
+    'craw-chat-im.openapi.yaml',
   );
   const openapi = readFileSync(openapiPath, 'utf8');
 
-  assert.match(openapi, /operationId:\s*createMediaUpload[\s\S]*MediaUploadMutationResponse/);
-  assert.match(openapi, /operationId:\s*completeMediaUpload[\s\S]*MediaUploadMutationResponse/);
+  assert.match(openapi, /operationId:\s*uploads\.create[\s\S]*MediaUploadMutationResponse/);
+  assert.match(openapi, /operationId:\s*uploads\.complete[\s\S]*MediaUploadMutationResponse/);
   assert.match(openapi, /MediaUploadMutationResponse:/);
   assert.match(openapi, /MediaUploadSession:/);
 });
@@ -94,7 +196,7 @@ test('language support doc links to the dedicated TypeScript and Flutter SDK ref
 
   assert.match(languageSupportDoc, /\[TypeScript SDK\]\(\/sdk\/typescript-sdk\)/);
   assert.match(languageSupportDoc, /\[Flutter SDK\]\(\/sdk\/flutter-sdk\)/);
-  assert.match(languageSupportDoc, /\[App SDK Overview\]\(\/sdk\/app-sdk\)/);
+  assert.match(languageSupportDoc, /\[App API SDK\]\(\/sdk\/app-sdk\)/);
 });
 
 test('app sdk overview documents assembly metadata and verified workspace semantics', () => {
@@ -107,65 +209,39 @@ test('app sdk overview documents assembly metadata and verified workspace semant
   assert.match(appSdkDoc, /verify-sdk\.mjs/);
 });
 
-test('admin sdk overview links to the dedicated admin TypeScript and Flutter SDK references', () => {
-  const adminSdkDoc = readFileSync(path.join(docsRoot, 'sdk', 'control-plane-sdk.md'), 'utf8');
+test('backend sdk overview documents control and admin as backend modules', () => {
+  const backendSdkDoc = readFileSync(path.join(docsRoot, 'sdk', 'backend-sdk.md'), 'utf8');
 
-  assert.match(adminSdkDoc, /\[Control-Plane TypeScript SDK\]\(\/sdk\/control-plane-typescript-sdk\)/);
-  assert.match(adminSdkDoc, /\[Control-Plane Flutter SDK\]\(\/sdk\/control-plane-flutter-sdk\)/);
-  assert.match(adminSdkDoc, /@sdkwork\/control-plane-sdk/);
-  assert.match(adminSdkDoc, /control_plane_sdk/);
-  assert.match(adminSdkDoc, /\/api-reference\/control-plane\/social/);
-  assert.match(adminSdkDoc, /\/api-reference\/control-plane\/social-runtime/);
+  assert.match(backendSdkDoc, /sdkwork-im-backend-sdk/);
+  assert.match(backendSdkDoc, /SdkworkBackendClient/);
+  assert.match(backendSdkDoc, /\/backend\/v3\/api\/control\/\*/);
+  assert.match(backendSdkDoc, /\/backend\/v3\/api\/admin\/\*/);
+  assert.match(backendSdkDoc, /Do not introduce a new admin SDK family/);
+  assert.doesNotMatch(backendSdkDoc, retiredSdkPattern('sdkwork', '-control', '-plane', '-sdk'));
+  assert.doesNotMatch(backendSdkDoc, retiredSdkPattern('sdkwork', '-im', '-admin', '-sdk'));
 });
 
-test('admin sdk overview documents assembly metadata and stable package-layer release semantics', () => {
-  const adminSdkDoc = readFileSync(path.join(docsRoot, 'sdk', 'control-plane-sdk.md'), 'utf8');
+test('rtc sdk overview documents independent provider runtime ownership', () => {
+  const rtcSdkDoc = readFileSync(path.join(docsRoot, 'sdk', 'rtc-sdk.md'), 'utf8');
 
-  assert.match(adminSdkDoc, /\.sdkwork-assembly\.json/);
-  assert.match(adminSdkDoc, /manifestPath/);
-  assert.match(adminSdkDoc, /generatedAt/);
-  assert.match(adminSdkDoc, /generated[\s\S]*composed/i);
-  assert.match(adminSdkDoc, /stable when assembly content is unchanged/i);
+  assert.match(rtcSdkDoc, /sdkwork-rtc-sdk/);
+  assert.match(rtcSdkDoc, /not generated from OpenAPI/);
+  assert.match(rtcSdkDoc, /provider package/);
+  assert.match(rtcSdkDoc, /native driver/);
+  assert.match(rtcSdkDoc, /verify-sdk\.mjs/);
 });
 
-test('admin TypeScript sdk docs describe flat client creation and the browser admin helper surface', () => {
-  const adminTypescriptDoc = readFileSync(
-    path.join(docsRoot, 'sdk', 'control-plane-typescript-sdk.md'),
-    'utf8',
-  );
-
-  assert.match(adminTypescriptDoc, /ControlPlaneSdkClient\.create\(\{\s*baseUrl:/);
-  assert.doesNotMatch(adminTypescriptDoc, /generatedConfig/);
-  assert.match(adminTypescriptDoc, /@sdkwork\/control-plane-sdk/);
-  assert.match(adminTypescriptDoc, /loginAdminUser/);
-  assert.match(adminTypescriptDoc, /\/api\/admin\/\*/);
-  assert.match(adminTypescriptDoc, /\/api-reference\/control-plane\/social/);
-  assert.match(adminTypescriptDoc, /\/api-reference\/control-plane\/social-runtime/);
-});
-
-test('admin Flutter sdk docs describe flat client creation and native Dart verification', () => {
-  const adminFlutterDoc = readFileSync(
-    path.join(docsRoot, 'sdk', 'control-plane-flutter-sdk.md'),
-    'utf8',
-  );
-
-  assert.match(adminFlutterDoc, /package:control_plane_sdk\/control_plane_sdk\.dart/);
-  assert.match(adminFlutterDoc, /ControlPlaneSdkClient\.create\(\s*baseUrl:/);
-  assert.doesNotMatch(adminFlutterDoc, /generatedConfig/);
-  assert.match(adminFlutterDoc, /verify-flutter-workspace\.mjs --with-dart/);
-  assert.match(adminFlutterDoc, /verify-flutter-dart-analysis\.dart/);
-  assert.match(adminFlutterDoc, /\/api-reference\/control-plane\/social/);
-  assert.match(adminFlutterDoc, /\/api-reference\/control-plane\/social-runtime/);
-});
-
-test('language support doc links to the dedicated admin TypeScript and Flutter SDK references', () => {
+test('language support doc links to the current app, backend, and RTC SDK references', () => {
   const languageSupportDoc = readFileSync(path.join(docsRoot, 'sdk', 'language-support.md'), 'utf8');
 
-  assert.match(languageSupportDoc, /\[Control-Plane TypeScript SDK\]\(\/sdk\/control-plane-typescript-sdk\)/);
-  assert.match(languageSupportDoc, /\[Control-Plane Flutter SDK\]\(\/sdk\/control-plane-flutter-sdk\)/);
+  assert.match(languageSupportDoc, /\[App API SDK\]\(\/sdk\/app-sdk\)/);
+  assert.match(languageSupportDoc, /\[Backend SDK\]\(\/sdk\/backend-sdk\)/);
+  assert.match(languageSupportDoc, /\[RTC SDK\]\(\/sdk\/rtc-sdk\)/);
+  assert.doesNotMatch(languageSupportDoc, retiredSdkPattern('control', '-plane', '-sdk'));
+  assert.doesNotMatch(languageSupportDoc, retiredSdkPattern('im', '-admin', '-sdk'));
 });
 
-test('control-plane overview documents admin sdk alignment and social domains', () => {
+test('control-plane overview documents backend sdk alignment and social domains', () => {
   const controlPlaneDoc = readFileSync(
     path.join(docsRoot, 'api-reference', 'control-plane-api.md'),
     'utf8',
@@ -175,29 +251,82 @@ test('control-plane overview documents admin sdk alignment and social domains', 
     controlPlaneDoc,
     /does not yet include a checked-in admin OpenAPI authority file/i,
   );
-  assert.match(controlPlaneDoc, /\/sdk\/control-plane-sdk/);
-  assert.match(controlPlaneDoc, /\/sdk\/control-plane-typescript-sdk/);
-  assert.match(controlPlaneDoc, /\/sdk\/control-plane-flutter-sdk/);
+  assert.match(controlPlaneDoc, /sdkwork-im-backend-sdk/);
+  assert.match(controlPlaneDoc, /\/sdk\/backend-sdk/);
   assert.match(controlPlaneDoc, /\/api-reference\/control-plane\/social/);
   assert.match(controlPlaneDoc, /\/api-reference\/control-plane\/social-runtime/);
+  assert.doesNotMatch(controlPlaneDoc, retiredSdkPattern('sdkwork', '-control', '-plane', '-sdk'));
 });
 
-test('cli docs describe admin sdk refresh, verification, and assembly commands', () => {
+test('api reference groups follow the im app backend authority split', () => {
+  const sidebarSource = readFileSync(
+    path.join(docsRoot, '.vitepress', 'api-reference-sidebar.mjs'),
+    'utf8',
+  );
+  const apiIndexDoc = readFileSync(path.join(docsRoot, 'api-reference', 'index.md'), 'utf8');
+  const appApiDoc = readFileSync(path.join(docsRoot, 'api-reference', 'app-api.md'), 'utf8');
+  const portalDoc = readFileSync(
+    path.join(docsRoot, 'api-reference', 'app', 'portal-access.md'),
+    'utf8',
+  );
+
+  assert.match(sidebarSource, /text:\s*"IM Standard API"/);
+  assert.match(sidebarSource, /text:\s*"App API"/);
+  assert.match(sidebarSource, /text:\s*"Backend API"/);
+  assert.doesNotMatch(sidebarSource, /text:\s*"Platform API"/);
+  assert.doesNotMatch(sidebarSource, /text:\s*"IoT API"/);
+
+  assert.match(apiIndexDoc, /IM Standard API/);
+  assert.match(apiIndexDoc, /App API/);
+  assert.match(apiIndexDoc, /Backend API/);
+  assert.doesNotMatch(apiIndexDoc, /Open Platform API overview/);
+  assert.doesNotMatch(apiIndexDoc, /Open IoT API overview/);
+
+  assert.match(appApiDoc, /\/app\/v3\/api\/\*/);
+  assert.match(appApiDoc, /sdkwork-im-app-sdk/);
+  assert.match(appApiDoc, /Portal Access/);
+  assert.match(appApiDoc, /Device Twin/);
+  assert.match(appApiDoc, /Notifications/);
+  assert.match(appApiDoc, /Automation/);
+  assert.match(appApiDoc, /Provider Health/);
+  assert.match(appApiDoc, /IoT Protocol/);
+  assert.doesNotMatch(appApiDoc, /Conversation Runtime/);
+  assert.doesNotMatch(appApiDoc, /Media and Streams/);
+  assert.doesNotMatch(appApiDoc, /Device Sessions and Realtime/);
+
+  const deviceTwinDoc = readFileSync(
+    path.join(docsRoot, 'api-reference', 'app', 'device-twin.md'),
+    'utf8',
+  );
+  assert.match(deviceTwinDoc, /\/app\/v3\/api\/devices\/\{deviceId\}\/twin/);
+  assert.match(deviceTwinDoc, /sdkwork-im-app-sdk/);
+  assert.doesNotMatch(deviceTwinDoc, /@sdkwork\/im-sdk/);
+  assert.doesNotMatch(deviceTwinDoc, /\/im\/v3\/api\/devices\/\{deviceId\}\/twin/);
+
+  assert.match(portalDoc, /\/app\/v3\/api\/portal\/access/);
+  assert.match(portalDoc, /sdkwork-im-app-sdk/);
+  assert.doesNotMatch(portalDoc, /@sdkwork\/im-sdk/);
+  assert.doesNotMatch(portalDoc, /\/im\/v3\/api\/portal\/access/);
+});
+
+test('cli docs describe boundary materialization and current SDK verification commands', () => {
   const cliDoc = readFileSync(path.join(docsRoot, 'reference', 'cli-and-scripts.md'), 'utf8');
 
-  assert.match(cliDoc, /sdkwork-control-plane-sdk/);
-  assert.match(cliDoc, /fetch-openapi-source\.mjs/);
-  assert.match(cliDoc, /prepare-openapi-source\.mjs/);
-  assert.match(cliDoc, /verify-sdk\.mjs --language typescript --language flutter/);
+  assert.match(cliDoc, /materialize-im-v3-openapi-boundaries\.mjs/);
+  assert.match(cliDoc, /sdkwork-im-app-sdk/);
+  assert.match(cliDoc, /sdkwork-im-backend-sdk/);
+  assert.match(cliDoc, /sdkwork-rtc-sdk/);
   assert.match(cliDoc, /\.sdkwork-assembly\.json/);
+  assert.doesNotMatch(cliDoc, retiredSdkPattern('sdkwork', '-control', '-plane', '-sdk'));
+  assert.doesNotMatch(cliDoc, retiredSdkPattern('sdkwork', '-im', '-admin', '-sdk'));
 });
 
 test('cli docs describe app sdk verification and assembly commands', () => {
   const cliDoc = readFileSync(path.join(docsRoot, 'reference', 'cli-and-scripts.md'), 'utf8');
 
   assert.match(cliDoc, /sdkwork-im-sdk/);
-  assert.match(cliDoc, /craw-chat-app\.sdkgen\.yaml/);
-  assert.match(cliDoc, /craw-chat-app\.flutter\.sdkgen\.yaml/);
+  assert.match(cliDoc, /craw-chat-im\.sdkgen\.yaml/);
+  assert.match(cliDoc, /craw-chat-im\.flutter\.sdkgen\.yaml/);
   assert.match(cliDoc, /node \.\\sdks\\sdkwork-im-sdk\\bin\\verify-sdk\.mjs/);
   assert.match(cliDoc, /\.sdkwork-assembly\.json/);
 });
@@ -210,7 +339,7 @@ test('typescript sdk guide documents package contract, assembly metadata, and ma
   assert.match(typescriptDoc, /Local Workspace Workflow/);
   assert.match(typescriptDoc, /What To Read Next/);
   assert.match(typescriptDoc, /@sdkwork\/im-sdk/);
-  assert.match(typescriptDoc, /@sdkwork-internal\/im-sdk-generated/);
+  assert.doesNotMatch(typescriptDoc, /@sdkwork-internal\/im-sdk-generated/);
   assert.doesNotMatch(typescriptDoc, /@sdkwork\/im-sdk-generated/);
   assert.match(typescriptDoc, /ImSdkClient/);
   assert.match(typescriptDoc, /generated\/server-openapi/);
@@ -222,10 +351,10 @@ test('typescript sdk guide documents package contract, assembly metadata, and ma
   assert.match(typescriptDoc, /verify-typescript-workspace\.mjs/);
   assert.match(typescriptDoc, /\/sdk\/app-sdk/);
   assert.match(typescriptDoc, /\/sdk\/language-support/);
-  assert.match(typescriptDoc, /\/api-reference\/app\/media/);
+  assert.match(typescriptDoc, /\/api-reference\/im\/media/);
 });
 
-test('sdk docs verifier enforces internal TypeScript generated package identity and forbids the unsupported public generated package identity', () => {
+test('sdk docs verifier forbids internal and unsupported generated TypeScript package identities', () => {
   const verifierSource = readFileSync(
     path.join(docsRoot, 'scripts', 'verify-sdk-docs.mjs'),
     'utf8',
@@ -257,7 +386,7 @@ test('flutter sdk guide documents current parity, assembly metadata, and local w
   assert.match(flutterDoc, /verify-sdk\.mjs --with-dart/);
   assert.match(flutterDoc, /\/sdk\/app-sdk/);
   assert.match(flutterDoc, /\/sdk\/language-support/);
-  assert.match(flutterDoc, /\/api-reference\/app\/media/);
+  assert.match(flutterDoc, /\/api-reference\/im\/media/);
 });
 
 test('rust quick start teaches the shipped ImSdkClient entrypoint', () => {
@@ -279,20 +408,20 @@ test('language support guide explains workspace boundaries, official package nam
   assert.match(languageSupportDoc, /\.sdkwork-assembly\.json/);
   assert.match(languageSupportDoc, /@sdkwork\/im-sdk/);
   assert.match(languageSupportDoc, /im_sdk/);
-  assert.match(languageSupportDoc, /@sdkwork\/control-plane-sdk/);
-  assert.match(languageSupportDoc, /control_plane_sdk/);
+  assert.match(languageSupportDoc, /sdkwork-im-app-sdk/);
+  assert.match(languageSupportDoc, /sdkwork-im-backend-sdk/);
+  assert.match(languageSupportDoc, /sdkwork-rtc-sdk/);
   assert.match(languageSupportDoc, /verify-sdk\.mjs/);
-  assert.match(languageSupportDoc, /not_published/);
   assert.match(languageSupportDoc, /\/sdk\/typescript-sdk/);
   assert.match(languageSupportDoc, /\/sdk\/flutter-sdk/);
-  assert.match(languageSupportDoc, /\/sdk\/control-plane-typescript-sdk/);
-  assert.match(languageSupportDoc, /\/sdk\/control-plane-flutter-sdk/);
+  assert.match(languageSupportDoc, /\/sdk\/backend-sdk/);
+  assert.match(languageSupportDoc, /\/sdk\/rtc-sdk/);
   assert.match(languageSupportDoc, /\/sdk\/app-sdk/);
 });
 
-test('admin sdk overview does not document generatedConfig as public create surface', () => {
-  const adminSdkDoc = readFileSync(path.join(docsRoot, 'sdk', 'control-plane-sdk.md'), 'utf8');
+test('backend sdk overview does not document generatedConfig as public create surface', () => {
+  const backendSdkDoc = readFileSync(path.join(docsRoot, 'sdk', 'backend-sdk.md'), 'utf8');
 
-  assert.doesNotMatch(adminSdkDoc, /generatedConfig/);
+  assert.doesNotMatch(backendSdkDoc, /generatedConfig/);
 });
 

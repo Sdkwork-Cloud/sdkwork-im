@@ -166,32 +166,32 @@
   - step: `docs/step/continuous-optimization-status-local-cmd-help-gnu-surface-contract-2026-04-09.md`
   - impl: `docs/架构/09BG-status-local-cmd-help-gnu-surface-contract-implementation-plan-2026-04-09.md`
   - design: `docs/架构/150BG-status-local-cmd-help-gnu-surface-contract-design-2026-04-09.md`
-- [continuous-optimization-user-module-runtime-provider-selection-2026-04-09](./continuous-optimization-user-module-runtime-provider-selection-2026-04-09.md)
+- [continuous-optimization-principal-profile-runtime-provider-selection-2026-04-09](./continuous-optimization-principal-profile-runtime-provider-selection-2026-04-09.md)
   - `Step 12`
-  - fix the runtime-selection drift where default app bootstrap could not choose `user-module-external`
-  - step: `docs/step/continuous-optimization-user-module-runtime-provider-selection-2026-04-09.md`
-  - impl: `docs/架构/09BH-user-module-runtime-provider-selection-implementation-plan-2026-04-09.md`
-  - design: `docs/架构/150BH-user-module-runtime-provider-selection-design-2026-04-09.md`
+  - fix the runtime-selection drift where default app bootstrap could not choose `principal-profile-external-catalog`
+  - step: `docs/step/continuous-optimization-principal-profile-runtime-provider-selection-2026-04-09.md`
+  - impl: `docs/架构/09BH-principal-profile-runtime-provider-selection-implementation-plan-2026-04-09.md`
+  - design: `docs/架构/150BH-principal-profile-runtime-provider-selection-design-2026-04-09.md`
 - [continuous-optimization-install-deploy-cmd-help-gnu-surface-contract-2026-04-09](./continuous-optimization-install-deploy-cmd-help-gnu-surface-contract-2026-04-09.md)
   - `Step 12`
   - close the remaining Windows help-surface drift for `install-local.cmd` and `deploy-local.cmd`
   - step: `docs/step/continuous-optimization-install-deploy-cmd-help-gnu-surface-contract-2026-04-09.md`
   - impl: `docs/架构/09BI-install-deploy-cmd-help-gnu-surface-contract-implementation-plan-2026-04-09.md`
   - design: `docs/架构/150BI-install-deploy-cmd-help-gnu-surface-contract-design-2026-04-09.md`
-- [continuous-optimization-user-module-external-missing-catalog-unavailable-contract-2026-04-09](./continuous-optimization-user-module-external-missing-catalog-unavailable-contract-2026-04-09.md)
+- [continuous-optimization-principal-profile-external-catalog-missing-catalog-unavailable-contract-2026-04-09](./continuous-optimization-principal-profile-external-catalog-missing-catalog-unavailable-contract-2026-04-09.md)
   - `Step 12`
-  - close the missing external user-module catalog-path drift where app assembly still panicked instead of returning structured unavailable semantics
-  - step: `docs/step/continuous-optimization-user-module-external-missing-catalog-unavailable-contract-2026-04-09.md`
-  - impl: `docs/架构/09BJ-user-module-external-missing-catalog-unavailable-contract-implementation-plan-2026-04-09.md`
-  - design: `docs/架构/150BJ-user-module-external-missing-catalog-unavailable-contract-design-2026-04-09.md`
+  - close the missing external principal-profile catalog-path drift where app assembly still panicked instead of returning structured unavailable semantics
+  - step: `docs/step/continuous-optimization-principal-profile-external-catalog-missing-catalog-unavailable-contract-2026-04-09.md`
+  - impl: `docs/架构/09BJ-principal-profile-external-catalog-missing-catalog-unavailable-contract-implementation-plan-2026-04-09.md`
+  - design: `docs/架构/150BJ-principal-profile-external-catalog-missing-catalog-unavailable-contract-design-2026-04-09.md`
 ## 2026-04-09 Addendum
 
-- [continuous-optimization-user-module-provider-health-http-surface-2026-04-09](./continuous-optimization-user-module-provider-health-http-surface-2026-04-09.md)
+- [continuous-optimization-principal-profile-provider-health-http-surface-2026-04-09](./continuous-optimization-principal-profile-provider-health-http-surface-2026-04-09.md)
   - `Step 12`
-  - close the missing operator-facing provider-health surface for `user-module`
-  - step: `docs/step/continuous-optimization-user-module-provider-health-http-surface-2026-04-09.md`
-  - impl: `docs/架构/09BK-user-module-provider-health-http-surface-implementation-plan-2026-04-09.md`
-  - design: `docs/架构/150BK-user-module-provider-health-http-surface-design-2026-04-09.md`
+  - close the missing operator-facing provider-health surface for `principal-profile`
+  - step: `docs/step/continuous-optimization-principal-profile-provider-health-http-surface-2026-04-09.md`
+  - impl: `docs/架构/09BK-principal-profile-provider-health-http-surface-implementation-plan-2026-04-09.md`
+  - design: `docs/架构/150BK-principal-profile-provider-health-http-surface-design-2026-04-09.md`
 ## 2026-04-09 Addendum
 
 - [continuous-optimization-local-minimal-ops-provider-bindings-runtime-visibility-2026-04-09](./continuous-optimization-local-minimal-ops-provider-bindings-runtime-visibility-2026-04-09.md)

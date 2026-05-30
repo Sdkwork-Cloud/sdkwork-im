@@ -10,12 +10,12 @@
   - `build_default_app_with_device_access_provider`
   - `build_default_app_with_runtime_dir_and_device_access_provider`
 - 默认运行时已真实装配 `im-adapter-iot-access-local::LocalDeviceAccessProvider`
-- `/api/v1/devices/register` 已真实调用：
+- `/im/v3/api/devices/register` 已真实调用：
   - `register_device`
   - `bind_owner`
 - 当前冻结的首次注册请求常量为：
   - `product_id = local-minimal-device`
-  - `credential_kind = session`
+  - `credential_kind = device_route`
 
 ## TDD 证据
 

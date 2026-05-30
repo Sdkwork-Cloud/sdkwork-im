@@ -1,0 +1,40 @@
+# sdkwork-im-backend-sdk
+
+Generator-owned TypeScript transport SDK for the Craw Chat backend/operator API.
+
+This package is generated transport. It targets `/backend/v3/api` and is not a login,
+user, tenant, organization, or account-session SDK. Those identity and token lifecycles are
+owned by `sdkwork-appbase`; this SDK only forwards the already validated dual-token context.
+
+## Install
+
+```bash
+npm install @sdkwork-internal/im-backend-api-generated
+```
+
+## Usage
+
+```typescript
+import { SdkworkBackendClient } from '@sdkwork-internal/im-backend-api-generated';
+
+const client = new SdkworkBackendClient({
+  baseUrl: 'http://127.0.0.1:18090',
+  authToken: appbaseAuthToken,
+  accessToken: appbaseAccessToken,
+});
+
+client.setAuthToken(appbaseAuthToken);
+client.setAccessToken(appbaseAccessToken);
+```
+
+## Token Boundary
+
+- `Authorization: Bearer <authToken>` carries the upstream authenticated principal context.
+- `Access-Token: <accessToken>` carries the upstream access token context.
+- Login, refresh, current-user, tenant, organization, and account-session APIs stay outside this package.
+
+## Regeneration Contract
+
+- Generated files are tracked by the SDK generator under `.sdkwork/`.
+- Fix runtime, OpenAPI, or family generator inputs first, then regenerate.
+- Hand-written application wrappers must live outside `generated/server-openapi`.

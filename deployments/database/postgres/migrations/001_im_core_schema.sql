@@ -188,6 +188,24 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_checkpoints_capacity_trimmed
     )
     WHERE capacity_trimmed_event_count > 0;
 
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_im_realtime_device_events_checkpoint'
+          AND conrelid = 'im_realtime_device_events'::regclass
+    ) THEN
+        ALTER TABLE im_realtime_device_events
+            ADD CONSTRAINT fk_im_realtime_device_events_checkpoint
+            FOREIGN KEY (tenant_id, device_scope_key)
+            REFERENCES im_realtime_checkpoints (tenant_id, device_scope_key)
+            ON DELETE CASCADE
+            DEFERRABLE INITIALLY DEFERRED
+            NOT VALID;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS im_realtime_subscriptions (
     tenant_id TEXT NOT NULL,
     device_scope_key TEXT NOT NULL,

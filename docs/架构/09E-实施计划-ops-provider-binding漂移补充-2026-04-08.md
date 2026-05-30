@@ -8,7 +8,7 @@
 ## 实施范围
 
 1. `OpsRuntime` 基于已镜像的 provider binding 快照计算 drift 视图
-2. `ops-service` 新增 `GET /api/v1/ops/provider-bindings/drift`
+2. `ops-service` 新增 `GET /backend/v3/api/ops/provider_bindings/drift`
 3. `diagnostic bundle` 携带 `providerBindingDrift`
 4. `public auth` 继续要求 `ops.read`
 

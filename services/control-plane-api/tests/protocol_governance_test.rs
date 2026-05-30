@@ -11,11 +11,11 @@ async fn test_control_plane_exposes_protocol_governance_snapshot_to_control_read
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/protocol-governance")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/protocol_governance")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -68,20 +68,28 @@ async fn test_control_plane_exposes_protocol_governance_snapshot_to_control_read
         .as_object()
         .expect("protocol governance should expose sdk compatibility baseline");
     assert_eq!(
-        sdk_compatibility_baseline["appSdkFacade"],
+        sdk_compatibility_baseline["imSdkFamily"],
         serde_json::json!("sdkwork-im-sdk")
     );
     assert_eq!(
-        sdk_compatibility_baseline["adminSdkFacade"],
-        serde_json::json!("sdkwork-control-plane-sdk")
+        sdk_compatibility_baseline["appSdkFamily"],
+        serde_json::json!("sdkwork-im-app-sdk")
+    );
+    assert_eq!(
+        sdk_compatibility_baseline["backendSdkFamily"],
+        serde_json::json!("sdkwork-im-backend-sdk")
+    );
+    assert_eq!(
+        sdk_compatibility_baseline["rtcSdkFamily"],
+        serde_json::json!("sdkwork-rtc-sdk")
     );
     assert_eq!(
         sdk_compatibility_baseline["protocolRegistryPath"],
-        serde_json::json!("/api/v1/control/protocol-registry")
+        serde_json::json!("/backend/v3/api/control/protocol_registry")
     );
     assert_eq!(
         sdk_compatibility_baseline["protocolGovernancePath"],
-        serde_json::json!("/api/v1/control/protocol-governance")
+        serde_json::json!("/backend/v3/api/control/protocol_governance")
     );
     assert_eq!(
         sdk_compatibility_baseline["matrixClientTypes"],

@@ -10,7 +10,7 @@
 
 `07-C` 已完成：
 
-- `GET /api/v1/ops/provider-bindings`
+- `GET /backend/v3/api/ops/provider_bindings`
 - `providerBindings`
 - `control-plane -> OpsRuntime -> ops-service` 的镜像快照链路
 
@@ -28,7 +28,7 @@
   - `ProviderBindingDriftView`
 - `OpsRuntime` 新增：
   - `provider_binding_drift_view()`
-- `ops-service` 新增 `GET /api/v1/ops/provider-bindings/drift`
+- `ops-service` 新增 `GET /backend/v3/api/ops/provider_bindings/drift`
 - `diagnostic bundle` 新增 `providerBindingDrift`
 - drift 基线固定为全局 snapshot（`tenantId = null`）
 - drift 语义冻结为：

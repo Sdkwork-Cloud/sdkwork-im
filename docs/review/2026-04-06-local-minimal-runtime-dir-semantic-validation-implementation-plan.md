@@ -4,7 +4,7 @@
 
 **Goal:** Upgrade managed `local-minimal` runtime-dir inspection from generic JSON parseability to typed semantic validation so operator tooling can detect structurally valid but operationally invalid persistence files before restart or repair.
 
-**Architecture:** Keep Standard 102's inspection surface stable while strengthening how each file is validated. The local-disk adapter layer provides typed validation for each file family, and `local-minimal-node` uses those validators when building `/api/v1/ops/runtime-dir` and CLI inspection output. `commit-journal.json` receives a deeper validation path by loading envelopes and replay-checking them against the same runtime semantics that startup depends on.
+**Architecture:** Keep Standard 102's inspection surface stable while strengthening how each file is validated. The local-disk adapter layer provides typed validation for each file family, and `local-minimal-node` uses those validators when building `/backend/v3/api/ops/runtime_dir` and CLI inspection output. `commit-journal.json` receives a deeper validation path by loading envelopes and replay-checking them against the same runtime semantics that startup depends on.
 
 **Tech Stack:** Rust, Axum, serde/serde_json, existing `im-adapters-local-disk` typed record formats, `conversation-runtime`, `projection-service`, existing runtime-dir inspection endpoint and script surfaces.
 
@@ -93,7 +93,7 @@ Run: `cargo test -p local-minimal-node --offline --test runtime_dir_inspection_t
 
 - [ ] **Step 1: Verify the endpoint contract remains stable**
 
-Keep `/api/v1/ops/runtime-dir` and lifecycle scripts backward-compatible.
+Keep `/backend/v3/api/ops/runtime_dir` and lifecycle scripts backward-compatible.
 
 - [ ] **Step 2: Run targeted regression commands**
 

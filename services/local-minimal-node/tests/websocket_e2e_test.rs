@@ -61,12 +61,12 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -85,12 +85,12 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_ws_realtime/members/add")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
+                .uri("/im/v3/api/chat/conversations/c_ws_realtime/members/add")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -105,27 +105,27 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
         .expect("add member should succeed");
     assert_eq!(add_member.status(), StatusCode::OK);
 
-    let mut request = format!("ws://{address}/api/v1/realtime/ws")
+    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
         .into_client_request()
         .expect("websocket request should build");
     request.headers_mut().insert(
-        "x-tenant-id",
+        "x-sdkwork-tenant-id",
         "t_demo".parse().expect("tenant header should parse"),
     );
     request.headers_mut().insert(
-        "x-user-id",
+        "x-sdkwork-user-id",
         "u_other_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
-        "x-actor-kind",
+        "x-sdkwork-actor-kind",
         "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
-        "x-session-id",
+        "x-sdkwork-session-id",
         "s_other".parse().expect("session header should parse"),
     );
     request.headers_mut().insert(
-        "x-device-id",
+        "x-sdkwork-device-id",
         "d_other".parse().expect("device header should parse"),
     );
     let (mut socket, _) = connect_async(request)
@@ -164,12 +164,12 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_ws_realtime/messages")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
+                .uri("/im/v3/api/chat/conversations/c_ws_realtime/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -232,12 +232,12 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
     let realtime_events = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_other_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_other")
-                .header("x-session-id", "s_other")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_other")
+                .header("x-sdkwork-session-id", "s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -266,27 +266,27 @@ async fn test_local_minimal_profile_closes_realtime_websocket_when_session_disco
     let app = local_minimal_node::build_default_app();
     let (address, handle) = spawn_server(app.clone()).await;
 
-    let mut request = format!("ws://{address}/api/v1/realtime/ws")
+    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
         .into_client_request()
         .expect("websocket request should build");
     request.headers_mut().insert(
-        "x-tenant-id",
+        "x-sdkwork-tenant-id",
         "t_demo".parse().expect("tenant header should parse"),
     );
     request.headers_mut().insert(
-        "x-user-id",
+        "x-sdkwork-user-id",
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
-        "x-actor-kind",
+        "x-sdkwork-actor-kind",
         "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
-        "x-session-id",
+        "x-sdkwork-session-id",
         "s_pad".parse().expect("session header should parse"),
     );
     request.headers_mut().insert(
-        "x-device-id",
+        "x-sdkwork-device-id",
         "d_pad".parse().expect("device header should parse"),
     );
 
@@ -301,12 +301,12 @@ async fn test_local_minimal_profile_closes_realtime_websocket_when_session_disco
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/disconnect")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_pad")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/device/sessions/disconnect")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_pad")
+                .header("x-sdkwork-device-id", "d_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -346,12 +346,12 @@ async fn test_local_minimal_profile_pushes_agent_handoff_lifecycle_events_over_w
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/agent-handoffs")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "ag_source")
-                .header("x-actor-kind", "agent")
-                .header("x-device-id", "d_agent")
-                .header("x-session-id", "s_agent")
+                .uri("/im/v3/api/chat/conversations/agent_handoffs")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "ag_source")
+                .header("x-sdkwork-actor-kind", "agent")
+                .header("x-sdkwork-device-id", "d_agent")
+                .header("x-sdkwork-session-id", "s_agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -368,27 +368,27 @@ async fn test_local_minimal_profile_pushes_agent_handoff_lifecycle_events_over_w
         .expect("create agent handoff should succeed");
     assert_eq!(create_handoff.status(), StatusCode::OK);
 
-    let mut request = format!("ws://{address}/api/v1/realtime/ws")
+    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
         .into_client_request()
         .expect("websocket request should build");
     request.headers_mut().insert(
-        "x-tenant-id",
+        "x-sdkwork-tenant-id",
         "t_demo".parse().expect("tenant header should parse"),
     );
     request.headers_mut().insert(
-        "x-user-id",
+        "x-sdkwork-user-id",
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
-        "x-actor-kind",
+        "x-sdkwork-actor-kind",
         "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
-        "x-session-id",
+        "x-sdkwork-session-id",
         "s_pad".parse().expect("session header should parse"),
     );
     request.headers_mut().insert(
-        "x-device-id",
+        "x-sdkwork-device-id",
         "d_pad".parse().expect("device header should parse"),
     );
     let (mut socket, _) = connect_async(request)
@@ -427,12 +427,12 @@ async fn test_local_minimal_profile_pushes_agent_handoff_lifecycle_events_over_w
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_ws_handoff/agent-handoff/accept")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
-                .header("x-session-id", "s_phone")
+                .uri("/im/v3/api/chat/conversations/c_ws_handoff/agent_handoff/accept")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("x-sdkwork-session-id", "s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -484,12 +484,12 @@ async fn test_local_minimal_profile_pushes_member_joined_events_over_websocket()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -503,27 +503,27 @@ async fn test_local_minimal_profile_pushes_member_joined_events_over_websocket()
         .expect("create conversation should succeed");
     assert_eq!(create_conversation.status(), StatusCode::OK);
 
-    let mut request = format!("ws://{address}/api/v1/realtime/ws")
+    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
         .into_client_request()
         .expect("websocket request should build");
     request.headers_mut().insert(
-        "x-tenant-id",
+        "x-sdkwork-tenant-id",
         "t_demo".parse().expect("tenant header should parse"),
     );
     request.headers_mut().insert(
-        "x-user-id",
+        "x-sdkwork-user-id",
         "u_demo".parse().expect("user header should parse"),
     );
     request.headers_mut().insert(
-        "x-actor-kind",
+        "x-sdkwork-actor-kind",
         "user".parse().expect("actor kind header should parse"),
     );
     request.headers_mut().insert(
-        "x-session-id",
+        "x-sdkwork-session-id",
         "s_pad".parse().expect("session header should parse"),
     );
     request.headers_mut().insert(
-        "x-device-id",
+        "x-sdkwork-device-id",
         "d_pad".parse().expect("device header should parse"),
     );
     let (mut socket, _) = connect_async(request)
@@ -562,12 +562,12 @@ async fn test_local_minimal_profile_pushes_member_joined_events_over_websocket()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_ws_member_events/members/add")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_owner")
-                .header("x-session-id", "s_owner")
+                .uri("/im/v3/api/chat/conversations/c_ws_member_events/members/add")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

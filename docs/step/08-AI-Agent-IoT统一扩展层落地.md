@@ -319,12 +319,12 @@ IoT 必须采用双层抽象：
   - `build_default_app_with_runtime_dir_and_device_access_provider`
 - 默认运行时已真实装配 `iot-access-local`
 - `LocalNodeDeviceRegistration` 已真实消费 `DeviceAccessProvider`
-- `/api/v1/devices/register` 已真实调用：
+- `/im/v3/api/devices/register` 已真实调用：
   - `register_device`
   - `bind_owner`
 - 当前第一次注册冻结参数：
   - `product_id = local-minimal-device`
-  - `credential_kind = session`
+  - `credential_kind = device_route`
 - provider 调用只在“projection 中尚无该 device”时触发，避免 heartbeat / realtime route preflight 重复触发外部设备接入逻辑
 - Step 08 / `08-E`
   - IoT 线已从“只有 DeviceAccessProvider baseline”推进到“local-minimal-node 真实运行时注入闭环”
@@ -336,17 +336,17 @@ IoT 必须采用双层抽象：
   - `build_app_with_cluster_and_device_access_provider`
 - 默认 runtime 已真实装配 `im-adapter-iot-access-local::LocalDeviceAccessProvider`
 - `SessionDeviceRegistration` 现在是 `session-gateway` 中 `DeviceAccessProvider` 的唯一消费点
-- `POST /api/v1/sessions/resume` 已真实调用：
+- `POST /im/v3/api/device/sessions/resume` 已真实调用：
   - `register_device`
   - `bind_owner`
 - provider 调用顺序已冻结为：
   - `resume`
-  - `SessionSyncState::has_registered_device`
+  - `DeviceSyncState::has_registered_device`
   - 首次注册时 `register_device / bind_owner`
   - presence / realtime / session-state / route bind
 - 当前 `session-gateway` 冻结的 provider 请求常量为：
   - `product_id = session-gateway-device`
-  - `credential_kind = session`
+  - `credential_kind = device_route`
 - heartbeat / realtime route preflight 不再重复触发 provider 注册/绑定
 - Step 08 / `08-F`
   - `local-minimal-node + session-gateway` 的 `DeviceAccessProvider` 运行时注入已形成真实闭环
@@ -354,7 +354,7 @@ IoT 必须采用双层抽象：
 
 ## 17. 2026-04-09 As-Built（IoT access provider health HTTP surface）
 - `local-minimal-node` 已新增：
-  - `GET /api/v1/iot/access/provider-health`
+  - `GET /backend/v3/api/iot/access/provider_health`
 - 该路由已真实返回当前注入的：
   - `DeviceAccessProvider::provider_health_snapshot()`
 - 当前默认 `iot-access-local` 已具备直接 HTTP 可见性：

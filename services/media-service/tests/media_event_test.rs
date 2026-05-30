@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_core::media::{MediaResource, MediaResourceType};
 use im_domain_events::{AggregateType, CommitEnvelope};
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
@@ -31,7 +31,7 @@ impl CommitJournal for RecordingJournal {
 fn test_complete_upload_appends_media_asset_created_event() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = media_service::MediaRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -117,7 +117,7 @@ fn test_complete_upload_appends_media_asset_created_event() {
 fn test_media_asset_created_events_use_distinct_commit_timestamps() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = media_service::MediaRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),

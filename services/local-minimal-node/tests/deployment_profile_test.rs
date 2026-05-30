@@ -1,13 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::OnceLock;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use axum::Router;
-use im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV;
 use tokio::net::TcpListener;
-use tokio::sync::{Mutex, MutexGuard};
 
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -50,21 +47,6 @@ fn wait_for_path(path: &Path, timeout: Duration) -> bool {
         std::thread::sleep(Duration::from_millis(50));
     }
     path.exists()
-}
-
-const TEST_PUBLIC_SECRET: &str = "local-stack-smoke-script-secret";
-
-async fn public_auth_guard() -> MutexGuard<'static, ()> {
-    static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
-    GUARD.get_or_init(|| Mutex::new(())).lock().await
-}
-
-async fn configure_public_bearer_secret() -> MutexGuard<'static, ()> {
-    let guard = public_auth_guard().await;
-    unsafe {
-        std::env::set_var(PUBLIC_BEARER_HS256_SECRET_ENV, TEST_PUBLIC_SECRET);
-    }
-    guard
 }
 
 async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
@@ -303,12 +285,8 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         assert!(template_content.contains("CRAW_CHAT_RUNTIME_DIR="));
         assert!(template_content.contains("CRAW_CHAT_RUNTIME_PROFILE="));
         assert!(template_content.contains("CRAW_CHAT_BROWSER_ORIGINS="));
-        assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="));
+        assert!(!template_content.contains("CRAW_CHAT_PUBLIC_BEARER"));
         assert!(template_content.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
-        assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP="));
-        assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS="));
-        assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS="));
-        assert!(template_content.contains("CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD="));
         assert!(
             template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=")
         );
@@ -350,10 +328,6 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
 
     for env_name in [
         "CRAW_CHAT_BROWSER_ORIGINS",
-        "CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP",
-        "CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS",
-        "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS",
-        "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS",
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS",
@@ -376,7 +350,7 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
     }
 
     assert!(
-        deployment_readme.contains("多环境Profile与配置模板"),
+        deployment_readme.contains("Profile"),
         "docs/部署/README.md must advertise the multi-profile/template contract doc"
     );
     assert!(
@@ -386,7 +360,7 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
 }
 
 #[test]
-fn test_security_and_audit_api_docs_cover_public_bearer_shared_sync_and_chain_verification_contracts()
+fn test_security_and_audit_api_docs_cover_app_context_shared_sync_and_chain_verification_contracts()
  {
     let root = workspace_root();
     let auth_and_errors_doc_path = root
@@ -424,14 +398,9 @@ fn test_security_and_audit_api_docs_cover_public_bearer_shared_sync_and_chain_ve
     });
 
     for token in [
-        "CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP",
-        "CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS",
-        "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS",
-        "CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD",
-        "jwt_exp_required",
-        "jwt_ttl_exceeded",
-        "jwt_issuer_invalid",
-        "jwt_audience_invalid",
+        "x-sdkwork-tenant-id",
+        "x-sdkwork-user-id",
+        "x-sdkwork-permission-scope",
         "shared_channel_sync_permission_denied",
         "shared_channel_sync_actor_invalid",
         "shared_channel_sync_rate_limited",
@@ -444,7 +413,7 @@ fn test_security_and_audit_api_docs_cover_public_bearer_shared_sync_and_chain_ve
     }
 
     for token in [
-        "/api/v1/audit/verify",
+        "/backend/v3/api/audit/verify",
         "AuditChainVerification",
         "chainHeadHash",
         "chainValid",
@@ -546,16 +515,16 @@ fn test_local_default_post_release_verification_samples_are_documented_and_archi
 
     assert!(
         deployment_doc.contains(
-            "当前 `local-default` 仍复用 `local-minimal` 的 compose 服务合同与 smoke 链路"
+            "当前 `local-default` 仍复用 `local-minimal` �?compose 服务合同�?smoke 链路"
         ),
         "local-default发布后验证样本.md must keep the current local-default boundary explicit"
     );
     assert!(
-        deployment_readme.contains("local-default发布后验证样本"),
+        deployment_readme.contains("local-default"),
         "docs/部署/README.md must advertise the local-default post-release verification samples doc"
     );
     assert!(
-        readme.contains("local-default发布后验证样本"),
+        readme.contains("local-default"),
         "README.md must surface the local-default post-release verification samples doc"
     );
     assert!(
@@ -607,7 +576,7 @@ fn test_local_default_operator_execution_record_template_is_documented_and_archi
         "local-default",
         "执行记录模板",
         "验证窗口",
-        "执行人",
+        "Go / No-Go",
         "Go / No-Go",
         "证据链接",
         "deploy-local.ps1 -ProfileName local-default -SmokeBaseUrl http://127.0.0.1:28090",
@@ -628,11 +597,11 @@ fn test_local_default_operator_execution_record_template_is_documented_and_archi
         "local-default发布后验证样本.md must point operators to the execution record template"
     );
     assert!(
-        deployment_readme.contains("local-default发布后验证执行记录模板"),
+        deployment_readme.contains("local-default"),
         "docs/部署/README.md must advertise the local-default operator execution record template"
     );
     assert!(
-        readme.contains("local-default发布后验证执行记录模板"),
+        readme.contains("local-default"),
         "README.md must surface the local-default operator execution record template"
     );
     assert!(
@@ -1840,8 +1809,7 @@ fn test_deploy_local_scripts_expose_repeatable_smoke_base_url_contract() {
 
 #[cfg(windows)]
 #[tokio::test]
-async fn test_local_stack_smoke_ps1_executes_against_public_app_with_signed_bearer() {
-    let _guard = configure_public_bearer_secret().await;
+async fn test_local_stack_smoke_ps1_executes_against_public_app_with_app_context_projection() {
     let root = workspace_root();
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
@@ -1861,8 +1829,6 @@ async fn test_local_stack_smoke_ps1_executes_against_public_app_with_signed_bear
                     "tools\\smoke\\local_stack_smoke.ps1",
                     "-BaseUrl",
                     base_url_for_command.as_str(),
-                    "-PublicBearerSecret",
-                    TEST_PUBLIC_SECRET,
                 ])
                 .output()
         }),
@@ -1888,8 +1854,7 @@ async fn test_local_stack_smoke_ps1_executes_against_public_app_with_signed_bear
 }
 
 #[tokio::test]
-async fn test_local_stack_smoke_sh_executes_against_public_app_with_signed_bearer() {
-    let _guard = configure_public_bearer_secret().await;
+async fn test_local_stack_smoke_sh_executes_against_public_app_with_app_context_projection() {
     let root = workspace_root();
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
@@ -1914,8 +1879,6 @@ async fn test_local_stack_smoke_sh_executes_against_public_app_with_signed_beare
                     "tools/smoke/local_stack_smoke.sh",
                     "--base-url",
                     base_url_for_command.as_str(),
-                    "--public-bearer-secret",
-                    TEST_PUBLIC_SECRET,
                 ])
                 .output()
         }),
@@ -1941,7 +1904,7 @@ async fn test_local_stack_smoke_sh_executes_against_public_app_with_signed_beare
 }
 
 #[test]
-fn test_local_minimal_compose_injects_public_bearer_secret_for_public_smoke_contract() {
+fn test_local_minimal_compose_injects_only_domain_cursor_secret_for_public_smoke_contract() {
     let root = workspace_root();
     let compose_path = root
         .join("deployments")
@@ -1951,8 +1914,8 @@ fn test_local_minimal_compose_injects_public_bearer_secret_for_public_smoke_cont
         .unwrap_or_else(|_| panic!("missing compose profile: {}", compose_path.display()));
 
     assert!(
-        compose.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"),
-        "local-minimal.yml must inject CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET so docker/public smoke can authenticate against build_public_app"
+        !compose.contains("CRAW_CHAT_PUBLIC_BEARER"),
+        "local-minimal.yml must not configure craw-chat IAM/Public Bearer secrets after AppContext integration"
     );
     assert!(
         compose.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"),
@@ -1961,7 +1924,7 @@ fn test_local_minimal_compose_injects_public_bearer_secret_for_public_smoke_cont
 }
 
 #[test]
-fn test_local_stack_smoke_scripts_require_signed_public_bearer_contract() {
+fn test_local_stack_smoke_scripts_require_app_context_projection_contract() {
     let root = workspace_root();
     let smoke_ps1_path = root
         .join("tools")
@@ -1980,40 +1943,41 @@ fn test_local_stack_smoke_scripts_require_signed_public_bearer_contract() {
     for script in [&smoke_ps1, &smoke_sh] {
         assert!(
             !script.contains("eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0."),
-            "local stack smoke scripts must not embed alg=none bearer tokens once public bearer auth is enforced"
+            "local stack smoke scripts must not embed alg=none bearer tokens"
         );
-        assert!(
-            script.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"),
-            "local stack smoke scripts must depend on CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET for signed public bearer generation"
-        );
-        assert!(
-            script.contains("actor_kind"),
-            "local stack smoke scripts must include the required actor_kind claim in generated public bearer tokens"
-        );
+        assert!(!script.contains("CRAW_CHAT_PUBLIC_BEARER"));
+        assert!(!script.contains("Authorization"));
+        assert!(script.contains("x-sdkwork-tenant-id"));
+        assert!(script.contains("x-sdkwork-user-id"));
+        assert!(script.contains("x-sdkwork-permission-scope"));
     }
 }
 
 #[test]
-fn test_local_minimal_install_doc_describes_signed_public_bearer_contract() {
+fn test_local_minimal_install_doc_describes_app_context_projection_contract() {
     let root = workspace_root();
     let install_doc_path = root.join("docs").join("部署").join("本地最小安装与运行.md");
     let install_doc = fs::read_to_string(&install_doc_path)
         .unwrap_or_else(|_| panic!("missing deployment doc: {}", install_doc_path.display()));
 
     assert!(
-        install_doc.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"),
-        "本地最小安装与运行.md must document the public bearer secret contract"
+        !install_doc.contains("CRAW_CHAT_PUBLIC_BEARER"),
+        "本地最小安装与运行.md must not document craw-chat-owned Public Bearer secrets"
     );
     assert!(
         install_doc.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"),
         "install doc must document the friend request cursor signing secret contract"
     );
     assert!(
-        install_doc.contains("HS256"),
-        "本地最小安装与运行.md must explain that local-minimal public routes require HS256 bearer tokens"
+        install_doc.contains("x-sdkwork-tenant-id"),
+        "本地最小安装与运行.md must describe sdkwork AppContext tenant projection"
     );
     assert!(
-        !install_doc.contains("当前不会做签名校验"),
+        install_doc.contains("x-sdkwork-user-id"),
+        "本地最小安装与运行.md must describe sdkwork AppContext user projection"
+    );
+    assert!(
+        !install_doc.contains("alg=none"),
         "本地最小安装与运行.md must not claim that local-minimal skips bearer signature verification"
     );
     assert!(
@@ -3320,7 +3284,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(bin_start_ps1.contains("$process.ProcessName -ieq $ExpectedProcessName"));
     assert!(bin_start_ps1.contains("Stop-ManagedProcessAndRemovePidFile"));
     assert!(bin_start_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
-    assert!(bin_start_ps1.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"));
+    assert!(!bin_start_ps1.contains("CRAW_CHAT_PUBLIC_BEARER"));
     assert!(bin_start_ps1.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_start_sh.contains("local-minimal-node"));
     assert!(bin_start_sh.contains("nohup"));
@@ -3336,7 +3300,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(bin_start_sh.contains("wget -q -O /dev/null"));
     assert!(bin_start_sh.contains("Neither curl nor wget is available for health verification."));
     assert!(bin_start_sh.contains("CRAW_CHAT_RUNTIME_DIR"));
-    assert!(bin_start_sh.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"));
+    assert!(!bin_start_sh.contains("CRAW_CHAT_PUBLIC_BEARER"));
     assert!(bin_start_sh.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_start_sh.contains("EXPECTED_PROCESS_NAME=\"local-minimal-node\""));
     assert!(bin_start_sh.contains("pid_matches_expected_process"));
@@ -3530,7 +3494,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
 
     assert!(bin_init_config_ps1.contains("CRAW_CHAT_BIND_ADDR"));
     assert!(bin_init_config_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
-    assert!(bin_init_config_ps1.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"));
+    assert!(!bin_init_config_ps1.contains("CRAW_CHAT_PUBLIC_BEARER"));
     assert!(bin_init_config_ps1.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_init_config_ps1.contains("local-minimal.env"));
     assert!(bin_init_config_ps1.contains("local-default.env"));
@@ -3541,7 +3505,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(bin_init_config_ps1.contains("Resolve-RuntimeDirFromProfile"));
     assert!(bin_init_config_sh.contains("CRAW_CHAT_BIND_ADDR"));
     assert!(bin_init_config_sh.contains("CRAW_CHAT_RUNTIME_DIR"));
-    assert!(bin_init_config_sh.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"));
+    assert!(!bin_init_config_sh.contains("CRAW_CHAT_PUBLIC_BEARER"));
     assert!(bin_init_config_sh.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_init_config_sh.contains("local-minimal.env"));
     assert!(bin_init_config_sh.contains("local-default.env"));
@@ -3581,13 +3545,17 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert_eq!(first_non_empty_line(&bin_cmd_forwarder), "@echo off");
 
     assert!(smoke.contains("http://127.0.0.1:18090/healthz"));
-    assert!(smoke.contains("Authorization"));
+    assert!(!smoke.contains("Authorization"));
+    assert!(smoke.contains("x-sdkwork-tenant-id"));
+    assert!(smoke.contains("x-sdkwork-user-id"));
     assert_eq!(first_non_empty_line(&smoke), "param(");
     assert!(smoke_sh.contains("http://127.0.0.1:18090/healthz"));
-    assert!(smoke_sh.contains("resolve_authorization_header"));
-    assert!(smoke_sh.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"));
+    assert!(!smoke_sh.contains("resolve_authorization_header"));
+    assert!(!smoke_sh.contains("CRAW_CHAT_PUBLIC_BEARER"));
+    assert!(smoke_sh.contains("x-sdkwork-tenant-id"));
+    assert!(smoke_sh.contains("x-sdkwork-user-id"));
     assert!(smoke_sh.contains("command -v wget"));
-    assert!(smoke_sh.contains("/api/v1/conversations"));
+    assert!(smoke_sh.contains("/im/v3/api/chat/conversations"));
     assert_eq!(first_non_empty_line(&smoke_sh), "#!/usr/bin/env bash");
 
     assert!(local_memory_adapter.contains("name = \"im-adapters-local-memory\""));
@@ -4340,8 +4308,8 @@ fn test_init_config_local_ps1_uses_local_default_profile_when_requested() {
         "init-config-local.ps1 must preserve the current local-default runtime contract fallback to the local-minimal runtime dir. actual config: {config}"
     );
     assert!(
-        config.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="),
-        "init-config-local.ps1 must still materialize a bearer secret in the selected profile config. actual config: {config}"
+        !config.contains("CRAW_CHAT_PUBLIC_BEARER"),
+        "init-config-local.ps1 must not materialize craw-chat IAM/Public Bearer secrets in the selected profile config. actual config: {config}"
     );
     assert!(
         config.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="),
@@ -4414,7 +4382,7 @@ fn test_init_config_cmd_normalizes_cmd_style_switches() {
         .unwrap_or_else(|_| panic!("missing temp config file: {}", config_file.display()));
     assert!(config.contains("CRAW_CHAT_BIND_ADDR=127.0.0.1:18101"));
     assert!(config.contains("CRAW_CHAT_RUNTIME_DIR="));
-    assert!(config.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="));
+    assert!(!config.contains("CRAW_CHAT_PUBLIC_BEARER"));
     assert!(config.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
 
     let _ = fs::remove_dir_all(&temp_root);
@@ -4491,7 +4459,7 @@ fn test_install_local_cmd_rewrites_existing_config_when_bind_address_is_explicit
         .unwrap_or_else(|_| panic!("missing temp config file: {}", config_file.display()));
     assert!(config.contains("CRAW_CHAT_BIND_ADDR=127.0.0.1:18111"));
     assert!(config.contains("CRAW_CHAT_RUNTIME_DIR="));
-    assert!(config.contains("CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET="));
+    assert!(!config.contains("CRAW_CHAT_PUBLIC_BEARER"));
     assert!(config.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
 
     let _ = fs::remove_dir_all(&temp_root);

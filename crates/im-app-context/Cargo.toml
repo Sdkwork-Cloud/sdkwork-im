@@ -1,0 +1,9 @@
+[package]
+name = "im-app-context"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+craw-chat-ccp-core = { path = "../craw-chat-ccp-core" }

@@ -1,428 +1,78 @@
-# App SDK
+# App API SDK
 
-The app SDK family is the consumer-facing SDK surface for the public Craw Chat application runtime.
+`sdkwork-im-app-sdk` is the generated HTTP SDK family for app-business and non-management APIs
+under `/app/v3/api/*`.
 
-It is responsible for:
+It is separate from `sdkwork-im-sdk`. Use `sdkwork-im-sdk` for standardized IM development and
+semantic product integrations. Use `sdkwork-im-app-sdk` when you need route-aligned generated
+transport for app-business APIs outside the standardized IM SDK surface.
 
-- authentication and session identity
-- conversations and outbound messages
-- media upload and attachment
-- live realtime receive
-- durable catch-up and ACK
-- RTC lifecycle and signaling
+## Owns
 
-## Choose This Family When
-
-- you are building a browser or Node.js app runtime and need the strongest checked-in semantic SDK
-- you are building a Flutter app runtime and want the route-aligned Dart surface above the
-  generated package
-- you need app-facing auth, portal, message, media, realtime, or RTC workflows
-- you want to start from a product-facing SDK instead of raw route-group transport
-
-## Do Not Start Here When
-
-- you only need a generated transport artifact for a non-TypeScript language and do not need a
-  checked-in semantic client yet
-- you are building governance or control-plane tooling
-- you are documenting or automating protocol registry, provider policy, or node lifecycle flows
-- you are looking for the admin surface
-
-Use [Control-Plane SDK](/sdk/control-plane-sdk) for governance or control-plane tooling.
-
-## Fastest Onboarding
-
-For a new integration, read the app SDK pages in this order:
-
-1. [Auth and Client Init](/sdk/auth-and-client-init)
-2. one language quick start:
-   [TypeScript](/sdk/typescript-quick-start),
-   [Flutter](/sdk/flutter-quick-start),
-   [Rust](/sdk/rust-quick-start)
-3. [Module Map](/sdk/module-map)
-4. the capability pages under `/sdk/modules/`
-5. the matching route-level API reference pages when you need exact DTOs or statuses
-
-## Workspace Standard
-
-| Layer | Current standard |
+| Boundary | Standard |
 | --- | --- |
-| SDK workspace root | `sdks/sdkwork-im-sdk` |
-| Live schema export | `/openapi/craw-chat-app.openapi.yaml` |
-| Authority snapshot | `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml` |
-| Official consumer package | `@sdkwork/im-sdk` |
-| Internal generated layer | assembled from generator-owned `generated/server-openapi` input |
-| TypeScript consumer package | `@sdkwork/im-sdk` |
-| Flutter consumer package | `im_sdk` |
-| Rust generated crate | `sdkwork-im-sdk-generated` |
-| Primary app-facing client today | `ImSdkClient` in TypeScript |
-| Generator-owned authoring source | `generated/server-openapi` |
-| Manual-owned semantic boundary | `composed`, except the assembled TypeScript root package that exposes generated transport under `src/generated/**` |
+| SDK workspace root | `sdks/sdkwork-im-app-sdk` |
+| API prefix | `/app/v3/api` |
+| Schema discovery | `/app/v3/openapi.json` |
+| Authority snapshot | `sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml` |
+| Derived generator input | `sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.sdkgen.yaml` |
+| Flutter HTTP generator input | `sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.flutter.sdkgen.yaml` |
+| Primary generated TypeScript client | `SdkworkAppClient` |
 
-The current implementation priority is TypeScript. Flutter remains in the workspace, but the
-next-generation app SDK standard is being landed in TypeScript first.
+The family currently includes app-business routes such as portal snapshots, app-facing device and
+social routes, notifications, automation execution, media/provider health, principal-profile
+provider health, IoT protocol and provider health, and app-facing RTC provider callbacks or health.
+
+## Does Not Own
+
+- `/im/v3/api/*`; use `sdkwork-im-sdk`.
+- `/backend/v3/api/*`; use `sdkwork-im-backend-sdk`.
+- `/backend/v3/api/control/*`; control is a backend module.
+- `/backend/v3/api/admin/*`; admin is a backend module.
+- RTC provider runtime and native driver contracts; use `sdkwork-rtc-sdk`.
+
+## Language Workspaces
+
+`sdkwork-im-app-sdk` materializes generated transport workspaces for TypeScript, Flutter, Rust,
+Java, C#, Swift, Kotlin, Go, and Python. The TypeScript generated package exposes
+`SdkworkAppClient`; other languages follow the same generated transport standard.
+
+The generated SDK is intentionally transport-level. Do not add handwritten business facades inside
+`generated/server-openapi`. If a semantic wrapper is needed later, keep it outside generated output
+and keep OpenAPI as the source of truth.
 
 ## Assembly Metadata
 
-Every regeneration refreshes `.sdkwork-assembly.json` as the verified SDK family snapshot.
-
-Use it when you need authoritative package-layer facts:
-
-- `generatedAt` records when assembly content last changed
-- `manifestPath` maps each language layer back to the defining manifest file
-- TypeScript records `generated`, `composed`, and `root` layers together
-- Flutter records `generated` plus `composed`
-- the assembly output is the fastest way to confirm which package boundary is public versus
-  internal
-
-Generated symbols must be consumed through the package root entrypoints only. Do not import
-`generated/server-openapi/src/*` private source paths from manual code, docs snippets, or consumer
-applications.
-
-For direct local development, point SDK clients at `local-minimal-node`. For packaged installs,
-point `baseUrl`, `apiBaseUrl`, and `websocketBaseUrl` at the unified `craw-chat-server` /
-`web-gateway` public origin so HTTP APIs and the realtime websocket share one external port.
-
-For `local-minimal-node` development, set `baseUrl` to the node origin such as
-`http://127.0.0.1:18090`.
-
-For packaged installs, set `baseUrl` to the unified `craw-chat-server` / `web-gateway` public
-origin documented in [Gateway OpenAPI](/api-reference/gateway-openapi) and
-[Server Lifecycle](/deployment/server-lifecycle). The live websocket handshake at `GET /api/v1/realtime/ws` uses that same public origin as the HTTP app API.
-
-## Recommended Integration Order
-
-For a new app:
-
-1. construct `new ImSdkClient({...})`
-2. authenticate through `sdk.auth`
-3. send one text message through `sdk.createTextMessage(...)` and `sdk.send(...)`
-4. establish live push with `sdk.connect(...)`
-5. add durable replay through `sdk.sync.catchUp(...)`
-6. add upload-first media flows
-7. add custom, AI, and agent/workflow messages
-8. add RTC lifecycle and signaling
-
-That is the recommended product integration path. Do not start from raw route groups unless you
-are explicitly building transport tooling.
-
-Use the scenario pages when you want a shorter working example instead of a capability catalog:
-
-- [Session Bootstrap](/sdk/examples/session-bootstrap)
-- [Conversation Workflow](/sdk/examples/conversation-workflow)
-- [Message and Media](/sdk/examples/message-and-media)
-- [Stream and RTC](/sdk/examples/stream-and-rtc)
-
-## TypeScript Consumer Model
-
-The TypeScript package is a single installable SDK that combines:
-
-- semantic app modules at the root package
-- generated OpenAPI transport in the same package
-- browser and Node.js support
-- split `apiBaseUrl` and `websocketBaseUrl`
-- payload-first domain receive APIs
-
-```ts
-import { ImSdkClient } from '@sdkwork/im-sdk';
-
-const sdk = new ImSdkClient({
-  baseUrl: import.meta.env.VITE_CRAW_CHAT_BASE_URL,
-  authToken: window.localStorage.getItem('craw-chat-token') ?? undefined,
-});
-
-await sdk.auth.me();
-const workspace = await sdk.portal.getWorkspace();
-console.log(workspace.name);
-```
-
-## App Runtime Domains
-
-| Domain | Primary entry |
-| --- | --- |
-| Auth | `sdk.auth.login`, `sdk.auth.useToken`, `sdk.auth.clearToken`, `sdk.auth.me` |
-| Portal snapshots | `sdk.portal.getHome`, `sdk.portal.getAuth`, `sdk.portal.getWorkspace`, `sdk.portal.getDashboard`, `sdk.portal.getConversations`, `sdk.portal.getRealtime`, `sdk.portal.getMedia`, `sdk.portal.getAutomation`, `sdk.portal.getGovernance` |
-| Conversations | `sdk.conversations.create`, `createAgentDialog`, `createAgentHandoff`, `createSystemChannel`, `get`, `getAgentHandoffState`, `acceptAgentHandoff`, `resolveAgentHandoff`, `closeAgentHandoff`, `listMembers`, `addMember`, `removeMember`, `transferOwner`, `changeMemberRole`, `leave`, `getReadCursor`, `updateReadCursor`, `listMessages`, `postMessage`, `postText`, `publishSystemMessage`, `publishSystemText` |
-| Messages | `sdk.createXxxMessage`, `sdk.send`, `sdk.upload`, `sdk.uploadAndSendMessage`, `sdk.decodeMessage` |
-| Media | `sdk.media.createUploadSession`, `sdk.media.createUpload`, `sdk.media.upload`, `sdk.media.uploadAndComplete`, `sdk.upload`, `sdk.media.completeUpload`, `sdk.media.getDownloadUrl`, `sdk.media.get`, `sdk.media.attach`, `sdk.media.attachText` |
-| Live realtime | `sdk.connect(...)` and `sdk.live` |
-| Durable catch-up | `sdk.sync.catchUp`, `sdk.sync.ack`, `context.ack()` |
-| RTC | `sdk.rtc.create`, `sdk.rtc.postJsonSignal`, `sdk.rtc.issueParticipantCredential`, `sdk.rtc.getRecordingArtifact` |
-| Route-aligned transport modules | `sdk.device`, `sdk.session`, `sdk.presence`, `sdk.realtime`, `sdk.inbox`, `sdk.stream` |
-
-## API Reference Map
-
-Use the semantic SDK for application integration flow. Jump to the route reference below when you
-need exact operation contracts or raw payload shapes:
-
-| App domain | SDK surface | Exact API reference |
-| --- | --- | --- |
-| Auth and portal shell | `sdk.auth`, `sdk.portal` | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Conversation lifecycle | `sdk.conversations.create`, `sdk.conversations.get`, `sdk.conversations.postMessage`, `sdk.conversations.postText` | [Conversations](/api-reference/app/conversations) |
-| Membership and read cursors | `sdk.conversations.listMembers`, `sdk.conversations.addMember`, `sdk.conversations.updateReadCursor` | [Membership and Read State](/api-reference/app/membership-and-read-state) |
-| Message schemas and semantic send model | `sdk.createTextMessage(...)`, `sdk.send(...)`, `sdk.decodeMessage(...)` | [Messages](/api-reference/app/messages) |
-| Upload and attachment lifecycle | `sdk.media.createUploadSession`, `sdk.media.upload`, `sdk.upload`, `sdk.media.completeUpload`, `sdk.media.attachText` | [Media](/api-reference/app/media) |
-| Session, presence, and realtime coordination | `sdk.connect(...)`, `sdk.sync.catchUp(...)`, `sdk.sync.ack(...)`, `sdk.session`, `sdk.presence`, `sdk.realtime` | [Session and Realtime](/api-reference/app/session-and-realtime) |
-| Device registration and sync feeds | `sdk.device.register(...)`, `sdk.device.getDeviceSyncFeed(...)` | [Device Sync](/api-reference/app/device-sync) |
-| RTC lifecycle and signaling-side HTTP calls | `sdk.rtc.create`, `sdk.rtc.postJsonSignal(...)`, `sdk.rtc.issueParticipantCredential(...)`, `sdk.rtc.getRecordingArtifact(...)` | [RTC](/api-reference/app/rtc) |
-| Stream ingestion and checkpointing | `sdk.stream.open(...)`, `sdk.stream.appendStreamFrame(...)`, `sdk.stream.checkpoint(...)`, `sdk.stream.complete(...)` | [Streams](/api-reference/app/streams) |
-
-## Realtime Model
-
-The app SDK standard separates two receive paths:
-
-- live push through `sdk.connect(...)`
-- durable replay through `sdk.sync.catchUp(...)`
-
-This is deliberate.
-
-Live push is for foreground sessions and interactive UI. Durable catch-up is for resume,
-reconciliation, worker consumption, and explicit ACK control.
-
-The live runtime is organized into domain streams:
-
-- `live.messages.on(...)`
-- `live.messages.onConversation(...)`
-- `live.data.on(...)`
-- `live.signals.on(...)`
-- `live.signals.onRtcSession(...)`
-- `live.events.on(...)`
-- `live.lifecycle.onStateChange(...)`
-- `live.lifecycle.onError(...)`
-
-That model keeps the first callback argument as the final payload object and the second callback
-argument as the operational receive context. Each receive context exposes `context.ack()` for
-per-event acknowledgement, while `sdk.sync.ack(...)` commits the highest durable replay position
-explicitly.
-
-## Message Model
-
-The app SDK is message-first.
-
-Use:
-
-- `sdk.createTextMessage(...)`
-- `sdk.createImageMessage(...)`
-- `sdk.createLocationMessage(...)`
-- `sdk.createCardMessage(...)`
-- `sdk.createMusicMessage(...)`
-- `sdk.createCustomMessage(...)`
-- `sdk.createAiTextMessage(...)`
-- `sdk.createAiImageGenerationMessage(...)`
-- `sdk.createAiVideoGenerationMessage(...)`
-- `sdk.createAgentMessage(...)`
-- `sdk.createAgentStateMessage(...)`
-- `sdk.createAgentHandoffMessage(...)`
-- `sdk.createToolResultMessage(...)`
-- `sdk.createWorkflowEventMessage(...)`
-
-Then deliver with:
-
-```ts
-await sdk.send(message);
-```
-
-For upload-first media flows, prefer `sdk.upload(...)` followed by
-`sdk.createImageMessage(...)`/`sdk.send(...)`, or use `sdk.uploadAndSendMessage(...)` when you want
-one helper to perform `create upload session -> presigned client upload -> complete -> send`. For
-raw message bodies or stored payloads, normalize them through `sdk.decodeMessage(...)` before UI
-rendering or routing.
-
-## Conversations And Inbox
-
-Use `sdk.conversations` for route-aligned lifecycle, membership, read-state, and direct posting
-flows:
-
-- `sdk.conversations.create(...)`
-- `sdk.conversations.createAgentDialog(...)`
-- `sdk.conversations.createAgentHandoff(...)`
-- `sdk.conversations.createSystemChannel(...)`
-- `sdk.conversations.get(...)`
-- `sdk.conversations.getAgentHandoffState(...)`
-- `sdk.conversations.acceptAgentHandoff(...)`
-- `sdk.conversations.resolveAgentHandoff(...)`
-- `sdk.conversations.closeAgentHandoff(...)`
-- `sdk.conversations.listMembers(...)`
-- `sdk.conversations.addMember(...)`
-- `sdk.conversations.removeMember(...)`
-- `sdk.conversations.transferOwner(...)`
-- `sdk.conversations.changeMemberRole(...)`
-- `sdk.conversations.leave(...)`
-- `sdk.conversations.getReadCursor(...)`
-- `sdk.conversations.updateReadCursor(...)`
-- `sdk.conversations.listMessages(...)`
-- `sdk.conversations.postMessage(...)`
-- `sdk.conversations.postText(...)`
-- `sdk.conversations.publishSystemMessage(...)`
-- `sdk.conversations.publishSystemText(...)`
-
-Use the root `ImSdkClient` message helpers when you want the shortest message-builder path.
-Use `sdk.messages` when you want the same behavior through a namespaced module. Use
-`sdk.conversations` when you want near-1:1 route mapping with the OpenAPI contract.
-
-Inbox is exposed directly on the root client:
-
-```ts
-const inbox = await sdk.inbox.getInbox();
-console.log(inbox.items.length);
-```
-
-## Portal Model
-
-Portal and auth are first-class app-runtime domains in the TypeScript SDK.
-
-- `sdk.auth` owns token acquisition and current-session identity
-- `sdk.portal` owns tenant portal snapshots and workspace shell reads
-- exact portal transport remains mounted on `sdk.portal`
-
-```ts
-const login = await sdk.auth.login({
-  tenantId: 'tenant-acme',
-  login: 'ops_lead',
-  password: '***',
-  clientKind: 'portal_operator',
-});
-
-const workspace = await sdk.portal.getWorkspace();
-const governance = await sdk.portal.getGovernance();
-
-console.log(login.user?.name, workspace.name, governance.hero?.title);
-```
-
-## Media Lifecycle
-
-Use `sdk.media` for explicit upload and attachment control:
-
-- `sdk.media.createUploadSession(...)`
-- `sdk.media.createUpload(...)`
-- `sdk.media.upload(...)`
-- `sdk.media.uploadAndComplete(...)`
-- `sdk.upload(...)`
-- `sdk.media.completeUpload(...)`
-- `sdk.media.getDownloadUrl(...)`
-- `sdk.media.get(...)`
-- `sdk.media.attach(...)`
-- `sdk.media.attachText(...)`
-
-```ts
-const uploaded = await sdk.upload({
-  mediaAssetId: 'asset-file-1',
-  bucket: 'tenant-media',
-  objectKey: 'conversation-1/brief.pdf',
-  resource: {
-    type: 'file',
-    name: 'brief.pdf',
-    mimeType: 'application/pdf',
-    size: file.size,
-  },
-  body: file,
-});
-
-await sdk.media.attachText(uploaded.mediaAssetId, {
-  conversationId: 'conversation-1',
-  text: 'Uploaded project brief',
-  summary: 'Project brief',
-});
-```
-
-`sdk.upload(...)` is the preferred root entrypoint for normal app code. `sdk.media.upload(...)` and
-`sdk.media.uploadAndComplete(...)` expose the same presigned S3-compatible client upload flow from
-the namespaced media module. `sdk.media.createUploadSession(...)` plus
-`sdk.media.completeUpload(...)` remains available for advanced manual control.
-
-## Route-Aligned Transport Modules
-
-Some public app routes are intentionally exposed directly on the root client because they already
-match the public OpenAPI contract cleanly:
-
-- `sdk.device.register(...)`
-- `sdk.device.getDeviceSyncFeed(...)`
-- `sdk.session.resume(...)`
-- `sdk.session.disconnect(...)`
-- `sdk.presence.heartbeat(...)`
-- `sdk.presence.getPresenceMe()`
-- `sdk.realtime.syncRealtimeSubscriptions(...)`
-- `sdk.realtime.listRealtimeEvents(...)`
-- `sdk.realtime.ackRealtimeEvents(...)`
-- `sdk.inbox.getInbox()`
-- `sdk.stream.open(...)`
-- `sdk.stream.listStreamFrames(...)`
-- `sdk.stream.appendStreamFrame(...)`
-- `sdk.stream.checkpoint(...)`
-- `sdk.stream.complete(...)`
-- `sdk.stream.abort(...)`
-
-That boundary is intentional: exact transport route groups stay reachable on `ImSdkClient`, while
-the semantic SDK focuses on chat, realtime receive ergonomics, media, and RTC lifecycle.
-
-## RTC Model
-
-RTC stays on `sdk.rtc`, while inbound signaling remains on the live runtime.
-
-- `sdk.rtc.create(...)` creates the RTC session
-- `sdk.rtc.postJsonSignal(...)` sends common JSON signaling payloads
-- `sdk.rtc.issueParticipantCredential(...)` issues provider join credentials
-- `sdk.rtc.getRecordingArtifact(...)` fetches recording metadata
-- `live.signals.onRtcSession(...)` receives inbound signaling events
-- `live.lifecycle.onStateChange(...)` tracks connection lifecycle changes
-
-```ts
-const session = await sdk.rtc.create({
-  rtcSessionId: 'rtc-1',
-  conversationId: 'conversation-1',
-  rtcMode: 'group_call',
-});
-
-await sdk.rtc.postJsonSignal(session.rtcSessionId, 'offer', {
-  signalingStreamId: 'rtc-signal-1',
-  payload: {
-    sdp: 'v=0...',
-  },
-});
-
-await sdk.rtc.issueParticipantCredential(session.rtcSessionId, {
-  participantId: 'user-1',
-});
-
-await sdk.rtc.getRecordingArtifact(session.rtcSessionId);
-
-live.signals.onRtcSession(session.rtcSessionId, (signal, context) => {
-  console.log(signal.signalType, signal.payload, context.scopeId);
-});
-```
-
-## Generated Contract Source
-
-The semantic SDK is built on top of the app OpenAPI 3.x contract exported by the running service.
-
-The current source chain is:
-
-1. live service schema export at `/openapi/craw-chat-app.openapi.yaml`
-2. checked-in authority snapshot at `openapi/craw-chat-app.openapi.yaml`
-3. generated transport under `generated/server-openapi`
-4. assembled single-package TypeScript consumer output
-
-That means the generated layer owns only the HTTP contract. The semantic layer owns live receive,
-message ergonomics, and runtime orchestration.
+The workspace assembly snapshot is `sdks/sdkwork-im-app-sdk/.sdkwork-assembly.json`.
+
+Use it to verify `manifestPath`, `generatedAt`, language workspace names, generated package paths,
+and release state. This family is generated transport first; do not invent a composed public layer
+inside generated output just to hide a missing OpenAPI operation.
 
 ## Verification
 
-Verify the app SDK family from the repository root:
+Run from the repository root:
 
-```bash
-node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs
+```powershell
+node .\sdks\sdkwork-im-app-sdk\bin\verify-sdk.mjs
 ```
 
-That verification path includes the composed smoke test for `ImSdkClient`, generated package
-checks, and cross-workspace boundary validation.
+Regenerate a language from OpenAPI inputs with:
 
-## What To Read Next
+```powershell
+node .\sdks\sdkwork-im-app-sdk\bin\generate-sdk.mjs --language typescript
+```
 
-- [TypeScript SDK](/sdk/typescript-sdk)
-- [SDK Overview](/sdk/)
-- [Portal and Auth](/api-reference/app/portal-and-auth)
-- [Conversations](/api-reference/app/conversations)
-- [Messages API](/api-reference/app/messages)
-- [Media API](/api-reference/app/media)
-- [Session and Realtime API](/api-reference/app/session-and-realtime)
-- [RTC API](/api-reference/app/rtc)
-- [Streams API](/api-reference/app/streams)
+The verifier enforces `/app/v3/api/*` ownership, SDKWork dual-token security, generated output
+structure, assembly metadata, and the rule that the family must not contain backend, admin, or
+control routes.
+
+In short: this family must not contain backend, admin, or control routes.
+
+## Related API Docs
+
+- [App API Overview](/api-reference/app-api)
+- [App API Overview](/api-reference/app-api)
+- [Device Twin](/api-reference/app/device-twin)
+- [IoT Protocol and Health](/api-reference/app/iot-protocol-and-health)
+- [SDK Overview](/sdk/index)

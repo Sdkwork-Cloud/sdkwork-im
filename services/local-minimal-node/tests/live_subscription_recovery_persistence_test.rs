@@ -7,7 +7,19 @@ use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
-const DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8iLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
+trait AppContextRequestBuilderExt {
+    fn demo_pad_app_context(self) -> Self;
+}
+
+impl AppContextRequestBuilderExt for axum::http::request::Builder {
+    fn demo_pad_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_demo")
+            .header("x-sdkwork-actor-kind", "user")
+            .header("x-sdkwork-session-id", "s_demo")
+            .header("x-sdkwork-device-id", "d_pad")
+    }
+}
 
 fn unique_runtime_dir() -> PathBuf {
     let unique = SystemTime::now()
@@ -32,12 +44,12 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
-                .header("x-session-id", "s_phone")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("x-sdkwork-session-id", "s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -56,8 +68,8 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("authorization", DEMO_BEARER)
+                .uri("/im/v3/api/device/sessions/resume")
+                .demo_pad_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_pad","lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -71,12 +83,12 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/realtime/subscriptions/sync")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_pad")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_pad")
+                .header("x-sdkwork-session-id", "s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -102,8 +114,8 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("authorization", DEMO_BEARER)
+                .uri("/im/v3/api/device/sessions/resume")
+                .demo_pad_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_pad","lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -117,12 +129,12 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations/c_live_sub_restart/messages")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
-                .header("x-session-id", "s_phone_new")
+                .uri("/im/v3/api/chat/conversations/c_live_sub_restart/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("x-sdkwork-session-id", "s_phone_new")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -140,12 +152,12 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
     let realtime_events = app_after
         .oneshot(
             Request::builder()
-                .uri("/api/v1/realtime/events?afterSeq=0&limit=10")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_pad")
-                .header("x-session-id", "s_demo")
+                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_pad")
+                .header("x-sdkwork-session-id", "s_demo")
                 .body(Body::empty())
                 .unwrap(),
         )

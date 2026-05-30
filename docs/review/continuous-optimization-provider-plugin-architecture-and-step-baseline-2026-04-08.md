@@ -21,7 +21,7 @@
 ## 3. 本轮实际完成
 
 - 新增 `docs/架构/150-插件化提供商体系与设备接入设计-2026-04-08.md`
-  - 冻结 `rtc / object-storage / user-module / iot-access / iot-protocol` 五类插件域
+  - 冻结 `rtc / object-storage / principal-profile / iot-access / iot-protocol` 五类插件域
   - 冻结 RTC provider 矩阵：`火山引擎 / 阿里云 / 腾讯云`
   - 冻结 RTC 全局默认 provider：`火山引擎`
   - 冻结对象存储通过 `S3` 标准接入 `阿里云 / 腾讯云 / 火山引擎 / AWS / Google / Microsoft`
@@ -81,7 +81,7 @@
 本轮完成的是标准冻结与执行口径收口，不是最终代码实现。仍未闭环的内容包括：
 
 - `RtcProviderPort / provider registry` 的真实代码落地
-- `UserModuleProvider` 的真实代码落地
+- `PrincipalProfileProvider` 的真实代码落地
 - `rtc-volcengine / rtc-aliyun / rtc-tencent` 的 conformance 测试资产
 - `ObjectStorageProvider` 的多云 `S3` 实现与配置模板
 - `iot-mqtt / iot-xiaozhi` 的协议适配与设备管理主路径
@@ -91,7 +91,7 @@
 
 建议按最小闭环顺序继续推进：
 
-1. 先做 `user-module-local` 与 `user-module-external` 的统一 `UserModuleProvider`
+1. 先做 `principal-profile-upstream-context` 与 `principal-profile-external-catalog` 的统一 `PrincipalProfileProvider`
 2. 再做 `rtc-volcengine` 基线，实现 `RtcProviderPort + default provider + artifact 回流边界`
 3. 再做 `object-storage-s3` 公共契约与多云 endpoint/profile 模板
 4. 再做 `iot-mqtt` 主路径和设备管理 owner seam

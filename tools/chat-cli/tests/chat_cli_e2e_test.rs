@@ -489,13 +489,6 @@ async fn prepare_real_login_conversation(base_url: &str, conversation_id: &str) 
 
 #[tokio::test]
 async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
 
@@ -512,8 +505,6 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "create-conversation",
             "--conversation-id",
             "c_cli_demo",
@@ -540,8 +531,6 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "add-member",
             "--conversation-id",
             "c_cli_demo",
@@ -574,8 +563,6 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
                 "s_guest",
                 "--device-id",
                 "d_guest",
-                "--public-bearer-secret",
-                "local-chat-cli-secret",
                 "watch",
                 "--conversation-id",
                 "c_cli_demo",
@@ -606,8 +593,6 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "send-message",
             "--conversation-id",
             "c_cli_demo",
@@ -666,8 +651,6 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
             "s_guest",
             "--device-id",
             "d_guest",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "timeline",
             "--conversation-id",
             "c_cli_demo",
@@ -685,13 +668,6 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
 
 #[tokio::test]
 async fn test_chat_cli_keeps_real_login_watch_flow_healthy_after_runtime_dir_restart() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
@@ -730,13 +706,6 @@ async fn test_chat_cli_keeps_real_login_watch_flow_healthy_after_runtime_dir_res
 
 #[tokio::test]
 async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
 
@@ -753,8 +722,6 @@ async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() 
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "create-conversation",
             "--conversation-id",
             "c_cli_chat_session_demo",
@@ -779,8 +746,6 @@ async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() 
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "add-member",
             "--conversation-id",
             "c_cli_chat_session_demo",
@@ -808,8 +773,6 @@ async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() 
         "s_guest",
         "--device-id",
         "d_guest",
-        "--public-bearer-secret",
-        "local-chat-cli-secret",
         "chat-session",
         "--conversation-id",
         "c_cli_chat_session_demo",
@@ -844,8 +807,6 @@ async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() 
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "send-message",
             "--conversation-id",
             "c_cli_chat_session_demo",
@@ -905,8 +866,6 @@ async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() 
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "timeline",
             "--conversation-id",
             "c_cli_chat_session_demo",
@@ -936,13 +895,6 @@ async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() 
 #[cfg(windows)]
 #[tokio::test]
 async fn test_chat_cli_powershell_entry_wrapper_can_send_interactive_messages() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
 
@@ -959,8 +911,6 @@ async fn test_chat_cli_powershell_entry_wrapper_can_send_interactive_messages() 
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "create-conversation",
             "--conversation-id",
             "c_cli_wrapper_chat_session_demo",
@@ -985,8 +935,6 @@ async fn test_chat_cli_powershell_entry_wrapper_can_send_interactive_messages() 
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "add-member",
             "--conversation-id",
             "c_cli_wrapper_chat_session_demo",
@@ -1026,8 +974,6 @@ async fn test_chat_cli_powershell_entry_wrapper_can_send_interactive_messages() 
         .arg("s_guest")
         .arg("--device-id")
         .arg("d_guest")
-        .arg("--public-bearer-secret")
-        .arg("local-chat-cli-secret")
         .arg("chat-session")
         .arg("--conversation-id")
         .arg("c_cli_wrapper_chat_session_demo")
@@ -1079,8 +1025,6 @@ async fn test_chat_cli_powershell_entry_wrapper_can_send_interactive_messages() 
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "timeline",
             "--conversation-id",
             "c_cli_wrapper_chat_session_demo",
@@ -1112,13 +1056,6 @@ async fn test_chat_cli_powershell_entry_wrapper_can_send_interactive_messages() 
 #[cfg(windows)]
 #[tokio::test]
 async fn test_open_chat_test_powershell_scripted_validation_emits_json_summary() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
 
@@ -1200,13 +1137,6 @@ async fn test_open_chat_test_powershell_scripted_validation_emits_json_summary()
 #[cfg(windows)]
 #[tokio::test]
 async fn test_open_chat_test_cmd_wrapper_accepts_gnu_style_named_flags_for_scripted_validation() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
 
@@ -1273,13 +1203,6 @@ async fn test_open_chat_test_cmd_wrapper_accepts_gnu_style_named_flags_for_scrip
 #[cfg(windows)]
 #[tokio::test]
 async fn test_open_chat_test_cmd_wrapper_preserves_exclamation_mark_in_validation_message() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
 
@@ -1349,13 +1272,6 @@ async fn test_open_chat_test_cmd_wrapper_preserves_exclamation_mark_in_validatio
 #[cfg(windows)]
 #[tokio::test]
 async fn test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interactive_session() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
 
@@ -1387,10 +1303,6 @@ async fn test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interact
         .arg("guest-gnu")
         .arg("--message-prefix")
         .arg("[gnu] ")
-        .env(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "bogus-wrapper-secret",
-        )
         .current_dir(&repo_root)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -1453,8 +1365,6 @@ async fn test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interact
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "timeline",
             "--conversation-id",
             "c_cli_chat_window_cmd_gnu_demo",
@@ -1484,13 +1394,6 @@ async fn test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interact
 #[cfg(windows)]
 #[tokio::test]
 async fn test_chat_window_gui_cmd_uses_real_login_when_inherited_public_secret_is_poisoned() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
     prepare_real_login_conversation(base_url.as_str(), "c_gui_cmd_real_login_demo").await;
@@ -1524,7 +1427,6 @@ async fn test_chat_window_gui_cmd_uses_real_login_when_inherited_public_secret_i
                  $diag = $env:CHAT_WINDOW_GUI_DIAG; \
                  $base = $env:CHAT_WINDOW_GUI_BASE_URL; \
                  Remove-Item -LiteralPath $diag -ErrorAction SilentlyContinue; \
-                 $env:CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET = 'bogus-wrapper-secret'; \
                  $text = $null; \
                  $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $wrapper, '--base-url', $base, '--conversation-id', 'c_gui_cmd_real_login_demo', '--user-id', 'u_guest', '--login', 'u_guest', '--password', 'Guest#2026', '--label', 'guest-real-login', '-DiagnosticsFile', $diag -PassThru -WindowStyle Hidden; \
                  for ($i = 0; $i -lt 40; $i++) { \
@@ -1665,13 +1567,6 @@ async fn test_chat_window_gui_cmd_manual_login_launch_is_idle_until_explicit_aut
 #[cfg(windows)]
 #[tokio::test]
 async fn test_chat_window_gui_cmd_login_button_keeps_window_open_for_prepared_conversation() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
     prepare_real_login_conversation(base_url.as_str(), "c_gui_cmd_click_login_demo").await;
@@ -1789,13 +1684,6 @@ try {
 #[cfg(windows)]
 #[tokio::test]
 async fn test_chat_window_cmd_wrapper_preserves_exclamation_mark_in_message_prefix() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
 
@@ -1812,8 +1700,6 @@ async fn test_chat_window_cmd_wrapper_preserves_exclamation_mark_in_message_pref
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "create-conversation",
             "--conversation-id",
             "c_cli_chat_window_cmd_bang_demo",
@@ -1838,8 +1724,6 @@ async fn test_chat_window_cmd_wrapper_preserves_exclamation_mark_in_message_pref
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "add-member",
             "--conversation-id",
             "c_cli_chat_window_cmd_bang_demo",
@@ -1923,8 +1807,6 @@ async fn test_chat_window_cmd_wrapper_preserves_exclamation_mark_in_message_pref
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "timeline",
             "--conversation-id",
             "c_cli_chat_window_cmd_bang_demo",
@@ -2060,7 +1942,7 @@ async fn test_status_local_cmd_help_surfaces_gnu_style_named_flags() {
 
     let stdout_text = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout_text.contains("--profile") && stdout_text.contains("--runtime-dir"),
+        stdout_text.contains("--profile") && stdout_text.contains("--runtime_dir"),
         "status-local.cmd help must surface the Windows GNU-style operator contract\nstdout:\n{}\nstderr:\n{}",
         stdout_text,
         String::from_utf8_lossy(&output.stderr)
@@ -2364,13 +2246,6 @@ async fn test_open_chat_test_cmd_help_surfaces_gnu_style_named_flags() {
 
 #[tokio::test]
 async fn test_open_chat_test_bash_scripted_validation_emits_json_summary() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
 
@@ -2423,10 +2298,6 @@ async fn test_open_chat_test_bash_scripted_validation_emits_json_summary() {
                 .arg("Bypass")
                 .arg("-Command")
                 .arg(bash_invocation)
-                .env(
-                    im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-                    "bogus-script-secret",
-                )
                 .stdin(Stdio::null())
                 .stdout(Stdio::from(stdout_file))
                 .stderr(Stdio::from(stderr_file))
@@ -2459,10 +2330,6 @@ async fn test_open_chat_test_bash_scripted_validation_emits_json_summary() {
             .arg("--validation-message")
             .arg(validation_message)
             .arg("--json")
-            .env(
-                im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-                "bogus-script-secret",
-            )
             .stdin(Stdio::null())
             .stdout(Stdio::from(stdout_file))
             .stderr(Stdio::from(stderr_file))
@@ -2526,13 +2393,6 @@ async fn test_open_chat_test_bash_scripted_validation_emits_json_summary() {
 #[cfg(windows)]
 #[tokio::test]
 async fn test_open_chat_test_powershell_rtc_scripted_validation_emits_json_summary() {
-    unsafe {
-        std::env::set_var(
-            im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-            "local-chat-cli-secret",
-        );
-    }
-
     let app = local_minimal_node::build_public_app();
     let (base_url, handle) = spawn_server(app).await;
 

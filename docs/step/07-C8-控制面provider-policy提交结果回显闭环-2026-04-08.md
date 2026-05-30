@@ -3,7 +3,7 @@
 
 - 所属 step: `Step 07`
 - 当前波次: `07-C8 / CP07-8A`
-- 目标: 让 `POST /api/v1/control/provider-bindings` 在成功提交后直接回显 `currentVersion / committedBinding / diff`，补齐 preview -> confirm -> committed 链路。
+- 目标: 让 `POST /backend/v3/api/control/provider_bindings` 在成功提交后直接回显 `currentVersion / committedBinding / diff`，补齐 preview -> confirm -> committed 链路。
 
 ## 本轮实现
 
@@ -13,7 +13,7 @@
   - `tenantId`
   - `committedBinding`
   - `diff`
-- `POST /api/v1/control/provider-bindings` 成功响应新增提交结果字段，同时保留：
+- `POST /backend/v3/api/control/provider_bindings` 成功响应新增提交结果字段，同时保留：
   - `interfaceVersion`
   - `tenantId`
   - `effectiveBindings`
@@ -22,7 +22,7 @@
 
 ## 接口冻结
 
-- 路径: `POST /api/v1/control/provider-bindings`
+- 路径: `POST /backend/v3/api/control/provider_bindings`
 - 权限: `control.write`
 - Success Response:
   - `currentVersion`

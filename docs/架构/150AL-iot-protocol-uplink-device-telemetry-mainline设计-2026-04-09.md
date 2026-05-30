@@ -15,7 +15,7 @@
 
 本轮冻结 route：
 
-- `POST /api/v1/iot/protocol/uplink`
+- `POST /backend/v3/api/iot/protocol/uplink`
 
 冻结数据流：
 
@@ -77,7 +77,7 @@
 采用 TDD：
 
 - 先新增 `iot_protocol_adapter_mainline_test`
-- 确认 `POST /api/v1/iot/protocol/uplink` 初始返回 `404`
+- 确认 `POST /backend/v3/api/iot/protocol/uplink` 初始返回 `404`
 - 再补最小 route / access / stream ingestion
 - 绿灯验证：
   - `streamType = device.telemetry`

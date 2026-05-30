@@ -74,8 +74,8 @@
 - `services/local-minimal-node/src/node/platform.rs`
   - `refresh_node_operational_view(...)` 现在会把 `projection-service` owner 的 live lag 映射进 `OpsRuntime`
 - 这意味着 `Local Minimal` profile 下，业务请求触发的真实 projection apply 已可直接在：
-  - `/api/v1/ops/lag`
-  - `/api/v1/ops/diagnostics`
+  - `/backend/v3/api/ops/lag`
+  - `/backend/v3/api/ops/diagnostics`
  看到 `projection_live` lag item
 
 ### 5. 全量回归再次触发 Step 02 结构红线，并已修复

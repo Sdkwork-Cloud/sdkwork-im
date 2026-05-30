@@ -29,18 +29,14 @@ use getrandom::fill as fill_random;
 use hmac::{Hmac, Mac};
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
-use hyper::header::{AUTHORIZATION, CONTENT_TYPE};
+use hyper::header::CONTENT_TYPE;
 use hyper::{Method, Request as HyperRequest};
 use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
 use im_adapters_local_disk::{FileCommitJournal, read_commit_journal_file};
 use im_adapters_local_memory::MemoryCommitJournal;
-use im_auth_context::{
-    AuthContext, AuthContextError, PUBLIC_BEARER_HS256_SECRET_ENV, encode_hs256_bearer_token,
-    resolve_auth_context, resolve_public_bearer_auth_context,
-    resolve_public_bearer_required_audience, resolve_public_bearer_required_issuer,
-};
+use im_app_context::{AppContext, AppContextError, resolve_app_context};
 use im_domain_core::social::{
     BlockScope, DirectChat, DirectChatStatus, ExternalConnection, ExternalConnectionKind,
     ExternalConnectionStatus, ExternalMemberLink, ExternalMemberLinkStatus, FriendRequest,
@@ -210,7 +206,8 @@ const SOCIAL_COMMIT_JOURNAL_FILE_NAME: &str = "social-commit-journal.json";
 const SOCIAL_TRANSACTION_MARKER_FILE_NAME: &str = "social-transaction-marker.json";
 const SOCIAL_WRITE_LOCK_FILE_NAME: &str = "social-write.lock";
 const SOCIAL_COMMIT_PARTITION: &str = "control-plane-social";
-const PUBLIC_SHARED_CHANNEL_SYNC_ROUTE: &str = "/api/v1/conversations/shared-channel-links/sync";
+const PUBLIC_SHARED_CHANNEL_SYNC_ROUTE: &str =
+    "/im/v3/api/chat/conversations/shared_channel_links/sync";
 const PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID: &str = "control-plane-sync";
 pub const SHARED_CHANNEL_SYNC_PERMISSION: &str = "conversation.shared_channel.sync";
 const SHARED_CHANNEL_SYNC_DEAD_LETTER_FAILURE_THRESHOLD: u32 = 3;
@@ -367,22 +364,14 @@ struct SharedChannelSyncAckResponse {
     attributes: BTreeMap<String, String>,
 }
 
-struct PublicSharedChannelLinkedMemberSyncTrigger {
+struct AppContextHeaderSharedChannelLinkedMemberSyncTrigger {
     dispatch_tx: std::sync::mpsc::SyncSender<SharedChannelSyncDispatchTask>,
     dispatch_queue_capacity: usize,
 }
 
-impl PublicSharedChannelLinkedMemberSyncTrigger {
-    fn new(
-        base_url: impl AsRef<str>,
-        public_bearer_secret: impl AsRef<str>,
-    ) -> Result<Self, String> {
+impl AppContextHeaderSharedChannelLinkedMemberSyncTrigger {
+    fn new(base_url: impl AsRef<str>) -> Result<Self, String> {
         let base_url = validate_shared_channel_sync_target_base_url(base_url.as_ref())?;
-
-        let public_bearer_secret = public_bearer_secret.as_ref().trim().to_owned();
-        if public_bearer_secret.is_empty() {
-            return Err("shared-channel sync public bearer secret cannot be empty".into());
-        }
 
         let dispatch_queue_capacity = resolve_shared_channel_sync_dispatch_queue_capacity();
         let (dispatch_tx, dispatch_rx) =
@@ -393,7 +382,6 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
         for worker_index in 0..worker_count {
             let dispatch_rx = Arc::clone(&dispatch_rx);
             let base_url = base_url.clone();
-            let public_bearer_secret = public_bearer_secret.clone();
             std::thread::Builder::new()
                 .name(format!("shared-sync-dispatch-worker-{worker_index}"))
                 .spawn(move || {
@@ -403,7 +391,7 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
                     {
                         Ok(runtime) => Some(runtime),
                         Err(error) => {
-                            eprintln!(
+                            tracing::warn!(
                                 "failed to build shared-channel sync worker runtime: {error}"
                             );
                             None
@@ -419,11 +407,7 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
                             break;
                         };
                         let result = if let Some(runtime) = runtime.as_ref() {
-                            runtime.block_on(Self::dispatch_request(
-                                base_url.as_str(),
-                                public_bearer_secret.as_str(),
-                                task.request,
-                            ))
+                            runtime.block_on(Self::dispatch_request(base_url.as_str(), task.request))
                         } else {
                             Err("shared-channel sync worker runtime unavailable".to_owned())
                         };
@@ -439,34 +423,8 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
         })
     }
 
-    fn authorization_header(public_bearer_secret: &str, tenant_id: &str) -> Result<String, String> {
-        let now = current_unix_epoch_seconds();
-        let mut claims = serde_json::json!({
-            "tenant_id": tenant_id,
-            "sub": PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID,
-            "actor_kind": "system",
-            "permissions": [SHARED_CHANNEL_SYNC_PERMISSION],
-            "scope": SHARED_CHANNEL_SYNC_PERMISSION,
-            "iat": now,
-            "nbf": now.saturating_sub(1),
-            "exp": now.saturating_add(300),
-        });
-        if let Some(required_issuer) = resolve_public_bearer_required_issuer() {
-            claims["iss"] = serde_json::json!(required_issuer);
-        }
-        if let Some(required_audience) = resolve_public_bearer_required_audience() {
-            claims["aud"] = serde_json::json!(required_audience);
-        }
-        let token = encode_hs256_bearer_token(&claims, public_bearer_secret).map_err(|error| {
-            format!("failed to encode public bearer token for shared-channel sync: {error}")
-        })?;
-
-        Ok(format!("Bearer {token}"))
-    }
-
     async fn dispatch_request(
         base_url: &str,
-        public_bearer_secret: &str,
         request: SharedChannelLinkedMemberSyncRequest,
     ) -> Result<SharedChannelSyncDeliveryProof, String> {
         let timeout = resolve_shared_channel_sync_http_timeout();
@@ -483,14 +441,16 @@ impl PublicSharedChannelLinkedMemberSyncTrigger {
         }))
         .map(Bytes::from)
         .map_err(|error| format!("failed to encode shared-channel sync payload: {error}"))?;
-        let authorization =
-            Self::authorization_header(public_bearer_secret, request.tenant_id.as_str())?;
         let target = format!("{}{}", base_url, PUBLIC_SHARED_CHANNEL_SYNC_ROUTE);
         let request = HyperRequest::builder()
             .method(Method::POST)
             .uri(target.as_str())
             .header(CONTENT_TYPE, "application/json")
-            .header(AUTHORIZATION, authorization.as_str())
+            .header("x-sdkwork-tenant-id", request.tenant_id.as_str())
+            .header("x-sdkwork-user-id", PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID)
+            .header("x-sdkwork-actor-id", PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID)
+            .header("x-sdkwork-actor-kind", "system")
+            .header("x-sdkwork-permission-scope", SHARED_CHANNEL_SYNC_PERMISSION)
             .body(Full::new(payload))
             .map_err(|error| {
                 format!("failed to build shared-channel sync request for {target}: {error}")
@@ -574,8 +534,8 @@ fn validate_shared_channel_sync_target_base_url(base_url: &str) -> Result<String
                         SHARED_CHANNEL_SYNC_RUNTIME_PROFILE_ENV, runtime_profile
                     ));
                 }
-                eprintln!(
-                    "warning: allowing insecure shared-channel sync target over remote http because {} is enabled for local runtime profile {}={}",
+                tracing::warn!(
+                    "allowing insecure shared-channel sync target over remote http because {} is enabled for local runtime profile {}={}",
                     ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP_ENV,
                     SHARED_CHANNEL_SYNC_RUNTIME_PROFILE_ENV,
                     runtime_profile
@@ -621,14 +581,6 @@ fn is_local_shared_channel_sync_runtime_profile(profile: &str) -> bool {
         profile,
         "local-minimal" | "local-default" | "local" | "dev" | "development" | "test" | "ci"
     )
-}
-
-fn unix_epoch_seconds(now: SystemTime) -> u64 {
-    now.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
-}
-
-fn current_unix_epoch_seconds() -> u64 {
-    unix_epoch_seconds(SystemTime::now())
 }
 
 fn resolve_shared_channel_sync_http_timeout() -> Duration {
@@ -722,7 +674,7 @@ fn resolve_env_bool_with_default(name: &str, default: bool) -> bool {
         "1" | "true" | "yes" | "on" => true,
         "0" | "false" | "no" | "off" => false,
         invalid => {
-            eprintln!("warning: invalid boolean env {name}={invalid}, falling back to default");
+            tracing::warn!("invalid boolean env {name}={invalid}, falling back to default");
             default
         }
     }
@@ -857,7 +809,7 @@ fn validate_shared_channel_sync_ack_response(
     })
 }
 
-impl SharedChannelLinkedMemberSyncTrigger for PublicSharedChannelLinkedMemberSyncTrigger {
+impl SharedChannelLinkedMemberSyncTrigger for AppContextHeaderSharedChannelLinkedMemberSyncTrigger {
     fn trigger(&self, request: SharedChannelLinkedMemberSyncRequest) -> Result<(), String> {
         self.trigger_with_delivery_proof(request).map(|_| ())
     }
@@ -1238,7 +1190,7 @@ struct SocialAuthorityLoad {
 impl Drop for SocialWriteLockGuard {
     fn drop(&mut self) {
         if let Err(error) = self.file.unlock() {
-            eprintln!("failed to unlock control-plane social write lock: {error}");
+            tracing::warn!("failed to unlock control-plane social write lock: {error}");
         }
     }
 }
@@ -3949,8 +3901,10 @@ struct BusinessPolicyVocabularyResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SdkCompatibilityBaselineResponse {
-    app_sdk_facade: &'static str,
-    admin_sdk_facade: &'static str,
+    im_sdk_family: &'static str,
+    app_sdk_family: &'static str,
+    backend_sdk_family: &'static str,
+    rtc_sdk_family: &'static str,
     matrix_client_types: Vec<String>,
     protocol_registry_path: &'static str,
     protocol_governance_path: &'static str,
@@ -4633,7 +4587,7 @@ fn shared_channel_sync_inventory_cursor_for(request_key: &str) -> String {
     let payload = serde_json::to_value(&cursor)
         .expect("shared-channel sync inventory cursor should serialize into json");
     let secret = resolve_friend_request_cursor_signing_secret();
-    encode_hs256_bearer_token(&payload, secret.as_str())
+    encode_signed_cursor_payload(&payload, secret.as_str())
         .expect("shared-channel sync inventory cursor should encode into signed compact token")
 }
 
@@ -5043,8 +4997,10 @@ fn openapi_operation(
     if secure {
         operation.insert(
             "security".to_owned(),
-            serde_json::json!([{ "bearerAuth": [] }]),
+            serde_json::json!([{ "AuthToken": [], "AccessToken": [] }]),
         );
+    } else {
+        operation.insert("security".to_owned(), serde_json::json!([]));
     }
     if !parameters.is_empty() {
         operation.insert("parameters".to_owned(), JsonValue::Array(parameters));
@@ -5311,15 +5267,19 @@ fn control_plane_openapi_components() -> JsonValue {
         "SdkCompatibilityBaselineResponse",
         openapi_object_schema(
             &[
-                "appSdkFacade",
-                "adminSdkFacade",
+                "imSdkFamily",
+                "appSdkFamily",
+                "backendSdkFamily",
+                "rtcSdkFamily",
                 "matrixClientTypes",
                 "protocolRegistryPath",
                 "protocolGovernancePath",
             ],
             vec![
-                ("appSdkFacade", openapi_string_schema()),
-                ("adminSdkFacade", openapi_string_schema()),
+                ("imSdkFamily", openapi_string_schema()),
+                ("appSdkFamily", openapi_string_schema()),
+                ("backendSdkFamily", openapi_string_schema()),
+                ("rtcSdkFamily", openapi_string_schema()),
                 ("matrixClientTypes", openapi_string_array_schema()),
                 ("protocolRegistryPath", openapi_string_schema()),
                 ("protocolGovernancePath", openapi_string_schema()),
@@ -5591,6 +5551,42 @@ fn control_plane_openapi_components() -> JsonValue {
             ),
         ),
         (
+            "AcceptFriendRequestRequest",
+            openapi_object_schema(
+                &["eventId", "acceptedByUserId", "acceptedAt"],
+                vec![
+                    ("eventId", openapi_string_schema()),
+                    ("acceptedByUserId", openapi_string_schema()),
+                    ("acceptedAt", openapi_string_schema()),
+                ],
+                false,
+            ),
+        ),
+        (
+            "DeclineFriendRequestRequest",
+            openapi_object_schema(
+                &["eventId", "declinedByUserId", "declinedAt"],
+                vec![
+                    ("eventId", openapi_string_schema()),
+                    ("declinedByUserId", openapi_string_schema()),
+                    ("declinedAt", openapi_string_schema()),
+                ],
+                false,
+            ),
+        ),
+        (
+            "CancelFriendRequestRequest",
+            openapi_object_schema(
+                &["eventId", "canceledByUserId", "canceledAt"],
+                vec![
+                    ("eventId", openapi_string_schema()),
+                    ("canceledByUserId", openapi_string_schema()),
+                    ("canceledAt", openapi_string_schema()),
+                ],
+                false,
+            ),
+        ),
+        (
             "ActivateFriendshipRequest",
             openapi_object_schema(
                 &[
@@ -5607,6 +5603,18 @@ fn control_plane_openapi_components() -> JsonValue {
                     ("peerUserId", openapi_string_schema()),
                     ("directChatId", openapi_nullable_string_schema()),
                     ("establishedAt", openapi_string_schema()),
+                ],
+                false,
+            ),
+        ),
+        (
+            "RemoveFriendshipRequest",
+            openapi_object_schema(
+                &["eventId", "removedByUserId", "removedAt"],
+                vec![
+                    ("eventId", openapi_string_schema()),
+                    ("removedByUserId", openapi_string_schema()),
+                    ("removedAt", openapi_string_schema()),
                 ],
                 false,
             ),
@@ -5785,10 +5793,15 @@ fn control_plane_openapi_components() -> JsonValue {
 
     serde_json::json!({
         "securitySchemes": {
-            "bearerAuth": {
+            "AuthToken": {
                 "type": "http",
                 "scheme": "bearer",
                 "bearerFormat": "JWT"
+            },
+            "AccessToken": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "Access-Token"
             }
         },
         "schemas": JsonValue::Object(schemas)
@@ -5813,7 +5826,7 @@ fn control_plane_openapi_paths() -> JsonValue {
         }),
     );
     paths.insert(
-        "/api/v1/control/protocol-registry".to_owned(),
+        "/backend/v3/api/control/protocol_registry".to_owned(),
         serde_json::json!({
             "get": openapi_operation(
                 "Read the control-plane protocol registry snapshot.",
@@ -5827,7 +5840,7 @@ fn control_plane_openapi_paths() -> JsonValue {
         }),
     );
     paths.insert(
-        "/api/v1/control/protocol-governance".to_owned(),
+        "/backend/v3/api/control/protocol_governance".to_owned(),
         serde_json::json!({
             "get": openapi_operation(
                 "Read the control-plane protocol governance snapshot.",
@@ -5841,7 +5854,7 @@ fn control_plane_openapi_paths() -> JsonValue {
         }),
     );
     paths.insert(
-        "/api/v1/control/provider-registry".to_owned(),
+        "/backend/v3/api/control/provider_registry".to_owned(),
         serde_json::json!({
             "get": openapi_operation(
                 "Read the provider registry snapshot.",
@@ -5855,7 +5868,7 @@ fn control_plane_openapi_paths() -> JsonValue {
         }),
     );
     paths.insert(
-        "/api/v1/control/provider-bindings".to_owned(),
+        "/backend/v3/api/control/provider_bindings".to_owned(),
         serde_json::json!({
             "get": openapi_operation(
                 "Read effective provider bindings.",
@@ -5888,7 +5901,7 @@ fn control_plane_openapi_paths() -> JsonValue {
         }),
     );
     paths.insert(
-        "/api/v1/control/provider-policies".to_owned(),
+        "/backend/v3/api/control/provider_policies".to_owned(),
         serde_json::json!({
             "get": openapi_operation(
                 "Read provider policy history.",
@@ -5902,7 +5915,7 @@ fn control_plane_openapi_paths() -> JsonValue {
         }),
     );
     paths.insert(
-        "/api/v1/control/provider-policies/diff".to_owned(),
+        "/backend/v3/api/control/provider_policies/diff".to_owned(),
         serde_json::json!({
             "get": openapi_operation(
                 "Read provider policy diff between two versions.",
@@ -5929,7 +5942,7 @@ fn control_plane_openapi_paths() -> JsonValue {
         }),
     );
     paths.insert(
-        "/api/v1/control/provider-policies/preview".to_owned(),
+        "/backend/v3/api/control/provider_policies/preview".to_owned(),
         serde_json::json!({
             "post": openapi_operation(
                 "Preview the effective provider policy result before commit.",
@@ -5946,7 +5959,7 @@ fn control_plane_openapi_paths() -> JsonValue {
         }),
     );
     paths.insert(
-        "/api/v1/control/provider-policies/rollback".to_owned(),
+        "/backend/v3/api/control/provider_policies/rollback".to_owned(),
         serde_json::json!({
             "post": openapi_operation(
                 "Rollback provider policy history to a target version.",
@@ -5965,49 +5978,49 @@ fn control_plane_openapi_paths() -> JsonValue {
 
     for (path, summary, operation_id, request_schema, response_schema) in [
         (
-            "/api/v1/control/social/friend-requests",
+            "/backend/v3/api/control/social/friend_requests",
             "Submit a friend request event.",
             "submitFriendRequest",
             "SubmitFriendRequestRequest",
             "SocialFriendRequestCommitResponse",
         ),
         (
-            "/api/v1/control/social/friendships",
+            "/backend/v3/api/control/social/friendships",
             "Activate a friendship event.",
             "activateFriendship",
             "ActivateFriendshipRequest",
             "SocialFriendshipCommitResponse",
         ),
         (
-            "/api/v1/control/social/user-blocks",
+            "/backend/v3/api/control/social/user_blocks",
             "Block a user in the social graph.",
             "blockUser",
             "BlockUserRequest",
             "SocialUserBlockCommitResponse",
         ),
         (
-            "/api/v1/control/social/direct-chats/bindings",
+            "/backend/v3/api/control/social/direct_chats/bindings",
             "Bind a direct chat to a conversation.",
             "bindDirectChat",
             "BindDirectChatRequest",
             "SocialDirectChatCommitResponse",
         ),
         (
-            "/api/v1/control/social/external-connections",
+            "/backend/v3/api/control/social/external_connections",
             "Establish an external collaboration connection.",
             "establishExternalConnection",
             "EstablishExternalConnectionRequest",
             "SocialExternalConnectionCommitResponse",
         ),
         (
-            "/api/v1/control/social/external-member-links",
+            "/backend/v3/api/control/social/external_member_links",
             "Bind an external member link.",
             "bindExternalMemberLink",
             "BindExternalMemberLinkRequest",
             "SocialExternalMemberLinkCommitResponse",
         ),
         (
-            "/api/v1/control/social/shared-channel-policies",
+            "/backend/v3/api/control/social/shared_channel_policies",
             "Apply a shared-channel policy.",
             "applySharedChannelPolicy",
             "ApplySharedChannelPolicyRequest",
@@ -6032,49 +6045,49 @@ fn control_plane_openapi_paths() -> JsonValue {
 
     for (path, param_name, summary, operation_id, response_schema) in [
         (
-            "/api/v1/control/social/friend-requests/{request_id}",
+            "/backend/v3/api/control/social/friend_requests/{request_id}",
             "request_id",
             "Read a friend request snapshot.",
             "getFriendRequestSnapshot",
             "SocialFriendRequestSnapshotResponse",
         ),
         (
-            "/api/v1/control/social/friendships/{friendship_id}",
+            "/backend/v3/api/control/social/friendships/{friendship_id}",
             "friendship_id",
             "Read a friendship snapshot.",
             "getFriendshipSnapshot",
             "SocialFriendshipSnapshotResponse",
         ),
         (
-            "/api/v1/control/social/user-blocks/{block_id}",
+            "/backend/v3/api/control/social/user_blocks/{block_id}",
             "block_id",
             "Read a user block snapshot.",
             "getUserBlockSnapshot",
             "SocialUserBlockSnapshotResponse",
         ),
         (
-            "/api/v1/control/social/direct-chats/{direct_chat_id}",
+            "/backend/v3/api/control/social/direct_chats/{direct_chat_id}",
             "direct_chat_id",
             "Read a direct chat snapshot.",
             "getDirectChatSnapshot",
             "SocialDirectChatSnapshotResponse",
         ),
         (
-            "/api/v1/control/social/external-connections/{connection_id}",
+            "/backend/v3/api/control/social/external_connections/{connection_id}",
             "connection_id",
             "Read an external connection snapshot.",
             "getExternalConnectionSnapshot",
             "SocialExternalConnectionSnapshotResponse",
         ),
         (
-            "/api/v1/control/social/external-member-links/{link_id}",
+            "/backend/v3/api/control/social/external_member_links/{link_id}",
             "link_id",
             "Read an external member link snapshot.",
             "getExternalMemberLinkSnapshot",
             "SocialExternalMemberLinkSnapshotResponse",
         ),
         (
-            "/api/v1/control/social/shared-channel-policies/{policy_id}",
+            "/backend/v3/api/control/social/shared_channel_policies/{policy_id}",
             "policy_id",
             "Read a shared-channel policy snapshot.",
             "getSharedChannelPolicySnapshot",
@@ -6097,27 +6110,84 @@ fn control_plane_openapi_paths() -> JsonValue {
         );
     }
 
+    for (
+        path,
+        param_name,
+        summary,
+        operation_id,
+        request_schema,
+        response_schema,
+    ) in [
+        (
+            "/backend/v3/api/control/social/friend_requests/{request_id}/accept",
+            "request_id",
+            "Accept a friend request.",
+            "acceptFriendRequest",
+            "AcceptFriendRequestRequest",
+            "SocialFriendRequestCommitResponse",
+        ),
+        (
+            "/backend/v3/api/control/social/friend_requests/{request_id}/decline",
+            "request_id",
+            "Decline a friend request.",
+            "declineFriendRequest",
+            "DeclineFriendRequestRequest",
+            "SocialFriendRequestCommitResponse",
+        ),
+        (
+            "/backend/v3/api/control/social/friend_requests/{request_id}/cancel",
+            "request_id",
+            "Cancel a friend request.",
+            "cancelFriendRequest",
+            "CancelFriendRequestRequest",
+            "SocialFriendRequestCommitResponse",
+        ),
+        (
+            "/backend/v3/api/control/social/friendships/{friendship_id}/remove",
+            "friendship_id",
+            "Remove a friendship.",
+            "removeFriendship",
+            "RemoveFriendshipRequest",
+            "SocialFriendshipCommitResponse",
+        ),
+    ] {
+        paths.insert(
+            path.to_owned(),
+            serde_json::json!({
+                "post": openapi_operation(
+                    summary,
+                    operation_id,
+                    "social",
+                    vec![openapi_path_parameter(param_name, "Aggregate identifier.")],
+                    Some(openapi_request_body(request_schema, "Social action payload.")),
+                    response_schema,
+                    true
+                )
+            }),
+        );
+    }
+
     for (path, summary, operation_id, response_schema) in [
         (
-            "/api/v1/control/social/runtime/repair-derived-snapshot",
+            "/backend/v3/api/control/social/runtime/repair_derived_snapshot",
             "Repair the persisted social runtime derived snapshot.",
             "repairSocialRuntimeSnapshot",
             "SocialRuntimeRepairResponse",
         ),
         (
-            "/api/v1/control/social/runtime/reclaim-stale-pending-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/reclaim_stale_pending_shared_channel_sync",
             "Reclaim stale shared-channel sync pending ownership.",
             "reclaimStalePendingSharedChannelSync",
             "SocialSharedChannelSyncPendingStaleReclaimResponse",
         ),
         (
-            "/api/v1/control/social/runtime/repair-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/repair_shared_channel_sync",
             "Repair shared-channel sync backlog state.",
             "repairSharedChannelSync",
             "SocialSharedChannelSyncRepairResponse",
         ),
         (
-            "/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync",
             "Requeue all dead-letter shared-channel sync entries.",
             "requeueDeadLetterSharedChannelSync",
             "SocialSharedChannelSyncDeadLetterRequeueResponse",
@@ -6141,25 +6211,25 @@ fn control_plane_openapi_paths() -> JsonValue {
 
     for (path, summary, operation_id, response_schema) in [
         (
-            "/api/v1/control/social/runtime/dead-letter-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync",
             "Read the dead-letter shared-channel sync queue.",
             "getDeadLetterSharedChannelSyncInventory",
             "SocialSharedChannelSyncDeadLetterInventoryResponse",
         ),
         (
-            "/api/v1/control/social/runtime/pending-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/pending_shared_channel_sync",
             "Read the pending shared-channel sync queue.",
             "getPendingSharedChannelSyncInventory",
             "SocialSharedChannelSyncPendingInventoryResponse",
         ),
         (
-            "/api/v1/control/social/runtime/delivered-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/delivered_shared_channel_sync",
             "Read the delivered shared-channel sync ledger.",
             "getDeliveredSharedChannelSyncInventory",
             "SocialSharedChannelSyncDeliveredInventoryResponse",
         ),
         (
-            "/api/v1/control/social/runtime/delivery-state-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/delivery_state_shared_channel_sync",
             "Read merged shared-channel sync delivery state.",
             "getSharedChannelSyncDeliveryStateInventory",
             "SocialSharedChannelSyncDeliveryStateInventoryResponse",
@@ -6183,35 +6253,35 @@ fn control_plane_openapi_paths() -> JsonValue {
 
     for (path, summary, operation_id, request_schema, response_schema) in [
         (
-            "/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted",
+            "/backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted",
             "Requeue selected dead-letter shared-channel sync entries.",
             "requeueDeadLetterSharedChannelSyncTargeted",
             "SocialSharedChannelSyncDeadLetterTargetedRequeueRequest",
             "SocialSharedChannelSyncDeadLetterTargetedRequeueResponse",
         ),
         (
-            "/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted",
+            "/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted",
             "Claim selected pending shared-channel sync entries.",
             "claimPendingSharedChannelSyncTargeted",
             "SocialSharedChannelSyncPendingTargetedClaimRequest",
             "SocialSharedChannelSyncPendingClaimResponse",
         ),
         (
-            "/api/v1/control/social/runtime/release-pending-shared-channel-sync-targeted",
+            "/backend/v3/api/control/social/runtime/release_pending_shared_channel_sync_targeted",
             "Release selected pending shared-channel sync entries.",
             "releasePendingSharedChannelSyncTargeted",
             "SocialSharedChannelSyncPendingTargetedReleaseRequest",
             "SocialSharedChannelSyncPendingReleaseResponse",
         ),
         (
-            "/api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted",
+            "/backend/v3/api/control/social/runtime/takeover_pending_shared_channel_sync_targeted",
             "Take over selected pending shared-channel sync entries.",
             "takeoverPendingSharedChannelSyncTargeted",
             "SocialSharedChannelSyncPendingTargetedTakeoverRequest",
             "SocialSharedChannelSyncPendingTakeoverResponse",
         ),
         (
-            "/api/v1/control/social/runtime/republish-pending-shared-channel-sync-targeted",
+            "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
             "Republish selected pending shared-channel sync entries.",
             "republishPendingSharedChannelSyncTargeted",
             "SocialSharedChannelSyncTargetedRepublishRequest",
@@ -6236,12 +6306,12 @@ fn control_plane_openapi_paths() -> JsonValue {
 
     for (path, operation_id, summary) in [
         (
-            "/api/v1/control/nodes/{node_id}/drain",
+            "/backend/v3/api/control/nodes/{node_id}/drain",
             "drainNode",
             "Mark a realtime node as draining.",
         ),
         (
-            "/api/v1/control/nodes/{node_id}/activate",
+            "/backend/v3/api/control/nodes/{node_id}/activate",
             "activateNode",
             "Activate a realtime node and clear drain state.",
         ),
@@ -6263,7 +6333,7 @@ fn control_plane_openapi_paths() -> JsonValue {
     }
 
     paths.insert(
-        "/api/v1/control/nodes/{node_id}/routes/migrate".to_owned(),
+        "/backend/v3/api/control/nodes/{node_id}/routes/migrate".to_owned(),
         serde_json::json!({
             "post": openapi_operation(
                 "Migrate owned routes from the source node to the target node.",
@@ -6549,7 +6619,7 @@ fn lock_social_state_mutex<'a, T>(
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!("warning: recovering poisoned {lock_name} lock");
+            tracing::warn!("recovering poisoned {lock_name} lock");
             poisoned.into_inner()
         }
     }
@@ -6723,7 +6793,7 @@ impl SocialControlRuntime {
     }
 
     fn recover_poisoned_social_runtime_lock<T>(poisoned: std::sync::PoisonError<T>) -> T {
-        eprintln!(
+        tracing::warn!(
             "control-plane social runtime lock was poisoned by a prior panic; continuing with inner state"
         );
         poisoned.into_inner()
@@ -6777,7 +6847,7 @@ impl SocialControlRuntime {
             },
             Err(error) => {
                 let replay_error = format!("{context}: {error}");
-                eprintln!(
+                tracing::warn!(
                     "{replay_error}. control-plane social authority is unavailable until the snapshot is repaired"
                 );
                 SocialAuthorityLoad {
@@ -6806,7 +6876,7 @@ impl SocialControlRuntime {
                         "failed to replay control-plane social commit journal {}: {error}",
                         journal_path.display()
                     );
-                    eprintln!(
+                    tracing::warn!(
                         "{replay_error}. control-plane social authority is unavailable until the journal is repaired"
                     );
                     return SocialAuthorityLoad {
@@ -6822,7 +6892,7 @@ impl SocialControlRuntime {
                 .merge_delivered_shared_channel_sync_delivery_proofs_from(&snapshot_state);
             replayed_state.merge_recent_shared_channel_sync_deliveries_from(&snapshot_state);
             if let Err(error) = state_store.save(&replayed_state) {
-                eprintln!(
+                tracing::warn!(
                     "failed to persist replayed control-plane social state {}: {error}. continuing with in-memory replayed state",
                     journal_path.display()
                 );
@@ -6830,7 +6900,7 @@ impl SocialControlRuntime {
             if let Some(marker_path) = tx_marker_path
                 && let Err(error) = clear_social_transaction_marker(marker_path)
             {
-                eprintln!(
+                tracing::warn!(
                     "failed to clear social transaction marker after journal replay {}: {error}",
                     marker_path.display()
                 );
@@ -6874,14 +6944,14 @@ impl SocialControlRuntime {
                             "failed to persist stale pending shared-channel sync reclaim from scheduler",
                         )
                     {
-                        eprintln!(
+                        tracing::warn!(
                             "shared-channel sync stale reclaim scheduler tick failed: {error:?}"
                         );
                     }
                     if let Err(error) = runtime.prune_delivered_shared_channel_sync_backlog_if_any(
                         "failed to persist shared-channel sync delivered-ledger pruning from scheduler",
                     ) {
-                        eprintln!(
+                        tracing::warn!(
                             "shared-channel sync delivered-ledger pruning scheduler tick failed: {error:?}"
                         );
                     }
@@ -6891,7 +6961,7 @@ impl SocialControlRuntime {
             Err(error) => {
                 self.shared_channel_sync_stale_reclaim_scheduler_started
                     .store(false, Ordering::Release);
-                eprintln!(
+                tracing::warn!(
                     "failed to start shared-channel sync stale reclaim scheduler thread: {error}"
                 );
             }
@@ -7252,7 +7322,7 @@ impl SocialControlRuntime {
         let snapshot_state = match self.state_store.load() {
             Ok(snapshot_state) => snapshot_state,
             Err(error) if journal_path.exists() => {
-                eprintln!(
+                tracing::warn!(
                     "failed to load control-plane social snapshot during cross-instance write refresh: {error}. continuing from commit journal authority"
                 );
                 SocialControlState::default()
@@ -8646,8 +8716,8 @@ impl From<RealtimeClusterError> for ControlPlaneError {
     }
 }
 
-impl From<AuthContextError> for ControlPlaneError {
-    fn from(value: AuthContextError) -> Self {
+impl From<AppContextError> for ControlPlaneError {
+    fn from(value: AppContextError) -> Self {
         Self {
             status: StatusCode::UNAUTHORIZED,
             code: value.code(),
@@ -8831,7 +8901,7 @@ impl SocialControlRuntime {
     fn establish_external_connection(
         &self,
         tenant_id: &str,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: EstablishExternalConnectionRequest,
     ) -> Result<EstablishedExternalConnection, ControlPlaneError> {
         validate_payload_size(
@@ -9008,7 +9078,7 @@ impl SocialControlRuntime {
     fn bind_external_member_link(
         &self,
         tenant_id: &str,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: BindExternalMemberLinkRequest,
     ) -> Result<BoundExternalMemberLink, ControlPlaneError> {
         validate_payload_size(
@@ -9244,7 +9314,7 @@ impl SocialControlRuntime {
     fn apply_shared_channel_policy(
         &self,
         tenant_id: &str,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: ApplySharedChannelPolicyRequest,
     ) -> Result<AppliedSharedChannelPolicy, ControlPlaneError> {
         validate_payload_size(
@@ -9485,7 +9555,7 @@ impl SocialControlRuntime {
     fn submit_friend_request(
         &self,
         tenant_id: &str,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: SubmitFriendRequestRequest,
     ) -> Result<SubmittedFriendRequest, ControlPlaneError> {
         validate_payload_size(
@@ -9749,7 +9819,7 @@ impl SocialControlRuntime {
     fn accept_friend_request(
         &self,
         tenant_id: &str,
-        auth: &AuthContext,
+        auth: &AppContext,
         request_id: &str,
         request: AcceptFriendRequestRequest,
     ) -> Result<AcceptedFriendRequest, ControlPlaneError> {
@@ -10123,7 +10193,7 @@ impl SocialControlRuntime {
     fn decline_friend_request(
         &self,
         tenant_id: &str,
-        auth: &AuthContext,
+        auth: &AppContext,
         request_id: &str,
         request: DeclineFriendRequestRequest,
     ) -> Result<DeclinedFriendRequest, ControlPlaneError> {
@@ -10260,7 +10330,7 @@ impl SocialControlRuntime {
     fn cancel_friend_request(
         &self,
         tenant_id: &str,
-        auth: &AuthContext,
+        auth: &AppContext,
         request_id: &str,
         request: CancelFriendRequestRequest,
     ) -> Result<CanceledFriendRequest, ControlPlaneError> {
@@ -10397,7 +10467,7 @@ impl SocialControlRuntime {
     fn activate_friendship(
         &self,
         tenant_id: &str,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: ActivateFriendshipRequest,
     ) -> Result<ActivatedFriendship, ControlPlaneError> {
         validate_payload_size(
@@ -10596,7 +10666,7 @@ impl SocialControlRuntime {
     fn remove_friendship(
         &self,
         tenant_id: &str,
-        auth: &AuthContext,
+        auth: &AppContext,
         friendship_id: &str,
         request: RemoveFriendshipRequest,
     ) -> Result<RemovedFriendship, ControlPlaneError> {
@@ -10736,7 +10806,7 @@ impl SocialControlRuntime {
     fn block_user(
         &self,
         tenant_id: &str,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: BlockUserRequest,
     ) -> Result<BlockedUser, ControlPlaneError> {
         validate_payload_size(
@@ -10988,7 +11058,7 @@ impl SocialControlRuntime {
     fn bind_direct_chat(
         &self,
         tenant_id: &str,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: BindDirectChatRequest,
     ) -> Result<BoundDirectChat, ControlPlaneError> {
         validate_payload_size(
@@ -11233,34 +11303,21 @@ pub fn configured_shared_channel_sync_target_base_url() -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-pub fn build_public_shared_channel_sync_trigger(
+pub fn build_app_context_header_shared_channel_sync_trigger(
     base_url: impl AsRef<str>,
-    public_bearer_secret: impl AsRef<str>,
 ) -> Result<Arc<dyn SharedChannelLinkedMemberSyncTrigger>, String> {
-    Ok(Arc::new(PublicSharedChannelLinkedMemberSyncTrigger::new(
-        base_url,
-        public_bearer_secret,
-    )?))
+    Ok(Arc::new(
+        AppContextHeaderSharedChannelLinkedMemberSyncTrigger::new(base_url)?,
+    ))
 }
 
-pub fn configured_public_shared_channel_sync_trigger()
+pub fn configured_app_context_header_shared_channel_sync_trigger()
 -> Result<Option<Arc<dyn SharedChannelLinkedMemberSyncTrigger>>, String> {
     let Some(base_url) = configured_shared_channel_sync_target_base_url() else {
         return Ok(None);
     };
 
-    let public_bearer_secret = std::env::var(PUBLIC_BEARER_HS256_SECRET_ENV)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| {
-            format!(
-                "{} is required when {} is set",
-                PUBLIC_BEARER_HS256_SECRET_ENV, SHARED_CHANNEL_SYNC_TARGET_BASE_URL_ENV
-            )
-        })?;
-
-    build_public_shared_channel_sync_trigger(base_url, public_bearer_secret).map(Some)
+    build_app_context_header_shared_channel_sync_trigger(base_url).map(Some)
 }
 
 pub fn repair_social_runtime_dir(
@@ -11281,7 +11338,7 @@ pub fn repair_social_runtime_dir(
     let snapshot_state = match state_store.load() {
         Ok(state) => state,
         Err(error) => {
-            eprintln!(
+            tracing::warn!(
                 "failed to load control-plane social snapshot during operator repair: {error}. continuing from commit journal authority"
             );
             SocialControlState::default()
@@ -11344,7 +11401,7 @@ pub fn build_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_app().layer(middleware::from_fn(require_public_bearer_auth))
+    build_app().layer(middleware::from_fn(require_app_context))
 }
 
 pub fn export_openapi_document() -> Result<serde_json::Value, String> {
@@ -11368,7 +11425,7 @@ pub fn build_public_app_with_shared_channel_sync_trigger(
     shared_channel_sync_trigger: Arc<dyn SharedChannelLinkedMemberSyncTrigger>,
 ) -> Router {
     build_app_with_shared_channel_sync_trigger(shared_channel_sync_trigger)
-        .layer(middleware::from_fn(require_public_bearer_auth))
+        .layer(middleware::from_fn(require_app_context))
 }
 
 pub fn build_app_with_cluster(realtime_cluster: Arc<RealtimeClusterBridge>) -> Router {
@@ -11663,7 +11720,10 @@ fn build_app_with_state_and_scheduler_config(
     Router::new()
         .route("/healthz", get(healthz))
         .route("/openapi.json", get(openapi_document))
-        .route("/api/v1/control/openapi.json", get(openapi_document))
+        .route(
+            "/backend/v3/api/control/openapi.json",
+            get(openapi_document),
+        )
         .route("/docs", get(docs))
         .merge(build_control_surface_with_state_and_scheduler_config(
             state,
@@ -11687,176 +11747,176 @@ fn build_control_surface_with_state_and_scheduler_config(
         .start_shared_channel_sync_stale_reclaim_scheduler(scheduler_config);
     Router::new()
         .route(
-            "/api/v1/control/protocol-registry",
+            "/backend/v3/api/control/protocol_registry",
             get(protocol_registry_snapshot),
         )
         .route(
-            "/api/v1/control/protocol-governance",
+            "/backend/v3/api/control/protocol_governance",
             get(protocol_governance_snapshot),
         )
         .route(
-            "/api/v1/control/provider-registry",
+            "/backend/v3/api/control/provider_registry",
             get(provider_registry_snapshot),
         )
         .route(
-            "/api/v1/control/provider-bindings",
+            "/backend/v3/api/control/provider_bindings",
             get(provider_bindings_snapshot).post(upsert_provider_binding_policy),
         )
         .route(
-            "/api/v1/control/provider-policies",
+            "/backend/v3/api/control/provider_policies",
             get(provider_policy_history),
         )
         .route(
-            "/api/v1/control/provider-policies/diff",
+            "/backend/v3/api/control/provider_policies/diff",
             get(provider_policy_diff),
         )
         .route(
-            "/api/v1/control/provider-policies/preview",
+            "/backend/v3/api/control/provider_policies/preview",
             post(provider_policy_preview),
         )
         .route(
-            "/api/v1/control/provider-policies/rollback",
+            "/backend/v3/api/control/provider_policies/rollback",
             post(rollback_provider_policy),
         )
         .route(
-            "/api/v1/control/social/friend-requests",
+            "/backend/v3/api/control/social/friend_requests",
             get(list_friend_requests).post(submit_friend_request),
         )
         .route(
-            "/api/v1/control/social/friend-requests/{request_id}",
+            "/backend/v3/api/control/social/friend_requests/{request_id}",
             get(friend_request_snapshot),
         )
         .route(
-            "/api/v1/control/social/friend-requests/{request_id}/accept",
+            "/backend/v3/api/control/social/friend_requests/{request_id}/accept",
             post(accept_friend_request),
         )
         .route(
-            "/api/v1/control/social/friend-requests/{request_id}/decline",
+            "/backend/v3/api/control/social/friend_requests/{request_id}/decline",
             post(decline_friend_request),
         )
         .route(
-            "/api/v1/control/social/friend-requests/{request_id}/cancel",
+            "/backend/v3/api/control/social/friend_requests/{request_id}/cancel",
             post(cancel_friend_request),
         )
         .route(
-            "/api/v1/control/social/friendships",
+            "/backend/v3/api/control/social/friendships",
             post(activate_friendship),
         )
         .route(
-            "/api/v1/control/social/friendships/{friendship_id}",
+            "/backend/v3/api/control/social/friendships/{friendship_id}",
             get(friendship_snapshot),
         )
         .route(
-            "/api/v1/control/social/friendships/{friendship_id}/remove",
+            "/backend/v3/api/control/social/friendships/{friendship_id}/remove",
             post(remove_friendship),
         )
-        .route("/api/v1/control/social/user-blocks", post(block_user))
+        .route("/backend/v3/api/control/social/user_blocks", post(block_user))
         .route(
-            "/api/v1/control/social/user-blocks/{block_id}",
+            "/backend/v3/api/control/social/user_blocks/{block_id}",
             get(user_block_snapshot),
         )
         .route(
-            "/api/v1/control/social/direct-chats/bindings",
+            "/backend/v3/api/control/social/direct_chats/bindings",
             post(bind_direct_chat),
         )
         .route(
-            "/api/v1/control/social/direct-chats/{direct_chat_id}",
+            "/backend/v3/api/control/social/direct_chats/{direct_chat_id}",
             get(direct_chat_snapshot),
         )
         .route(
-            "/api/v1/control/social/external-connections",
+            "/backend/v3/api/control/social/external_connections",
             post(establish_external_connection),
         )
         .route(
-            "/api/v1/control/social/external-connections/{connection_id}",
+            "/backend/v3/api/control/social/external_connections/{connection_id}",
             get(external_connection_snapshot),
         )
         .route(
-            "/api/v1/control/social/external-member-links",
+            "/backend/v3/api/control/social/external_member_links",
             post(bind_external_member_link),
         )
         .route(
-            "/api/v1/control/social/external-member-links/{link_id}",
+            "/backend/v3/api/control/social/external_member_links/{link_id}",
             get(external_member_link_snapshot),
         )
         .route(
-            "/api/v1/control/social/shared-channel-policies",
+            "/backend/v3/api/control/social/shared_channel_policies",
             post(apply_shared_channel_policy),
         )
         .route(
-            "/api/v1/control/social/shared-channel-policies/{policy_id}",
+            "/backend/v3/api/control/social/shared_channel_policies/{policy_id}",
             get(shared_channel_policy_snapshot),
         )
         .route(
-            "/api/v1/control/social/runtime/repair-derived-snapshot",
+            "/backend/v3/api/control/social/runtime/repair_derived_snapshot",
             post(repair_social_runtime_snapshot),
         )
         .route(
-            "/api/v1/control/social/runtime/dead-letter-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync",
             get(dead_letter_social_runtime_shared_channel_sync),
         )
         .route(
-            "/api/v1/control/social/runtime/pending-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/pending_shared_channel_sync",
             get(pending_social_runtime_shared_channel_sync),
         )
         .route(
-            "/api/v1/control/social/runtime/delivered-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/delivered_shared_channel_sync",
             get(delivered_social_runtime_shared_channel_sync),
         )
         .route(
-            "/api/v1/control/social/runtime/delivery-state-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/delivery_state_shared_channel_sync",
             get(delivery_state_social_runtime_shared_channel_sync),
         )
         .route(
-            "/api/v1/control/social/runtime/reclaim-stale-pending-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/reclaim_stale_pending_shared_channel_sync",
             post(reclaim_stale_pending_social_runtime_shared_channel_sync),
         )
         .route(
-            "/api/v1/control/social/runtime/repair-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/repair_shared_channel_sync",
             post(repair_social_runtime_shared_channel_sync),
         )
         .route(
-            "/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync",
+            "/backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync",
             post(requeue_dead_letter_social_runtime_shared_channel_sync),
         )
         .route(
-            "/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted",
+            "/backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted",
             post(requeue_dead_letter_social_runtime_shared_channel_sync_targeted),
         )
         .route(
-            "/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted",
+            "/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted",
             post(claim_pending_social_runtime_shared_channel_sync_targeted),
         )
         .route(
-            "/api/v1/control/social/runtime/release-pending-shared-channel-sync-targeted",
+            "/backend/v3/api/control/social/runtime/release_pending_shared_channel_sync_targeted",
             post(release_pending_social_runtime_shared_channel_sync_targeted),
         )
         .route(
-            "/api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted",
+            "/backend/v3/api/control/social/runtime/takeover_pending_shared_channel_sync_targeted",
             post(takeover_pending_social_runtime_shared_channel_sync_targeted),
         )
         .route(
-            "/api/v1/control/social/runtime/republish-pending-shared-channel-sync-targeted",
+            "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
             post(republish_pending_social_runtime_shared_channel_sync_targeted),
         )
-        .route("/api/v1/control/nodes/{node_id}/drain", post(drain_node))
+        .route("/backend/v3/api/control/nodes/{node_id}/drain", post(drain_node))
         .route(
-            "/api/v1/control/nodes/{node_id}/activate",
+            "/backend/v3/api/control/nodes/{node_id}/activate",
             post(activate_node),
         )
         .route(
-            "/api/v1/control/nodes/{node_id}/routes/migrate",
+            "/backend/v3/api/control/nodes/{node_id}/routes/migrate",
             post(migrate_node_routes),
         )
         .with_state(state)
 }
 
-async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
-        "/healthz" | "/openapi.json" | "/api/v1/control/openapi.json" | "/docs" => {
+        "/healthz" | "/openapi.json" | "/backend/v3/api/control/openapi.json" | "/docs" => {
             next.run(request).await
         }
-        _ => match resolve_public_bearer_auth_context(request.headers()) {
+        _ => match resolve_app_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => ControlPlaneError::from(error).into_response(),
         },
@@ -11892,7 +11952,7 @@ async fn protocol_registry_snapshot(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ProtocolRegistryResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
     Ok(Json(ProtocolRegistryResponse {
@@ -11918,7 +11978,7 @@ async fn protocol_governance_snapshot(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ProtocolGovernanceResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
     let governance = state
@@ -11941,7 +12001,7 @@ async fn provider_registry_snapshot(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderRegistrySnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
     Ok(Json(provider_registry_snapshot_response(
         state.provider_registry.snapshot(),
@@ -11953,7 +12013,7 @@ async fn provider_bindings_snapshot(
     Query(query): Query<ProviderBindingsQuery>,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderBindingsResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
     let tenant_id = validate_optional_tenant_id(query.tenant_id)?;
 
@@ -11968,7 +12028,7 @@ async fn upsert_provider_binding_policy(
     State(state): State<AppState>,
     Json(request): Json<UpsertProviderBindingPolicyRequest>,
 ) -> Result<Json<ProviderBindingCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
     let tenant_id = validate_optional_tenant_id(request.tenant_id.clone())?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
@@ -12039,7 +12099,7 @@ async fn provider_policy_history(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderPolicyHistoryResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
         ControlPlaneError::service_unavailable(
@@ -12059,7 +12119,7 @@ async fn provider_policy_diff(
     Query(query): Query<ProviderPolicyDiffQuery>,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderPolicyDiffResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
         ControlPlaneError::service_unavailable(
@@ -12079,7 +12139,7 @@ async fn provider_policy_preview(
     State(state): State<AppState>,
     Json(request): Json<UpsertProviderBindingPolicyRequest>,
 ) -> Result<Json<ProviderPolicyPreview>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
     let tenant_id = validate_optional_tenant_id(request.tenant_id.clone())?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
@@ -12101,7 +12161,7 @@ async fn rollback_provider_policy(
     State(state): State<AppState>,
     Json(request): Json<ProviderPolicyRollbackRequest>,
 ) -> Result<Json<ProviderPolicyHistoryResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
         ControlPlaneError::service_unavailable(
@@ -12221,8 +12281,43 @@ fn friend_request_inventory_cursor_for(friend_request: &FriendRequest) -> String
     let payload = serde_json::to_value(&cursor)
         .expect("friend request inventory cursor should serialize into json");
     let secret = resolve_friend_request_cursor_signing_secret();
-    encode_hs256_bearer_token(&payload, secret.as_str())
+    encode_signed_cursor_payload(&payload, secret.as_str())
         .expect("friend request inventory cursor should encode into signed compact token")
+}
+
+fn encode_signed_cursor_payload(
+    payload: &serde_json::Value,
+    secret: &str,
+) -> Result<String, ControlPlaneError> {
+    let header = serde_json::json!({
+        "alg": "HS256",
+        "typ": "cursor"
+    });
+    let header_bytes = serde_json::to_vec(&header).map_err(|_| {
+        ControlPlaneError::service_unavailable(
+            "cursor_encoding_failed",
+            "cursor header could not be encoded",
+        )
+    })?;
+    let payload_bytes = serde_json::to_vec(payload).map_err(|_| {
+        ControlPlaneError::service_unavailable(
+            "cursor_encoding_failed",
+            "cursor payload could not be encoded",
+        )
+    })?;
+    let header_segment = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(header_bytes);
+    let payload_segment = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload_bytes);
+    let signing_input = format!("{header_segment}.{payload_segment}");
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).map_err(|_| {
+        ControlPlaneError::service_unavailable(
+            "cursor_signing_secret_invalid",
+            "cursor signing secret is invalid",
+        )
+    })?;
+    mac.update(signing_input.as_bytes());
+    let signature_segment = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(mac.finalize().into_bytes());
+    Ok(format!("{signing_input}.{signature_segment}"))
 }
 
 fn parse_friend_request_inventory_cursor(
@@ -12332,17 +12427,14 @@ fn resolve_friend_request_cursor_signing_secret() -> String {
     if let Some(configured) = resolve_non_empty_env_secret(FRIEND_REQUEST_CURSOR_HS256_SECRET_ENV) {
         return configured;
     }
-    if let Some(configured) = resolve_non_empty_env_secret(PUBLIC_BEARER_HS256_SECRET_ENV) {
-        return configured;
-    }
 
     static EPHEMERAL_SECRET: OnceLock<String> = OnceLock::new();
     EPHEMERAL_SECRET
         .get_or_init(|| {
             let mut bytes = [0u8; 32];
             if fill_random(&mut bytes).is_ok() {
-                eprintln!(
-                    "warning: {} is unset; using ephemeral in-memory friend request cursor signing secret",
+                tracing::warn!(
+                    "{} is unset; using ephemeral in-memory friend request cursor signing secret",
                     FRIEND_REQUEST_CURSOR_HS256_SECRET_ENV
                 );
                 return base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
@@ -12354,8 +12446,8 @@ fn resolve_friend_request_cursor_signing_secret() -> String {
                     .unwrap_or_default()
                     .as_nanos()
             );
-            eprintln!(
-                "warning: failed to generate random friend request cursor signing secret; using process-local time-derived fallback"
+            tracing::warn!(
+                "failed to generate random friend request cursor signing secret; using process-local time-derived fallback"
             );
             fallback
         })
@@ -13323,7 +13415,7 @@ async fn list_friend_requests(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendRequestInventoryResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
     validate_payload_size("userId", query.user_id.as_str(), CONTROL_PLANE_MAX_ID_BYTES)?;
     validate_required_with_code(
@@ -13376,7 +13468,7 @@ async fn submit_friend_request(
     State(state): State<AppState>,
     Json(request): Json<SubmitFriendRequestRequest>,
 ) -> Result<Json<SocialFriendRequestCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let submitted =
@@ -13415,7 +13507,7 @@ async fn accept_friend_request(
     State(state): State<AppState>,
     Json(request): Json<AcceptFriendRequestRequest>,
 ) -> Result<Json<SocialFriendRequestCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let accepted = state.social_runtime.accept_friend_request(
@@ -13493,7 +13585,7 @@ async fn decline_friend_request(
     State(state): State<AppState>,
     Json(request): Json<DeclineFriendRequestRequest>,
 ) -> Result<Json<SocialFriendRequestCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let declined = state.social_runtime.decline_friend_request(
@@ -13534,7 +13626,7 @@ async fn cancel_friend_request(
     State(state): State<AppState>,
     Json(request): Json<CancelFriendRequestRequest>,
 ) -> Result<Json<SocialFriendRequestCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let canceled = state.social_runtime.cancel_friend_request(
@@ -13574,7 +13666,7 @@ async fn friend_request_snapshot(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendRequestSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -13603,7 +13695,7 @@ async fn activate_friendship(
     State(state): State<AppState>,
     Json(request): Json<ActivateFriendshipRequest>,
 ) -> Result<Json<SocialFriendshipCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let activated =
@@ -13639,7 +13731,7 @@ async fn remove_friendship(
     State(state): State<AppState>,
     Json(request): Json<RemoveFriendshipRequest>,
 ) -> Result<Json<SocialFriendshipCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let removed = state.social_runtime.remove_friendship(
@@ -13676,7 +13768,7 @@ async fn friendship_snapshot(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendshipSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -13705,7 +13797,7 @@ async fn block_user(
     State(state): State<AppState>,
     Json(request): Json<BlockUserRequest>,
 ) -> Result<Json<SocialUserBlockCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let blocked = state
@@ -13740,7 +13832,7 @@ async fn user_block_snapshot(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialUserBlockSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -13769,7 +13861,7 @@ async fn bind_direct_chat(
     State(state): State<AppState>,
     Json(request): Json<BindDirectChatRequest>,
 ) -> Result<Json<SocialDirectChatCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let bound = state
@@ -13804,7 +13896,7 @@ async fn direct_chat_snapshot(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialDirectChatSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -13833,7 +13925,7 @@ async fn establish_external_connection(
     State(state): State<AppState>,
     Json(request): Json<EstablishExternalConnectionRequest>,
 ) -> Result<Json<SocialExternalConnectionCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let established = state.social_runtime.establish_external_connection(
@@ -13868,7 +13960,7 @@ async fn external_connection_snapshot(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialExternalConnectionSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -13897,7 +13989,7 @@ async fn bind_external_member_link(
     State(state): State<AppState>,
     Json(request): Json<BindExternalMemberLinkRequest>,
 ) -> Result<Json<SocialExternalMemberLinkCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let bound =
@@ -13934,7 +14026,7 @@ async fn external_member_link_snapshot(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialExternalMemberLinkSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -13963,7 +14055,7 @@ async fn apply_shared_channel_policy(
     State(state): State<AppState>,
     Json(request): Json<ApplySharedChannelPolicyRequest>,
 ) -> Result<Json<SocialSharedChannelPolicyCommitResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let applied = state.social_runtime.apply_shared_channel_policy(
@@ -14001,7 +14093,7 @@ async fn shared_channel_policy_snapshot(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelPolicySnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -14029,7 +14121,7 @@ async fn repair_social_runtime_snapshot(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialRuntimeRepairResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let repair = state.social_runtime.repair_derived_snapshot()?;
@@ -14055,7 +14147,7 @@ async fn dead_letter_social_runtime_shared_channel_sync(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncDeadLetterInventoryResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
     let can_takeover = auth.has_permission("control.write");
     let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
@@ -14077,7 +14169,7 @@ async fn pending_social_runtime_shared_channel_sync(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncPendingInventoryResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
     let can_takeover = auth.has_permission("control.write");
     let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
@@ -14097,7 +14189,7 @@ async fn delivered_social_runtime_shared_channel_sync(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncDeliveredInventoryResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
     let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
 
@@ -14113,7 +14205,7 @@ async fn delivery_state_social_runtime_shared_channel_sync(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncDeliveryStateInventoryResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_read_access(&auth)?;
     let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
 
@@ -14128,7 +14220,7 @@ async fn reclaim_stale_pending_social_runtime_shared_channel_sync(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncPendingStaleReclaimResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let reclaim = state
@@ -14155,7 +14247,7 @@ async fn repair_social_runtime_shared_channel_sync(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncRepairResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let repair = state.social_runtime.repair_shared_channel_sync(
@@ -14191,7 +14283,7 @@ async fn requeue_dead_letter_social_runtime_shared_channel_sync(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncDeadLetterRequeueResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let requeue = state
@@ -14221,7 +14313,7 @@ async fn requeue_dead_letter_social_runtime_shared_channel_sync_targeted(
     State(state): State<AppState>,
     Json(request): Json<SocialSharedChannelSyncDeadLetterTargetedRequeueRequest>,
 ) -> Result<Json<SocialSharedChannelSyncDeadLetterTargetedRequeueResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let requeue = state
@@ -14253,7 +14345,7 @@ async fn claim_pending_social_runtime_shared_channel_sync_targeted(
     State(state): State<AppState>,
     Json(request): Json<SocialSharedChannelSyncPendingTargetedClaimRequest>,
 ) -> Result<Json<SocialSharedChannelSyncPendingClaimResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let claim = state
@@ -14289,7 +14381,7 @@ async fn release_pending_social_runtime_shared_channel_sync_targeted(
     State(state): State<AppState>,
     Json(request): Json<SocialSharedChannelSyncPendingTargetedReleaseRequest>,
 ) -> Result<Json<SocialSharedChannelSyncPendingReleaseResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let release = state
@@ -14324,7 +14416,7 @@ async fn takeover_pending_social_runtime_shared_channel_sync_targeted(
     State(state): State<AppState>,
     Json(request): Json<SocialSharedChannelSyncPendingTargetedTakeoverRequest>,
 ) -> Result<Json<SocialSharedChannelSyncPendingTakeoverResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let takeover = state
@@ -14361,7 +14453,7 @@ async fn republish_pending_social_runtime_shared_channel_sync_targeted(
     State(state): State<AppState>,
     Json(request): Json<SocialSharedChannelSyncTargetedRepublishRequest>,
 ) -> Result<Json<SocialSharedChannelSyncTargetedRepublishResponse>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
 
     let republish = state
@@ -14404,7 +14496,7 @@ async fn drain_node(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<RealtimeNodeLifecycleView>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
     let lifecycle = state
         .realtime_cluster
@@ -14431,7 +14523,7 @@ async fn activate_node(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<RealtimeNodeLifecycleView>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
     let lifecycle = state.realtime_cluster.activate_node(node_id.as_str())?;
     mirror_node_into_ops_runtime(&state, node_id.as_str());
@@ -14457,7 +14549,7 @@ async fn migrate_node_routes(
     State(state): State<AppState>,
     Json(request): Json<MigrateRoutesRequest>,
 ) -> Result<Json<RealtimeRouteMigrationResult>, ControlPlaneError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_control_write_access(&auth)?;
     let migration = state
         .realtime_cluster
@@ -14555,7 +14647,7 @@ fn mirror_all_provider_bindings_into_ops_runtime(
 
 fn dispatch_shared_channel_sync_requests(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     requests: &[SharedChannelLinkedMemberSyncRequest],
 ) -> Result<(), ControlPlaneError> {
     if requests.is_empty() {
@@ -14639,7 +14731,7 @@ fn dispatch_shared_channel_sync_requests(
 
 fn record_control_plane_audit(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     action: &str,
     aggregate_type: &str,
     aggregate_id: String,
@@ -14661,9 +14753,7 @@ fn record_control_plane_audit(
             payload: Some(payload),
         },
     ) {
-        eprintln!(
-            "warning: control-plane audit write failed for {aggregate_type}/{action}: {error:?}"
-        );
+        tracing::warn!("control-plane audit write failed for {aggregate_type}/{action}: {error:?}");
     }
 }
 
@@ -14755,7 +14845,7 @@ fn provider_binding_snapshot_view(
     }
 }
 
-fn ensure_control_write_access(auth: &AuthContext) -> Result<(), ControlPlaneError> {
+fn ensure_control_write_access(auth: &AppContext) -> Result<(), ControlPlaneError> {
     if auth.has_permission("control.write") {
         return Ok(());
     }
@@ -14763,7 +14853,7 @@ fn ensure_control_write_access(auth: &AuthContext) -> Result<(), ControlPlaneErr
     Err(ControlPlaneError::forbidden("control.write"))
 }
 
-fn ensure_control_read_access(auth: &AuthContext) -> Result<(), ControlPlaneError> {
+fn ensure_control_read_access(auth: &AppContext) -> Result<(), ControlPlaneError> {
     if auth.has_permission("control.read") || auth.has_permission("control.write") {
         return Ok(());
     }
@@ -14888,11 +14978,13 @@ fn business_policy_vocabulary_response(
 
 fn sdk_compatibility_baseline_response(registry: &CcpRegistry) -> SdkCompatibilityBaselineResponse {
     SdkCompatibilityBaselineResponse {
-        app_sdk_facade: "sdkwork-im-sdk",
-        admin_sdk_facade: "sdkwork-control-plane-sdk",
+        im_sdk_family: "sdkwork-im-sdk",
+        app_sdk_family: "sdkwork-im-app-sdk",
+        backend_sdk_family: "sdkwork-im-backend-sdk",
+        rtc_sdk_family: "sdkwork-rtc-sdk",
         matrix_client_types: registry.compatibility_matrix().keys().cloned().collect(),
-        protocol_registry_path: "/api/v1/control/protocol-registry",
-        protocol_governance_path: "/api/v1/control/protocol-governance",
+        protocol_registry_path: "/backend/v3/api/control/protocol_registry",
+        protocol_governance_path: "/backend/v3/api/control/protocol_governance",
     }
 }
 

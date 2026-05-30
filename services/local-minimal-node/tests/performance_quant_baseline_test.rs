@@ -17,7 +17,18 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tower::ServiceExt;
 
-const DEMO_BEARER: &str = "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ0ZW5hbnRfaWQiOiJ0X2RlbW8iLCJzdWIiOiJ1X2RlbW8iLCJzaWQiOiJzX2RlbW8iLCJhY3Rvcl9raW5kIjoidXNlciJ9.";
+trait AppContextRequestBuilderExt {
+    fn demo_app_context(self) -> Self;
+}
+
+impl AppContextRequestBuilderExt for axum::http::request::Builder {
+    fn demo_app_context(self) -> Self {
+        self.header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_demo")
+            .header("x-sdkwork-actor-kind", "user")
+            .header("x-sdkwork-session-id", "s_demo")
+    }
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -157,31 +168,31 @@ async fn test_step11_local_connection_quant_baseline_emits_metrics() {
     let latencies_ms = join_all((0..baseline.connection.connection_count).map(|index| {
         let address = address.clone();
         async move {
-            let mut request = format!("ws://{address}/api/v1/realtime/ws")
+            let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
                 .into_client_request()
                 .expect("websocket request should build");
             request.headers_mut().insert(
-                "x-tenant-id",
+                "x-sdkwork-tenant-id",
                 "t_demo".parse().expect("tenant header should parse"),
             );
             request.headers_mut().insert(
-                "x-user-id",
+                "x-sdkwork-user-id",
                 format!("u_step11_conn_{index}")
                     .parse()
                     .expect("user header should parse"),
             );
             request.headers_mut().insert(
-                "x-actor-kind",
+                "x-sdkwork-actor-kind",
                 "user".parse().expect("actor kind header should parse"),
             );
             request.headers_mut().insert(
-                "x-session-id",
+                "x-sdkwork-session-id",
                 format!("s_step11_conn_{index}")
                     .parse()
                     .expect("session header should parse"),
             );
             request.headers_mut().insert(
-                "x-device-id",
+                "x-sdkwork-device-id",
                 format!("d_step11_conn_{index}")
                     .parse()
                     .expect("device header should parse"),
@@ -231,8 +242,8 @@ async fn test_step11_local_message_quant_baseline_emits_metrics() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", DEMO_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     "{{\"conversationId\":\"{conversation_id}\",\"conversationType\":\"group\"}}"
@@ -252,8 +263,8 @@ async fn test_step11_local_message_quant_baseline_emits_metrics() {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/api/v1/conversations/{conversation_id}/messages"))
-                    .header("authorization", DEMO_BEARER)
+                    .uri(format!("/im/v3/api/chat/conversations/{conversation_id}/messages"))
+                    .demo_app_context()
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         "{{\"clientMsgId\":\"step11_msg_{index}\",\"summary\":\"step11 message {index}\",\"text\":\"step11 message {index}\"}}"
@@ -270,8 +281,8 @@ async fn test_step11_local_message_quant_baseline_emits_metrics() {
     let summary = app
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/conversations/{conversation_id}"))
-                .header("authorization", DEMO_BEARER)
+                .uri(format!("/im/v3/api/chat/conversations/{conversation_id}"))
+                .demo_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -322,8 +333,8 @@ async fn test_step11_local_stream_quant_baseline_emits_metrics() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/conversations")
-                .header("authorization", DEMO_BEARER)
+                .uri("/im/v3/api/chat/conversations")
+                .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     "{{\"conversationId\":\"{conversation_id}\",\"conversationType\":\"group\"}}"
@@ -339,8 +350,8 @@ async fn test_step11_local_stream_quant_baseline_emits_metrics() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("authorization", DEMO_BEARER)
+                .uri("/im/v3/api/streams")
+                .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     "{{\"streamId\":\"{stream_id}\",\"streamType\":\"custom.delta.text\",\"scopeKind\":\"conversation\",\"scopeId\":\"{conversation_id}\",\"durabilityClass\":\"durableSession\",\"schemaRef\":\"custom.delta.text.v1\"}}"
@@ -360,8 +371,8 @@ async fn test_step11_local_stream_quant_baseline_emits_metrics() {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(format!("/api/v1/streams/{stream_id}/frames"))
-                    .header("authorization", DEMO_BEARER)
+                    .uri(format!("/im/v3/api/streams/{stream_id}/frames"))
+                    .demo_app_context()
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         "{{\"frameSeq\":{frame_seq},\"frameType\":\"delta\",\"schemaRef\":\"custom.delta.text.v1\",\"encoding\":\"json\",\"payload\":\"{{\\\"delta\\\":\\\"frame-{frame_seq}\\\"}}\"}}"
@@ -379,10 +390,10 @@ async fn test_step11_local_stream_quant_baseline_emits_metrics() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/api/v1/streams/{stream_id}/frames?afterFrameSeq=0&limit={}",
+                    "/im/v3/api/streams/{stream_id}/frames?afterFrameSeq=0&limit={}",
                     baseline.stream.frame_count
                 ))
-                .header("authorization", DEMO_BEARER)
+                .demo_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )

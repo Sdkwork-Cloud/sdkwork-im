@@ -8,8 +8,8 @@
 ## 实施范围
 
 1. `im-platform-contracts` 新增可写的 `RuntimeProviderRegistry`
-2. `control-plane-api` 新增 `POST /api/v1/control/provider-bindings`
-3. 写入后继续复用 `GET /api/v1/control/provider-bindings` 的返回契约
+2. `control-plane-api` 新增 `POST /backend/v3/api/control/provider_bindings`
+3. 写入后继续复用 `GET /backend/v3/api/control/provider_bindings` 的返回契约
 4. 写入后同步：
    - 镜像到 `OpsRuntime`
    - 记录 audit anchor

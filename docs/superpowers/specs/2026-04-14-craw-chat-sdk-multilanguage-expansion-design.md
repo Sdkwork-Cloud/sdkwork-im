@@ -35,7 +35,7 @@ This round does not cover:
 ## Decisions
 
 - Workspace family: `sdks/sdkwork-im-sdk` becomes a three-language app-facing SDK workspace for `typescript`, `flutter`, and `rust`.
-- Contract source: continue using `openapi/craw-chat-app.openapi.yaml` as authority and derived sdkgen inputs under `openapi/`.
+- Contract source: continue using `openapi/craw-chat-im.openapi.yaml` as authority and derived sdkgen inputs under `openapi/`.
 - Auth model: continue enforcing the public bearer-token model. Generated public auth surfaces must not drift toward trusted internal headers.
 - Realtime boundary: generated SDKs continue to cover HTTP coordination only. WebSocket transport remains documented but not implemented as a handwritten adapter in this round.
 - TypeScript and Flutter architecture: keep the existing layered shape of `generated/server-openapi + composed`.

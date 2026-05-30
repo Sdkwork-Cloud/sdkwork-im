@@ -1,1 +1,0 @@
-{"version":3,"file":"portal-login-request.d.ts","sourceRoot":"","sources":["../../../src/generated/types/portal-login-request.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,kBAAkB;IACjC,QAAQ,EAAE,MAAM,CAAC;IACjB,KAAK,EAAE,MAAM,CAAC;IACd,QAAQ,EAAE,MAAM,CAAC;IACjB,QAAQ,CAAC,EAAE,MAAM,CAAC;IAClB,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,UAAU,CAAC,EAAE,MAAM,CAAC;CACrB"}

@@ -30,7 +30,7 @@ Lock a single operator-facing response shape covering:
 
 - [ ] **Step 2: Add the failing API contract test**
 
-Add a red test proving `/api/v1/ops/runtime-dir` exists and requires `ops.read`.
+Add a red test proving `/backend/v3/api/ops/runtime_dir` exists and requires `ops.read`.
 
 - [ ] **Step 3: Implement the minimal contract in `ops-service`**
 
@@ -77,7 +77,7 @@ The inspector must classify each file as `ok`, `missing`, or `corrupt`.
 - [ ] **Step 4: Surface the inspection result through both runtime and CLI**
 
 Expose:
-- `/api/v1/ops/runtime-dir`
+- `/backend/v3/api/ops/runtime_dir`
 - a binary entry path for local script use
 
 - [ ] **Step 5: Re-run the managed runtime-dir test**

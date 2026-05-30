@@ -315,7 +315,7 @@ Every generation run must use the live service schema as its input source of tru
 Required root pipeline:
 
 1. Verify or start the target Craw Chat service.
-2. Fetch the live OpenAPI 3.x schema from `/openapi/craw-chat-app.openapi.yaml`.
+2. Fetch the live OpenAPI 3.x schema from `/im/v3/openapi.json`.
 3. Refresh the checked-in authority snapshot under `openapi/`.
 4. Derive generator-specific normalized inputs from the authority schema.
 5. Resolve one unified SDK version for the workspace generation run.

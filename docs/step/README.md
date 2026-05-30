@@ -59,7 +59,7 @@
 | `02` | workspace 与 crate 骨架重构 | 先打通工程结构和目录边界 | `01` | 新 workspace 拓扑、薄化 `lib.rs` |
 | `03` | CCP 协议基础设施与契约冻结 | 固化协议骨架和契约拆分 | `02` | `ccp-*` 与 `contract-*` 分层 |
 | `04` | Link / Route Runtime 重构 | 抽离连接热路径和在线路由 | `03` | `runtime-link`、`runtime-route` |
-| `05` | 消息与会话主链路重构 | 完成会话、成员、消息、已读与用户模块主链路 | `04` | message / conversation / user-module 核心域 |
+| `05` | 消息与会话主链路重构 | 完成会话、成员、消息、已读与用户模块主链路 | `04` | message / conversation / principal-profile 核心域 |
 | `06` | 流式与 RTC 实时能力重构 | 让流、RTC 与 RTC provider 成为一等能力 | `05` | stream / rtc / provider 主路径 |
 | `07` | 控制面与协议治理落地 | 建立配置、能力、注册表和发布治理 | `03`、`04`、`05` | control plane、registry |
 | `08` | AI / Agent / IoT 统一扩展层落地 | 接入智能主体、设备主体与协议插件 | `05`、`06`、`07` | agent / iot / device-management 统一模型 |
@@ -333,20 +333,20 @@
 - [continuous-optimization-status-local-cmd-help-gnu-surface-contract-2026-04-09](./continuous-optimization-status-local-cmd-help-gnu-surface-contract-2026-04-09.md)
   - close the `status-local.cmd --help` GNU-style discoverability gap on Windows
   - verification anchored in `test_status_local_cmd_help_surfaces_gnu_style_named_flags`
-- [continuous-optimization-user-module-runtime-provider-selection-2026-04-09](./continuous-optimization-user-module-runtime-provider-selection-2026-04-09.md)
-  - close the default runtime gap between `user-module-local` and `user-module-external`
-  - verification anchored in `test_default_app_uses_configured_external_user_module_provider`
+- [continuous-optimization-principal-profile-runtime-provider-selection-2026-04-09](./continuous-optimization-principal-profile-runtime-provider-selection-2026-04-09.md)
+  - close the default runtime gap between `principal-profile-upstream-context` and `principal-profile-external-catalog`
+  - verification anchored in `test_default_app_uses_configured_external_principal_profile_provider`
 - [continuous-optimization-install-deploy-cmd-help-gnu-surface-contract-2026-04-09](./continuous-optimization-install-deploy-cmd-help-gnu-surface-contract-2026-04-09.md)
   - close the remaining Windows help-surface drift for `install-local.cmd` and `deploy-local.cmd`
   - verification anchored in `test_install_local_cmd_help_surfaces_gnu_style_named_flags` and `test_deploy_local_cmd_help_surfaces_gnu_style_named_flags`
-- [continuous-optimization-user-module-external-missing-catalog-unavailable-contract-2026-04-09](./continuous-optimization-user-module-external-missing-catalog-unavailable-contract-2026-04-09.md)
-  - close the missing external user-module catalog-path drift where app assembly still panicked
-  - verification anchored in `test_default_app_boots_with_external_user_module_provider_missing_catalog_path_and_returns_provider_unavailable`
+- [continuous-optimization-principal-profile-external-catalog-missing-catalog-unavailable-contract-2026-04-09](./continuous-optimization-principal-profile-external-catalog-missing-catalog-unavailable-contract-2026-04-09.md)
+  - close the missing external principal-profile catalog-path drift where app assembly still panicked
+  - verification anchored in `test_default_app_boots_with_external_principal_profile_provider_missing_catalog_path_and_returns_provider_unavailable`
 ## 2026-04-09 Addendum
 
-- [continuous-optimization-user-module-provider-health-http-surface-2026-04-09](./continuous-optimization-user-module-provider-health-http-surface-2026-04-09.md)
-  - close the missing `GET /api/v1/user-module/provider-health` surface
-  - verification anchored in `test_local_minimal_profile_gets_user_module_provider_health_over_http`
+- [continuous-optimization-principal-profile-provider-health-http-surface-2026-04-09](./continuous-optimization-principal-profile-provider-health-http-surface-2026-04-09.md)
+  - close the missing `GET /backend/v3/api/principal/profiles/provider_health` surface
+  - verification anchored in `test_local_minimal_profile_gets_principal_profile_provider_health_over_http`
 ## 2026-04-09 Addendum
 
 - [continuous-optimization-local-minimal-ops-provider-bindings-runtime-visibility-2026-04-09](./continuous-optimization-local-minimal-ops-provider-bindings-runtime-visibility-2026-04-09.md)

@@ -286,8 +286,8 @@ RTC 只负责信令：
 ## 12. 2026-04-08 As-Built 补充（二）
 - 已继续把 Step 06 / Wave B 从“默认 provider runtime adapter 已接入”推进到“外部 RTC provider surface 已闭环”：
   - `services/rtc-signaling-service/src/lib.rs`
-    - 新增 `POST /api/v1/rtc/sessions/{rtc_session_id}/credentials`
-    - 新增 `GET /api/v1/rtc/provider-health`
+    - 新增 `POST /im/v3/api/rtc/sessions/{rtcSessionId}/credentials`
+    - 新增 `GET /backend/v3/api/rtc/provider_health`
     - 直接复用已有 `RtcRuntime::issue_participant_credential(...)` 与 `provider_health_snapshot(...)`
   - `services/local-minimal-node/src/node/rtc.rs`
     - 新增同名 handler，并沿用当前 conversation-bound access guard
@@ -308,8 +308,8 @@ RTC 只负责信令：
 - `services/rtc-signaling-service/src/lib.rs`
   - 新增 `RtcRuntime::map_provider_callback(...)`
   - 新增 `RtcRuntime::recording_artifact(...)`
-  - 新增 `POST /api/v1/rtc/provider-callbacks`
-  - 新增 `GET /api/v1/rtc/sessions/{rtc_session_id}/artifacts/recording`
+  - 新增 `POST /backend/v3/api/rtc/provider_callbacks`
+  - 新增 `GET /im/v3/api/rtc/sessions/{rtcSessionId}/artifacts/recording`
 - `services/local-minimal-node`
   - 镜像暴露同名 RTC provider surface
   - callback 保持 provider/integration 面，不引入厂商 DTO

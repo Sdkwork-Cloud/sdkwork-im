@@ -83,7 +83,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
     assert_eq!(value["openapi"], "3.1.0");
     assert_eq!(value["info"]["title"], "Craw Chat Projection Service API");
-    assert!(value["paths"]["/api/v1/inbox"].is_object());
+    assert!(value["paths"]["/im/v3/api/chat/inbox"].is_object());
 }
 
 #[tokio::test]
@@ -314,10 +314,10 @@ async fn test_timeline_query_returns_projected_messages() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_demo/messages")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/conversations/c_demo/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -341,10 +341,10 @@ async fn test_timeline_query_returns_projected_messages() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_demo")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/conversations/c_demo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -368,10 +368,10 @@ async fn test_timeline_query_returns_projected_messages() {
     let forbidden_timeline_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_demo/messages")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_intruder")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/conversations/c_demo/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_intruder")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -432,10 +432,10 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_timeline_page/messages?afterSeq=0&limit=2")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=0&limit=2")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -460,10 +460,10 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_timeline_page/messages?afterSeq=2&limit=2")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=2&limit=2")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -486,10 +486,10 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
     let invalid_limit_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_timeline_page/messages?afterSeq=0&limit=0")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=0&limit=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -575,10 +575,10 @@ async fn test_timeline_query_rejects_same_actor_id_with_different_actor_kind_ove
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_actor_kind_guard/messages")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "system")
+                .uri("/im/v3/api/chat/conversations/c_actor_kind_guard/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -690,10 +690,10 @@ async fn test_read_cursor_query_returns_projected_cursor_view() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_cursor/read-cursor")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/conversations/c_cursor/read_cursor")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -802,10 +802,10 @@ async fn test_inbox_query_returns_projected_entries() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/inbox")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/inbox")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -837,11 +837,11 @@ async fn test_device_sync_feed_query_returns_registered_device_entries() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_phone"}"#))
                 .unwrap(),
@@ -884,11 +884,11 @@ async fn test_device_sync_feed_query_returns_registered_device_entries() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_pad"}"#))
                 .unwrap(),
@@ -933,11 +933,11 @@ async fn test_device_sync_feed_query_returns_registered_device_entries() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/devices/d_pad/sync_feed?afterSeq=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -970,11 +970,11 @@ async fn test_device_sync_feed_http_returns_bounded_cursor_window() {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/devices/register")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_demo")
-                    .header("x-actor-kind", "user")
-                    .header("x-device-id", device_id)
+                    .uri("/im/v3/api/devices/register")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_demo")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-device-id", device_id)
                     .header("content-type", "application/json")
                     .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
                     .unwrap(),
@@ -1031,25 +1031,25 @@ async fn test_device_sync_feed_http_returns_bounded_cursor_window() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0&limit=1")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/devices/d_pad/sync_feed?afterSeq=0&limit=1")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("first sync-feed page should return response");
+        .expect("first sync_feed page should return response");
     assert_eq!(first.status(), StatusCode::OK);
     let first_body = first
         .into_body()
         .collect()
         .await
-        .expect("first sync-feed page body should collect")
+        .expect("first sync_feed page body should collect")
         .to_bytes();
     let first_json: serde_json::Value =
-        serde_json::from_slice(&first_body).expect("first sync-feed page should be json");
+        serde_json::from_slice(&first_body).expect("first sync_feed page should be json");
     assert_eq!(first_json["items"].as_array().unwrap().len(), 1);
     assert_eq!(first_json["items"][0]["syncSeq"], 1);
     assert_eq!(first_json["nextAfterSeq"], 1);
@@ -1060,25 +1060,25 @@ async fn test_device_sync_feed_http_returns_bounded_cursor_window() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=1&limit=1")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/devices/d_pad/sync_feed?afterSeq=1&limit=1")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("second sync-feed page should return response");
+        .expect("second sync_feed page should return response");
     assert_eq!(second.status(), StatusCode::OK);
     let second_body = second
         .into_body()
         .collect()
         .await
-        .expect("second sync-feed page body should collect")
+        .expect("second sync_feed page body should collect")
         .to_bytes();
     let second_json: serde_json::Value =
-        serde_json::from_slice(&second_body).expect("second sync-feed page should be json");
+        serde_json::from_slice(&second_body).expect("second sync_feed page should be json");
     assert_eq!(second_json["items"].as_array().unwrap().len(), 1);
     assert_eq!(second_json["items"][0]["syncSeq"], 2);
     assert_eq!(second_json["nextAfterSeq"], 2);
@@ -1089,25 +1089,25 @@ async fn test_device_sync_feed_http_returns_bounded_cursor_window() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=2&limit=1")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/devices/d_pad/sync_feed?afterSeq=2&limit=1")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("third sync-feed page should return response");
+        .expect("third sync_feed page should return response");
     assert_eq!(third.status(), StatusCode::OK);
     let third_body = third
         .into_body()
         .collect()
         .await
-        .expect("third sync-feed page body should collect")
+        .expect("third sync_feed page body should collect")
         .to_bytes();
     let third_json: serde_json::Value =
-        serde_json::from_slice(&third_body).expect("third sync-feed page should be json");
+        serde_json::from_slice(&third_body).expect("third sync_feed page should be json");
     assert_eq!(third_json["items"].as_array().unwrap().len(), 1);
     assert_eq!(third_json["items"][0]["syncSeq"], 3);
     assert_eq!(third_json["nextAfterSeq"], 3);
@@ -1117,25 +1117,25 @@ async fn test_device_sync_feed_http_returns_bounded_cursor_window() {
     let invalid = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/devices/d_pad/sync-feed?afterSeq=0&limit=0")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/devices/d_pad/sync_feed?afterSeq=0&limit=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("invalid sync-feed limit should return response");
+        .expect("invalid sync_feed limit should return response");
     assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
     let invalid_body = invalid
         .into_body()
         .collect()
         .await
-        .expect("invalid sync-feed body should collect")
+        .expect("invalid sync_feed body should collect")
         .to_bytes();
     let invalid_json: serde_json::Value =
-        serde_json::from_slice(&invalid_body).expect("invalid sync-feed body should be json");
+        serde_json::from_slice(&invalid_body).expect("invalid sync_feed body should be json");
     assert_eq!(invalid_json["code"], "limit_invalid");
 }
 
@@ -1149,11 +1149,11 @@ async fn test_device_registration_returns_advancing_registered_at() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_phone")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_phone"}"#))
                 .unwrap(),
@@ -1180,11 +1180,11 @@ async fn test_device_registration_returns_advancing_registered_at() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-device-id", "d_pad")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_pad"}"#))
                 .unwrap(),
@@ -1221,11 +1221,11 @@ async fn test_device_registration_rejects_same_device_id_with_different_actor_ki
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body.clone()))
                 .unwrap(),
@@ -1238,10 +1238,10 @@ async fn test_device_registration_rejects_same_device_id_with_different_actor_ki
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "system")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "system")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1274,11 +1274,11 @@ async fn test_device_registration_rejects_same_device_id_with_different_principa
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner_a")
-                .header("x-actor-kind", "user")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner_a")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body.clone()))
                 .unwrap(),
@@ -1291,11 +1291,11 @@ async fn test_device_registration_rejects_same_device_id_with_different_principa
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner_b")
-                .header("x-actor-kind", "user")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner_b")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1354,11 +1354,11 @@ async fn test_device_sync_feed_isolated_by_actor_kind_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_user_kind_guard"}"#))
                 .unwrap(),
@@ -1372,10 +1372,10 @@ async fn test_device_sync_feed_isolated_by_actor_kind_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "system")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "system")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_system_kind_guard"}"#))
                 .unwrap(),
@@ -1421,11 +1421,11 @@ async fn test_device_sync_feed_isolated_by_actor_kind_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/devices/d_user_kind_guard/sync-feed?afterSeq=0")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/devices/d_user_kind_guard/sync_feed?afterSeq=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1449,10 +1449,10 @@ async fn test_device_sync_feed_isolated_by_actor_kind_over_http() {
     let system_feed = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/devices/d_system_kind_guard/sync-feed?afterSeq=0")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "system")
+                .uri("/im/v3/api/devices/d_system_kind_guard/sync_feed?afterSeq=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1482,10 +1482,10 @@ async fn test_register_device_rejects_oversized_device_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/devices/register")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/devices/register")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1520,17 +1520,17 @@ async fn test_device_sync_feed_rejects_oversized_device_id_over_http() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/api/v1/devices/{}/sync-feed?afterSeq=0",
+                    "/im/v3/api/devices/{}/sync_feed?afterSeq=0",
                     "d".repeat(2048)
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("oversized sync-feed request should return response");
+        .expect("oversized sync_feed request should return response");
 
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
     let body = response
@@ -1558,12 +1558,12 @@ async fn test_timeline_query_rejects_oversized_conversation_id_over_http() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/api/v1/conversations/{}/messages",
+                    "/im/v3/api/chat/conversations/{}/messages",
                     "c".repeat(2048)
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1625,12 +1625,12 @@ async fn test_interaction_summary_rejects_oversized_message_id_over_http() {
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/api/v1/conversations/c_limit_interaction/messages/{}/interaction-summary",
+                    "/im/v3/api/chat/conversations/c_limit_interaction/messages/{}/interaction_summary",
                     "m".repeat(2048)
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1719,10 +1719,10 @@ async fn test_member_directory_query_returns_projected_members() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_directory/member-directory")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/conversations/c_directory/member_directory")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1782,10 +1782,10 @@ async fn test_contacts_query_returns_friendship_projection_with_direct_chat_enri
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/contacts")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_alice")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/contacts")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_alice")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1844,10 +1844,10 @@ async fn test_contacts_query_rejects_same_actor_id_with_different_actor_kind_ove
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/contacts")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_alice")
-                .header("x-actor-kind", "system")
+                .uri("/im/v3/api/chat/contacts")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_alice")
+                .header("x-sdkwork-actor-kind", "system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1995,10 +1995,10 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_interaction_http/messages/msg_c_interaction_http_1/interaction-summary")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner")
-                    .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/conversations/c_interaction_http/messages/msg_c_interaction_http_1/interaction_summary")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                    .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2029,10 +2029,10 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
     let pins_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/conversations/c_interaction_http/pins")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_member")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/chat/conversations/c_interaction_http/pins")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_member")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )

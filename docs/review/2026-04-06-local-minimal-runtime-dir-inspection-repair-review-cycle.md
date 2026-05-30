@@ -53,7 +53,7 @@ This review cycle added a read-only runtime-dir inspection layer:
 - extended `ops-service` with:
   - `RuntimeDirInspectionView`
   - `RuntimeDirInspectionItem`
-  - `GET /api/v1/ops/runtime-dir`
+  - `GET /backend/v3/api/ops/runtime_dir`
 - extended `local-minimal-node` with:
   - managed runtime-dir inspection logic
   - per-file classification:

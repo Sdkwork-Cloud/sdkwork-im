@@ -52,12 +52,12 @@ fn test_resolve_runtime_dir_defaults_and_supports_override() {
     );
 
     unsafe {
-        std::env::set_var(key, "custom-runtime-dir");
+        std::env::set_var(key, "custom-runtime_dir");
     }
     let overridden_runtime_dir = local_minimal_node::resolve_runtime_dir();
     assert_eq!(
         overridden_runtime_dir,
-        std::path::PathBuf::from("custom-runtime-dir")
+        std::path::PathBuf::from("custom-runtime_dir")
     );
 
     match previous {
@@ -70,20 +70,22 @@ fn test_resolve_runtime_dir_defaults_and_supports_override() {
     }
 }
 
-#[test]
-fn test_resolve_app_openapi_schema_source_path_defaults_and_supports_override() {
+fn assert_schema_source_path_defaults_and_supports_override(
+    key: &'static str,
+    expected_suffix: &str,
+    resolver: fn() -> std::path::PathBuf,
+) {
     let _guard = runtime_config_env_guard();
-    let key = "CRAW_CHAT_APP_OPENAPI_SCHEMA_PATH";
     let previous = std::env::var(key).ok();
     unsafe {
         std::env::remove_var(key);
     }
 
-    let default_schema_path = local_minimal_node::resolve_app_openapi_schema_source_path();
+    let default_schema_path = resolver();
     assert!(
         default_schema_path
             .to_string_lossy()
-            .ends_with("sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml"),
+            .ends_with(expected_suffix),
         "default schema path should point at the workspace authority contract: {}",
         default_schema_path.display()
     );
@@ -91,7 +93,7 @@ fn test_resolve_app_openapi_schema_source_path_defaults_and_supports_override() 
     unsafe {
         std::env::set_var(key, "custom-openapi/runtime-schema.yaml");
     }
-    let overridden_schema_path = local_minimal_node::resolve_app_openapi_schema_source_path();
+    let overridden_schema_path = resolver();
     assert_eq!(
         overridden_schema_path,
         std::path::PathBuf::from("custom-openapi/runtime-schema.yaml")
@@ -105,6 +107,26 @@ fn test_resolve_app_openapi_schema_source_path_defaults_and_supports_override() 
             std::env::remove_var(key);
         },
     }
+}
+
+#[test]
+fn test_resolve_openapi_schema_source_paths_default_to_split_surface_contracts_and_support_override()
+ {
+    assert_schema_source_path_defaults_and_supports_override(
+        "CRAW_CHAT_IM_OPENAPI_SCHEMA_PATH",
+        "sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml",
+        local_minimal_node::resolve_im_openapi_schema_source_path,
+    );
+    assert_schema_source_path_defaults_and_supports_override(
+        "CRAW_CHAT_APP_API_OPENAPI_SCHEMA_PATH",
+        "sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml",
+        local_minimal_node::resolve_app_api_openapi_schema_source_path,
+    );
+    assert_schema_source_path_defaults_and_supports_override(
+        "CRAW_CHAT_BACKEND_API_OPENAPI_SCHEMA_PATH",
+        "sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml",
+        local_minimal_node::resolve_backend_api_openapi_schema_source_path,
+    );
 }
 
 #[test]
@@ -169,206 +191,5 @@ fn test_resolve_public_browser_origins_rejects_invalid_explicit_entries() {
         None => unsafe {
             std::env::remove_var(key);
         },
-    }
-}
-
-#[test]
-fn test_resolve_user_center_runtime_config_defaults_to_builtin_local_standard_contract() {
-    let _guard = runtime_config_env_guard();
-    let keys = [
-        "SDKWORK_USER_CENTER_MODE",
-        "SDKWORK_USER_CENTER_LOCAL_API_BASE_PATH",
-        "SDKWORK_USER_CENTER_PROVIDER_KEY",
-        "SDKWORK_USER_CENTER_AUTHORIZATION_HEADER_NAME",
-        "SDKWORK_USER_CENTER_ACCESS_TOKEN_HEADER_NAME",
-        "SDKWORK_USER_CENTER_REFRESH_TOKEN_HEADER_NAME",
-        "SDKWORK_USER_CENTER_SESSION_HEADER_NAME",
-        "SDKWORK_USER_CENTER_AUTHORIZATION_SCHEME",
-        "SDKWORK_USER_CENTER_ALLOW_AUTHORIZATION_FALLBACK_TO_ACCESS_TOKEN",
-        "SDKWORK_USER_CENTER_APP_API_BASE_URL",
-        "SDKWORK_USER_CENTER_EXTERNAL_BASE_URL",
-        "SDKWORK_USER_CENTER_APP_ID",
-        "SDKWORK_USER_CENTER_SECRET_ID",
-        "SDKWORK_USER_CENTER_SHARED_SECRET",
-        "SDKWORK_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS",
-    ];
-    let previous = keys
-        .iter()
-        .map(|key| (*key, std::env::var(key).ok()))
-        .collect::<Vec<_>>();
-    for key in keys {
-        unsafe {
-            std::env::remove_var(key);
-        }
-    }
-
-    let config = local_minimal_node::resolve_user_center_runtime_config()
-        .expect("default user-center runtime config should resolve");
-
-    assert_eq!(config.mode.as_str(), "builtin-local");
-    assert_eq!(config.provider_kind.as_str(), "local");
-    assert_eq!(config.local_api_base_path, "/api/app/v1/user-center");
-    assert_eq!(config.provider_key, "craw-chat-local");
-    assert_eq!(config.authorization_header_name, "Authorization");
-    assert_eq!(config.access_token_header_name, "Access-Token");
-    assert_eq!(config.refresh_token_header_name, "Refresh-Token");
-    assert_eq!(config.authorization_scheme, "Bearer");
-    assert!(config.allow_authorization_fallback_to_access_token);
-    assert!(config.app_api_base_url.is_none());
-    assert!(config.external_base_url.is_none());
-    assert!(config.secret_id.is_none());
-    assert!(config.shared_secret.is_none());
-
-    for (key, value) in previous {
-        match value {
-            Some(value) => unsafe {
-                std::env::set_var(key, value);
-            },
-            None => unsafe {
-                std::env::remove_var(key);
-            },
-        }
-    }
-}
-
-#[test]
-fn test_resolve_user_center_runtime_config_supports_complete_app_api_mode() {
-    let _guard = runtime_config_env_guard();
-    let values = [
-        (
-            "SDKWORK_USER_CENTER_MODE",
-            Some("sdkwork-cloud-app-api".to_string()),
-        ),
-        (
-            "SDKWORK_USER_CENTER_LOCAL_API_BASE_PATH",
-            Some("/api/custom/user-center".to_string()),
-        ),
-        (
-            "SDKWORK_USER_CENTER_PROVIDER_KEY",
-            Some("craw-app-api".to_string()),
-        ),
-        (
-            "SDKWORK_USER_CENTER_APP_API_BASE_URL",
-            Some("https://app-api.sdkwork.local/craw".to_string()),
-        ),
-        ("SDKWORK_USER_CENTER_APP_ID", Some("craw-chat".to_string())),
-        (
-            "SDKWORK_USER_CENTER_SECRET_ID",
-            Some("secret-501".to_string()),
-        ),
-        (
-            "SDKWORK_USER_CENTER_SHARED_SECRET",
-            Some("shared-secret-501".to_string()),
-        ),
-        (
-            "SDKWORK_USER_CENTER_HANDSHAKE_FRESHNESS_WINDOW_MS",
-            Some("45000".to_string()),
-        ),
-        (
-            "SDKWORK_USER_CENTER_ALLOW_AUTHORIZATION_FALLBACK_TO_ACCESS_TOKEN",
-            Some("false".to_string()),
-        ),
-    ];
-    let keys = values.iter().map(|(key, _)| *key).collect::<Vec<_>>();
-    let previous = keys
-        .iter()
-        .map(|key| (*key, std::env::var(key).ok()))
-        .collect::<Vec<_>>();
-
-    for (key, value) in &values {
-        match value {
-            Some(value) => unsafe {
-                std::env::set_var(key, value);
-            },
-            None => unsafe {
-                std::env::remove_var(key);
-            },
-        }
-    }
-
-    let config = local_minimal_node::resolve_user_center_runtime_config()
-        .expect("complete app-api user-center runtime config should resolve");
-
-    assert_eq!(config.mode.as_str(), "sdkwork-cloud-app-api");
-    assert_eq!(config.provider_kind.as_str(), "sdkwork-cloud-app-api");
-    assert_eq!(config.local_api_base_path, "/api/custom/user-center");
-    assert_eq!(config.provider_key, "craw-app-api");
-    assert_eq!(
-        config.app_api_base_url.as_deref(),
-        Some("https://app-api.sdkwork.local/craw")
-    );
-    assert_eq!(config.app_id, "craw-chat");
-    assert_eq!(config.secret_id.as_deref(), Some("secret-501"));
-    assert_eq!(config.shared_secret.as_deref(), Some("shared-secret-501"));
-    assert_eq!(config.handshake_freshness_window_ms, 45_000);
-    assert!(!config.allow_authorization_fallback_to_access_token);
-
-    for (key, value) in previous {
-        match value {
-            Some(value) => unsafe {
-                std::env::set_var(key, value);
-            },
-            None => unsafe {
-                std::env::remove_var(key);
-            },
-        }
-    }
-}
-
-#[test]
-fn test_resolve_user_center_runtime_config_rejects_incomplete_remote_mode() {
-    let _guard = runtime_config_env_guard();
-    let values = [
-        (
-            "SDKWORK_USER_CENTER_MODE",
-            Some("sdkwork-cloud-app-api".to_string()),
-        ),
-        (
-            "SDKWORK_USER_CENTER_APP_API_BASE_URL",
-            Some("https://app-api.sdkwork.local/craw".to_string()),
-        ),
-        (
-            "SDKWORK_USER_CENTER_PROVIDER_KEY",
-            Some("craw-app-api".to_string()),
-        ),
-        (
-            "SDKWORK_USER_CENTER_SECRET_ID",
-            Some("secret-501".to_string()),
-        ),
-        ("SDKWORK_USER_CENTER_SHARED_SECRET", None),
-    ];
-    let keys = values.iter().map(|(key, _)| *key).collect::<Vec<_>>();
-    let previous = keys
-        .iter()
-        .map(|key| (*key, std::env::var(key).ok()))
-        .collect::<Vec<_>>();
-
-    for (key, value) in &values {
-        match value {
-            Some(value) => unsafe {
-                std::env::set_var(key, value);
-            },
-            None => unsafe {
-                std::env::remove_var(key);
-            },
-        }
-    }
-
-    let error = local_minimal_node::resolve_user_center_runtime_config()
-        .expect_err("incomplete remote user-center config should fail closed");
-    assert!(
-        error.contains("SDKWORK_USER_CENTER_SHARED_SECRET"),
-        "remote mode validation should surface the missing shared secret env. actual error: {error}"
-    );
-
-    for (key, value) in previous {
-        match value {
-            Some(value) => unsafe {
-                std::env::set_var(key, value);
-            },
-            None => unsafe {
-                std::env::remove_var(key);
-            },
-        }
     }
 }

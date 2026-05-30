@@ -43,24 +43,23 @@ use im_adapters_local_disk::{
     validate_stream_state_store_file,
 };
 use im_adapters_local_memory::{MemoryCommitJournal, MemoryRealtimeCheckpointStore};
-use im_auth_context::AuthContext;
-use im_auth_context::{AuthContextError, resolve_public_bearer_auth_context};
+use im_app_context::{AppContext, AppContextError};
 use im_domain_core::conversation::{
     ConversationInboxEntry, ConversationMember, ConversationReadCursorView, MembershipRole,
 };
+use im_domain_core::device_session::{DeviceSessionResumeView, PresenceSnapshotView};
 use im_domain_core::media::MediaProcessingState;
 use im_domain_core::message::{ContentPart, MediaPart, MessageBody, MessageType, SignalPart};
 use im_domain_core::realtime::RealtimeSubscription;
-use im_domain_core::session::{PresenceSnapshotView, SessionResumeView};
 use im_domain_core::social::{DirectChat, FriendRequest, Friendship};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
     CommitJournal, CommitPosition, ContractError, DeviceAccessProvider, DeviceTwinStore,
     EffectiveProviderBinding, IotProtocolAdapter, MetadataStore,
-    PROVIDER_REGISTRY_INTERFACE_VERSION, ProviderDomain, ProviderPluginDescriptor,
-    ProviderRegistry, RealtimeCheckpointRecord, RealtimeDisconnectFenceRecord,
-    RealtimeEventWindowRecord, RealtimeSubscriptionRecord, RtcStateRecord, StaticProviderRegistry,
-    StreamStateRecord, UserModuleProvider,
+    PROVIDER_REGISTRY_INTERFACE_VERSION, PrincipalProfileProvider, ProviderDomain,
+    ProviderPluginDescriptor, ProviderRegistry, RealtimeCheckpointRecord,
+    RealtimeDisconnectFenceRecord, RealtimeEventWindowRecord, RealtimeSubscriptionRecord,
+    RtcStateRecord, StaticProviderRegistry, StreamStateRecord,
 };
 use media_service::{
     CompleteUploadRequest, CreateUploadRequest, MediaRuntime, MediaUploadMutationResponse,
@@ -86,9 +85,9 @@ use rtc_signaling_service::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use session_gateway::{
-    AckRealtimeEventsRequest, ListRealtimeEventsQuery, PresenceRuntimeError, RealtimeClusterBridge,
-    RealtimeClusterError, RealtimeDeliveryRuntime, RealtimePlaneAssembly, RealtimeRuntimeError,
-    RealtimeScopeAccessPolicy, SessionPresenceRuntime, SyncRealtimeSubscriptionsRequest,
+    AckRealtimeEventsRequest, DevicePresenceRuntime, ListRealtimeEventsQuery, PresenceRuntimeError,
+    RealtimeClusterBridge, RealtimeClusterError, RealtimeDeliveryRuntime, RealtimePlaneAssembly,
+    RealtimeRuntimeError, RealtimeScopeAccessPolicy, SyncRealtimeSubscriptionsRequest,
     serve_realtime_websocket,
 };
 use sha2::{Digest, Sha256};
@@ -101,10 +100,11 @@ use streaming_service::{
 };
 
 mod access;
-mod auth;
 mod build;
+mod commercial_readiness;
 mod conversation;
 mod device_registration;
+mod device_session;
 mod effects;
 mod handoff;
 mod iot;
@@ -113,17 +113,15 @@ mod membership;
 mod message;
 mod platform;
 mod portal;
+mod principal_profile;
 mod projection;
 mod realtime_policy;
 mod rtc;
 mod runtime_dir;
-mod session;
 mod side_effect_outbox;
 mod social;
 mod stream;
 mod twin;
-mod user_center;
-mod user_module;
 
 use self::device_registration::{DisconnectActiveDeviceRouteOutcome, LocalNodeDeviceRegistration};
 
@@ -132,12 +130,21 @@ pub use build::{
     build_app_with_dependencies_and_runtime_dir,
     build_app_with_dependencies_realtime_and_notification_runtime, build_default_app,
     build_default_app_with_device_access_provider, build_default_app_with_iot_protocol_adapter,
-    build_default_app_with_runtime_dir,
+    build_default_app_with_principal_profile_provider, build_default_app_with_runtime_dir,
     build_default_app_with_runtime_dir_and_device_access_provider,
     build_default_app_with_runtime_dir_and_iot_protocol_adapter,
-    build_default_app_with_runtime_dir_and_user_module_provider,
-    build_default_app_with_user_module_provider, build_public_app,
-    build_public_app_with_runtime_dir,
+    build_default_app_with_runtime_dir_and_principal_profile_provider, build_public_app,
+    build_public_app_with_runtime_dir, try_build_public_app,
+};
+pub use commercial_readiness::{
+    CRAW_CHAT_COMMERCIAL_EVIDENCE_ROOT_ENV, CRAW_CHAT_DATABASE_URL_ENV,
+    CRAW_CHAT_POSTGRES_CONFIG_ENV, CRAW_CHAT_RUNTIME_PROFILE_ENV, CRAW_CHAT_STORAGE_PROVIDER_ENV,
+    CommercialReadinessBlocker, CommercialReadinessInputs, CommercialReadinessReport,
+    CommercialReadinessStatus, CommercialStep11Evidence, commercial_readiness_required_for_profile,
+    commercial_readiness_required_from_env, evaluate_commercial_readiness,
+    evaluate_commercial_readiness_from_env, evaluate_commercial_readiness_from_workspace,
+    format_commercial_readiness_blocked_error, format_commercial_readiness_report,
+    load_commercial_step11_evidence,
 };
 pub use runtime_dir::{
     RuntimeDirArchivePruneActionView, RuntimeDirArchivePruneView, RuntimeDirArchiveView,
@@ -151,23 +158,17 @@ pub use runtime_dir::{
     list_runtime_backups, preview_restore_runtime_dir, prune_archived_runtime_backups,
     repair_runtime_dir, restore_runtime_dir, restore_runtime_dir_with_expected_preview_fingerprint,
 };
-pub use user_center::{
-    UserCenterProviderKind, UserCenterRuntimeConfig, UserCenterRuntimeMode,
-    resolve_user_center_runtime_config,
-};
-
 #[derive(Clone)]
 struct AppState {
     node_id: String,
     runtime_dir: Option<PathBuf>,
-    auth_runtime: Arc<auth::AuthRuntime>,
     control_plane_app: Router,
     social_query: Arc<SocialControlQuery>,
     realtime_cluster: Arc<RealtimeClusterBridge>,
     conversation_runtime: Arc<ConversationRuntime<ProjectionJournal>>,
-    user_module_provider: Arc<dyn UserModuleProvider>,
+    principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
     projection_service: Arc<TimelineProjectionService>,
-    session_presence_runtime: Arc<SessionPresenceRuntime>,
+    device_presence_runtime: Arc<DevicePresenceRuntime>,
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
     device_registration: LocalNodeDeviceRegistration,
     device_twin_store: Arc<dyn DeviceTwinStore>,
@@ -235,10 +236,18 @@ const PROJECTION_TIMELINE_FILE_NAME: &str = "projection-timeline.json";
 const PROJECTION_SNAPSHOT_CHECKPOINT_KEY: &str = "conversation-snapshot-checkpoint";
 const LOCAL_NODE_AUDIT_AGGREGATE_ID_MAX_BYTES: usize = 256;
 const LOCAL_NODE_AUDIT_RECORD_ID_MAX_BYTES: usize = 256;
-const APP_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_APP_OPENAPI_SCHEMA_PATH";
-const APP_OPENAPI_SCHEMA_PATH: &str = "/openapi/craw-chat-app.openapi.yaml";
-const APP_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
-    include_str!("../../../sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml");
+const IM_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_IM_OPENAPI_SCHEMA_PATH";
+const APP_API_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_APP_API_OPENAPI_SCHEMA_PATH";
+const BACKEND_API_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_BACKEND_API_OPENAPI_SCHEMA_PATH";
+const IM_OPENAPI_SCHEMA_PATH: &str = "/im/v3/openapi.json";
+const APP_API_OPENAPI_SCHEMA_PATH: &str = "/app/v3/openapi.json";
+const BACKEND_API_OPENAPI_SCHEMA_PATH: &str = "/backend/v3/openapi.json";
+const IM_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
+    include_str!("../../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml");
+const APP_API_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
+    include_str!("../../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml");
+const BACKEND_API_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
+    include_str!("../../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml");
 const PUBLIC_BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
 const DEFAULT_PUBLIC_BROWSER_ORIGINS: &[&str] = &["http://127.0.0.1:4176", "http://localhost:4176"];
 
@@ -275,13 +284,13 @@ fn stable_local_audit_record_id(prefix: &str, business_id: &str) -> String {
 
 impl AppState {
     #[rustfmt::skip]
-    fn require_registered_device_binding(&self, auth: &AuthContext) -> Result<(), ApiError> {
+    fn require_registered_device_binding(&self, auth: &AppContext) -> Result<(), ApiError> {
         self.device_registration.ensure_registered_device(self, auth)
     }
 
     fn bind_device_registration(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         connection_kind: &str,
         allow_session_takeover: bool,
@@ -298,7 +307,7 @@ impl AppState {
     #[rustfmt::skip]
     fn prepare_active_device_route(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         connection_kind: &str,
     ) -> Result<projection_service::RegisteredDeviceView, ApiError> {
@@ -307,7 +316,7 @@ impl AppState {
 
     fn disconnect_active_device_route(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         device_id: &str,
         connection_kind: &str,
     ) -> Result<DisconnectActiveDeviceRouteOutcome, ApiError> {
@@ -327,8 +336,8 @@ impl AppState {
         self.iot_protocol_adapter.provider_health_snapshot()
     }
 
-    fn user_module_provider_health(&self) -> im_platform_contracts::ProviderHealthSnapshot {
-        self.user_module_provider.provider_health_snapshot()
+    fn principal_profile_provider_health(&self) -> im_platform_contracts::ProviderHealthSnapshot {
+        self.principal_profile_provider.provider_health_snapshot()
     }
 
     fn provider_binding_snapshots(&self) -> Vec<ProviderBindingSnapshotView> {
@@ -349,8 +358,8 @@ impl AppState {
         }
 
         bindings.insert(
-            ProviderDomain::UserModule,
-            binding_from_descriptor(&registry, self.user_module_provider.descriptor()),
+            ProviderDomain::PrincipalProfile,
+            binding_from_descriptor(&registry, self.principal_profile_provider.descriptor()),
         );
         bindings.insert(
             ProviderDomain::IotAccess,
@@ -1000,14 +1009,14 @@ struct SyncFeedQuery {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ResumeSessionRequest {
+struct ResumeDeviceSessionRequest {
     device_id: Option<String>,
     last_seen_sync_seq: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct PresenceDeviceRequest {
+struct DevicePresenceRequest {
     device_id: Option<String>,
 }
 
@@ -1045,14 +1054,6 @@ impl ApiError {
         }
     }
 
-    fn unauthorized(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            status: axum::http::StatusCode::UNAUTHORIZED,
-            code,
-            message: message.into(),
-        }
-    }
-
     fn forbidden(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::FORBIDDEN,
@@ -1072,6 +1073,14 @@ impl ApiError {
     fn not_found(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::NOT_FOUND,
+            code,
+            message: message.into(),
+        }
+    }
+
+    fn unavailable(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
             code,
             message: message.into(),
         }
@@ -1165,8 +1174,8 @@ impl From<conversation_runtime::RuntimeError> for ApiError {
     }
 }
 
-impl From<AuthContextError> for ApiError {
-    fn from(value: AuthContextError) -> Self {
+impl From<AppContextError> for ApiError {
+    fn from(value: AppContextError) -> Self {
         Self {
             status: axum::http::StatusCode::UNAUTHORIZED,
             code: value.code(),
@@ -1318,22 +1327,94 @@ pub fn resolve_runtime_dir() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from(".runtime").join("local-minimal"))
 }
 
-pub fn resolve_app_openapi_schema_source_path() -> PathBuf {
-    env::var(APP_OPENAPI_SCHEMA_PATH_ENV)
+pub fn resolve_commercial_evidence_root() -> PathBuf {
+    env::var(CRAW_CHAT_COMMERCIAL_EVIDENCE_ROOT_ENV)
         .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml")
-        })
+        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
 }
 
-pub fn load_app_openapi_schema_yaml() -> String {
-    let source_path = resolve_app_openapi_schema_source_path();
+fn resolve_openapi_schema_source_path(env_name: &str, default_relative_path: &str) -> PathBuf {
+    env::var(env_name)
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(default_relative_path))
+}
+
+fn load_openapi_schema_yaml(
+    env_name: &str,
+    default_relative_path: &str,
+    embedded_yaml: &str,
+) -> String {
+    let source_path = resolve_openapi_schema_source_path(env_name, default_relative_path);
     match fs::read_to_string(&source_path) {
         Ok(contents) if !contents.trim().is_empty() => contents,
-        Ok(_) => APP_OPENAPI_SCHEMA_EMBEDDED_YAML.to_string(),
-        Err(_) => APP_OPENAPI_SCHEMA_EMBEDDED_YAML.to_string(),
+        Ok(_) => embedded_yaml.to_string(),
+        Err(_) => embedded_yaml.to_string(),
     }
+}
+
+fn load_openapi_schema_json(
+    label: &str,
+    env_name: &str,
+    default_relative_path: &str,
+    embedded_yaml: &str,
+) -> Result<Value, ApiError> {
+    serde_yaml::from_str(
+        load_openapi_schema_yaml(env_name, default_relative_path, embedded_yaml).as_str(),
+    )
+    .map_err(|error| {
+        ApiError::unavailable(
+            "openapi_schema_invalid",
+            format!("{label} OpenAPI schema source is not a valid OpenAPI document: {error}"),
+        )
+    })
+}
+
+pub fn resolve_im_openapi_schema_source_path() -> PathBuf {
+    resolve_openapi_schema_source_path(
+        IM_OPENAPI_SCHEMA_PATH_ENV,
+        "../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml",
+    )
+}
+
+pub fn resolve_app_api_openapi_schema_source_path() -> PathBuf {
+    resolve_openapi_schema_source_path(
+        APP_API_OPENAPI_SCHEMA_PATH_ENV,
+        "../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml",
+    )
+}
+
+pub fn resolve_backend_api_openapi_schema_source_path() -> PathBuf {
+    resolve_openapi_schema_source_path(
+        BACKEND_API_OPENAPI_SCHEMA_PATH_ENV,
+        "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml",
+    )
+}
+
+fn load_im_openapi_schema_json() -> Result<Value, ApiError> {
+    load_openapi_schema_json(
+        "IM",
+        IM_OPENAPI_SCHEMA_PATH_ENV,
+        "../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml",
+        IM_OPENAPI_SCHEMA_EMBEDDED_YAML,
+    )
+}
+
+fn load_app_api_openapi_schema_json() -> Result<Value, ApiError> {
+    load_openapi_schema_json(
+        "app-api",
+        APP_API_OPENAPI_SCHEMA_PATH_ENV,
+        "../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml",
+        APP_API_OPENAPI_SCHEMA_EMBEDDED_YAML,
+    )
+}
+
+fn load_backend_api_openapi_schema_json() -> Result<Value, ApiError> {
+    load_openapi_schema_json(
+        "backend-api",
+        BACKEND_API_OPENAPI_SCHEMA_PATH_ENV,
+        "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml",
+        BACKEND_API_OPENAPI_SCHEMA_EMBEDDED_YAML,
+    )
 }
 
 pub fn resolve_public_browser_origins() -> Vec<String> {
@@ -1409,25 +1490,21 @@ fn normalize_public_browser_origin(value: &str) -> Result<String, String> {
     ))
 }
 
-async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
-    let user_center_config = user_center::resolve_effective_user_center_runtime_config();
-    let user_center_login_path = user_center::login_path(&user_center_config);
-    let user_center_refresh_path = user_center::refresh_path(&user_center_config);
-    let user_center_health_path = user_center::health_path(&user_center_config);
+async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
     let path = request.uri().path();
     let method = request.method();
     let allows_public_route = matches!(
         path,
         "/healthz"
             | "/readyz"
-            | APP_OPENAPI_SCHEMA_PATH
-            | "/api/v1/auth/login"
-            | "/api/v1/auth/refresh"
-            | "/api/v1/portal/home"
-            | "/api/v1/portal/auth"
-    ) || path == user_center_login_path
-        || path == user_center_refresh_path
-        || path == user_center_health_path;
+            | IM_OPENAPI_SCHEMA_PATH
+            | APP_API_OPENAPI_SCHEMA_PATH
+            | BACKEND_API_OPENAPI_SCHEMA_PATH
+            | "/im/v3/api/portal/home"
+            | "/im/v3/api/portal/access"
+            | "/app/v3/api/portal/home"
+            | "/app/v3/api/portal/access"
+    );
 
     if method == axum::http::Method::OPTIONS {
         return next.run(request).await;
@@ -1439,7 +1516,7 @@ async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Ne
         return next.run(request).await;
     }
 
-    match resolve_public_bearer_auth_context(request.headers()) {
+    match resolve_app_context(request.headers()) {
         Ok(_) => next.run(request).await,
         Err(error) => ApiError::from(error).into_response(),
     }
@@ -1461,15 +1538,32 @@ async fn readyz() -> Json<HealthResponse> {
     })
 }
 
-async fn export_app_openapi_schema() -> impl IntoResponse {
-    (
-        [(CONTENT_TYPE, "application/yaml; charset=utf-8")],
-        load_app_openapi_schema_yaml(),
-    )
+async fn export_im_openapi_schema() -> Result<impl IntoResponse, ApiError> {
+    let schema = load_im_openapi_schema_json()?;
+    Ok((
+        [(CONTENT_TYPE, "application/json; charset=utf-8")],
+        Json(schema),
+    ))
 }
 
-fn resolve_auth_context(headers: &HeaderMap) -> Result<AuthContext, ApiError> {
-    user_center::resolve_auth_context(headers)
+async fn export_app_api_openapi_schema() -> Result<impl IntoResponse, ApiError> {
+    let schema = load_app_api_openapi_schema_json()?;
+    Ok((
+        [(CONTENT_TYPE, "application/json; charset=utf-8")],
+        Json(schema),
+    ))
+}
+
+async fn export_backend_api_openapi_schema() -> Result<impl IntoResponse, ApiError> {
+    let schema = load_backend_api_openapi_schema_json()?;
+    Ok((
+        [(CONTENT_TYPE, "application/json; charset=utf-8")],
+        Json(schema),
+    ))
+}
+
+fn resolve_app_context(headers: &HeaderMap) -> Result<AppContext, ApiError> {
+    im_app_context::resolve_app_context(headers).map_err(ApiError::from)
 }
 
 #[cfg(test)]

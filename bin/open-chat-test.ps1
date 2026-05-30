@@ -635,7 +635,7 @@ function Invoke-ScriptedRtcValidation {
         -ResolvedBaseUrl $ResolvedBaseUrl `
         -AuthContext $OwnerAuth `
         -Method "POST" `
-        -Path "/api/v1/rtc/sessions" `
+        -Path "/im/v3/api/rtc/sessions" `
         -Body ([ordered]@{
                 rtcSessionId = $rtcSessionId
                 conversationId = $ConversationId
@@ -646,7 +646,7 @@ function Invoke-ScriptedRtcValidation {
         -ResolvedBaseUrl $ResolvedBaseUrl `
         -AuthContext $OwnerAuth `
         -Method "POST" `
-        -Path "/api/v1/rtc/sessions/$rtcSessionId/invite" `
+        -Path "/im/v3/api/rtc/sessions/$rtcSessionId/invite" `
         -Body ([ordered]@{
                 signalingStreamId = "st_$ConversationId"
             })
@@ -655,7 +655,7 @@ function Invoke-ScriptedRtcValidation {
         -ResolvedBaseUrl $ResolvedBaseUrl `
         -AuthContext $GuestAuth `
         -Method "POST" `
-        -Path "/api/v1/rtc/sessions/$rtcSessionId/signals" `
+        -Path "/im/v3/api/rtc/sessions/$rtcSessionId/signals" `
         -Body ([ordered]@{
                 signalType = "rtc.offer"
                 schemaRef = "webrtc.offer.v1"
@@ -666,7 +666,7 @@ function Invoke-ScriptedRtcValidation {
         -ResolvedBaseUrl $ResolvedBaseUrl `
         -AuthContext $GuestAuth `
         -Method "POST" `
-        -Path "/api/v1/rtc/sessions/$rtcSessionId/accept" `
+        -Path "/im/v3/api/rtc/sessions/$rtcSessionId/accept" `
         -Body ([ordered]@{
                 artifactMessageId = "msg_${rtcSessionId}_accept"
             })
@@ -675,7 +675,7 @@ function Invoke-ScriptedRtcValidation {
         -ResolvedBaseUrl $ResolvedBaseUrl `
         -AuthContext $OwnerAuth `
         -Method "POST" `
-        -Path "/api/v1/rtc/sessions/$rtcSessionId/end" `
+        -Path "/im/v3/api/rtc/sessions/$rtcSessionId/end" `
         -Body ([ordered]@{
                 artifactMessageId = "msg_${rtcSessionId}_end"
             })

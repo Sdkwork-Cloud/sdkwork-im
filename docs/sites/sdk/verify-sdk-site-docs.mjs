@@ -18,25 +18,29 @@ function expectExcludes(failures, source, unexpected, message) {
   }
 }
 
+function marker(...parts) {
+  return parts.join('');
+}
+
 export function verifySdkSiteDocs(options = {}) {
   const rootDir = options.rootDir || path.resolve(import.meta.dirname, '..', '..', '..');
   const failures = [];
-  const legacyManagementName = 'sdkwork-craw-chat-sdk-management';
-  const legacyManagementRoute = '/sdk/management-sdk';
 
   const docsPackage = JSON.parse(read(rootDir, 'docs/sites/package.json'));
   const vitepressConfigSource = read(rootDir, 'docs/sites/.vitepress/config.mjs');
   const siteHomeSource = read(rootDir, 'docs/sites/index.md');
   const sdkIndexSource = read(rootDir, 'docs/sites/sdk/index.md');
   const appSource = read(rootDir, 'docs/sites/sdk/app-sdk.md');
-  const adminSource = read(rootDir, 'docs/sites/sdk/control-plane-sdk.md');
-  const imAdminSource = read(rootDir, 'docs/sites/sdk/im-admin-sdk.md');
+  const backendSource = read(rootDir, 'docs/sites/sdk/backend-sdk.md');
+  const rtcSource = read(rootDir, 'docs/sites/sdk/rtc-sdk.md');
   const languageSupportSource = read(rootDir, 'docs/sites/sdk/language-support.md');
   const gettingStartedIndexSource = read(rootDir, 'docs/sites/getting-started/index.md');
   const capabilitiesSource = read(rootDir, 'docs/sites/features/capabilities.md');
   const cliReferenceSource = read(rootDir, 'docs/sites/reference/cli-and-scripts.md');
   const apiReferenceIndexSource = read(rootDir, 'docs/sites/api-reference/index.md');
-  const platformApiSource = read(rootDir, 'docs/sites/api-reference/platform-api.md');
+  const appApiSource = read(rootDir, 'docs/sites/api-reference/app-api.md');
+  const backendApiSource = read(rootDir, 'docs/sites/api-reference/backend-api.md');
+  const controlPlaneApiSource = read(rootDir, 'docs/sites/api-reference/control-plane-api.md');
   const releaseCatalog = JSON.parse(
     read(rootDir, 'artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json'),
   );
@@ -57,219 +61,219 @@ export function verifySdkSiteDocs(options = {}) {
     }
   }
 
-  expectIncludes(
-    failures,
-    vitepressConfigSource,
-    '{ text: "IM Admin SDK", link: "/sdk/im-admin-sdk" }',
-    'docs/sites/.vitepress/config.mjs must include the IM Admin SDK page in the SDK sidebar.',
-  );
-  expectExcludes(
-    failures,
-    vitepressConfigSource,
-    legacyManagementRoute,
-    'docs/sites/.vitepress/config.mjs must not link to the removed management SDK page.',
-  );
-
-  if (existsSync(path.join(rootDir, 'docs/sites/sdk/management-sdk.md'))) {
-    failures.push('docs/sites/sdk/management-sdk.md must be removed after the IM admin rename.');
+  for (const removedPage of [
+    marker('docs/sites/sdk', '/control', '-plane', '-sdk.md'),
+    marker('docs/sites/sdk', '/control', '-plane', '-typescript', '-sdk.md'),
+    marker('docs/sites/sdk', '/control', '-plane', '-flutter', '-sdk.md'),
+    marker('docs/sites/sdk', '/im', '-admin', '-sdk.md'),
+    'docs/sites/sdk/management-sdk.md',
+  ]) {
+    if (existsSync(path.join(rootDir, removedPage))) {
+      failures.push(`${removedPage} must not exist as a current public SDK page.`);
+    }
   }
 
-  for (const [label, source] of [
+  for (const requiredEntry of [
+    '{ text: "IM Standard SDK", link: "/sdk/typescript-sdk" }',
+    '{ text: "App API SDK", link: "/sdk/app-sdk" }',
+    '{ text: "Backend SDK", link: "/sdk/backend-sdk" }',
+    '{ text: "RTC SDK", link: "/sdk/rtc-sdk" }',
+  ]) {
+    expectIncludes(
+      failures,
+      vitepressConfigSource,
+      requiredEntry,
+      `docs/sites/.vitepress/config.mjs must include ${requiredEntry}.`,
+    );
+  }
+
+  const currentDocs = [
     ['docs/sites/index.md', siteHomeSource],
     ['docs/sites/sdk/index.md', sdkIndexSource],
-    ['docs/sites/sdk/control-plane-sdk.md', adminSource],
+    ['docs/sites/sdk/app-sdk.md', appSource],
+    ['docs/sites/sdk/backend-sdk.md', backendSource],
+    ['docs/sites/sdk/rtc-sdk.md', rtcSource],
     ['docs/sites/sdk/language-support.md', languageSupportSource],
     ['docs/sites/getting-started/index.md', gettingStartedIndexSource],
     ['docs/sites/features/capabilities.md', capabilitiesSource],
     ['docs/sites/reference/cli-and-scripts.md', cliReferenceSource],
     ['docs/sites/api-reference/index.md', apiReferenceIndexSource],
-    ['docs/sites/api-reference/platform-api.md', platformApiSource],
-  ]) {
-    expectExcludes(
-      failures,
-      source,
-      legacyManagementName,
-      `${label} must not mention the removed sdkwork-craw-chat-sdk-management workspace.`,
-    );
-    expectExcludes(
-      failures,
-      source,
-      legacyManagementRoute,
-      `${label} must not link to the removed /sdk/management-sdk route.`,
-    );
+    ['docs/sites/api-reference/app-api.md', appApiSource],
+    ['docs/sites/api-reference/backend-api.md', backendApiSource],
+    ['docs/sites/api-reference/control-plane-api.md', controlPlaneApiSource],
+  ];
+
+  const retiredSdkMarkers = [
+    marker('sdkwork', '-control', '-plane', '-sdk'),
+    marker('sdkwork', '-im', '-admin', '-sdk'),
+    marker('@sdkwork', '/control', '-plane', '-sdk'),
+    marker('@sdkwork', '/im', '-admin', '-sdk'),
+    marker('/sdk', '/control', '-plane', '-sdk'),
+    marker('/sdk', '/control', '-plane', '-typescript', '-sdk'),
+    marker('/sdk', '/control', '-plane', '-flutter', '-sdk'),
+    marker('/sdk', '/im', '-admin', '-sdk'),
+    marker('Control', '-Plane', ' SDK'),
+    marker('IM', ' Admin', ' SDK'),
+    marker('control', '_plane', '_sdk'),
+    marker('im', '_admin', '_sdk'),
+    'sdkwork-craw-chat-sdk-management',
+    '/sdk/management-sdk',
+  ];
+
+  for (const [label, source] of currentDocs) {
+    for (const forbidden of retiredSdkMarkers) {
+      expectExcludes(failures, source, forbidden, `${label} must not publish retired SDK marker ${forbidden}.`);
+    }
   }
 
-  expectIncludes(
-    failures,
-    sdkIndexSource,
-    '`sdkwork-im-admin-sdk`',
-    'docs/sites/sdk/index.md must describe the sdkwork-im-admin-sdk family.',
-  );
-  expectIncludes(
-    failures,
-    sdkIndexSource,
-    '[IM Admin SDK](/sdk/im-admin-sdk)',
-    'docs/sites/sdk/index.md must route /api/admin/* readers to the IM Admin SDK page.',
-  );
-
-  expectIncludes(
-    failures,
-    adminSource,
-    '[IM Admin SDK](/sdk/im-admin-sdk)',
-    'docs/sites/sdk/control-plane-sdk.md must link to the IM Admin SDK page for /api/admin/* flows.',
-  );
-
   for (const requiredEntry of [
-    '`sdkwork-im-admin-sdk`',
-    '`@sdkwork/im-admin-backend-sdk`',
-    '`@sdkwork/im-admin-sdk`',
-    '`im_admin_backend_sdk`',
-    '`im_admin_sdk`',
-    '`ImAdminSdkClient`',
-    '`generated/server-openapi/src/*`',
-    '`generated/server-openapi/lib/src`',
-    'node ./sdks/sdkwork-im-admin-sdk/bin/verify-sdk.mjs',
+    '`sdkwork-im-sdk`',
+    '`sdkwork-im-app-sdk`',
+    '`sdkwork-im-backend-sdk`',
+    '`sdkwork-rtc-sdk`',
+    '/im/v3/api',
+    '/app/v3/api',
+    '/backend/v3/api',
+    '/backend/v3/api/control/*',
+    '/backend/v3/api/admin/*',
+    '[Backend SDK](/sdk/backend-sdk)',
+    '[RTC SDK](/sdk/rtc-sdk)',
   ]) {
     expectIncludes(
       failures,
-      imAdminSource,
+      sdkIndexSource,
       requiredEntry,
-      `docs/sites/sdk/im-admin-sdk.md must mention ${requiredEntry}.`,
+      `docs/sites/sdk/index.md must document ${requiredEntry}.`,
     );
   }
-
-  for (const removedEntry of [
-    legacyManagementName,
-    '@sdkwork/craw-chat-management-backend-sdk',
-    '@sdkwork/craw-chat-sdk-management',
-    'craw_chat_management_backend_sdk',
-    'im_sdk_management',
-    'ImSdkManagementClient',
-    'createImSdkManagementClient',
-    'CrawChatManagementClient',
-  ]) {
-    expectExcludes(
-      failures,
-      imAdminSource,
-      removedEntry,
-      `docs/sites/sdk/im-admin-sdk.md must not mention removed legacy entry ${removedEntry}.`,
-    );
-  }
-
-  expectIncludes(
-    failures,
-    appSource,
-    '`@sdkwork/im-sdk`',
-    'docs/sites/sdk/app-sdk.md must continue documenting @sdkwork/im-sdk as the app package root.',
-  );
 
   for (const requiredEntry of [
-    '`sdks/sdkwork-im-admin-sdk`',
-    '`sdks/sdkwork-im-admin-sdk/sdkwork-im-admin-sdk-typescript`',
-    '`sdks/sdkwork-im-admin-sdk/sdkwork-im-admin-sdk-flutter`',
-    '`@sdkwork/im-admin-backend-sdk`',
-    '`@sdkwork/im-admin-sdk`',
-    '`im_admin_backend_sdk`',
-    '`im_admin_sdk`',
-    '`im-admin-typescript`',
-    '`im-admin-flutter`',
+    'sdkwork-im-app-sdk',
+    '/app/v3/api',
+    'SdkworkAppClient',
+    'must not contain backend, admin, or control routes',
+  ]) {
+    expectIncludes(failures, appSource, requiredEntry, `docs/sites/sdk/app-sdk.md must include ${requiredEntry}.`);
+  }
+
+  for (const requiredEntry of [
+    'sdkwork-im-backend-sdk',
+    '/backend/v3/api',
+    'SdkworkBackendClient',
+    '/backend/v3/api/control/*',
+    '/backend/v3/api/admin/*',
+    'Do not introduce a new admin SDK family',
   ]) {
     expectIncludes(
       failures,
-      languageSupportSource,
+      backendSource,
       requiredEntry,
-      `docs/sites/sdk/language-support.md must mention ${requiredEntry}.`,
+      `docs/sites/sdk/backend-sdk.md must include ${requiredEntry}.`,
     );
   }
 
-  expectIncludes(
-    failures,
-    siteHomeSource,
-    'IM Admin SDK families',
-    'docs/sites/index.md must summarize the IM Admin SDK family on the landing page.',
-  );
-  expectIncludes(
-    failures,
-    gettingStartedIndexSource,
-    '`sdkwork-im-admin-sdk` maps to the deployed `/api/admin/*` surface.',
-    'docs/sites/getting-started/index.md must summarize sdkwork-im-admin-sdk entry targeting.',
-  );
-  expectIncludes(
-    failures,
-    capabilitiesSource,
-    '`sdks/sdkwork-im-admin-sdk/`',
-    'docs/sites/features/capabilities.md must describe the sdkwork-im-admin-sdk workspace.',
-  );
-  expectIncludes(
-    failures,
-    capabilitiesSource,
-    '@sdkwork/control-plane-sdk',
-    'docs/sites/features/capabilities.md must document @sdkwork/control-plane-sdk as the admin-console consumer surface.',
-  );
-  expectIncludes(
-    failures,
-    sdkIndexSource,
-    '@sdkwork/control-plane-sdk',
-    'docs/sites/sdk/index.md must document @sdkwork/control-plane-sdk as the admin-console consumer boundary.',
-  );
-  expectIncludes(
-    failures,
-    cliReferenceSource,
-    '`sdks/sdkwork-im-admin-sdk`',
-    'docs/sites/reference/cli-and-scripts.md must document the sdkwork-im-admin-sdk workspace.',
-  );
-  expectIncludes(
-    failures,
-    cliReferenceSource,
-    'node .\\sdks\\sdkwork-im-admin-sdk\\bin\\verify-sdk.mjs',
-    'docs/sites/reference/cli-and-scripts.md must document the IM admin verify-sdk command.',
-  );
-  expectIncludes(
-    failures,
-    apiReferenceIndexSource,
-    '`sdkwork-im-admin-sdk` maps to the unified gateway\'s `/api/admin/*` operator surface.',
-    'docs/sites/api-reference/index.md must map /api/admin/* to sdkwork-im-admin-sdk.',
-  );
-  expectIncludes(
-    failures,
-    platformApiSource,
-    '`sdkwork-im-admin-sdk`',
-    'docs/sites/api-reference/platform-api.md must reference sdkwork-im-admin-sdk for operator /api/admin/* surfaces.',
-  );
+  for (const requiredEntry of [
+    'sdkwork-rtc-sdk',
+    'not generated from OpenAPI',
+    'provider package',
+    'native driver',
+    'node .\\sdks\\sdkwork-rtc-sdk\\bin\\verify-sdk.mjs',
+  ]) {
+    expectIncludes(failures, rtcSource, requiredEntry, `docs/sites/sdk/rtc-sdk.md must include ${requiredEntry}.`);
+  }
+
+  for (const requiredEntry of [
+    '`sdkwork-im-sdk` maps to `/im/v3/api`',
+    '`sdkwork-im-app-sdk` maps to `/app/v3/api`',
+    '`sdkwork-im-backend-sdk` maps to `/backend/v3/api`',
+    '`sdkwork-rtc-sdk` maps to provider-runtime integration',
+    '/backend/v3/api/control/*',
+    '/backend/v3/api/admin/*',
+  ]) {
+    expectIncludes(
+      failures,
+      apiReferenceIndexSource,
+      requiredEntry,
+      `docs/sites/api-reference/index.md must include ${requiredEntry}.`,
+    );
+  }
+
+  for (const requiredEntry of [
+    'sdkwork-im-backend-sdk',
+    'control modules',
+    'sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml',
+  ]) {
+    expectIncludes(
+      failures,
+      controlPlaneApiSource,
+      requiredEntry,
+      `docs/sites/api-reference/control-plane-api.md must include ${requiredEntry}.`,
+    );
+  }
+
+  for (const requiredEntry of [
+    'sdkwork-im-app-sdk',
+    '/app/v3/api/*',
+    'Device Twin',
+    'IoT Protocol',
+  ]) {
+    expectIncludes(
+      failures,
+      appApiSource,
+      requiredEntry,
+      `docs/sites/api-reference/app-api.md must include ${requiredEntry}.`,
+    );
+  }
+
+  for (const requiredEntry of [
+    'sdkwork-im-backend-sdk',
+    '/backend/v3/api/*',
+    '/backend/v3/api/control/*',
+    '/backend/v3/api/admin/*',
+  ]) {
+    expectIncludes(
+      failures,
+      backendApiSource,
+      requiredEntry,
+      `docs/sites/api-reference/backend-api.md must include ${requiredEntry}.`,
+    );
+  }
+
+  for (const requiredEntry of [
+    'materialize-im-v3-openapi-boundaries.mjs',
+    'sdks\\sdkwork-im-app-sdk\\bin\\verify-sdk.mjs',
+    'sdks\\sdkwork-im-backend-sdk\\bin\\verify-sdk.mjs',
+    'sdks\\sdkwork-rtc-sdk\\bin\\verify-sdk.mjs',
+  ]) {
+    expectIncludes(
+      failures,
+      cliReferenceSource,
+      requiredEntry,
+      `docs/sites/reference/cli-and-scripts.md must include ${requiredEntry}.`,
+    );
+  }
 
   const releaseArtifacts = Array.isArray(releaseCatalog.sdkArtifacts) ? releaseCatalog.sdkArtifacts : [];
-  const imAdminArtifacts = releaseArtifacts.filter((artifact) => artifact.audience === 'im-admin');
-  if (imAdminArtifacts.length !== 2) {
-    failures.push('artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json must contain exactly two im-admin artifacts.');
+  const expectedAudiences = new Set(['im', 'app', 'backend', 'rtc']);
+  const actualAudiences = new Set(releaseArtifacts.map((artifact) => artifact.audience));
+  for (const expectedAudience of expectedAudiences) {
+    if (!actualAudiences.has(expectedAudience)) {
+      failures.push(`sdk-release-catalog.json must include ${expectedAudience} SDK artifacts.`);
+    }
   }
-  for (const [expectedId, expectedPackage, expectedReadmePath] of [
-    [
-      'im-admin-typescript',
-      'sdkwork-im-admin-sdk-typescript',
-      'sdks/sdkwork-im-admin-sdk/sdkwork-im-admin-sdk-typescript/README.md',
-    ],
-    [
-      'im-admin-flutter',
-      'sdkwork-im-admin-sdk-flutter',
-      'sdks/sdkwork-im-admin-sdk/sdkwork-im-admin-sdk-flutter/README.md',
-    ],
-  ]) {
-    const artifact = imAdminArtifacts.find((entry) => entry.id === expectedId);
-    if (!artifact) {
-      failures.push(`SDK release catalog is missing ${expectedId}.`);
-      continue;
+  for (const retiredAudience of ['admin', 'im-admin']) {
+    if (actualAudiences.has(retiredAudience)) {
+      failures.push(`sdk-release-catalog.json must not include retired ${retiredAudience} artifacts.`);
     }
-    if (artifact.package !== expectedPackage) {
-      failures.push(`SDK release catalog ${expectedId} must use package ${expectedPackage}.`);
-    }
-    if (artifact.readmePath !== expectedReadmePath) {
-      failures.push(`SDK release catalog ${expectedId} must use readmePath ${expectedReadmePath}.`);
-    }
-    if (artifact.generationStatus !== 'generated') {
-      failures.push(`SDK release catalog ${expectedId} must remain in generationStatus=generated.`);
-    }
-    if (artifact.releaseStatus !== 'not_published') {
-      failures.push(`SDK release catalog ${expectedId} must remain in releaseStatus=not_published.`);
+  }
+  for (const artifact of releaseArtifacts) {
+    for (const retiredMarker of [
+      marker('sdkwork', '-control', '-plane', '-sdk'),
+      marker('sdkwork', '-im', '-admin', '-sdk'),
+    ]) {
+      if (JSON.stringify(artifact).includes(retiredMarker)) {
+        failures.push(`sdk-release-catalog.json artifact ${artifact.id} must not reference ${retiredMarker}.`);
+      }
     }
   }
 

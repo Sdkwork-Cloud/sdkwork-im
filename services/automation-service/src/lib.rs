@@ -16,8 +16,8 @@ use craw_chat_contract_message::{CommitJournal, CommitPosition};
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_auth_context::{
-    AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
+use im_app_context::{
+    AppContext, AppContextError, resolve_app_context,
 };
 pub use im_domain_core::automation::{
     AgentToolCall, AgentToolCallState, AutomationExecution, AutomationExecutionState,
@@ -399,8 +399,8 @@ impl AutomationError {
     }
 }
 
-impl From<AuthContextError> for AutomationError {
-    fn from(value: AuthContextError) -> Self {
+impl From<AppContextError> for AutomationError {
+    fn from(value: AppContextError) -> Self {
         Self {
             status: axum::http::StatusCode::UNAUTHORIZED,
             code: value.code(),
@@ -441,7 +441,7 @@ impl<T> AutomationMutexExt<T> for Mutex<T> {
         match self.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
-                eprintln!("warning: recovering poisoned mutex in automation-service");
+                tracing::warn!("recovering poisoned mutex in automation-service");
                 poisoned.into_inner()
             }
         }
@@ -505,7 +505,7 @@ impl AutomationRuntime {
 
     pub fn request_execution(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RequestAutomationExecution,
     ) -> Result<AutomationExecution, AutomationError> {
         Ok(self
@@ -515,7 +515,7 @@ impl AutomationRuntime {
 
     pub fn request_execution_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RequestAutomationExecution,
     ) -> Result<AutomationExecutionRequestResult, AutomationError> {
         ensure_automation_execute_access(auth)?;
@@ -628,7 +628,7 @@ impl AutomationRuntime {
 
     pub fn governance_snapshot(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
     ) -> Result<AutomationGovernanceSnapshot, AutomationError> {
         ensure_automation_read_access(auth)?;
         Ok(automation_governance_snapshot(auth))
@@ -636,7 +636,7 @@ impl AutomationRuntime {
 
     pub fn start_agent_response(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: StartAgentResponseRequest,
     ) -> Result<StreamSession, AutomationError> {
         ensure_automation_execute_access(auth)?;
@@ -746,7 +746,7 @@ impl AutomationRuntime {
 
     pub fn append_agent_response_delta(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
         request: AppendAgentResponseDeltaRequest,
     ) -> Result<StreamFrame, AutomationError> {
@@ -860,7 +860,7 @@ impl AutomationRuntime {
 
     pub fn complete_agent_response(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         stream_id: &str,
         request: CompleteAgentResponseRequest,
     ) -> Result<StreamSession, AutomationError> {
@@ -937,7 +937,7 @@ impl AutomationRuntime {
 
     pub fn request_agent_tool_call(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RequestAgentToolCallRequest,
     ) -> Result<AgentToolCall, AutomationError> {
         ensure_automation_execute_access(auth)?;
@@ -1064,7 +1064,7 @@ impl AutomationRuntime {
 
     pub fn complete_agent_tool_call(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         execution_id: &str,
         tool_call_id: &str,
         request: CompleteAgentToolCallRequest,
@@ -1116,7 +1116,7 @@ impl AutomationRuntime {
 
     pub fn get_execution(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         execution_id: &str,
     ) -> Result<AutomationExecution, AutomationError> {
         ensure_automation_read_access(auth)?;
@@ -1166,7 +1166,7 @@ impl AutomationRuntime {
 
     fn append_event(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         execution: &AutomationExecution,
         event_type: &str,
         ordering_seq: u64,
@@ -1213,7 +1213,7 @@ impl AutomationRuntime {
 
     fn append_json_event<P: Serialize>(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         execution: &AutomationExecution,
         event_type: &str,
         payload_schema: &str,
@@ -1263,7 +1263,7 @@ impl AutomationRuntime {
 
     fn append_guardrail_event(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         execution: &AutomationExecution,
         event_type: &str,
         tool_name: &str,
@@ -1287,7 +1287,7 @@ impl AutomationRuntime {
 
     fn execution_for_actor(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         execution_id: &str,
     ) -> Result<AutomationExecution, AutomationError> {
         self.ensure_execution_state(
@@ -1359,7 +1359,7 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_public_bearer_auth))
+    build_default_app().layer(middleware::from_fn(require_app_context))
 }
 
 pub fn build_app(runtime: Arc<AutomationRuntime>) -> Router {
@@ -1368,39 +1368,39 @@ pub fn build_app(runtime: Arc<AutomationRuntime>) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .route("/api/v1/automation/executions", post(request_execution))
-        .route("/api/v1/automation/governance", get(get_governance))
+        .route("/im/v3/api/automation/executions", post(request_execution))
+        .route("/backend/v3/api/automation/governance", get(get_governance))
         .route(
-            "/api/v1/automation/agent-responses",
+            "/im/v3/api/automation/agent_responses",
             post(start_agent_response),
         )
         .route(
-            "/api/v1/automation/agent-responses/{stream_id}/frames",
+            "/im/v3/api/automation/agent_responses/{stream_id}/frames",
             post(append_agent_response_delta),
         )
         .route(
-            "/api/v1/automation/agent-responses/{stream_id}/complete",
+            "/im/v3/api/automation/agent_responses/{stream_id}/complete",
             post(complete_agent_response),
         )
         .route(
-            "/api/v1/automation/agent-tool-calls",
+            "/im/v3/api/automation/agent_tool_calls",
             post(request_agent_tool_call),
         )
         .route(
-            "/api/v1/automation/executions/{execution_id}/agent-tool-calls/{tool_call_id}/complete",
+            "/im/v3/api/automation/executions/{execution_id}/agent_tool_calls/{tool_call_id}/complete",
             post(complete_agent_tool_call),
         )
         .route(
-            "/api/v1/automation/executions/{execution_id}",
+            "/im/v3/api/automation/executions/{execution_id}",
             get(get_execution),
         )
         .with_state(AppState { runtime })
 }
 
-async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_public_bearer_auth_context(request.headers()) {
+        _ => match resolve_app_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => AutomationError::from(error).into_response(),
         },
@@ -1443,7 +1443,7 @@ fn build_automation_service_openapi_document() -> Result<serde_json::Value, Stri
         &automation_service_openapi_spec(),
         &routes,
         automation_service_tag,
-        automation_service_requires_bearer,
+        automation_service_requires_app_context,
         automation_service_summary,
     ))
 }
@@ -1462,13 +1462,13 @@ fn automation_service_tag(path: &str, _method: HttpMethod) -> String {
     match path {
         "/healthz" | "/readyz" => "system".to_owned(),
         path if path.contains("governance") => "governance".to_owned(),
-        path if path.contains("agent-tool-calls") => "agent-tool-calls".to_owned(),
-        path if path.contains("agent-responses") => "agent-responses".to_owned(),
+        path if path.contains("agent_tool_calls") => "agent_tool_calls".to_owned(),
+        path if path.contains("agent_responses") => "agent_responses".to_owned(),
         _ => "automation".to_owned(),
     }
 }
 
-fn automation_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+fn automation_service_requires_app_context(path: &str, _method: HttpMethod) -> bool {
     !matches!(path, "/healthz" | "/readyz")
 }
 
@@ -1501,7 +1501,7 @@ async fn request_execution(
     State(state): State<AppState>,
     Json(request): Json<RequestAutomationExecution>,
 ) -> Result<Json<AutomationExecutionRequestResponse>, AutomationError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let result = state
         .runtime
         .request_execution_with_outcome(&auth, request)?;
@@ -1513,7 +1513,7 @@ async fn get_execution(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AutomationExecution>, AutomationError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(
         state.runtime.get_execution(&auth, execution_id.as_str())?,
     ))
@@ -1523,7 +1523,7 @@ async fn get_governance(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AutomationGovernanceSnapshot>, AutomationError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(state.runtime.governance_snapshot(&auth)?))
 }
 
@@ -1532,7 +1532,7 @@ async fn start_agent_response(
     State(state): State<AppState>,
     Json(request): Json<StartAgentResponseRequest>,
 ) -> Result<Json<StreamSession>, AutomationError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(state.runtime.start_agent_response(&auth, request)?))
 }
 
@@ -1542,7 +1542,7 @@ async fn append_agent_response_delta(
     State(state): State<AppState>,
     Json(request): Json<AppendAgentResponseDeltaRequest>,
 ) -> Result<Json<StreamFrame>, AutomationError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(state.runtime.append_agent_response_delta(
         &auth,
         stream_id.as_str(),
@@ -1556,7 +1556,7 @@ async fn complete_agent_response(
     State(state): State<AppState>,
     Json(request): Json<CompleteAgentResponseRequest>,
 ) -> Result<Json<StreamSession>, AutomationError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(state.runtime.complete_agent_response(
         &auth,
         stream_id.as_str(),
@@ -1569,7 +1569,7 @@ async fn request_agent_tool_call(
     State(state): State<AppState>,
     Json(request): Json<RequestAgentToolCallRequest>,
 ) -> Result<Json<AgentToolCall>, AutomationError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(state.runtime.request_agent_tool_call(&auth, request)?))
 }
 
@@ -1579,7 +1579,7 @@ async fn complete_agent_tool_call(
     State(state): State<AppState>,
     Json(request): Json<CompleteAgentToolCallRequest>,
 ) -> Result<Json<AgentToolCall>, AutomationError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(state.runtime.complete_agent_tool_call(
         &auth,
         execution_id.as_str(),
@@ -1588,7 +1588,7 @@ async fn complete_agent_tool_call(
     )?))
 }
 
-fn ensure_automation_execute_access(auth: &AuthContext) -> Result<(), AutomationError> {
+fn ensure_automation_execute_access(auth: &AppContext) -> Result<(), AutomationError> {
     if auth.has_permission("automation.execute") {
         return Ok(());
     }
@@ -1596,7 +1596,7 @@ fn ensure_automation_execute_access(auth: &AuthContext) -> Result<(), Automation
     Err(AutomationError::forbidden("automation.execute"))
 }
 
-fn ensure_automation_read_access(auth: &AuthContext) -> Result<(), AutomationError> {
+fn ensure_automation_read_access(auth: &AppContext) -> Result<(), AutomationError> {
     if auth.has_permission("automation.read") {
         return Ok(());
     }
@@ -1953,7 +1953,7 @@ fn validate_agent_tool_call_completion_payload_size(
     )
 }
 
-fn automation_governance_snapshot(auth: &AuthContext) -> AutomationGovernanceSnapshot {
+fn automation_governance_snapshot(auth: &AppContext) -> AutomationGovernanceSnapshot {
     AutomationGovernanceSnapshot {
         capability_profile_id: AUTOMATION_CAPABILITY_PROFILE_ID.into(),
         enabled_capabilities: AUTOMATION_ENABLED_CAPABILITIES
@@ -1980,7 +1980,7 @@ pub fn automation_tool_requires_operator_override(tool_name: &str) -> bool {
         .any(|prefix| tool_name.starts_with(prefix))
 }
 
-fn automation_operator_override_active(auth: &AuthContext) -> bool {
+fn automation_operator_override_active(auth: &AppContext) -> bool {
     auth.has_permission(AUTOMATION_OPERATOR_OVERRIDE_PERMISSION)
 }
 
@@ -2022,8 +2022,8 @@ mod tests {
         }
     }
 
-    fn demo_auth_context() -> AuthContext {
-        AuthContext {
+    fn demo_auth_context() -> AppContext {
+        AppContext {
             tenant_id: "t_demo".into(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),

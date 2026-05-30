@@ -43,39 +43,39 @@
 ### 2.2 风险面
 
 - `audit-service`
-  - `GET /api/v1/audit/records`
-  - `GET /api/v1/audit/export`
-  - `POST /api/v1/audit/records`
+  - `GET /backend/v3/api/audit/records`
+  - `GET /backend/v3/api/audit/export`
+  - `POST /backend/v3/api/audit/records`
 - `automation-service`
-  - `POST /api/v1/automation/executions`
-  - `GET /api/v1/automation/executions/{execution_id}`
+  - `POST /im/v3/api/automation/executions`
+  - `GET /im/v3/api/automation/executions/{execution_id}`
 - `media-service`
-  - `POST /api/v1/media/uploads`
-  - `POST /api/v1/media/uploads/{media_asset_id}/complete`
-  - `GET /api/v1/media/{media_asset_id}`
+  - `POST /im/v3/api/media/uploads`
+  - `POST /im/v3/api/media/uploads/{media_asset_id}/complete`
+  - `GET /im/v3/api/media/{media_asset_id}`
 - `ops-service`
-  - `GET /api/v1/ops/health`
-  - `GET /api/v1/ops/cluster`
-  - `GET /api/v1/ops/lag`
-  - `GET /api/v1/ops/diagnostics`
+  - `GET /backend/v3/api/ops/health`
+  - `GET /backend/v3/api/ops/cluster`
+  - `GET /backend/v3/api/ops/lag`
+  - `GET /backend/v3/api/ops/diagnostics`
 - `notification-service`
-  - `POST /api/v1/notifications/requests`
-  - `GET /api/v1/notifications`
-  - `GET /api/v1/notifications/{notification_id}`
+  - `POST /im/v3/api/notifications/requests`
+  - `GET /im/v3/api/notifications`
+  - `GET /im/v3/api/notifications/{notification_id}`
 - `conversation-runtime`
-  - `POST /api/v1/conversations`
-  - `POST /api/v1/conversations/{conversation_id}/members/add`
-  - `POST /api/v1/conversations/{conversation_id}/members/remove`
-  - `POST /api/v1/conversations/{conversation_id}/messages`
-  - `POST /api/v1/messages/{message_id}/edit`
-  - `POST /api/v1/messages/{message_id}/recall`
+  - `POST /im/v3/api/chat/conversations`
+  - `POST /im/v3/api/chat/conversations/{conversation_id}/members/add`
+  - `POST /im/v3/api/chat/conversations/{conversation_id}/members/remove`
+  - `POST /im/v3/api/chat/conversations/{conversation_id}/messages`
+  - `POST /im/v3/api/chat/messages/{message_id}/edit`
+  - `POST /im/v3/api/chat/messages/{message_id}/recall`
 - `projection-service`
-  - `POST /api/v1/devices/register`
-  - `GET /api/v1/devices/{device_id}/sync-feed`
-  - `GET /api/v1/inbox`
-  - `GET /api/v1/conversations/{conversation_id}`
-  - `GET /api/v1/conversations/{conversation_id}/read-cursor`
-  - `GET /api/v1/conversations/{conversation_id}/messages`
+  - `POST /im/v3/api/devices/register`
+  - `GET /im/v3/api/devices/{device_id}/sync-feed`
+  - `GET /im/v3/api/chat/inbox`
+  - `GET /im/v3/api/chat/conversations/{conversation_id}`
+  - `GET /im/v3/api/chat/conversations/{conversation_id}/read-cursor`
+  - `GET /im/v3/api/chat/conversations/{conversation_id}/messages`
 
 ## 3. 修复标准
 

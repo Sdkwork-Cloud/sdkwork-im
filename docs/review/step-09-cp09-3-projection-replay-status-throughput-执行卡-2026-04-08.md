@@ -30,7 +30,7 @@
 - `services/ops-service/src/lib.rs`
   - 新增 `ProjectionReplayStatusView`
   - 新增 `OpsRuntime::replay_status_view()`
-  - 新增公开路由 `GET /api/v1/ops/replay-status`
+  - 新增公开路由 `GET /backend/v3/api/ops/replay_status`
 - 该读面的返回结构当前明确包括：
   - `generatedAt`
   - `status`
@@ -56,7 +56,7 @@
 
 ### 3. `local-minimal-node` 对齐暴露同一条 replay-status 路由
 - `services/local-minimal-node/src/node/build.rs`
-  - 新增 `GET /api/v1/ops/replay-status`
+  - 新增 `GET /backend/v3/api/ops/replay_status`
 - `services/local-minimal-node/src/node/platform.rs`
   - 新增 `get_ops_replay_status(...)`
   - 直接复用 `ops_runtime.replay_status_view()`
@@ -115,7 +115,7 @@
   - `cargo test -p local-minimal-node --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_reports_projection_replay_backlog_and_lag_after_stale_snapshot_restart`
 - 红测失败点与预期一致：
   - `ops-service` 还没有 `ProjectionReplayStatusView`
-  - `/api/v1/ops/replay-status` 还不存在
+  - `/backend/v3/api/ops/replay_status` 还不存在
   - `replayThroughputPerSecond` 还未暴露
   - stale snapshot replay 场景还不能对外给出 `replayed` 状态与吞吐率
 

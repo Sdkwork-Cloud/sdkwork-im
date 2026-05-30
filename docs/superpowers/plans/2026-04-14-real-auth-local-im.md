@@ -28,7 +28,7 @@ async fn test_seeded_im_user_can_log_in_and_fetch_me() {
 
     let login = post_json(
         &app,
-        "/api/v1/auth/login",
+        "sdkwork-appbase login verification",
         json!({
             "tenantId": "t_demo",
             "login": "guest",
@@ -43,7 +43,7 @@ async fn test_seeded_im_user_can_log_in_and_fetch_me() {
     let body = read_json(login).await;
     let access_token = body["accessToken"].as_str().expect("access token");
 
-    let me = get_with_bearer(&app, "/api/v1/auth/me", access_token).await;
+    let me = get_with_bearer(&app, "sdkwork-appbase IAM context", access_token).await;
     assert_eq!(me.status(), StatusCode::OK);
     let me_body = read_json(me).await;
     assert_eq!(me_body["user"]["id"], "u_guest");
@@ -146,9 +146,9 @@ Expected: PASS for login, refresh, me, invalid-password, and client-kind rejecti
 - [ ] **Step 5: Add portal backend snapshot endpoints and narrow local CORS**
 
 ```rust
-.route("/api/v1/portal/home", get(portal::get_home))
-.route("/api/v1/portal/auth", get(portal::get_auth))
-.route("/api/v1/portal/workspace", get(portal::get_workspace))
+.route("/app/v3/api/portal/home", get(portal::get_home))
+.route("/app/v3/api/portal/access", get(portal::get_auth))
+.route("/app/v3/api/portal/workspace", get(portal::get_workspace))
 ```
 
 - [ ] **Step 6: Run focused backend regression coverage**
@@ -289,7 +289,7 @@ git commit -m "feat(scripts): auto-start local service and log in seeded users"
 ```javascript
 test('auth store signs in with credentials and persists backend-issued bearer token', async () => {
   // inject http data source double, call signIn({ tenantId, login, password })
-  // assert POST /api/v1/auth/login shape and token persistence
+  // assert sdkwork-appbase login verification shape and token persistence
 });
 
 test('portal auth page renders tenant, login, and password inputs', async () => {

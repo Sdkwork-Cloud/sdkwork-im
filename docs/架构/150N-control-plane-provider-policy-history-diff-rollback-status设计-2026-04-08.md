@@ -1,7 +1,7 @@
 # 150N control-plane provider-policy history diff rollback status 设计
 ## 1. 背景
 
-`07-C10` 已统一 `preview / applied / noop` 的成功状态，但 `GET /api/v1/control/provider-policies`、`GET /api/v1/control/provider-policies/diff`、`POST /api/v1/control/provider-policies/rollback` 仍然没有显式 `status`，调用方依然需要通过路由语义推断当前结果类型。
+`07-C10` 已统一 `preview / applied / noop` 的成功状态，但 `GET /backend/v3/api/control/provider-policies`、`GET /backend/v3/api/control/provider-policies/diff`、`POST /backend/v3/api/control/provider-policies/rollback` 仍然没有显式 `status`，调用方依然需要通过路由语义推断当前结果类型。
 
 ## 2. 目标
 
@@ -20,11 +20,11 @@
 
 ## 4. HTTP 面
 
-- `GET /api/v1/control/provider-policies`
+- `GET /backend/v3/api/control/provider-policies`
   - 返回 `status=history`
-- `GET /api/v1/control/provider-policies/diff`
+- `GET /backend/v3/api/control/provider-policies/diff`
   - 返回 `status=diff`
-- `POST /api/v1/control/provider-policies/rollback`
+- `POST /backend/v3/api/control/provider-policies/rollback`
   - 返回 `status=rolled_back`
 
 其余字段继续平铺输出：

@@ -2,7 +2,7 @@
 
 ## Goal
 
-This example will show how stream and RTC flows fit together in the app-facing SDK.
+This example will show how stream and RTC flows fit together in the IM consumer SDK.
 
 ## Modules Involved
 

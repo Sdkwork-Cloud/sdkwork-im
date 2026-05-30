@@ -15,7 +15,7 @@
     - read cursor seed
   - it did not append any `DeviceSyncFeedEntry` for those member governance events
 - Impact:
-  - offline devices could not learn roster deltas from `/api/v1/devices/{deviceId}/sync-feed`
+  - offline devices could not learn roster deltas from `/im/v3/api/devices/{deviceId}/sync-feed`
   - clients had to refetch the whole member list to explain why a conversation appeared, changed, or disappeared
   - the removed or leaving principal's other devices had no durable explanation for the loss of access
 

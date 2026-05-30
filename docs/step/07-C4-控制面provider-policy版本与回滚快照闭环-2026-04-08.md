@@ -9,16 +9,16 @@
 ## 本轮落地
 
 - `RuntimeProviderRegistry` 输出 `ProviderPolicyHistory`，每次写入生成新版本快照。
-- 新增 `GET /api/v1/control/provider-policies`，用于查询 provider policy 版本历史。
-- 新增 `POST /api/v1/control/provider-policies/rollback`，按 `targetVersion` 执行回滚。
+- 新增 `GET /backend/v3/api/control/provider-policies`，用于查询 provider policy 版本历史。
+- 新增 `POST /backend/v3/api/control/provider-policies/rollback`，按 `targetVersion` 执行回滚。
 - 回滚快照新增 `rollbackFromVersion` 字段，保留“从哪个版本恢复”的审计语义。
 - control-plane 在回滚后调用 `replace_provider_binding_snapshots`，全量替换 ops 中的 provider binding 快照，避免租户 override 被删除后残留脏数据。
 - 新增审计动作 `control.provider_policy_rolled_back`。
 
 ## 对外契约
 
-- 历史接口：`GET /api/v1/control/provider-policies`
-- 回滚接口：`POST /api/v1/control/provider-policies/rollback`
+- 历史接口：`GET /backend/v3/api/control/provider-policies`
+- 回滚接口：`POST /backend/v3/api/control/provider-policies/rollback`
 - 历史响应关键字段：
   - `currentVersion`
   - `items`

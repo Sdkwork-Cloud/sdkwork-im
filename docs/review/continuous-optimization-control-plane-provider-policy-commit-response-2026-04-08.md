@@ -4,7 +4,7 @@
 
 - 新增 `07-C8 / 09K / 150K` 文档闭环。
 - `RuntimeProviderRegistry` 支持 `commit_upsert(...)` 原子返回 committed 结果。
-- `POST /api/v1/control/provider-bindings` 成功响应新增：
+- `POST /backend/v3/api/control/provider_bindings` 成功响应新增：
   - `currentVersion`
   - `committedBinding`
   - `diff`

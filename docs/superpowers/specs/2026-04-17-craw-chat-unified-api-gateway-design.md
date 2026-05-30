@@ -27,7 +27,7 @@ The workspace currently exposes multiple standalone HTTP services:
 - `local-minimal-node` on `127.0.0.1:18090`
 - `ops-service` on `127.0.0.1:18091`
 
-`local-minimal-node` currently aggregates a large app-facing surface and already exports `GET /openapi/craw-chat-app.openapi.yaml`, but the checked-in app contract is no longer a reliable live representation of all real routes. The workspace does not yet have a dedicated gateway/web-host equivalent to `sdkwork-api-router`.
+`local-minimal-node` currently aggregates a large app-facing surface and already exports `GET /im/v3/openapi.json`, but the checked-in app contract is no longer a reliable live representation of all real routes. The workspace does not yet have a dedicated gateway/web-host equivalent to `sdkwork-api-router`.
 
 ## 3. Design Principles
 
@@ -94,11 +94,11 @@ The gateway exposes four contract layers:
 ### 7.1 Primary Service Ownership
 
 - `session-gateway`
-  - `/api/v1/sessions/*`
-  - `/api/v1/presence/*`
-  - `/api/v1/realtime/*`
+  - `/im/v3/api/device/sessions/*`
+  - `/im/v3/api/presence/*`
+  - `/im/v3/api/realtime/*`
 - `control-plane-api`
-  - `/api/v1/control/*`
+  - `/backend/v3/api/control/*`
 - `conversation-runtime`
   - write-side conversation operations
   - membership mutations
@@ -106,36 +106,36 @@ The gateway exposes four contract layers:
   - handoff mutations
 - `projection-service`
   - read-side conversation operations
-  - `/api/v1/contacts`
-  - `/api/v1/inbox`
+  - `/im/v3/api/chat/contacts`
+  - `/im/v3/api/chat/inbox`
 - `streaming-service`
-  - `/api/v1/streams/*`
+  - `/im/v3/api/streams/*`
 - `rtc-signaling-service`
-  - `/api/v1/rtc/*`
+  - `/im/v3/api/rtc/*`
 - `media-service`
-  - `/api/v1/media/*`
+  - `/im/v3/api/media/*`
 - `notification-service`
-  - `/api/v1/notifications*`
+  - `/im/v3/api/notifications*`
 - `automation-service`
-  - `/api/v1/automation/*`
+  - `/im/v3/api/automation/*`
 - `audit-service`
-  - `/api/v1/audit/*`
+  - `/backend/v3/api/audit/*`
 - `ops-service`
-  - `/api/v1/ops/*`
+  - `/backend/v3/api/ops/*`
 - `app aggregate owner`
-  - `/api/v1/auth/*`
-  - `/api/v1/portal/*`
-  - `/api/v1/social/*`
-  - `/api/v1/devices/{deviceId}/twin*`
-  - `/api/v1/iot/*`
+  - sdkwork-appbase IAM/token APIs
+  - `/app/v3/api/portal/*`
+  - `/backend/v3/api/control/social/*`
+  - `/im/v3/api/devices/{deviceId}/twin*`
+  - `/backend/v3/api/iot/*`
   - short-term provider-health routes that have not yet been split
 
 ### 7.2 Method-Level Ownership
 
 Ownership is method-specific. The same path may be owned by different services for different HTTP methods. For example:
 
-- `GET /api/v1/conversations/{conversationId}/messages` -> `projection-service`
-- `POST /api/v1/conversations/{conversationId}/messages` -> `conversation-runtime`
+- `GET /im/v3/api/chat/conversations/{conversationId}/messages` -> `projection-service`
+- `POST /im/v3/api/chat/conversations/{conversationId}/messages` -> `conversation-runtime`
 
 The gateway must not resolve such cases by path prefix alone.
 
@@ -180,7 +180,7 @@ Gateway endpoints:
 
 - `/openapi.json`
 - `/openapi/index.json`
-- `/openapi/craw-chat-app.openapi.yaml`
+- `/im/v3/openapi.json`
 - `/openapi/craw-chat-control.openapi.json`
 - `/openapi/services/{serviceId}.openapi.json`
 - `/docs`
@@ -195,13 +195,13 @@ Direct service endpoints should converge on:
 
 - `openapi/aggregate/craw-chat-gateway.openapi.json`
 - `openapi/aggregate/openapi-index.json`
-- `openapi/public/craw-chat-app.openapi.yaml`
+- `openapi/public/craw-chat-im.openapi.yaml`
 - `openapi/public/craw-chat-control.openapi.json`
 - `openapi/services/{serviceId}.openapi.json`
 
 For compatibility with existing SDK workflows, the app authority snapshot may also be mirrored into:
 
-- `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
+- `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
 
 The long-term source of truth remains `openapi/*`, not `sdks/*`.
 
@@ -211,7 +211,7 @@ WebSocket routes are part of the gateway contract, not a special side channel.
 
 Current required route:
 
-- `GET /api/v1/realtime/ws`
+- `GET /im/v3/api/realtime/ws`
 
 The gateway must support:
 

@@ -84,7 +84,7 @@ impl DeviceAccessProvider for RecordingDeviceAccessProvider {
 }
 
 #[tokio::test]
-async fn test_session_resume_and_heartbeat_call_injected_device_access_provider_once() {
+async fn test_device_session_resume_and_heartbeat_call_injected_device_access_provider_once() {
     let provider = RecordingDeviceAccessProvider::default();
     let app = session_gateway::build_app_with_device_access_provider(Arc::new(provider.clone()));
 
@@ -93,12 +93,12 @@ async fn test_session_resume_and_heartbeat_call_injected_device_access_provider_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_device_provider")
-                .header("x-user-id", "u_device_provider")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_device_provider")
-                .header("x-device-id", "d_device_provider")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_device_provider")
+                .header("x-sdkwork-user-id", "u_device_provider")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_device_provider")
+                .header("x-sdkwork-device-id", "d_device_provider")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -121,12 +121,12 @@ async fn test_session_resume_and_heartbeat_call_injected_device_access_provider_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/presence/heartbeat")
-                .header("x-tenant-id", "t_device_provider")
-                .header("x-user-id", "u_device_provider")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_device_provider")
-                .header("x-device-id", "d_device_provider")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_device_provider")
+                .header("x-sdkwork-user-id", "u_device_provider")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_device_provider")
+                .header("x-sdkwork-device-id", "d_device_provider")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -142,8 +142,8 @@ async fn test_session_resume_and_heartbeat_call_injected_device_access_provider_
         DeviceAccessRegistrationRequest {
             tenant_id: "t_device_provider".into(),
             device_id: "d_device_provider".into(),
-            product_id: "session-gateway-device".into(),
-            credential_kind: "session".into(),
+            product_id: "device-route-gateway-device".into(),
+            credential_kind: "device_route".into(),
             owner_principal_id: Some("u_device_provider".into()),
         }
     );
@@ -160,7 +160,7 @@ async fn test_session_resume_and_heartbeat_call_injected_device_access_provider_
 }
 
 #[tokio::test]
-async fn test_conflicting_session_resume_does_not_call_provider_for_second_owner() {
+async fn test_conflicting_device_session_resume_does_not_call_provider_for_second_owner() {
     let provider = RecordingDeviceAccessProvider::default();
     let app = session_gateway::build_app_with_device_access_provider(Arc::new(provider.clone()));
 
@@ -169,12 +169,12 @@ async fn test_conflicting_session_resume_does_not_call_provider_for_second_owner
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_device_provider")
-                .header("x-user-id", "u_owner_a")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_owner_a")
-                .header("x-device-id", "d_conflict_provider")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_device_provider")
+                .header("x-sdkwork-user-id", "u_owner_a")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_owner_a")
+                .header("x-sdkwork-device-id", "d_conflict_provider")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -187,12 +187,12 @@ async fn test_conflicting_session_resume_does_not_call_provider_for_second_owner
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/sessions/resume")
-                .header("x-tenant-id", "t_device_provider")
-                .header("x-user-id", "u_owner_b")
-                .header("x-actor-kind", "user")
-                .header("x-session-id", "s_owner_b")
-                .header("x-device-id", "d_conflict_provider")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("x-sdkwork-tenant-id", "t_device_provider")
+                .header("x-sdkwork-user-id", "u_owner_b")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_owner_b")
+                .header("x-sdkwork-device-id", "d_conflict_provider")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),

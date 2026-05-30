@@ -16,8 +16,8 @@
 
 当前接口：
 
-- `GET /api/v1/control/provider-bindings`
-- `GET /api/v1/ops/provider-bindings`
+- `GET /backend/v3/api/control/provider_bindings`
+- `GET /backend/v3/api/ops/provider_bindings`
 
 ## ops 侧对象
 
@@ -48,7 +48,7 @@
 
 ## 诊断面
 
-`GET /api/v1/ops/diagnostics` 必须同时带出 `providerBindings`。
+`GET /backend/v3/api/ops/diagnostics` 必须同时带出 `providerBindings`。
 
 原因：
 
@@ -57,7 +57,7 @@
 
 ## 安全边界
 
-- `GET /api/v1/ops/provider-bindings` 必须要求 `ops.read`
+- `GET /backend/v3/api/ops/provider_bindings` 必须要求 `ops.read`
 - public bearer 没有 `ops.read` 时必须拒绝访问
 - ops 侧不可直接改写 provider 绑定结果
 

@@ -16,7 +16,7 @@
 
 本轮包含：
 
-- `GET /api/v1/iot/access/provider-health`
+- `GET /backend/v3/api/iot/access/provider_health`
 - `DeviceAccessProvider::provider_health_snapshot()` 的 HTTP 暴露
 - `local-minimal-node` 运行时 health 可见性
 - 默认 `iot-access-local` 的 health 可见性
@@ -45,7 +45,7 @@
 
 ## 退出标准
 
-- `GET /api/v1/iot/access/provider-health` 返回 `200`
+- `GET /backend/v3/api/iot/access/provider_health` 返回 `200`
 - 响应包含当前 access provider 的真实 `ProviderHealthSnapshot`
 - 默认 `iot-access-local` 响应可见：
   - `assignedProtocols = mqtt,xiaozhi`

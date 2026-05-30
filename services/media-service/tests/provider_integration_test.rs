@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_core::media::{MediaResource, MediaResourceType};
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{
@@ -19,7 +19,7 @@ use tower::ServiceExt;
 #[test]
 fn test_complete_upload_uses_deployment_selected_object_storage_provider() {
     let runtime = media_service::MediaRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -92,10 +92,10 @@ async fn test_get_media_download_url_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -121,10 +121,10 @@ async fn test_get_media_download_url_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads/ma_provider_http/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads/ma_provider_http/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -142,10 +142,10 @@ async fn test_get_media_download_url_over_http() {
     let download_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/media/ma_provider_http/download-url?expiresInSeconds=900")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/ma_provider_http/download_url?expiresInSeconds=900")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -181,10 +181,10 @@ async fn test_get_media_download_url_rejects_zero_ttl_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -210,10 +210,10 @@ async fn test_get_media_download_url_rejects_zero_ttl_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/media/uploads/ma_provider_zero_ttl/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/uploads/ma_provider_zero_ttl/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -231,10 +231,10 @@ async fn test_get_media_download_url_rejects_zero_ttl_over_http() {
     let download_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/media/ma_provider_zero_ttl/download-url?expiresInSeconds=0")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/media/ma_provider_zero_ttl/download_url?expiresInSeconds=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -260,10 +260,10 @@ async fn test_get_media_provider_health_over_http() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/media/provider-health")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/backend/v3/api/media/provider_health")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -304,7 +304,7 @@ fn test_duplicate_complete_upload_retry_uses_existing_asset_without_reinvoking_p
             Arc::new(provider.clone()) as Arc<dyn ObjectStorageProvider>,
         )],
     );
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),

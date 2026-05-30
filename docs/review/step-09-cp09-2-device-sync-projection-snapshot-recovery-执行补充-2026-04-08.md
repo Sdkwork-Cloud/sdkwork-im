@@ -52,8 +52,8 @@
     - `latest_device_sync_seq`
 - `services/local-minimal-node/tests/domain_recovery_persistence_test.rs`
   - 新增 runtime-dir 恢复测试，证明在 `commit-journal.json` 变成 `[]` 后仍可恢复：
-    - `/api/v1/sessions/resume`
-    - `/api/v1/devices/{device}/sync-feed`
+    - `/im/v3/api/device/sessions/resume`
+    - `/im/v3/api/devices/{device}/sync-feed`
   - 同时修正 `unique_runtime_dir()`，避免并行测试因时间戳碰撞共享 runtime-dir，污染 `commit-journal`
 
 ## TDD 证据

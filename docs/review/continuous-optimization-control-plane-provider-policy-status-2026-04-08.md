@@ -4,8 +4,8 @@
 
 - 新增 `07-C10 / 09M / 150M` 文档闭环。
 - `ProviderPolicyResultStatus` 冻结成功路径结果状态。
-- `POST /api/v1/control/provider-policies/preview` 返回 `status=preview`。
-- `POST /api/v1/control/provider-bindings` 返回 `status=applied|noop`。
+- `POST /backend/v3/api/control/provider-policies/preview` 返回 `status=preview`。
+- `POST /backend/v3/api/control/provider_bindings` 返回 `status=applied|noop`。
 - 旧的 `applied` 布尔字段继续保留，兼容已有调用方。
 
 ## 验证

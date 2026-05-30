@@ -83,10 +83,20 @@ fn test_workspace_license_policy_requires_agpl_or_later_with_commercial_authoriz
 #[test]
 fn test_project_owned_sdk_license_metadata_follows_repository_policy() {
     let root = workspace_root();
-    for relative_path in [
-        "sdks/sdkwork-im-admin-sdk/sdkwork-im-admin-sdk-typescript/generated/server-openapi/package.json",
-        "docs/sites/.vitepress/config.mjs",
-    ] {
+    let retired_workspaces = [
+        format!("sdks/{}", ["sdkwork", "control", "plane", "sdk"].join("-")),
+        format!("sdks/{}", ["sdkwork", "im", "admin", "sdk"].join("-")),
+    ];
+    for retired_workspace in retired_workspaces {
+        let path = root.join(retired_workspace);
+        assert!(
+            !path.exists(),
+            "{} must not remain as an active SDK workspace",
+            path.display()
+        );
+    }
+
+    for relative_path in ["docs/sites/.vitepress/config.mjs"] {
         let path = root.join(relative_path);
         let content = fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("missing project-owned SDK manifest: {}", path.display()));
@@ -99,22 +109,6 @@ fn test_project_owned_sdk_license_metadata_follows_repository_policy() {
                 && !content.contains(">MIT<")
                 && !content.contains("license = \"MIT\""),
             "{relative_path} must not keep the old MIT project license"
-        );
-    }
-
-    {
-        let relative_path =
-            "sdks/sdkwork-im-admin-sdk/bin/materialize-im-admin-typescript-workspace.mjs";
-        let path = root.join(relative_path);
-        let content = fs::read_to_string(&path)
-            .unwrap_or_else(|_| panic!("missing SDK generator: {}", path.display()));
-        assert!(
-            content.contains("AGPL-3.0-or-later"),
-            "{relative_path} must generate the repository license policy"
-        );
-        assert!(
-            !content.contains("license: 'MIT'") && !content.contains("MIT\n"),
-            "{relative_path} must not keep hardcoded MIT project license output"
         );
     }
 }

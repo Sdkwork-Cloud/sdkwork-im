@@ -4,10 +4,17 @@ const DEFAULT_SESSION_GATEWAY_BIND_ADDR: &str = "127.0.0.1:18080";
 
 #[tokio::main]
 async fn main() -> ExitCode {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
     match run().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("{error}");
+            tracing::error!("{error}");
             ExitCode::FAILURE
         }
     }
@@ -22,6 +29,9 @@ async fn run() -> Result<(), String> {
         })?;
 
     axum::serve(listener, session_gateway::build_public_app())
+        .with_graceful_shutdown(async {
+            tokio::signal::ctrl_c().await.ok();
+        })
         .await
         .map_err(|error| format!("session-gateway server should run: {error}"))?;
     Ok(())

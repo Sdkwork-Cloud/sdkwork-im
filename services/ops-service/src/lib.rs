@@ -10,8 +10,8 @@ use craw_chat_api_registry::HttpMethod;
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_auth_context::{
-    AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
+use im_app_context::{
+    AppContext, AppContextError, resolve_app_context,
 };
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
@@ -472,7 +472,7 @@ impl OpsRuntime {
     }
 
     pub fn update_runtime_dir_inspection(&self, inspection: RuntimeDirInspectionView) {
-        *lock_ops_mutex(&self.runtime_dir_inspection, "ops runtime-dir inspection") = inspection;
+        *lock_ops_mutex(&self.runtime_dir_inspection, "ops runtime_dir inspection") = inspection;
     }
 
     pub fn update_provider_binding_snapshot(&self, snapshot: ProviderBindingSnapshotView) {
@@ -589,7 +589,7 @@ impl OpsRuntime {
     }
 
     pub fn runtime_dir_view(&self) -> RuntimeDirInspectionView {
-        lock_ops_mutex(&self.runtime_dir_inspection, "ops runtime-dir inspection").clone()
+        lock_ops_mutex(&self.runtime_dir_inspection, "ops runtime_dir inspection").clone()
     }
 
     pub fn provider_bindings_view(&self) -> ProviderBindingsView {
@@ -698,7 +698,7 @@ fn lock_ops_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexG
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!("warn: recovered poisoned ops mutex lock={lock_name}");
+            tracing::warn!("recovered poisoned ops mutex lock={lock_name}");
             poisoned.into_inner()
         }
     }
@@ -773,8 +773,8 @@ pub struct OpsError {
     message: String,
 }
 
-impl From<AuthContextError> for OpsError {
-    fn from(value: AuthContextError) -> Self {
+impl From<AppContextError> for OpsError {
+    fn from(value: AppContextError) -> Self {
         Self {
             status: axum::http::StatusCode::UNAUTHORIZED,
             code: value.code(),
@@ -819,7 +819,7 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_public_bearer_auth))
+    build_default_app().layer(middleware::from_fn(require_app_context))
 }
 
 pub fn build_app(runtime: Arc<OpsRuntime>) -> Router {
@@ -828,24 +828,27 @@ pub fn build_app(runtime: Arc<OpsRuntime>) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .route("/api/v1/ops/health", get(get_ops_health))
-        .route("/api/v1/ops/cluster", get(get_cluster))
-        .route("/api/v1/ops/lag", get(get_lag))
-        .route("/api/v1/ops/replay-status", get(get_replay_status))
-        .route("/api/v1/ops/runtime-dir", get(get_runtime_dir))
-        .route("/api/v1/ops/provider-bindings", get(get_provider_bindings))
+        .route("/backend/v3/api/ops/health", get(get_ops_health))
+        .route("/backend/v3/api/ops/cluster", get(get_cluster))
+        .route("/backend/v3/api/ops/lag", get(get_lag))
+        .route("/backend/v3/api/ops/replay_status", get(get_replay_status))
+        .route("/backend/v3/api/ops/runtime_dir", get(get_runtime_dir))
         .route(
-            "/api/v1/ops/provider-bindings/drift",
+            "/backend/v3/api/ops/provider_bindings",
+            get(get_provider_bindings),
+        )
+        .route(
+            "/backend/v3/api/ops/provider_bindings/drift",
             get(get_provider_binding_drift),
         )
-        .route("/api/v1/ops/diagnostics", get(get_diagnostics))
+        .route("/backend/v3/api/ops/diagnostics", get(get_diagnostics))
         .with_state(AppState { runtime })
 }
 
-async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_public_bearer_auth_context(request.headers()) {
+        _ => match resolve_app_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => OpsError::from(error).into_response(),
         },
@@ -888,7 +891,7 @@ fn build_ops_service_openapi_document() -> Result<serde_json::Value, String> {
         &ops_service_openapi_spec(),
         &routes,
         ops_service_tag,
-        ops_service_requires_bearer,
+        ops_service_requires_app_context,
         ops_service_summary,
     ))
 }
@@ -897,7 +900,7 @@ fn ops_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
         title: "Craw Chat Ops Service API",
         version: env!("CARGO_PKG_VERSION"),
-        description: "Live OpenAPI contract generated from the ops-service router for cluster, lag, diagnostics, runtime-dir, replay status, and provider binding inspections.",
+        description: "Live OpenAPI contract generated from the ops-service router for cluster, lag, diagnostics, runtime_dir, replay status, and provider binding inspections.",
         openapi_path: "/openapi.json",
         docs_path: "/docs",
     }
@@ -906,13 +909,13 @@ fn ops_service_openapi_spec() -> OpenApiServiceSpec<'static> {
 fn ops_service_tag(path: &str, _method: HttpMethod) -> String {
     match path {
         "/healthz" | "/readyz" => "system".to_owned(),
-        path if path.contains("provider-bindings") => "provider-bindings".to_owned(),
+        path if path.contains("provider_bindings") => "provider_bindings".to_owned(),
         path if path.contains("diagnostics") => "diagnostics".to_owned(),
         _ => "ops".to_owned(),
     }
 }
 
-fn ops_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+fn ops_service_requires_app_context(path: &str, _method: HttpMethod) -> bool {
     !matches!(path, "/healthz" | "/readyz")
 }
 
@@ -944,7 +947,7 @@ async fn get_ops_health(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<OpsHealthResponse>, OpsError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_ops_read_access(&auth)?;
     Ok(Json(state.runtime.health_view()))
 }
@@ -953,7 +956,7 @@ async fn get_cluster(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ClusterView>, OpsError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_ops_read_access(&auth)?;
     Ok(Json(state.runtime.cluster_view()))
 }
@@ -962,7 +965,7 @@ async fn get_lag(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<LagView>, OpsError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_ops_read_access(&auth)?;
     Ok(Json(state.runtime.lag_view()))
 }
@@ -971,7 +974,7 @@ async fn get_runtime_dir(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<RuntimeDirInspectionView>, OpsError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_ops_read_access(&auth)?;
     Ok(Json(state.runtime.runtime_dir_view()))
 }
@@ -980,7 +983,7 @@ async fn get_provider_bindings(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderBindingsView>, OpsError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_ops_read_access(&auth)?;
     Ok(Json(state.runtime.provider_bindings_view()))
 }
@@ -989,7 +992,7 @@ async fn get_provider_binding_drift(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderBindingDriftView>, OpsError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_ops_read_access(&auth)?;
     Ok(Json(state.runtime.provider_binding_drift_view()))
 }
@@ -998,7 +1001,7 @@ async fn get_replay_status(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ProjectionReplayStatusView>, OpsError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_ops_read_access(&auth)?;
     Ok(Json(state.runtime.replay_status_view()))
 }
@@ -1007,12 +1010,12 @@ async fn get_diagnostics(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<DiagnosticBundle>, OpsError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_ops_read_access(&auth)?;
     Ok(Json(state.runtime.diagnostic_bundle()))
 }
 
-fn ensure_ops_read_access(auth: &AuthContext) -> Result<(), OpsError> {
+fn ensure_ops_read_access(auth: &AppContext) -> Result<(), OpsError> {
     if auth.has_permission("ops.read") {
         return Ok(());
     }

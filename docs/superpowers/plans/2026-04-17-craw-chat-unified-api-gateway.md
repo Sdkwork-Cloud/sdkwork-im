@@ -64,7 +64,7 @@
 - `services/web-gateway/tests/openapi_index_test.rs`
 - `openapi/aggregate/craw-chat-gateway.openapi.json`
 - `openapi/aggregate/openapi-index.json`
-- `openapi/public/craw-chat-app.openapi.yaml`
+- `openapi/public/craw-chat-im.openapi.yaml`
 - `openapi/public/craw-chat-control.openapi.json`
 - `openapi/services/README.md`
 - `docs/sites/api-reference/gateway-overview.md`
@@ -94,8 +94,8 @@ Example test shape:
 #[test]
 fn registry_rejects_duplicate_method_path_owner() {
     let result = build_registry(vec![
-        route("projection-service", "GET", "/api/v1/conversations/{conversationId}/messages"),
-        route("conversation-runtime", "GET", "/api/v1/conversations/{conversationId}/messages"),
+        route("projection-service", "GET", "/im/v3/api/chat/conversations/{conversationId}/messages"),
+        route("conversation-runtime", "GET", "/im/v3/api/chat/conversations/{conversationId}/messages"),
     ]);
     assert!(result.is_err());
 }
@@ -162,7 +162,7 @@ Create one focused test first for a small service, for example `session-gateway`
 - `GET /openapi.json`
 - `GET /docs`
 - `openapi == 3.1.0`
-- route presence for `/api/v1/realtime/ws`
+- route presence for `/im/v3/api/realtime/ws`
 
 Example:
 
@@ -235,7 +235,7 @@ git commit -m "feat(api): add live openapi export to craw chat services"
 Add tests that require:
 - `/healthz`
 - `/readyz`
-- `/api/v1/control/*` proxies to `control-plane-api`
+- `/backend/v3/api/control/*` proxies to `control-plane-api`
 - `GET` and `POST` on the same path may resolve to different upstreams
 
 Example:
@@ -244,8 +244,8 @@ Example:
 #[tokio::test]
 async fn gateway_routes_conversation_reads_and_writes_to_different_upstreams() {
     let gateway = test_gateway();
-    assert_owner(&gateway, Method::GET, "/api/v1/conversations/c_1/messages", "projection-service").await;
-    assert_owner(&gateway, Method::POST, "/api/v1/conversations/c_1/messages", "conversation-runtime").await;
+    assert_owner(&gateway, Method::GET, "/im/v3/api/chat/conversations/c_1/messages", "projection-service").await;
+    assert_owner(&gateway, Method::POST, "/im/v3/api/chat/conversations/c_1/messages", "conversation-runtime").await;
 }
 ```
 
@@ -296,7 +296,7 @@ git commit -m "feat(api): add single-port web gateway"
 - [ ] **Step 1: Write the failing websocket proxy test**
 
 Require:
-- `GET /api/v1/realtime/ws` upgrades through the gateway
+- `GET /im/v3/api/realtime/ws` upgrades through the gateway
 - auth headers are forwarded
 - websocket subprotocols are preserved
 - close codes from the upstream are visible
@@ -346,7 +346,7 @@ git commit -m "feat(api): proxy realtime websocket through gateway"
 - Modify: `crates/craw-chat-gateway-observability/src/lib.rs`
 - Create: `openapi/aggregate/craw-chat-gateway.openapi.json`
 - Create: `openapi/aggregate/openapi-index.json`
-- Create: `openapi/public/craw-chat-app.openapi.yaml`
+- Create: `openapi/public/craw-chat-im.openapi.yaml`
 - Create: `openapi/public/craw-chat-control.openapi.json`
 
 - [ ] **Step 1: Write the failing aggregate-schema tests**
@@ -355,7 +355,7 @@ Require:
 - `/openapi.json`
 - `/openapi/index.json`
 - `/openapi/services/session-gateway.openapi.json`
-- `/openapi/craw-chat-app.openapi.yaml`
+- `/im/v3/openapi.json`
 - startup summary includes schema and gateway URLs
 
 - [ ] **Step 2: Run the aggregate-schema tests**
@@ -417,7 +417,7 @@ Add checks that require:
 Run:
 
 ```bash
-rg -n "craw-chat-app.openapi.yaml|openapi/index.json|single-port|gateway" docs sdks services/local-minimal-node
+rg -n "craw-chat-im.openapi.yaml|openapi/index.json|single-port|gateway" docs sdks services/local-minimal-node
 ```
 
 Expected: missing or inconsistent references.
@@ -520,5 +520,5 @@ git commit -m "test(api): enforce gateway and schema drift guards"
 - [ ] `cargo test -p craw-chat-openapi -- --nocapture`
 - [ ] `cargo test -p web-gateway -- --nocapture`
 - [ ] `cargo test -p session-gateway -p control-plane-api -p conversation-runtime -p projection-service -- --nocapture`
-- [ ] start the gateway locally and verify `/healthz`, `/openapi.json`, `/openapi/index.json`, `/docs`, and `/api/v1/realtime/ws`
+- [ ] start the gateway locally and verify `/healthz`, `/openapi.json`, `/openapi/index.json`, `/docs`, and `/im/v3/api/realtime/ws`
 - [ ] confirm docs and SDK inputs point at the new authority snapshots

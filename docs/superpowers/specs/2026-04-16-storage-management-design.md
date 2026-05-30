@@ -37,7 +37,7 @@
 以下现状决定了本设计的边界：
 
 - provider registry 已经具备 `tenant_override -> deployment_profile -> global_default` 的 precedence。
-- 现有 Admin API 仍以 `/api/admin/*` 风格暴露通用资源。
+- 现有 Admin API 仍以 `/backend/v3/api/admin/*` 风格暴露通用资源。
 - 当前对象存储 adapter 主要位于 `adapters/object-storage-s3/src/lib.rs`，本质是 S3-compatible 形态。
 - Admin sandbox 目前只有通用 provider / credentials mock，没有独立 storage 域。
 
@@ -301,25 +301,25 @@ provider-specific 字段必须按 provider 注册 schema，不允许强行压扁
 
 ### 10.1 查询接口
 
-- `GET /api/admin/storage/providers`
-- `GET /api/admin/storage/config`
-- `GET /api/admin/storage/config/tenants/{tenantId}`
-- `GET /api/admin/storage/effective/tenants/{tenantId}`
-- `GET /api/admin/storage/health`
-- `GET /api/admin/storage/health/tenants/{tenantId}`
-- `GET /api/admin/storage/audit`
+- `GET /backend/v3/api/admin/storage/providers`
+- `GET /backend/v3/api/admin/storage/config`
+- `GET /backend/v3/api/admin/storage/config/tenants/{tenantId}`
+- `GET /backend/v3/api/admin/storage/effective/tenants/{tenantId}`
+- `GET /backend/v3/api/admin/storage/health`
+- `GET /backend/v3/api/admin/storage/health/tenants/{tenantId}`
+- `GET /backend/v3/api/admin/storage/audit`
 
 ### 10.2 写入接口
 
-- `POST /api/admin/storage/config`
-- `POST /api/admin/storage/config/tenants/{tenantId}`
-- `DELETE /api/admin/storage/config/tenants/{tenantId}`
-- `POST /api/admin/storage/validate`
-- `POST /api/admin/storage/validate/tenants/{tenantId}`
-- `POST /api/admin/storage/presign`
-- `POST /api/admin/storage/test-upload`
-- `POST /api/admin/storage/rotate-secret`
-- `POST /api/admin/storage/rotate-secret/tenants/{tenantId}`
+- `POST /backend/v3/api/admin/storage/config`
+- `POST /backend/v3/api/admin/storage/config/tenants/{tenantId}`
+- `DELETE /backend/v3/api/admin/storage/config/tenants/{tenantId}`
+- `POST /backend/v3/api/admin/storage/validate`
+- `POST /backend/v3/api/admin/storage/validate/tenants/{tenantId}`
+- `POST /backend/v3/api/admin/storage/presign`
+- `POST /backend/v3/api/admin/storage/test-upload`
+- `POST /backend/v3/api/admin/storage/rotate-secret`
+- `POST /backend/v3/api/admin/storage/rotate-secret/tenants/{tenantId}`
 
 ### 10.3 请求模型原则
 

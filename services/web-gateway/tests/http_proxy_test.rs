@@ -56,7 +56,7 @@ async fn gateway_routes_control_requests_to_control_plane_api() {
         .oneshot(
             Request::builder()
                 .method(Method::GET)
-                .uri("/api/v1/control/protocol-registry")
+                .uri("/backend/v3/api/control/protocol-registry")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -92,7 +92,7 @@ async fn gateway_routes_conversation_reads_and_writes_to_different_upstreams() {
         .oneshot(
             Request::builder()
                 .method(Method::GET)
-                .uri("/api/v1/conversations/c_1/messages")
+                .uri("/im/v3/api/chat/conversations/c_1/messages")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -114,7 +114,7 @@ async fn gateway_routes_conversation_reads_and_writes_to_different_upstreams() {
         .oneshot(
             Request::builder()
                 .method(Method::POST)
-                .uri("/api/v1/conversations/c_1/messages")
+                .uri("/im/v3/api/chat/conversations/c_1/messages")
                 .body(Body::from("{}"))
                 .unwrap(),
         )

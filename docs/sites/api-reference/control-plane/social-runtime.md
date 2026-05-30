@@ -8,7 +8,7 @@
 
 <div class="api-link-list">
   <a href="/api-reference/control-plane-api"><code>Control Plane</code> Back to Control Plane overview</a>
-  <a href="/sdk/control-plane-sdk"><code>Control-Plane SDK</code> See the cross-language client surface</a>
+  <a href="/sdk/backend-sdk"><code>Backend SDK</code> See the cross-language backend client surface</a>
 </div>
 
 The checked-in control-plane authority intentionally leaves current runtime repair and
@@ -16,22 +16,22 @@ inventory responses open-ended. Queue-control inputs, route semantics, and permi
 response bodies should be treated as opaque JSON and consumed through the generated admin SDK
 surfaces.
 
-<a id="get-pending-shared-channel-sync-inventory"></a>
+<a id="get-pending_shared_channel_sync-inventory"></a>
 <section class="api-op">
 
-## `GET /api/v1/control/social/runtime/pending-shared-channel-sync`
+## `GET /backend/v3/api/control/social/runtime/pending_shared_channel_sync`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/api/v1/control/social/runtime/pending-shared-channel-sync</code>
+  <code>/backend/v3/api/control/social/runtime/pending_shared_channel_sync</code>
   <span class="api-op-id">operationId: getPendingSharedChannelSyncInventory</span>
 </div>
 
 Read the pending shared-channel sync queue.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -46,29 +46,29 @@ inventory payload in the checked-in control-plane authority. Treat it as opaque 
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The queue read request is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks the required control-plane permission. |
 | `404` | `*_not_found` | The requested inventory source does not exist. |
 | `409` | `*_conflict` | Current runtime state blocks the read. |
 | `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
 
 </section>
-<a id="get-delivery-state-shared-channel-sync-inventory"></a>
+<a id="get-delivery_state_shared_channel_sync-inventory"></a>
 <section class="api-op">
 
-## `GET /api/v1/control/social/runtime/delivery-state-shared-channel-sync`
+## `GET /backend/v3/api/control/social/runtime/delivery_state_shared_channel_sync`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/api/v1/control/social/runtime/delivery-state-shared-channel-sync</code>
+  <code>/backend/v3/api/control/social/runtime/delivery_state_shared_channel_sync</code>
   <span class="api-op-id">operationId: getSharedChannelSyncDeliveryStateInventory</span>
 </div>
 
 Read merged shared-channel sync delivery state.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -83,29 +83,29 @@ runtime inventory payload in the checked-in control-plane authority. Treat it as
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The queue read request is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks the required control-plane permission. |
 | `404` | `*_not_found` | The requested inventory source does not exist. |
 | `409` | `*_conflict` | Current runtime state blocks the read. |
 | `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
 
 </section>
-<a id="get-delivered-shared-channel-sync-inventory"></a>
+<a id="get-delivered_shared_channel_sync-inventory"></a>
 <section class="api-op">
 
-## `GET /api/v1/control/social/runtime/delivered-shared-channel-sync`
+## `GET /backend/v3/api/control/social/runtime/delivered_shared_channel_sync`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/api/v1/control/social/runtime/delivered-shared-channel-sync</code>
+  <code>/backend/v3/api/control/social/runtime/delivered_shared_channel_sync</code>
   <span class="api-op-id">operationId: getDeliveredSharedChannelSyncInventory</span>
 </div>
 
 Read the delivered shared-channel sync ledger.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -120,29 +120,29 @@ inventory payload in the checked-in control-plane authority. Treat it as opaque 
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The queue read request is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks the required control-plane permission. |
 | `404` | `*_not_found` | The requested inventory source does not exist. |
 | `409` | `*_conflict` | Current runtime state blocks the read. |
 | `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
 
 </section>
-<a id="get-dead-letter-shared-channel-sync-inventory"></a>
+<a id="get-dead_letter_shared_channel_sync-inventory"></a>
 <section class="api-op">
 
-## `GET /api/v1/control/social/runtime/dead-letter-shared-channel-sync`
+## `GET /backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/api/v1/control/social/runtime/dead-letter-shared-channel-sync</code>
+  <code>/backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync</code>
   <span class="api-op-id">operationId: getDeadLetterSharedChannelSyncInventory</span>
 </div>
 
 Read the dead-letter shared-channel sync queue.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -157,29 +157,29 @@ inventory payload in the checked-in control-plane authority. Treat it as opaque 
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The queue read request is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks the required control-plane permission. |
 | `404` | `*_not_found` | The requested inventory source does not exist. |
 | `409` | `*_conflict` | Current runtime state blocks the read. |
 | `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
 
 </section>
-<a id="requeue-dead-letter-shared-channel-sync"></a>
+<a id="requeue-dead_letter_shared_channel_sync"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync`
+## `POST /backend/v3/api/control/social/runtime/requeue-dead_letter_shared_channel_sync`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync</code>
+  <code>/backend/v3/api/control/social/runtime/requeue-dead_letter_shared_channel_sync</code>
   <span class="api-op-id">operationId: requeueDeadLetterSharedChannelSync</span>
 </div>
 
 Requeue all dead-letter shared-channel sync entries.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -198,29 +198,29 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The requeue request is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `control.write`. |
 | `404` | `*_not_found` | The requested dead-letter queue does not exist. |
 | `409` | `*_conflict` | Current runtime state blocks the requeue. |
 | `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
 
 </section>
-<a id="requeue-dead-letter-shared-channel-sync-targeted"></a>
+<a id="requeue-dead_letter_shared_channel_sync-targeted"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted`
+## `POST /backend/v3/api/control/social/runtime/requeue-dead_letter_shared_channel_sync-targeted`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted</code>
+  <code>/backend/v3/api/control/social/runtime/requeue-dead_letter_shared_channel_sync-targeted</code>
   <span class="api-op-id">operationId: requeueDeadLetterSharedChannelSyncTargeted</span>
 </div>
 
 Requeue selected dead-letter shared-channel sync entries.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -239,7 +239,7 @@ runtime operation payload in the checked-in control-plane authority. Treat it as
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The targeted requeue payload is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `control.write`. |
 | `404` | `*_not_found` | One or more targeted request keys do not exist. |
 | `409` | `*_conflict` | Current runtime state blocks the requeue. |
@@ -249,19 +249,19 @@ runtime operation payload in the checked-in control-plane authority. Treat it as
 <a id="repair-social-runtime-snapshot"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/social/runtime/repair-derived-snapshot`
+## `POST /backend/v3/api/control/social/runtime/repair_derived_snapshot`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/social/runtime/repair-derived-snapshot</code>
+  <code>/backend/v3/api/control/social/runtime/repair_derived_snapshot</code>
   <span class="api-op-id">operationId: repairSocialRuntimeSnapshot</span>
 </div>
 
 Repair the persisted social runtime derived snapshot.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -280,29 +280,29 @@ checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The repair request is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `control.write`. |
 | `404` | `*_not_found` | A referenced runtime snapshot or queue does not exist. |
 | `409` | `*_conflict` | Current runtime state blocks the repair. |
 | `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
 
 </section>
-<a id="repair-shared-channel-sync"></a>
+<a id="repair_shared_channel_sync"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/social/runtime/repair-shared-channel-sync`
+## `POST /backend/v3/api/control/social/runtime/repair_shared_channel_sync`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/social/runtime/repair-shared-channel-sync</code>
+  <code>/backend/v3/api/control/social/runtime/repair_shared_channel_sync</code>
   <span class="api-op-id">operationId: repairSharedChannelSync</span>
 </div>
 
 Repair shared-channel sync backlog state.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -321,29 +321,29 @@ payload in the checked-in control-plane authority. Treat it as opaque JSON.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The repair request is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `control.write`. |
 | `404` | `*_not_found` | A referenced shared-channel sync backlog or queue does not exist. |
 | `409` | `*_conflict` | Current runtime state blocks the repair. |
 | `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
 
 </section>
-<a id="claim-pending-shared-channel-sync-targeted"></a>
+<a id="claim-pending_shared_channel_sync-targeted"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted`
+## `POST /backend/v3/api/control/social/runtime/claim-pending_shared_channel_sync-targeted`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted</code>
+  <code>/backend/v3/api/control/social/runtime/claim-pending_shared_channel_sync-targeted</code>
   <span class="api-op-id">operationId: claimPendingSharedChannelSyncTargeted</span>
 </div>
 
 Claim selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -362,29 +362,29 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The targeted claim payload is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `control.write`. |
 | `404` | `*_not_found` | One or more targeted request keys do not exist. |
 | `409` | `*_conflict` | Current runtime ownership blocks the claim. |
 | `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
 
 </section>
-<a id="release-pending-shared-channel-sync-targeted"></a>
+<a id="release-pending_shared_channel_sync-targeted"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/social/runtime/release-pending-shared-channel-sync-targeted`
+## `POST /backend/v3/api/control/social/runtime/release-pending_shared_channel_sync-targeted`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/social/runtime/release-pending-shared-channel-sync-targeted</code>
+  <code>/backend/v3/api/control/social/runtime/release-pending_shared_channel_sync-targeted</code>
   <span class="api-op-id">operationId: releasePendingSharedChannelSyncTargeted</span>
 </div>
 
 Release selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -403,29 +403,29 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The targeted release payload is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `control.write`. |
 | `404` | `*_not_found` | One or more targeted request keys do not exist. |
 | `409` | `*_conflict` | Current runtime ownership blocks the release. |
 | `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
 
 </section>
-<a id="reclaim-stale-pending-shared-channel-sync"></a>
+<a id="reclaim-stale-pending_shared_channel_sync"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/social/runtime/reclaim-stale-pending-shared-channel-sync`
+## `POST /backend/v3/api/control/social/runtime/reclaim-stale-pending_shared_channel_sync`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/social/runtime/reclaim-stale-pending-shared-channel-sync</code>
+  <code>/backend/v3/api/control/social/runtime/reclaim-stale-pending_shared_channel_sync</code>
   <span class="api-op-id">operationId: reclaimStalePendingSharedChannelSync</span>
 </div>
 
 Reclaim stale shared-channel sync pending ownership.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -444,29 +444,29 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The reclaim request is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `control.write`. |
 | `404` | `*_not_found` | The requested queue or ownership records do not exist. |
 | `409` | `*_conflict` | Current runtime ownership blocks the reclaim. |
 | `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
 
 </section>
-<a id="republish-pending-shared-channel-sync-targeted"></a>
+<a id="republish-pending_shared_channel_sync-targeted"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/social/runtime/republish-pending-shared-channel-sync-targeted`
+## `POST /backend/v3/api/control/social/runtime/republish-pending_shared_channel_sync-targeted`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/social/runtime/republish-pending-shared-channel-sync-targeted</code>
+  <code>/backend/v3/api/control/social/runtime/republish-pending_shared_channel_sync-targeted</code>
   <span class="api-op-id">operationId: republishPendingSharedChannelSyncTargeted</span>
 </div>
 
 Republish selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -485,29 +485,29 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The targeted republish payload is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `control.write`. |
 | `404` | `*_not_found` | One or more targeted request keys do not exist. |
 | `409` | `*_conflict` | Current runtime ownership blocks the republish. |
 | `503` | `*_unavailable` | The social runtime queue or persistence dependency is unavailable. |
 
 </section>
-<a id="takeover-pending-shared-channel-sync-targeted"></a>
+<a id="takeover-pending_shared_channel_sync-targeted"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted`
+## `POST /backend/v3/api/control/social/runtime/takeover-pending_shared_channel_sync-targeted`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted</code>
+  <code>/backend/v3/api/control/social/runtime/takeover-pending_shared_channel_sync-targeted</code>
   <span class="api-op-id">operationId: takeoverPendingSharedChannelSyncTargeted</span>
 </div>
 
 Take over selected pending shared-channel sync entries.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / `sdk.socialRuntime`</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.socialRuntime</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200`</span></div>
 </div>
@@ -526,7 +526,7 @@ operation payload in the checked-in control-plane authority. Treat it as opaque 
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | The targeted takeover payload is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `control.write`. |
 | `404` | `*_not_found` | One or more targeted request keys do not exist. |
 | `409` | `*_conflict` | Current runtime ownership blocks the takeover. |

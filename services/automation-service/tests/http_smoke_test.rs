@@ -30,7 +30,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
     assert_eq!(value["openapi"], "3.1.0");
     assert_eq!(value["info"]["title"], "Craw Chat Automation Service API");
-    assert!(value["paths"]["/api/v1/automation/executions"].is_object());
+    assert!(value["paths"]["/im/v3/api/automation/executions"].is_object());
 }
 
 #[tokio::test]
@@ -66,11 +66,11 @@ async fn test_request_and_get_execution_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -111,11 +111,11 @@ async fn test_request_and_get_execution_over_http() {
     let get_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/automation/executions/ae_http_demo")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.read")
+                .uri("/im/v3/api/automation/executions/ae_http_demo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -143,11 +143,11 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -178,11 +178,11 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -217,11 +217,11 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -257,11 +257,11 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -296,11 +296,11 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "system")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "system")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -334,11 +334,11 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/automation/executions/ae_http_kind_isolation")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.read")
+                .uri("/im/v3/api/automation/executions/ae_http_kind_isolation")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -358,11 +358,11 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
     let system_get_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/automation/executions/ae_http_kind_isolation")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "system")
-                .header("x-permissions", "automation.read")
+                .uri("/im/v3/api/automation/executions/ae_http_kind_isolation")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "system")
+                .header("x-sdkwork-permission-scope", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -389,11 +389,11 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -415,11 +415,11 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -460,11 +460,11 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses/st_http_agent/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses/st_http_agent/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -497,11 +497,11 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -531,11 +531,11 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions/ae_http_agent/agent-tool-calls/tc_http_lookup/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions/ae_http_agent/agent_tool_calls/tc_http_lookup/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -561,11 +561,11 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses/st_http_agent/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses/st_http_agent/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -598,11 +598,11 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/automation/governance")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.read")
+                .uri("/backend/v3/api/automation/governance")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -630,11 +630,11 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -656,11 +656,11 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -691,11 +691,11 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -725,12 +725,12 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header(
-                    "x-permissions",
+                    "x-sdkwork-permission-scope",
                     "automation.execute automation.read automation.operator_override",
                 )
                 .header("content-type", "application/json")
@@ -760,12 +760,12 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
     let override_governance_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/automation/governance")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
+                .uri("/backend/v3/api/automation/governance")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
                 .header(
-                    "x-permissions",
+                    "x-sdkwork-permission-scope",
                     "automation.read automation.operator_override",
                 )
                 .body(Body::empty())
@@ -803,11 +803,11 @@ async fn test_request_execution_rejects_oversized_input_payload_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -834,11 +834,11 @@ async fn test_request_execution_rejects_oversized_execution_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -855,11 +855,14 @@ async fn test_get_execution_rejects_oversized_execution_id_over_http() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri(format!("/api/v1/automation/executions/{}", "e".repeat(257)))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.read")
+                .uri(format!(
+                    "/im/v3/api/automation/executions/{}",
+                    "e".repeat(257)
+                ))
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -877,11 +880,11 @@ async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -919,11 +922,11 @@ async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1005,11 +1008,11 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/automation/executions")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_demo")
-                    .header("x-actor-kind", "user")
-                    .header("x-permissions", "automation.execute automation.read")
+                    .uri("/im/v3/api/automation/executions")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_demo")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -1032,11 +1035,11 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/automation/agent-responses")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_demo")
-                    .header("x-actor-kind", "user")
-                    .header("x-permissions", "automation.execute automation.read")
+                    .uri("/im/v3/api/automation/agent_responses")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_demo")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(start_request_body.to_string()))
                     .unwrap(),
@@ -1060,11 +1063,11 @@ async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1102,11 +1105,11 @@ async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1141,11 +1144,11 @@ async fn test_start_agent_response_rejects_oversized_execution_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1164,13 +1167,13 @@ async fn test_append_agent_response_delta_rejects_oversized_stream_id_path_over_
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/api/v1/automation/agent-responses/{}/frames",
+                    "/im/v3/api/automation/agent_responses/{}/frames",
                     "s".repeat(257)
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1199,11 +1202,11 @@ async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1240,11 +1243,11 @@ async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1263,11 +1266,11 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1289,11 +1292,11 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1328,11 +1331,11 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses/st_http_oversized_result_message_id/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses/st_http_oversized_result_message_id/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1351,13 +1354,13 @@ async fn test_complete_agent_response_rejects_oversized_stream_id_path_over_http
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/api/v1/automation/agent-responses/{}/complete",
+                    "/im/v3/api/automation/agent_responses/{}/complete",
                     "s".repeat(257)
                 ))
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1394,11 +1397,11 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/automation/executions")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_demo")
-                    .header("x-actor-kind", "user")
-                    .header("x-permissions", "automation.execute automation.read")
+                    .uri("/im/v3/api/automation/executions")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_demo")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -1437,11 +1440,11 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/automation/agent-responses")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_demo")
-                    .header("x-actor-kind", "user")
-                    .header("x-permissions", "automation.execute automation.read")
+                    .uri("/im/v3/api/automation/agent_responses")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_demo")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body))
                     .unwrap(),
@@ -1465,11 +1468,11 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1491,11 +1494,11 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1535,11 +1538,11 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses/st_http_oversized_delta/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses/st_http_oversized_delta/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(delta_request_body))
                 .unwrap(),
@@ -1597,11 +1600,11 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/automation/executions")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_demo")
-                    .header("x-actor-kind", "user")
-                    .header("x-permissions", "automation.execute automation.read")
+                    .uri("/im/v3/api/automation/executions")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_demo")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -1624,11 +1627,11 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/automation/agent-responses")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_demo")
-                    .header("x-actor-kind", "user")
-                    .header("x-permissions", "automation.execute automation.read")
+                    .uri("/im/v3/api/automation/agent_responses")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_demo")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         r#"{
@@ -1659,11 +1662,11 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/automation/agent-responses/st_http_oversized_delta_contract/frames")
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_demo")
-                    .header("x-actor-kind", "user")
-                    .header("x-permissions", "automation.execute automation.read")
+                    .uri("/im/v3/api/automation/agent_responses/st_http_oversized_delta_contract/frames")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_demo")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(delta_request_body.to_string()))
                     .unwrap(),
@@ -1687,11 +1690,11 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1713,11 +1716,11 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1754,11 +1757,11 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1783,11 +1786,11 @@ async fn test_request_agent_tool_call_rejects_oversized_execution_id_over_http()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1811,13 +1814,13 @@ async fn test_complete_agent_tool_call_rejects_oversized_path_ids_over_http() {
                 Request::builder()
                     .method("POST")
                     .uri(format!(
-                        "/api/v1/automation/executions/{}/agent-tool-calls/{}/complete",
+                        "/im/v3/api/automation/executions/{}/agent_tool_calls/{}/complete",
                         execution_id, tool_call_id
                     ))
-                    .header("x-tenant-id", "t_demo")
-                    .header("x-user-id", "u_demo")
-                    .header("x-actor-kind", "user")
-                    .header("x-permissions", "automation.execute automation.read")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_demo")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -1846,11 +1849,11 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1872,11 +1875,11 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1913,11 +1916,11 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1936,11 +1939,11 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1962,11 +1965,11 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2008,11 +2011,11 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses/st_http_oversized_delta_attrs/frames")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses/st_http_oversized_delta_attrs/frames")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(delta_request_body))
                 .unwrap(),
@@ -2034,11 +2037,11 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2060,11 +2063,11 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2095,11 +2098,11 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses/st_http_tool_after_complete/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses/st_http_tool_after_complete/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2117,11 +2120,11 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2147,11 +2150,11 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/executions")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/executions")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2173,11 +2176,11 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2208,11 +2211,11 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-tool-calls")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_tool_calls")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2233,11 +2236,11 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses/st_http_pending_tool_guard/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses/st_http_pending_tool_guard/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2269,12 +2272,12 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
             Request::builder()
                 .method("POST")
                 .uri(
-                    "/api/v1/automation/executions/ae_http_pending_tool_guard/agent-tool-calls/tc_http_pending/complete",
+                    "/im/v3/api/automation/executions/ae_http_pending_tool_guard/agent_tool_calls/tc_http_pending/complete",
                 )
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2291,11 +2294,11 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/automation/agent-responses/st_http_pending_tool_guard/complete")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "automation.execute automation.read")
+                .uri("/im/v3/api/automation/agent_responses/st_http_pending_tool_guard/complete")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

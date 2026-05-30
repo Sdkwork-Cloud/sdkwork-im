@@ -7,9 +7,9 @@
 - `ConversationRuntime`, realtime checkpoint truth, disconnect fences, and live subscriptions already had explicit restart recovery boundaries.
 - `StreamingRuntime` still rebuilt from empty memory after process restart.
 - The operational effect was direct:
-  - `GET /api/v1/streams/{stream_id}/frames` returned `404`
-  - `POST /api/v1/streams/{stream_id}/checkpoint` returned `404`
-  - `POST /api/v1/streams/{stream_id}/complete` returned `404`
+  - `GET /im/v3/api/streams/{stream_id}/frames` returned `404`
+  - `POST /im/v3/api/streams/{stream_id}/checkpoint` returned `404`
+  - `POST /im/v3/api/streams/{stream_id}/complete` returned `404`
   - clients had to reopen the same stream after restart, which breaks continuity for long-lived stream semantics
 
 ### 1.2 High: `local-minimal-node` composition had no durable stream runtime seam

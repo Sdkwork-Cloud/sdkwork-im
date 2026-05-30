@@ -6,6 +6,7 @@ use im_domain_events::CommitEnvelope;
 use im_domain_events::social::{
     DirectChatBoundPayload, FriendshipActivatedPayload, FriendshipRemovedPayload,
 };
+use im_time::{max_rfc3339_string, rfc3339_cmp};
 
 use crate::model::ContactDirectChatBindingView;
 use crate::{ContactView, TimelineProjectionService};
@@ -366,10 +367,11 @@ pub(super) fn contact_map_from_items(items: Vec<ContactView>) -> HashMap<String,
 
 pub(super) fn ordered_contact_views(mut items: Vec<ContactView>) -> Vec<ContactView> {
     items.sort_by(|left, right| {
-        right
-            .last_interaction_at
-            .cmp(&left.last_interaction_at)
-            .then_with(|| left.target_user_id.cmp(&right.target_user_id))
+        rfc3339_cmp(
+            right.last_interaction_at.as_str(),
+            left.last_interaction_at.as_str(),
+        )
+        .then_with(|| left.target_user_id.cmp(&right.target_user_id))
     });
     items
 }
@@ -385,7 +387,11 @@ fn direct_chat_conversation_index_key(
 }
 
 fn max_rfc3339<'a>(left: &'a str, right: &'a str) -> &'a str {
-    if left >= right { left } else { right }
+    if max_rfc3339_string(left.to_owned(), right.to_owned()) == left {
+        left
+    } else {
+        right
+    }
 }
 
 fn lock_contacts_mutex<'a, T>(
@@ -396,10 +402,54 @@ fn lock_contacts_mutex<'a, T>(
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!(
-                "warning: recovering poisoned projection-service {lock_name} lock during {operation}"
+            tracing::warn!(
+                "recovering poisoned projection-service {lock_name} lock during {operation}"
             );
             poisoned.into_inner()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn contact(target_user_id: &str, last_interaction_at: &str) -> ContactView {
+        ContactView {
+            tenant_id: "t_demo".into(),
+            owner_user_id: "u_owner".into(),
+            target_user_id: target_user_id.into(),
+            contact_type: "friendship".into(),
+            relationship_state: "active".into(),
+            friendship_id: format!("fs_{target_user_id}"),
+            direct_chat_id: None,
+            conversation_id: None,
+            established_at: last_interaction_at.into(),
+            last_interaction_at: last_interaction_at.into(),
+        }
+    }
+
+    #[test]
+    fn test_max_rfc3339_compares_by_instant() {
+        assert_eq!(
+            max_rfc3339("2026-05-06T00:00:00Z", "2026-05-06T00:00:00.100Z"),
+            "2026-05-06T00:00:00.100Z"
+        );
+    }
+
+    #[test]
+    fn test_ordered_contact_views_compares_last_interaction_by_rfc3339_instant() {
+        let ordered = ordered_contact_views(vec![
+            contact("u_later_fraction", "2026-05-06T00:00:00.100Z"),
+            contact("u_whole_second", "2026-05-06T00:00:00Z"),
+        ]);
+
+        assert_eq!(
+            ordered
+                .iter()
+                .map(|contact| contact.target_user_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["u_later_fraction", "u_whole_second"]
+        );
     }
 }

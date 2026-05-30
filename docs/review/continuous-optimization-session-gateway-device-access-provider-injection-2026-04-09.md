@@ -21,9 +21,9 @@
 - 初始失败原因：
   - 缺少 `build_app_with_device_access_provider`
 - 绿灯后确认：
-  - `POST /api/v1/sessions/resume` 触发 `register_device`
-  - `POST /api/v1/sessions/resume` 触发 `bind_owner`
-  - `POST /api/v1/presence/heartbeat` 不重复触发 provider
+  - `POST /im/v3/api/device/sessions/resume` 触发 `register_device`
+  - `POST /im/v3/api/device/sessions/resume` 触发 `bind_owner`
+  - `POST /im/v3/api/presence/heartbeat` 不重复触发 provider
 
 ## 实际改动
 
@@ -44,13 +44,13 @@
   - `build_app_with_device_access_provider`
   - `build_app_with_cluster_and_device_access_provider`
 - 真实主链路：
-  - `POST /api/v1/sessions/resume`
+  - `POST /im/v3/api/device/sessions/resume`
 - 首注册 provider 调用：
   - `register_device`
   - `bind_owner`
 - 冻结常量：
   - `product_id = session-gateway-device`
-  - `credential_kind = session`
+  - `credential_kind = device_route`
 
 ## 验证结果
 

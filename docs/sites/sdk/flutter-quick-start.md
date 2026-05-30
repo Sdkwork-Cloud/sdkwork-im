@@ -76,7 +76,7 @@ live.messages.onConversation('conv-demo-01', (message, context) {
 ```
 
 `ImWebSocketAuthOptions.automatic()` is the standard default. On Flutter mobile and desktop it uses
-bearer upgrade headers. On Flutter Web it falls back to query bearer auth so the browser runtime
+SDKWork credential upgrade headers. On Flutter Web it falls back to query credential auth so the browser runtime
 can still establish the websocket when custom upgrade headers are not available.
 When the gateway supports browser-safe token exchange, prefer `credentialProvider` with a
 short-lived realtime credential.
@@ -84,8 +84,8 @@ short-lived realtime credential.
 ## Common module entrypoints
 
 ```dart
-await client.session.resume(
-  ResumeSessionRequest(
+await client.deviceSessions.resume(
+  ResumeDeviceSessionRequest(
     deviceId: 'device-mobile-01',
     lastSeenSyncSeq: 0,
   ),

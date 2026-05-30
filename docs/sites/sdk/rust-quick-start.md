@@ -52,11 +52,11 @@ client
 ## Common module entrypoints
 
 ```rust
-use im_sdk::{PostTextOptions, ResumeSessionRequest};
+use im_sdk::{PostTextOptions, ResumeDeviceSessionRequest};
 
 client
-  .session()
-  .resume(ResumeSessionRequest {
+  .device_sessions()
+  .resume(ResumeDeviceSessionRequest {
     device_id: Some("device-rust-01".into()),
     last_seen_sync_seq: Some(0),
   })

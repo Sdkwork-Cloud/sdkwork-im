@@ -141,9 +141,14 @@ where
                 },
             );
 
-            if secured {
-                operation.insert("security".to_owned(), json!([{ "bearerAuth": [] }]));
-            }
+            operation.insert(
+                "security".to_owned(),
+                if secured {
+                    json!([{ "AuthToken": [], "AccessToken": [] }])
+                } else {
+                    json!([])
+                },
+            );
 
             if route.protocol == RouteProtocol::Websocket {
                 operation.insert(
@@ -202,10 +207,15 @@ where
             "components".to_owned(),
             json!({
                 "securitySchemes": {
-                    "bearerAuth": {
+                    "AuthToken": {
                         "type": "http",
                         "scheme": "bearer",
-                        "bearerFormat": "Bearer token"
+                        "bearerFormat": "JWT"
+                    },
+                    "AccessToken": {
+                        "type": "apiKey",
+                        "in": "header",
+                        "name": "Access-Token"
                     }
                 }
             }),
@@ -213,6 +223,71 @@ where
     }
 
     Value::Object(document)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn protected_operations_use_sdkwork_dual_token_security() {
+        let spec = OpenApiServiceSpec {
+            title: "Test API",
+            version: "0.1.0",
+            description: "Test OpenAPI document",
+            openapi_path: "/openapi.json",
+            docs_path: "/docs",
+        };
+        let routes = vec![RouteEntry {
+            path: "/im/v3/api/chat/conversations".to_owned(),
+            methods: vec![HttpMethod::Post],
+            protocol: RouteProtocol::Http,
+            websocket_subprotocols: Vec::new(),
+        }];
+
+        let document = build_openapi_document(
+            &spec,
+            &routes,
+            |_path, _method| "chat".to_owned(),
+            |_path, _method| true,
+            |_path, _method| "Create conversation".to_owned(),
+        );
+
+        let security = document
+            .pointer("/paths/~1im~1v3~1api~1chat~1conversations/post/security")
+            .and_then(Value::as_array)
+            .expect("protected operation should define security");
+        assert!(
+            security
+                .iter()
+                .any(|entry| entry.get("AuthToken").is_some()
+                    && entry.get("AccessToken").is_some()),
+            "protected operations must require SDKWork AuthToken plus AccessToken"
+        );
+
+        let schemes = document
+            .pointer("/components/securitySchemes")
+            .and_then(Value::as_object)
+            .expect("security schemes should be present");
+        assert_eq!(
+            schemes
+                .get("AuthToken")
+                .and_then(|scheme| scheme.get("type"))
+                .and_then(Value::as_str),
+            Some("http")
+        );
+        assert_eq!(
+            schemes
+                .get("AccessToken")
+                .and_then(|scheme| scheme.get("name"))
+                .and_then(Value::as_str),
+            Some("Access-Token")
+        );
+        assert!(
+            schemes.get("bearerAuth").is_none(),
+            "legacy bearerAuth scheme must not be emitted"
+        );
+    }
 }
 
 pub fn render_docs_html(spec: &OpenApiServiceSpec<'_>) -> String {

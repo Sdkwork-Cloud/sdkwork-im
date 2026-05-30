@@ -8,8 +8,8 @@
 ## 已完成
 
 - `RuntimeProviderRegistry` 增加历史与回滚快照能力。
-- control-plane 暴露 `GET /api/v1/control/provider-policies`。
-- control-plane 暴露 `POST /api/v1/control/provider-policies/rollback`。
+- control-plane 暴露 `GET /backend/v3/api/control/provider-policies`。
+- control-plane 暴露 `POST /backend/v3/api/control/provider-policies/rollback`。
 - 回滚快照输出 `rollbackFromVersion`。
 - ops 在回滚后通过 `replace_provider_binding_snapshots` 清理旧租户快照。
 - audit 新增 `control.provider_policy_rolled_back`。

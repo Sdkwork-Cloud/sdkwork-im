@@ -1,0 +1,28 @@
+import { HttpClient } from './http/client';
+import type { SdkworkAppConfig } from './types/common';
+import type { AuthTokenManager } from '@sdkwork/sdk-common';
+import { AutomationApi } from './api/automation';
+import { DeviceApi } from './api/device';
+import { NotificationApi } from './api/notification';
+import { PortalApi } from './api/portal';
+import { ProviderApi } from './api/provider';
+import { IotApi } from './api/iot';
+import { RtcApi } from './api/rtc';
+export declare class SdkworkAppClient {
+    private httpClient;
+    readonly automation: AutomationApi;
+    readonly device: DeviceApi;
+    readonly notification: NotificationApi;
+    readonly portal: PortalApi;
+    readonly provider: ProviderApi;
+    readonly iot: IotApi;
+    readonly rtc: RtcApi;
+    constructor(config: SdkworkAppConfig);
+    setAuthToken(token: string): this;
+    setAccessToken(token: string): this;
+    setTokenManager(manager: AuthTokenManager): this;
+    get http(): HttpClient;
+}
+export declare function createClient(config: SdkworkAppConfig): SdkworkAppClient;
+export default SdkworkAppClient;
+//# sourceMappingURL=sdk.d.ts.map

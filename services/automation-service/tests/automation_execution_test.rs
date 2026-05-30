@@ -6,7 +6,7 @@ use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
 
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_events::{AggregateType, CommitEnvelope};
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
 
@@ -80,7 +80,7 @@ impl CommitJournal for BlockingJournal {
 fn test_request_execution_appends_requested_and_completed_events() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -131,7 +131,7 @@ fn test_request_execution_appends_requested_and_completed_events() {
 #[test]
 fn test_get_execution_is_scoped_to_requesting_principal() {
     let runtime = automation_service::AutomationRuntime::default();
-    let owner_auth = AuthContext {
+    let owner_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_owner".into(),
         actor_kind: "user".into(),
@@ -142,7 +142,7 @@ fn test_get_execution_is_scoped_to_requesting_principal() {
             "automation.read".to_string(),
         ]),
     };
-    let other_auth = AuthContext {
+    let other_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_other".into(),
         actor_kind: "user".into(),
@@ -175,7 +175,7 @@ fn test_get_execution_is_scoped_to_requesting_principal() {
 fn test_duplicate_request_execution_is_idempotent_when_payload_matches() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -222,7 +222,7 @@ fn test_duplicate_request_execution_is_idempotent_when_payload_matches() {
 fn test_duplicate_request_execution_rejects_conflicting_payload() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -266,7 +266,7 @@ fn test_duplicate_request_execution_rejects_conflicting_payload() {
 #[test]
 fn test_execution_timestamps_advance_between_distinct_requests() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -316,7 +316,7 @@ fn test_execution_timestamps_advance_between_distinct_requests() {
 #[test]
 fn test_request_execution_with_outcome_exposes_applied_then_replayed_delivery_status() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -372,7 +372,7 @@ fn test_request_execution_with_outcome_surfaces_accepted_during_inflight_apply()
     let (continue_tx, continue_rx) = mpsc::channel();
     let journal = Arc::new(BlockingJournal::new(requested_started_tx, continue_rx));
     let runtime = Arc::new(automation_service::AutomationRuntime::with_journal(journal));
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -431,7 +431,7 @@ fn test_request_execution_with_outcome_surfaces_accepted_during_inflight_apply()
 #[test]
 fn test_request_execution_rejects_oversized_input_payload() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -460,7 +460,7 @@ fn test_request_execution_rejects_oversized_input_payload() {
 #[test]
 fn test_request_execution_rejects_oversized_execution_id() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -489,7 +489,7 @@ fn test_request_execution_rejects_oversized_execution_id() {
 #[test]
 fn test_get_execution_rejects_oversized_execution_id() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -509,7 +509,7 @@ fn test_get_execution_rejects_oversized_execution_id() {
 #[test]
 fn test_execution_requests_are_isolated_by_principal_kind_for_same_actor_id() {
     let runtime = automation_service::AutomationRuntime::default();
-    let user_auth = AuthContext {
+    let user_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -520,7 +520,7 @@ fn test_execution_requests_are_isolated_by_principal_kind_for_same_actor_id() {
             "automation.read".to_string(),
         ]),
     };
-    let system_auth = AuthContext {
+    let system_auth = AppContext {
         actor_kind: "system".into(),
         session_id: Some("s_system".into()),
         ..user_auth.clone()
@@ -578,7 +578,7 @@ fn test_execution_requests_are_isolated_by_principal_kind_for_same_actor_id() {
 #[test]
 fn test_execution_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
     let runtime = automation_service::AutomationRuntime::default();
-    let first_auth = AuthContext {
+    let first_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u:demo".into(),
         actor_kind: "user".into(),
@@ -589,7 +589,7 @@ fn test_execution_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
             "automation.read".to_string(),
         ]),
     };
-    let second_auth = AuthContext {
+    let second_auth = AppContext {
         actor_id: "u".into(),
         session_id: Some("s_second".into()),
         ..first_auth.clone()
@@ -642,7 +642,7 @@ fn test_execution_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
 fn test_execution_journal_metadata_is_isolated_by_principal_kind_for_same_actor_id() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
-    let user_auth = AuthContext {
+    let user_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -653,7 +653,7 @@ fn test_execution_journal_metadata_is_isolated_by_principal_kind_for_same_actor_
             "automation.read".to_string(),
         ]),
     };
-    let system_auth = AuthContext {
+    let system_auth = AppContext {
         actor_kind: "system".into(),
         session_id: Some("s_system".into()),
         ..user_auth.clone()

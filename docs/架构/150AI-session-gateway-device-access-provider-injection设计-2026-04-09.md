@@ -6,8 +6,8 @@
 
 ## 2. 设计约束
 
-- 不新增伪造的 `/api/v1/devices/register` 接口。
-- 真实入口固定为 `POST /api/v1/sessions/resume`。
+- 不新增伪造的 `/im/v3/api/devices/register` 接口。
+- 真实入口固定为 `POST /im/v3/api/device/sessions/resume`。
 - heartbeat / realtime route preflight 会复用注册路径，因此 provider 不能被重复触发。
 - provider 错误必须回到统一 HTTP 错误模型。
 
@@ -24,9 +24,9 @@
 
 真实调用顺序冻结为：
 
-1. `POST /api/v1/sessions/resume`
+1. `POST /im/v3/api/device/sessions/resume`
 2. `SessionDeviceRegistration::register_device`
-3. `SessionSyncState::has_registered_device`
+3. `DeviceSyncState::has_registered_device`
 4. 首次注册时调用：
    - `DeviceAccessProvider::register_device`
    - `DeviceAccessProvider::bind_owner`
@@ -55,7 +55,7 @@
 本轮冻结：
 
 - `product_id = session-gateway-device`
-- `credential_kind = session`
+- `credential_kind = device_route`
 
 后续若要做 provider policy 或 deployment profile 定制，应通过控制面下发，而不是在 handler 中写分支。
 

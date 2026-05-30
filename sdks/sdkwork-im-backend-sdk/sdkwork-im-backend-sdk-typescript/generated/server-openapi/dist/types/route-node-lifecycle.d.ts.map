@@ -1,0 +1,1 @@
+{"version":3,"file":"route-node-lifecycle.d.ts","sourceRoot":"","sources":["../../src/types/route-node-lifecycle.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,kBAAkB;IACjC,WAAW,EAAE,MAAM,CAAC;IACpB,MAAM,EAAE,MAAM,CAAC;IACf,eAAe,EAAE,MAAM,CAAC;IACxB,cAAc,EAAE,MAAM,CAAC;CACxB"}

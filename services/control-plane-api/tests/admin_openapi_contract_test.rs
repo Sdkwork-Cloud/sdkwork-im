@@ -44,23 +44,23 @@ async fn admin_openapi_contract_exposes_live_openapi_document_without_auth() {
         .as_object()
         .expect("openapi document should expose paths");
     assert!(
-        paths.contains_key("/api/v1/control/protocol-registry"),
+        paths.contains_key("/backend/v3/api/control/protocol_registry"),
         "protocol registry path should be documented"
     );
     assert!(
-        paths.contains_key("/api/v1/control/protocol-governance"),
+        paths.contains_key("/backend/v3/api/control/protocol_governance"),
         "protocol governance path should be documented"
     );
     assert!(
-        paths.contains_key("/api/v1/control/provider-registry"),
+        paths.contains_key("/backend/v3/api/control/provider_registry"),
         "provider registry path should be documented"
     );
     assert!(
-        paths.contains_key("/api/v1/control/social/friend-requests"),
+        paths.contains_key("/backend/v3/api/control/social/friend_requests"),
         "social route group should be documented"
     );
     assert!(
-        paths.contains_key("/api/v1/control/nodes/{node_id}/drain"),
+        paths.contains_key("/backend/v3/api/control/nodes/{node_id}/drain"),
         "node control route group should be documented"
     );
 

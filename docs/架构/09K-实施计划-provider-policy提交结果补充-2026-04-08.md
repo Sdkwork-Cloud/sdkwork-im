@@ -18,7 +18,7 @@
   - 新增 `ProviderPolicyCommit`
   - 新增 `commit_upsert(...)`
 - `services/control-plane-api/src/lib.rs`
-  - `POST /api/v1/control/provider-bindings` 改为返回 committed 结果
+  - `POST /backend/v3/api/control/provider_bindings` 改为返回 committed 结果
   - 保留原有 `effectiveBindings / precedence`
 
 ## 契约冻结

@@ -2,7 +2,7 @@
 
 ## 本轮目标
 
-补齐 `/api/v1/iot/protocol/uplink` 在 decode 后的最后一条最小一致性边界：
+补齐 `/backend/v3/api/iot/protocol/uplink` 在 decode 后的最后一条最小一致性边界：
 
 - `local-minimal-node`
 - preflight 已得到 `preflight_device_id`
@@ -40,7 +40,7 @@
 ## 关键词冻结
 
 - `local-minimal-node`
-- `/api/v1/iot/protocol/uplink`
+- `/backend/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `ensure_iot_protocol_uplink_decoded_device_matches_preflight`

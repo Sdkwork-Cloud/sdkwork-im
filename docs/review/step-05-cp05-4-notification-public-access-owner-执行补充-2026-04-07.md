@@ -24,7 +24,7 @@
     - 继续委托现有 `request_notification_with_outcome(...)`
   - HTTP `request_notification(...)` 路径改为消费该 owner seam
 - `services/local-minimal-node/src/node/platform.rs`
-  - app-facing `/api/v1/notifications/requests` 路径改为直接消费 `notification_runtime.request_notification_from_public_api(...)`
+  - app-facing `/im/v3/api/notifications/requests` 路径改为直接消费 `notification_runtime.request_notification_from_public_api(...)`
   - 删除本地重复的 notification request access 判定
 - `services/local-minimal-node/src/node/access.rs`
   - 删除已不再需要的 `ensure_notification_request_access(...)`

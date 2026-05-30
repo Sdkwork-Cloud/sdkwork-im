@@ -1,6 +1,6 @@
 use craw_chat_contract_core::ContractError;
 use craw_chat_contract_message::{CommitJournal, CommitPosition};
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
@@ -51,7 +51,7 @@ use self::support::{
 pub use http::{
     PrincipalDirectory, PrincipalDirectoryError, StaticPrincipalDirectory, build_default_app,
     build_default_app_with_principal_directory, build_public_app,
-    build_public_app_with_principal_directory,
+    build_public_app_with_allow_all_principals, build_public_app_with_principal_directory,
 };
 
 const CONVERSATION_MAX_ID_BYTES: usize = 256;
@@ -73,6 +73,9 @@ const MESSAGE_HISTORY_DEFAULT_LIMIT: usize = 100;
 const MESSAGE_HISTORY_MAX_LIMIT: usize = 1000;
 const CONVERSATION_CREATE_DELIVERY_PROOF_VERSION: &str = "conversation.create.delivery-proof.v1";
 const CONVERSATION_MESSAGE_DELIVERY_PROOF_VERSION: &str = "conversation.message.delivery-proof.v1";
+const CONVERSATION_MAX_IN_MEMORY_DEFAULT: usize = 10_000;
+const CONVERSATION_IDLE_EVICTION_TARGET_RATIO: f64 = 0.8;
+const CONVERSATION_MAX_IN_MEMORY_ENV: &str = "CRAW_CHAT_CONVERSATION_MAX_IN_MEMORY";
 
 fn normalize_message_history_limit(limit: Option<usize>) -> Result<usize, String> {
     let limit = limit.unwrap_or(MESSAGE_HISTORY_DEFAULT_LIMIT);
@@ -600,7 +603,7 @@ pub struct UnpinMessageCommand {
 
 impl CreateConversationCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         conversation_type: String,
     ) -> Self {
@@ -615,7 +618,7 @@ impl CreateConversationCommand {
 
 impl CreateAgentDialogCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         agent_id: String,
     ) -> Self {
@@ -630,7 +633,7 @@ impl CreateAgentDialogCommand {
 
 impl CreateAgentHandoffCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         target_id: String,
         target_kind: String,
@@ -651,7 +654,7 @@ impl CreateAgentHandoffCommand {
 
 impl CreateSystemChannelCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         subscriber_id: String,
     ) -> Self {
@@ -666,7 +669,7 @@ impl CreateSystemChannelCommand {
 
 impl CreateThreadConversationCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         parent_conversation_id: String,
         root_message_id: String,
@@ -683,7 +686,7 @@ impl CreateThreadConversationCommand {
 
 impl BindDirectChatConversationCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         direct_chat_id: String,
         left_actor_id: String,
@@ -706,7 +709,7 @@ impl BindDirectChatConversationCommand {
 
 impl SyncSharedChannelLinkedMemberCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         shared_channel_policy_id: String,
         external_connection_id: String,
@@ -728,7 +731,7 @@ impl SyncSharedChannelLinkedMemberCommand {
 }
 
 impl AcceptAgentHandoffCommand {
-    pub fn from_auth_context(auth: &AuthContext, conversation_id: String) -> Self {
+    pub fn from_auth_context(auth: &AppContext, conversation_id: String) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
             conversation_id,
@@ -738,7 +741,7 @@ impl AcceptAgentHandoffCommand {
 }
 
 impl ResolveAgentHandoffCommand {
-    pub fn from_auth_context(auth: &AuthContext, conversation_id: String) -> Self {
+    pub fn from_auth_context(auth: &AppContext, conversation_id: String) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
             conversation_id,
@@ -748,7 +751,7 @@ impl ResolveAgentHandoffCommand {
 }
 
 impl CloseAgentHandoffCommand {
-    pub fn from_auth_context(auth: &AuthContext, conversation_id: String) -> Self {
+    pub fn from_auth_context(auth: &AppContext, conversation_id: String) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
             conversation_id,
@@ -759,7 +762,7 @@ impl CloseAgentHandoffCommand {
 
 impl AddConversationMemberCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         principal_id: String,
         principal_kind: String,
@@ -778,7 +781,7 @@ impl AddConversationMemberCommand {
 
 impl RemoveConversationMemberCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         member_id: String,
     ) -> Self {
@@ -792,7 +795,7 @@ impl RemoveConversationMemberCommand {
 }
 
 impl LeaveConversationCommand {
-    pub fn from_auth_context(auth: &AuthContext, conversation_id: String) -> Self {
+    pub fn from_auth_context(auth: &AppContext, conversation_id: String) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
             conversation_id,
@@ -803,7 +806,7 @@ impl LeaveConversationCommand {
 
 impl TransferConversationOwnerCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         target_member_id: String,
     ) -> Self {
@@ -818,7 +821,7 @@ impl TransferConversationOwnerCommand {
 
 impl ChangeConversationMemberRoleCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         target_member_id: String,
         new_role: MembershipRole,
@@ -835,7 +838,7 @@ impl ChangeConversationMemberRoleCommand {
 
 impl UpdateReadCursorCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         read_seq: u64,
         last_read_message_id: Option<String>,
@@ -852,7 +855,7 @@ impl UpdateReadCursorCommand {
 
 impl ApplyConversationPolicyCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         policy: ConversationPolicy,
     ) -> Self {
@@ -865,7 +868,7 @@ impl ApplyConversationPolicyCommand {
     }
 }
 
-fn sender_from_auth_context(auth: &AuthContext) -> Sender {
+fn sender_from_auth_context(auth: &AppContext) -> Sender {
     Sender {
         id: auth.actor_id.clone(),
         kind: auth.actor_kind.clone(),
@@ -878,7 +881,7 @@ fn sender_from_auth_context(auth: &AuthContext) -> Sender {
 
 impl PostMessageCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         client_msg_id: Option<String>,
         message_type: MessageType,
@@ -897,7 +900,7 @@ impl PostMessageCommand {
 
 impl PublishSystemChannelMessageCommand {
     pub fn from_auth_context(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         client_msg_id: Option<String>,
         body: MessageBody,
@@ -913,7 +916,7 @@ impl PublishSystemChannelMessageCommand {
 }
 
 impl EditMessageCommand {
-    pub fn from_auth_context(auth: &AuthContext, message_id: String, body: MessageBody) -> Self {
+    pub fn from_auth_context(auth: &AppContext, message_id: String, body: MessageBody) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
             message_id,
@@ -924,7 +927,7 @@ impl EditMessageCommand {
 }
 
 impl RecallMessageCommand {
-    pub fn from_auth_context(auth: &AuthContext, message_id: String) -> Self {
+    pub fn from_auth_context(auth: &AppContext, message_id: String) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
             message_id,
@@ -934,7 +937,7 @@ impl RecallMessageCommand {
 }
 
 impl AddMessageReactionCommand {
-    pub fn from_auth_context(auth: &AuthContext, message_id: String, reaction_key: String) -> Self {
+    pub fn from_auth_context(auth: &AppContext, message_id: String, reaction_key: String) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
             message_id,
@@ -945,7 +948,7 @@ impl AddMessageReactionCommand {
 }
 
 impl RemoveMessageReactionCommand {
-    pub fn from_auth_context(auth: &AuthContext, message_id: String, reaction_key: String) -> Self {
+    pub fn from_auth_context(auth: &AppContext, message_id: String, reaction_key: String) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
             message_id,
@@ -956,7 +959,7 @@ impl RemoveMessageReactionCommand {
 }
 
 impl PinMessageCommand {
-    pub fn from_auth_context(auth: &AuthContext, message_id: String) -> Self {
+    pub fn from_auth_context(auth: &AppContext, message_id: String) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
             message_id,
@@ -966,7 +969,7 @@ impl PinMessageCommand {
 }
 
 impl UnpinMessageCommand {
-    pub fn from_auth_context(auth: &AuthContext, message_id: String) -> Self {
+    pub fn from_auth_context(auth: &AppContext, message_id: String) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
             message_id,
@@ -1058,6 +1061,7 @@ struct ConversationState {
     thread_create_request: Option<ThreadConversationCreateReplayRecord>,
     direct_chat_binding_request: Option<DirectChatBindingReplayRecord>,
     posted_message_requests: HashMap<String, PostedMessageReplayRecord>,
+    last_accessed_at_ms: u64,
 }
 
 #[derive(Default)]
@@ -1071,7 +1075,7 @@ fn lock_runtime_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexG
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!("warning: recovering poisoned mutex in conversation-runtime: {label}");
+            tracing::warn!("recovering poisoned mutex in conversation-runtime: {label}");
             poisoned.into_inner()
         }
     }
@@ -1084,8 +1088,8 @@ fn read_runtime_state<'a>(
     match state.read() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!(
-                "warning: recovering poisoned runtime read lock in conversation-runtime: {label}"
+            tracing::warn!(
+                "recovering poisoned runtime read lock in conversation-runtime: {label}"
             );
             poisoned.into_inner()
         }
@@ -1099,11 +1103,60 @@ fn write_runtime_state<'a>(
     match state.write() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!(
-                "warning: recovering poisoned runtime write lock in conversation-runtime: {label}"
+            tracing::warn!(
+                "recovering poisoned runtime write lock in conversation-runtime: {label}"
             );
             poisoned.into_inner()
         }
+    }
+}
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+fn resolve_max_conversations_in_memory() -> usize {
+    std::env::var(CONVERSATION_MAX_IN_MEMORY_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(CONVERSATION_MAX_IN_MEMORY_DEFAULT)
+}
+
+impl RuntimeState {
+    fn touch_conversation(&mut self, scope_key: &str) {
+        if let Some(conv) = self.conversations.get_mut(scope_key) {
+            conv.last_accessed_at_ms = now_ms();
+        }
+    }
+
+    fn evict_idle_conversations(&mut self, max_conversations: usize) -> usize {
+        let count = self.conversations.len();
+        if count <= max_conversations {
+            return 0;
+        }
+        let target = (max_conversations as f64 * CONVERSATION_IDLE_EVICTION_TARGET_RATIO) as usize;
+        let evict_count = count.saturating_sub(target.max(1));
+        let mut entries: Vec<(String, u64)> = self
+            .conversations
+            .iter()
+            .map(|(k, v)| {
+                let ts = if v.last_accessed_at_ms == 0 {
+                    u64::MAX
+                } else {
+                    v.last_accessed_at_ms
+                };
+                (k.clone(), ts)
+            })
+            .collect();
+        entries.sort_by_key(|(_, ts)| *ts);
+        for (key, _) in entries.iter().take(evict_count) {
+            self.conversations.remove(key.as_str());
+        }
+        evict_count
     }
 }
 
@@ -1303,7 +1356,7 @@ fn system_channel_create_request_key(
         tenant_id,
         requester_kind,
         requester_id,
-        "create-system-channel",
+        "create-system_channel",
         conversation_id,
     ])
 }
@@ -1328,7 +1381,7 @@ fn agent_handoff_create_request_key(
         tenant_id,
         source_kind,
         source_id,
-        "create-agent-handoff",
+        "create-agent_handoff",
         conversation_id,
     ])
 }
@@ -1466,20 +1519,85 @@ enum AgentHandoffStatusTransitionOutcome {
     },
 }
 
-#[derive(Clone, Default)]
+const IN_MEMORY_JOURNAL_MAX_EVENTS_DEFAULT: usize = 100_000;
+const IN_MEMORY_JOURNAL_MAX_EVENTS_ENV: &str = "CRAW_CHAT_JOURNAL_MAX_EVENTS";
+
+#[derive(Clone)]
 pub struct InMemoryJournal {
     events: Arc<Mutex<Vec<CommitEnvelope>>>,
+    max_events: usize,
+}
+
+impl Default for InMemoryJournal {
+    fn default() -> Self {
+        Self {
+            events: Arc::new(Mutex::new(Vec::new())),
+            max_events: std::env::var(IN_MEMORY_JOURNAL_MAX_EVENTS_ENV)
+                .ok()
+                .and_then(|v| v.trim().parse::<usize>().ok())
+                .filter(|v| *v > 0)
+                .unwrap_or(IN_MEMORY_JOURNAL_MAX_EVENTS_DEFAULT),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JournalSnapshot {
+    pub events: Vec<CommitEnvelope>,
+    pub snapshot_version: String,
+    pub exported_at: String,
+}
+
+impl JournalSnapshot {
+    pub fn new(events: Vec<CommitEnvelope>) -> Self {
+        Self {
+            events,
+            snapshot_version: "conversation.journal.snapshot.v1".into(),
+            exported_at: utc_now_rfc3339_millis(),
+        }
+    }
+
+    pub fn to_json(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
+    }
+
+    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(json)
+    }
 }
 
 impl InMemoryJournal {
     pub fn recorded(&self) -> Vec<CommitEnvelope> {
         lock_runtime_mutex(&self.events, "in-memory-journal.events").clone()
     }
+
+    pub fn export_snapshot(&self) -> JournalSnapshot {
+        JournalSnapshot::new(self.recorded())
+    }
+
+    pub fn load_from_snapshot(snapshot: JournalSnapshot) -> Self {
+        let capacity = snapshot.events.len();
+        Self {
+            events: Arc::new(Mutex::new(snapshot.events)),
+            max_events: std::env::var(IN_MEMORY_JOURNAL_MAX_EVENTS_ENV)
+                .ok()
+                .and_then(|v| v.trim().parse::<usize>().ok())
+                .filter(|v| *v > 0)
+                .unwrap_or(IN_MEMORY_JOURNAL_MAX_EVENTS_DEFAULT)
+                .max(capacity.saturating_add(1024)),
+        }
+    }
 }
 
 impl CommitJournal for InMemoryJournal {
     fn append(&self, envelope: CommitEnvelope) -> Result<CommitPosition, ContractError> {
         let mut events = lock_runtime_mutex(&self.events, "in-memory-journal.events");
+        if events.len() >= self.max_events {
+            return Err(ContractError::Unavailable(
+                "journal event store is full; snapshot and reset to continue".into(),
+            ));
+        }
         events.push(envelope);
         Ok(CommitPosition::new("p0", events.len() as u64))
     }
@@ -1489,12 +1607,21 @@ impl CommitJournal for InMemoryJournal {
         envelopes: Vec<CommitEnvelope>,
     ) -> Result<Vec<CommitPosition>, ContractError> {
         let mut events = lock_runtime_mutex(&self.events, "in-memory-journal.events");
+        if events.len().saturating_add(envelopes.len()) > self.max_events {
+            return Err(ContractError::Unavailable(
+                "journal event store is full; snapshot and reset to continue".into(),
+            ));
+        }
         let start_offset = events.len() as u64 + 1;
         let batch_len = envelopes.len() as u64;
         events.extend(envelopes);
         Ok((0..batch_len)
             .map(|index| CommitPosition::new("p0", start_offset + index))
             .collect())
+    }
+
+    fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
+        Ok(InMemoryJournal::recorded(self))
     }
 }
 
@@ -1516,6 +1643,65 @@ where
 
     pub fn reset_for_recovery(&self) {
         *write_runtime_state(&self.state, "runtime state") = RuntimeState::default();
+    }
+
+    pub fn recover_from_journal(&self) -> Result<usize, RuntimeError> {
+        let snapshot = self.journal.recorded().map_err(RuntimeError::from)?;
+        let mut recovered_count = 0usize;
+        for envelope in &snapshot {
+            self.apply_recovered_envelope(envelope)?;
+            recovered_count = recovered_count.saturating_add(1);
+        }
+        Ok(recovered_count)
+    }
+
+    pub fn evict_idle_conversations(&self) -> usize {
+        let max = resolve_max_conversations_in_memory();
+        let mut state = write_runtime_state(&self.state, "runtime.state.evict_idle");
+        state.evict_idle_conversations(max)
+    }
+
+    fn recover_single_conversation(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+    ) -> Result<usize, RuntimeError> {
+        let snapshot = self.journal.recorded().map_err(RuntimeError::from)?;
+        let mut recovered = 0usize;
+        for envelope in &snapshot {
+            if envelope.tenant_id == tenant_id && envelope.scope_id == conversation_id {
+                self.apply_recovered_envelope(envelope)?;
+                recovered += 1;
+            }
+        }
+        if recovered == 0 {
+            return Err(RuntimeError::ConversationNotFound(
+                conversation_id.to_owned(),
+            ));
+        }
+        Ok(recovered)
+    }
+
+    fn ensure_conversation_loaded(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+    ) -> Result<(), RuntimeError> {
+        let scope_key = conversation_scope_key(tenant_id, conversation_id);
+        {
+            let state = read_runtime_state(&self.state, "runtime.state.ensure_conversation_loaded");
+            if state.conversations.contains_key(scope_key.as_str()) {
+                return Ok(());
+            }
+        }
+        self.recover_single_conversation(tenant_id, conversation_id)?;
+        Ok(())
+    }
+
+    fn maybe_evict_after_write(&self) {
+        let max = resolve_max_conversations_in_memory();
+        let mut state = write_runtime_state(&self.state, "runtime.state.maybe_evict");
+        state.evict_idle_conversations(max);
     }
 
     pub fn post_message(
@@ -1559,12 +1745,17 @@ where
             MESSAGE_CLIENT_MSG_ID_MAX_BYTES,
         )?;
         validate_message_body_size(&command.body)?;
+        self.ensure_conversation_loaded(
+            command.tenant_id.as_str(),
+            command.conversation_id.as_str(),
+        )?;
         let request_key = post_message_request_key(&command);
         let scope_key =
             conversation_scope_key(command.tenant_id.as_str(), command.conversation_id.as_str());
         let mutation = {
             let mut state =
                 write_runtime_state(&self.state, "conversation-runtime.state.post_message");
+            state.touch_conversation(scope_key.as_str());
             let mutation = {
                 let conversation =
                     state
@@ -1710,7 +1901,10 @@ where
 
         match mutation {
             PostMessageMutation::Replayed(result) => Ok(result),
-            PostMessageMutation::Applied { result, .. } => Ok(result),
+            PostMessageMutation::Applied { result, .. } => {
+                self.maybe_evict_after_write();
+                Ok(result)
+            }
         }
     }
 
@@ -1725,16 +1919,21 @@ where
         )?;
         validate_sender_payload_size("editor", &command.editor)?;
         validate_message_body_size(&command.body)?;
-        let edited = {
-            let mut state =
-                write_runtime_state(&self.state, "conversation-runtime.state.edit_message");
-            let conversation_id = state
+        let conversation_id = {
+            let state = read_runtime_state(&self.state, "runtime.state.edit_message.locate");
+            state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
                 .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
+                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
+        };
+        self.ensure_conversation_loaded(command.tenant_id.as_str(), conversation_id.as_str())?;
+        let edited = {
+            let mut state =
+                write_runtime_state(&self.state, "conversation-runtime.state.edit_message");
             let scope_key =
                 conversation_scope_key(command.tenant_id.as_str(), conversation_id.as_str());
+            state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
@@ -1795,6 +1994,7 @@ where
 
         let event_id = format!("evt_{}_edited", edited.message_id);
 
+        self.maybe_evict_after_write();
         Ok(MessageMutationResult {
             conversation_id: edited.conversation_id,
             message_id: edited.message_id,
@@ -1813,16 +2013,21 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_sender_payload_size("recalledBy", &command.recalled_by)?;
-        let recalled = {
-            let mut state =
-                write_runtime_state(&self.state, "conversation-runtime.state.recall_message");
-            let conversation_id = state
+        let conversation_id = {
+            let state = read_runtime_state(&self.state, "runtime.state.recall_message.locate");
+            state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
                 .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
+                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
+        };
+        self.ensure_conversation_loaded(command.tenant_id.as_str(), conversation_id.as_str())?;
+        let recalled = {
+            let mut state =
+                write_runtime_state(&self.state, "conversation-runtime.state.recall_message");
             let scope_key =
                 conversation_scope_key(command.tenant_id.as_str(), conversation_id.as_str());
+            state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
@@ -1885,6 +2090,7 @@ where
 
         let event_id = format!("evt_{}_recalled", recalled.message_id);
 
+        self.maybe_evict_after_write();
         Ok(MessageMutationResult {
             conversation_id: recalled.conversation_id,
             message_id: recalled.message_id,
@@ -1908,18 +2114,24 @@ where
             MESSAGE_REACTION_KEY_MAX_BYTES,
         )?;
         validate_sender_payload_size("reactedBy", &command.reacted_by)?;
+        let conversation_id = {
+            let state =
+                read_runtime_state(&self.state, "runtime.state.add_message_reaction.locate");
+            state
+                .message_locator
+                .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
+                .map(str::to_owned)
+                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
+        };
+        self.ensure_conversation_loaded(command.tenant_id.as_str(), conversation_id.as_str())?;
         let (reaction, changed) = {
             let mut state = write_runtime_state(
                 &self.state,
                 "conversation-runtime.state.add_message_reaction",
             );
-            let conversation_id = state
-                .message_locator
-                .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
-                .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
             let scope_key =
                 conversation_scope_key(command.tenant_id.as_str(), conversation_id.as_str());
+            state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
@@ -1999,6 +2211,7 @@ where
             None
         };
 
+        self.maybe_evict_after_write();
         Ok(MessageReactionMutationResult {
             conversation_id: reaction.conversation_id,
             message_id: reaction.message_id,
@@ -2024,18 +2237,24 @@ where
             MESSAGE_REACTION_KEY_MAX_BYTES,
         )?;
         validate_sender_payload_size("removedBy", &command.removed_by)?;
+        let conversation_id = {
+            let state =
+                read_runtime_state(&self.state, "runtime.state.remove_message_reaction.locate");
+            state
+                .message_locator
+                .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
+                .map(str::to_owned)
+                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
+        };
+        self.ensure_conversation_loaded(command.tenant_id.as_str(), conversation_id.as_str())?;
         let (reaction, changed) = {
             let mut state = write_runtime_state(
                 &self.state,
                 "conversation-runtime.state.remove_message_reaction",
             );
-            let conversation_id = state
-                .message_locator
-                .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
-                .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
             let scope_key =
                 conversation_scope_key(command.tenant_id.as_str(), conversation_id.as_str());
+            state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
@@ -2116,6 +2335,7 @@ where
             None
         };
 
+        self.maybe_evict_after_write();
         Ok(MessageReactionMutationResult {
             conversation_id: reaction.conversation_id,
             message_id: reaction.message_id,
@@ -2136,16 +2356,21 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_sender_payload_size("pinnedBy", &command.pinned_by)?;
-        let (pin, changed) = {
-            let mut state =
-                write_runtime_state(&self.state, "conversation-runtime.state.pin_message");
-            let conversation_id = state
+        let conversation_id = {
+            let state = read_runtime_state(&self.state, "runtime.state.pin_message.locate");
+            state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
                 .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
+                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
+        };
+        self.ensure_conversation_loaded(command.tenant_id.as_str(), conversation_id.as_str())?;
+        let (pin, changed) = {
+            let mut state =
+                write_runtime_state(&self.state, "conversation-runtime.state.pin_message");
             let scope_key =
                 conversation_scope_key(command.tenant_id.as_str(), conversation_id.as_str());
+            state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
@@ -2217,6 +2442,7 @@ where
             None
         };
 
+        self.maybe_evict_after_write();
         Ok(MessagePinMutationResult {
             conversation_id: pin.conversation_id,
             message_id: pin.message_id,
@@ -2236,16 +2462,21 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_sender_payload_size("unpinnedBy", &command.unpinned_by)?;
-        let (pin, changed) = {
-            let mut state =
-                write_runtime_state(&self.state, "conversation-runtime.state.unpin_message");
-            let conversation_id = state
+        let conversation_id = {
+            let state = read_runtime_state(&self.state, "runtime.state.unpin_message.locate");
+            state
                 .message_locator
                 .conversation_id(command.tenant_id.as_str(), command.message_id.as_str())
                 .map(str::to_owned)
-                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?;
+                .ok_or_else(|| RuntimeError::MessageNotFound(command.message_id.clone()))?
+        };
+        self.ensure_conversation_loaded(command.tenant_id.as_str(), conversation_id.as_str())?;
+        let (pin, changed) = {
+            let mut state =
+                write_runtime_state(&self.state, "conversation-runtime.state.unpin_message");
             let scope_key =
                 conversation_scope_key(command.tenant_id.as_str(), conversation_id.as_str());
+            state.touch_conversation(scope_key.as_str());
             let conversation = state
                 .conversations
                 .get_mut(scope_key.as_str())
@@ -2317,6 +2548,7 @@ where
             None
         };
 
+        self.maybe_evict_after_write();
         Ok(MessagePinMutationResult {
             conversation_id: pin.conversation_id,
             message_id: pin.message_id,
@@ -2333,7 +2565,7 @@ where
 {
     pub fn require_active_member_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<ConversationMember, RuntimeError> {
         self.require_active_member_with_kind(
@@ -2346,7 +2578,7 @@ where
 
     pub fn ensure_conversation_bound_write_allowed_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
         capability: &str,
     ) -> Result<(), RuntimeError> {
@@ -2402,7 +2634,7 @@ where
 
     pub fn conversation_id_for_message_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         message_id: &str,
     ) -> Result<String, RuntimeError> {
         self.conversation_id_for_message(auth.tenant_id.as_str(), message_id)

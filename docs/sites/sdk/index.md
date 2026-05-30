@@ -1,234 +1,91 @@
 # SDK Overview
 
-The repository currently defines three SDK families with different consumers, contracts, and release truths:
+The current SDK system has exactly four public SDK families. They are grouped by API authority and
+runtime responsibility, not by historical workspace names.
 
-- `sdkwork-im-sdk`
-  App-facing runtime integrations generated from the live Craw Chat OpenAPI 3.x contract.
-- `sdkwork-control-plane-sdk`
-  Admin app boundary and control-plane integrations.
-- `sdkwork-im-admin-sdk`
-  IM admin and `/api/admin/*` operator integrations.
+This compatibility matrix is the current source of truth for SDK family ownership.
 
-For application integration, start from the app SDK family and the TypeScript package
-`@sdkwork/im-sdk`. That remains the strongest checked-in consumer SDK and the reference
-contract the other language lanes converge toward.
+| SDK family | Owns | API authority | Current role |
+| --- | --- | --- | --- |
+| `sdkwork-im-sdk` | IM standardized development SDK | `/im/v3/api/*` | Product-facing IM SDK with semantic TypeScript, Flutter, and Rust lanes plus generated transport for other languages |
+| `sdkwork-im-app-sdk` | App-business and non-management HTTP SDK | `/app/v3/api/*` | Generated transport SDK for app-business APIs outside the IM standardized surface |
+| `sdkwork-im-backend-sdk` | Backend management, operator, control, and admin SDK | `/backend/v3/api/*` | The only backend/admin/control HTTP SDK family |
+| `sdkwork-rtc-sdk` | Provider-neutral RTC runtime and provider packages | no OpenAPI route family | Independent RTC provider-standard SDK, not an OpenAPI-generated HTTP SDK |
 
-## Start Here
+Retired standalone control-plane and admin workspace names are not current public SDK families.
+Control-plane and admin APIs are backend modules inside `sdkwork-im-backend-sdk`.
 
-| Need | Start with |
-| --- | --- |
-| Public app runtime integration | [App SDK](/sdk/app-sdk) |
-| Shared auth and client bootstrap rules | [Auth and Client Init](/sdk/auth-and-client-init) |
-| Fastest browser or Node onboarding | [TypeScript Quick Start](/sdk/typescript-quick-start) |
-| Fastest Flutter onboarding | [Flutter Quick Start](/sdk/flutter-quick-start) |
-| Fastest Rust onboarding | [Rust Quick Start](/sdk/rust-quick-start) |
-| Real TypeScript package, imports, and examples | [TypeScript SDK](/sdk/typescript-sdk) |
-| Current language parity, tiers, and transport status | [Language Support](/sdk/language-support) |
-| Generated-versus-semantic ownership rules | [Generator Boundary](/sdk/generator-boundary) |
-| Route-level HTTP semantics | [App API Overview](/api-reference/app-api) |
-| Control-plane workflows | [Control-Plane SDK](/sdk/control-plane-sdk) |
-| Operator-console `/api/admin/*` workflows | [IM Admin SDK](/sdk/im-admin-sdk) |
+## API To SDK Map
 
-## SDK Family Matrix
-
-For day-to-day engineering, treat the checked-in SDK workspaces and their `.sdkwork-assembly.json`
-files as the repository truth. App, Control-Plane, and IM Admin families all have materialized
-TypeScript and Flutter workspaces in-repo, and all of them remain unpublished.
-
-### Release Snapshot
-
-The current release catalog under `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`
-reports `state = generated_pending_publication`. Every tracked artifact in that catalog currently
-records `generationStatus = generated` and `releaseStatus = not_published`.
-
-The repository truth is therefore stronger than "planned SDK structure": `sdkwork-im-sdk`,
-`sdkwork-control-plane-sdk`, and `sdkwork-im-admin-sdk` all exist as checked-in workspaces, and
-`sdkwork-im-admin-sdk` has materialized TypeScript and Flutter package workspaces.
-
-| Family | Audience | Best entry page | Contract source | Current repo state |
-| --- | --- | --- | --- | --- |
-| `sdkwork-im-sdk` | Product and app integrations | [App SDK](/sdk/app-sdk) | App OpenAPI authority under `sdks/sdkwork-im-sdk/openapi/` | TypeScript and Flutter consumer lines materialized; additional language workspaces generated in-repo; publication pending |
-| `sdkwork-control-plane-sdk` | Governance and control-plane tooling | [Control-Plane SDK](/sdk/control-plane-sdk) | Control-plane authority under `sdks/sdkwork-control-plane-sdk/openapi/` | TypeScript and Flutter lines materialized; publication pending |
-| `sdkwork-im-admin-sdk` | IM admin and `/api/admin/*` tooling | [IM Admin SDK](/sdk/im-admin-sdk) | IM admin authority under `sdks/sdkwork-im-admin-sdk/openapi/` | TypeScript and Flutter lines materialized; publication pending |
-
-Generated symbols must be consumed through package root entrypoints only.
-
-App SDK consumers target `local-minimal-node` during direct local development and the unified
-`craw-chat-server` / `web-gateway` public origin in packaged installs.
-
-Control-plane SDK consumers can target `control-plane-api` directly during standalone governance
-development, but packaged installs should switch to the unified gateway public origin.
-
-IM admin SDK consumers target the deployed surface that serves `/api/admin/*`; in packaged
-installs that is also the unified gateway public origin.
-
-| API group | SDK family | Current boundary |
+| API group | SDK family | Rule |
 | --- | --- | --- |
-| App Runtime (`/api/v1/*`) | `sdkwork-im-sdk` | Checked-in app OpenAPI authority plus materialized TypeScript and Flutter consumer packages |
-| Control Plane Governance (`/api/v1/control/*`) | `sdkwork-control-plane-sdk` | Checked-in control-plane authority plus materialized TypeScript and Flutter consumer packages |
-| Operator Console Admin API (`/api/admin/*`) | `sdkwork-im-admin-sdk` | Checked-in authority plus materialized TypeScript and Flutter generated/composed packages exist; `/api/admin/*` authority stays in this family while the admin console consumes the unified `@sdkwork/control-plane-sdk` boundary |
+| `/im/v3/api/*` | `sdkwork-im-sdk` | Use for standardized IM development: conversations, messages, realtime, media, streams, RTC signaling, portal snapshots, and IM runtime helpers. |
+| `/app/v3/api/*` | `sdkwork-im-app-sdk` | Use for app-business and non-management HTTP APIs that are not part of the IM standardized SDK. Provider health, IoT protocol, notifications, automation execution, and app-facing RTC provider callbacks belong here. |
+| `/backend/v3/api/*` | `sdkwork-im-backend-sdk` | Use for ops, audit, automation governance, control-plane governance, node operations, and every admin route. |
+| RTC provider runtime | `sdkwork-rtc-sdk` | Use for provider selection, provider package loading, native driver/runtime bridge contracts, and call runtime abstractions. |
+
+There is no separate admin SDK family and no separate control-plane SDK family. If the route starts
+with `/backend/v3/api/control/*` or `/backend/v3/api/admin/*`, it belongs to
+`sdkwork-im-backend-sdk`.
 
 ## Choose By Scenario
 
-Use this rule of thumb before reading the rest of the matrix:
-
-- If you need the richest app-facing SDK today, start with TypeScript and
-  [TypeScript SDK](/sdk/typescript-sdk).
-- If you are building Flutter UI integration, start with [Flutter SDK](/sdk/flutter-sdk) and treat
-  websocket live runtime plus message-first builders as current parity gaps.
-- If you want the shortest path from zero to a running integration, use the quick-start sequence:
-  [TypeScript](/sdk/typescript-quick-start),
-  [Flutter](/sdk/flutter-quick-start),
-  [Rust](/sdk/rust-quick-start), then
-  [Module Map](/sdk/module-map).
-- If you need generated transport only for JVM, .NET, Swift, Go, Python, or current Rust service
-  integration, start from the language page for that transport-standardized workspace.
-- If you are building control-plane or governance tooling, skip the app SDK family and start with
-  [Control-Plane SDK](/sdk/control-plane-sdk).
-
-## Quick Starts And Module Docs
-
-Use the fast-start set when you are wiring a new client instead of evaluating overall workspace
-policy:
-
-| Need | Best page |
+| Need | Start with |
 | --- | --- |
-| Shared base URL, token, and client creation rules | [Auth and Client Init](/sdk/auth-and-client-init) |
-| Package-to-capability lookup | [Module Map](/sdk/module-map) |
-| TypeScript bootstrap | [TypeScript Quick Start](/sdk/typescript-quick-start) |
-| Flutter bootstrap | [Flutter Quick Start](/sdk/flutter-quick-start) |
-| Rust bootstrap | [Rust Quick Start](/sdk/rust-quick-start) |
-| Capability-focused deep dives | [/sdk/modules/session-and-presence](/sdk/modules/session-and-presence), [/sdk/modules/realtime](/sdk/modules/realtime), [/sdk/modules/conversations](/sdk/modules/conversations), [/sdk/modules/messages](/sdk/modules/messages), [/sdk/modules/media](/sdk/modules/media), [/sdk/modules/streams](/sdk/modules/streams), [/sdk/modules/rtc](/sdk/modules/rtc) |
-| Scenario walkthroughs | [/sdk/examples/session-bootstrap](/sdk/examples/session-bootstrap), [/sdk/examples/conversation-workflow](/sdk/examples/conversation-workflow), [/sdk/examples/message-and-media](/sdk/examples/message-and-media), [/sdk/examples/stream-and-rtc](/sdk/examples/stream-and-rtc) |
+| Rich IM product integration in browser or Node.js | [TypeScript SDK](/sdk/typescript-sdk) |
+| Flutter IM product integration | [Flutter SDK](/sdk/flutter-sdk) |
+| Rust IM integration | [Rust SDK](/sdk/rust-sdk) |
+| Generated app-business transport for `/app/v3/api/*` | [App API SDK](/sdk/app-sdk) |
+| Backend, ops, control, or admin transport for `/backend/v3/api/*` | [Backend SDK](/sdk/backend-sdk) |
+| RTC provider runtime and native driver boundary | [RTC SDK](/sdk/rtc-sdk) |
+| Generated/manual ownership rules | [Generator Boundary](/sdk/generator-boundary) |
+| Language maturity and package state | [Language Support](/sdk/language-support) |
 
-## API Reference Router
+## Current Workspace Truth
 
-Use the SDK guides for package choice and runtime ergonomics. Jump to the route-level reference
-when you need exact HTTP payloads, DTOs, or operation semantics:
+The checked-in workspaces and their `.sdkwork-assembly.json` snapshots are the source of truth for
+repo-local generation state:
 
-| Need | Exact API reference |
-| --- | --- |
-| Auth, current session, and portal shell snapshots | [Portal and Auth](/api-reference/app/portal-and-auth) |
-| Conversation creation, timeline entrypoints, and app conversation lifecycle | [Conversations](/api-reference/app/conversations) |
-| Message payload schemas and send-route semantics | [Messages](/api-reference/app/messages) |
-| Upload preparation, completion, download, and attachment flows | [Media](/api-reference/app/media) |
-| Session lifecycle, live subscriptions, and realtime coordination | [Session and Realtime](/api-reference/app/session-and-realtime) |
-| RTC session lifecycle and signaling-side HTTP operations | [RTC](/api-reference/app/rtc) |
-| Stream open, append, checkpoint, complete, and abort flows | [Streams](/api-reference/app/streams) |
-| Control-plane protocol registry and governance rules | [Protocol Governance](/api-reference/control-plane/protocol) |
-| Provider policy, routing, and provider governance | [Provider Governance](/api-reference/control-plane/providers) |
-| Drain, activation, and node lifecycle operations | [Node Operations](/api-reference/control-plane/nodes) |
+| Workspace | Current authority | Verification entry |
+| --- | --- | --- |
+| `sdks/sdkwork-im-sdk` | `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml` | `node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs` |
+| `sdks/sdkwork-im-app-sdk` | `sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml` | `node ./sdks/sdkwork-im-app-sdk/bin/verify-sdk.mjs` |
+| `sdks/sdkwork-im-backend-sdk` | `sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml` | `node ./sdks/sdkwork-im-backend-sdk/bin/verify-sdk.mjs` |
+| `sdks/sdkwork-rtc-sdk` | `sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json` | `node ./sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs` |
 
-## App SDK Language Matrix
+The OpenAPI-generated families share the SDKWork dual-token standard and generate from OpenAPI 3.x.
+The RTC SDK is intentionally separate: it owns provider catalogs, provider package boundaries,
+provider selection, native driver expectations, signaling transport rules, and runtime bridge
+contracts.
 
-Read the matrix this way:
+## Language Matrix
 
-- `Official consumer package`
-  The package normal application code should import today.
-- generated transport artifact
-  The verified transport-level package or module that exists today when a semantic package is not
-  yet shipped for that language.
+| Family | Languages | Primary current surface |
+| --- | --- | --- |
+| `sdkwork-im-sdk` | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | `@sdkwork/im-sdk` for TypeScript, `im_sdk` for Flutter, `im-sdk` for Rust, generated transport for other languages |
+| `sdkwork-im-app-sdk` | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated clients such as `SdkworkAppClient` targeting `/app/v3/api/*` |
+| `sdkwork-im-backend-sdk` | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated clients such as `SdkworkBackendClient` targeting `/backend/v3/api/*` |
+| `sdkwork-rtc-sdk` | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Provider-standard metadata in every language, executable runtime baseline where implemented |
 
-| Language | Tier | Current public surface | Primary client | Best current reading |
-| --- | --- | --- | --- | --- |
-| TypeScript | Tier A | `@sdkwork/im-sdk` with generated transport assembled under `src/generated/**` | `ImSdkClient` | [TypeScript SDK](/sdk/typescript-sdk) |
-| Flutter | Tier A | `im_sdk` above generated `im_sdk_generated` | `ImSdkClient` | [Flutter SDK](/sdk/flutter-sdk) |
-| Rust | Tier A | `im-sdk` above generated `sdkwork-im-sdk-generated` | `ImSdkClient` | [Rust SDK](/sdk/rust-sdk) |
-| Java | Tier B | Generated artifact `com.sdkwork:im-sdk-generated`; semantic reserve under `composed` | `ImSdkClient` target | [Java SDK](/sdk/java-sdk) |
-| C# | Tier B | Generated package `Sdkwork.Im.Sdk.Generated`; semantic reserve under `composed` | `ImSdkClient` target | [C# SDK](/sdk/csharp-sdk) |
-| Swift | Tier B | Generated package `ImSdkGenerated`; semantic reserve under `composed` | `ImSdkClient` target | [Swift SDK](/sdk/swift-sdk) |
-| Kotlin | Tier B | Generated artifact `com.sdkwork:im-sdk-generated`; semantic reserve under `composed` | `ImSdkClient` target | [Kotlin SDK](/sdk/kotlin-sdk) |
-| Go | Tier B | Generated module `github.com/sdkwork/im-sdk-generated`; semantic reserve under `composed` | `ImSdkClient` target | [Go SDK](/sdk/go-sdk) |
-| Python | Tier B | Generated package `sdkwork-im-sdk-generated`; semantic reserve under `composed` | `ImSdkClient` target | [Python SDK](/sdk/python-sdk) |
+Generated symbols must be consumed through package root entrypoints only. Do not import private
+`generated/server-openapi/src/*` paths from application code or docs snippets.
 
-For Java, C#, Swift, Kotlin, Go, and Python, the real checked-in transport entrypoint is still the
-generated `ImTransportClient` surface in that language's generated package. Rust now ships
-`ImSdkClient` under `im-sdk`, while the remaining languages still reserve `ImSdkClient` as the
-future semantic client name for a later manual layer.
+## Boundary Rules
 
-## Tier Model
-
-### Tier A
-
-Tier A languages are the semantic-SDK baseline. They are the languages the workspace is actively
-driving toward the TypeScript standard of:
-
-- one business-facing client
-- a documented generated-versus-semantic boundary
-- workflow-first app guidance instead of route-group-only guidance
-
-Today, TypeScript is fully in that shape. Flutter is a checked-in consumer SDK with known parity
-gaps. Rust now also ships a checked-in semantic client under `composed`, with auth/portal and
-websocket live runtime still trailing the TypeScript baseline.
-
-### Tier B
-
-Tier B languages are transport-standardized first. The workspace guarantees:
-
-- the language is generated from the same live schema
-- the generated transport lands under `generated/server-openapi`
-- a manual semantic reserve exists under `composed`
-- package naming, verification, and docs stay aligned
-
-Tier B does not claim TypeScript-level live runtime, message builder, or RTC semantic parity until
-those handwritten layers actually exist.
-
-## TypeScript Standard
-
-The TypeScript app SDK remains the reference implementation:
-
-- official consumer package: `@sdkwork/im-sdk`
-- primary client: `ImSdkClient`
-- synchronous construction: `new ImSdkClient({...})`
-- flat config with `baseUrl`, `apiBaseUrl`, `websocketBaseUrl`, `authToken`, and
-  `webSocketFactory`
-- message-first outbound APIs through `sdk.createXxxMessage(...)` and `sdk.send(...)`
-- payload-first domain receive APIs through `sdk.connect(...)` and durable replay through `sdk.sync`
-- exact route-aligned transport modules available directly on `ImSdkClient`
-- generated transport clients named `ImTransportClient` in the non-TypeScript generated packages
-
-## Choose The Right Surface
-
-| Need | Best fit |
-| --- | --- |
-| Application integration that needs the richest checked-in semantics | `ImSdkClient` in `@sdkwork/im-sdk` |
-| Route-aligned Dart integration above a generated package | `ImSdkClient` in `im_sdk` |
-| Transport-standardized JVM/.NET/Swift/Go/Python work | The generated transport artifact documented on the language page |
-| Generated-versus-semantic rules before extending a language | [Generator Boundary](/sdk/generator-boundary) |
-| Exact generated DTOs and route groups | `ImTransportClient` or the generated transport artifact for that language; in TypeScript use the route-aligned modules on `ImSdkClient` |
-
-## Contract Source
-
-The app SDK family is generated from the Craw Chat app OpenAPI 3.x contract exported by the
-running service at `/openapi/craw-chat-app.openapi.yaml`.
-
-For every official language:
-
-- the checked-in authority snapshot lives under `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
-- the generator-owned transport boundary lives under `generated/server-openapi`
-- the handwritten semantic boundary lives under `composed`, except for the TypeScript single-package
-  assembly that exposes the generated layer under `src/generated/**`
+- `sdkwork-im-sdk` must not absorb backend/admin/control APIs.
+- `sdkwork-im-app-sdk` must not expose `/backend/v3/api/*`, `/im/v3/api/*`, `/admin/*`, or `/control/*` routes.
+- `sdkwork-im-backend-sdk` must own all admin and control APIs, and must not absorb app-business provider or IoT APIs.
+- `sdkwork-rtc-sdk` must remain independent from OpenAPI-generated HTTP SDK families.
+- New non-management HTTP APIs outside IM standardization go to `/app/v3/api/*` and `sdkwork-im-app-sdk`.
+- New management, governance, operator, or admin APIs go to `/backend/v3/api/*` and `sdkwork-im-backend-sdk`.
 
 ## What To Read Next
 
-- [App SDK](/sdk/app-sdk)
 - [TypeScript SDK](/sdk/typescript-sdk)
 - [Flutter SDK](/sdk/flutter-sdk)
-- [Rust SDK](/sdk/rust-sdk)
-- [TypeScript Quick Start](/sdk/typescript-quick-start)
-- [Flutter Quick Start](/sdk/flutter-quick-start)
-- [Rust Quick Start](/sdk/rust-quick-start)
-- [Auth and Client Init](/sdk/auth-and-client-init)
-- [Module Map](/sdk/module-map)
-- [Java SDK](/sdk/java-sdk)
-- [C# SDK](/sdk/csharp-sdk)
-- [Swift SDK](/sdk/swift-sdk)
-- [Kotlin SDK](/sdk/kotlin-sdk)
-- [Go SDK](/sdk/go-sdk)
-- [Python SDK](/sdk/python-sdk)
-- [Generator Boundary](/sdk/generator-boundary)
-- [Control-Plane SDK](/sdk/control-plane-sdk)
-- [IM Admin SDK](/sdk/im-admin-sdk)
+- [App API SDK](/sdk/app-sdk)
+- [Backend SDK](/sdk/backend-sdk)
+- [RTC SDK](/sdk/rtc-sdk)
 - [Language Support](/sdk/language-support)
-- [App API Overview](/api-reference/app-api)
-- [Control Plane API Overview](/api-reference/control-plane-api)
+- [Generator Boundary](/sdk/generator-boundary)
+- [API Reference](/api-reference/index)

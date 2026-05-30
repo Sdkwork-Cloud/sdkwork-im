@@ -42,7 +42,7 @@ where
 
     pub fn apply_conversation_policy_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         policy: ConversationPolicy,
     ) -> Result<ConversationPolicy, RuntimeError> {

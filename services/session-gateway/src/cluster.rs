@@ -24,7 +24,7 @@ fn lock_cluster_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexG
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!("warning: recovering poisoned mutex in session-gateway/cluster: {label}");
+            tracing::warn!("recovering poisoned mutex in session-gateway/cluster: {label}");
             poisoned.into_inner()
         }
     }

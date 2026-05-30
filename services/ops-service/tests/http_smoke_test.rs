@@ -30,7 +30,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
     assert_eq!(value["openapi"], "3.1.0");
     assert_eq!(value["info"]["title"], "Craw Chat Ops Service API");
-    assert!(value["paths"]["/api/v1/ops/health"].is_object());
+    assert!(value["paths"]["/backend/v3/api/ops/health"].is_object());
 }
 
 #[tokio::test]
@@ -65,11 +65,11 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/health")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/health")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -119,11 +119,11 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/cluster")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/cluster")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -145,11 +145,11 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/lag")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/lag")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -177,25 +177,25 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/replay-status")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/replay_status")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("ops replay-status should succeed");
+        .expect("ops replay_status should succeed");
     assert_eq!(replay_status_response.status(), StatusCode::OK);
     let replay_status_body = replay_status_response
         .into_body()
         .collect()
         .await
-        .expect("replay-status body should collect")
+        .expect("replay_status body should collect")
         .to_bytes();
     let replay_status_json: serde_json::Value = serde_json::from_slice(&replay_status_body)
-        .expect("replay-status body should be valid json");
+        .expect("replay_status body should be valid json");
     assert_eq!(replay_status_json["status"], "idle");
     assert_eq!(replay_status_json["replay"]["backlogSize"], 0);
     assert_eq!(replay_status_json["replay"]["replayedEventCount"], 0);
@@ -207,32 +207,32 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
             .unwrap()
             .iter()
             .any(|item| item["component"] == "projection_replay" && item["lag"] == 0),
-        "ops replay-status should expose the default projection replay lag item"
+        "ops replay_status should expose the default projection replay lag item"
     );
 
     let runtime_dir_response = app
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/runtime-dir")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/runtime_dir")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("ops runtime-dir inspection should succeed");
+        .expect("ops runtime_dir inspection should succeed");
     assert_eq!(runtime_dir_response.status(), StatusCode::OK);
     let runtime_dir_body = runtime_dir_response
         .into_body()
         .collect()
         .await
-        .expect("runtime-dir body should collect")
+        .expect("runtime_dir body should collect")
         .to_bytes();
     let runtime_dir_json: serde_json::Value =
-        serde_json::from_slice(&runtime_dir_body).expect("runtime-dir body should be valid json");
+        serde_json::from_slice(&runtime_dir_body).expect("runtime_dir body should be valid json");
     assert_eq!(runtime_dir_json["status"], "unmanaged");
     assert_eq!(runtime_dir_json["files"].as_array().unwrap().len(), 0);
 
@@ -240,51 +240,51 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/provider-bindings")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/provider_bindings")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("ops provider-bindings should succeed");
+        .expect("ops provider_bindings should succeed");
     assert_eq!(provider_bindings_response.status(), StatusCode::OK);
     let provider_bindings_body = provider_bindings_response
         .into_body()
         .collect()
         .await
-        .expect("provider-bindings body should collect")
+        .expect("provider_bindings body should collect")
         .to_bytes();
     let provider_bindings_json: serde_json::Value = serde_json::from_slice(&provider_bindings_body)
-        .expect("provider-bindings body should be valid json");
+        .expect("provider_bindings body should be valid json");
     assert_eq!(provider_bindings_json["items"].as_array().unwrap().len(), 0);
 
     let provider_binding_drift_response = app
         .clone()
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/provider-bindings/drift")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/provider_bindings/drift")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("ops provider-bindings drift should succeed");
+        .expect("ops provider_bindings drift should succeed");
     assert_eq!(provider_binding_drift_response.status(), StatusCode::OK);
     let provider_binding_drift_body = provider_binding_drift_response
         .into_body()
         .collect()
         .await
-        .expect("provider-bindings drift body should collect")
+        .expect("provider_bindings drift body should collect")
         .to_bytes();
     let provider_binding_drift_json: serde_json::Value =
         serde_json::from_slice(&provider_binding_drift_body)
-            .expect("provider-bindings drift body should be valid json");
+            .expect("provider_bindings drift body should be valid json");
     assert_eq!(
         provider_binding_drift_json["items"]
             .as_array()
@@ -296,11 +296,11 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     let diagnostics_response = app
         .oneshot(
             Request::builder()
-                .uri("/api/v1/ops/diagnostics")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_demo")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "ops.read")
+                .uri("/backend/v3/api/ops/diagnostics")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )

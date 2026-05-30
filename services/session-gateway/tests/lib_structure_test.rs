@@ -485,7 +485,7 @@ fn test_session_gateway_websocket_upgrade_module_stays_pure_axum_adapter() {
     .expect("services/session-gateway/src/websocket_route.rs should exist");
 
     for forbidden_symbol in [
-        "resolve_auth_context(&headers)?",
+        "resolve_app_context(&headers)?",
         "resolve_requested_device_id(",
     ] {
         assert!(
@@ -497,7 +497,7 @@ fn test_session_gateway_websocket_upgrade_module_stays_pure_axum_adapter() {
     for required_symbol in [
         "pub(crate) struct RealtimeWebsocketRouteContext",
         "pub(crate) fn prepare_realtime_websocket_route(",
-        "resolve_auth_context(",
+        "resolve_app_context(",
         "resolve_requested_device_id(&auth, None)?",
         "state.prepare_active_device_route(",
     ] {
@@ -526,7 +526,7 @@ fn test_session_gateway_websocket_upgrade_module_stays_pure_axum_adapter() {
     );
     assert!(
         upgrade_source.contains(
-            ".on_upgrade(move |socket| upgrade.execute(socket, serve_realtime_websocket_upgrade))"
+            ".on_upgrade(move |socket| {\n        upgrade.execute(socket, move |socket, context, mode| {"
         ),
         "services/session-gateway/src/websocket_upgrade.rs should keep the Axum on_upgrade seam"
     );
@@ -535,15 +535,16 @@ fn test_session_gateway_websocket_upgrade_module_stays_pure_axum_adapter() {
 #[test]
 fn test_session_gateway_session_surface_moves_out_of_lib_impl() {
     let lib_source = include_str!("../src/lib.rs");
-    let session_source =
-        std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/session.rs"))
-            .expect("services/session-gateway/src/session.rs should exist");
+    let session_source = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_session.rs"),
+    )
+    .expect("services/session-gateway/src/device_session.rs should exist");
 
     for forbidden_symbol in [
-        "async fn resume_session(",
+        "async fn resume_device_session(",
         "async fn get_presence_me(",
         "async fn heartbeat_presence(",
-        "async fn disconnect_session(",
+        "async fn disconnect_device_session(",
     ] {
         assert!(
             !lib_source.contains(forbidden_symbol),
@@ -552,31 +553,32 @@ fn test_session_gateway_session_surface_moves_out_of_lib_impl() {
     }
 
     for required_symbol in [
-        "pub(crate) async fn resume_session(",
+        "pub(crate) async fn resume_device_session(",
         "pub(crate) async fn get_presence_me(",
         "pub(crate) async fn heartbeat_presence(",
-        "pub(crate) async fn disconnect_session(",
+        "pub(crate) async fn disconnect_device_session(",
     ] {
         assert!(
             session_source.contains(required_symbol),
-            "services/session-gateway/src/session.rs should host session/presence handler symbol: {required_symbol}"
+            "services/session-gateway/src/device_session.rs should host session/presence handler symbol: {required_symbol}"
         );
     }
 }
 
 #[test]
-fn test_session_gateway_session_paths_use_device_sync_session_state_owner_seam() {
-    let session_source =
-        std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/session.rs"))
-            .expect("services/session-gateway/src/session.rs should exist");
+fn test_session_gateway_session_paths_use_device_sync_state_snapshot_owner_seam() {
+    let session_source = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_session.rs"),
+    )
+    .expect("services/session-gateway/src/device_session.rs should exist");
 
     for required_symbol in [
-        "fn device_sync_session_state(",
-        "state.device_sync_session_state(",
+        "fn device_sync_state_snapshot(",
+        "state.device_sync_state_snapshot(",
     ] {
         assert!(
             session_source.contains(required_symbol),
-            "services/session-gateway/src/session.rs should consume the shared session sync-state owner seam: {required_symbol}"
+            "services/session-gateway/src/device_session.rs should consume the shared session sync-state owner seam: {required_symbol}"
         );
     }
 
@@ -586,7 +588,7 @@ fn test_session_gateway_session_paths_use_device_sync_session_state_owner_seam()
     ] {
         assert!(
             !session_source.contains(forbidden_symbol),
-            "services/session-gateway/src/session.rs should not keep raw session sync-state reads once the owner seam exists: {forbidden_symbol}"
+            "services/session-gateway/src/device_session.rs should not keep raw session sync-state reads once the owner seam exists: {forbidden_symbol}"
         );
     }
 }
@@ -595,9 +597,9 @@ fn test_session_gateway_session_paths_use_device_sync_session_state_owner_seam()
 fn test_session_gateway_sync_state_owner_moves_out_of_lib_impl() {
     let lib_source = include_str!("../src/lib.rs").replace("\r\n", "\n");
     let owner_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/session_state.rs"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_sync_state.rs"),
     )
-    .expect("services/session-gateway/src/session_state.rs should exist")
+    .expect("services/session-gateway/src/device_sync_state.rs should exist")
     .replace("\r\n", "\n");
 
     for forbidden_symbol in [
@@ -613,27 +615,27 @@ fn test_session_gateway_sync_state_owner_moves_out_of_lib_impl() {
     }
 
     for required_symbol in [
-        "mod session_state;",
-        "session_state: SessionSyncState,",
-        "self.session_state\n            .device_sync_session_state(",
+        "mod device_sync_state;",
+        "device_sync_state: DeviceSyncState,",
+        "self.device_sync_state\n            .device_sync_state_snapshot(",
     ] {
         assert!(
             lib_source.contains(required_symbol),
-            "services/session-gateway/src/lib.rs should delegate session sync-state ownership through SessionSyncState: {required_symbol}"
+            "services/session-gateway/src/lib.rs should delegate session sync-state ownership through DeviceSyncState: {required_symbol}"
         );
     }
 
     for required_symbol in [
-        "pub(crate) struct SessionSyncState",
+        "pub(crate) struct DeviceSyncState",
         "pub(crate) fn ensure_device_kind_available(",
         "pub(crate) fn register_device(",
-        "pub(crate) fn device_sync_session_state(",
+        "pub(crate) fn device_sync_state_snapshot(",
         "fn registered_devices(&self, tenant_id: &str, principal_id: &str, principal_kind: &str) -> Vec<String> {",
         "fn latest_device_sync_seq(",
     ] {
         assert!(
             owner_source.contains(required_symbol),
-            "services/session-gateway/src/session_state.rs should host session sync-state owner implementation: {required_symbol}"
+            "services/session-gateway/src/device_sync_state.rs should host session sync-state owner implementation: {required_symbol}"
         );
     }
 }
@@ -650,7 +652,7 @@ fn test_session_gateway_device_registration_owner_moves_out_of_lib_impl() {
     for forbidden_symbol in [
         "self.presence_runtime\n            .register_device(",
         "self.realtime_runtime\n            .ensure_device_state(",
-        "self.session_state\n            .register_device(",
+        "self.device_sync_state\n            .register_device(",
         "self.realtime_cluster.bind_device_route(",
         "self.realtime_cluster.clear_device_disconnect_fence(",
     ] {
@@ -662,23 +664,23 @@ fn test_session_gateway_device_registration_owner_moves_out_of_lib_impl() {
 
     for required_symbol in [
         "mod device_registration;",
-        "device_registration: SessionDeviceRegistration,",
+        "device_registration: DeviceRouteRegistration,",
         "self.device_registration.register_device(",
     ] {
         assert!(
             lib_source.contains(required_symbol),
-            "services/session-gateway/src/lib.rs should delegate device registration ownership through SessionDeviceRegistration: {required_symbol}"
+            "services/session-gateway/src/lib.rs should delegate device registration ownership through DeviceRouteRegistration: {required_symbol}"
         );
     }
 
     for required_symbol in [
-        "pub(crate) struct SessionDeviceRegistration",
+        "pub(crate) struct DeviceRouteRegistration",
         "pub(crate) fn new(",
         "pub(crate) fn register_device(",
         "pub(crate) fn prepare_active_device_route(",
         "self.presence_runtime\n            .register_device(",
         "self.realtime_runtime\n            .ensure_device_state_for_principal_kind(",
-        "self.session_state.register_device(",
+        "self.device_sync_state.register_device(",
         "self.realtime_cluster.bind_device_route_for_principal_kind(",
     ] {
         assert!(
@@ -691,9 +693,10 @@ fn test_session_gateway_device_registration_owner_moves_out_of_lib_impl() {
 #[test]
 fn test_session_gateway_route_preflight_owner_moves_out_of_entrypoints() {
     let lib_source = include_str!("../src/lib.rs");
-    let session_source =
-        std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/session.rs"))
-            .expect("services/session-gateway/src/session.rs should exist");
+    let session_source = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_session.rs"),
+    )
+    .expect("services/session-gateway/src/device_session.rs should exist");
     let route_source = std::fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/websocket_route.rs"),
     )
@@ -711,7 +714,7 @@ fn test_session_gateway_route_preflight_owner_moves_out_of_entrypoints() {
         );
         assert!(
             !session_source.contains(forbidden_symbol),
-            "services/session-gateway/src/session.rs should not keep raw route preflight glue once the owner seam exists: {forbidden_symbol}"
+            "services/session-gateway/src/device_session.rs should not keep raw route preflight glue once the owner seam exists: {forbidden_symbol}"
         );
         assert!(
             !route_source.contains(forbidden_symbol),
@@ -738,7 +741,7 @@ fn test_session_gateway_route_preflight_owner_moves_out_of_entrypoints() {
         let required_symbol = "state.prepare_active_device_route(";
         assert!(
             session_source.contains(required_symbol),
-            "services/session-gateway/src/session.rs should consume the shared route preflight owner seam: {required_symbol}"
+            "services/session-gateway/src/device_session.rs should consume the shared route preflight owner seam: {required_symbol}"
         );
         assert!(
             route_source.contains(required_symbol),
@@ -762,9 +765,10 @@ fn test_session_gateway_route_preflight_owner_moves_out_of_entrypoints() {
 #[test]
 fn test_session_gateway_disconnect_lifecycle_owner_moves_out_of_session_entrypoints() {
     let lib_source = include_str!("../src/lib.rs");
-    let session_source =
-        std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/session.rs"))
-            .expect("services/session-gateway/src/session.rs should exist");
+    let session_source = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_session.rs"),
+    )
+    .expect("services/session-gateway/src/device_session.rs should exist");
     let owner_source = std::fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_registration.rs"),
     )
@@ -778,7 +782,7 @@ fn test_session_gateway_disconnect_lifecycle_owner_moves_out_of_session_entrypoi
     ] {
         assert!(
             !session_source.contains(forbidden_symbol),
-            "services/session-gateway/src/session.rs should not keep raw disconnect lifecycle glue once the owner seam exists: {forbidden_symbol}"
+            "services/session-gateway/src/device_session.rs should not keep raw disconnect lifecycle glue once the owner seam exists: {forbidden_symbol}"
         );
     }
 
@@ -794,7 +798,7 @@ fn test_session_gateway_disconnect_lifecycle_owner_moves_out_of_session_entrypoi
 
     assert!(
         session_source.contains("state.disconnect_active_device_route("),
-        "services/session-gateway/src/session.rs should consume the shared disconnect lifecycle owner seam"
+        "services/session-gateway/src/device_session.rs should consume the shared disconnect lifecycle owner seam"
     );
 
     for required_symbol in [

@@ -23,7 +23,7 @@
 
 ### 1. 是否新增了服务端协议
 
-结论：没有。CLI 完全复用现有 `/api/v1/conversations*` 和 `/api/v1/realtime/ws`。
+结论：没有。CLI 完全复用现有 `/im/v3/api/chat/conversations*` 和 `/im/v3/api/realtime/ws`。
 
 ### 2. 是否能用于多终端人工验证
 

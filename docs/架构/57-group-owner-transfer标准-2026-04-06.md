@@ -26,7 +26,7 @@
 ### 3.1 命令与接口
 
 - 新增命令：`transfer_conversation_owner`
-- 新增接口：`POST /api/v1/conversations/{conversationId}/members/transfer-owner`
+- 新增接口：`POST /im/v3/api/chat/conversations/{conversationId}/members/transfer-owner`
 - 请求体：
 
 ```json

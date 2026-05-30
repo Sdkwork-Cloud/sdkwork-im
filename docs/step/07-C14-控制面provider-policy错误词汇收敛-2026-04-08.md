@@ -9,8 +9,8 @@
 
 ## 路径
 
-- `GET /api/v1/control/provider-policies/diff?fromVersion=1&toVersion=9`
-- `POST /api/v1/control/provider-policies/rollback`
+- `GET /backend/v3/api/control/provider-policies/diff?fromVersion=1&toVersion=9`
+- `POST /backend/v3/api/control/provider-policies/rollback`
 
 ## 契约
 

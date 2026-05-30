@@ -1,0 +1,363 @@
+{
+  "schemaVersion": 1,
+  "generator": "@sdkwork/sdk-generator",
+  "sdk": {
+    "name": "sdkwork-im-backend-sdk",
+    "version": "0.1.0",
+    "language": "python",
+    "sdkType": "backend",
+    "packageName": "sdkwork-im-backend-api-generated"
+  },
+  "generatedFiles": [
+    {
+      "path": "bin/publish-core.mjs",
+      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+    },
+    {
+      "path": "bin/publish.ps1",
+      "sha256": "b383d4f7233b567acd36fa2ff644448730007738901cf1770cb02746f88fbb05"
+    },
+    {
+      "path": "bin/publish.sh",
+      "sha256": "6fd65ff5011e48b24018ab691edd8803c4b1fd293d013b75d1adb3bcd26f7cde"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "fb941a0806986a54fc192f98a98f6d9c282b8d350b2b19a3e71dda404e92d545"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "7840cc7d2b36ff364ac16c2fc5ec15b861bfe96854eecf81fb59b00edb8b1447"
+    },
+    {
+      "path": "MANIFEST.in",
+      "sha256": "80373543c3dd5fae7c1ec47269b7d4d4bda8f851b180049b2a875b07b9c76ff2"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "5fe9e6964b5cd2bdf4b5334295455dab2478fdd2e3fc90e178278de27388782f"
+    },
+    {
+      "path": "README.md",
+      "sha256": "69de1ca57698fd4dbacd4cbce3f08ec0cd44ae4e1d426927cf566900f4843462"
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "5f3072c051f89b9af1b681381406e0b2466895fb150660d583c85c84396001c8"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/__init__.py",
+      "sha256": "310d0a08b033b3c2da22bc5622e9ee24836f221b25bb7d027610a14372ed2a3e"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/api/__init__.py",
+      "sha256": "a5433f6324fb584dc285e4a3c0179fd1696d86892312b64fc8fa0ae6b468ab65"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/api/admin.py",
+      "sha256": "9313193ca2ce1c2e6f11ad93819ef1fc733932cd4d79b1326158ff611e24b4f9"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/api/audit.py",
+      "sha256": "ecdf3c1e606b7a44caf0c2f189cc2ac3998e1414af31cfac47b40ba59b2f1247"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/api/automation.py",
+      "sha256": "5e89d2e1b91dd3fb5fc628f98fd1c3fef4b3a2fc2fd96aef0b13b2b98c02723d"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/api/control.py",
+      "sha256": "8a27907bc5f3311c979fbe24551a92ee0a957b9e8b0edc6b44cf3c534d875e0d"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/api/ops.py",
+      "sha256": "eb14b6198cfffd23ebac9d3f0df55024cdd0c08e441079c508fc9fe2fa71c409"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/client.py",
+      "sha256": "86140dbbd949b03c111e6e5831a7d4190e51c4b8b2d645fc8d68c6689f73204e"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/http_client.py",
+      "sha256": "c423af289dbbe0eef7d8be5ee0aec13cedf64df967b3d64ad7306a78ac394a82"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/__init__.py",
+      "sha256": "e8b1cd502a76a3b8560ecf747892366bc78f3a27f75e744d43c05010fa225669"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/accept_friend_request_request.py",
+      "sha256": "c8ba3cfdcf601095000d1cebfd32501bd5c77ff44cb83909a61efa903931a294"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/activate_friendship_request.py",
+      "sha256": "e094cddfbc43265bb5eb52f621aea60f176405b359d4eb7cf820b68ef129d1f4"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/apply_shared_channel_policy_request.py",
+      "sha256": "e6436ae5f3c82ab6f03c077028eb9b86b3e5bed58eeed1633d08d54a2f31aed9"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/bind_direct_chat_request.py",
+      "sha256": "7c9bbf345b472ca5e68f4a15974eb3eb2e9fad1be1e9dad939474cc145c5fc23"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/bind_external_member_link_request.py",
+      "sha256": "fef108918b32a365481b8ffc97dff48a1827c57a27e5155ef36356ca0adb0e17"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/block_user_request.py",
+      "sha256": "a475cab5b491ba69583a3644eba6ea49bd26e67bcb87038f5b24370d80e073b0"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/business_policy_vocabulary_response.py",
+      "sha256": "b671bbf346c3131876a4a51ccfb6ecb7982d8bbed93f6ff05399969a7de06f42"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/cancel_friend_request_request.py",
+      "sha256": "d8cca477a0206b5c297bd290bd332946774054884af9e253da8a0c11b7839d55"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/capability_profile_response.py",
+      "sha256": "48bcbdbfcc4145c36b0dfb3cf81852d42aab038b5279e2a71c197700d89ec222"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/client_compatibility_response.py",
+      "sha256": "1d4248b86d29f139eac7d4fe0cefbee94895277613f0eadf7d3c47dd239f1d7c"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/decline_friend_request_request.py",
+      "sha256": "696ec22522e44a4af7046b3e5e3765d44bae50732661f8f0cc0906e5c6acca5c"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/effective_protocol_snapshot_response.py",
+      "sha256": "f0739cd7017e3db36b1db9a06ad39763d620a27072d813fe393f7c07a9d3ce4c"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/establish_external_connection_request.py",
+      "sha256": "505d05123d080267c224035a3fcf779d0b4d2397658b65c9ba0183353947a9d2"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/kill_switch_response.py",
+      "sha256": "bd15e7eb1866b4989a7b237aee7944084e6d3df249d1b464a112a5f4abb1643b"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/migrate_routes_request.py",
+      "sha256": "9ac470c57a0c2d981d9ef24373326fb8593c4fbadfa989a0f5553dd938213dba"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/problem_detail.py",
+      "sha256": "de753fde956dbaeeea7f15a96a70eb41b89f45b3880d5808c979fd03fd471c41"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/protocol_governance_response.py",
+      "sha256": "fa763a52690229d4177c31c3bb669e39198e3023ebeda35ead3aa129e36fb057"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/protocol_registry_response.py",
+      "sha256": "fe8498907b3a2a54f8ccfb1013e70bbd8261273b768d94d9b351608d6d9788f3"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/protocol_schema_response.py",
+      "sha256": "115ae72c77397b3e92533fcdfc4acd1ffc8ddb81442bbf8b835d89350b428ba9"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/provider_binding_commit_response.py",
+      "sha256": "1f705176b8cbe20bb9e74899cc95613af142b942fcc92a4c5f28eb5bfda9898d"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/provider_bindings_response.py",
+      "sha256": "301154a89e933f6e8d5c7bd56989652125c83e73f0c1171ce60c93822e05a473"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/provider_policy_diff_response.py",
+      "sha256": "4e94fc36212410df5ac8a530904fec86bf2c86fecd3f4450ad75d26243163ee2"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/provider_policy_history_response.py",
+      "sha256": "c64119a303d1ec0a94c281e242f12d900651885c27f34c161f884b68bc81420a"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/provider_policy_rollback_request.py",
+      "sha256": "fddee19520feaa13073829da79c73c70ab8282b441fe14c555ddd5ad58aa38f5"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/provider_registry_snapshot_response.py",
+      "sha256": "88426fd68488fe6dcdf9c36eba11d1ad797b0e75389e36ca6603a74fe6eee331"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/quota_profile_response.py",
+      "sha256": "30052e2104966628a566bb9f91477f428ae6064f15e82d0069e922a4425b06f2"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/remove_friendship_request.py",
+      "sha256": "b07ad7fa610e121d69e11045fd507c68bdf048fe8da1f74894e04cd2a846f490"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/rollout_policy_response.py",
+      "sha256": "ab167c0a42dbd0dffc4fba9b3e5bb26cf257f513a573cfde2a2940a06e0816a5"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/route_migration_result.py",
+      "sha256": "34966aa3523cc1a9937543955abcf4971a807647914da345ecdd1b2445bc4383"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/route_node_lifecycle.py",
+      "sha256": "e064cc3c2b94f045c7bf8ea7150426e56ee8c5ee7a5a4c76d36515146a79d405"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/sdk_compatibility_baseline_response.py",
+      "sha256": "a973ae289d312c66239103f6980e963e24bf234b06e509b78d0c76f2bce7d0f2"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_direct_chat_commit_response.py",
+      "sha256": "d8841c197c0f5b28fa54b0805a83d02594da5fc788b35e377f8b6709cfee7d78"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_direct_chat_snapshot_response.py",
+      "sha256": "78e96ab98c3b7ffc8061931dc9bc0b5997b0ac341c2b3b4068a2a66c11b4dabd"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_external_connection_commit_response.py",
+      "sha256": "2063c19393feaab0da94d0a25c1bdb28f65a689c614547e707ad2b947db3bcc4"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_external_connection_snapshot_response.py",
+      "sha256": "8de15495db6e3a78681f2d480526b656dbcd6f1af9f998dd66571d14b9b72647"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_external_member_link_commit_response.py",
+      "sha256": "cf28350fa1208635371caae72caf6188a40a0184514473167842b5dcd7eaf1f7"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_external_member_link_snapshot_response.py",
+      "sha256": "b12c8f9065f1bc65ca02ef4d37122fc934604dc307a0dc8a85af16979c0dcf9f"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_friend_request_commit_response.py",
+      "sha256": "c498505ae96197e4b0701366eae66ff6666284a462aeb5defa190103339fa2eb"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_friend_request_snapshot_response.py",
+      "sha256": "ab7af2d46be2fedce3c575322fbc0a55c574c0c5da60446b2219d1e4ce9aa7c4"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_friendship_commit_response.py",
+      "sha256": "32bc47056e6b90fd8f453ba08629d0f37ca2af6c814a186d45ab53966ebfb4fc"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_friendship_snapshot_response.py",
+      "sha256": "7d87e95d58c88c0fcb89c5e9fdb1c8d5c60f16bd328b2a9534bbb03a9902efc9"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_runtime_repair_response.py",
+      "sha256": "89aa213a91d173e38edea1bd9c04810abc8bc790d5d11137cd4beb22304791cc"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_policy_commit_response.py",
+      "sha256": "f6e2c0237f6e05e7878bb74d2a75261a02099e953b038ee0b85195c680914a82"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_policy_snapshot_response.py",
+      "sha256": "b9bee9e6ac597986b060e4b8d0f354a0448d844b213d564fe588994b904898cf"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_inventory_response.py",
+      "sha256": "07a777d29c9445e0cc1ec9108a131a5de663f6bee1c1ccfaf69eaeeea9001ac9"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_requeue_response.py",
+      "sha256": "ddfddb224a1a0057aad5fc6fd5d1b37f661a417a196ba5bddd5ad807e8376e3b"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_targeted_requeue_request.py",
+      "sha256": "40b6effb9aea0282be39ae4b9d5d1e6f0d30977f1e77d6d5e3b71e4cbfcde299"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_targeted_requeue_response.py",
+      "sha256": "9cf325bc943c85fb5756b19b1c325411ebebd5b93f10ddd6ad483c21b72049ee"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_delivered_inventory_response.py",
+      "sha256": "bb6e9a6d5faf11ad3ab90a75ee38bd9403aad0e1311a7f7300373606f89ea75f"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_delivery_state_inventory_response.py",
+      "sha256": "3cfb929f143984887904aabd6579412782e35a33ef316588064d602ab95b1878"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_claim_response.py",
+      "sha256": "37e70ca0d3d87229864de00c53a416b8542cc889e433ce21184594f23fa247ce"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_inventory_response.py",
+      "sha256": "0f4ae1a75fa88c4c914b68bf0fcfbbbd434f3d988f342011825593448c4eb3e1"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_release_response.py",
+      "sha256": "7df7032ee9ab23aa1f377fb0588982f0ccf47ad76aa36fefd84d17fd0c1f7242"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_stale_reclaim_response.py",
+      "sha256": "4a41795067aa33e46cf6bd58563e6f06818a9fb8936cb1f4e8fc118afa0c8378"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_takeover_response.py",
+      "sha256": "e7da266f449a582a87dfeeb2308e83f67b571123eee5f5f072a9f64b77917b34"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_claim_request.py",
+      "sha256": "5322448dc3ceed6c39cdceab9f3bff68f9f0557b5b6d95e30ecae1779083031f"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_release_request.py",
+      "sha256": "9ec6e026226b5cf7f4ebfc5e7cb2c4e1e65a888ae6b663687c4345b1228c1fcc"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_takeover_request.py",
+      "sha256": "91f5015f4e190dc4f665710e6eb52db8b2cefa4f4d11896b7bb5c260bf7deebb"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_repair_response.py",
+      "sha256": "da6260eb14fdac0e043d3169ec731fdeecf16c3aa99f52f436aa057d9fd8a6e3"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_targeted_republish_request.py",
+      "sha256": "9177fd2c698f1ef0d691a71dab35db356c4553177ae801eca9112798911d87da"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_targeted_republish_response.py",
+      "sha256": "568b22a4fc6f8e609ab8fe93309ee9c43f2edb110a6429c5a0af4801583acb7a"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_user_block_commit_response.py",
+      "sha256": "869743771afa759ed6ef1f663509c080218e2db172ca9846fbb79aa5761eccd6"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/social_user_block_snapshot_response.py",
+      "sha256": "94d3ef606a699e6ff00b774ae2868ec0cd90fae090a767cbf5489b90e15ad0d7"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/submit_friend_request_request.py",
+      "sha256": "f4982882526a3a73fb747610c27def9b53201457b8c2c148ea577883470ad280"
+    },
+    {
+      "path": "sdkwork_im_backend_api_generated/models/upsert_provider_binding_policy_request.py",
+      "sha256": "cffa2ef963d41d1a769e951192f2038df6ad4db6124cfa5f2703cecdd9ee2d65"
+    },
+    {
+      "path": "sdkwork-sdk.json",
+      "sha256": "b6a7689398ff8bebf6fbbf8996ca742109bf3c11303b528c59178fdf0d62c735"
+    },
+    {
+      "path": "setup.py",
+      "sha256": "843ac26c38a41abae578250bc0f9419194b320a0f67327d941037a4268f6cfe7"
+    }
+  ],
+  "scaffoldFiles": [
+    "custom/README.md"
+  ],
+  "customRoots": [
+    "custom/"
+  ]
+}

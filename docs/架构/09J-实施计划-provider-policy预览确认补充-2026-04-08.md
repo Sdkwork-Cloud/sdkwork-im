@@ -18,7 +18,7 @@
   - 新增带 `expectedBaseVersion` 的写入方法
   - 在真实写入前校验当前版本
 - `services/control-plane-api/src/lib.rs`
-  - `POST /api/v1/control/provider-bindings` 新增 `expectedBaseVersion`
+  - `POST /backend/v3/api/control/provider_bindings` 新增 `expectedBaseVersion`
   - 版本漂移时透传 `provider_policy_conflict`
 
 ## 契约冻结

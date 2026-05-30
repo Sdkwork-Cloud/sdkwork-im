@@ -13,7 +13,7 @@ Build professional app-facing SDK workspaces for `craw-chat` TypeScript and Flut
 - Auth model: use bearer auth for public app access; do not model trusted internal headers as the public contract.
 - Workspace shape: mirror the mature `apps/openchat/sdkwork-im-sdk` pattern with root wrappers and per-language layered workspaces.
 - Generator boundary: only `generated/server-openapi` is generator-owned. Manual docs and wrapper scripts stay outside generated output.
-- Realtime websocket treatment: document `/api/v1/realtime/ws` in the authority contract and workspace docs, but do not promise a handwritten websocket adapter in this round.
+- Realtime websocket treatment: document `/im/v3/api/realtime/ws` in the authority contract and workspace docs, but do not promise a handwritten websocket adapter in this round.
 
 ## Architecture
 
@@ -21,9 +21,9 @@ The workspace root `sdks/sdkwork-im-sdk` will own the OpenAPI source, regenerati
 
 ## Files And Responsibilities
 
-- `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
+- `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
   Authority OpenAPI 3.x contract for the app-facing craw-chat surface.
-- `sdks/sdkwork-im-sdk/openapi/craw-chat-app.sdkgen.yaml`
+- `sdks/sdkwork-im-sdk/openapi/craw-chat-im.sdkgen.yaml`
   Generator-compatible derived spec consumed by `sdkwork-sdk-generator`.
 - `sdks/sdkwork-im-sdk/openapi/README.md`
   Documents authority-vs-derived ownership and offline regeneration rules.

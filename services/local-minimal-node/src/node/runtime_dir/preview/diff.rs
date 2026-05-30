@@ -4,7 +4,7 @@ pub(super) fn stable_runtime_dir_restore_preview_fingerprint(
     material: &RuntimeDirRestorePreviewFingerprintMaterial<'_>,
 ) -> String {
     let payload = serde_json::to_vec(material)
-        .expect("runtime-dir restore preview fingerprint material should serialize");
+        .expect("runtime_dir restore preview fingerprint material should serialize");
     let mut hash = 14695981039346656037u64;
     for byte in payload {
         hash ^= u64::from(byte);

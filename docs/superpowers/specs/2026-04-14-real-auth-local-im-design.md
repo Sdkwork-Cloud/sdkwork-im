@@ -110,11 +110,11 @@ This keeps the existing service authorization path stable while moving long-live
 
 Add real public auth endpoints:
 
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `GET /api/v1/auth/me`
+- `sdkwork-appbase` login verification
+- `sdkwork-appbase` dual-token refresh
+- `sdkwork-appbase` IAM context
 
-`POST /api/v1/auth/login` request:
+`sdkwork-appbase` login verification request:
 
 - `tenantId`
 - `login`
@@ -123,7 +123,7 @@ Add real public auth endpoints:
 - `sessionId` optional
 - `clientKind` optional (`im_user` or `portal_operator`)
 
-`POST /api/v1/auth/login` response:
+`sdkwork-appbase` login verification response:
 
 - `accessToken`
 - `refreshToken`
@@ -131,13 +131,13 @@ Add real public auth endpoints:
 - `user`
 - `workspace` when the subject is a portal operator
 
-`POST /api/v1/auth/refresh` request:
+`sdkwork-appbase` dual-token refresh request:
 
 - `refreshToken`
 - `deviceId`
 - `sessionId`
 
-`GET /api/v1/auth/me` response:
+`sdkwork-appbase` IAM context response:
 
 - normalized subject profile resolved from the bearer token and account store
 
@@ -145,15 +145,15 @@ Add real public auth endpoints:
 
 Replace the portal mock data source with real HTTP endpoints served by `local-minimal-node`:
 
-- `GET /api/v1/portal/home`
-- `GET /api/v1/portal/auth`
-- `GET /api/v1/portal/workspace`
-- `GET /api/v1/portal/dashboard`
-- `GET /api/v1/portal/conversations`
-- `GET /api/v1/portal/realtime`
-- `GET /api/v1/portal/media`
-- `GET /api/v1/portal/automation`
-- `GET /api/v1/portal/governance`
+- `GET /app/v3/api/portal/home`
+- `GET /app/v3/api/portal/access`
+- `GET /app/v3/api/portal/workspace`
+- `GET /app/v3/api/portal/dashboard`
+- `GET /app/v3/api/portal/conversations`
+- `GET /app/v3/api/portal/realtime`
+- `GET /app/v3/api/portal/media`
+- `GET /app/v3/api/portal/automation`
+- `GET /app/v3/api/portal/governance`
 
 Public endpoints:
 
@@ -199,8 +199,8 @@ Replace the portal mock data source with a real HTTP data source.
 Frontend changes:
 
 - `/login` becomes a real form with tenant/login/password fields
-- auth store signs in by calling `POST /api/v1/auth/login`
-- bootstrap uses the persisted access token against `GET /api/v1/auth/me`
+- auth store signs in by calling `sdkwork-appbase` login verification
+- bootstrap uses the persisted access token against `sdkwork-appbase` IAM context
 - board data loads through portal HTTP endpoints
 - the default runtime no longer points at `mockPortalDataSource`
 
@@ -243,7 +243,7 @@ Add failing tests first for:
 - seeded account initialization
 - login success and invalid-password rejection
 - refresh rotation and revoked refresh-token rejection
-- `GET /api/v1/auth/me`
+- `sdkwork-appbase` IAM context
 - portal snapshot endpoints requiring portal-authenticated bearer tokens
 
 ### CLI / GUI

@@ -27,9 +27,9 @@
 
 ## Actions This Loop
 - actual_changes:
-  - 控制面新增 `GET /api/v1/control/social/runtime/dead-letter-shared-channel-sync`
+  - 控制面新增 `GET /backend/v3/api/control/social/runtime/dead-letter-shared-channel-sync`
   - inventory item 当前显式暴露 `requestKey / request / failureCount / lastError`
-  - 控制面新增 `POST /api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted`
+  - 控制面新增 `POST /backend/v3/api/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted`
   - `SocialControlState` 当前支持按 `requestKey` 只把被选中的 dead-letter request 回灌到 pending，并在迁移时重置 `failureCount = 0`
   - targeted requeue 仍保留原 request payload 与 `lastError`，未被选中的 dead-letter request 继续保持隔离
   - 新增 dual-service e2e，证明只有被选中的 actor 会恢复 shared history 可读；未被选中的 actor 仍然 `403`

@@ -8,17 +8,17 @@
 <div class="api-link-list">
   <a href="/api-reference/control-plane/protocol"><code>Protocol</code> Protocol registry and governance snapshots are documented separately</a>
   <a href="/api-reference/control-plane/nodes"><code>Nodes</code> Drain, activate, and route migration are documented separately</a>
-  <a href="/sdk/control-plane-sdk"><code>Control-Plane SDK</code> Control-plane SDK docs explain why consumer imports are still documented conservatively</a>
+  <a href="/sdk/backend-sdk"><code>Backend SDK</code> Backend SDK docs explain the generated control module boundary</a>
 </div>
 
-<a id="get-provider-registry"></a>
+<a id="get-provider_registry"></a>
 <section class="api-op">
 
-## `GET /api/v1/control/provider-registry`
+## `GET /backend/v3/api/control/provider_registry`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/api/v1/control/provider-registry</code>
+  <code>/backend/v3/api/control/provider_registry</code>
   <span class="api-op-id">operationId: getProviderRegistry</span>
 </div>
 
@@ -27,8 +27,8 @@ bindings resolved by the registry.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.providers</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderRegistrySnapshotResponse`</span></div>
 </div>
@@ -43,7 +43,7 @@ bindings resolved by the registry.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks the required control-plane permission. |
 | `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
 
@@ -51,11 +51,11 @@ bindings resolved by the registry.
 <a id="get-provider-bindings"></a>
 <section class="api-op">
 
-## `GET /api/v1/control/provider-bindings`
+## `GET /backend/v3/api/control/provider_bindings`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/api/v1/control/provider-bindings</code>
+  <code>/backend/v3/api/control/provider_bindings</code>
   <span class="api-op-id">operationId: getProviderBindings</span>
 </div>
 
@@ -63,8 +63,8 @@ Reads effective provider bindings for the deployment scope or a tenant override 
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.providers</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingsResponse`</span></div>
 </div>
@@ -85,7 +85,7 @@ Reads effective provider bindings for the deployment scope or a tenant override 
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks the required control-plane permission. |
 | `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
 
@@ -93,19 +93,19 @@ Reads effective provider bindings for the deployment scope or a tenant override 
 <a id="upsert-provider-binding-policy"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/provider-bindings`
+## `POST /backend/v3/api/control/provider_bindings`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/provider-bindings</code>
+  <code>/backend/v3/api/control/provider_bindings</code>
   <span class="api-op-id">operationId: upsertProviderBindingPolicy</span>
 </div>
 
 Writes a deployment-level or tenant-level provider binding policy entry.
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.providers</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderBindingCommitResponse`</span></div>
 </div>
@@ -130,11 +130,11 @@ Writes a deployment-level or tenant-level provider binding policy entry.
 <a id="get-provider-policy-history"></a>
 <section class="api-op">
 
-## `GET /api/v1/control/provider-policies`
+## `GET /backend/v3/api/control/provider_policies`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/api/v1/control/provider-policies</code>
+  <code>/backend/v3/api/control/provider_policies</code>
   <span class="api-op-id">operationId: getProviderPolicyHistory</span>
 </div>
 
@@ -142,8 +142,8 @@ Returns provider policy history.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.providers</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderPolicyHistoryResponse`</span></div>
 </div>
@@ -158,7 +158,7 @@ Returns provider policy history.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks the required control-plane permission. |
 | `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
 
@@ -166,11 +166,11 @@ Returns provider policy history.
 <a id="get-provider-policy-diff"></a>
 <section class="api-op">
 
-## `GET /api/v1/control/provider-policies/diff`
+## `GET /backend/v3/api/control/provider_policies/diff`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/api/v1/control/provider-policies/diff</code>
+  <code>/backend/v3/api/control/provider_policies/diff</code>
   <span class="api-op-id">operationId: getProviderPolicyDiff</span>
 </div>
 
@@ -178,8 +178,8 @@ Compares two provider policy versions.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.providers</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.read` or `control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderPolicyDiffResponse`</span></div>
 </div>
@@ -201,7 +201,7 @@ Compares two provider policy versions.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request` | Query or path parameters are invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks the required control-plane permission. |
 | `503` | `*_unavailable` | The governance snapshot or provider runtime is unavailable. |
 
@@ -209,11 +209,11 @@ Compares two provider policy versions.
 <a id="preview-provider-policy"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/provider-policies/preview`
+## `POST /backend/v3/api/control/provider_policies/preview`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/provider-policies/preview</code>
+  <code>/backend/v3/api/control/provider_policies/preview</code>
   <span class="api-op-id">operationId: previewProviderPolicy</span>
 </div>
 
@@ -221,15 +221,15 @@ Previews a provider policy mutation without persisting it.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.providers</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderPolicyPreview`</span></div>
 </div>
 
 ### Request Body
 
-Uses the same request schema as `POST /api/v1/control/provider-bindings`.
+Uses the same request schema as `POST /backend/v3/api/control/provider_bindings`.
 
 <ApiSchemaTable schema="UpsertProviderBindingPolicyRequest" />
 
@@ -243,7 +243,7 @@ Uses the same request schema as `POST /api/v1/control/provider-bindings`.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request`, `invalid_provider_policy` | The mutation payload is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `control.write`. |
 | `404` | `*_not_found`, `provider_plugin_not_found` | The requested node, plugin, or target resource does not exist. |
 | `409` | `*_conflict`, `provider_policy_conflict` | Current control-plane state blocks the mutation. |
@@ -253,11 +253,11 @@ Uses the same request schema as `POST /api/v1/control/provider-bindings`.
 <a id="rollback-provider-policy"></a>
 <section class="api-op">
 
-## `POST /api/v1/control/provider-policies/rollback`
+## `POST /backend/v3/api/control/provider_policies/rollback`
 
 <div class="api-op-header">
   <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/api/v1/control/provider-policies/rollback</code>
+  <code>/backend/v3/api/control/provider_policies/rollback</code>
   <span class="api-op-id">operationId: rollbackProviderPolicy</span>
 </div>
 
@@ -265,8 +265,8 @@ Rolls back the provider policy history to a specific version.
 
 
 <div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>Bearer token</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-control-plane-sdk` / provider-governance</span></div>
+  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`sdkwork-im-backend-sdk` / control.providers</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>`control.write`</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 ProviderPolicyHistoryResponse`</span></div>
 </div>
@@ -289,7 +289,7 @@ Rolls back the provider policy history to a specific version.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `400` | `invalid_request`, `invalid_provider_policy` | The mutation payload is invalid. |
-| `401` | `missing_authorization`, `invalid_token` | Authentication failed. |
+| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
 | `403` | `permission_denied` | The caller lacks `control.write`. |
 | `404` | `*_not_found`, `provider_plugin_not_found` | The requested node, plugin, or target resource does not exist. |
 | `409` | `*_conflict`, `provider_policy_conflict` | Current control-plane state blocks the mutation. |

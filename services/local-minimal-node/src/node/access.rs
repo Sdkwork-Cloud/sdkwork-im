@@ -5,7 +5,7 @@ const DEVICE_TELEMETRY_STREAM_TYPE: &str = "device.telemetry";
 const DEVICE_COMMAND_STREAM_TYPE: &str = "device.command";
 const LOCAL_NODE_MAX_DEVICE_ID_BYTES: usize = 256;
 
-pub(super) fn ensure_audit_read_access(auth: &AuthContext) -> Result<(), ApiError> {
+pub(super) fn ensure_audit_read_access(auth: &AppContext) -> Result<(), ApiError> {
     if auth.has_permission("audit.read") {
         return Ok(());
     }
@@ -16,7 +16,7 @@ pub(super) fn ensure_audit_read_access(auth: &AuthContext) -> Result<(), ApiErro
     ))
 }
 
-pub(super) fn ensure_audit_write_access(auth: &AuthContext) -> Result<(), ApiError> {
+pub(super) fn ensure_audit_write_access(auth: &AppContext) -> Result<(), ApiError> {
     if auth.has_permission("audit.write") {
         return Ok(());
     }
@@ -27,7 +27,7 @@ pub(super) fn ensure_audit_write_access(auth: &AuthContext) -> Result<(), ApiErr
     ))
 }
 
-pub(super) fn ensure_ops_read_access(auth: &AuthContext) -> Result<(), ApiError> {
+pub(super) fn ensure_ops_read_access(auth: &AppContext) -> Result<(), ApiError> {
     if auth.has_permission("ops.read") {
         return Ok(());
     }
@@ -38,7 +38,7 @@ pub(super) fn ensure_ops_read_access(auth: &AuthContext) -> Result<(), ApiError>
     ))
 }
 
-pub(super) fn ensure_portal_access(auth: &AuthContext) -> Result<(), ApiError> {
+pub(super) fn ensure_portal_access(auth: &AppContext) -> Result<(), ApiError> {
     if auth.has_permission("portal.access") {
         return Ok(());
     }
@@ -51,14 +51,14 @@ pub(super) fn ensure_portal_access(auth: &AuthContext) -> Result<(), ApiError> {
 
 pub(super) fn ensure_registered_device(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
 ) -> Result<(), ApiError> {
     state.require_registered_device_binding(auth)
 }
 
 fn ensure_conversation_not_archived(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
 ) -> Result<(), ApiError> {
     if state
@@ -76,7 +76,7 @@ fn ensure_conversation_not_archived(
 
 fn ensure_conversation_not_blocked(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
 ) -> Result<(), ApiError> {
     let Some(user_block) =
@@ -108,7 +108,7 @@ pub(super) fn direct_chat_access_block_for_conversation(
 }
 
 pub(super) fn resolve_requested_device_id(
-    auth: &AuthContext,
+    auth: &AppContext,
     requested_device_id: Option<String>,
 ) -> Result<String, ApiError> {
     match (requested_device_id, auth.device_id.clone()) {
@@ -141,18 +141,18 @@ pub(super) fn resolve_requested_device_id(
 pub(super) fn resolve_active_auth_context(
     state: &AppState,
     headers: &HeaderMap,
-) -> Result<AuthContext, ApiError> {
-    let auth = resolve_auth_context(headers)?;
+) -> Result<AppContext, ApiError> {
+    let auth = resolve_app_context(headers)?;
     ensure_active_auth_principal(state, &auth)?;
     Ok(auth)
 }
 
 pub(super) fn ensure_active_auth_principal(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
 ) -> Result<(), ApiError> {
     state.refresh_projection_state_from_runtime_dir()?;
-    user_module::ensure_active_principal(
+    principal_profile::ensure_active_principal(
         state,
         auth.tenant_id.as_str(),
         auth.actor_id.as_str(),
@@ -162,7 +162,7 @@ pub(super) fn ensure_active_auth_principal(
 
 pub(super) fn ensure_conversation_member(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
 ) -> Result<(), ApiError> {
     ensure_active_auth_principal(state, auth)?;
@@ -174,7 +174,7 @@ pub(super) fn ensure_conversation_member(
 
 pub(super) fn ensure_conversation_read_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
 ) -> Result<(), ApiError> {
     ensure_active_auth_principal(state, auth)?;
@@ -202,7 +202,7 @@ pub(super) fn ensure_conversation_read_access(
 
 fn ensure_domain_conversation_member(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
 ) -> Result<(), ApiError> {
     state
@@ -213,9 +213,9 @@ fn ensure_domain_conversation_member(
 
 pub(super) fn resolve_conversation_actor_auth_context(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
-) -> Result<AuthContext, ApiError> {
+) -> Result<AppContext, ApiError> {
     ensure_active_auth_principal(state, auth)?;
     let actor_member = state
         .conversation_runtime
@@ -229,7 +229,7 @@ pub(super) fn resolve_conversation_actor_auth_context(
 
 fn ensure_conversation_bound_write_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
     capability: &str,
 ) -> Result<(), ApiError> {
@@ -248,7 +248,7 @@ fn ensure_conversation_bound_write_access(
 
 pub(super) fn ensure_rtc_create_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     request: &CreateRtcSessionRequest,
 ) -> Result<(), ApiError> {
     match state
@@ -273,7 +273,7 @@ pub(super) fn ensure_rtc_create_access(
 
 pub(super) fn ensure_rtc_session_conversation_write_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     rtc_session_id: &str,
     capability: &str,
 ) -> Result<(), ApiError> {
@@ -287,7 +287,7 @@ pub(super) fn ensure_rtc_session_conversation_write_access(
 
 pub(super) fn ensure_stream_open_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     request: &OpenStreamRequest,
 ) -> Result<(), ApiError> {
     ensure_device_stream_shape(request)?;
@@ -328,7 +328,7 @@ pub(super) fn ensure_stream_open_access(
 
 pub(super) fn ensure_stream_session_conversation_member(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     stream_id: &str,
 ) -> Result<(), ApiError> {
     let session = state.streaming_runtime.session(auth, stream_id)?;
@@ -343,7 +343,7 @@ pub(super) fn ensure_stream_session_conversation_member(
 
 pub(super) fn ensure_stream_session_write_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     stream_id: &str,
     capability: &str,
 ) -> Result<(), ApiError> {
@@ -359,7 +359,7 @@ pub(super) fn ensure_stream_session_write_access(
 
 pub(super) fn ensure_iot_protocol_uplink_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
 ) -> Result<(), ApiError> {
     ensure_device_stream_registration(state, auth, device_id)?;
@@ -368,7 +368,7 @@ pub(super) fn ensure_iot_protocol_uplink_access(
 
 pub(super) fn ensure_iot_protocol_downlink_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
 ) -> Result<(), ApiError> {
     ensure_device_stream_registration(state, auth, device_id)?;
@@ -383,7 +383,7 @@ pub(super) fn ensure_iot_protocol_downlink_access(
 }
 
 pub(super) fn ensure_iot_protocol_uplink_actor_preflight(
-    auth: &AuthContext,
+    auth: &AppContext,
 ) -> Result<(), ApiError> {
     if auth.actor_kind != "device" {
         return Err(ApiError::forbidden(
@@ -420,7 +420,7 @@ pub(super) fn ensure_iot_protocol_uplink_decoded_device_matches_preflight(
 
 pub(super) fn ensure_device_twin_read_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
 ) -> Result<(), ApiError> {
     ensure_device_stream_registration(state, auth, device_id)
@@ -428,7 +428,7 @@ pub(super) fn ensure_device_twin_read_access(
 
 pub(super) fn ensure_device_twin_desired_write_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
 ) -> Result<(), ApiError> {
     ensure_device_stream_registration(state, auth, device_id)?;
@@ -445,7 +445,7 @@ pub(super) fn ensure_device_twin_desired_write_access(
 
 pub(super) fn ensure_device_twin_reported_write_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
 ) -> Result<(), ApiError> {
     ensure_device_stream_registration(state, auth, device_id)?;
@@ -477,7 +477,7 @@ fn ensure_device_stream_shape(request: &OpenStreamRequest) -> Result<(), ApiErro
 
 fn ensure_device_stream_open_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     request: &OpenStreamRequest,
 ) -> Result<(), ApiError> {
     ensure_device_stream_registration(state, auth, request.scope_id.as_str())?;
@@ -491,7 +491,7 @@ fn ensure_device_stream_open_access(
 
 fn ensure_device_stream_read_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     session: &im_domain_core::stream::StreamSession,
 ) -> Result<(), ApiError> {
     ensure_device_stream_registration(state, auth, session.scope_id.as_str())?;
@@ -505,7 +505,7 @@ fn ensure_device_stream_read_access(
 
 fn ensure_device_stream_write_access(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     session: &im_domain_core::stream::StreamSession,
 ) -> Result<(), ApiError> {
     ensure_device_stream_registration(state, auth, session.scope_id.as_str())?;
@@ -519,7 +519,7 @@ fn ensure_device_stream_write_access(
 
 fn ensure_device_stream_registration(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
 ) -> Result<(), ApiError> {
     validate_device_id(device_id)?;
@@ -571,7 +571,7 @@ fn ensure_device_stream_registration(
 }
 
 fn ensure_device_stream_permission(
-    auth: &AuthContext,
+    auth: &AppContext,
     device_id: &str,
     stream_type: &str,
     write: bool,
@@ -619,7 +619,7 @@ fn ensure_device_stream_permission(
     }
 }
 
-fn ensure_bound_device_actor(auth: &AuthContext, device_id: &str) -> Result<(), ApiError> {
+fn ensure_bound_device_actor(auth: &AppContext, device_id: &str) -> Result<(), ApiError> {
     validate_device_id(device_id)?;
 
     if auth.actor_kind != "device" {

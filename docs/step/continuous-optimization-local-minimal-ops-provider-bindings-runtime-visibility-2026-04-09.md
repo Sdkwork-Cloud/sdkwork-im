@@ -2,11 +2,11 @@
 
 ## Goal
 
-Make `local-minimal-node` expose one unified runtime provider binding snapshot through `GET /api/v1/ops/diagnostics`.
+Make `local-minimal-node` expose one unified runtime provider binding snapshot through `GET /backend/v3/api/ops/diagnostics`.
 
 ## Why Now
 
-- The app already had RTC, media, user-module, IoT access, and IoT protocol provider selection.
+- The app already had RTC, media, principal-profile, IoT access, and IoT protocol provider selection.
 - Operators still had to inspect multiple routes to infer the selected stack.
 - This violated the existing ops contract that already reserved `providerBindings`.
 
@@ -29,7 +29,7 @@ cargo test -p local-minimal-node --offline --test ops_provider_bindings_runtime_
   - selected plugins:
     - `rtc-volcengine`
     - `object-storage-volcengine`
-    - `user-module-local`
+    - `principal-profile-upstream-context`
     - `iot-access-local`
     - `iot-mqtt`
 
@@ -43,5 +43,5 @@ cargo test -p local-minimal-node --offline -- --nocapture
 
 ## Next
 
-- Decide whether local-minimal should also expose standalone `/api/v1/ops/provider-bindings` and `/api/v1/ops/provider-bindings/drift`.
+- Decide whether local-minimal should also expose standalone `/backend/v3/api/ops/provider_bindings` and `/backend/v3/api/ops/provider_bindings/drift`.
 - Decide whether object-storage selection must be unified from one shared runtime registry instead of inferred from per-service registries.

@@ -12,21 +12,21 @@
   - `ProviderPolicyPreview` 新增 `status=preview`
   - `ProviderPolicyCommit` 新增 `status=applied|noop`
 - `services/control-plane-api/src/lib.rs`
-  - `POST /api/v1/control/provider-bindings` 成功回包新增 `status`
+  - `POST /backend/v3/api/control/provider_bindings` 成功回包新增 `status`
   - 继续保留 `applied` 布尔字段，兼容现有调用方
 - 冲突路径保持不变:
-  - `POST /api/v1/control/provider-bindings`
+  - `POST /backend/v3/api/control/provider_bindings`
   - `409`
   - `provider_policy_conflict`
 
 ## 接口冻结
 
-- `POST /api/v1/control/provider-policies/preview`
+- `POST /backend/v3/api/control/provider-policies/preview`
   - `status=preview`
   - `baseVersion`
   - `previewVersion`
   - `previewBinding`
-- `POST /api/v1/control/provider-bindings`
+- `POST /backend/v3/api/control/provider_bindings`
   - `status=applied|noop`
   - `applied`
   - `currentVersion`

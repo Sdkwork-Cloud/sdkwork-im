@@ -23,10 +23,10 @@ pub fn format_runtime_dir_restore_preview(view: &RuntimeDirRestorePreviewView) -
     }
 
     let mut lines = vec![format!(
-        "runtime-dir restore preview status: {}",
+        "runtime_dir restore preview status: {}",
         view.status
     )];
-    lines.push(format!("runtime-dir: {}", view.runtime_dir));
+    lines.push(format!("runtime_dir: {}", view.runtime_dir));
     lines.push(format!("source-backup-dir: {}", view.source_backup_dir));
     lines.push(format!("preview-fingerprint: {}", view.preview_fingerprint));
     lines.push(format!(

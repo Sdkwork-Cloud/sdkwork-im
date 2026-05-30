@@ -15,9 +15,23 @@ use craw_chat_contract_control::{RealtimeCheckpointRecord, RealtimeSubscriptionR
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
 
 fn postgres_realtime_sql_source() -> String {
-    include_str!("../src/realtime/postgres_sql.rs")
+    include_str!("../../../crates/im-postgres-realtime-contracts/src/lib.rs")
         .replace("\r\n", "\n")
         .to_lowercase()
+}
+
+#[test]
+fn test_session_gateway_reexports_shared_postgres_realtime_contracts() {
+    let source = include_str!("../src/realtime/postgres_sql.rs");
+
+    assert!(
+        source.contains("pub use im_postgres_realtime_contracts::*;"),
+        "session-gateway must re-export the shared PostgreSQL realtime contract crate"
+    );
+    assert!(
+        !source.contains("pub const LOAD_REALTIME_CHECKPOINT_SQL"),
+        "session-gateway must not own duplicate PostgreSQL realtime SQL constants"
+    );
 }
 
 fn constant_source<'a>(source: &'a str, constant_name: &str) -> &'a str {
@@ -520,6 +534,25 @@ fn test_postgres_realtime_transaction_plans_define_atomic_adapter_boundaries() {
 }
 
 #[test]
+fn test_postgres_realtime_adapter_plan_marks_store_adapter_implementation_boundary() {
+    let adapter_plan = realtime_postgres_adapter_plan();
+
+    assert_eq!(adapter_plan.runtime_status, "store_adapter_implemented");
+    assert!(
+        adapter_plan
+            .runtime_status_reason
+            .contains("individual store traits"),
+        "PostgreSQL realtime adapter plan must distinguish implemented store traits from runtime-level transaction composition"
+    );
+    assert!(
+        adapter_plan
+            .runtime_status_reason
+            .contains("runtime-level multi-store transactions"),
+        "PostgreSQL realtime adapter plan must not overstate runtime transaction atomicity"
+    );
+}
+
+#[test]
 fn test_postgres_realtime_sql_placeholders_are_contiguous() {
     let source = postgres_realtime_sql_source();
 
@@ -872,7 +905,7 @@ fn test_postgres_realtime_checkpoint_upsert_binding_plan_matches_sql_contract_or
 
     let statement = realtime_postgres_bind_checkpoint_upsert(
         &checkpoint,
-        "6#t_demo4#user6#u_demo5#d_pad",
+        "6:t_demo|4:user|6:u_demo|5:d_pad",
         "2026-05-01T10:00:01.000Z",
     )
     .expect("checkpoint binding should succeed");
@@ -900,7 +933,7 @@ fn test_postgres_realtime_checkpoint_upsert_binding_plan_matches_sql_contract_or
         bound_values(&statement),
         vec![
             RealtimePostgresBindingValue::Text("t_demo".into()),
-            RealtimePostgresBindingValue::Text("6#t_demo4#user6#u_demo5#d_pad".into()),
+            RealtimePostgresBindingValue::Text("6:t_demo|4:user|6:u_demo|5:d_pad".into()),
             RealtimePostgresBindingValue::Text("user".into()),
             RealtimePostgresBindingValue::Text("u_demo".into()),
             RealtimePostgresBindingValue::Text("d_pad".into()),
@@ -936,7 +969,7 @@ fn test_postgres_realtime_event_and_ack_binding_plans_match_sql_contract_order()
     let event_statement = realtime_postgres_bind_device_event_upsert(
         &event,
         "user",
-        "6#t_demo4#user6#u_demo5#d_pad",
+        "6:t_demo|4:user|6:u_demo|5:d_pad",
         "sha256:demo",
         "2026-05-01T10:00:01.000Z",
         "2026-06-01T10:00:00.000Z",
@@ -967,7 +1000,7 @@ fn test_postgres_realtime_event_and_ack_binding_plans_match_sql_contract_order()
         bound_values(&event_statement),
         vec![
             RealtimePostgresBindingValue::Text("t_demo".into()),
-            RealtimePostgresBindingValue::Text("6#t_demo4#user6#u_demo5#d_pad".into()),
+            RealtimePostgresBindingValue::Text("6:t_demo|4:user|6:u_demo|5:d_pad".into()),
             RealtimePostgresBindingValue::BigInt(42),
             RealtimePostgresBindingValue::Text("user".into()),
             RealtimePostgresBindingValue::Text("u_demo".into()),
@@ -987,7 +1020,7 @@ fn test_postgres_realtime_event_and_ack_binding_plans_match_sql_contract_order()
     );
 
     let trim_statement =
-        realtime_postgres_bind_trim_device_events("t_demo", "6#t_demo4#user6#u_demo5#d_pad", 40)
+        realtime_postgres_bind_trim_device_events("t_demo", "6:t_demo|4:user|6:u_demo|5:d_pad", 40)
             .expect("trim binding should succeed");
 
     assert_eq!(trim_statement.sql_name, "TRIM_REALTIME_DEVICE_EVENTS_SQL");
@@ -995,7 +1028,7 @@ fn test_postgres_realtime_event_and_ack_binding_plans_match_sql_contract_order()
         bound_values(&trim_statement),
         vec![
             RealtimePostgresBindingValue::Text("t_demo".into()),
-            RealtimePostgresBindingValue::Text("6#t_demo4#user6#u_demo5#d_pad".into()),
+            RealtimePostgresBindingValue::Text("6:t_demo|4:user|6:u_demo|5:d_pad".into()),
             RealtimePostgresBindingValue::BigInt(40),
         ]
     );
@@ -1027,7 +1060,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
 
     let subscription_statement = realtime_postgres_bind_subscription_upsert(
         &record,
-        "6#t_demo4#user6#u_demo5#d_pad",
+        "6:t_demo|4:user|6:u_demo|5:d_pad",
         "2026-05-01T10:00:03.000Z",
     )
     .expect("subscription binding should succeed");
@@ -1051,7 +1084,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
         bound_values(&subscription_statement),
         vec![
             RealtimePostgresBindingValue::Text("t_demo".into()),
-            RealtimePostgresBindingValue::Text("6#t_demo4#user6#u_demo5#d_pad".into()),
+            RealtimePostgresBindingValue::Text("6:t_demo|4:user|6:u_demo|5:d_pad".into()),
             RealtimePostgresBindingValue::Text("user".into()),
             RealtimePostgresBindingValue::Text("u_demo".into()),
             RealtimePostgresBindingValue::Text("d_pad".into()),
@@ -1068,21 +1101,21 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
 
     let clear_statement = realtime_postgres_bind_subscription_scope_clear(
         "t_demo",
-        "6#t_demo4#user6#u_demo5#d_pad",
+        "6:t_demo|4:user|6:u_demo|5:d_pad",
         "2026-05-01T10:00:02.000Z",
     );
     assert_eq!(
         bound_values(&clear_statement),
         vec![
             RealtimePostgresBindingValue::Text("t_demo".into()),
-            RealtimePostgresBindingValue::Text("6#t_demo4#user6#u_demo5#d_pad".into()),
+            RealtimePostgresBindingValue::Text("6:t_demo|4:user|6:u_demo|5:d_pad".into()),
             RealtimePostgresBindingValue::Timestamptz("2026-05-01T10:00:02.000Z".into()),
         ]
     );
 
     let fanout_statements = realtime_postgres_bind_subscription_scope_replacements(
         &record,
-        "6#t_demo4#user6#u_demo5#d_pad",
+        "6:t_demo|4:user|6:u_demo|5:d_pad",
         "2026-05-01T10:00:03.000Z",
     );
 
@@ -1100,7 +1133,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
                 RealtimePostgresBindingValue::Text("conversation".into()),
                 RealtimePostgresBindingValue::Text("c_demo".into()),
                 RealtimePostgresBindingValue::Text("message.posted".into()),
-                RealtimePostgresBindingValue::Text("6#t_demo4#user6#u_demo5#d_pad".into()),
+                RealtimePostgresBindingValue::Text("6:t_demo|4:user|6:u_demo|5:d_pad".into()),
                 RealtimePostgresBindingValue::Text("d_pad".into()),
                 RealtimePostgresBindingValue::Timestamptz("2026-05-01T10:00:02.000Z".into()),
                 RealtimePostgresBindingValue::Timestamptz("2026-05-01T10:00:03.000Z".into()),
@@ -1113,7 +1146,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
                 RealtimePostgresBindingValue::Text("conversation".into()),
                 RealtimePostgresBindingValue::Text("c_demo".into()),
                 RealtimePostgresBindingValue::Text("message.edited".into()),
-                RealtimePostgresBindingValue::Text("6#t_demo4#user6#u_demo5#d_pad".into()),
+                RealtimePostgresBindingValue::Text("6:t_demo|4:user|6:u_demo|5:d_pad".into()),
                 RealtimePostgresBindingValue::Text("d_pad".into()),
                 RealtimePostgresBindingValue::Timestamptz("2026-05-01T10:00:02.000Z".into()),
                 RealtimePostgresBindingValue::Timestamptz("2026-05-01T10:00:03.000Z".into()),
@@ -1126,7 +1159,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
                 RealtimePostgresBindingValue::Text("project".into()),
                 RealtimePostgresBindingValue::Text("p_demo".into()),
                 RealtimePostgresBindingValue::Text("*".into()),
-                RealtimePostgresBindingValue::Text("6#t_demo4#user6#u_demo5#d_pad".into()),
+                RealtimePostgresBindingValue::Text("6:t_demo|4:user|6:u_demo|5:d_pad".into()),
                 RealtimePostgresBindingValue::Text("d_pad".into()),
                 RealtimePostgresBindingValue::Timestamptz("2026-05-01T10:00:02.000Z".into()),
                 RealtimePostgresBindingValue::Timestamptz("2026-05-01T10:00:03.000Z".into()),
@@ -1154,7 +1187,7 @@ fn test_postgres_realtime_binding_plan_rejects_values_postgres_cannot_store() {
 
     let error = realtime_postgres_bind_checkpoint_upsert(
         &checkpoint,
-        "6#t_demo4#user6#u_demo5#d_pad",
+        "6:t_demo|4:user|6:u_demo|5:d_pad",
         "2026-05-01T10:00:01.000Z",
     )
     .expect_err("u64 values beyond PostgreSQL bigint range must fail before execution");
@@ -1182,7 +1215,7 @@ fn test_postgres_realtime_binding_plan_rejects_values_postgres_cannot_store() {
     let error = realtime_postgres_bind_device_event_upsert(
         &invalid_payload_event,
         "user",
-        "6#t_demo4#user6#u_demo5#d_pad",
+        "6:t_demo|4:user|6:u_demo|5:d_pad",
         "sha256:demo",
         "2026-05-01T10:00:01.000Z",
         "2026-06-01T10:00:00.000Z",
@@ -1224,13 +1257,13 @@ fn test_postgres_realtime_publish_and_ack_transactions_preserve_atomic_statement
         vec![RealtimePostgresDeviceEventMutation {
             event: event.clone(),
             principal_kind: "user".into(),
-            device_scope_key: "6#t_demo4#user6#u_demo5#d_pad".into(),
+            device_scope_key: "6:t_demo|4:user|6:u_demo|5:d_pad".into(),
             payload_hash: "sha256:demo".into(),
             retention_until: Some("2026-06-01T10:00:00.000Z".into()),
         }],
         vec![RealtimePostgresCheckpointMutation {
             checkpoint: checkpoint.clone(),
-            device_scope_key: "6#t_demo4#user6#u_demo5#d_pad".into(),
+            device_scope_key: "6:t_demo|4:user|6:u_demo|5:d_pad".into(),
         }],
         "2026-05-01T10:00:01.000Z",
     )
@@ -1250,7 +1283,7 @@ fn test_postgres_realtime_publish_and_ack_transactions_preserve_atomic_statement
 
     let ack = realtime_postgres_bind_ack_transaction(
         "t_demo",
-        "6#t_demo4#user6#u_demo5#d_pad",
+        "6:t_demo|4:user|6:u_demo|5:d_pad",
         40,
         &checkpoint,
         "2026-05-01T10:00:01.000Z",
@@ -1296,7 +1329,7 @@ fn test_postgres_realtime_subscription_save_transaction_preserves_replace_order(
 
     let transaction = realtime_postgres_bind_save_subscription_transaction(
         &record,
-        "6#t_demo4#user6#u_demo5#d_pad",
+        "6:t_demo|4:user|6:u_demo|5:d_pad",
         "2026-05-01T10:00:03.000Z",
     )
     .expect("subscription save transaction binding should succeed");

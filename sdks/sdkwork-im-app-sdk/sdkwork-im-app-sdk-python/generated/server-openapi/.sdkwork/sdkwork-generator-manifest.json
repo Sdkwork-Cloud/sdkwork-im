@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "generator": "@sdkwork/sdk-generator",
+  "sdk": {
+    "name": "sdkwork-im-app-sdk",
+    "version": "0.1.0",
+    "language": "python",
+    "sdkType": "app",
+    "packageName": "sdkwork-im-app-api-generated"
+  },
+  "generatedFiles": [
+    {
+      "path": "bin/publish-core.mjs",
+      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+    },
+    {
+      "path": "bin/publish.ps1",
+      "sha256": "b383d4f7233b567acd36fa2ff644448730007738901cf1770cb02746f88fbb05"
+    },
+    {
+      "path": "bin/publish.sh",
+      "sha256": "6fd65ff5011e48b24018ab691edd8803c4b1fd293d013b75d1adb3bcd26f7cde"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "fb941a0806986a54fc192f98a98f6d9c282b8d350b2b19a3e71dda404e92d545"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "7840cc7d2b36ff364ac16c2fc5ec15b861bfe96854eecf81fb59b00edb8b1447"
+    },
+    {
+      "path": "MANIFEST.in",
+      "sha256": "ee1aab49d0516a5d7573d25b6addbaf5b73ffd4d31938c037d10c91622e517a0"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "c190504442a72da9d8501f43b5e9e8f0c4ecdec8ae43f14639cbc49cdcb526de"
+    },
+    {
+      "path": "README.md",
+      "sha256": "51ad048fa5107d05d222bea3ac92daffc94863ebe3629f76a08a5d7ef66bdd99"
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "5f3072c051f89b9af1b681381406e0b2466895fb150660d583c85c84396001c8"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/__init__.py",
+      "sha256": "7d0cde6bfa01146a2a6c18639802ecc7f459cade5cb0b99d42506173ff616064"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/api/__init__.py",
+      "sha256": "8d40bed56dd5f3c1a9ddb5296337c07411d3b5b4b73c600599ac81282d1e0f0d"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/api/automation.py",
+      "sha256": "1faa92c4c407d5a6d49ca2b93fb2882a3dee968fe18f6b214a7717c892e7e45a"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/api/device.py",
+      "sha256": "66bf741a1e4faf05dc715bad789bd943ae849dc1b94a40439b27e49c78fb227a"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/api/iot.py",
+      "sha256": "a5dbf6563c2645a181f4b9de37547c9d32859b10b4fd1d74e93ce2983e7f0a9c"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/api/notification.py",
+      "sha256": "731768ecd7d7d39eeaf104d332f18c4c19fb4696c697cb95420cb0b1195a0d4f"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/api/portal.py",
+      "sha256": "b7b281985e3747fecd8983548ff70a209dccd5aae4ec555559129946f7b44ff8"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/api/provider.py",
+      "sha256": "7601545897e4a6a2ae88741fb8c971fe7ba45e35c619c8f1886b7bbd435bfe2e"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/api/rtc.py",
+      "sha256": "0ec63b45c0f8cc5c5cd4992c5cc301979e57fcabc8977ef818a1cf598cb245f0"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/client.py",
+      "sha256": "f0e9240d338797b6ac0b523b0307e01c1e486f493bee5739e85a34a895ef82e6"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/http_client.py",
+      "sha256": "c423af289dbbe0eef7d8be5ee0aec13cedf64df967b3d64ad7306a78ac394a82"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/__init__.py",
+      "sha256": "b59b0fbff2e4ef0f084f98c367795c9aea096c882b92d636414af4f9b2acb097"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/agent_subject.py",
+      "sha256": "f94be55dce87c3276aeb122d7e7f674ddd4ee1b1bff19d88f65cce5a951ac827"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/agent_tool_call.py",
+      "sha256": "ff0cb8e87cac42ed6643e79c5b852068a916bfd03fe13a6b0918ad0ab9fe18da"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/append_agent_response_delta_request.py",
+      "sha256": "579ed9d19821ecd3e8db2f826478954d4c61c6c172637d696c27bebe40ffef61"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/automation_execution_request_response.py",
+      "sha256": "9cfab438fccf5b13208ce31819188b8eff89be2438628ab28fd0a24beee139ad"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/automation_execution.py",
+      "sha256": "9b3c8d5b0dadaa81465cf437fef393d8394c48c11c15e988a1b5669534799bf1"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/complete_agent_response_request.py",
+      "sha256": "ff3bbc8321d8f8dddb5b9d77cfd71a2d6a54a1bc514f2db2e2624a33b408328b"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/complete_agent_tool_call_request.py",
+      "sha256": "6862187d3a6a7ac057155e3c357969fa3bbb1b16dbf50ce16b77fbfe41e37c3e"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/device_twin_view.py",
+      "sha256": "d6ae46e42e2b70adf4fbb8aa466bf4f0fd03775adbcd0dbb6e117bffdecc1ac0"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/notification_list_response.py",
+      "sha256": "d73201f1e76925fd98ee08b3a429f7eef3200cb4540468bdc09ac90ff35ecc0d"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/notification_request_response.py",
+      "sha256": "55d5e585b13bffe04c511a2b59afbb6c7f2f138f92e375eb23a7ce6e9e167aa6"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/notification_task.py",
+      "sha256": "9b548b41194fff89d512391d7a55d2396ba1438739c46e55392aad6c5eed3f13"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/portal_workspace_view.py",
+      "sha256": "a50a42e9e99cd7578ccaf03131e55eed6f0ac24964f7d0833fabd755b71ca318"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/problem_detail.py",
+      "sha256": "de753fde956dbaeeea7f15a96a70eb41b89f45b3880d5808c979fd03fd471c41"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/request_agent_tool_call_request.py",
+      "sha256": "2521e95768fa68d2d4e597b2d2866f41b0fabbc6f7eadaa6d493451a11718d28"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/request_automation_execution.py",
+      "sha256": "605b9f91d38c0d4f8bc47191c674967abce98bce74750602ac13ddce8268f310"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/request_notification.py",
+      "sha256": "b71dd6790b655b24acdef7fe8f919826154c1463d25538cb6be2d51663b1a5bd"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/sender.py",
+      "sha256": "156a667220763fe6b2f61207d4a246f6150447a176249d7d4f985fb7110d56f7"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/start_agent_response_request.py",
+      "sha256": "2bcb58c767bc0c391a3893f4cae89c7eab3b13ddfca84c35abadeefce8d2d07b"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/stream_frame.py",
+      "sha256": "6c9eb8a432edfbd28a798b950c3deec663186ab4fbf5893e6aca4b7911bf70f4"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/stream_session.py",
+      "sha256": "68717785734abc660fba1b79c66213bf43243010c658f922b527dc88855d4711"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/update_device_twin_desired_request.py",
+      "sha256": "9eff2024fd535532a08a117f7350598884a83da9026cba2943fb1d5e7faf0715"
+    },
+    {
+      "path": "sdkwork_im_app_api_generated/models/update_device_twin_reported_request.py",
+      "sha256": "14b2ff4c9967a3b892c5fcd997400a22d65ca7a9ba71c70e6d00af2f0eaf5260"
+    },
+    {
+      "path": "sdkwork-sdk.json",
+      "sha256": "47537eb5619a71edadf3ebd804b3d0ec10017b57491733bb8e8bee64515cb1a2"
+    },
+    {
+      "path": "setup.py",
+      "sha256": "843ac26c38a41abae578250bc0f9419194b320a0f67327d941037a4268f6cfe7"
+    }
+  ],
+  "scaffoldFiles": [
+    "custom/README.md"
+  ],
+  "customRoots": [
+    "custom/"
+  ]
+}

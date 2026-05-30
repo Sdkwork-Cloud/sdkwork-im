@@ -23,8 +23,8 @@
    - 只在首次注册时执行 provider 调用
    - 固定当前本地基线请求：
      - `product_id = local-minimal-device`
-     - `credential_kind = session`
-4. 对 `/api/v1/devices/register` 写主链路测试
+     - `credential_kind = device_route`
+4. 对 `/im/v3/api/devices/register` 写主链路测试
 5. 同步 Step / 架构 / Review 文档
 
 ## 关键约束
@@ -36,7 +36,7 @@
 ## 成功标准
 
 - `local-minimal-node` 默认启动时已装配 `iot-access-local`
-- 主链路测试能证明 `/api/v1/devices/register` 调用了：
+- 主链路测试能证明 `/im/v3/api/devices/register` 调用了：
   - `register_device`
   - `bind_owner`
 - 文档明确标注：

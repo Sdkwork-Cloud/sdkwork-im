@@ -27,7 +27,7 @@
 
 ## Actions This Loop
 - actual_changes:
-  - added `POST /api/v1/control/social/runtime/reclaim-stale-pending-shared-channel-sync`
+  - added `POST /backend/v3/api/control/social/runtime/reclaim-stale-pending-shared-channel-sync`
   - new response contract: `status`, `pendingBefore`, `reclaimed`, `pendingAfter`
   - the new operator surface clears stale owner metadata without dispatching pending work
   - reclaim is persisted to state storage and audited through `control.social_runtime_shared_channel_sync_pending_stale_reclaimed`

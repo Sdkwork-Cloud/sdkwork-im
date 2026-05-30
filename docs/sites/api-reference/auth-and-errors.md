@@ -7,16 +7,16 @@
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/app/portal-and-auth"><code>App</code> Portal bearer-auth flows and portal-session reads</a>
+  <a href="/api-reference/app/portal-access"><code>App</code> Portal access snapshots, SDKWork credentials, and AppContext projection rules</a>
   <a href="/api-reference/app-api"><code>App</code> User-facing runtime domains and their operation groups</a>
-  <a href="/api-reference/control-plane-api"><code>Control Plane</code> Administrative endpoints that use the same bearer model with <code>control.read</code> and <code>control.write</code></a>
+  <a href="/api-reference/control-plane-api"><code>Control Plane</code> Administrative endpoints that use the same SDKWork dual-token and AppContext model with <code>control.read</code> and <code>control.write</code></a>
 </div>
 
 ## How To Use This Page
 
 Use this page for the shared contract first:
 
-1. Start here when you need bearer-token rules, trusted-header semantics, or the common error
+1. Start here when you need AppContext projection rules, SDKWork token semantics, or the common error
    envelope.
 2. Switch to operation pages when your next question is endpoint-specific permission, conflict, or
    resource-not-found behavior.
@@ -25,61 +25,39 @@ Use this page for the shared contract first:
 
 ## Security Schemes
 
-### `BearerAuth`
+### `SdkworkDualToken`
 
-Public deployments of `craw-chat-server` / `web-gateway`, `local-minimal-node`, and
-`control-plane-api` accept bearer tokens on non-health endpoints. In the packaged server flow, the
-unified gateway fronts the public HTTP bind and forwards requests to the same bearer-authenticated
-app and governance surfaces documented here.
+`sdkwork-appbase` owns login, IAM sessions, users, tenants, organizations, dual-token validation,
+and the authoritative IAM context. Public clients authenticate with the SDKWork auth token and
+access token at the appbase boundary. `craw-chat` does not verify JWTs or parse local tokens.
+
+After appbase validation, the trusted edge projects AppContext into `craw-chat` with the
+`x-sdkwork-*` headers below.
 
 | Item | Value |
 | --- | --- |
-| Header | `Authorization: Bearer <jwt>` |
-| Signing secret | `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET` |
-| Algorithm | `HS256` |
-| Resolver | `resolve_public_bearer_auth_context()` |
+| External auth owner | `sdkwork-appbase` |
+| Required public token model | SDKWork dual token |
+| Craw Chat input | Verified AppContext projection |
+| Resolver | `resolve_app_context()` |
 
-Supported claim aliases:
+### `AppContextProjection`
 
-| Semantic field | Accepted claim names |
-| --- | --- |
-| Tenant | `tenant_id`, `tenantId` |
-| Actor ID | `sub`, `actor_id`, `actorId`, `user_id`, `userId` |
-| Actor kind | `actor_kind`, `actorKind`, `principal_type`, `principalType` |
-| Session ID | `sid`, `session_id`, `sessionId` |
-| Device ID | `did`, `device_id`, `deviceId` |
-| Permissions | `permissions`, `perms`, `scope`, `scp` |
-
-#### Temporal claim validation
-
-Public bearer verification also validates temporal claims with a `60s` clock-skew allowance.
-
-- `nbf` must not be in the future (beyond skew).
-- `exp` must not be expired.
-- `iat` must not be in the future (beyond skew).
-- When `CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP` is enabled, `exp` is required.
-- When `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS` is set to a positive value, token TTL cannot
-  exceed that maximum.
-- When `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS` is non-empty, token `iss` must match exactly.
-- When `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD` is non-empty, token `aud` must include that value
-  (string or array form).
-
-These controls harden public HTTP surfaces against replay windows that are too large for commercial
-traffic.
-
-### `TrustedHeaders`
-
-Trusted headers are intended for internal service-to-service wiring, tests, and explicitly trusted
-networks. They are not part of the public SDK contract.
+AppContext projection headers are internal trusted-edge headers. They are not a public SDK auth
+scheme and must not be treated as a replacement for appbase token validation.
 
 | Header | Meaning |
 | --- | --- |
-| `x-tenant-id` | Tenant identifier |
-| `x-actor-id`, `x-user-id` | Actor identifier |
-| `x-actor-kind` | Actor kind. Defaults to `user` when omitted in trusted flows |
-| `x-session-id` | Session identifier |
-| `x-device-id` | Device identifier |
-| `x-permissions`, `x-scope`, `x-scopes` | Permission set |
+| `x-sdkwork-tenant-id` | Tenant identifier from SDKWork AppContext |
+| `x-sdkwork-user-id` | User identifier from SDKWork AppContext |
+| `x-sdkwork-actor-id` | Optional actor identifier |
+| `x-sdkwork-actor-kind` | Optional actor kind |
+| `x-sdkwork-session-id` | SDKWork IAM session identifier |
+| `x-sdkwork-device-id` | Device identifier |
+| `x-sdkwork-app-id` | SDKWork application identifier |
+| `x-sdkwork-organization-id` | Organization identifier |
+| `x-sdkwork-permission-scope` | Permission scope projection |
+| `x-sdkwork-data-scope` | Data scope projection |
 
 ## Permission Model
 
@@ -105,18 +83,15 @@ networks. They are not part of the public SDK contract.
 
 | HTTP | `code` | When it appears |
 | --- | --- | --- |
-| `401` | `jwt_exp_required` | `exp` is missing while `CRAW_CHAT_PUBLIC_BEARER_REQUIRE_EXP` or `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS` requires it. |
-| `401` | `jwt_ttl_exceeded` | Public bearer lifetime exceeds `CRAW_CHAT_PUBLIC_BEARER_MAX_TTL_SECONDS`. |
-| `401` | `jwt_issuer_invalid` | Public bearer `iss` does not match `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_ISS`. |
-| `401` | `jwt_audience_invalid` | Public bearer `aud` does not satisfy `CRAW_CHAT_PUBLIC_BEARER_REQUIRED_AUD`. |
-| `401` | `jwt_not_yet_valid`, `jwt_expired`, `jwt_issued_at_invalid`, `jwt_temporal_claim_invalid` | Temporal claims are invalid for current wall-clock time. |
+| `401` | `app_context_missing` | Required AppContext projection headers are missing after SDKWork auth validation. |
+| `401` | `app_context_invalid` | AppContext projection is malformed or incomplete. |
 | `403` | `shared_channel_sync_permission_denied` | Missing permission `conversation.shared_channel.sync` for shared-channel sync endpoint. |
 | `403` | `shared_channel_sync_actor_invalid` | Caller actor is not the system actor `control-plane-sync`. |
 | `429` | `shared_channel_sync_rate_limited` | Shared-channel sync exceeded per-tenant rate limit window. |
 
 ## Error Envelope
 
-### App, Platform, and IoT APIs
+### IM, App, and Backend APIs
 
 The application-facing APIs return a compact error object:
 
@@ -156,7 +131,7 @@ The control plane adds a `status` discriminator that mirrors the control-plane e
 | --- | --- |
 | `200` | Success |
 | `400` | Validation failure, malformed request body, or invalid query value |
-| `401` | Missing or invalid bearer token, or incomplete trusted header set |
+| `401` | Missing or invalid SDKWork auth context, or incomplete AppContext projection |
 | `403` | Permission denied or principal-to-resource binding violation |
 | `404` | Referenced conversation, message, media asset, node, or policy version does not exist |
 | `409` | Version conflict, membership conflict, route migration conflict, or invalid lifecycle transition |

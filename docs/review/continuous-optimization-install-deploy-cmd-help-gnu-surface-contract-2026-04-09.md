@@ -2,7 +2,7 @@
 
 ## Context
 
-- Current loop: continue Step 12 Windows operator seam tightening after the `start/status` and `user-module` fixes.
+- Current loop: continue Step 12 Windows operator seam tightening after the `start/status` and `principal-profile` fixes.
 - Surfaces: `bin/install-local.cmd`, `bin/deploy-local.cmd`
 - Contract: Windows `.cmd` entrypoints must expose the same GNU-style named flags that docs and operators already use.
 
@@ -56,5 +56,5 @@ cargo fmt --all --check
 
 - This loop closes Windows help discoverability for `install-local.cmd` and `deploy-local.cmd`.
 - The next higher-value gap is no longer operator help parity; it is deeper runtime/provider maturity:
-  - invalid `user-module-external` bootstrap semantics and health reporting
+  - invalid `principal-profile-external-catalog` bootstrap semantics and health reporting
   - real RTC / object-storage / IoT provider runtime depth beyond current contract baseline

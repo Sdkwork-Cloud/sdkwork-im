@@ -183,17 +183,11 @@ const sdk = new ImSdkClient({
 });
 ```
 
-### Login-first integration
+### Appbase-token-first integration
 
 ```ts
-const login = await sdk.auth.login({
-  tenantId: 'tenant-acme',
-  login: 'ops_lead',
-  password: '***',
-  clientKind: 'portal_operator',
-});
-
-sdk.auth.useToken(login.accessToken);
+const appbaseBearerToken = await resolveAppbaseBearerToken();
+sdk.auth.useToken(appbaseBearerToken);
 ```
 
 ### Conversation and message integration

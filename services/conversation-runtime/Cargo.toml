@@ -10,7 +10,7 @@ craw-chat-api-registry = { path = "../../crates/craw-chat-api-registry" }
 craw-chat-openapi = { path = "../../crates/craw-chat-openapi" }
 craw-chat-contract-core = { path = "../../crates/craw-chat-contract-core" }
 craw-chat-contract-message = { path = "../../crates/craw-chat-contract-message" }
-im-auth-context = { path = "../../crates/im-auth-context" }
+im-app-context = { path = "../../crates/im-app-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
@@ -19,6 +19,8 @@ serde.workspace = true
 serde_json.workspace = true
 sha2 = "0.10"
 tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 [dev-dependencies]
 http-body-util.workspace = true

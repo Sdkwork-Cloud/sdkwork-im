@@ -14,8 +14,8 @@
 - Modify: `services/local-minimal-node/tests/ops_provider_bindings_runtime_test.rs`
 
 - [ ] Add a regression test for:
-  - `GET /api/v1/ops/provider-bindings`
-  - `GET /api/v1/ops/provider-bindings/drift`
+  - `GET /backend/v3/api/ops/provider_bindings`
+  - `GET /backend/v3/api/ops/provider_bindings/drift`
 - [ ] Run:
 
 ```powershell

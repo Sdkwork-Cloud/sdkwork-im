@@ -20,18 +20,18 @@
 
 ## 接口冻结
 
-- `POST /api/v1/control/provider-bindings`
+- `POST /backend/v3/api/control/provider_bindings`
   - cross-domain plugin id -> `status=invalid`
   - stale expectedBaseVersion -> `status=conflict`
   - runtime 未启用 -> `status=unavailable`
-- `POST /api/v1/control/provider-policies/preview`
+- `POST /backend/v3/api/control/provider-policies/preview`
   - runtime 未启用 -> `status=unavailable`
   - 无权限 -> `status=forbidden`
-- `GET /api/v1/control/provider-policies`
+- `GET /backend/v3/api/control/provider-policies`
   - runtime 未启用 -> `status=unavailable`
-- `GET /api/v1/control/provider-policies/diff`
+- `GET /backend/v3/api/control/provider-policies/diff`
   - runtime 未启用 -> `status=unavailable`
-- `POST /api/v1/control/provider-policies/rollback`
+- `POST /backend/v3/api/control/provider-policies/rollback`
   - runtime 未启用 -> `status=unavailable`
 - 公网入口缺失合法鉴权 -> `status=unauthorized`
 
@@ -55,4 +55,4 @@
 
 - `unknown provider policy version` 仍然属于 provider-policy 版本流冲突，返回 `provider_policy_conflict`
 - provider-policy routes do not emit `status=not_found`
-- `GET /api/v1/control/provider-policies/diff` 与 `POST /api/v1/control/provider-policies/rollback` 遇到未知版本时，保持 `status=conflict`
+- `GET /backend/v3/api/control/provider-policies/diff` 与 `POST /backend/v3/api/control/provider-policies/rollback` 遇到未知版本时，保持 `status=conflict`

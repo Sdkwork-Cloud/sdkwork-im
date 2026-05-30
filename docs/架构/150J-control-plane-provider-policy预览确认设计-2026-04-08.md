@@ -1,11 +1,11 @@
 # 150J control-plane provider-policy 预览确认设计
 ## 1. 背景
 
-`07-C6` 已经提供 `POST /api/v1/control/provider-policies/preview`，但 preview 返回的 `baseVersion` 还没有被真实写接口消费。调用方即使先预览，再提交，也无法识别 preview 与 commit 之间是否发生了并发写入。
+`07-C6` 已经提供 `POST /backend/v3/api/control/provider-policies/preview`，但 preview 返回的 `baseVersion` 还没有被真实写接口消费。调用方即使先预览，再提交，也无法识别 preview 与 commit 之间是否发生了并发写入。
 
 ## 2. 目标
 
-- 让 `POST /api/v1/control/provider-bindings` 支持 `expectedBaseVersion`。
+- 让 `POST /backend/v3/api/control/provider_bindings` 支持 `expectedBaseVersion`。
 - 在真实版本漂移时拒绝写入，而不是覆盖最新状态。
 - 保持旧调用兼容。
 - 保持冲突失败无副作用。
@@ -32,7 +32,7 @@
 
 ## 6. HTTP 面
 
-- 路径: `POST /api/v1/control/provider-bindings`
+- 路径: `POST /backend/v3/api/control/provider_bindings`
 - 权限: `control.write`
 - Body:
   - `tenantId`

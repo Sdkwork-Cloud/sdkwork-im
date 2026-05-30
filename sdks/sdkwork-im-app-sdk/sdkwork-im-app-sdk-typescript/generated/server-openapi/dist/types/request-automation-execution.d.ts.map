@@ -1,0 +1,1 @@
+{"version":3,"file":"request-automation-execution.d.ts","sourceRoot":"","sources":["../../src/types/request-automation-execution.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,0BAA0B;IACzC,WAAW,EAAE,MAAM,CAAC;IACpB,WAAW,EAAE,MAAM,CAAC;IACpB,UAAU,EAAE,MAAM,CAAC;IACnB,SAAS,EAAE,MAAM,CAAC;IAClB,YAAY,CAAC,EAAE,MAAM,CAAC;CACvB"}

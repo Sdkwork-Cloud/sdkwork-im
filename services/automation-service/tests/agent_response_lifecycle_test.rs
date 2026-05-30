@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use craw_chat_contract_agent::AgentSubject;
 use http_body_util::BodyExt;
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
 
@@ -31,7 +31,7 @@ impl CommitJournal for RecordingJournal {
 fn test_agent_response_stream_and_tool_call_lifecycle_are_verifiable() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -174,7 +174,7 @@ fn test_agent_response_stream_and_tool_call_lifecycle_are_verifiable() {
 fn test_same_event_type_records_use_distinct_idempotency_keys() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -306,7 +306,7 @@ fn test_same_event_type_records_use_distinct_idempotency_keys() {
 #[test]
 fn test_start_agent_response_rejects_stream_id_reuse_across_executions() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -387,7 +387,7 @@ fn test_start_agent_response_rejects_stream_id_reuse_across_executions() {
 #[test]
 fn test_agent_response_stream_isolation_across_principal_kind() {
     let runtime = automation_service::AutomationRuntime::default();
-    let user_auth = AuthContext {
+    let user_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -398,7 +398,7 @@ fn test_agent_response_stream_isolation_across_principal_kind() {
             "automation.read".to_string(),
         ]),
     };
-    let system_auth = AuthContext {
+    let system_auth = AppContext {
         actor_kind: "system".into(),
         session_id: Some("s_system".into()),
         ..user_auth.clone()
@@ -456,7 +456,7 @@ fn test_agent_response_stream_isolation_across_principal_kind() {
 #[test]
 fn test_agent_response_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
     let runtime = automation_service::AutomationRuntime::default();
-    let first_auth = AuthContext {
+    let first_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u:demo".into(),
         actor_kind: "user".into(),
@@ -467,7 +467,7 @@ fn test_agent_response_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
             "automation.read".to_string(),
         ]),
     };
-    let second_auth = AuthContext {
+    let second_auth = AppContext {
         actor_id: "u".into(),
         session_id: Some("s_second".into()),
         ..first_auth.clone()
@@ -575,7 +575,7 @@ fn test_agent_response_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
 #[test]
 fn test_agent_tool_call_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
     let runtime = automation_service::AutomationRuntime::default();
-    let first_auth = AuthContext {
+    let first_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u:demo".into(),
         actor_kind: "user".into(),
@@ -586,7 +586,7 @@ fn test_agent_tool_call_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
             "automation.read".to_string(),
         ]),
     };
-    let second_auth = AuthContext {
+    let second_auth = AppContext {
         actor_id: "u".into(),
         session_id: Some("s_second".into()),
         ..first_auth.clone()
@@ -715,7 +715,7 @@ fn test_agent_tool_call_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
 #[test]
 fn test_start_agent_response_rejects_second_stream_for_same_execution() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -787,7 +787,7 @@ fn test_start_agent_response_rejects_second_stream_for_same_execution() {
 #[test]
 fn test_request_tool_call_rejects_when_agent_response_stream_completed() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -858,7 +858,7 @@ fn test_request_tool_call_rejects_when_agent_response_stream_completed() {
 #[test]
 fn test_complete_agent_response_rejects_when_tool_call_pending() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -953,7 +953,7 @@ fn test_complete_agent_response_rejects_when_tool_call_pending() {
 async fn test_restricted_tool_call_requires_operator_override_and_is_auditable() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1023,7 +1023,7 @@ async fn test_restricted_tool_call_requires_operator_override_and_is_auditable()
         serde_json::from_slice(&denied_body).expect("guardrail denied body should be valid json");
     assert_eq!(denied_json["code"], "automation_guardrail_denied");
 
-    let override_auth = AuthContext {
+    let override_auth = AppContext {
         permissions: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
@@ -1079,7 +1079,7 @@ async fn test_restricted_tool_call_requires_operator_override_and_is_auditable()
 #[tokio::test]
 async fn test_agent_runtime_rejects_oversized_delta_and_tool_payloads() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1224,7 +1224,7 @@ async fn test_agent_runtime_rejects_oversized_delta_and_tool_payloads() {
 #[test]
 fn test_append_agent_response_delta_rejects_oversized_stream_id_path() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1257,7 +1257,7 @@ fn test_append_agent_response_delta_rejects_oversized_stream_id_path() {
 #[test]
 fn test_complete_agent_response_rejects_oversized_stream_id_path() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1286,7 +1286,7 @@ fn test_complete_agent_response_rejects_oversized_stream_id_path() {
 #[test]
 fn test_complete_agent_tool_call_rejects_oversized_path_ids() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1324,7 +1324,7 @@ fn test_complete_agent_tool_call_rejects_oversized_path_ids() {
 #[tokio::test]
 async fn test_agent_runtime_rejects_oversized_delta_contract_fields() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1425,7 +1425,7 @@ async fn test_agent_runtime_rejects_oversized_delta_contract_fields() {
 #[test]
 fn test_start_agent_response_rejects_oversized_stream_id() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1478,7 +1478,7 @@ fn test_start_agent_response_rejects_oversized_stream_id() {
 #[test]
 fn test_start_agent_response_rejects_oversized_stream_contract_fields() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1565,7 +1565,7 @@ fn test_start_agent_response_rejects_oversized_stream_contract_fields() {
 #[test]
 fn test_start_agent_response_rejects_oversized_member_id() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1620,7 +1620,7 @@ fn test_start_agent_response_rejects_oversized_member_id() {
 #[test]
 fn test_start_agent_response_rejects_oversized_execution_id() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1660,7 +1660,7 @@ fn test_start_agent_response_rejects_oversized_execution_id() {
 #[test]
 fn test_start_agent_response_rejects_oversized_agent_metadata() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1712,7 +1712,7 @@ fn test_start_agent_response_rejects_oversized_agent_metadata() {
 #[test]
 fn test_complete_agent_response_rejects_oversized_result_message_id() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1788,7 +1788,7 @@ fn test_start_agent_response_rejects_oversized_agent_identity_fields() {
         ),
     ] {
         let runtime = automation_service::AutomationRuntime::default();
-        let auth = AuthContext {
+        let auth = AppContext {
             tenant_id: "t_demo".into(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),
@@ -1848,7 +1848,7 @@ fn test_start_agent_response_rejects_oversized_agent_identity_fields() {
 #[test]
 fn test_request_agent_tool_call_rejects_oversized_tool_call_id() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1913,7 +1913,7 @@ fn test_request_agent_tool_call_rejects_oversized_tool_call_id() {
 #[test]
 fn test_request_agent_tool_call_rejects_oversized_execution_id() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -1943,7 +1943,7 @@ fn test_request_agent_tool_call_rejects_oversized_execution_id() {
 #[test]
 fn test_request_agent_tool_call_rejects_oversized_tool_name() {
     let runtime = automation_service::AutomationRuntime::default();
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),

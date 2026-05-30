@@ -67,10 +67,10 @@ This wave freezes the lifecycle matrix first, then lands the smallest commercial
   - added `RuntimeError::Conflict` and mapped it to HTTP `409`
   - rejected `agent_handoff` post/edit/recall once status becomes `closed`
   - exposed routes:
-    - `GET /api/v1/conversations/{conversationId}/agent-handoff`
-    - `POST /api/v1/conversations/{conversationId}/agent-handoff/accept`
-    - `POST /api/v1/conversations/{conversationId}/agent-handoff/resolve`
-    - `POST /api/v1/conversations/{conversationId}/agent-handoff/close`
+    - `GET /im/v3/api/chat/conversations/{conversationId}/agent-handoff`
+    - `POST /im/v3/api/chat/conversations/{conversationId}/agent-handoff/accept`
+    - `POST /im/v3/api/chat/conversations/{conversationId}/agent-handoff/resolve`
+    - `POST /im/v3/api/chat/conversations/{conversationId}/agent-handoff/close`
 - `services/local-minimal-node/src/lib.rs`
   - exposed the same dedicated read/write lifecycle routes in the local profile
   - aligned `409 conversation_conflict` mapping with runtime

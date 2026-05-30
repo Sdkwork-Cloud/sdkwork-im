@@ -27,7 +27,7 @@ use crate::{
 const CONVERSATION_SUMMARY_KEY: &str = "conversation-summary";
 const CONVERSATION_CATALOG_KEY: &str = "conversation-catalog";
 const CONVERSATION_MEMBERS_KEY: &str = "conversation-members";
-const CONVERSATION_READ_CURSORS_KEY: &str = "conversation-read-cursors";
+const CONVERSATION_READ_CURSORS_KEY: &str = "conversation-read_cursors";
 const MESSAGE_INTERACTIONS_KEY: &str = "message-interactions";
 const CONTACTS_KEY: &str = "contacts";
 const CONTACT_OWNERS_KEY: &str = "contact-owners";

@@ -4,7 +4,7 @@
 
 - 本轮增量通过。
 - `session-gateway` 的四条 session/presence handler 已不再各自直接拼装 session sync state。
-- session sync-state 开始通过单一 owner seam 进入 `SessionPresenceRuntime`。
+- session sync-state 开始通过单一 owner seam 进入 `DevicePresenceRuntime`。
 
 ## 2. 证据
 

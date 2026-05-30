@@ -11,12 +11,12 @@ async fn test_device_scoped_streams_require_authorizing_gateway() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/streams")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_owner")
-                .header("x-actor-kind", "device")
-                .header("x-device-id", "d_sensor")
-                .header("x-session-id", "s_sensor")
+                .uri("/im/v3/api/streams")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "device")
+                .header("x-sdkwork-device-id", "d_sensor")
+                .header("x-sdkwork-session-id", "s_sensor")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

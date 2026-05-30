@@ -9,7 +9,7 @@
 ## 本轮范围
 
 - 只统一成功路径状态表达。
-- 覆盖 `POST /api/v1/control/provider-policies/preview` 与 `POST /api/v1/control/provider-bindings`。
+- 覆盖 `POST /backend/v3/api/control/provider-policies/preview` 与 `POST /backend/v3/api/control/provider_bindings`。
 - 保持 `409 + provider_policy_conflict` 冲突语义不变。
 
 ## 代码动作
@@ -24,10 +24,10 @@
 
 ## 契约冻结
 
-- `POST /api/v1/control/provider-policies/preview`
+- `POST /backend/v3/api/control/provider-policies/preview`
   - `status`
   - `preview`
-- `POST /api/v1/control/provider-bindings`
+- `POST /backend/v3/api/control/provider_bindings`
   - `status`
   - `applied`
   - `noop`

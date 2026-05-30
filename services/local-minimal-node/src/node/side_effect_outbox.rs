@@ -1,4 +1,5 @@
 use super::*;
+use im_time::rfc3339_lt;
 use std::io::Write;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -35,7 +36,7 @@ pub(super) struct MessageSideEffectOutboxRecord {
 
 impl MessageSideEffectOutboxRecord {
     pub(super) fn realtime_message_posted(
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
         message_id: &str,
         message_seq: u64,
@@ -68,7 +69,7 @@ impl MessageSideEffectOutboxRecord {
     }
 
     pub(super) fn notification_message_posted(
-        auth: &AuthContext,
+        auth: &AppContext,
         request: notification_service::RequestMessagePostedNotifications,
     ) -> Self {
         let now = im_time::utc_now_rfc3339_millis();
@@ -100,14 +101,21 @@ impl MessageSideEffectOutboxRecord {
         }
     }
 
-    fn auth_context(&self) -> AuthContext {
-        AuthContext {
+    fn auth_context(&self) -> AppContext {
+        AppContext {
             tenant_id: self.tenant_id.clone(),
+            organization_id: None,
+            user_id: self.actor_id.clone(),
             actor_id: self.actor_id.clone(),
             actor_kind: self.actor_kind.clone(),
             session_id: self.actor_session_id.clone(),
+            app_id: Some("craw-chat".into()),
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: BTreeSet::new(),
+            permission_scope: BTreeSet::new(),
             device_id: self.actor_device_id.clone(),
-            permissions: BTreeSet::new(),
         }
     }
 }
@@ -432,7 +440,7 @@ pub(super) fn drain_pending_message_side_effect_outbox(
 
 pub(super) fn record_pending_message_realtime_side_effect(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     conversation_id: &str,
     message_id: &str,
     message_seq: u64,
@@ -453,7 +461,7 @@ pub(super) fn record_pending_message_realtime_side_effect(
 
 pub(super) fn record_pending_message_notification_side_effect(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     request: notification_service::RequestMessagePostedNotifications,
 ) -> Result<MessageSideEffectOutboxRecord, ContractError> {
     state.message_side_effect_outbox.upsert_pending(
@@ -496,7 +504,7 @@ pub(super) fn message_side_effect_outbox_diagnostics(
 
 fn replay_message_notification_side_effect(
     state: &AppState,
-    auth: &AuthContext,
+    auth: &AppContext,
     payload: &str,
 ) -> Result<(), notification_service::NotificationError> {
     let payload: MessageNotificationSideEffectPayload =
@@ -556,7 +564,7 @@ fn build_side_effect_outbox_diagnostics(
                 pending_count = pending_count.saturating_add(1);
                 if oldest_pending_created_at
                     .as_deref()
-                    .is_none_or(|oldest| record.created_at.as_str() < oldest)
+                    .is_none_or(|oldest| rfc3339_lt(record.created_at.as_str(), oldest))
                 {
                     oldest_pending_created_at = Some(record.created_at.clone());
                 }
@@ -741,14 +749,21 @@ mod tests {
         ))
     }
 
-    fn test_auth_context() -> AuthContext {
-        AuthContext {
+    fn test_auth_context() -> AppContext {
+        AppContext {
             tenant_id: "t_demo".into(),
+            organization_id: None,
+            user_id: "u_demo".into(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),
             session_id: Some("s_demo".into()),
+            app_id: Some("craw-chat".into()),
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: BTreeSet::new(),
+            permission_scope: BTreeSet::new(),
             device_id: Some("d_demo".into()),
-            permissions: BTreeSet::new(),
         }
     }
 
@@ -766,6 +781,16 @@ mod tests {
             })
             .to_string(),
         )
+    }
+
+    fn pending_record_created_at(
+        message_id: &str,
+        created_at: &str,
+    ) -> MessageSideEffectOutboxRecord {
+        let mut record = pending_record(message_id);
+        record.created_at = created_at.into();
+        record.updated_at = created_at.into();
+        record
     }
 
     fn write_record_map(path: &StdPath, record: MessageSideEffectOutboxRecord) {
@@ -832,5 +857,22 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(runtime_dir);
+    }
+
+    #[test]
+    fn test_side_effect_outbox_diagnostics_compares_oldest_pending_by_rfc3339_instant() {
+        let later_fraction =
+            pending_record_created_at("m_later_fraction", "2026-05-06T00:00:00.100Z");
+        let whole_second = pending_record_created_at("m_whole_second", "2026-05-06T00:00:00Z");
+
+        let diagnostics = build_side_effect_outbox_diagnostics(
+            "realtime_delivery",
+            vec![&later_fraction, &whole_second],
+        );
+
+        assert_eq!(
+            diagnostics.oldest_pending_created_at.as_deref(),
+            Some("2026-05-06T00:00:00Z")
+        );
     }
 }

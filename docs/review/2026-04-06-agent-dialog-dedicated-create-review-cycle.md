@@ -5,7 +5,7 @@
 ### 1.1 High: `agent_dialog` had a data-model type but no safe public write path
 
 - Root cause:
-  - The previous review wave correctly froze generic `POST /api/v1/conversations` to `group / direct`.
+  - The previous review wave correctly froze generic `POST /im/v3/api/chat/conversations` to `group / direct`.
   - But `agent_dialog` still had no dedicated create command, so the platform could not create a commercially usable user-agent primary conversation through a safe public contract.
 - Impact:
   - The model advertised an `agent_dialog` type, but the runtime and gateway still exposed no correct way to create the required two-party topology.
@@ -22,11 +22,11 @@
 
 The current safest vertical slice is:
 
-- Keep generic `POST /api/v1/conversations` limited to:
+- Keep generic `POST /im/v3/api/chat/conversations` limited to:
   - `group`
   - `direct`
 - Open a dedicated create route only for `agent_dialog`:
-  - `POST /api/v1/conversations/agent-dialogs`
+  - `POST /im/v3/api/chat/conversations/agent_dialogs`
 - Request body accepts only:
   - `conversationId`
   - `agentId`
@@ -47,7 +47,7 @@ The current safest vertical slice is:
   - enforced `requester_kind == user`
   - created requester and agent memberships together
   - initialized read cursors for both members
-  - exposed `POST /api/v1/conversations/agent-dialogs`
+  - exposed `POST /im/v3/api/chat/conversations/agent_dialogs`
 - `services/local-minimal-node/src/lib.rs`
   - exposed the same dedicated create route on the local profile
   - mapped auth context into the runtime command without exposing requester identity in the body

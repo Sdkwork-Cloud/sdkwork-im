@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
 use im_domain_events::{AggregateType, CommitEnvelope};
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
 use projection_service::TimelineProjectionService;
@@ -29,7 +29,7 @@ impl CommitJournal for RecordingJournal {
 fn test_request_notification_appends_requested_and_dispatched_events() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = notification_service::NotificationRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -87,7 +87,7 @@ fn test_request_notification_appends_requested_and_dispatched_events() {
 fn test_duplicate_request_notification_is_idempotent_when_payload_matches() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = notification_service::NotificationRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -147,7 +147,7 @@ fn test_duplicate_request_notification_is_idempotent_when_payload_matches() {
 fn test_duplicate_request_notification_across_principals_keeps_stable_request_key() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = notification_service::NotificationRuntime::with_journal(journal);
-    let first_auth = AuthContext {
+    let first_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_first".into(),
         actor_kind: "user".into(),
@@ -155,7 +155,7 @@ fn test_duplicate_request_notification_across_principals_keeps_stable_request_ke
         device_id: None,
         permissions: BTreeSet::new(),
     };
-    let second_auth = AuthContext {
+    let second_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_second".into(),
         actor_kind: "user".into(),
@@ -210,7 +210,7 @@ fn test_duplicate_request_notification_across_principals_keeps_stable_request_ke
 fn test_duplicate_request_notification_rejects_conflicting_payload() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = notification_service::NotificationRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -265,7 +265,7 @@ fn test_duplicate_request_notification_rejects_conflicting_payload() {
 fn test_request_notification_rejects_oversized_payload() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = notification_service::NotificationRuntime::with_journal(journal);
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -300,7 +300,7 @@ fn test_request_notification_rejects_oversized_payload() {
 fn test_request_notification_rejects_oversized_notification_id() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = notification_service::NotificationRuntime::with_journal(journal);
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -335,7 +335,7 @@ fn test_request_notification_rejects_oversized_notification_id() {
 fn test_request_notification_fanout_skips_actor_and_creates_notifications_for_other_recipients() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = notification_service::NotificationRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_owner".into(),
         actor_kind: "user".into(),
@@ -383,7 +383,7 @@ fn test_request_notification_fanout_skips_actor_and_creates_notifications_for_ot
         .expect("owner notifications should list");
     assert!(owner_notifications.is_empty());
 
-    let member_a_auth = AuthContext {
+    let member_a_auth = AppContext {
         actor_id: "u_member_a".into(),
         ..auth.clone()
     };
@@ -396,7 +396,7 @@ fn test_request_notification_fanout_skips_actor_and_creates_notifications_for_ot
         "ntf_msg_c_demo_1_user_u_member_a"
     );
 
-    let member_b_auth = AuthContext {
+    let member_b_auth = AppContext {
         actor_id: "u_member_b".into(),
         ..auth
     };
@@ -527,7 +527,7 @@ fn test_request_message_posted_notifications_resolves_current_active_recipients_
             .apply(&event)
             .expect("projection should accept conversation membership event");
     }
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_owner".into(),
         actor_kind: "user".into(),
@@ -663,7 +663,7 @@ fn test_request_message_posted_notifications_includes_shared_linked_recipients_f
             .apply(&event)
             .expect("projection should accept shared notification membership event");
     }
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_owner".into(),
         actor_kind: "user".into(),
@@ -708,7 +708,7 @@ fn test_request_message_posted_notifications_includes_shared_linked_recipients_f
 fn test_request_automation_result_notification_targets_requesting_actor_idempotently() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = notification_service::NotificationRuntime::with_journal(journal.clone());
-    let auth = AuthContext {
+    let auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -764,7 +764,7 @@ fn test_request_automation_result_notification_targets_requesting_actor_idempote
 fn test_request_automation_result_notification_isolated_by_actor_kind_for_same_execution_id() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = notification_service::NotificationRuntime::with_journal(journal.clone());
-    let user_auth = AuthContext {
+    let user_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -772,7 +772,7 @@ fn test_request_automation_result_notification_isolated_by_actor_kind_for_same_e
         device_id: None,
         permissions: BTreeSet::new(),
     };
-    let system_auth = AuthContext {
+    let system_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "system".into(),
@@ -838,7 +838,7 @@ fn test_request_automation_result_notification_isolated_by_actor_kind_for_same_e
 fn test_notification_queries_are_isolated_by_actor_kind() {
     let journal = Arc::new(RecordingJournal::default());
     let runtime = notification_service::NotificationRuntime::with_journal(journal);
-    let sender_auth = AuthContext {
+    let sender_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_sender".into(),
         actor_kind: "user".into(),
@@ -846,7 +846,7 @@ fn test_notification_queries_are_isolated_by_actor_kind() {
         device_id: None,
         permissions: BTreeSet::new(),
     };
-    let user_auth = AuthContext {
+    let user_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -854,7 +854,7 @@ fn test_notification_queries_are_isolated_by_actor_kind() {
         device_id: None,
         permissions: BTreeSet::new(),
     };
-    let system_auth = AuthContext {
+    let system_auth = AppContext {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "system".into(),

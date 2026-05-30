@@ -134,7 +134,7 @@ A pure post-mutation active-member query is insufficient.
 
 `local-minimal-node` and future gateways must expose the projection result through:
 
-- `GET /api/v1/devices/{deviceId}/sync-feed`
+- `GET /im/v3/api/devices/{deviceId}/sync-feed`
 
 without inventing a second roster-sync path.
 

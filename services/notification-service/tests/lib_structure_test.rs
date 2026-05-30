@@ -3,20 +3,20 @@ fn test_notification_runtime_exposes_public_request_access_owner() {
     let source = include_str!("../src/lib.rs");
 
     assert!(
-        source.contains("pub fn request_notification_from_public_api("),
-        "services/notification-service/src/lib.rs should expose a runtime-owned public notification request seam so service entrypoints do not each reimplement cross-recipient access control"
+        source.contains("pub fn request_notification_from_app_context("),
+        "services/notification-service/src/lib.rs should expose a runtime-owned AppContext notification request seam so service entrypoints do not each reimplement cross-recipient access control"
     );
 
     assert!(
-        source.contains(".request_notification_from_public_api(&auth, request, is_bearer_request)"),
-        "notification-service HTTP request path should consume the runtime-owned public notification request seam"
+        source.contains(".request_notification_from_app_context(&auth, request)"),
+        "notification-service HTTP request path should consume the runtime-owned AppContext notification request seam"
     );
 
     assert!(
         !source.contains(
-            "ensure_notification_request_access(&auth, request.recipient_id.as_str(), is_bearer_request)?;"
+            "ensure_notification_request_access(&auth, request.recipient_id.as_str())?;"
         ),
-        "notification-service HTTP request path should not inline cross-recipient notification access control once NotificationRuntime owns that public-api boundary"
+        "notification-service HTTP request path should not inline cross-recipient notification access control once NotificationRuntime owns that AppContext boundary"
     );
 }
 
@@ -51,7 +51,7 @@ fn test_notification_runtime_exposes_message_posted_notification_owner_seam() {
 
     assert!(
         source.contains(".message_posted_notification_recipients_from_auth_context("),
-        "services/notification-service/src/lib.rs should resolve message-posted recipients through projection-service's message-posted auth-context owner seam instead of expecting service-edge recipient fanout input"
+        "services/notification-service/src/lib.rs should resolve message-posted recipients through projection-service's message-posted principal-context owner seam instead of expecting service-edge recipient fanout input"
     );
 
     assert!(

@@ -21,6 +21,7 @@ struct CaptureState {
 struct CapturedRequest {
     path: String,
     authorization: Option<String>,
+    app_context_projection: Value,
     body: Value,
 }
 
@@ -91,6 +92,15 @@ async fn capture_request(
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned);
+    let app_context_projection = json!({
+        "x-sdkwork-tenant-id": headers.get("x-sdkwork-tenant-id").and_then(|value| value.to_str().ok()),
+        "x-sdkwork-user-id": headers.get("x-sdkwork-user-id").and_then(|value| value.to_str().ok()),
+        "x-sdkwork-actor-id": headers.get("x-sdkwork-actor-id").and_then(|value| value.to_str().ok()),
+        "x-sdkwork-actor-kind": headers.get("x-sdkwork-actor-kind").and_then(|value| value.to_str().ok()),
+        "x-sdkwork-session-id": headers.get("x-sdkwork-session-id").and_then(|value| value.to_str().ok()),
+        "x-sdkwork-device-id": headers.get("x-sdkwork-device-id").and_then(|value| value.to_str().ok()),
+        "x-sdkwork-permission-scope": headers.get("x-sdkwork-permission-scope").and_then(|value| value.to_str().ok()),
+    });
     let bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
         .await
         .expect("request body should collect");
@@ -107,6 +117,7 @@ async fn capture_request(
         .push(CapturedRequest {
             path: path.clone(),
             authorization: authorization.clone(),
+            app_context_projection: app_context_projection.clone(),
             body: body.clone(),
         });
 
@@ -115,6 +126,7 @@ async fn capture_request(
         axum::Json(json!({
             "path": path,
             "authorization": authorization,
+            "appContextProjection": app_context_projection,
             "body": body
         })),
     )
@@ -125,33 +137,34 @@ fn test_step12_cli_docs_freeze_authority_model_and_validation_paths() {
     let root = workspace_root();
     let doc_path = root
         .join("docs")
-        .join("部署")
-        .join("CLI聊天验证与兼容矩阵.md");
+        .join("sites")
+        .join("reference")
+        .join("cli-and-scripts.md");
     let doc = fs::read_to_string(&doc_path)
-        .unwrap_or_else(|_| panic!("missing Step 12 CLI doc: {}", doc_path.display()));
+        .unwrap_or_else(|_| panic!("missing current CLI docs: {}", doc_path.display()));
     let readme_path = root.join("README.md");
     let readme = fs::read_to_string(&readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", readme_path.display()));
 
     for required_text in [
-        "craw-chat-cli",
-        "chat-session",
-        "watch",
+        "chat-cli.*",
+        "chat-cli-local.*",
+        "chat-window.*",
         "open-chat-test",
-        "--public-bearer-secret",
-        "tenant_id",
-        "auth_bind",
-        "compatibility matrix",
+        "docs:verify",
+        "sdkwork-im-app-sdk",
+        "sdkwork-im-backend-sdk",
+        "sdkwork-rtc-sdk",
     ] {
         assert!(
             doc.contains(required_text),
-            "Step 12 CLI doc must contain {required_text}"
+            "current CLI docs must contain {required_text}"
         );
     }
 
     assert!(
-        readme.contains("CLI聊天验证与兼容矩阵.md"),
-        "README must link to the Step 12 CLI guide"
+        readme.contains("docs/sites"),
+        "README must link to the current docs site"
     );
 }
 
@@ -161,23 +174,40 @@ fn test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points()
     let sdk_index_path = root.join("sdks").join("README.md");
     let sdk_index = fs::read_to_string(&sdk_index_path)
         .unwrap_or_else(|_| panic!("missing SDK index README: {}", sdk_index_path.display()));
-    let app_sdk_path = root.join("sdks").join("sdkwork-im-sdk").join("README.md");
-    let app_sdk = fs::read_to_string(&app_sdk_path)
-        .unwrap_or_else(|_| panic!("missing app SDK README: {}", app_sdk_path.display()));
-    let admin_sdk_path = root
+    let im_sdk_path = root.join("sdks").join("sdkwork-im-sdk").join("README.md");
+    let im_sdk = fs::read_to_string(&im_sdk_path)
+        .unwrap_or_else(|_| panic!("missing IM SDK README: {}", im_sdk_path.display()));
+    let app_sdk_path = root
         .join("sdks")
-        .join("sdkwork-control-plane-sdk")
+        .join("sdkwork-im-app-sdk")
         .join("README.md");
-    let admin_sdk = fs::read_to_string(&admin_sdk_path)
-        .unwrap_or_else(|_| panic!("missing admin SDK README: {}", admin_sdk_path.display()));
+    let app_sdk = fs::read_to_string(&app_sdk_path)
+        .unwrap_or_else(|_| panic!("missing app API SDK README: {}", app_sdk_path.display()));
+    let backend_sdk_path = root
+        .join("sdks")
+        .join("sdkwork-im-backend-sdk")
+        .join("README.md");
+    let backend_sdk = fs::read_to_string(&backend_sdk_path).unwrap_or_else(|_| {
+        panic!(
+            "missing backend SDK README: {}",
+            backend_sdk_path.display()
+        )
+    });
+    let rtc_sdk_path = root.join("sdks").join("sdkwork-rtc-sdk").join("README.md");
+    let rtc_sdk = fs::read_to_string(&rtc_sdk_path)
+        .unwrap_or_else(|_| panic!("missing RTC SDK README: {}", rtc_sdk_path.display()));
     let readme_path = root.join("README.md");
     let readme = fs::read_to_string(&readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", readme_path.display()));
 
     for required_text in [
         "sdkwork-im-sdk",
-        "sdkwork-control-plane-sdk",
-        "compatibility matrix",
+        "sdkwork-im-app-sdk",
+        "sdkwork-im-backend-sdk",
+        "sdkwork-rtc-sdk",
+        "/im/v3/api",
+        "/app/v3/api",
+        "/backend/v3/api",
         "TypeScript",
         "Flutter",
     ] {
@@ -197,22 +227,45 @@ fn test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points()
         "compatibility matrix",
     ] {
         assert!(
-            app_sdk.contains(required_text),
-            "app SDK README must contain {required_text}"
+            im_sdk.contains(required_text),
+            "IM SDK README must contain {required_text}"
         );
     }
 
     for required_text in [
-        "sdkwork-control-plane-sdk",
+        "sdkwork-im-app-sdk",
+        "/app/v3/api",
         "TypeScript",
         "Flutter",
-        "control-plane",
-        "protocol governance",
-        "compatibility matrix",
+        "SdkworkAppClient",
     ] {
         assert!(
-            admin_sdk.contains(required_text),
-            "admin SDK README must contain {required_text}"
+            app_sdk.contains(required_text),
+            "app API SDK README must contain {required_text}"
+        );
+    }
+
+    for required_text in [
+        "sdkwork-im-backend-sdk",
+        "/backend/v3/api",
+        "control-plane",
+        "admin",
+        "SdkworkBackendClient",
+    ] {
+        assert!(
+            backend_sdk.contains(required_text),
+            "backend SDK README must contain {required_text}"
+        );
+    }
+
+    for required_text in [
+        "sdkwork-rtc-sdk",
+        "provider-standard",
+        "not a route-generated SDK workspace",
+    ] {
+        assert!(
+            rtc_sdk.contains(required_text),
+            "RTC SDK README must contain {required_text}"
         );
     }
 
@@ -227,29 +280,29 @@ fn test_step12_cli_and_sdk_docs_freeze_recovery_baseline() {
     let root = workspace_root();
     let cli_doc_path = root
         .join("docs")
-        .join("部署")
-        .join("CLI聊天验证与兼容矩阵.md");
+        .join("sites")
+        .join("reference")
+        .join("cli-and-scripts.md");
     let cli_doc = fs::read_to_string(&cli_doc_path)
-        .unwrap_or_else(|_| panic!("missing Step 12 CLI doc: {}", cli_doc_path.display()));
-    let app_sdk_path = root.join("sdks").join("sdkwork-im-sdk").join("README.md");
-    let app_sdk = fs::read_to_string(&app_sdk_path)
-        .unwrap_or_else(|_| panic!("missing app SDK README: {}", app_sdk_path.display()));
-    let admin_sdk_path = root
+        .unwrap_or_else(|_| panic!("missing current CLI docs: {}", cli_doc_path.display()));
+    let im_sdk_path = root.join("sdks").join("sdkwork-im-sdk").join("README.md");
+    let im_sdk = fs::read_to_string(&im_sdk_path)
+        .unwrap_or_else(|_| panic!("missing IM SDK README: {}", im_sdk_path.display()));
+    let backend_sdk_path = root
         .join("sdks")
-        .join("sdkwork-control-plane-sdk")
+        .join("sdkwork-im-backend-sdk")
         .join("README.md");
-    let admin_sdk = fs::read_to_string(&admin_sdk_path)
-        .unwrap_or_else(|_| panic!("missing admin SDK README: {}", admin_sdk_path.display()));
+    let backend_sdk = fs::read_to_string(&backend_sdk_path).unwrap_or_else(|_| {
+        panic!(
+            "missing backend SDK README: {}",
+            backend_sdk_path.display()
+        )
+    });
 
-    for required_text in [
-        "session.disconnect",
-        "realtime.overload",
-        "goaway",
-        "resume fallback",
-    ] {
+    for required_text in ["chat-cli.*", "chat-window.*", "open-chat-test"] {
         assert!(
             cli_doc.contains(required_text),
-            "Step 12 CLI doc must contain recovery baseline text {required_text}"
+            "current CLI docs must contain CLI entrypoint text {required_text}"
         );
     }
 
@@ -260,20 +313,15 @@ fn test_step12_cli_and_sdk_docs_freeze_recovery_baseline() {
         "resume fallback",
     ] {
         assert!(
-            app_sdk.contains(required_text),
-            "app SDK README must contain recovery baseline text {required_text}"
+            im_sdk.contains(required_text),
+            "IM SDK README must contain recovery baseline text {required_text}"
         );
     }
 
-    for required_text in [
-        "session.disconnect",
-        "realtime.overload",
-        "goaway",
-        "compatibility matrix",
-    ] {
+    for required_text in ["control-plane", "admin", "/backend/v3/api", "sdkwork-im-backend-sdk"] {
         assert!(
-            admin_sdk.contains(required_text),
-            "admin SDK README must contain recovery baseline text {required_text}"
+            backend_sdk.contains(required_text),
+            "backend SDK README must contain backend boundary text {required_text}"
         );
     }
 }
@@ -283,36 +331,36 @@ fn test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline(
     let root = workspace_root();
     let cli_doc_path = root
         .join("docs")
-        .join("部署")
-        .join("CLI聊天验证与兼容矩阵.md");
+        .join("sites")
+        .join("reference")
+        .join("cli-and-scripts.md");
     let cli_doc = fs::read_to_string(&cli_doc_path)
-        .unwrap_or_else(|_| panic!("missing Step 12 CLI doc: {}", cli_doc_path.display()));
-    let app_sdk_path = root.join("sdks").join("sdkwork-im-sdk").join("README.md");
-    let app_sdk = fs::read_to_string(&app_sdk_path)
-        .unwrap_or_else(|_| panic!("missing app SDK README: {}", app_sdk_path.display()));
-    let admin_sdk_path = root
+        .unwrap_or_else(|_| panic!("missing current CLI docs: {}", cli_doc_path.display()));
+    let im_sdk_path = root.join("sdks").join("sdkwork-im-sdk").join("README.md");
+    let im_sdk = fs::read_to_string(&im_sdk_path)
+        .unwrap_or_else(|_| panic!("missing IM SDK README: {}", im_sdk_path.display()));
+    let backend_sdk_path = root
         .join("sdks")
-        .join("sdkwork-control-plane-sdk")
+        .join("sdkwork-im-backend-sdk")
         .join("README.md");
-    let admin_sdk = fs::read_to_string(&admin_sdk_path)
-        .unwrap_or_else(|_| panic!("missing admin SDK README: {}", admin_sdk_path.display()));
+    let backend_sdk = fs::read_to_string(&backend_sdk_path).unwrap_or_else(|_| {
+        panic!(
+            "missing backend SDK README: {}",
+            backend_sdk_path.display()
+        )
+    });
     let index_doc_path = root
         .join("docs")
-        .join("部署")
-        .join("兼容矩阵与SDK-CLI-operator验证索引.md");
+        .join("sites")
+        .join("sdk")
+        .join("index.md");
     let index_doc = fs::read_to_string(&index_doc_path)
         .unwrap_or_else(|_| panic!("missing validation index doc: {}", index_doc_path.display()));
 
-    for required_text in [
-        "4001",
-        "session.disconnect",
-        "reconnect_required",
-        "pull-only",
-        "events.pull",
-    ] {
+    for required_text in ["chat-cli.*", "chat-window.*", "open-chat-test"] {
         assert!(
             cli_doc.contains(required_text),
-            "Step 12 CLI doc must contain detailed recovery baseline text {required_text}"
+            "current CLI docs must contain CLI entrypoint text {required_text}"
         );
     }
 
@@ -324,34 +372,27 @@ fn test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline(
         "events.pull",
     ] {
         assert!(
-            app_sdk.contains(required_text),
-            "app SDK README must contain detailed recovery baseline text {required_text}"
+            im_sdk.contains(required_text),
+            "IM SDK README must contain detailed recovery baseline text {required_text}"
         );
     }
 
-    for required_text in [
-        "4001",
-        "session.disconnect",
-        "reconnect_required",
-        "pull-only",
-        "events.pull",
-    ] {
+    for required_text in ["control-plane", "admin", "/backend/v3/api", "sdkwork-im-backend-sdk"] {
         assert!(
-            admin_sdk.contains(required_text),
-            "admin SDK README must contain detailed recovery baseline text {required_text}"
+            backend_sdk.contains(required_text),
+            "backend SDK README must contain backend boundary text {required_text}"
         );
     }
 
     for required_text in [
-        "4001",
-        "session.disconnect",
-        "reconnect_required",
-        "pull-only",
-        "events.pull",
+        "sdkwork-im-sdk",
+        "sdkwork-im-app-sdk",
+        "sdkwork-im-backend-sdk",
+        "sdkwork-rtc-sdk",
     ] {
         assert!(
             index_doc.contains(required_text),
-            "validation index doc must contain detailed recovery baseline text {required_text}"
+            "SDK index doc must contain current SDK family text {required_text}"
         );
     }
 }
@@ -361,17 +402,22 @@ fn test_continuous_optimization_docs_freeze_single_validation_index() {
     let root = workspace_root();
     let index_doc_path = root
         .join("docs")
-        .join("部署")
-        .join("兼容矩阵与SDK-CLI-operator验证索引.md");
+        .join("sites")
+        .join("sdk")
+        .join("index.md");
     let index_doc = fs::read_to_string(&index_doc_path).unwrap_or_else(|_| {
         panic!(
             "missing continuous optimization validation index doc: {}",
             index_doc_path.display()
         )
     });
-    let deploy_readme_path = root.join("docs").join("部署").join("README.md");
+    let deploy_readme_path = root
+        .join("docs")
+        .join("sites")
+        .join("reference")
+        .join("cli-and-scripts.md");
     let deploy_readme = fs::read_to_string(&deploy_readme_path)
-        .unwrap_or_else(|_| panic!("missing deploy README: {}", deploy_readme_path.display()));
+        .unwrap_or_else(|_| panic!("missing current CLI docs: {}", deploy_readme_path.display()));
     let sdk_index_path = root.join("sdks").join("README.md");
     let sdk_index = fs::read_to_string(&sdk_index_path)
         .unwrap_or_else(|_| panic!("missing SDK index README: {}", sdk_index_path.display()));
@@ -382,26 +428,38 @@ fn test_continuous_optimization_docs_freeze_single_validation_index() {
     for required_text in [
         "compatibility matrix",
         "sdkwork-im-sdk",
-        "sdkwork-control-plane-sdk",
-        "craw-chat-cli",
-        "open-chat-test",
-        "chat_cli_contract_test.rs",
-        "chat_cli_e2e_test.rs",
-        "protocol_registry_test.rs",
-        "protocol_governance_test.rs",
+        "sdkwork-im-app-sdk",
+        "sdkwork-im-backend-sdk",
+        "sdkwork-rtc-sdk",
+        "SDK Overview",
+        "App API SDK",
+        "Backend SDK",
+        "RTC SDK",
     ] {
         assert!(
             index_doc.contains(required_text),
-            "validation index doc must contain {required_text}"
+            "SDK index doc must contain {required_text}"
         );
     }
 
-    for doc in [&deploy_readme, &sdk_index, &repo_readme] {
+    for required_text in [
+        "chat-cli.*",
+        "open-chat-test",
+    ] {
         assert!(
-            doc.contains("兼容矩阵与SDK-CLI-operator验证索引.md"),
-            "all public entry readmes must link to the single validation index doc"
+            deploy_readme.contains(required_text),
+            "CLI docs must contain {required_text}"
         );
     }
+
+    assert!(
+        sdk_index.contains("sdkwork-im-backend-sdk"),
+        "SDK workspace index must expose backend SDK family"
+    );
+    assert!(
+        repo_readme.contains("docs/sites"),
+        "repository README must link to the current docs site"
+    );
 }
 
 #[test]
@@ -491,53 +549,39 @@ fn test_continuous_optimization_docs_freeze_sdk_release_catalog_contract() {
 
     assert_eq!(catalog_json["bundleId"], "wave-d-2026-04-08");
     assert_eq!(catalog_json["artifact"], "sdk-release-catalog");
-    assert_eq!(catalog_json["state"], "generated_pending_publication");
+    assert_eq!(catalog_json["state"], "template_only_pending_generation");
 
     let artifacts = catalog_json["sdkArtifacts"]
         .as_array()
         .expect("sdkArtifacts should be an array");
     for (id, audience, language, package_name, readme_path) in [
         (
-            "app-typescript",
-            "app",
+            "im-typescript",
+            "im",
             "typescript",
             "sdkwork-im-sdk-typescript",
             "sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/README.md",
         ),
         (
-            "app-flutter",
+            "app-typescript",
             "app",
-            "flutter",
-            "sdkwork-im-sdk-flutter",
-            "sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/README.md",
-        ),
-        (
-            "admin-typescript",
-            "admin",
             "typescript",
-            "sdkwork-control-plane-sdk-typescript",
-            "sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-typescript/README.md",
+            "sdkwork-im-app-sdk-typescript",
+            "sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/README.md",
         ),
         (
-            "admin-flutter",
-            "admin",
-            "flutter",
-            "sdkwork-control-plane-sdk-flutter",
-            "sdks/sdkwork-control-plane-sdk/sdkwork-control-plane-sdk-flutter/README.md",
-        ),
-        (
-            "im-admin-typescript",
-            "im-admin",
+            "backend-typescript",
+            "backend",
             "typescript",
-            "sdkwork-im-admin-sdk-typescript",
-            "sdks/sdkwork-im-admin-sdk/sdkwork-im-admin-sdk-typescript/README.md",
+            "sdkwork-im-backend-sdk-typescript",
+            "sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/README.md",
         ),
         (
-            "im-admin-flutter",
-            "im-admin",
-            "flutter",
-            "sdkwork-im-admin-sdk-flutter",
-            "sdks/sdkwork-im-admin-sdk/sdkwork-im-admin-sdk-flutter/README.md",
+            "rtc-typescript",
+            "rtc",
+            "typescript",
+            "@sdkwork/rtc-sdk",
+            "sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/README.md",
         ),
     ] {
         assert!(
@@ -547,7 +591,6 @@ fn test_continuous_optimization_docs_freeze_sdk_release_catalog_contract() {
                     && artifact["language"] == language
                     && artifact["package"] == package_name
                     && artifact["readmePath"] == readme_path
-                    && artifact["generationStatus"] == "generated"
                     && artifact["releaseStatus"] == "not_published"
             }),
             "SDK release catalog must contain {id} / {audience} / {language}"
@@ -677,7 +720,7 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_release_catalog_boundary
                 .join("README.md"),
             [
                 "sdk-release-catalog.json",
-                "generated_pending_publication",
+                "template_only_pending_generation",
                 "not_published",
                 catalog_path,
             ],
@@ -690,33 +733,43 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_release_catalog_boundary
                 .join("README.md"),
             [
                 "sdk-release-catalog.json",
-                "generated_pending_publication",
+                "template_only_pending_generation",
                 "not_published",
                 catalog_path,
             ],
         ),
         (
-            "admin TypeScript README",
+            "app API SDK README",
             root.join("sdks")
-                .join("sdkwork-control-plane-sdk")
-                .join("sdkwork-control-plane-sdk-typescript")
+                .join("sdkwork-im-app-sdk")
                 .join("README.md"),
             [
                 "sdk-release-catalog.json",
-                "generated_pending_publication",
+                "template_only_pending_generation",
                 "not_published",
                 catalog_path,
             ],
         ),
         (
-            "admin Flutter README",
+            "backend SDK README",
             root.join("sdks")
-                .join("sdkwork-control-plane-sdk")
-                .join("sdkwork-control-plane-sdk-flutter")
+                .join("sdkwork-im-backend-sdk")
                 .join("README.md"),
             [
                 "sdk-release-catalog.json",
-                "generated_pending_publication",
+                "template_only_pending_generation",
+                "not_published",
+                catalog_path,
+            ],
+        ),
+        (
+            "RTC SDK README",
+            root.join("sdks")
+                .join("sdkwork-rtc-sdk")
+                .join("README.md"),
+            [
+                "sdk-release-catalog.json",
+                "template_only_pending_generation",
                 "not_published",
                 catalog_path,
             ],
@@ -744,9 +797,21 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_release_catalog_bou
             root.join("sdks").join("sdkwork-im-sdk").join("README.md"),
         ),
         (
-            "admin SDK container README",
+            "app API SDK container README",
             root.join("sdks")
-                .join("sdkwork-control-plane-sdk")
+                .join("sdkwork-im-app-sdk")
+                .join("README.md"),
+        ),
+        (
+            "backend SDK container README",
+            root.join("sdks")
+                .join("sdkwork-im-backend-sdk")
+                .join("README.md"),
+        ),
+        (
+            "RTC SDK container README",
+            root.join("sdks")
+                .join("sdkwork-rtc-sdk")
                 .join("README.md"),
         ),
     ] {
@@ -754,7 +819,7 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_release_catalog_bou
             .unwrap_or_else(|_| panic!("missing {label}: {}", path.display()));
         for required_text in [
             "sdk-release-catalog.json",
-            "generated_pending_publication",
+            "template_only_pending_generation",
             "not_published",
             catalog_path,
         ] {
@@ -971,19 +1036,24 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_version_decision_source_
                 .join("README.md"),
         ),
         (
-            "admin TypeScript README",
+            "app API SDK README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-control-plane-sdk")
-                .join("sdkwork-control-plane-sdk-typescript")
+                .join("sdkwork-im-app-sdk")
                 .join("README.md"),
         ),
         (
-            "admin Flutter README",
+            "backend SDK README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-control-plane-sdk")
-                .join("sdkwork-control-plane-sdk-flutter")
+                .join("sdkwork-im-backend-sdk")
+                .join("README.md"),
+        ),
+        (
+            "RTC SDK README",
+            workspace_root()
+                .join("sdks")
+                .join("sdkwork-rtc-sdk")
                 .join("README.md"),
         ),
     ] {
@@ -1018,19 +1088,24 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_version_placeholder_boun
                 .join("README.md"),
         ),
         (
-            "admin TypeScript README",
+            "app API SDK README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-control-plane-sdk")
-                .join("sdkwork-control-plane-sdk-typescript")
+                .join("sdkwork-im-app-sdk")
                 .join("README.md"),
         ),
         (
-            "admin Flutter README",
+            "backend SDK README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-control-plane-sdk")
-                .join("sdkwork-control-plane-sdk-flutter")
+                .join("sdkwork-im-backend-sdk")
+                .join("README.md"),
+        ),
+        (
+            "RTC SDK README",
+            workspace_root()
+                .join("sdks")
+                .join("sdkwork-rtc-sdk")
                 .join("README.md"),
         ),
     ] {
@@ -1061,10 +1136,24 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_version_placeholder
                 .join("README.md"),
         ),
         (
-            "admin SDK container README",
+            "app API SDK container README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-control-plane-sdk")
+                .join("sdkwork-im-app-sdk")
+                .join("README.md"),
+        ),
+        (
+            "backend SDK container README",
+            workspace_root()
+                .join("sdks")
+                .join("sdkwork-im-backend-sdk")
+                .join("README.md"),
+        ),
+        (
+            "RTC SDK container README",
+            workspace_root()
+                .join("sdks")
+                .join("sdkwork-rtc-sdk")
                 .join("README.md"),
         ),
     ] {
@@ -1095,10 +1184,24 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_version_decision_so
                 .join("README.md"),
         ),
         (
-            "admin SDK container README",
+            "app API SDK container README",
             workspace_root()
                 .join("sdks")
-                .join("sdkwork-control-plane-sdk")
+                .join("sdkwork-im-app-sdk")
+                .join("README.md"),
+        ),
+        (
+            "backend SDK container README",
+            workspace_root()
+                .join("sdks")
+                .join("sdkwork-im-backend-sdk")
+                .join("README.md"),
+        ),
+        (
+            "RTC SDK container README",
+            workspace_root()
+                .join("sdks")
+                .join("sdkwork-rtc-sdk")
                 .join("README.md"),
         ),
     ] {
@@ -1116,30 +1219,24 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_version_decision_so
 #[test]
 fn test_step12_compatibility_matrix_doc_freezes_control_plane_mapping_and_client_rows() {
     let root = workspace_root();
-    let doc_path = root
-        .join("docs")
-        .join("部署")
-        .join("CLI聊天验证与兼容矩阵.md");
+    let doc_path = root.join("sdks").join("README.md");
     let doc = fs::read_to_string(&doc_path)
-        .unwrap_or_else(|_| panic!("missing Step 12 compatibility doc: {}", doc_path.display()));
+        .unwrap_or_else(|_| panic!("missing current SDK boundary doc: {}", doc_path.display()));
 
     for required_text in [
-        "web",
-        "desktop",
-        "mobile",
-        "backend",
-        "ccp/sse/1",
-        "ccp/mqtt/1",
-        "payload.cbor",
-        "/api/v1/control/protocol-registry",
-        "/api/v1/control/protocol-governance",
-        "sdkCompatibilityBaseline",
         "sdkwork-im-sdk",
-        "sdkwork-control-plane-sdk",
+        "sdkwork-im-app-sdk",
+        "sdkwork-im-backend-sdk",
+        "sdkwork-rtc-sdk",
+        "/im/v3/api",
+        "/app/v3/api",
+        "/backend/v3/api",
+        "/backend/v3/api/control/*",
+        "/backend/v3/api/admin/*",
     ] {
         assert!(
             doc.contains(required_text),
-            "Step 12 compatibility doc must contain {required_text}"
+            "current SDK boundary doc must contain {required_text}"
         );
     }
 }
@@ -1149,10 +1246,11 @@ fn test_step12_open_chat_test_scripts_freeze_scripted_validation_contract() {
     let root = workspace_root();
     let doc_path = root
         .join("docs")
-        .join("部署")
-        .join("CLI聊天验证与兼容矩阵.md");
+        .join("sites")
+        .join("reference")
+        .join("cli-and-scripts.md");
     let doc = fs::read_to_string(&doc_path)
-        .unwrap_or_else(|_| panic!("missing Step 12 compatibility doc: {}", doc_path.display()));
+        .unwrap_or_else(|_| panic!("missing current CLI docs: {}", doc_path.display()));
     let open_chat_test_ps1_path = root.join("bin").join("open-chat-test.ps1");
     let open_chat_test_ps1 = fs::read_to_string(&open_chat_test_ps1_path).unwrap_or_else(|_| {
         panic!(
@@ -1452,7 +1550,7 @@ async fn test_chat_cli_watch_connect_failure_surfaces_actionable_realtime_unreac
         "realtime connectivity failure should echo the requested base url\nmessage:\n{message}"
     );
     assert!(
-        message.contains("/api/v1/realtime/ws"),
+        message.contains("/im/v3/api/realtime/ws"),
         "realtime connectivity failure should identify the websocket endpoint\nmessage:\n{message}"
     );
     assert!(
@@ -1469,9 +1567,9 @@ async fn test_chat_cli_watch_connect_failure_surfaces_actionable_realtime_unreac
 async fn test_chat_cli_http_commands_keep_authority_in_token_not_business_body() {
     let state = CaptureState::default();
     let app = Router::new()
-        .route("/api/v1/conversations", post(capture_request))
+        .route("/im/v3/api/chat/conversations", post(capture_request))
         .route(
-            "/api/v1/conversations/{conversation_id}/messages",
+            "/im/v3/api/chat/conversations/{conversation_id}/messages",
             post(capture_request),
         )
         .with_state(state.clone());
@@ -1490,8 +1588,6 @@ async fn test_chat_cli_http_commands_keep_authority_in_token_not_business_body()
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "create-conversation",
             "--conversation-id",
             "c_cli_contract_demo",
@@ -1503,7 +1599,7 @@ async fn test_chat_cli_http_commands_keep_authority_in_token_not_business_body()
     .await
     .expect("create conversation should succeed");
     let create_json = command_output_json(create_output);
-    assert_eq!(create_json["path"], "/api/v1/conversations");
+    assert_eq!(create_json["path"], "/im/v3/api/chat/conversations");
 
     let send_output = execute_command(
         parse_cli_args([
@@ -1518,8 +1614,6 @@ async fn test_chat_cli_http_commands_keep_authority_in_token_not_business_body()
             "s_owner",
             "--device-id",
             "d_owner",
-            "--public-bearer-secret",
-            "local-chat-cli-secret",
             "send-message",
             "--conversation-id",
             "c_cli_contract_demo",
@@ -1553,33 +1647,53 @@ async fn test_chat_cli_http_commands_keep_authority_in_token_not_business_body()
 
     let create_request = captured
         .iter()
-        .find(|request| request.path == "/api/v1/conversations")
+        .find(|request| request.path == "/im/v3/api/chat/conversations")
         .expect("create request should be captured");
     assert_no_authority_fields(&create_request.body, "create-conversation body");
     assert_eq!(create_request.body["conversationId"], "c_cli_contract_demo");
     assert_eq!(create_request.body["conversationType"], "group");
     assert!(
-        create_request
-            .authorization
-            .as_deref()
-            .is_some_and(|value| value.starts_with("Bearer ")),
-        "create-conversation must send bearer authorization header"
+        create_request.authorization.is_none(),
+        "create-conversation must not synthesize local Authorization headers"
+    );
+    assert_eq!(
+        create_request.app_context_projection["x-sdkwork-tenant-id"],
+        "t_demo"
+    );
+    assert_eq!(
+        create_request.app_context_projection["x-sdkwork-user-id"],
+        "u_owner"
+    );
+    assert_eq!(
+        create_request.app_context_projection["x-sdkwork-actor-id"],
+        "u_owner"
+    );
+    assert_eq!(
+        create_request.app_context_projection["x-sdkwork-session-id"],
+        "s_owner"
+    );
+    assert_eq!(
+        create_request.app_context_projection["x-sdkwork-device-id"],
+        "d_owner"
     );
 
     let send_request = captured
         .iter()
-        .find(|request| request.path == "/api/v1/conversations/c_cli_contract_demo/messages")
+        .find(|request| {
+            request.path == "/im/v3/api/chat/conversations/c_cli_contract_demo/messages"
+        })
         .expect("send-message request should be captured");
     assert_no_authority_fields(&send_request.body, "send-message body");
     assert_eq!(send_request.body["clientMsgId"], "cli_contract_msg_1");
     assert_eq!(send_request.body["summary"], "hello from cli contract test");
     assert_eq!(send_request.body["text"], "hello from cli contract test");
     assert!(
-        send_request
-            .authorization
-            .as_deref()
-            .is_some_and(|value| value.starts_with("Bearer ")),
-        "send-message must send bearer authorization header"
+        send_request.authorization.is_none(),
+        "send-message must not synthesize local Authorization headers"
+    );
+    assert_eq!(
+        send_request.app_context_projection["x-sdkwork-user-id"],
+        "u_owner"
     );
 
     handle.abort();
@@ -1588,7 +1702,7 @@ async fn test_chat_cli_http_commands_keep_authority_in_token_not_business_body()
 
 #[tokio::test]
 async fn test_chat_cli_token_command_freezes_header_and_token_only_contract() {
-    let generated_default = command_output_json(
+    let projection_default = command_output_json(
         execute_command(
             parse_cli_args([
                 "craw-chat-cli",
@@ -1600,37 +1714,44 @@ async fn test_chat_cli_token_command_freezes_header_and_token_only_contract() {
                 "s_token",
                 "--device-id",
                 "d_token",
-                "--public-bearer-secret",
-                "local-chat-cli-secret",
                 "token",
             ])
-            .expect("default token args should parse"),
+            .expect("default projection token args should parse"),
         )
         .await
-        .expect("default token command should succeed"),
+        .expect("default projection token command should succeed"),
     );
-    let generated_authorization = generated_default["authorization"]
+    let projection_authorization = projection_default["authorization"]
         .as_str()
-        .expect("default authorization should be a string");
-    let generated_token = generated_default["token"]
+        .expect("projection authorization should be a string");
+    let projection_token = projection_default["token"]
         .as_str()
-        .expect("default token should be a string");
-    assert_eq!(generated_default["source"], "generatedBearerToken");
+        .expect("projection token should be a string");
+    assert_eq!(projection_default["source"], "appContextProjection");
+    assert_eq!(projection_authorization, "");
+    assert_eq!(projection_token, "");
     assert!(
-        generated_authorization.starts_with("Bearer "),
-        "default token command must expose bearer-header form"
+        projection_default["claims"].is_null(),
+        "projection token command must not synthesize local claims: {projection_default}"
     );
     assert_eq!(
-        generated_authorization,
-        format!("Bearer {generated_token}"),
-        "default token command must keep authorization aligned with token"
+        projection_default["appContextProjection"]["x-sdkwork-tenant-id"],
+        "t_token"
     );
-    assert_eq!(generated_default["claims"]["tenant_id"], "t_token");
-    assert_eq!(generated_default["claims"]["sub"], "u_token");
-    assert_eq!(generated_default["claims"]["sid"], "s_token");
-    assert_eq!(generated_default["claims"]["did"], "d_token");
+    assert_eq!(
+        projection_default["appContextProjection"]["x-sdkwork-user-id"],
+        "u_token"
+    );
+    assert_eq!(
+        projection_default["appContextProjection"]["x-sdkwork-session-id"],
+        "s_token"
+    );
+    assert_eq!(
+        projection_default["appContextProjection"]["x-sdkwork-device-id"],
+        "d_token"
+    );
 
-    let generated_token_only = command_output_json(
+    let projection_token_only = command_output_json(
         execute_command(
             parse_cli_args([
                 "craw-chat-cli",
@@ -1642,31 +1763,23 @@ async fn test_chat_cli_token_command_freezes_header_and_token_only_contract() {
                 "s_token",
                 "--device-id",
                 "d_token",
-                "--public-bearer-secret",
-                "local-chat-cli-secret",
                 "token",
                 "--token-only",
             ])
-            .expect("token-only args should parse"),
+            .expect("projection token-only args should parse"),
         )
         .await
-        .expect("token-only command should succeed"),
+        .expect("projection token-only command should succeed"),
     );
-    let generated_token_only_authorization = generated_token_only["authorization"]
+    let projection_token_only_authorization = projection_token_only["authorization"]
         .as_str()
-        .expect("token-only authorization should be a string");
-    let generated_token_only_token = generated_token_only["token"]
+        .expect("projection token-only authorization should be a string");
+    let projection_token_only_token = projection_token_only["token"]
         .as_str()
-        .expect("token-only token should be a string");
-    assert_eq!(generated_token_only["source"], "generatedBearerToken");
-    assert_eq!(
-        generated_token_only_authorization, generated_token_only_token,
-        "--token-only must return the bare token instead of a bearer header"
-    );
-    assert!(
-        !generated_token_only_authorization.starts_with("Bearer "),
-        "--token-only must not keep the Bearer prefix"
-    );
+        .expect("projection token-only token should be a string");
+    assert_eq!(projection_token_only["source"], "appContextProjection");
+    assert_eq!(projection_token_only_authorization, "");
+    assert_eq!(projection_token_only_token, "");
 
     let provided_token_only = command_output_json(
         execute_command(

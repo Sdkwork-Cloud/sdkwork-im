@@ -4,7 +4,7 @@
 
 - 新增 `07-C7 / 09J / 150J` 文档闭环。
 - `RuntimeProviderRegistry` 支持基于 `expectedBaseVersion` 的确认写入。
-- `POST /api/v1/control/provider-bindings` 新增可选 `expectedBaseVersion`。
+- `POST /backend/v3/api/control/provider_bindings` 新增可选 `expectedBaseVersion`。
 - 当真实版本漂移时，接口返回 `provider_policy_conflict`。
 - governance 回归已证明冲突失败不会刷新 ops，也不会写 audit。
 

@@ -55,12 +55,18 @@ function normalizeReleaseState(languageEntry) {
 }
 
 function buildArtifactEntry(workspaceConfig, languageEntry) {
+  const packageName = workspaceConfig.packageField === 'publicPackage'
+    ? languageEntry.publicPackage || languageEntry.workspace
+    : languageEntry.workspace;
+  const readmePath = workspaceConfig.readmePathFor
+    ? workspaceConfig.readmePathFor(workspaceConfig, languageEntry)
+    : `sdks/${workspaceConfig.workspace}/${languageEntry.workspace}/README.md`;
   return {
     id: `${workspaceConfig.audience}-${languageEntry.language}`,
     audience: workspaceConfig.audience,
     language: languageEntry.language,
-    package: languageEntry.workspace,
-    readmePath: `sdks/${workspaceConfig.workspace}/${languageEntry.workspace}/README.md`,
+    package: packageName,
+    readmePath,
     plannedVersion: null,
     versionStatus: 'version_unassigned_pending_freeze',
     versionDecisionSourcePath: null,
@@ -72,19 +78,27 @@ function buildArtifactEntry(workspaceConfig, languageEntry) {
 function buildCatalog(repoRoot, bundleId) {
   const workspaceConfigs = [
     {
-      audience: 'app',
+      audience: 'im',
       workspace: 'sdkwork-im-sdk',
       assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-sdk', '.sdkwork-assembly.json'),
     },
     {
-      audience: 'admin',
-      workspace: 'sdkwork-control-plane-sdk',
-      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-control-plane-sdk', '.sdkwork-assembly.json'),
+      audience: 'app',
+      workspace: 'sdkwork-im-app-sdk',
+      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-app-sdk', '.sdkwork-assembly.json'),
     },
     {
-      audience: 'im-admin',
-      workspace: 'sdkwork-im-admin-sdk',
-      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-admin-sdk', '.sdkwork-assembly.json'),
+      audience: 'backend',
+      workspace: 'sdkwork-im-backend-sdk',
+      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-im-backend-sdk', '.sdkwork-assembly.json'),
+    },
+    {
+      audience: 'rtc',
+      workspace: 'sdkwork-rtc-sdk',
+      assemblyPath: path.join(repoRoot, 'sdks', 'sdkwork-rtc-sdk', '.sdkwork-assembly.json'),
+      packageField: 'publicPackage',
+      readmePathFor: (workspaceConfig, languageEntry) =>
+        `sdks/${workspaceConfig.workspace}/${languageEntry.workspace}/README.md`,
     },
   ];
 

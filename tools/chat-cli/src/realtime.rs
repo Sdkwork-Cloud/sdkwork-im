@@ -9,7 +9,6 @@ use craw_chat_ccp_control::{
 };
 use craw_chat_ccp_core::{CapabilitySet, CcpEnvelope, ProtocolVersion, TransportBinding};
 use futures_util::{SinkExt, StreamExt};
-use hyper::header::AUTHORIZATION;
 use serde_json::Value;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
@@ -20,6 +19,8 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 use crate::command::CommandContext;
 use crate::{CliError, build_websocket_url, resolve_authorization_header};
+
+const REALTIME_WS_PATH: &str = "/im/v3/api/realtime/ws";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RealtimeSocketMode {
@@ -210,14 +211,25 @@ impl CcpSocketCodec {
 pub(crate) async fn connect_realtime_socket(
     context: &CommandContext,
 ) -> Result<RealtimeSocket, CliError> {
-    let ws_url = build_websocket_url(context.base_url.as_str(), "/api/v1/realtime/ws")?;
-    let authorization = resolve_authorization_header(&context.auth)?;
-    let request =
+    let ws_url = build_websocket_url(context.base_url.as_str(), REALTIME_WS_PATH)?;
+    let mut request =
         ClientRequestBuilder::new(ws_url.parse().map_err(|error| {
             CliError::runtime(format!("failed to parse websocket url: {error}"))
         })?)
-        .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-        .with_header(AUTHORIZATION.as_str(), authorization.as_str());
+        .with_sub_protocol(CCP_WS_SUBPROTOCOL);
+    request = request
+        .with_header("x-sdkwork-tenant-id", context.auth.tenant_id.as_str())
+        .with_header("x-sdkwork-user-id", context.auth.user_id.as_str())
+        .with_header("x-sdkwork-actor-id", context.auth.user_id.as_str())
+        .with_header("x-sdkwork-actor-kind", context.auth.actor_kind.as_str())
+        .with_header("x-sdkwork-session-id", context.auth.session_id.as_str())
+        .with_header("x-sdkwork-device-id", context.auth.device_id.as_str());
+    if !context.auth.permissions.is_empty() {
+        request = request.with_header("x-sdkwork-permission-scope", context.auth.permissions.join(" "));
+    }
+    if let Some(authorization) = resolve_authorization_header(&context.auth) {
+        request = request.with_header("authorization", authorization.as_str());
+    }
 
     let (mut socket, response) = connect_async(request).await.map_err(|error| {
         format_realtime_connect_error(context.base_url.as_str(), &ws_url, error)
@@ -421,14 +433,11 @@ async fn read_next_control_frame(
 mod tests {
     use super::*;
 
-    use std::sync::OnceLock;
-
     use axum::Router;
     use axum::extract::ws::{Message as AxumMessage, WebSocketUpgrade};
     use axum::response::Response;
     use axum::routing::get;
     use tokio::net::TcpListener;
-    use tokio::sync::{Mutex, MutexGuard};
 
     async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0")
@@ -441,11 +450,6 @@ mod tests {
             axum::serve(listener, app).await.expect("server should run");
         });
         (format!("http://127.0.0.1:{}", address.port()), handle)
-    }
-
-    async fn public_auth_guard() -> MutexGuard<'static, ()> {
-        static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
-        GUARD.get_or_init(|| Mutex::new(())).lock().await
     }
 
     fn encode_ccp_text(payload: Value, schema: &str, kind: &str) -> AxumMessage {
@@ -566,7 +570,7 @@ mod tests {
             })
         }
 
-        let app = Router::new().route("/api/v1/realtime/ws", get(websocket_handler));
+        let app = Router::new().route(REALTIME_WS_PATH, get(websocket_handler));
         let (base_url, handle) = spawn_server(app).await;
         let context = CommandContext {
             base_url,
@@ -578,7 +582,6 @@ mod tests {
                 device_id: "d_demo".into(),
                 permissions: Vec::new(),
                 bearer_token: Some("test-token".into()),
-                public_bearer_secret: None,
             },
         };
 
@@ -687,7 +690,7 @@ mod tests {
             })
         }
 
-        let app = Router::new().route("/api/v1/realtime/ws", get(websocket_handler));
+        let app = Router::new().route(REALTIME_WS_PATH, get(websocket_handler));
         let (base_url, handle) = spawn_server(app).await;
         let context = CommandContext {
             base_url,
@@ -699,7 +702,6 @@ mod tests {
                 device_id: "d_demo".into(),
                 permissions: Vec::new(),
                 bearer_token: Some("test-token".into()),
-                public_bearer_secret: None,
             },
         };
 
@@ -718,48 +720,4 @@ mod tests {
         let _ = handle.await;
     }
 
-    #[tokio::test]
-    async fn test_connect_realtime_socket_reads_connected_frame_from_local_public_app() {
-        let _guard = public_auth_guard().await;
-        unsafe {
-            std::env::set_var(
-                im_auth_context::PUBLIC_BEARER_HS256_SECRET_ENV,
-                "local-chat-cli-secret",
-            );
-        }
-
-        let app = local_minimal_node::build_public_app();
-        let (base_url, handle) = spawn_server(app).await;
-        let context = CommandContext {
-            base_url,
-            auth: crate::command::AuthInput {
-                tenant_id: "t_demo".into(),
-                user_id: "u_guest".into(),
-                actor_kind: "user".into(),
-                session_id: "s_guest".into(),
-                device_id: "d_guest".into(),
-                permissions: Vec::new(),
-                bearer_token: None,
-                public_bearer_secret: Some("local-chat-cli-secret".into()),
-            },
-        };
-
-        let mut socket = connect_realtime_socket(&context)
-            .await
-            .expect("public websocket should connect");
-        assert_eq!(
-            socket.mode,
-            RealtimeSocketMode::CcpJson,
-            "local public app should negotiate CCP websocket mode"
-        );
-        let connected = crate::read_next_json_frame(&mut socket, Some(Duration::from_secs(1)))
-            .await
-            .expect("connected frame should arrive from local public app");
-        assert_eq!(connected["type"], "realtime.connected");
-        assert_eq!(connected["deviceId"], "d_guest");
-
-        socket.close().await;
-        handle.abort();
-        let _ = handle.await;
-    }
 }

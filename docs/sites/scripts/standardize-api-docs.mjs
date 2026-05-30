@@ -32,6 +32,18 @@ function pageKey(filePath) {
   return index === -1 ? normalized : normalized.slice(index + marker.length).replace(/\.md$/, "");
 }
 
+function routeSuffix(route) {
+  return route
+    .replace(/^\/im\/v3\/api/, "")
+    .replace(/^\/app\/v3\/api/, "")
+    .replace(/^\/backend\/v3\/api/, "")
+    .replace(/^\/api\/v1/, "");
+}
+
+function isRoute(route, suffix) {
+  return routeSuffix(route) === suffix;
+}
+
 function inferSuccessLabel(method, route, block) {
   const firstResponse = block.match(/### Response `(\d+)`/);
   if (!firstResponse) {
@@ -57,51 +69,52 @@ function inferSuccessLabel(method, route, block) {
 
 function sdkLabel(page, route, method) {
   const labels = {
-    "app/session-and-realtime": "`@sdkwork/im-sdk` / session, presence, and realtime helpers",
-    "app/device-sync": "`@sdkwork/im-sdk` / generated device-sync transport",
-    "app/conversations": route === "/api/v1/inbox"
+    "im/session-and-realtime": "`@sdkwork/im-sdk` / device sessions, presence, and realtime helpers",
+    "im/device-sync": "`@sdkwork/im-sdk` / generated device-sync transport",
+    "im/conversations": isRoute(route, "/chat/inbox") || isRoute(route, "/inbox")
       ? "`@sdkwork/im-sdk` / `sdk.generated.inbox.getInbox()`"
       : "`@sdkwork/im-sdk` / `sdk.conversations`",
-    "app/membership-and-read-state": "`@sdkwork/im-sdk` / `sdk.conversations`",
-    "app/messages": "`@sdkwork/im-sdk` / `sdk.messages`",
-    "app/media": "`@sdkwork/im-sdk` / `sdk.media`",
-    "app/streams": "`@sdkwork/im-sdk` / generated stream transport",
-    "app/rtc": "`@sdkwork/im-sdk` / `sdk.rtc`",
-    "platform/notifications": "No standalone published SDK family",
-    "platform/automation": "No standalone published SDK family",
-    "platform/audit": "No standalone published SDK family",
-    "platform/ops": "No standalone published SDK family",
-    "platform/provider-health": "No standalone published SDK family",
-    "iot/protocol-and-health": "No standalone published SDK family",
-    "control-plane/protocol": "`sdkwork-control-plane-sdk` / protocol-governance",
-    "control-plane/providers": "`sdkwork-control-plane-sdk` / provider-governance",
-    "control-plane/social": "`sdkwork-control-plane-sdk` / `sdk.social`",
-    "control-plane/social-runtime": "`sdkwork-control-plane-sdk` / `sdk.socialRuntime`",
-    "control-plane/nodes": "`sdkwork-control-plane-sdk` / node-operations",
+    "im/membership-and-read-state": "`@sdkwork/im-sdk` / `sdk.conversations`",
+    "im/messages": "`@sdkwork/im-sdk` / `sdk.messages`",
+    "im/media": "`@sdkwork/im-sdk` / `sdk.media`",
+    "im/streams": "`@sdkwork/im-sdk` / generated stream transport",
+    "im/rtc": "`@sdkwork/im-sdk` / `sdk.rtc`",
+    "app/notifications": "`sdkwork-im-app-sdk` / `client.notification`",
+    "app/automation": "`sdkwork-im-app-sdk` / `client.automation`",
+    "app/device-twin": "`sdkwork-im-app-sdk` / `client.device.twin`",
+    "app/provider-health": "`sdkwork-im-app-sdk` / provider health",
+    "app/iot-protocol-and-health": "`sdkwork-im-app-sdk` / `client.iot`",
+    "backend/audit": "`sdkwork-im-backend-sdk` / audit",
+    "backend/ops": "`sdkwork-im-backend-sdk` / ops",
+    "control-plane/protocol": "`sdkwork-im-backend-sdk` / control.protocol",
+    "control-plane/providers": "`sdkwork-im-backend-sdk` / control.providers",
+    "control-plane/social": "`sdkwork-im-backend-sdk` / control.social",
+    "control-plane/social-runtime": "`sdkwork-im-backend-sdk` / control.socialRuntime",
+    "control-plane/nodes": "`sdkwork-im-backend-sdk` / control.nodes",
   };
-  if (page === "app/session-and-realtime") {
+  if (page === "im/session-and-realtime") {
     if (route === "/healthz" || route === "/readyz") {
       return "Direct HTTP probe";
     }
-    if (route === "/api/v1/sessions/resume") {
-      return "`@sdkwork/im-sdk` / `sdk.connect({ deviceId })`, `sdk.generated.session.resume(...)`";
+    if (isRoute(route, "/device/sessions/resume")) {
+      return "`@sdkwork/im-sdk` / `sdk.connect({ deviceId })`, `sdk.deviceSessions.resume(...)`";
     }
-    if (route === "/api/v1/sessions/disconnect") {
-      return "`@sdkwork/im-sdk` / `sdk.generated.session.disconnect(...)`";
+    if (isRoute(route, "/device/sessions/disconnect")) {
+      return "`@sdkwork/im-sdk` / `sdk.deviceSessions.disconnect(...)`";
     }
-    if (route === "/api/v1/presence/heartbeat") {
+    if (isRoute(route, "/presence/heartbeat")) {
       return "`@sdkwork/im-sdk` / `sdk.generated.presence.heartbeat(...)`";
     }
-    if (route === "/api/v1/presence/me") {
-      return "`@sdkwork/im-sdk` / `sdk.auth.me()`, `sdk.generated.presence.getPresenceMe()`";
+    if (isRoute(route, "/presence/me")) {
+      return "`@sdkwork/im-sdk` / `sdk.presence.getPresenceMe()`";
     }
-    if (route === "/api/v1/realtime/subscriptions/sync") {
+    if (isRoute(route, "/realtime/subscriptions/sync")) {
       return "`@sdkwork/im-sdk` / `sdk.connect(...)`, `sdk.generated.realtime.syncRealtimeSubscriptions(...)`";
     }
-    if (route === "/api/v1/realtime/events") {
+    if (isRoute(route, "/realtime/events")) {
       return "`@sdkwork/im-sdk` / `sdk.sync.catchUp(...)`, `sdk.generated.realtime.listRealtimeEvents(...)`";
     }
-    if (route === "/api/v1/realtime/events/ack") {
+    if (isRoute(route, "/realtime/events/ack")) {
       return "`@sdkwork/im-sdk` / `sdk.sync.ack(...)`, `context.ack()`, `sdk.generated.realtime.ackRealtimeEvents(...)`";
     }
     if (route.endsWith("/ws")) {
@@ -109,51 +122,81 @@ function sdkLabel(page, route, method) {
     }
   }
 
-  if (page === "app/portal-and-auth") {
-    if (route === "/api/v1/auth/login") {
-      return "`@sdkwork/im-sdk` / `sdk.auth.login(...)`";
+  if (page === "app/portal-access") {
+    if (isRoute(route, "/portal/home")) {
+      return "`sdkwork-im-app-sdk` / `client.portal.home.retrieve()`";
     }
-    if (route === "/api/v1/auth/me") {
-      return "`@sdkwork/im-sdk` / `sdk.auth.me()`";
+    if (isRoute(route, "/portal/access")) {
+      return "`sdkwork-im-app-sdk` / `client.portal.access.retrieve()`";
     }
-    if (route === "/api/v1/portal/home") {
-      return "`@sdkwork/im-sdk` / `sdk.portal.getHome()`";
+    if (isRoute(route, "/portal/workspace")) {
+      return "`sdkwork-im-app-sdk` / `client.portal.workspace.retrieve()`";
     }
-    if (route === "/api/v1/portal/auth") {
-      return "`@sdkwork/im-sdk` / `sdk.portal.getAuth()`";
+    if (isRoute(route, "/portal/dashboard")) {
+      return "`sdkwork-im-app-sdk` / `client.portal.dashboard.retrieve()`";
     }
-    if (route === "/api/v1/portal/workspace") {
-      return "`@sdkwork/im-sdk` / `sdk.portal.getWorkspace()`";
+    if (isRoute(route, "/portal/conversations")) {
+      return "`sdkwork-im-app-sdk` / `client.portal.conversationSnapshot.retrieve()`";
     }
-    if (route === "/api/v1/portal/dashboard") {
-      return "`@sdkwork/im-sdk` / `sdk.portal.getDashboard()`";
+    if (isRoute(route, "/portal/realtime")) {
+      return "`sdkwork-im-app-sdk` / `client.portal.realtime.retrieve()`";
     }
-    if (route === "/api/v1/portal/conversations") {
-      return "`@sdkwork/im-sdk` / `sdk.portal.getConversations()`";
+    if (isRoute(route, "/portal/media")) {
+      return "`sdkwork-im-app-sdk` / `client.portal.media.retrieve()`";
     }
-    if (route === "/api/v1/portal/realtime") {
-      return "`@sdkwork/im-sdk` / `sdk.portal.getRealtime()`";
+    if (isRoute(route, "/portal/automation")) {
+      return "`sdkwork-im-app-sdk` / `client.portal.automation.retrieve()`";
     }
-    if (route === "/api/v1/portal/media") {
-      return "`@sdkwork/im-sdk` / `sdk.portal.getMedia()`";
-    }
-    if (route === "/api/v1/portal/automation") {
-      return "`@sdkwork/im-sdk` / `sdk.portal.getAutomation()`";
-    }
-    if (route === "/api/v1/portal/governance") {
-      return "`@sdkwork/im-sdk` / `sdk.portal.getGovernance()`";
+    if (isRoute(route, "/portal/governance")) {
+      return "`sdkwork-im-app-sdk` / `client.portal.governance.retrieve()`";
     }
   }
 
-  if (page === "app/device-sync") {
-    if (route === "/api/v1/devices/register") {
+  if (page === "app/automation") {
+    if (isRoute(route, "/automation/executions")) {
+      return "`sdkwork-im-app-sdk` / `client.automation.executions.create(body)`";
+    }
+    if (routeSuffix(route) === "/automation/executions/{executionId}") {
+      return "`sdkwork-im-app-sdk` / `client.automation.executions.retrieve(executionId)`";
+    }
+    if (isRoute(route, "/automation/agent_responses")) {
+      return "`sdkwork-im-app-sdk` / `client.automation.agentResponses.create(body)`";
+    }
+    if (routeSuffix(route) === "/automation/agent_responses/{streamId}/frames") {
+      return "`sdkwork-im-app-sdk` / `client.automation.agentResponses.frames.create(streamId, body)`";
+    }
+    if (routeSuffix(route) === "/automation/agent_responses/{streamId}/complete") {
+      return "`sdkwork-im-app-sdk` / `client.automation.agentResponses.complete(streamId, body)`";
+    }
+    if (isRoute(route, "/automation/agent_tool_calls")) {
+      return "`sdkwork-im-app-sdk` / `client.automation.agentToolCalls.create(body)`";
+    }
+    if (routeSuffix(route) === "/automation/executions/{executionId}/agent_tool_calls/{toolCallId}/complete") {
+      return "`sdkwork-im-app-sdk` / `client.automation.agentToolCalls.complete(executionId, toolCallId, body)`";
+    }
+  }
+
+  if (page === "app/device-twin") {
+    if (routeSuffix(route) === "/devices/{deviceId}/twin") {
+      return "`sdkwork-im-app-sdk` / `client.device.twin.list(deviceId)`";
+    }
+    if (routeSuffix(route) === "/devices/{deviceId}/twin/desired") {
+      return "`sdkwork-im-app-sdk` / `client.device.twin.desired.create(deviceId, body)`";
+    }
+    if (routeSuffix(route) === "/devices/{deviceId}/twin/reported") {
+      return "`sdkwork-im-app-sdk` / `client.device.twin.reported.create(deviceId, body)`";
+    }
+  }
+
+  if (page === "im/device-sync") {
+    if (isRoute(route, "/devices/register")) {
       return "`@sdkwork/im-sdk` / `sdk.generated.device.register(...)`";
     }
     return "`@sdkwork/im-sdk` / `sdk.generated.device.getDeviceSyncFeed(...)`";
   }
 
-  if (page === "app/streams") {
-    if (route === "/api/v1/streams") {
+  if (page === "im/streams") {
+    if (isRoute(route, "/streams")) {
       return "`@sdkwork/im-sdk` / `sdk.generated.stream.open(...)`";
     }
     if (route.endsWith("/frames") && method === "GET") {
@@ -185,7 +228,7 @@ function securityLabel(route, page) {
     return "Open endpoint";
   }
 
-  return "Bearer token";
+  return "SDKWork dual token + AppContext";
 }
 
 function permissionLabel(page, method, route) {
@@ -194,25 +237,25 @@ function permissionLabel(page, method, route) {
   }
 
   switch (page) {
-    case "app/session-and-realtime":
+    case "im/session-and-realtime":
       if (route.endsWith("/ws")) {
         return "Authenticated principal; active device route is prepared before upgrade.";
       }
-      return "Authenticated principal; device ownership and session binding are enforced where required.";
-    case "app/device-sync":
+      return "Authenticated principal; device ownership and device route binding are enforced where required.";
+    case "im/device-sync":
       if (route.endsWith("/sync-feed")) {
         return "Registered device owner.";
       }
       return "Authenticated principal; `deviceId` must match the bound auth context when present.";
-    case "app/conversations":
-      if (route === "/api/v1/inbox") {
+    case "im/conversations":
+      if (isRoute(route, "/chat/inbox") || isRoute(route, "/inbox")) {
         return "Authenticated principal.";
       }
       if (
-        route === "/api/v1/conversations" ||
-        route === "/api/v1/conversations/agent-dialogs" ||
-        route === "/api/v1/conversations/agent-handoffs" ||
-        route === "/api/v1/conversations/system-channels"
+        isRoute(route, "/chat/conversations") ||
+        isRoute(route, "/chat/conversations/agent_dialogs") ||
+        isRoute(route, "/chat/conversations/agent_handoffs") ||
+        isRoute(route, "/chat/conversations/system_channels")
       ) {
         return "Authenticated principal.";
       }
@@ -226,22 +269,22 @@ function permissionLabel(page, method, route) {
         return "Active conversation member with `handoff.close` authority.";
       }
       return "Active conversation member.";
-    case "app/membership-and-read-state":
+    case "im/membership-and-read-state":
       if (method === "GET" || route.endsWith("/members/leave")) {
         return "Active conversation member.";
       }
       return "Conversation-bound write access.";
-    case "app/messages":
+    case "im/messages":
       return method === "GET"
         ? "Active conversation member."
         : "Conversation-bound write access.";
-    case "app/media":
+    case "im/media":
       if (route.endsWith("/attach")) {
         return "Authenticated principal with media asset ownership and target conversation write access.";
       }
       return "Authenticated principal with media asset ownership checks.";
-    case "app/streams":
-      if (route === "/api/v1/streams") {
+    case "im/streams":
+      if (isRoute(route, "/streams")) {
         return "Conversation `stream.open` capability or device stream permission.";
       }
       if (method === "GET") {
@@ -257,8 +300,8 @@ function permissionLabel(page, method, route) {
         return "Conversation `stream.abort` capability or device stream permission.";
       }
       return "Conversation `stream.append` capability or device stream permission.";
-    case "app/rtc":
-      if (route === "/api/v1/rtc/sessions") {
+    case "im/rtc":
+      if (isRoute(route, "/rtc/sessions")) {
         return "Conversation `rtc.create` capability when the session is bound to a conversation.";
       }
       if (route.endsWith("/invite")) {
@@ -283,19 +326,21 @@ function permissionLabel(page, method, route) {
         return "Conversation `rtc.artifact` capability.";
       }
       return "Authenticated principal; provider callback mapping is validated by the RTC runtime.";
-    case "platform/notifications":
+    case "app/notifications":
       return method === "POST"
         ? "Own recipient scope or `notification.write` for delegated sends."
         : "Current recipient scope.";
-    case "platform/automation":
+    case "app/automation":
       return method === "POST" ? "`automation.execute`" : "`automation.read`";
-    case "platform/audit":
+    case "app/device-twin":
+      return method === "GET" ? "Registered device owner or authorized device observer." : "Registered device owner or authorized device actor.";
+    case "backend/audit":
       return method === "POST" ? "`audit.write`" : "`audit.read`";
-    case "platform/ops":
+    case "backend/ops":
       return "`ops.read`";
-    case "platform/provider-health":
+    case "app/provider-health":
       return "Authenticated principal.";
-    case "iot/protocol-and-health":
+    case "app/iot-protocol-and-health":
       if (method === "GET") {
         return "Authenticated principal.";
       }
@@ -337,7 +382,7 @@ function metaGrid(method, route, block, filePath) {
 
 function appReadErrors() {
   return [
-    ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+    ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
     [
       "403",
       "`conversation_permission_denied`, `device_permission_denied`, `permission_denied`",
@@ -356,7 +401,7 @@ function appReadErrors() {
 function appWriteErrors() {
   return [
     ["400", "`invalid_request`, `validation_error`", "The request payload or parameters are invalid."],
-    ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+    ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
     [
       "403",
       "`conversation_permission_denied`, `device_permission_denied`, `permission_denied`",
@@ -378,73 +423,89 @@ function errorRows(page, method, route) {
   }
 
   switch (page) {
-    case "platform/ops":
+    case "backend/ops":
       return [
-        ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+        ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
         ["403", "`permission_denied`", "The caller lacks `ops.read`."],
         ["503", "`*_unavailable`", "Operational diagnostics are temporarily unavailable."],
       ];
-    case "platform/audit":
+    case "backend/audit":
       return method === "POST"
         ? [
             ["400", "`invalid_request`, `validation_error`", "The audit anchor payload is invalid."],
-            ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
             ["403", "`permission_denied`", "The caller lacks `audit.write`."],
           ]
         : [
-            ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
             ["403", "`permission_denied`", "The caller lacks `audit.read`."],
           ];
-    case "platform/automation":
+    case "app/automation":
       return method === "POST"
         ? [
             ["400", "`invalid_request`, `validation_error`", "The automation execution request is invalid."],
-            ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
             ["403", "`permission_denied`", "The caller lacks `automation.execute`."],
             ["409", "`automation_execution_conflict`", "The execution id conflicts with an existing request."],
             ["503", "`automation_store_unavailable`, `journal_unavailable`", "Automation persistence is unavailable."],
           ]
         : [
-            ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
             ["403", "`permission_denied`", "The caller lacks `automation.read`."],
             ["404", "`automation_execution_not_found`", "The requested automation execution does not exist."],
             ["503", "`automation_store_unavailable`", "Automation persistence is unavailable."],
           ];
-    case "platform/notifications":
+    case "app/notifications":
       return method === "POST"
         ? [
             ["400", "`invalid_request`, `validation_error`", "The notification request is invalid."],
-            ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
             ["403", "`permission_denied`", "The caller lacks delegated notification authority."],
             ["409", "`notification_conflict`", "The idempotent notification request conflicts with existing state."],
           ]
         : [
-            ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
             ["403", "`permission_denied`", "The caller is not allowed to read the target notification scope."],
             ["404", "`notification_not_found`", "The requested notification task does not exist."],
           ];
-    case "platform/provider-health":
+    case "app/provider-health":
       return [
-        ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+        ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
         ["503", "`*_unavailable`", "The provider health source is unavailable."],
       ];
-    case "iot/protocol-and-health":
+    case "app/device-twin":
       return method === "GET"
         ? [
-            ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
+            ["403", "`device_permission_denied`, `permission_denied`", "The caller is not allowed to read the device twin."],
+            ["404", "`device_not_found`", "The target device is not registered."],
+            ["503", "`*_unavailable`", "The device twin source is unavailable."],
+          ]
+        : [
+            ["400", "`device_id_missing`, `device_id_mismatch`, `invalid_request`", "The device twin payload or bound device id is invalid."],
+            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
+            ["403", "`device_permission_denied`, `permission_denied`", "The caller is not allowed to mutate the device twin."],
+            ["404", "`device_not_found`", "The target device is not registered."],
+            ["409", "`device_twin_conflict`, `conflict`", "Current device twin state blocks the mutation."],
+            ["503", "`*_unavailable`", "The device twin source is unavailable."],
+          ];
+    case "app/iot-protocol-and-health":
+      return method === "GET"
+        ? [
+            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
             ["503", "`*_unavailable`", "The provider health source is unavailable."],
           ]
         : route.endsWith("/uplink")
           ? [
               ["400", "`device_id_missing`, `device_id_mismatch`, `invalid_request`", "The uplink payload or bound device id is invalid."],
-              ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+              ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
               ["403", "`device_permission_denied`", "The caller is not an authorized device actor."],
               ["404", "`device_not_found`", "The target device is not registered."],
               ["503", "`*_unavailable`", "The IoT protocol adapter is unavailable."],
             ]
           : [
               ["400", "`device_id_missing`, `device_id_mismatch`, `invalid_request`", "The downlink payload or device id is invalid."],
-              ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+              ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
               ["403", "`device_permission_denied`", "The caller lacks `device.command.send` or device ownership."],
               ["404", "`device_not_found`", "The target device is not registered."],
               ["503", "`*_unavailable`", "The IoT protocol adapter is unavailable."],
@@ -457,7 +518,7 @@ function errorRows(page, method, route) {
       return method === "GET"
         ? [
             ["400", "`invalid_request`", "Query or path parameters are invalid."],
-            ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
             ["403", "`permission_denied`", "The caller lacks the required control-plane permission."],
             ["404", "`*_not_found`", "The requested control-plane resource does not exist."],
             ["409", "`*_conflict`", "Current control-plane state blocks the read."],
@@ -465,7 +526,7 @@ function errorRows(page, method, route) {
           ]
         : [
             ["400", "`invalid_request`, `invalid_provider_policy`", "The mutation payload is invalid."],
-            ["401", "`missing_authorization`, `invalid_token`", "Authentication failed."],
+            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
             ["403", "`permission_denied`", "The caller lacks `control.write`."],
             ["404", "`*_not_found`, `provider_plugin_not_found`", "The requested node, plugin, or target resource does not exist."],
             ["409", "`*_conflict`, `provider_policy_conflict`", "Current control-plane state blocks the mutation."],

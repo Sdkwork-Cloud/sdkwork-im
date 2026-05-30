@@ -8,8 +8,8 @@ When the platform closes a live realtime websocket because the same device expli
 
 This standard applies when:
 
-- a device has an already-open websocket transport on `/api/v1/realtime/ws`
-- that same device successfully calls `POST /api/v1/sessions/disconnect`
+- a device has an already-open websocket transport on `/im/v3/api/realtime/ws`
+- that same device successfully calls `POST /im/v3/api/device/sessions/disconnect`
 - the server closes the transport because of that explicit disconnect lifecycle
 
 This standard extends Standard 90. Standard 90 froze the requirement that the socket must close. This standard freezes how that close is represented on the wire.

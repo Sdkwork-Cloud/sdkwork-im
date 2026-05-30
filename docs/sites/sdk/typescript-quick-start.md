@@ -17,12 +17,12 @@ want the preferred public SDK surface.
 ## Install
 
 If you are consuming from a local repository checkout before public publication, wire the package as
-a local file or workspace dependency:
+a workspace dependency:
 
 ```json
 {
   "dependencies": {
-    "@sdkwork/im-sdk": "file:../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript"
+    "@sdkwork/im-sdk": "workspace:*"
   }
 }
 ```
@@ -72,7 +72,7 @@ console.log(inbox.items.length);
 ## Common entrypoints
 
 ```ts
-await sdk.auth.me();
+// Tokens are issued by sdkwork-appbase and passed into Craw Chat.
 await sdk.sync.catchUp({ limit: 20 });
 
 const live = await sdk.connect({

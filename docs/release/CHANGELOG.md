@@ -194,7 +194,7 @@
 - Loop `79`
 - step `S07`
 - `control-plane-api` added an explicit stale pending-claim reclaim surface for shared-channel sync
-  - `POST /api/v1/control/social/runtime/reclaim-stale-pending-shared-channel-sync` now clears stale ownership without dispatching backlog
+  - `POST /backend/v3/api/control/social/runtime/reclaim-stale-pending-shared-channel-sync` now clears stale ownership without dispatching backlog
   - reclaimed items remain pending and return to the unclaimed pool
   - repair reclaim, stale takeover, and next-write stale retry behavior remain intact
 - TDD:
@@ -601,7 +601,7 @@
 - Loop `65`
 - 执行 step：`S07`
 - 在 `control-plane-api` 落地 `shared-channel pending targeted takeover seam`
-  - 新增 `POST /api/v1/control/social/runtime/takeover-pending-shared-channel-sync-targeted`
+  - 新增 `POST /backend/v3/api/control/social/runtime/takeover-pending-shared-channel-sync-targeted`
   - targeted takeover 当前只接管 `foreign-owned` 的 pending request
   - takeover 成功后会切换 `ownerActorId / ownerActorKind` 并刷新 `claimedAt`
   - stale owner takeover 后再做 targeted republish 当前会继续收到 `409 shared_channel_sync_owner_conflict`
@@ -662,7 +662,7 @@
 - Loop `63`
 - 执行 step：`S07`
 - 在 `control-plane-api` 落地 `shared-channel pending targeted release lifecycle seam`
-  - 新增 `POST /api/v1/control/social/runtime/release-pending-shared-channel-sync-targeted`
+  - 新增 `POST /backend/v3/api/control/social/runtime/release-pending-shared-channel-sync-targeted`
   - targeted release 当前只允许 owner operator 清空 selected pending request 的 owner 元数据
   - foreign-owned request 的 release 当前返回 `409 shared_channel_sync_owner_conflict`
   - released request 当前会返回 unowned pool，可被其他 operator 再次 claim，并复用既有 targeted republish
@@ -691,7 +691,7 @@
 - Loop `62`
 - 执行 step：`S07`
 - 在 `control-plane-api` 落地 `shared-channel pending targeted claim + republish ownership seam`
-  - 新增 `POST /api/v1/control/social/runtime/claim-pending-shared-channel-sync-targeted`
+  - 新增 `POST /backend/v3/api/control/social/runtime/claim-pending-shared-channel-sync-targeted`
   - pending/dead-letter inventory item 当前显式返回 `ownerActorId / ownerActorKind`
   - durable `PendingSharedChannelSyncRequest` 当前保留可选 owner 元数据
   - targeted claim 当前使用当前 control operator 的 `actorId / actorKind` 绑定被选中的 pending request
@@ -721,9 +721,9 @@
 - Loop `61`
 - 执行 step：`S07`
 - 在 `control-plane-api` 落地 `shared-channel pending inventory + targeted republish seam`
-  - 新增 `GET /api/v1/control/social/runtime/pending-shared-channel-sync`
+  - 新增 `GET /backend/v3/api/control/social/runtime/pending-shared-channel-sync`
   - pending inventory item 当前显式返回 `requestKey / request / failureCount / lastError`
-  - 新增 `POST /api/v1/control/social/runtime/republish-pending-shared-channel-sync-targeted`
+  - 新增 `POST /backend/v3/api/control/social/runtime/republish-pending-shared-channel-sync-targeted`
   - targeted republish 当前允许按 `requestKey` 只投递选中的 pending request 到 remote runtime
   - 成功投递的选中 request 会从 pending backlog 清理；未选中的 pending request 保持不动
   - 现有 `repair-shared-channel-sync` 全量 operator surface 保持不变
@@ -750,9 +750,9 @@
 - Loop `60`
 - 执行 step：`S07`
 - 在 `control-plane-api` 落地 `shared-channel dead-letter inventory + targeted requeue seam`
-  - 新增 `GET /api/v1/control/social/runtime/dead-letter-shared-channel-sync`
+  - 新增 `GET /backend/v3/api/control/social/runtime/dead-letter-shared-channel-sync`
   - inventory item 当前显式返回 `requestKey / request / failureCount / lastError`
-  - 新增 `POST /api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted`
+  - 新增 `POST /backend/v3/api/control/social/runtime/requeue-dead-letter-shared-channel-sync-targeted`
   - targeted requeue 当前允许按 `requestKey` 只回灌被选中的 dead-letter request
   - 被选中 request 在 targeted requeue 时会把 `failureCount` 重置为 `0`，同时保留 `lastError`
   - 未被选中的 dead-letter request 会继续停留在 `dead_letter_shared_channel_sync_requests`
@@ -807,7 +807,7 @@
 - Loop `58`
 - 执行 step：`S07`
 - 在 `control-plane-api` 落地 `shared-channel dead-letter requeue operator seam`
-  - 新增 `POST /api/v1/control/social/runtime/requeue-dead-letter-shared-channel-sync`
+  - 新增 `POST /backend/v3/api/control/social/runtime/requeue-dead-letter-shared-channel-sync`
   - dead-letter request 当前可以从 `dead_letter_shared_channel_sync_requests` 回灌到 `pending_shared_channel_sync_requests`
   - requeue 响应显式返回 `pendingBefore / deadLetterBefore / requeued / pendingAfter / deadLetterAfter`
   - requeue 行为会写入 `control.social_runtime_shared_channel_sync_dead_letter_requeued` audit 事件
@@ -895,7 +895,7 @@
   - `SocialControlState` 新增 `pending_shared_channel_sync_requests`
   - ready pair 存在但 `shared_channel_sync_trigger` 未配置时，请求会被 durable 记入 backlog，而不是静默丢弃
   - trigger dispatch 失败时，失败项与其后的未投递项会被 durable 记入 backlog；social durable truth 保持 committed
-  - 新增 `POST /api/v1/control/social/runtime/repair-shared-channel-sync`
+  - 新增 `POST /backend/v3/api/control/social/runtime/repair-shared-channel-sync`
   - `repair-derived-snapshot` 与 `repair-social-runtime-dir` replay social commit journal 时会保留 backlog
   - `SocialAggregateCountsResponse` 新增 `pendingSharedChannelSyncRequests`
   - 当前仍没有自动 retry / dead-letter / remote republish / exactly-once semantics
@@ -927,7 +927,7 @@
   - 新增 `configured_public_shared_channel_sync_trigger(...)`
   - 新增 `SHARED_CHANNEL_SYNC_TARGET_BASE_URL_ENV`
   - `services/control-plane-api/src/main.rs` 当前会在检测到 `CRAW_CHAT_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` 时装配真实 consumer；未配置时回落到原有 `build_public_app()`
-  - shared-channel sync 当前通过 public bearer 身份调用 standalone `conversation-runtime` 的 `/api/v1/conversations/shared-channel-links/sync`
+  - shared-channel sync 当前通过 public bearer 身份调用 standalone `conversation-runtime` 的 `/im/v3/api/chat/conversations/shared_channel_links/sync`
   - 当前 bridge 只支持 `http://` public runtime target；`https://` 与 cross-service outbox / retry / remote republish 继续 deferred
 - TDD：
   - red：`cargo test -p control-plane-api --offline --test social_external_collaboration_test test_control_plane_social_shared_channel_http_trigger_materializes_remote_runtime_linked_member_over_public_runtime -- --nocapture`
@@ -953,7 +953,7 @@
 - 执行 step：`S07`
 - 在 `control-plane-api`、`local-minimal-node`、`projection-service` 落地 `local-minimal embedded real runtime consumer wiring`
   - `control-plane-api` 抽出 embedded control surface builder，并补齐 `runtime_dir + governance_sinks + shared_channel_sync_trigger` 组合 builder
-  - `local-minimal-node` 生产依赖 `control-plane-api`，并把 `/api/v1/control/*` 合并进默认/公开装配面
+  - `local-minimal-node` 生产依赖 `control-plane-api`，并把 `/backend/v3/api/control/*` 合并进默认/公开装配面
   - `local-minimal-node` 新增同进程 `SharedChannelLinkedMemberSyncTrigger`，直接调用 `ConversationRuntime::sync_shared_channel_linked_member(...)`
   - `projection-service::timeline_from_auth_context(...)` 当前已接受 `can_read_shared_history()` 的 linked member
   - `OpsRuntime` service inventory 现显式包含 `control-plane-api`
@@ -1018,7 +1018,7 @@
 - 执行 step：`S07`
 - 在 `conversation-runtime` 落地 `shared_channel_policy durable sync seam / runtime linked-member materialization`
   - 新增 `SyncSharedChannelLinkedMemberCommand`
-  - 新增 `POST /api/v1/conversations/shared-channel-links/sync`
+  - 新增 `POST /im/v3/api/chat/conversations/shared_channel_links/sync`
   - sync seam 只允许 `system` actor 调用，并把 shared durable truth 派生 payload materialize 成 `role = guest / state = linked` 的 runtime member
   - linked member 会持久化 `sharedChannelPolicyId / externalConnectionId / externalMemberId` 三元锚点，并在 recovery replay 后继续保留同一 truth
   - `control-plane -> conversation-runtime automatic sync trigger / auto-projection`、per-user notification level 与更强 `im_thread_subscription` durable model 继续 deferred
@@ -1192,7 +1192,7 @@
 - 在 `im-domain-core` 与 `conversation-runtime` 落地 `thread minimal runtime truth`：
   - 新增 `ConversationScenario::Thread`
   - 新增 `CreateThreadConversationCommand`
-  - 新增 `POST /api/v1/conversations/threads`
+  - 新增 `POST /im/v3/api/chat/conversations/threads`
   - thread 现以 `group conversation + root message` 为锚点，并通过 `businessType = thread / businessId = rootMessageId` 暴露 binding truth
   - thread owner metadata 会保留 `parentConversationId / rootMessageId / threadRole`
   - recovery replay 可恢复 thread binding 与 owner metadata
@@ -1242,7 +1242,7 @@
 - 执行 step：`S05`
 - 在 `services/control-plane-api` 把 `repair-marker` 的修复结果显式暴露到 operator surface：
   - `SocialRuntimeRepairResponse` 新增 `transactionMarkerCleared`
-  - `POST /api/v1/control/social/runtime/repair-derived-snapshot` 现显式返回本次是否清理了 pending marker
+  - `POST /backend/v3/api/control/social/runtime/repair-derived-snapshot` 现显式返回本次是否清理了 pending marker
   - `control-plane-api repair-social-runtime-dir --json` 现显式返回 `transactionMarkerCleared`
   - 文本型 CLI 输出新增 `transaction-marker-cleared: <bool>`
 - 以 TDD 新增并转绿：
@@ -1346,7 +1346,7 @@
 - 执行 step：`S05`
 - 在 `services/control-plane-api` 把 social operator repair 的 authority 从当前 runtime live-state 收敛到 `social-commit-journal.json`：
   - runtime-dir 模式新增 `journal_path` 持有
-  - `POST /api/v1/control/social/runtime/repair-derived-snapshot` 现在直接 replay journal 并刷新 live state + derived snapshot
+  - `POST /backend/v3/api/control/social/runtime/repair-derived-snapshot` 现在直接 replay journal 并刷新 live state + derived snapshot
   - repair 现可吸收 runtime 启动后由外部追加到 journal 的 committed truth
 - 以 TDD 新增并转绿：
   - `test_control_plane_social_file_runtime_operator_repair_replays_external_journal_append_into_live_state`
@@ -1401,7 +1401,7 @@
 - 在 `services/control-plane-api` 为 social durable truth 补齐 `snapshot save fail` 的稳定 failpoint 与 operator repair 证据：
   - runtime-dir 新增 `state/social-failpoints.json`
   - 一次性 `failNextSnapshotSave` 可稳定制造 `journal committed + snapshot unavailable`
-  - 新增 `POST /api/v1/control/social/runtime/repair-derived-snapshot`
+  - 新增 `POST /backend/v3/api/control/social/runtime/repair-derived-snapshot`
   - operator repair 后可直接回写 `social-state.json`，并在重启后读回 repaired truth
 - 以 TDD 新增并转绿：
   - `test_control_plane_social_file_runtime_failpoint_forces_next_snapshot_save_failure_once`
@@ -1573,8 +1573,8 @@
 - 在 `crates/im-domain-core` 与 `services/conversation-runtime` 落地 `direct_chat -> conversation` 最小 runtime binding：
   - 新增 `ConversationBusinessBinding`
   - 新增 `BindDirectChatConversationCommand`
-  - 新增 `POST /api/v1/conversations/direct-chats/bindings`
-  - 新增 `GET /api/v1/conversations/{conversationId}/binding`
+  - 新增 `POST /im/v3/api/chat/conversations/direct_chats/bindings`
+  - 新增 `GET /im/v3/api/chat/conversations/{conversationId}`
   - 回放恢复后保持 `direct_chat` 业务绑定与唯一索引
 - direct-chat binding 当前要求显式传入 `left/right actor kind`，避免把 runtime 成员错误收窄为固定 `user`
 - 以 TDD 补齐并锁定：
@@ -1600,8 +1600,8 @@
 - Loop `29`
 - 执行 step：`S05 || S07`
 - 在 `services/control-plane-api` 落地 `user_block` 最小控制面 truth：
-  - 新增 `POST /api/v1/control/social/user-blocks`
-  - 新增 `GET /api/v1/control/social/user-blocks/{blockId}`
+  - 新增 `POST /backend/v3/api/control/social/user-blocks`
+  - 新增 `GET /backend/v3/api/control/social/user-blocks/{blockId}`
   - 落地 `user_block.blocked` commit、`control.user_block_blocked` audit、定向 scope 冲突约束
 - 以 TDD 补齐 `services/control-plane-api/tests/social_friend_request_test.rs` 的 `user_block` 红绿回归，并确认：
   - `cargo test -p control-plane-api --offline --test social_friend_request_test -- --nocapture` = `8 passed`
@@ -1698,9 +1698,9 @@
 - Loop：`25`
 - 执行 step：`S12`
 - 在 `services/local-minimal-node` 落地 `device_twin` runtime/mainline：
-  - `GET /api/v1/devices/{device_id}/twin`
-  - `POST /api/v1/devices/{device_id}/twin/desired`
-  - `POST /api/v1/devices/{device_id}/twin/reported`
+  - `GET /im/v3/api/devices/{deviceId}/twin`
+  - `POST /im/v3/api/devices/{deviceId}/twin/desired`
+  - `POST /im/v3/api/devices/{deviceId}/twin/reported`
 - 在 `services/local-minimal-node/src/node/access.rs` 冻结 twin 权限边界：
   - read：bound device 或 registered owner side
   - desired write：non-device owner side
@@ -1753,9 +1753,9 @@
 - `crates/im-domain-core/src/social.rs` 新增 `ExternalConnection / ExternalMemberLink / SharedChannelPolicy`，并新增 `ensure_cross_tenant_connection` 跨租户约束。
 - `crates/im-domain-events/src/lib.rs` 与 `crates/im-domain-events/src/social.rs` 新增 `external_connection / external_member_link / shared_channel_policy` aggregate type 与对应 event type。
 - `services/control-plane-api/src/lib.rs` 新增 external collaboration 最小控制面路由、快照读口与审计动作：
-  - `POST/GET /api/v1/control/social/external-connections`
-  - `POST/GET /api/v1/control/social/external-member-links`
-  - `POST/GET /api/v1/control/social/shared-channel-policies`
+  - `POST/GET /backend/v3/api/control/social/external-connections`
+  - `POST/GET /backend/v3/api/control/social/external-member-links`
+  - `POST/GET /backend/v3/api/control/social/shared-channel-policies`
   - `control.external_connection_established / control.external_member_link_bound / control.shared_channel_policy_applied`
 - `services/control-plane-api/tests/social_external_collaboration_test.rs` 与 `crates/im-domain-core/tests/social_domain_contract_test.rs` 完成 TDD 回归，覆盖 cross-tenant、active connection 依赖与 `history_visibility = shared` 边界。
 - 已回写 `docs/review/S12-Loop23补充-2026-04-10.md`、`docs/架构/152CJ-Loop23补充-2026-04-10.md`、`docs/release/2026-04-10-v0.0.23-loop-23.md`。
@@ -1765,7 +1765,7 @@
 
 - Loop：`22`
 - 影响 step：`S11`
-- 在 `services/automation-service/src/lib.rs` 新增 `GET /api/v1/automation/governance`，公开 `capabilityProfileId / enabledCapabilities / guardrailPolicyId / restrictedToolPrefixes / operatorOverridePermission / operatorOverrideActive` 最小治理快照。
+- 在 `services/automation-service/src/lib.rs` 新增 `GET /backend/v3/api/automation/governance`，公开 `capabilityProfileId / enabledCapabilities / guardrailPolicyId / restrictedToolPrefixes / operatorOverridePermission / operatorOverrideActive` 最小治理快照。
 - 为 `agent-tool-calls` 引入最小 guardrail：`ops.`、`admin.` 前缀的受限 tool 默认拒绝；无 `automation.operator_override` 时返回 `automation_guardrail_denied`，并写入 `automation.guardrail_denied` 事件；具备 override 时追加 `automation.operator_override_applied` 事件后放行。
 - 在 `services/local-minimal-node/src/node/build.rs` 与 `services/local-minimal-node/src/node/platform.rs` 镜像 governance surface，并把 `automation.guardrail_denied / automation.operator_override_applied` 写入 assembled audit anchor。
 - 以 TDD 新增 `services/automation-service/tests/agent_response_lifecycle_test.rs`、`services/automation-service/tests/http_smoke_test.rs`、`services/local-minimal-node/tests/task10_capabilities_e2e_test.rs` 的 guardrail/override/governance 红绿测试。
@@ -1843,7 +1843,7 @@
 - 影响 step：`S09`、`S10`
 - 在 `crates/im-domain-core/src/message.rs` 为 `StoredMessagePin / StoredMessage` 补齐 serde，并新增 `ConversationMessageLog::messages_in_order()`，使最小历史消息快照可直接作为 runtime 读结果输出。
 - 在 `services/conversation-runtime/src/runtime.rs`、`services/conversation-runtime/src/runtime/membership.rs` 新增 `MessageHistoryResult`、`list_messages_from_auth_context`、`list_messages`，把历史读取收口到 runtime auth-context 边界。
-- 在 `services/conversation-runtime/src/runtime/http.rs` 为 `/api/v1/conversations/{conversation_id}/messages` 增加 `GET`，形成最小稳定历史消息读取面。
+- 在 `services/conversation-runtime/src/runtime/http.rs` 为 `/im/v3/api/chat/conversations/{conversationId}/messages` 增加 `GET`，形成最小稳定历史消息读取面。
 - 在 `services/conversation-runtime/src/runtime/policy.rs` 新增 `ensure_history_read_allowed`，让 `history_visibility` 首次真实影响读路径：`joined` 非成员 `403`，`world_readable` 同租户已鉴权非成员 `200`。
 - 以 TDD 扩展 `services/conversation-runtime/tests/conversation_domain_structure_test.rs` 与 `services/conversation-runtime/tests/http_smoke_test.rs`，锁定 runtime read-query auth-context 收口和 `joined/world_readable` 行为差异。
 - 更新 `docs/review/S09-*`、`docs/review/S10-准入判断-2026-04-10.md`、`docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`、`docs/架构/152CJ-Loop18补充-2026-04-10.md`、`docs/release/2026-04-10-v0.0.18-loop-18.md`，把 Loop-18 的真实读路径策略消费回写为 as-built。
@@ -1861,7 +1861,7 @@
 - 影响 step：`S09`、`S10`
 - 在 `crates/im-domain-core/src/conversation.rs` 新增 `ConversationPolicy`、`policy_epoch` 与 capability 判定，使业务策略快照进入 conversation 聚合真相，而不再只停留在 control-plane 发布层。
 - 在 `services/conversation-runtime/src/runtime/governance.rs`、`recovery.rs`、`support.rs` 新增独立事件 `conversation.policy_applied` 及 replay 恢复逻辑，把策略事实从 `conversation.created` 分离出来，形成更清晰的 DDD 治理边界。
-- 在 `services/conversation-runtime/src/runtime/http.rs` 让 `POST /api/v1/conversations` 支持 `policyVersion / capabilityFlags / historyVisibility / retentionPolicyRef`，并在建会后立即绑定策略。
+- 在 `services/conversation-runtime/src/runtime/http.rs` 让 `POST /im/v3/api/chat/conversations` 支持 `policyVersion / capabilityFlags / historyVisibility / retentionPolicyRef`，并在建会后立即绑定策略。
 - 在 `services/conversation-runtime/src/runtime/policy.rs` 让 `capability_flags` 开始真实约束 `message.reaction` 与 `message.pin`，使 `S09` 首次从“词汇发布”推进到“runtime 消费”。
 - 以 TDD 扩展 `services/conversation-runtime/tests/conversation_flow_test.rs` 与 `services/conversation-runtime/tests/http_smoke_test.rs`，补齐 replay 与 HTTP mainline 证据。
 - 更新 `docs/review/S09-*`、`docs/review/S10-准入判断-2026-04-10.md`、`docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`、`docs/架构/152CJ-Loop17补充-2026-04-10.md`、`docs/release/2026-04-10-v0.0.17-loop-17.md`，把 Loop-17 的真实边界回写为 as-built。
@@ -1880,7 +1880,7 @@
 - Loop：`16`
 - 影响 step：`S09`、`S10`
 - 在 `crates/craw-chat-ccp-registry/src/lib.rs` 为 `ProtocolGovernanceSnapshot` 新增 `business_policy_vocabulary`，正式冻结 `policy_version / capability_flags / history_visibility / retention_policy_ref` 字段名，以及 `historyVisibilityModes / retentionPolicyScopes` 的稳定值集合。
-- 在 `services/control-plane-api/src/lib.rs` 为 `/api/v1/control/protocol-governance` 新增 `businessPolicyVocabulary` 输出，使协议治理快照对 control-plane reader 与后续 SDK facade 可直接消费，不再只停留在架构文档口径。
+- 在 `services/control-plane-api/src/lib.rs` 为 `/backend/v3/api/control/protocol-governance` 新增 `businessPolicyVocabulary` 输出，使协议治理快照对 control-plane reader 与后续 SDK facade 可直接消费，不再只停留在架构文档口径。
 - 以 TDD 扩展 `crates/craw-chat-ccp-registry/tests/governance_snapshot_test.rs`、`services/control-plane-api/tests/protocol_governance_test.rs`，先得到缺字段红灯，再转协议快照与 JSON surface 绿灯。
 - 更新 `docs/review/S09-*`、`docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`、`docs/架构/152CJ-Loop16补充-2026-04-10.md`、`sdks/README.md`、`sdks/sdkwork-im-sdk/README.md`、`sdks/sdkwork-control-plane-sdk/README.md`、`docs/release/2026-04-10-v0.0.16-loop-16.md`，把 `S09` 的协议词汇发布面回写为当前 as-built。
 - fresh verification：
@@ -1911,10 +1911,10 @@
 - 在 `services/conversation-runtime/src/runtime/policy.rs` 新增 reaction/pin 权限校验：reaction 维持活跃成员可操作，pin 限制为群 owner/admin、直聊 owner。
 - 在 `services/conversation-runtime/src/runtime/support.rs`、`services/conversation-runtime/src/runtime/recovery.rs`、`services/conversation-runtime/src/runtime/http.rs` 补齐 `message.reaction_added`、`message.reaction_removed`、`message.pin_added`、`message.pin_removed` 的 envelope、replay 与 HTTP surface。
 - 新增 HTTP 接口：
-  - `POST /api/v1/messages/{message_id}/reactions`
-  - `POST /api/v1/messages/{message_id}/reactions/remove`
-  - `POST /api/v1/messages/{message_id}/pin`
-  - `POST /api/v1/messages/{message_id}/unpin`
+  - `POST /im/v3/api/chat/conversations/{conversationId}/messages/{messageId}/interaction_summary`
+  - `POST /im/v3/api/chat/conversations/{conversationId}/messages/{messageId}/interaction_summary`
+  - `POST /im/v3/api/chat/conversations/{conversationId}/pins`
+  - `POST /im/v3/api/chat/conversations/{conversationId}/pins`
 - 以 TDD 扩展 `services/conversation-runtime/tests/authority_command_test.rs`、`services/conversation-runtime/tests/conversation_flow_test.rs`、`services/conversation-runtime/tests/http_smoke_test.rs`，覆盖授权建模、幂等、权限、recovery replay 与 HTTP mainline。
 - 更新 `docs/review/S07-*`、`docs/review/S08-Loop14补充-2026-04-10.md`、`docs/review/S10-Loop14补充-2026-04-10.md`、`docs/架构/152CJ-Loop14补充-2026-04-10.md`、`docs/release/2026-04-10-v0.0.14-loop-14.md`，把 `reaction/pin` 明确回写为 `conversation-runtime` 的 as-built runtime truth。
 - fresh verification：
@@ -1926,7 +1926,7 @@
 - Loop：`13`
 - 影响 step：`S08`、`S10`
 - 在 `services/projection-service` 新增 `contacts read model`，显式消费 `friendship.activated` 建立双向好友联系人视图，并通过 `direct_chat.bound` 回填 `directChatId / conversationId / lastInteractionAt`。
-- 新增 `GET /api/v1/contacts` 鉴权查询入口，补齐 `contacts` 的 access、HTTP surface、snapshot persist/restore 与乱序 direct-chat binding shadow 回填。
+- 新增 `GET /im/v3/api/chat/contacts` 鉴权查询入口，补齐 `contacts` 的 access、HTTP surface、snapshot persist/restore 与乱序 direct-chat binding shadow 回填。
 - 为守住 Step-02 结构红线，将 `record_projection_update_delay_for_scope` 从 `services/projection-service/src/lib.rs` 抽出到 `services/projection-service/src/update_delay.rs`，保持 `lib.rs < 1000`。
 - 扩展 `services/projection-service/tests/http_smoke_test.rs` 与 `services/projection-service/tests/projection_snapshot_test.rs`，以 TDD 先拿 `404 / missing method` 红灯，再转 `contacts query` 与 `contacts snapshot restore` 绿灯。
 - 更新 `docs/review/S05-*`、`docs/review/S08-执行卡-2026-04-10.md`、`docs/review/S08-质量审计与复盘-2026-04-10.md`、`docs/review/S08-架构兑现与回写决议-2026-04-10.md`、`docs/review/S10-准入判断-2026-04-10.md`、`docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`，正式把 `contacts` 回写为 `projection-service` 的当前 as-built 能力，并消除 `S05` 文档中的旧阻塞口径。
@@ -1940,7 +1940,7 @@
 
 - Loop：`12`
 - 影响 step：`S05`、`S08`
-- 在 `services/control-plane-api` 新增最小 `direct_chat` truth 写链路：`POST /api/v1/control/social/direct-chats/bindings` 与 `GET /api/v1/control/social/direct-chats/{directChatId}`，落地进程内 `direct_chat` runtime、snapshot readback、camelCase commit surface。
+- 在 `services/control-plane-api` 新增最小 `direct_chat` truth 写链路：`POST /backend/v3/api/control/social/direct_chats/bindings` 与 `GET /backend/v3/api/control/social/direct_chats/{direct_chat_id}`，落地进程内 `direct_chat` runtime、snapshot readback、camelCase commit surface。
 - 服务层真实接入 `im-domain-core::social` 做 actor pair 归一化与 active pair 唯一性校验，真实接入 `im-domain-events::social` 生成 `direct_chat.bound` commit，并记录 `control.direct_chat_bound` audit。
 - 扩展 `services/control-plane-api/tests/social_friend_request_test.rs`，TDD 先得到 `404/404` 红灯，再转 `6 passed` 绿灯。
 - fresh 重跑 `projection-service`，确认 `S08` 基线仍稳定；同时修正文档口径：`contacts read model` 不再缺 `S05 friendship/direct_chat` 上游真值，而是进入 `projection-service` 本地实现缺口。
@@ -1956,7 +1956,7 @@
 
 - Loop：`11`
 - 影响 step：`S05`、`S08`
-- 在 `services/control-plane-api` 新增最小 `friendship` truth 写链路：`POST /api/v1/control/social/friendships` 与 `GET /api/v1/control/social/friendships/{friendshipId}`，落地进程内 `friendship` runtime、snapshot readback、camelCase commit surface。
+- 在 `services/control-plane-api` 新增最小 `friendship` truth 写链路：`POST /backend/v3/api/control/social/friendships` 与 `GET /backend/v3/api/control/social/friendships/{friendshipId}`，落地进程内 `friendship` runtime、snapshot readback、camelCase commit surface。
 - 服务层真实接入 `im-domain-core::social` 做 pair 约束与 active pair 唯一性校验，真实接入 `im-domain-events::social` 生成 `friendship.activated` commit，并记录 `control.friendship_activated` audit。
 - 扩展 `services/control-plane-api/tests/social_friend_request_test.rs`，TDD 先得到 `404/404` 红灯，再转 `4 passed` 绿灯。
 - 更新 `docs/review/S05-执行卡-2026-04-10.md`、`docs/review/S05-质量审计与复盘-2026-04-10.md`、`docs/review/S05-架构兑现与回写决议-2026-04-10.md`、`docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`，正式把 `S05` 的当前 social truth 口径提升为“contract + event + minimal control-plane write path”，覆盖 `friend_request + friendship`。
@@ -1970,7 +1970,7 @@
 
 - Loop：`10`
 - 影响 step：`S05`、`S08`
-- 在 `services/control-plane-api` 新增最小 social truth 写链路：`POST /api/v1/control/social/friend-requests` 与 `GET /api/v1/control/social/friend-requests/{requestId}`，落地进程内 social runtime、snapshot readback、camelCase commit surface。
+- 在 `services/control-plane-api` 新增最小 social truth 写链路：`POST /backend/v3/api/control/social/friend-requests` 与 `GET /backend/v3/api/control/social/friend-requests/{requestId}`，落地进程内 social runtime、snapshot readback、camelCase commit surface。
 - 服务层真实接入 `im-domain-core::social` 做 pair 校验，真实接入 `im-domain-events::social` 生成 `friend_request.submitted` commit，并记录 `control.friend_request_submitted` audit。
 - 新增 `services/control-plane-api/tests/social_friend_request_test.rs`，TDD 先得到 `404/404` 红灯，再转 `2 passed` 绿灯。
 - 更新 `docs/review/S05-执行卡-2026-04-10.md`、`docs/review/S05-质量审计与复盘-2026-04-10.md`、`docs/review/S05-架构兑现与回写决议-2026-04-10.md`、`docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`，正式把 `S05` 的 local closure 提升为“contract + event + minimal control-plane write path”。

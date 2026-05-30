@@ -59,13 +59,6 @@ export function buildCommercialReadinessChecks({
       env: pnpmRuntimeEnv,
     },
     {
-      id: 'portal-user-center-standard',
-      label: 'Portal user-center standard',
-      cwd: repoRoot,
-      command: nodeExecutable,
-      args: [path.join(repoRoot, 'scripts', 'run-user-center-standard.mjs')],
-    },
-    {
       id: 'portal-test',
       label: 'Portal workspace tests',
       cwd: path.join(repoRoot, 'apps', 'craw-chat-portal'),

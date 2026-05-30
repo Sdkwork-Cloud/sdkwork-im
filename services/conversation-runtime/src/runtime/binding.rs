@@ -29,7 +29,7 @@ where
 
     pub fn conversation_business_binding_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: &str,
     ) -> Result<ConversationBusinessBinding, RuntimeError> {
         if auth.actor_kind != "system" {

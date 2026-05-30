@@ -34,6 +34,12 @@ pub trait CommitJournal {
         }
         Ok(positions)
     }
+
+    fn recorded(&self) -> Result<Vec<CommitEnvelope>, ContractError> {
+        Err(ContractError::UnsupportedCapability(
+            "journal readback is not implemented by this backend".into(),
+        ))
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

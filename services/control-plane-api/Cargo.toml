@@ -20,7 +20,7 @@ hyper = { version = "1.9.0", features = ["client", "http1"] }
 hyper-util = { version = "0.1.20", features = ["client", "client-legacy", "http1", "tokio"] }
 im-adapters-local-disk = { path = "../../adapters/local-disk" }
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
-im-auth-context = { path = "../../crates/im-auth-context" }
+im-app-context = { path = "../../crates/im-app-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
@@ -31,6 +31,8 @@ serde_json.workspace = true
 session-gateway = { path = "../session-gateway" }
 sha2 = "0.10"
 tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
 
 [dev-dependencies]
 audit-service = { path = "../audit-service" }

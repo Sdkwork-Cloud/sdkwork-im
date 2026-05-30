@@ -28,18 +28,18 @@
 ### Task 2: Author The OpenAPI Authority Contract
 
 **Files:**
-- Create: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml`
+- Create: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
 
 - [ ] Step 1: Map the app-facing path list from `services/local-minimal-node/src/node/build.rs`.
 - [ ] Step 2: Encode bearer auth, shared responses, and tag taxonomy in the authority contract.
 - [ ] Step 3: Add request and response schemas derived from Rust domain models and service request structs.
-- [ ] Step 4: Add websocket path documentation for `/api/v1/realtime/ws` without promising generated websocket transport.
+- [ ] Step 4: Add websocket path documentation for `/im/v3/api/realtime/ws` without promising generated websocket transport.
 - [ ] Step 5: Validate the YAML parses cleanly through the generator loader path.
 
 ### Task 3: Add The Derived sdkgen Input And Regeneration Scripts
 
 **Files:**
-- Create: `sdks/sdkwork-im-sdk/openapi/craw-chat-app.sdkgen.yaml`
+- Create: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.sdkgen.yaml`
 - Create: `sdks/sdkwork-im-sdk/bin/prepare-openapi-source.mjs`
 - Create: `sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs`
 - Create: `sdks/sdkwork-im-sdk/bin/generate-sdk.ps1`

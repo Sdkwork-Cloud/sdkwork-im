@@ -8,7 +8,7 @@
   - conversation aggregates
   - membership state
   - live realtime subscriptions
-- After rebuild, `POST /api/v1/conversations/{conversation_id}/messages` returned `404`, not because checkpoint recovery failed, but because the new app instance rebuilt `ConversationRuntime` and subscription memory from scratch.
+- After rebuild, `POST /im/v3/api/chat/conversations/{conversation_id}/messages` returned `404`, not because checkpoint recovery failed, but because the new app instance rebuilt `ConversationRuntime` and subscription memory from scratch.
 - This made the test fail for the wrong reason and obscured the actual contract boundary of the runtime-dir checkpoint wave.
 
 ### 1.2 Medium: a session-gateway unit test still ignored a fallible checkpoint persistence result

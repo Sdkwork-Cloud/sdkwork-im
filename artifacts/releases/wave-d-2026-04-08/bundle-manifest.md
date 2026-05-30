@@ -7,7 +7,7 @@
 - archive baseline scope: `Step 13`, `Wave D / 93`
 - bundle archive decision: `go`
 - server package gate decision: `pending_go_no_go`
-- SDK publication state: `generated_pending_publication`
+- SDK publication state: `template_only_pending_generation`
 
 This manifest freezes the current release-bundle snapshot for repository audit, rollback planning,
 and traceability. It does not claim that all server installers are built or that any SDK package is
@@ -109,8 +109,9 @@ already published.
 - `node artifacts/releases/sync-sdk-release-catalog.mjs --bundle wave-d-2026-04-08 --check`
 - `node docs/sites/sdk/verify-sdk-site-docs.mjs`
 - `node sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs`
-- `node sdks/sdkwork-control-plane-sdk/bin/verify-sdk-automation.mjs`
-- `node sdks/sdkwork-im-admin-sdk/bin/verify-sdk-automation.mjs`
+- `node sdks/sdkwork-im-app-sdk/bin/verify-sdk.mjs`
+- `node sdks/sdkwork-im-backend-sdk/bin/verify-sdk.mjs`
+- `node sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs`
 
 ## Rollout And Recovery Entrypoints
 
@@ -140,8 +141,9 @@ already published.
 ### SDK State
 
 - the SDK family release snapshot is frozen in `sdk-release-catalog.json`
-- current catalog state: `generated_pending_publication`
-- current tracked artifact generation state: `generationStatus = generated`
+- current catalog state: `template_only_pending_generation`
+- current generated HTTP SDK artifact state: `generationStatus = generated`
+- current RTC provider-runtime SDK artifact state: `generationStatus = template_only_pending_generation`
 - current tracked artifact publication state: `releaseStatus = not_published`
 - version-freeze fields remain explicit:
   - `plannedVersion = null`

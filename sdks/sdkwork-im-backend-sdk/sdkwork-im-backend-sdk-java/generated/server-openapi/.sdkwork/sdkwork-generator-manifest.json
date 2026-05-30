@@ -1,0 +1,347 @@
+{
+  "schemaVersion": 1,
+  "generator": "@sdkwork/sdk-generator",
+  "sdk": {
+    "name": "sdkwork-im-backend-sdk",
+    "version": "0.1.0",
+    "language": "java",
+    "sdkType": "backend",
+    "packageName": "com.sdkwork:im-backend-api-generated"
+  },
+  "generatedFiles": [
+    {
+      "path": "bin/publish-core.mjs",
+      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+    },
+    {
+      "path": "bin/publish.ps1",
+      "sha256": "33394b9189a458f6b36bf7fd74815ea4b71a435083e0c428a9d3ca4673e28c3e"
+    },
+    {
+      "path": "bin/publish.sh",
+      "sha256": "da4bd76701864b29d52b6b260c20f65305bcd4b9eea8696f7751b991f6aba345"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "fb941a0806986a54fc192f98a98f6d9c282b8d350b2b19a3e71dda404e92d545"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "7840cc7d2b36ff364ac16c2fc5ec15b861bfe96854eecf81fb59b00edb8b1447"
+    },
+    {
+      "path": "pom.xml",
+      "sha256": "590c0442cfa43b6b554ff77f2cc11f798c879b3e886ef0c1adfbbdbde261f9f9"
+    },
+    {
+      "path": "README.md",
+      "sha256": "a3350c33110d8625115e38f772f4b3a77a2218ddad3352d5ccf3044d601fbd0f"
+    },
+    {
+      "path": "sdkwork-sdk.json",
+      "sha256": "890330e287d6bef9ca2bd60473f963fbc052a79bfeb3f3fe5b988be56b26d7a8"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/api/AdminApi.java",
+      "sha256": "eaa36d79c13459234fd3721d9e8a5ff0e94b09e8a3bc42d7cddfa69177461bc3"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/api/ApiPaths.java",
+      "sha256": "7cde47ae970f66bc816cc1bc1ff69ed05dadc589f7eda2f7de5e6b64a59250e9"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/api/AuditApi.java",
+      "sha256": "b3c2d51b41d20d03aea17f849dc837464c9f8fcba4b540c471feaa75419cb9a5"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/api/AutomationApi.java",
+      "sha256": "ed0b31a42d25ffa2de2e8777c1e8acf748cd4ffff0aba2a4dbd1a55d72e3c16e"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/api/ControlApi.java",
+      "sha256": "80fdacaef07c6d50afcbc51753d3a2e4e9b76e7c91fd7662908ba2e79e9f258c"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/api/OpsApi.java",
+      "sha256": "aa8cbea37f72c5b9da5212fdd12af5234fa26e9f932a3ddaa3c4618758908687"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/api/package-info.java",
+      "sha256": "d91b56f7101a15ac6332e0d7b4f67f9235ec0939cb102efc9f1e843bc622bb53"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/http/HttpClient.java",
+      "sha256": "3492f274376de377d01f85f75aacfa70269268da1eda5a148ecf47bda90341e8"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/AcceptFriendRequestRequest.java",
+      "sha256": "359da7bf1bab9d18398dad8656fac9a918381c636493eeff816a542e3f666788"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ActivateFriendshipRequest.java",
+      "sha256": "ae55f16aa891393ef89515662fbdc537d1f753ca6af8b33a1b8a278c9dba3a20"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ApplySharedChannelPolicyRequest.java",
+      "sha256": "279b98ce1bfbf6cecb88e7f3dc65e20d6bda2b097c351ce5cdaaa3a7b1eb7e80"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/BindDirectChatRequest.java",
+      "sha256": "7ea036cb8c81c82435710797ff3a38e8d05fe1cabb03b9eb7ef9b61d711966f9"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/BindExternalMemberLinkRequest.java",
+      "sha256": "3e343a5d412f2cc9a47d35a70bcd99840de754a5e33887e257f02edd3e25ebda"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/BlockUserRequest.java",
+      "sha256": "56f8ab535d2caf9bb53c3e4b38b6270b17b01dae9ca688ff02fb13b3e3f841dd"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/BusinessPolicyVocabularyResponse.java",
+      "sha256": "14165fb75b398645e7a99ed710b1d19b3bccaefd0aba323084f64899eb79002b"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/CancelFriendRequestRequest.java",
+      "sha256": "e79139f110351776762fc58c5ab2ffd90c9a9b2af0fb00c7c3f05fccda4d8cef"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/CapabilityProfileResponse.java",
+      "sha256": "745359225b79f139a357392760210999bdc64aa15e2a86e129bf88fe0e1a2e44"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ClientCompatibilityResponse.java",
+      "sha256": "be8252d08912540d1eb88f9a7137d3748574248762238ee8c757f774ff61d3c5"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/DeclineFriendRequestRequest.java",
+      "sha256": "41ab2b099fede10f178aa33e98b59edfeab8421f4499d6c7d89f03091326c428"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/EffectiveProtocolSnapshotResponse.java",
+      "sha256": "685a53ef837812c3ce3d234c49ff8a1c4535769ffa680aa50197913783a0a366"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/EstablishExternalConnectionRequest.java",
+      "sha256": "8d1224f0ce503e8653dc4733d9921e019b61969f87284da32419044424c9dc50"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/KillSwitchResponse.java",
+      "sha256": "0f51951cc23a6c0538f312a6a74f248ac144d407e056e674986f3223da29717d"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/MigrateRoutesRequest.java",
+      "sha256": "09bf744df6ae6a04dd65e82cd3420b5c5e1a7a43afffc720353422e6046f0554"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ProblemDetail.java",
+      "sha256": "9ba890eeb26cdaebdbade394b50b38f628a264a2fbe8f86e7252ca276d676991"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ProtocolGovernanceResponse.java",
+      "sha256": "28109a618f8ae2c85865d0ead0d2d53a872ea40df9d178bfcd5e0190419a5278"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ProtocolRegistryResponse.java",
+      "sha256": "083b301bbd93f9fb729018a127750904eb2441b6ba857136b91740876b67ac67"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ProtocolSchemaResponse.java",
+      "sha256": "57206035d19e155f5a5ec9a12ea5ed9b35279bcdef45977a7440e4db65565121"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ProviderBindingCommitResponse.java",
+      "sha256": "86a5585712fd833f25099c8567303f22b26ef680c9012d3e6b5dc2c68482e3a3"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ProviderBindingsResponse.java",
+      "sha256": "c9c387a901d29ace8fbf375eac364a001964889a66f40b603d3336ad529d3c28"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ProviderPolicyDiffResponse.java",
+      "sha256": "c343b085a5254781a8fc6cd1eafa054e2e57b521338b7d2adac8de9121e16560"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ProviderPolicyHistoryResponse.java",
+      "sha256": "04d5e5626a10f02b3dc5b3a789541aaf5151dfa355242a1c6cb761c1b596ed5d"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ProviderPolicyRollbackRequest.java",
+      "sha256": "8b9c7e87370b4c5034ff3cba175dc939d8c25dbdbec81b505f9e0596883ceac3"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/ProviderRegistrySnapshotResponse.java",
+      "sha256": "c2f33ca282c1874c55df48815b62bafebdb679fe393ec2dc0407df0b574d5dbf"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/QuotaProfileResponse.java",
+      "sha256": "1f56ff76994442a1f66990d020025fd3d42fd17a7affb021b11c1c9b8375e5e3"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/RemoveFriendshipRequest.java",
+      "sha256": "21fdaebc7fffd45f04d89cd3e318a906d171ae7d80caeb1f449d3d923493663c"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/RolloutPolicyResponse.java",
+      "sha256": "1cdad4239384efbc5ba966949b6c9bfd95da4eff36681b2552f5626f5e736beb"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/RouteMigrationResult.java",
+      "sha256": "f9e2c56dfb5b3c14a113be612f68258201c05457da8bc6d2909562c7d6eb2d3b"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/RouteNodeLifecycle.java",
+      "sha256": "ceced5b417cb18e221c905f78f64a2f10d91c655bec34f6dfa4d20dab5315ad2"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SdkCompatibilityBaselineResponse.java",
+      "sha256": "554dfb0d283bcdf765317ee6fc13f7e7e5dfccec8d43c6f2cfecbb4194ea6b14"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialDirectChatCommitResponse.java",
+      "sha256": "87655095ac968ebbcd7b1722f72a5e61dc8378963765aeb9b1799be0576f4147"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialDirectChatSnapshotResponse.java",
+      "sha256": "10a087c960bfb1bd4fbf4177a73363ae023c5745a7716294ec97ca2da02a5dcd"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialExternalConnectionCommitResponse.java",
+      "sha256": "5cd209b62ca37da37f364b476dd47221656b31beec39e6728979a2a99752c83b"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialExternalConnectionSnapshotResponse.java",
+      "sha256": "7ff558ccd825e485b933acf008135c689d4fd4b0144f21996697b513fe36ae7f"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialExternalMemberLinkCommitResponse.java",
+      "sha256": "b17953d47ae4f2983c63bfb3d4d2e976a23ef3a009ea381f8138c8e05d00abb8"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialExternalMemberLinkSnapshotResponse.java",
+      "sha256": "80278b389f1cc75df208435bef9fb43f93f2917980a2ee6a1278d195c9ab5bae"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialFriendRequestCommitResponse.java",
+      "sha256": "3b3738ebce77bab293b892dfc1dba02d67ebf67b795110fa200804975e8aecf3"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialFriendRequestSnapshotResponse.java",
+      "sha256": "778686ac7a0f6b81b27e6f6f59e45822d769bcd1e3488ee4007055398ced17e7"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialFriendshipCommitResponse.java",
+      "sha256": "5ba632a53a78561bfc7e46d87c6ec392f195c2e06b5dce605da9a791ff34a7c3"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialFriendshipSnapshotResponse.java",
+      "sha256": "80f51173c6c71e510e36773c17b7198dcd743e2625ea9fe74bd59e73c6a25bf8"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialRuntimeRepairResponse.java",
+      "sha256": "520a8e64359ff08ea3d535dee5e603e1f89501f518b63261fcd3c79d4c56b93d"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelPolicyCommitResponse.java",
+      "sha256": "be57c445c729f291544a92606fe510b0a19349fcf211d53af6187863371c4b5f"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelPolicySnapshotResponse.java",
+      "sha256": "bc59f458653ca8301b10759611e1ba94ad1874f96203a543bd9780bba780389c"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncDeadLetterInventoryResponse.java",
+      "sha256": "5c8c2e591d4ddb2e7dc509cce968b903578449165099296cddc7ef533d9e625a"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncDeadLetterRequeueResponse.java",
+      "sha256": "a4c21f654aa3ea8041386ae124a09a07e799a481fc89402945a9f4f771db4e46"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncDeadLetterTargetedRequeueRequest.java",
+      "sha256": "582949cca60859e96ebefb10ac51118c6be3cdb8f1e12a01946358bcde311b45"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncDeadLetterTargetedRequeueResponse.java",
+      "sha256": "a9b7d17a7428e78c1c1dc1243b1383ba8b5de67c958d8e84ba9ebb8045794fca"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncDeliveredInventoryResponse.java",
+      "sha256": "f7fd9ccf89450a8755a9430fd6aa056b5d9267e21ab0ddaf6e80ac63cc96c4c8"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncDeliveryStateInventoryResponse.java",
+      "sha256": "557f278518847c01fa1e9de2a4293169a48331314627d396d8d1e318fcac54a3"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncPendingClaimResponse.java",
+      "sha256": "e7b50b76cfd9cc81abe6e03c7725f68e72bdddf4cd591a5fdc495a0aa4958e88"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncPendingInventoryResponse.java",
+      "sha256": "a888d35cc6a537ebc0b76f2e88d50b85a3b2c1cdaed8f681c282b9351b136032"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncPendingReleaseResponse.java",
+      "sha256": "2475859e030412374bd25ae53c62b031fae73a5f943b37a1654fe27a332a7d7a"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncPendingStaleReclaimResponse.java",
+      "sha256": "18741afb9a802c9576c0aa9d0f54b11b86ec30cbab8438d7e70c619c04a873df"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncPendingTakeoverResponse.java",
+      "sha256": "8602549d0a929b8bc586994daaf92cf27f8a3f7c17562a941696b34861018ba3"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncPendingTargetedClaimRequest.java",
+      "sha256": "bfd51f2f74438b60e2504462d87cc2b22679f16fe01e96fa5498e87921d19ff9"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncPendingTargetedReleaseRequest.java",
+      "sha256": "6de9d6e2614424558bca529fd402ed7cccbe32edff80f584a0cc1eb1e210cde2"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncPendingTargetedTakeoverRequest.java",
+      "sha256": "587f23cc5b53f578113723f5095a8b9d7f910aeb33c9d44c8449dc43fc8e2ae8"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncRepairResponse.java",
+      "sha256": "335db0b19ca8c4fd4f26a89cac7b8d879896ed44ca54549a46a78cc34d46fe87"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncTargetedRepublishRequest.java",
+      "sha256": "abef69d87499f12e5c3e433b3461d3538cc0ac62aa0fc78976bbbc496604c5c5"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialSharedChannelSyncTargetedRepublishResponse.java",
+      "sha256": "1340c6b42100eefd063cc426a6136f5b26464a63c9865f6f2c4362650f48afa5"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialUserBlockCommitResponse.java",
+      "sha256": "f74c51934e73456fba863df3bcc66b32dc465be4f36fbd7e579c73668713f304"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SocialUserBlockSnapshotResponse.java",
+      "sha256": "c6f12a0d1d36d72423a0fcf09f1b58805f72d6119bea489e9c7188aeb9b3f872"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/SubmitFriendRequestRequest.java",
+      "sha256": "757cf0fa6b10b49980ca41e1d8b8cde1093d23a8f4ae8db627af59eedc337d51"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/model/UpsertProviderBindingPolicyRequest.java",
+      "sha256": "10577f72d236d4bf53edb43dec3346b6d4456629b2a4033dfed8d025e30ef992"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/backend/api/generated/SdkworkBackendClient.java",
+      "sha256": "feee1dd8fa875c1f3f1fcdc8bda6c02e283d687e9bcbd1ecc9734ca627ba457a"
+    }
+  ],
+  "scaffoldFiles": [
+    "custom/README.md"
+  ],
+  "customRoots": [
+    "custom/"
+  ]
+}

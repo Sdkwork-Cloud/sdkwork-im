@@ -8,6 +8,7 @@ use im_platform_contracts::{
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord, RealtimeEventWindowStore,
     RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
 };
+use im_time::rfc3339_le;
 
 use crate::shared::{read_json_records_or_default, scope_key, update_json_records};
 
@@ -317,7 +318,9 @@ impl RealtimeDisconnectFenceStore for FileRealtimeDisconnectFenceStore {
                 let key = scope_key(tenant_id, principal_kind, principal_id, device_id);
                 let should_clear = records
                     .get(key.as_str())
-                    .map(|record| record.disconnected_at.as_str() <= cutoff_disconnected_at)
+                    .map(|record| {
+                        rfc3339_le(record.disconnected_at.as_str(), cutoff_disconnected_at)
+                    })
                     .unwrap_or(false);
                 if !should_clear {
                     return false;
@@ -497,7 +500,7 @@ impl RealtimeSubscriptionStore for FileRealtimeSubscriptionStore {
                 let key = scope_key(tenant_id, principal_kind, principal_id, device_id);
                 let should_clear = records
                     .get(key.as_str())
-                    .map(|record| record.synced_at.as_str() <= cutoff_synced_at)
+                    .map(|record| rfc3339_le(record.synced_at.as_str(), cutoff_synced_at))
                     .unwrap_or(false);
                 if should_clear {
                     cleared = records.remove(key.as_str()).is_some();

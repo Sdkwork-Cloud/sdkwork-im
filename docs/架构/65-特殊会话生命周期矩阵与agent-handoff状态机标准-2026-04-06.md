@@ -157,9 +157,9 @@
 
 当 `agent_handoff.status = closed` 时，服务端必须拒绝：
 
-- `POST /api/v1/conversations/{conversationId}/messages`
-- `POST /api/v1/messages/{messageId}/edit`
-- `POST /api/v1/messages/{messageId}/recall`
+- `POST /im/v3/api/chat/conversations/{conversationId}/messages`
+- `POST /im/v3/api/chat/messages/{messageId}/edit`
+- `POST /im/v3/api/chat/messages/{messageId}/recall`
 
 返回：
 
@@ -177,10 +177,10 @@
 
 新增专用接口：
 
-- `GET /api/v1/conversations/{conversationId}/agent-handoff`
-- `POST /api/v1/conversations/{conversationId}/agent-handoff/accept`
-- `POST /api/v1/conversations/{conversationId}/agent-handoff/resolve`
-- `POST /api/v1/conversations/{conversationId}/agent-handoff/close`
+- `GET /im/v3/api/chat/conversations/{conversationId}/agent-handoff`
+- `POST /im/v3/api/chat/conversations/{conversationId}/agent-handoff/accept`
+- `POST /im/v3/api/chat/conversations/{conversationId}/agent-handoff/resolve`
+- `POST /im/v3/api/chat/conversations/{conversationId}/agent-handoff/close`
 
 规则：
 

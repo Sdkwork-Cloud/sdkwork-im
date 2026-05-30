@@ -1,14 +1,11 @@
 # Admin Storage Contract
 
-This page documents the current `/api/admin/storage/*` contract used by
+This page documents the current `/backend/v3/api/admin/storage/*` contract used by
 `apps/craw-chat-admin` and the workspace admin sandbox. It is implementation-aligned documentation
 for the route surface that exists and is verified in this repository today.
 
-It is not a published control-plane OpenAPI surface yet, and it is not part of the current
-generated control-plane contract inside `@sdkwork/control-plane-sdk`. The TypeScript admin SDK
-does expose manual-owned composed helpers for these routes so the admin app can stay on a single
-package boundary, but this page remains the stable reference until a non-sandbox admin backend
-promotes the same contract behind a checked-in authority file.
+It is part of the backend admin API boundary. Current generated SDK ownership belongs to
+`sdkwork-im-backend-sdk`; this route set must not be split into a standalone admin SDK family.
 
 ## Current Boundary
 
@@ -16,7 +13,7 @@ promotes the same contract behind a checked-in authority file.
 | --- | --- |
 | `im-storage-contracts` | Canonical storage schema, scope, validation, redaction, and snapshot contracts |
 | `im-storage-runtime` | Save, delete, validate, resolve, audit, and store-backed persistence orchestration |
-| `sdkwork-api-product-runtime` | Rust-backed desktop admin sandbox that serves `/api/admin/storage/*` |
+| `sdkwork-api-product-runtime` | Rust-backed desktop admin sandbox that serves `/backend/v3/api/admin/storage/*` |
 | `apps/craw-chat-admin/dev/admin-sandbox.mjs` | JavaScript admin sandbox used for frontend verification and local walkthroughs |
 | `apps/craw-chat-admin` | Operator UI and typed admin API wrapper that consume the contract |
 
@@ -27,8 +24,8 @@ workspace admin runtimes rather than a published control-plane service.
 
 | Concern | Current rule |
 | --- | --- |
-| Route prefix | `/api/admin/storage/*` |
-| Auth | Same bearer-token session model used by the rest of `/api/admin/*` |
+| Route prefix | `/backend/v3/api/admin/storage/*` |
+| Auth | Same SDKWork appbase credential and AppContext projection model used by the rest of `/backend/v3/api/admin/*` |
 | Read permission | `admin.storage.read` |
 | Write permission | `admin.storage.write` |
 | Secret reads | Responses expose `StorageSecretSummaryRecord`, never raw `encryptedSecretPayload` |
@@ -39,16 +36,16 @@ workspace admin runtimes rather than a published control-plane service.
 
 | Method | Route | Purpose | Permission |
 | --- | --- | --- | --- |
-| `GET` | `/api/admin/storage/providers` | Return provider schemas, supported credential modes, and capability tags | `admin.storage.read` |
-| `GET` | `/api/admin/storage/config` | Read the global storage default | `admin.storage.read` |
-| `POST` | `/api/admin/storage/config` | Create or update the global storage default | `admin.storage.write` |
-| `GET` | `/api/admin/storage/config/tenants/{tenantId}` | Read a tenant override snapshot | `admin.storage.read` |
-| `POST` | `/api/admin/storage/config/tenants/{tenantId}` | Create or update a tenant override | `admin.storage.write` |
-| `DELETE` | `/api/admin/storage/config/tenants/{tenantId}` | Remove a tenant override so effective reads fall back to global | `admin.storage.write` |
-| `GET` | `/api/admin/storage/effective/tenants/{tenantId}` | Resolve the effective tenant storage policy after fallback rules | `admin.storage.read` |
-| `POST` | `/api/admin/storage/validate` | Validate the global storage target and return a stage-specific status | `admin.storage.write` |
-| `POST` | `/api/admin/storage/validate/tenants/{tenantId}` | Validate the tenant override or inherited effective target | `admin.storage.write` |
-| `GET` | `/api/admin/storage/audit` | Return recent storage writes and tenant-override deletions | `admin.storage.read` |
+| `GET` | `/backend/v3/api/admin/storage/providers` | Return provider schemas, supported credential modes, and capability tags | `admin.storage.read` |
+| `GET` | `/backend/v3/api/admin/storage/config` | Read the global storage default | `admin.storage.read` |
+| `POST` | `/backend/v3/api/admin/storage/config` | Create or update the global storage default | `admin.storage.write` |
+| `GET` | `/backend/v3/api/admin/storage/config/tenants/{tenantId}` | Read a tenant override snapshot | `admin.storage.read` |
+| `POST` | `/backend/v3/api/admin/storage/config/tenants/{tenantId}` | Create or update a tenant override | `admin.storage.write` |
+| `DELETE` | `/backend/v3/api/admin/storage/config/tenants/{tenantId}` | Remove a tenant override so effective reads fall back to global | `admin.storage.write` |
+| `GET` | `/backend/v3/api/admin/storage/effective/tenants/{tenantId}` | Resolve the effective tenant storage policy after fallback rules | `admin.storage.read` |
+| `POST` | `/backend/v3/api/admin/storage/validate` | Validate the global storage target and return a stage-specific status | `admin.storage.write` |
+| `POST` | `/backend/v3/api/admin/storage/validate/tenants/{tenantId}` | Validate the tenant override or inherited effective target | `admin.storage.write` |
+| `GET` | `/backend/v3/api/admin/storage/audit` | Return recent storage writes and tenant-override deletions | `admin.storage.read` |
 
 ## Core Payload Shapes
 
@@ -155,7 +152,7 @@ not secret material.
 
 Tenant reads follow one rule only: whole-record override or fallback. There is no field-level merge.
 
-If a tenant override exists, `/api/admin/storage/effective/tenants/{tenantId}` resolves from the
+If a tenant override exists, `/backend/v3/api/admin/storage/effective/tenants/{tenantId}` resolves from the
 tenant record. If the tenant override is deleted or was never created, the same route resolves from
 the global default:
 
@@ -223,8 +220,8 @@ Current admin flows use this contract to answer questions such as:
 - can the selected target reach the bucket or container contract
 - is presigned upload issuance likely to work for the current effective target
 
-The current sandbox uses `POST /api/admin/storage/validate` and
-`POST /api/admin/storage/validate/tenants/{tenantId}` with an empty JSON object body.
+The current sandbox uses `POST /backend/v3/api/admin/storage/validate` and
+`POST /backend/v3/api/admin/storage/validate/tenants/{tenantId}` with an empty JSON object body.
 
 ## Sandbox And Promotion Rules
 

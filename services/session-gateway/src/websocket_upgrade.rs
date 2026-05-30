@@ -9,9 +9,10 @@ use craw_chat_runtime_link::{
     LinkWebsocketMode, LinkWebsocketUpgradeHandoff, prepare_websocket_upgrade,
     supported_websocket_subprotocols,
 };
-use im_auth_context::AuthContext;
+use im_app_context::AppContext;
+use tokio::sync::OwnedSemaphorePermit;
 
-use crate::device_registration::SessionDeviceRegistration;
+use crate::device_registration::DeviceRouteRegistration;
 use crate::websocket::{RealtimeWebsocketMode, serve_realtime_websocket};
 use crate::websocket_route;
 use crate::{ApiError, AppState, RealtimeDeliveryRuntime};
@@ -20,10 +21,10 @@ const REALTIME_MAX_WEBSOCKET_MESSAGE_BYTES: usize = 512 * 1024;
 const REALTIME_MAX_WEBSOCKET_FRAME_BYTES: usize = 256 * 1024;
 
 pub(crate) struct RealtimeWebsocketUpgradeContext {
-    auth: AuthContext,
+    auth: AppContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
-    route_owner: SessionDeviceRegistration,
+    route_owner: DeviceRouteRegistration,
 }
 
 pub(crate) async fn realtime_websocket(
@@ -31,6 +32,15 @@ pub(crate) async fn realtime_websocket(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
+    let permit = state
+        .websocket_connection_semaphore
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| ApiError {
+            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            code: "websocket_overloaded",
+            message: "server is at maximum websocket capacity, please retry later".to_owned(),
+        })?;
     let context = websocket_route::prepare_realtime_websocket_route(&headers, &state)?;
     Ok(upgrade_realtime_websocket(
         ws,
@@ -38,15 +48,17 @@ pub(crate) async fn realtime_websocket(
         context.device_id,
         context.runtime,
         context.route_owner,
+        permit,
     ))
 }
 
 pub(crate) fn upgrade_realtime_websocket(
     ws: WebSocketUpgrade,
-    auth: AuthContext,
+    auth: AppContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
-    route_owner: SessionDeviceRegistration,
+    route_owner: DeviceRouteRegistration,
+    semaphore_permit: OwnedSemaphorePermit,
 ) -> Response {
     let ws = ws
         .protocols(realtime_websocket_subprotocols())
@@ -60,8 +72,12 @@ pub(crate) fn upgrade_realtime_websocket(
         runtime,
         route_owner,
     );
-    ws.on_upgrade(move |socket| upgrade.execute(socket, serve_realtime_websocket_upgrade))
-        .into_response()
+    ws.on_upgrade(move |socket| {
+        upgrade.execute(socket, move |socket, context, mode| {
+            serve_realtime_websocket_upgrade(socket, context, mode, semaphore_permit)
+        })
+    })
+    .into_response()
 }
 
 pub(crate) fn realtime_websocket_subprotocols() -> [&'static str; 1] {
@@ -86,10 +102,10 @@ fn map_runtime_link_websocket_mode(mode: LinkWebsocketMode) -> RealtimeWebsocket
 
 pub(crate) fn prepare_realtime_websocket_upgrade(
     selected_protocol: Option<&str>,
-    auth: AuthContext,
+    auth: AppContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
-    route_owner: SessionDeviceRegistration,
+    route_owner: DeviceRouteRegistration,
 ) -> LinkWebsocketUpgradeHandoff<RealtimeWebsocketUpgradeContext> {
     prepare_websocket_upgrade(
         selected_protocol,
@@ -106,6 +122,7 @@ async fn serve_realtime_websocket_upgrade(
     socket: WebSocket,
     context: RealtimeWebsocketUpgradeContext,
     mode: LinkWebsocketMode,
+    _permit: OwnedSemaphorePermit,
 ) {
     let RealtimeWebsocketUpgradeContext {
         auth,
@@ -134,7 +151,7 @@ mod tests {
     use std::sync::Arc;
 
     use craw_chat_runtime_link::LinkWebsocketMode;
-    use im_auth_context::AuthContext;
+    use im_app_context::AppContext;
 
     use super::{
         prepare_realtime_websocket_upgrade, realtime_websocket_subprotocols,
@@ -167,7 +184,7 @@ mod tests {
         let runtime = Arc::new(RealtimeDeliveryRuntime::default());
         let handoff = prepare_realtime_websocket_upgrade(
             Some(crate::CCP_WEBSOCKET_SUBPROTOCOL),
-            AuthContext {
+            AppContext {
                 tenant_id: "t_demo".into(),
                 actor_id: "u_demo".into(),
                 actor_kind: "user".into(),
@@ -177,12 +194,12 @@ mod tests {
             },
             "d_pad".into(),
             runtime.clone(),
-            crate::device_registration::SessionDeviceRegistration::new(
+            crate::device_registration::DeviceRouteRegistration::new(
                 "node_a".into(),
                 Arc::new(crate::RealtimeClusterBridge::default()),
-                Arc::new(crate::SessionPresenceRuntime::default()),
+                Arc::new(crate::DevicePresenceRuntime::default()),
                 runtime,
-                crate::session_state::SessionSyncState::default(),
+                crate::device_sync_state::DeviceSyncState::default(),
                 Arc::new(im_adapter_iot_access_local::LocalDeviceAccessProvider::default()),
             ),
         );

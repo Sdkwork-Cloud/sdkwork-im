@@ -5,15 +5,15 @@ pub(super) async fn get_home() -> Json<Value> {
     Json(home_snapshot())
 }
 
-pub(super) async fn get_auth() -> Json<Value> {
-    Json(auth_snapshot())
+pub(super) async fn get_access() -> Json<Value> {
+    Json(access_snapshot())
 }
 
 pub(super) async fn get_workspace(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(workspace_snapshot_for_tenant(auth.tenant_id.as_str())))
 }
@@ -22,7 +22,7 @@ pub(super) async fn get_dashboard(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(dashboard_snapshot()))
 }
@@ -31,7 +31,7 @@ pub(super) async fn get_conversations(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(conversations_snapshot()))
 }
@@ -40,7 +40,7 @@ pub(super) async fn get_realtime(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(realtime_snapshot()))
 }
@@ -49,7 +49,7 @@ pub(super) async fn get_media(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(media_snapshot()))
 }
@@ -58,7 +58,7 @@ pub(super) async fn get_automation(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(automation_snapshot()))
 }
@@ -67,7 +67,7 @@ pub(super) async fn get_governance(
     headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Json<Value>, axum::response::Response> {
-    let auth = resolve_auth_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
     access::ensure_portal_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(governance_snapshot()))
 }
@@ -87,17 +87,17 @@ fn home_snapshot() -> Value {
     })
 }
 
-fn auth_snapshot() -> Value {
+fn access_snapshot() -> Value {
     json!({
         "eyebrow": "Tenant Access",
-        "title": "Sign in to Nebula Commerce IM",
-        "description": "Use the operator credentials issued for your tenant workspace to enter the real tenant console backed by local auth and snapshot APIs.",
+        "title": "Nebula Commerce IM access",
+        "description": "Read the tenant console entry snapshot. Identity, tenant, organization, and token validation are supplied by the upstream platform context.",
         "details": [
             { "label": "Workspace", "value": "Nebula Commerce IM" },
             { "label": "Role", "value": "Tenant Operations Lead" },
-            { "label": "Access", "value": "Managed operator credentials required" }
+            { "label": "Access", "value": "Validated upstream platform context required" }
         ],
-        "primaryActionLabel": "Sign in",
+        "primaryActionLabel": "Continue",
         "secondaryActionLabel": "Back to home"
     })
 }

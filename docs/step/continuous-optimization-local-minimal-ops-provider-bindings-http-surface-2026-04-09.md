@@ -10,12 +10,12 @@ Make `local-minimal-node` expose the same standalone provider binding routes as 
 cargo test -p local-minimal-node --offline --test ops_provider_bindings_runtime_test test_local_minimal_exposes_standalone_ops_provider_binding_routes -- --nocapture
 ```
 
-- `/api/v1/ops/provider-bindings` returned `404`.
+- `/backend/v3/api/ops/provider_bindings` returned `404`.
 
 ## Green
 
-- Added `GET /api/v1/ops/provider-bindings`.
-- Added `GET /api/v1/ops/provider-bindings/drift`.
+- Added `GET /backend/v3/api/ops/provider_bindings`.
+- Added `GET /backend/v3/api/ops/provider_bindings/drift`.
 - Reused `OpsRuntime.provider_bindings_view()` and `OpsRuntime.provider_binding_drift_view()`.
 - Reused the existing `ops.read` auth gate and `refresh_node_operational_view(...)`.
 

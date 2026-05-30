@@ -16,7 +16,7 @@
 ## 2. 本轮架构兑现
 
 - `projection-service` 新增 `DeviceSyncSessionState` 与 `device_sync_session_state_from_auth_context(...)`。
-- `local-minimal-node/session.rs` 现在只消费 projection-owned session sync state seam，再把结果交给 `SessionPresenceRuntime`。
+- `local-minimal-node/session.rs` 现在只消费 projection-owned session sync state seam，再把结果交给 `DevicePresenceRuntime`。
 - owner / consumer 边界变为：
   - owner：`services/projection-service/src/access.rs`
   - consumer：`services/local-minimal-node/src/node/session.rs`

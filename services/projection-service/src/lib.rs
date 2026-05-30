@@ -38,7 +38,7 @@ use scope::{
     tracked_live_projection_lag_scope_id,
 };
 
-pub use access::{DeviceSyncSessionState, ProjectionAccessError};
+pub use access::{DeviceSyncStateSnapshot, ProjectionAccessError};
 pub use http::{build_app, build_default_app, build_public_app, build_public_app_with_service};
 pub use model::{
     ContactView, ConversationMemberDirectoryEntry, ConversationSummaryView,
@@ -807,7 +807,7 @@ fn lock_projection_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) ->
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!("warn: recovered poisoned projection mutex lock={lock_name}");
+            tracing::warn!("recovered poisoned projection mutex lock={lock_name}");
             poisoned.into_inner()
         }
     }

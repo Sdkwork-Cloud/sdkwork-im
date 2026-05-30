@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 function toPosixPath(value) {
@@ -347,6 +347,27 @@ function renderGeneratedApiIndex(groups) {
     "export 'paths.dart';",
     ...groups.map((groupName) => `export '${groupName}.dart';`),
   ].join('\n');
+}
+
+function removeStaleGeneratedApiFiles(apiRoot, groups) {
+  if (!existsSync(apiRoot)) {
+    return;
+  }
+
+  const currentFileNames = new Set([
+    'api.dart',
+    'paths.dart',
+    ...groups.map((groupName) => `${groupName}.dart`),
+  ]);
+
+  for (const entry of readdirSync(apiRoot, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.dart')) {
+      continue;
+    }
+    if (!currentFileNames.has(entry.name)) {
+      rmSync(path.join(apiRoot, entry.name), { force: true });
+    }
+  }
 }
 
 function renderGeneratedOperation(operationBinding) {
@@ -931,6 +952,7 @@ export function materializeFlutterWorkspace(config) {
   const flutterRoot = path.join(config.workspaceRoot, config.flutterWorkspaceName);
   const generatedRoot = path.join(flutterRoot, 'generated', 'server-openapi');
   const composedRoot = path.join(flutterRoot, 'composed');
+  const generatedApiRoot = path.join(generatedRoot, 'lib', 'src', 'api');
   const commonFlutterRoot = resolveCommonFlutterRoot(config.workspaceRoot);
   const generatedCommonFlutterRelativePath = toPosixPath(path.relative(generatedRoot, commonFlutterRoot));
   const composedCommonFlutterRelativePath = toPosixPath(path.relative(composedRoot, commonFlutterRoot));
@@ -955,11 +977,12 @@ export function materializeFlutterWorkspace(config) {
   writeFile(path.join(generatedRoot, 'lib', 'backend_client.dart'), renderBackendClient(config, groups));
   writeFile(path.join(generatedRoot, 'lib', 'src', 'models.dart'), renderGeneratedModels());
   writeFile(path.join(generatedRoot, 'lib', 'src', 'http', 'client.dart'), renderGeneratedHttpClient());
-  writeFile(path.join(generatedRoot, 'lib', 'src', 'api', 'paths.dart'), renderGeneratedPaths());
-  writeFile(path.join(generatedRoot, 'lib', 'src', 'api', 'api.dart'), renderGeneratedApiIndex(groups));
+  removeStaleGeneratedApiFiles(generatedApiRoot, groups);
+  writeFile(path.join(generatedApiRoot, 'paths.dart'), renderGeneratedPaths());
+  writeFile(path.join(generatedApiRoot, 'api.dart'), renderGeneratedApiIndex(groups));
   for (const groupName of groups) {
     writeFile(
-      path.join(generatedRoot, 'lib', 'src', 'api', `${groupName}.dart`),
+      path.join(generatedApiRoot, `${groupName}.dart`),
       renderGeneratedApiFile(groupName, operationBindings),
     );
   }

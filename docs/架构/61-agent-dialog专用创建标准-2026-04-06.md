@@ -8,7 +8,7 @@
 
 ### 2.1 generic create 继续收口
 
-- `POST /api/v1/conversations` 只允许：
+- `POST /im/v3/api/chat/conversations` 只允许：
   - `group`
   - `direct`
 - `agent_dialog` 不再通过 generic create 暴露。
@@ -17,7 +17,7 @@
 ### 2.2 `agent_dialog` 专用创建路由
 
 - 路由：
-  - `POST /api/v1/conversations/agent-dialogs`
+  - `POST /im/v3/api/chat/conversations/agent_dialogs`
 - 请求体：
 
 ```json
@@ -95,7 +95,7 @@
 ## 5. Gateway 约束
 
 - app-facing 与 local profile 必须统一暴露：
-  - `POST /api/v1/conversations/agent-dialogs`
+  - `POST /im/v3/api/chat/conversations/agent_dialogs`
 - gateway 只负责：
   - 解析认证上下文
   - 把 `tenant / requester / actor_kind` 透传到 runtime
@@ -148,9 +148,9 @@
 - `services/conversation-runtime/src/lib.rs`
   - `CreateAgentDialogCommand`
   - `create_agent_dialog_with_requester_kind(...)`
-  - `/api/v1/conversations/agent-dialogs`
+  - `/im/v3/api/chat/conversations/agent_dialogs`
 - `services/local-minimal-node/src/lib.rs`
-  - `/api/v1/conversations/agent-dialogs`
+  - `/im/v3/api/chat/conversations/agent_dialogs`
   - auth context -> runtime dedicated create 映射
 
 ## 10. 验证基线

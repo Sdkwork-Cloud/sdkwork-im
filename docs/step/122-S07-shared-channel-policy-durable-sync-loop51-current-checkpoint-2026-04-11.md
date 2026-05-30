@@ -30,7 +30,7 @@
   - `conversation-runtime` 新增 `SyncSharedChannelLinkedMemberCommand` 与 `sync_shared_channel_linked_member_*` runtime seam，把由 `shared_channel_policy + external_member_link` 派生的最小 payload materialize 为 runtime `state = linked` member
   - 该 seam 明确要求 `system` actor，且只允许落到 `history_visibility = shared` 的 conversation 上；若当前 principal 已被 materialize 为不兼容成员 truth，则显式返回 conflict
   - sync path 会把 linked member 固定落为 `role = guest`，持久化 `sharedChannelPolicyId / externalConnectionId / externalMemberId` 三元锚点，并初始化默认 read cursor
-  - `conversation-runtime` 新增 `POST /api/v1/conversations/shared-channel-links/sync` operator surface；HTTP path 通过 runtime auth-context entrypoint 收敛 authority capture，不在 service edge 手工穿透 requester kind
+  - `conversation-runtime` 新增 `POST /im/v3/api/chat/conversations/shared_channel_links/sync` operator surface；HTTP path 通过 runtime auth-context entrypoint 收敛 authority capture，不在 service edge 手工穿透 requester kind
   - 新增 replay 级回归，确认 linked member truth 经 `conversation.member_joined` commit 后可被恢复，并在恢复后继续读取 shared history
 - changed_files:
   - `services/conversation-runtime/src/runtime.rs`

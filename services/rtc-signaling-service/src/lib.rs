@@ -25,8 +25,8 @@ use im_adapter_object_storage_s3::{
 use im_adapter_rtc_aliyun::{ALIYUN_RTC_PLUGIN_ID, AliyunRtcProvider};
 use im_adapter_rtc_tencent::{TENCENT_RTC_PLUGIN_ID, TencentRtcProvider};
 use im_adapter_rtc_volcengine::{VOLCENGINE_RTC_PLUGIN_ID, VolcengineRtcProvider};
-use im_auth_context::{
-    AuthContext, AuthContextError, resolve_auth_context, resolve_public_bearer_auth_context,
+use im_app_context::{
+    AppContext, AppContextError, resolve_app_context,
 };
 use im_domain_core::message::Sender;
 use im_domain_core::rtc::{RtcSession, RtcSessionState, RtcSignalEvent};
@@ -60,7 +60,7 @@ fn lock_rtc_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard
     match mutex.lock() {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!("warning: recovering poisoned mutex in rtc-signaling-service: {label}");
+            tracing::warn!("recovering poisoned mutex in rtc-signaling-service: {label}");
             poisoned.into_inner()
         }
     }
@@ -260,7 +260,7 @@ impl RtcRuntime {
 
     pub fn session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
     ) -> Result<RtcSession, RtcError> {
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
@@ -275,7 +275,7 @@ impl RtcRuntime {
 
     pub fn create_session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: CreateRtcSessionRequest,
     ) -> Result<RtcSession, RtcError> {
         Ok(self.create_session_with_outcome(auth, request)?.session)
@@ -283,7 +283,7 @@ impl RtcRuntime {
 
     pub fn create_session_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: CreateRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
         validate_create_rtc_session_request_payload_size(&request)?;
@@ -350,7 +350,7 @@ impl RtcRuntime {
 
     pub fn issue_participant_credential(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
         participant_id: &str,
     ) -> Result<RtcParticipantCredential, RtcError> {
@@ -368,7 +368,7 @@ impl RtcRuntime {
 
     pub fn map_provider_callback(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         request: RtcCallbackRequest,
     ) -> Result<RtcCallbackEvent, RtcError> {
         validate_rtc_callback_request_payload_size(&request)?;
@@ -381,7 +381,7 @@ impl RtcRuntime {
 
     pub fn recording_artifact(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
     ) -> Result<RtcRecordingArtifact, RtcError> {
         let session = self.session(auth, rtc_session_id)?;
@@ -445,7 +445,7 @@ impl RtcRuntime {
 
     pub fn invite_session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
         request: InviteRtcSessionRequest,
     ) -> Result<RtcSession, RtcError> {
@@ -456,7 +456,7 @@ impl RtcRuntime {
 
     pub fn invite_session_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
         request: InviteRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
@@ -519,7 +519,7 @@ impl RtcRuntime {
 
     pub fn accept_session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSession, RtcError> {
@@ -530,7 +530,7 @@ impl RtcRuntime {
 
     pub fn accept_session_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
@@ -579,7 +579,7 @@ impl RtcRuntime {
 
     pub fn reject_session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSession, RtcError> {
@@ -590,7 +590,7 @@ impl RtcRuntime {
 
     pub fn reject_session_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
@@ -654,7 +654,7 @@ impl RtcRuntime {
 
     pub fn end_session(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSession, RtcError> {
@@ -665,7 +665,7 @@ impl RtcRuntime {
 
     pub fn end_session_with_outcome(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
         request: UpdateRtcSessionRequest,
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
@@ -730,7 +730,7 @@ impl RtcRuntime {
 
     pub fn post_signal(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
         request: PostRtcSignalRequest,
     ) -> Result<RtcSignalEvent, RtcError> {
@@ -801,7 +801,7 @@ impl RtcRuntime {
 
     pub fn list_signals(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         rtc_session_id: &str,
         query: ListRtcSignalsQuery,
     ) -> Result<RtcSignalWindow, RtcError> {
@@ -1182,8 +1182,8 @@ impl Default for RtcRuntime {
     }
 }
 
-impl From<AuthContextError> for RtcError {
-    fn from(value: AuthContextError) -> Self {
+impl From<AppContextError> for RtcError {
+    fn from(value: AppContextError) -> Self {
         Self {
             status: axum::http::StatusCode::UNAUTHORIZED,
             code: value.code(),
@@ -1210,7 +1210,7 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_public_bearer_auth))
+    build_default_app().layer(middleware::from_fn(require_app_context))
 }
 
 pub fn build_app(runtime: Arc<RtcRuntime>) -> Router {
@@ -1219,47 +1219,50 @@ pub fn build_app(runtime: Arc<RtcRuntime>) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .route("/api/v1/rtc/sessions", post(create_session))
+        .route("/im/v3/api/rtc/sessions", post(create_session))
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/invite",
+            "/im/v3/api/rtc/sessions/{rtc_session_id}/invite",
             post(invite_session),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/accept",
+            "/im/v3/api/rtc/sessions/{rtc_session_id}/accept",
             post(accept_session),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/reject",
+            "/im/v3/api/rtc/sessions/{rtc_session_id}/reject",
             post(reject_session),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/end",
+            "/im/v3/api/rtc/sessions/{rtc_session_id}/end",
             post(end_session),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/signals",
+            "/im/v3/api/rtc/sessions/{rtc_session_id}/signals",
             post(post_signal).get(list_signals),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/credentials",
+            "/im/v3/api/rtc/sessions/{rtc_session_id}/credentials",
             post(issue_participant_credential),
         )
         .route(
-            "/api/v1/rtc/sessions/{rtc_session_id}/artifacts/recording",
+            "/im/v3/api/rtc/sessions/{rtc_session_id}/artifacts/recording",
             get(get_recording_artifact),
         )
         .route(
-            "/api/v1/rtc/provider-callbacks",
+            "/backend/v3/api/rtc/provider_callbacks",
             post(map_provider_callback),
         )
-        .route("/api/v1/rtc/provider-health", get(get_provider_health))
+        .route(
+            "/backend/v3/api/rtc/provider_health",
+            get(get_provider_health),
+        )
         .with_state(AppState { runtime })
 }
 
-async fn require_public_bearer_auth(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_public_bearer_auth_context(request.headers()) {
+        _ => match resolve_app_context(request.headers()) {
             Ok(_) => next.run(request).await,
             Err(error) => RtcError::from(error).into_response(),
         },
@@ -1303,7 +1306,7 @@ fn build_rtc_signaling_service_openapi_document() -> Result<serde_json::Value, S
         &rtc_signaling_service_openapi_spec(),
         &routes,
         rtc_signaling_service_tag,
-        rtc_signaling_service_requires_bearer,
+        rtc_signaling_service_requires_app_context,
         rtc_signaling_service_summary,
     ))
 }
@@ -1328,7 +1331,7 @@ fn rtc_signaling_service_tag(path: &str, _method: HttpMethod) -> String {
     }
 }
 
-fn rtc_signaling_service_requires_bearer(path: &str, _method: HttpMethod) -> bool {
+fn rtc_signaling_service_requires_app_context(path: &str, _method: HttpMethod) -> bool {
     !matches!(path, "/healthz" | "/readyz")
 }
 
@@ -1361,7 +1364,7 @@ async fn create_session(
     State(state): State<AppState>,
     Json(request): Json<CreateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_rtc_create_allowed(&request)?;
     let request_key = rtc_create_request_key(&auth, &request);
     let outcome = state.runtime.create_session_with_outcome(&auth, request)?;
@@ -1377,7 +1380,7 @@ async fn invite_session(
     State(state): State<AppState>,
     Json(request): Json<InviteRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     let request_key =
         rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "invite");
@@ -1397,7 +1400,7 @@ async fn accept_session(
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     let request_key =
         rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "accept");
@@ -1417,7 +1420,7 @@ async fn reject_session(
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     let request_key =
         rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "reject");
@@ -1437,7 +1440,7 @@ async fn end_session(
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     let request_key =
         rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "end");
@@ -1457,7 +1460,7 @@ async fn post_signal(
     State(state): State<AppState>,
     Json(request): Json<PostRtcSignalRequest>,
 ) -> Result<Json<RtcSignalEvent>, RtcError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     Ok(Json(state.runtime.post_signal(
         &auth,
@@ -1472,7 +1475,7 @@ async fn list_signals(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<RtcSignalWindow>, RtcError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     Ok(Json(state.runtime.list_signals(
         &auth,
@@ -1487,7 +1490,7 @@ async fn issue_participant_credential(
     State(state): State<AppState>,
     Json(request): Json<IssueRtcParticipantCredentialRequest>,
 ) -> Result<Json<RtcParticipantCredential>, RtcError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     Ok(Json(state.runtime.issue_participant_credential(
         &auth,
@@ -1501,7 +1504,7 @@ async fn get_recording_artifact(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<RtcRecordingArtifact>, RtcError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     Ok(Json(
         state
@@ -1515,7 +1518,7 @@ async fn map_provider_callback(
     State(state): State<AppState>,
     Json(request): Json<RtcCallbackRequest>,
 ) -> Result<Json<RtcCallbackEvent>, RtcError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(state.runtime.map_provider_callback(&auth, request)?))
 }
 
@@ -1523,7 +1526,7 @@ async fn get_provider_health(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderHealthSnapshot>, RtcError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     Ok(Json(
         state
             .runtime
@@ -1685,7 +1688,7 @@ fn rtc_signal_index(signals: Vec<RtcSignalEvent>) -> BTreeMap<u64, RtcSignalEven
         .collect()
 }
 
-pub fn rtc_create_request_key(auth: &AuthContext, request: &CreateRtcSessionRequest) -> String {
+pub fn rtc_create_request_key(auth: &AppContext, request: &CreateRtcSessionRequest) -> String {
     encode_rtc_key_segments([
         auth.tenant_id.as_str(),
         auth.actor_kind.as_str(),
@@ -1715,7 +1718,7 @@ fn ensure_standalone_rtc_create_allowed(request: &CreateRtcSessionRequest) -> Re
 
 fn ensure_standalone_rtc_session_allowed(
     runtime: &RtcRuntime,
-    auth: &AuthContext,
+    auth: &AppContext,
     rtc_session_id: &str,
 ) -> Result<(), RtcError> {
     let session = runtime.session(auth, rtc_session_id)?;
@@ -1738,7 +1741,7 @@ fn conversation_gateway_required(message: &str) -> RtcError {
 
 fn rtc_session_matches_create_request(
     session: &RtcSession,
-    auth: &AuthContext,
+    auth: &AppContext,
     request: &CreateRtcSessionRequest,
 ) -> bool {
     session.rtc_session_id == request.rtc_session_id.as_str()
@@ -1769,8 +1772,8 @@ mod tests {
     use std::panic::{self, AssertUnwindSafe};
     use std::sync::atomic::{AtomicBool, Ordering};
 
-    fn demo_auth_context() -> AuthContext {
-        AuthContext {
+    fn demo_auth_context() -> AppContext {
+        AppContext {
             tenant_id: "t_demo".into(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),

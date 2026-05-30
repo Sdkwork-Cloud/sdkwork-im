@@ -64,11 +64,11 @@ Typical sequence:
 
 1. process restarts with the same runtime dir
 2. the client calls:
-   - `POST /api/v1/rtc/sessions/{id}/invite`
-   - `POST /api/v1/rtc/sessions/{id}/accept`
-   - `POST /api/v1/rtc/sessions/{id}/reject`
-   - `POST /api/v1/rtc/sessions/{id}/end`
-   - `POST /api/v1/rtc/sessions/{id}/signals`
+   - `POST /im/v3/api/rtc/sessions/{id}/invite`
+   - `POST /im/v3/api/rtc/sessions/{id}/accept`
+   - `POST /im/v3/api/rtc/sessions/{id}/reject`
+   - `POST /im/v3/api/rtc/sessions/{id}/end`
+   - `POST /im/v3/api/rtc/sessions/{id}/signals`
 3. runtime loads persisted state for `tenant + rtc_session_id`
 4. the operation continues against the restored in-memory state
 

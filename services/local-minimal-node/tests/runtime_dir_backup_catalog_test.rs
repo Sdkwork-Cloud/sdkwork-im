@@ -49,7 +49,7 @@ fn test_list_runtime_backups_classifies_snapshot_quality_and_previews_report_met
     let backups_dir = runtime_dir.join("backups");
     fs::create_dir_all(&backups_dir).expect("backups dir should be created");
 
-    let empty_backup = backups_dir.join("runtime-dir-repair-100");
+    let empty_backup = backups_dir.join("runtime_dir-repair-100");
     fs::create_dir_all(empty_backup.join("state")).expect("empty backup state dir should exist");
     fs::write(
         empty_backup.join("repair-report.json"),
@@ -58,7 +58,7 @@ fn test_list_runtime_backups_classifies_snapshot_quality_and_previews_report_met
     )
     .expect("repair report should be written");
 
-    let partial_backup = backups_dir.join("runtime-dir-restore-200");
+    let partial_backup = backups_dir.join("runtime_dir-restore-200");
     write_backup_state_file(partial_backup.as_path(), "commit-journal.json", "");
     write_backup_state_file(partial_backup.as_path(), "presence-state.json", "{}");
     fs::write(
@@ -68,7 +68,7 @@ fn test_list_runtime_backups_classifies_snapshot_quality_and_previews_report_met
     )
     .expect("restore report should be written");
 
-    let full_backup = backups_dir.join("runtime-dir-restore-300");
+    let full_backup = backups_dir.join("runtime_dir-restore-300");
     write_full_snapshot(full_backup.as_path());
     fs::write(
         full_backup.join("restore-report.json"),
@@ -83,7 +83,7 @@ fn test_list_runtime_backups_classifies_snapshot_quality_and_previews_report_met
     assert_eq!(catalog.status, "ok");
     assert_eq!(catalog.backup_count, 3);
     assert_eq!(catalog.items.len(), 3);
-    assert_eq!(catalog.items[0].backup_name, "runtime-dir-restore-300");
+    assert_eq!(catalog.items[0].backup_name, "runtime_dir-restore-300");
     assert_eq!(catalog.items[0].operation, "restore");
     assert_eq!(catalog.items[0].lifecycle_stage, "active");
     assert_eq!(catalog.items[0].snapshot_quality, "full_snapshot");
@@ -95,7 +95,7 @@ fn test_list_runtime_backups_classifies_snapshot_quality_and_previews_report_met
     assert_eq!(catalog.items[0].report_type.as_deref(), Some("restore"));
     assert_eq!(catalog.items[0].report_status.as_deref(), Some("restored"));
 
-    assert_eq!(catalog.items[1].backup_name, "runtime-dir-restore-200");
+    assert_eq!(catalog.items[1].backup_name, "runtime_dir-restore-200");
     assert_eq!(catalog.items[1].lifecycle_stage, "active");
     assert_eq!(catalog.items[1].snapshot_quality, "partial_snapshot");
     assert_eq!(catalog.items[1].managed_file_count, 2);
@@ -105,7 +105,7 @@ fn test_list_runtime_backups_classifies_snapshot_quality_and_previews_report_met
     );
     assert_eq!(catalog.items[1].report_status.as_deref(), Some("partial"));
 
-    assert_eq!(catalog.items[2].backup_name, "runtime-dir-repair-100");
+    assert_eq!(catalog.items[2].backup_name, "runtime_dir-repair-100");
     assert_eq!(catalog.items[2].operation, "repair");
     assert_eq!(catalog.items[2].lifecycle_stage, "active");
     assert_eq!(catalog.items[2].snapshot_quality, "empty_snapshot");
@@ -126,7 +126,7 @@ fn test_archive_runtime_backup_moves_snapshot_and_preserves_restore_path() {
     let backups_dir = runtime_dir.join("backups");
     fs::create_dir_all(&backups_dir).expect("backups dir should be created");
 
-    let active_backup = backups_dir.join("runtime-dir-restore-400");
+    let active_backup = backups_dir.join("runtime_dir-restore-400");
     write_full_snapshot(active_backup.as_path());
     fs::write(
         active_backup.join("restore-report.json"),
@@ -184,7 +184,7 @@ fn test_archive_runtime_backup_moves_snapshot_and_preserves_restore_path() {
     assert_eq!(catalog.backup_count, 1);
     assert_eq!(
         catalog.items[0].backup_name,
-        "archived-runtime-dir-restore-400"
+        "archived-runtime_dir-restore-400"
     );
     assert_eq!(catalog.items[0].operation, "restore");
     assert_eq!(catalog.items[0].lifecycle_stage, "archived");
@@ -229,7 +229,7 @@ fn test_prune_archived_runtime_backups_respects_retention_and_legal_hold() {
     let backups_dir = runtime_dir.join("backups");
     fs::create_dir_all(&backups_dir).expect("backups dir should be created");
 
-    let prunable_backup = backups_dir.join("runtime-dir-restore-500");
+    let prunable_backup = backups_dir.join("runtime_dir-restore-500");
     write_full_snapshot(prunable_backup.as_path());
     fs::write(
         prunable_backup.join("restore-report.json"),
@@ -245,7 +245,7 @@ fn test_prune_archived_runtime_backups_respects_retention_and_legal_hold() {
     )
     .expect("prunable backup should archive successfully");
 
-    let held_backup = backups_dir.join("runtime-dir-restore-600");
+    let held_backup = backups_dir.join("runtime_dir-restore-600");
     write_full_snapshot(held_backup.as_path());
     fs::write(
         held_backup.join("restore-report.json"),
@@ -269,7 +269,7 @@ fn test_prune_archived_runtime_backups_respects_retention_and_legal_hold() {
     assert_eq!(prune.skipped_backup_count, 1);
     assert!(
         prune.actions.iter().any(
-            |item| item.backup_name == "archived-runtime-dir-restore-500"
+            |item| item.backup_name == "archived-runtime_dir-restore-500"
                 && item.status == "pruned"
                 && item.detail == "retention_elapsed"
         ),
@@ -277,7 +277,7 @@ fn test_prune_archived_runtime_backups_respects_retention_and_legal_hold() {
     );
     assert!(
         prune.actions.iter().any(
-            |item| item.backup_name == "archived-runtime-dir-restore-600"
+            |item| item.backup_name == "archived-runtime_dir-restore-600"
                 && item.status == "skipped"
                 && item.detail == "legal_hold"
         ),
@@ -299,7 +299,7 @@ fn test_prune_archived_runtime_backups_respects_retention_and_legal_hold() {
     assert_eq!(catalog.backup_count, 1);
     assert_eq!(
         catalog.items[0].backup_name,
-        "archived-runtime-dir-restore-600"
+        "archived-runtime_dir-restore-600"
     );
     assert_eq!(catalog.items[0].retention_days, Some(0));
     assert!(catalog.items[0].legal_hold);

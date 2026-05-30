@@ -16,9 +16,9 @@
 
 - `services/control-plane-api/src/lib.rs`
   - 新增 provider-policy 读取/回滚响应包装层
-  - `GET /api/v1/control/provider-policies` 输出 `status=history`
-  - `GET /api/v1/control/provider-policies/diff` 输出 `status=diff`
-  - `POST /api/v1/control/provider-policies/rollback` 输出 `status=rolled_back`
+  - `GET /backend/v3/api/control/provider-policies` 输出 `status=history`
+  - `GET /backend/v3/api/control/provider-policies/diff` 输出 `status=diff`
+  - `POST /backend/v3/api/control/provider-policies/rollback` 输出 `status=rolled_back`
 
 ## 契约冻结
 

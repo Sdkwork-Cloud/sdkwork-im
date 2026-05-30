@@ -9,7 +9,7 @@ where
 {
     pub fn create_conversation_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         conversation_type: String,
     ) -> Result<CreateConversationResult, RuntimeError> {
@@ -23,7 +23,7 @@ where
 
     pub fn create_conversation_from_auth_context_with_creator_attributes(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         conversation_type: String,
         creator_attributes: BTreeMap<String, String>,
@@ -185,6 +185,7 @@ where
         state.conversations.insert(scope_key, conversation);
         drop(state);
 
+        self.maybe_evict_after_write();
         Ok(CreateConversationResult::applied_with_request_key(
             command.conversation_id,
             event_id,
@@ -201,7 +202,7 @@ where
 
     pub fn create_thread_conversation_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         parent_conversation_id: String,
         root_message_id: String,
@@ -522,7 +523,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn bind_direct_chat_conversation_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         direct_chat_id: String,
         left_actor_id: String,
@@ -809,7 +810,7 @@ where
 
     pub fn create_agent_dialog_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         agent_id: String,
     ) -> Result<CreateConversationResult, RuntimeError> {
@@ -823,7 +824,7 @@ where
 
     pub fn create_agent_dialog_from_auth_context_with_requester_attributes(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         agent_id: String,
         requester_attributes: BTreeMap<String, String>,
@@ -1042,7 +1043,7 @@ where
 
     pub fn create_system_channel_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         subscriber_id: String,
     ) -> Result<CreateConversationResult, RuntimeError> {
@@ -1056,7 +1057,7 @@ where
 
     pub fn create_system_channel_from_auth_context_with_subscriber_attributes(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         subscriber_id: String,
         subscriber_attributes: BTreeMap<String, String>,
@@ -1279,7 +1280,7 @@ where
 
     pub fn create_agent_handoff_from_auth_context(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         target_id: String,
         target_kind: String,
@@ -1300,7 +1301,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn create_agent_handoff_from_auth_context_with_target_attributes(
         &self,
-        auth: &AuthContext,
+        auth: &AppContext,
         conversation_id: String,
         target_id: String,
         target_kind: String,

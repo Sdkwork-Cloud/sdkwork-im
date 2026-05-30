@@ -1,0 +1,1 @@
+{"version":3,"file":"kill-switch-response.d.ts","sourceRoot":"","sources":["../../src/types/kill-switch-response.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,kBAAkB;IACjC,MAAM,EAAE,OAAO,CAAC;IAChB,gBAAgB,EAAE,MAAM,EAAE,CAAC;IAC3B,oBAAoB,EAAE,MAAM,EAAE,CAAC;IAC/B,cAAc,EAAE,MAAM,EAAE,CAAC;IACzB,MAAM,EAAE,MAAM,CAAC;IACf,MAAM,EAAE,MAAM,CAAC;CAChB"}

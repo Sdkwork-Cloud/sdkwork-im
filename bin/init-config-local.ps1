@@ -42,7 +42,7 @@ function Read-ConfigValue {
     return $null
 }
 
-function New-PublicBearerSecret {
+function New-RandomSecret {
     $bytes = New-Object byte[] 32
     $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
     try {
@@ -135,20 +135,15 @@ if ((Test-Path $configFile) -and -not $Force) {
     exit 0
 }
 
-$publicBearerSecret = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET"
-if ([string]::IsNullOrWhiteSpace($publicBearerSecret)) {
-    $publicBearerSecret = New-PublicBearerSecret
-}
 $friendRequestCursorSecret = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"
 if ([string]::IsNullOrWhiteSpace($friendRequestCursorSecret)) {
-    $friendRequestCursorSecret = New-PublicBearerSecret
+    $friendRequestCursorSecret = New-RandomSecret
 }
 
 $content = @(
     "# $ProfileName runtime config"
     "CRAW_CHAT_BIND_ADDR=$BindAddress"
     "CRAW_CHAT_RUNTIME_DIR=$runtimeDir"
-    "CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET=$publicBearerSecret"
     "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=$friendRequestCursorSecret"
 )
 

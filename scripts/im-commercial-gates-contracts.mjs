@@ -37,12 +37,6 @@ export async function assertImCommercialGatesWorkflowContracts({
     'node scripts/run-commercial-gates-governance-node-tests.mjs',
     'root package must expose the repository-owned commercial gates governance node test runner',
   );
-  assert.equal(
-    rootPackage.scripts['test:user-center-standard'],
-    'node scripts/run-user-center-standard.mjs',
-    'root package must expose the canonical user-center standard runner',
-  );
-
   assert.match(
     workflow,
     /push:\s*[\s\S]*?branches:\s*[\s\S]*?-\s*main/,
@@ -109,10 +103,6 @@ export async function assertImCommercialGatesWorkflowContracts({
   assert.equal(typeof governanceRunner.runCommercialGatesGovernanceNodeTests, 'function');
 
   const governedNodeTests = governanceRunner.listCommercialGatesGovernanceNodeTests();
-  assert.ok(
-    governedNodeTests.includes('scripts/run-user-center-standard.test.mjs'),
-    'commercial gates governance node test runner must include the root user-center standard runner contract test',
-  );
   assert.ok(
     governedNodeTests.includes('scripts/release/commercial-readiness.test.mjs'),
     'commercial gates governance node test runner must include the commercial readiness contract test',

@@ -49,8 +49,8 @@
 
 当前只读输出面固定为：
 
-- `GET /api/v1/ops/provider-bindings/drift`
-- `GET /api/v1/ops/diagnostics` 中的 `providerBindingDrift`
+- `GET /backend/v3/api/ops/provider_bindings/drift`
+- `GET /backend/v3/api/ops/diagnostics` 中的 `providerBindingDrift`
 
 这意味着运维面现在可以直接回答：
 
@@ -60,7 +60,7 @@
 
 ## 安全边界
 
-- `GET /api/v1/ops/provider-bindings/drift` 必须要求 `ops.read`
+- `GET /backend/v3/api/ops/provider_bindings/drift` 必须要求 `ops.read`
 - drift 视图只读，不允许在 ops 侧改写 provider binding
 - drift 仍以 control-plane 已求值并镜像的 snapshot 为唯一真源
 

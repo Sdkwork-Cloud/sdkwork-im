@@ -1,4 +1,7 @@
+use std::cmp::Ordering;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use chrono::{DateTime, FixedOffset};
 
 pub fn utc_now_rfc3339_millis() -> String {
     let duration = SystemTime::now()
@@ -11,6 +14,54 @@ pub fn format_unix_timestamp_millis(epoch_millis: u128) -> String {
     let seconds = (epoch_millis / 1000) as i64;
     let millis = (epoch_millis % 1000) as u32;
     format_unix_timestamp_parts(seconds, millis)
+}
+
+pub fn rfc3339_cmp(left: &str, right: &str) -> Ordering {
+    match (parse_rfc3339(left), parse_rfc3339(right)) {
+        (Some(left), Some(right)) => left.cmp(&right),
+        _ => left.cmp(right),
+    }
+}
+
+pub fn rfc3339_le(left: &str, right: &str) -> bool {
+    rfc3339_cmp(left, right) != Ordering::Greater
+}
+
+pub fn rfc3339_lt(left: &str, right: &str) -> bool {
+    rfc3339_cmp(left, right) == Ordering::Less
+}
+
+pub fn rfc3339_gt(left: &str, right: &str) -> bool {
+    rfc3339_cmp(left, right) == Ordering::Greater
+}
+
+pub fn max_rfc3339_string(left: String, right: String) -> String {
+    if rfc3339_gt(right.as_str(), left.as_str()) {
+        right
+    } else {
+        left
+    }
+}
+
+pub fn max_optional_rfc3339_string(left: Option<String>, right: Option<String>) -> Option<String> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(max_rfc3339_string(left, right)),
+        (Some(value), None) | (None, Some(value)) => Some(value),
+        (None, None) => None,
+    }
+}
+
+pub fn compare_optional_rfc3339_asc(left: Option<&str>, right: Option<&str>) -> Ordering {
+    match (left, right) {
+        (Some(left), Some(right)) => rfc3339_cmp(left, right),
+        (None, Some(_)) => Ordering::Less,
+        (Some(_), None) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    }
+}
+
+fn parse_rfc3339(value: &str) -> Option<DateTime<FixedOffset>> {
+    DateTime::parse_from_rfc3339(value).ok()
 }
 
 fn format_unix_timestamp_parts(epoch_seconds: i64, millis: u32) -> String {
@@ -42,7 +93,10 @@ fn civil_from_days(days_since_unix_epoch: i64) -> (i32, u32, u32) {
 
 #[cfg(test)]
 mod tests {
-    use super::format_unix_timestamp_millis;
+    use super::{
+        format_unix_timestamp_millis, max_optional_rfc3339_string, max_rfc3339_string, rfc3339_gt,
+        rfc3339_le,
+    };
 
     #[test]
     fn test_formats_epoch_with_millisecond_precision() {
@@ -59,5 +113,26 @@ mod tests {
         let later = format_unix_timestamp_millis(1_744_635_605_456);
 
         assert!(earlier < later);
+    }
+
+    #[test]
+    fn test_rfc3339_comparison_uses_instant_not_string_order() {
+        let whole_second = "2026-05-06T00:00:00Z";
+        let later_fraction = "2026-05-06T00:00:00.100Z";
+
+        assert!(rfc3339_gt(later_fraction, whole_second));
+        assert!(!rfc3339_le(later_fraction, whole_second));
+        assert_eq!(
+            max_rfc3339_string(whole_second.to_owned(), later_fraction.to_owned()),
+            later_fraction
+        );
+        assert_eq!(
+            max_optional_rfc3339_string(
+                Some(whole_second.to_owned()),
+                Some(later_fraction.to_owned())
+            )
+            .as_deref(),
+            Some(later_fraction)
+        );
     }
 }

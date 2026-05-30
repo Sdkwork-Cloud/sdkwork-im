@@ -1,0 +1,367 @@
+{
+  "schemaVersion": 1,
+  "generator": "@sdkwork/sdk-generator",
+  "sdk": {
+    "name": "sdkwork-im-backend-sdk",
+    "version": "0.1.0",
+    "language": "rust",
+    "sdkType": "backend",
+    "packageName": "sdkwork-im-backend-api-generated"
+  },
+  "generatedFiles": [
+    {
+      "path": "bin/publish-core.mjs",
+      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+    },
+    {
+      "path": "bin/publish.ps1",
+      "sha256": "eb779f44a5ba8879a9d79c708d0ba4bd412221f102e4430b953f0449327827bf"
+    },
+    {
+      "path": "bin/publish.sh",
+      "sha256": "ae8a89ddb314afce79fe910de28017951c3c31f24a67d72915c4153711173b23"
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "cd17bc71c7c12d8ee4b0d32af3914e9946491b2ebb18f8d11f4362c8e086547f"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "fb941a0806986a54fc192f98a98f6d9c282b8d350b2b19a3e71dda404e92d545"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "7840cc7d2b36ff364ac16c2fc5ec15b861bfe96854eecf81fb59b00edb8b1447"
+    },
+    {
+      "path": "README.md",
+      "sha256": "838c6d5d19b600564ba8d759edbfe04d5a61474f3deb7a6a4aefe24e5e04478c"
+    },
+    {
+      "path": "sdkwork-sdk.json",
+      "sha256": "8341c1a35158f17114b20991e7ea06990e78399ddbfe52825499ed0397649fcb"
+    },
+    {
+      "path": "src/api/admin.rs",
+      "sha256": "df70e9a858b0390e50a6d2e52607b748ef63247c772e90f62ec2abb07283d02d"
+    },
+    {
+      "path": "src/api/audit.rs",
+      "sha256": "d3cfefa96f9e55cafb11e8615cdf78ba8a462dc2f13cad704fd5b91fe3438169"
+    },
+    {
+      "path": "src/api/automation.rs",
+      "sha256": "114390f7fc4b3443b73b200203858e1e24b34ccfc08a48e2d88c47c78284b24d"
+    },
+    {
+      "path": "src/api/base.rs",
+      "sha256": "1cdb6d5fbc697a445d970c2b628ed0404e10cd4961c03b598941631612b88d4b"
+    },
+    {
+      "path": "src/api/control.rs",
+      "sha256": "ecb28113868556324aebee1881c64f1f2d8c77e94ca982321e334d9532303d3a"
+    },
+    {
+      "path": "src/api/mod.rs",
+      "sha256": "f876d33bb32acde59965fdc1a87152c91b4d7054e0af7039f3db92a09092d5cd"
+    },
+    {
+      "path": "src/api/ops.rs",
+      "sha256": "6b2ad53e397cb8c2c080ca9305860e46655e193ee5acdf71abcb5612e0e9f112"
+    },
+    {
+      "path": "src/api/paths.rs",
+      "sha256": "571bc21d9e8c1458979a5bb00adb6ba50a7645837196a4b82a2bcfb87f1ef046"
+    },
+    {
+      "path": "src/client.rs",
+      "sha256": "59ca4fe810484030e62b5a038ffc87d1206c044b2150d37a53547d7abba6068c"
+    },
+    {
+      "path": "src/http/client.rs",
+      "sha256": "71567159850fdd8b855c72439bf9d9104151dcd8a6ed687918b6015ce86b1c94"
+    },
+    {
+      "path": "src/http/mod.rs",
+      "sha256": "fdf16d487ebd9180fb423d5630d4401ff18180721b86636dec085ad83940bb3d"
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "c1dab4a8eab2ddc82292e3f238479a05575b5ce8c22925188d911c94925f21c4"
+    },
+    {
+      "path": "src/models/accept_friend_request_request.rs",
+      "sha256": "ff9596a68c96a960456fe04be47dae2f28ce78ef0ebdad5e113c9982b01cfd89"
+    },
+    {
+      "path": "src/models/activate_friendship_request.rs",
+      "sha256": "d55b992cb6f6a6f05f688cedb01cbbf08c107d4e014f65bebeb131d3f63a7ae5"
+    },
+    {
+      "path": "src/models/apply_shared_channel_policy_request.rs",
+      "sha256": "2a04eb16ace7366f5ba486e914df908f83cd55886696c34792ff35accbc74bd0"
+    },
+    {
+      "path": "src/models/bind_direct_chat_request.rs",
+      "sha256": "180282c4f097041bc1284e0b892e757f9733bde3f8515e49ec09ba79de8b3062"
+    },
+    {
+      "path": "src/models/bind_external_member_link_request.rs",
+      "sha256": "d755c3461e1368360fc61fac94c0de6dd909b833b7bd6346bd3302c705de4aef"
+    },
+    {
+      "path": "src/models/block_user_request.rs",
+      "sha256": "d7f20683869c512924fe41de3655719c062f5ada84b14465e9aebe5b1aa645bd"
+    },
+    {
+      "path": "src/models/business_policy_vocabulary_response.rs",
+      "sha256": "0d877dd8f149e390be2a2bbefdb81fee851ab34e5bc4cc004f0db20daef1c1cb"
+    },
+    {
+      "path": "src/models/cancel_friend_request_request.rs",
+      "sha256": "ce06d0fbbb29e71e5063553b9378155918f4742a823ac1a71f9306bdee06aec5"
+    },
+    {
+      "path": "src/models/capability_profile_response.rs",
+      "sha256": "ccc0362be97e005ddd71200e9943a51336d60f872f1f2f89d2186c7941fc5a42"
+    },
+    {
+      "path": "src/models/client_compatibility_response.rs",
+      "sha256": "d0e176df85d7db7a149586037ab372b29712a6d7e0ee02cedbf75f3e7fa461c9"
+    },
+    {
+      "path": "src/models/common.rs",
+      "sha256": "fce0239d85066b1c42435ab8c96676ea2d5300e5dcb87c52fd3e33d29a603a5e"
+    },
+    {
+      "path": "src/models/decline_friend_request_request.rs",
+      "sha256": "0a5300862bf511dd924650a0a41aa5c6ae9be75141a368b9cb719f1439dddd3c"
+    },
+    {
+      "path": "src/models/effective_protocol_snapshot_response.rs",
+      "sha256": "2fbbabd28634b4c3d3342a287c4b4e6bee59e25f87651269e2c48bcdef96a511"
+    },
+    {
+      "path": "src/models/establish_external_connection_request.rs",
+      "sha256": "56b7ac82f2694d21d15061680c8b8b239454272ba4c63b0173b97f3ba0ba80a1"
+    },
+    {
+      "path": "src/models/kill_switch_response.rs",
+      "sha256": "4c91a93f0e47eaf5a71b7d88fbf344600983723df3b60f600594788924c9ec1b"
+    },
+    {
+      "path": "src/models/migrate_routes_request.rs",
+      "sha256": "a0d06dded17e402779d94d1d8ee5b0b162514c531dc918a67bdd9ef13ea9cd08"
+    },
+    {
+      "path": "src/models/mod.rs",
+      "sha256": "9e4bff0efc1c37e7ae6cddf333a5fea070ae11e054dd7f56a07f2bb62ae06c9c"
+    },
+    {
+      "path": "src/models/problem_detail.rs",
+      "sha256": "7b44b0d291296a98a65a41b337346f9a1e739d32d3af84514ebad02949478986"
+    },
+    {
+      "path": "src/models/protocol_governance_response.rs",
+      "sha256": "c23a8e29f56c906e11af9f45159656e4ad48292d100160cd88bb46d04219f6d7"
+    },
+    {
+      "path": "src/models/protocol_registry_response.rs",
+      "sha256": "dafc3f3f1e5c2b591a16eb83bc4b8fd16435b7183bf0a40e31ab317fadf85f5a"
+    },
+    {
+      "path": "src/models/protocol_schema_response.rs",
+      "sha256": "7665db84c7ad189431d3cf79045fbf66b27863b327447a27d49fc83493b7e65c"
+    },
+    {
+      "path": "src/models/provider_binding_commit_response.rs",
+      "sha256": "56177a3aa6da35febb4835b553d72cce6420f79d3cf91f0412c939cbec2b5e10"
+    },
+    {
+      "path": "src/models/provider_bindings_response.rs",
+      "sha256": "4a8333a123c9bcac8d64a7675d6cec8d11d91bc6434c2135cbc1f19426b03e60"
+    },
+    {
+      "path": "src/models/provider_policy_diff_response.rs",
+      "sha256": "aee909fdc89ec8f3bae0817ef95ccdbc0440eff23da5598f5076e398d641c99b"
+    },
+    {
+      "path": "src/models/provider_policy_history_response.rs",
+      "sha256": "e3f55a92db6453a7263ec278e0f4e6665d1f4a85fa87052019c1e42da774089d"
+    },
+    {
+      "path": "src/models/provider_policy_rollback_request.rs",
+      "sha256": "503ac1014cefd242c8a06d579a187439bda3324e2586911a0d8c3e0214b5364d"
+    },
+    {
+      "path": "src/models/provider_registry_snapshot_response.rs",
+      "sha256": "3512b65d81e688830f929924b9ffdf2513e175d05c1af28d2a60210e5e8b8787"
+    },
+    {
+      "path": "src/models/quota_profile_response.rs",
+      "sha256": "5a5403e2b75283d5a7134005f30e3780cc9a0a4acb21741d81abf50664215ae7"
+    },
+    {
+      "path": "src/models/remove_friendship_request.rs",
+      "sha256": "486d8cfeeb04858a5999641037ccfe99ef489b7b67e3e58b27b962b39d50a8e6"
+    },
+    {
+      "path": "src/models/rollout_policy_response.rs",
+      "sha256": "0bf14c6f46c5fe02e1e76e57ef797fb8ef7a9ba19769f7bbe66e9e3861bba93d"
+    },
+    {
+      "path": "src/models/route_migration_result.rs",
+      "sha256": "103900fef990ebc4c99907f81e6e49bab2b6d4d7ee011e9a5e7f1c58f3fcd967"
+    },
+    {
+      "path": "src/models/route_node_lifecycle.rs",
+      "sha256": "734b52dd52196f57704ef27f4892286582ecea4f444d872a6b731dc431d05432"
+    },
+    {
+      "path": "src/models/sdk_compatibility_baseline_response.rs",
+      "sha256": "de20f06cd0ffe43b34d70946cece22b8227d357eb1e596d4121ddfe3cc3421f0"
+    },
+    {
+      "path": "src/models/social_direct_chat_commit_response.rs",
+      "sha256": "9bacebd26485486b78afd36a4c9e0cc0bd19d68187f226117a17c5e529683deb"
+    },
+    {
+      "path": "src/models/social_direct_chat_snapshot_response.rs",
+      "sha256": "17fc8c68fa4637889878407e65cf790a1b0dc491730897c6c5b5e1d62ed76325"
+    },
+    {
+      "path": "src/models/social_external_connection_commit_response.rs",
+      "sha256": "b100a7dc2023cf4323138c8819cbedc64d2ff955cfed584b9e446f8c69a0007d"
+    },
+    {
+      "path": "src/models/social_external_connection_snapshot_response.rs",
+      "sha256": "40c5d6dd210e18c9f47887603370c35ff89790ca68b3e4694da51afaac4a6d69"
+    },
+    {
+      "path": "src/models/social_external_member_link_commit_response.rs",
+      "sha256": "28274667340faa183f7ee40ce1829d56d12b4a8abddc47cb8c3eb3c90cb61078"
+    },
+    {
+      "path": "src/models/social_external_member_link_snapshot_response.rs",
+      "sha256": "c6e478b641579e35e33725086ed17f125733cfff0eeab92f50b9a595d81ce0b8"
+    },
+    {
+      "path": "src/models/social_friend_request_commit_response.rs",
+      "sha256": "8dc96241d3ce14224cdad5d62f2a0c02a02856bde149061d3c3c0e98807bd4cc"
+    },
+    {
+      "path": "src/models/social_friend_request_snapshot_response.rs",
+      "sha256": "45c49540d333e1c0af57263f1bdc8b2f8714b3f96f565cfa8b6c5e80decb15cc"
+    },
+    {
+      "path": "src/models/social_friendship_commit_response.rs",
+      "sha256": "538ee031a034c3635a7e977df202de0bc3735d3330eaac387f9c62d345b3a3e3"
+    },
+    {
+      "path": "src/models/social_friendship_snapshot_response.rs",
+      "sha256": "2eeb765734d1a7aad0ec88947dc9e74306d9a4a0dd7a4e7a5120ad375a89be9d"
+    },
+    {
+      "path": "src/models/social_runtime_repair_response.rs",
+      "sha256": "7a1915ebffb2da982a37428d969003ac4a6c88ccef4e11fd3f608c576434f4af"
+    },
+    {
+      "path": "src/models/social_shared_channel_policy_commit_response.rs",
+      "sha256": "61828f3fa96c639d005cff44331ed51075c1ac6234b21bf7d88b0c9e0aee4833"
+    },
+    {
+      "path": "src/models/social_shared_channel_policy_snapshot_response.rs",
+      "sha256": "268fc5605f8e1b17bbe975e6ac2f4b1d8047cb0adba6b88e49399824ffa9a28c"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_dead_letter_inventory_response.rs",
+      "sha256": "10517e95004722df133033c16158c36a085d747d56772fa9a78a432fc5cf8ba6"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_dead_letter_requeue_response.rs",
+      "sha256": "c77ac2999ea00386ba6185f7850d7f318d18b6930dbaac9ebbe9c17924dd1f1a"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_dead_letter_targeted_requeue_request.rs",
+      "sha256": "44ee32968c555ab4dda8eeec44b5d3e8c076ee00e840242202bf8d147ad8a519"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_dead_letter_targeted_requeue_response.rs",
+      "sha256": "8449d60e8c7feb5e129d129afa193a9ce52eacc68dce3653834916b65153b535"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_delivered_inventory_response.rs",
+      "sha256": "a1108c0149421761eb300806c5892cf1a31adfdd0c57d8b2d6e4c69f7c14d87b"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_delivery_state_inventory_response.rs",
+      "sha256": "bfc3926f4f6c22833630f80776c8a3b9dae874780231dc4054077867aae2aff3"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_pending_claim_response.rs",
+      "sha256": "26be05a0acc677d38f9f125ef14460641454cc6dccb071fdae138af749b12cac"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_pending_inventory_response.rs",
+      "sha256": "d1c6115e79dadc930dab68601ef6b7f487e5701fb02b7713de297a3d3f457564"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_pending_release_response.rs",
+      "sha256": "693022fccf3c862dfe604e4b9a81e6938e3e7ada975723870e98c033f410db0c"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_pending_stale_reclaim_response.rs",
+      "sha256": "2f9efd30cd4795dbacc5f4aa8bd5353cc7bb1e067da05905d3ffb00ae792cc5e"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_pending_takeover_response.rs",
+      "sha256": "73f8c41e13d2ae7e019de0d242d7b84383b59b969e466530adbfeab7057dd444"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_pending_targeted_claim_request.rs",
+      "sha256": "6ed7fdf140baf0c927e3f29940525d3413d2ae29caa2cdec853bb602593eb10a"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_pending_targeted_release_request.rs",
+      "sha256": "8c381cb273e449c5e02d139bbb7a76459b3786ecade82ae2bbb9085d9f64896e"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_pending_targeted_takeover_request.rs",
+      "sha256": "616e9722250051527df669fa33a6e38fdea5e7ea4336ba0bdf9ce2d09f0e90bc"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_repair_response.rs",
+      "sha256": "27b6111a005f6a2b4e730ec0927cd72be74f085433ca1875ee26929069aa873e"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_targeted_republish_request.rs",
+      "sha256": "c6667a34530ac5b31b73fe67121452b40fb3d85bf8f4ae34f51743d5b2626a44"
+    },
+    {
+      "path": "src/models/social_shared_channel_sync_targeted_republish_response.rs",
+      "sha256": "7297d6dccd8faf058a48025ea03d12fabadab77bed8902bbe73cd61a9b356125"
+    },
+    {
+      "path": "src/models/social_user_block_commit_response.rs",
+      "sha256": "c5b1544e1996b5f261bac18aab3913245f9ac1e4746d1c5651834129d53acc7d"
+    },
+    {
+      "path": "src/models/social_user_block_snapshot_response.rs",
+      "sha256": "0896b7081fc612923f0c573bd169e551c2504ecf2c2efee15de8ed303ef79c84"
+    },
+    {
+      "path": "src/models/submit_friend_request_request.rs",
+      "sha256": "9317306eef5d9ceb55836c0c079edb911d18798bcf342dd9090e82144f2b255e"
+    },
+    {
+      "path": "src/models/upsert_provider_binding_policy_request.rs",
+      "sha256": "98038b5198102c4f11d29f54848e9f336e12dc0c378ad781e344c4d0dbf4a0b9"
+    }
+  ],
+  "scaffoldFiles": [
+    "custom/README.md"
+  ],
+  "customRoots": [
+    "custom/"
+  ]
+}

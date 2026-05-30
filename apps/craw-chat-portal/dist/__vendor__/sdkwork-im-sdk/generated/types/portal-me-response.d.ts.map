@@ -1,1 +1,0 @@
-{"version":3,"file":"portal-me-response.d.ts","sourceRoot":"","sources":["../../../src/generated/types/portal-me-response.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,cAAc,EAAE,MAAM,uBAAuB,CAAC;AAC5D,OAAO,KAAK,EAAE,mBAAmB,EAAE,MAAM,4BAA4B,CAAC;AAEtE,MAAM,WAAW,gBAAgB;IAC/B,QAAQ,EAAE,MAAM,CAAC;IACjB,IAAI,EAAE,cAAc,CAAC;IACrB,SAAS,CAAC,EAAE,mBAAmB,CAAC;CACjC"}

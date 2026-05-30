@@ -11,11 +11,11 @@ async fn test_control_plane_exposes_protocol_registry_snapshot_to_control_reader
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/control/protocol-registry")
-                .header("x-tenant-id", "t_demo")
-                .header("x-user-id", "u_admin")
-                .header("x-actor-kind", "user")
-                .header("x-permissions", "control.read")
+                .uri("/backend/v3/api/control/protocol_registry")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_admin")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "control.read")
                 .body(Body::empty())
                 .unwrap(),
         )

@@ -7,17 +7,17 @@ to the exact App API page when needed.
 
 | I need to... | Primary SDK module page | Related App API page | Typical client entrypoints |
 | --- | --- | --- | --- |
-| resume or disconnect a user session | [/sdk/modules/session-and-presence](/sdk/modules/session-and-presence) | [/api-reference/app/session-and-realtime](/api-reference/app/session-and-realtime) | `session.resume`, `session.disconnectDevice`, `session().resume` |
-| update or read current presence | [/sdk/modules/session-and-presence](/sdk/modules/session-and-presence) | [/api-reference/app/session-and-realtime](/api-reference/app/session-and-realtime) | `presence.heartbeat`, `presence.current` |
-| replace subscriptions or run durable catch-up | [/sdk/modules/realtime](/sdk/modules/realtime) | [/api-reference/app/session-and-realtime](/api-reference/app/session-and-realtime) | `realtime.replaceSubscriptions`, `sync.catchUp`, `realtime().list_events` |
-| register a device or read device sync | [/sdk/modules/devices-and-inbox](/sdk/modules/devices-and-inbox) | [/api-reference/app/device-sync](/api-reference/app/device-sync) | `devices.register`, `devices.getSyncFeed` |
-| read the app inbox | [/sdk/modules/devices-and-inbox](/sdk/modules/devices-and-inbox) | [/api-reference/app/device-sync](/api-reference/app/device-sync) | `inbox.list`, `inbox().list` |
-| create or inspect conversations | [/sdk/modules/conversations](/sdk/modules/conversations) | [/api-reference/app/conversations](/api-reference/app/conversations) | `conversations.create`, `conversations.get`, `conversations().create` |
-| manage members or read cursors | [/sdk/modules/conversations](/sdk/modules/conversations) | [/api-reference/app/membership-and-read-state](/api-reference/app/membership-and-read-state) | `listMembers`, `addMember`, `updateReadCursor` |
-| send, edit, or recall messages | [/sdk/modules/messages](/sdk/modules/messages) | [/api-reference/app/messages](/api-reference/app/messages) | `conversations.postText`, `messages.editText`, `messages.recall` |
-| upload or attach media | [/sdk/modules/media](/sdk/modules/media) | [/api-reference/app/media](/api-reference/app/media) | `media.createUpload`, `media.completeUpload`, `media.attachText` |
-| open or append stream frames | [/sdk/modules/streams](/sdk/modules/streams) | [/api-reference/app/streams](/api-reference/app/streams) | `streams.open`, `streams.appendTextFrame`, `streams.checkpoint` |
-| create or coordinate RTC sessions | [/sdk/modules/rtc](/sdk/modules/rtc) | [/api-reference/app/rtc](/api-reference/app/rtc) | `rtc.create`, `rtc.postJsonSignal`, `rtc.issueParticipantCredential` |
+| resume or disconnect a user session | [/sdk/modules/session-and-presence](/sdk/modules/session-and-presence) | [/api-reference/im/session-and-realtime](/api-reference/im/session-and-realtime) | `session.resume`, `session.disconnectDevice`, `session().resume` |
+| update or read current presence | [/sdk/modules/session-and-presence](/sdk/modules/session-and-presence) | [/api-reference/im/session-and-realtime](/api-reference/im/session-and-realtime) | `presence.heartbeat`, `presence.current` |
+| replace subscriptions or run durable catch-up | [/sdk/modules/realtime](/sdk/modules/realtime) | [/api-reference/im/session-and-realtime](/api-reference/im/session-and-realtime) | `realtime.replaceSubscriptions`, `sync.catchUp`, `realtime().list_events` |
+| register a device or read device sync | [/sdk/modules/devices-and-inbox](/sdk/modules/devices-and-inbox) | [/api-reference/im/device-sync](/api-reference/im/device-sync) | `devices.register`, `devices.getSyncFeed` |
+| read the app inbox | [/sdk/modules/devices-and-inbox](/sdk/modules/devices-and-inbox) | [/api-reference/im/device-sync](/api-reference/im/device-sync) | `inbox.list`, `inbox().list` |
+| create or inspect conversations | [/sdk/modules/conversations](/sdk/modules/conversations) | [/api-reference/im/conversations](/api-reference/im/conversations) | `conversations.create`, `conversations.get`, `conversations().create` |
+| manage members or read cursors | [/sdk/modules/conversations](/sdk/modules/conversations) | [/api-reference/im/membership-and-read-state](/api-reference/im/membership-and-read-state) | `listMembers`, `addMember`, `updateReadCursor` |
+| send, edit, or recall messages | [/sdk/modules/messages](/sdk/modules/messages) | [/api-reference/im/messages](/api-reference/im/messages) | `conversations.postText`, `messages.editText`, `messages.recall` |
+| upload or attach media | [/sdk/modules/media](/sdk/modules/media) | [/api-reference/im/media](/api-reference/im/media) | `media.createUpload`, `media.completeUpload`, `media.attachText` |
+| open or append stream frames | [/sdk/modules/streams](/sdk/modules/streams) | [/api-reference/im/streams](/api-reference/im/streams) | `streams.open`, `streams.appendTextFrame`, `streams.checkpoint` |
+| create or coordinate RTC sessions | [/sdk/modules/rtc](/sdk/modules/rtc) | [/api-reference/im/rtc](/api-reference/im/rtc) | `rtc.create`, `rtc.postJsonSignal`, `rtc.issueParticipantCredential` |
 
 ## API Alignment
 

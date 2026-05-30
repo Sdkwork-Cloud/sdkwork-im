@@ -6,7 +6,7 @@ pub(super) async fn post_message(
     State(state): State<AppState>,
     Json(request): Json<PostMessageRequest>,
 ) -> Result<Json<PostMessageResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let body = effects::build_message_body(
         request.summary,
         request.text,
@@ -31,7 +31,7 @@ pub(super) async fn publish_system_channel_message(
     State(state): State<AppState>,
     Json(request): Json<PostMessageRequest>,
 ) -> Result<Json<PostMessageResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     let body = effects::build_message_body(
         request.summary,
         request.text,
@@ -55,7 +55,7 @@ pub(super) async fn edit_message(
     State(state): State<AppState>,
     Json(request): Json<EditMessageRequest>,
 ) -> Result<Json<MessageMutationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_registered_device(&state, &auth)?;
     let conversation_id = state
         .conversation_runtime
@@ -69,7 +69,7 @@ pub(super) async fn edit_message(
         request.render_hints,
     )?;
     let mut command = EditMessageCommand::from_auth_context(&auth, message_id.clone(), body);
-    command.editor = user_module::resolve_sender_from_auth_context(&state, &auth)?;
+    command.editor = principal_profile::resolve_sender_from_auth_context(&state, &auth)?;
     let result = state.conversation_runtime.edit_message(command)?;
 
     let _ = state.audit_runtime.record_anchor(
@@ -114,14 +114,14 @@ pub(super) async fn recall_message(
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<MessageMutationResult>, ApiError> {
-    let auth = resolve_auth_context(&headers)?;
+    let auth = resolve_app_context(&headers)?;
     access::ensure_registered_device(&state, &auth)?;
     let conversation_id = state
         .conversation_runtime
         .conversation_id_for_message_from_auth_context(&auth, message_id.as_str())?;
     access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
     let mut command = RecallMessageCommand::from_auth_context(&auth, message_id);
-    command.recalled_by = user_module::resolve_sender_from_auth_context(&state, &auth)?;
+    command.recalled_by = principal_profile::resolve_sender_from_auth_context(&state, &auth)?;
     let result = state.conversation_runtime.recall_message(command)?;
 
     let _ = state.audit_runtime.record_anchor(

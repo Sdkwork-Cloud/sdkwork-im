@@ -7,11 +7,10 @@ use im_platform_contracts::{
     IotProtocolDecodeRequest, IotProtocolEncodeRequest, IotProtocolEnvelope,
     ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
     ObjectStoragePutRequest, ObjectStorageUploadSession, ObjectStorageUploadUrlRequest,
-    ProviderDomain, ProviderHealthSnapshot, ProviderPluginDescriptor, ProviderRegistry,
-    RtcCallbackEvent, RtcCallbackRequest, RtcCreateSessionRequest, RtcParticipantCredential,
-    RtcProviderPort, RtcRecordingArtifact, RtcSessionHandle, RuntimeProviderRegistry,
-    StaticProviderRegistry, UserModuleCreateOrBindRequest, UserModuleProvider,
-    UserModuleUpdateProfileRequest, UserModuleUser,
+    PrincipalProfile, PrincipalProfileProvider, ProviderDomain, ProviderHealthSnapshot,
+    ProviderPluginDescriptor, ProviderRegistry, RtcCallbackEvent, RtcCallbackRequest,
+    RtcCreateSessionRequest, RtcParticipantCredential, RtcProviderPort, RtcRecordingArtifact,
+    RtcSessionHandle, RuntimeProviderRegistry, StaticProviderRegistry,
 };
 
 #[derive(Clone)]
@@ -163,119 +162,85 @@ impl ObjectStorageProvider for StubObjectStorageProvider {
 }
 
 #[derive(Clone)]
-struct StubUserModuleProvider;
+struct StubPrincipalProfileProvider;
 
-impl UserModuleProvider for StubUserModuleProvider {
+impl PrincipalProfileProvider for StubPrincipalProfileProvider {
     fn descriptor(&self) -> ProviderPluginDescriptor {
         ProviderPluginDescriptor::new(
-            "user-module-local",
-            ProviderDomain::UserModule,
+            "principal-profile-upstream-context",
+            ProviderDomain::PrincipalProfile,
             "local",
             "本地实现",
         )
         .with_default_selected(true)
-        .with_required_capabilities(["query", "profile", "bind"])
+        .with_required_capabilities(["read", "profile"])
     }
 
-    fn get_user(
+    fn get_profile(
         &self,
         tenant_id: &str,
-        user_id: &str,
-    ) -> Result<Option<UserModuleUser>, craw_chat_contract_core::ContractError> {
-        Ok(Some(UserModuleUser {
+        principal_id: &str,
+        _principal_kind: &str,
+    ) -> Result<Option<PrincipalProfile>, craw_chat_contract_core::ContractError> {
+        Ok(Some(PrincipalProfile {
             tenant_id: tenant_id.into(),
-            user_id: user_id.into(),
+            principal_id: principal_id.into(),
             display_name: "Demo User".into(),
             external_system: None,
             external_principal_id: None,
             attributes: BTreeMap::from([("source".into(), "local".into())]),
-            disabled: false,
+            inactive: false,
         }))
     }
 
-    fn batch_get_users(
+    fn batch_get_profiles(
         &self,
         tenant_id: &str,
-        user_ids: &[String],
-    ) -> Result<Vec<UserModuleUser>, craw_chat_contract_core::ContractError> {
-        user_ids
+        principal_kind: &str,
+        principal_ids: &[String],
+    ) -> Result<Vec<PrincipalProfile>, craw_chat_contract_core::ContractError> {
+        principal_ids
             .iter()
-            .map(|user_id| self.get_user(tenant_id, user_id))
+            .map(|principal_id| self.get_profile(tenant_id, principal_id, principal_kind))
             .collect::<Result<Vec<_>, _>>()
             .map(|records| records.into_iter().flatten().collect())
     }
 
-    fn search_users(
+    fn search_profiles(
         &self,
         tenant_id: &str,
+        principal_kind: &str,
         keyword: &str,
-    ) -> Result<Vec<UserModuleUser>, craw_chat_contract_core::ContractError> {
+    ) -> Result<Vec<PrincipalProfile>, craw_chat_contract_core::ContractError> {
         Ok(self
-            .get_user(tenant_id, keyword)?
+            .get_profile(tenant_id, keyword, principal_kind)?
             .into_iter()
             .collect::<Vec<_>>())
-    }
-
-    fn create_or_bind_user(
-        &self,
-        request: UserModuleCreateOrBindRequest,
-    ) -> Result<UserModuleUser, craw_chat_contract_core::ContractError> {
-        Ok(UserModuleUser {
-            tenant_id: request.tenant_id,
-            user_id: request.user_id,
-            display_name: request.display_name,
-            external_system: request.external_system,
-            external_principal_id: request.external_principal_id,
-            attributes: BTreeMap::from([("bindingMode".into(), "local".into())]),
-            disabled: false,
-        })
-    }
-
-    fn update_user_profile(
-        &self,
-        request: UserModuleUpdateProfileRequest,
-    ) -> Result<UserModuleUser, craw_chat_contract_core::ContractError> {
-        Ok(UserModuleUser {
-            tenant_id: request.tenant_id,
-            user_id: request.user_id,
-            display_name: request
-                .display_name
-                .unwrap_or_else(|| "Updated User".into()),
-            external_system: None,
-            external_principal_id: None,
-            attributes: request.attributes,
-            disabled: false,
-        })
-    }
-
-    fn disable_user(
-        &self,
-        tenant_id: &str,
-        user_id: &str,
-    ) -> Result<bool, craw_chat_contract_core::ContractError> {
-        let _ = (tenant_id, user_id);
-        Ok(true)
     }
 
     fn map_external_principal(
         &self,
         tenant_id: &str,
+        _principal_kind: &str,
         external_system: &str,
         external_principal_id: &str,
-    ) -> Result<Option<UserModuleUser>, craw_chat_contract_core::ContractError> {
-        Ok(Some(UserModuleUser {
+    ) -> Result<Option<PrincipalProfile>, craw_chat_contract_core::ContractError> {
+        Ok(Some(PrincipalProfile {
             tenant_id: tenant_id.into(),
-            user_id: "mapped-user".into(),
+            principal_id: "mapped-principal".into(),
             display_name: "Mapped User".into(),
             external_system: Some(external_system.into()),
             external_principal_id: Some(external_principal_id.into()),
             attributes: BTreeMap::new(),
-            disabled: false,
+            inactive: false,
         }))
     }
 
     fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
-        ProviderHealthSnapshot::healthy("user-module-local", "2026-04-08T00:00:00Z")
+        ProviderHealthSnapshot::healthy(
+            "principal-profile-upstream-context",
+            "2026-04-08T00:00:00Z",
+        )
     }
 }
 
@@ -411,11 +376,11 @@ fn test_provider_registry_platform_default_freezes_provider_matrix_and_override_
     assert_eq!(storage_binding.selection_source, "deployment_required");
 
     let user_binding = registry
-        .effective_binding(ProviderDomain::UserModule, None)
-        .expect("user-module binding should exist");
+        .effective_binding(ProviderDomain::PrincipalProfile, None)
+        .expect("principal-profile binding should exist");
     assert_eq!(
         user_binding.selected_plugin_id.as_deref(),
-        Some("user-module-local")
+        Some("principal-profile-upstream-context")
     );
 
     let iot_protocol_binding = registry
@@ -455,7 +420,7 @@ fn test_provider_registry_platform_default_freezes_provider_matrix_and_override_
     assert!(
         plugins
             .iter()
-            .any(|plugin| plugin.plugin_id == "user-module-external")
+            .any(|plugin| plugin.plugin_id == "principal-profile-external-catalog")
     );
     assert!(
         plugins
@@ -991,7 +956,7 @@ fn test_runtime_provider_registry_suppresses_noop_commit_without_advancing_versi
 fn test_provider_ports_can_be_implemented_without_vendor_sdk_types_leaking_into_contracts() {
     let rtc = StubRtcProvider;
     let storage = StubObjectStorageProvider;
-    let user_module = StubUserModuleProvider;
+    let principal_profile = StubPrincipalProfileProvider;
     let device_access = StubDeviceAccessProvider;
     let iot_protocol = StubIotProtocolAdapter;
 
@@ -1029,16 +994,11 @@ fn test_provider_ports_can_be_implemented_without_vendor_sdk_types_leaking_into_
     assert_eq!(upload_session.method, "PUT");
     assert!(upload_session.url.contains("upload=1"));
 
-    let user = user_module
-        .create_or_bind_user(UserModuleCreateOrBindRequest {
-            tenant_id: "t_demo".into(),
-            user_id: "u_demo".into(),
-            display_name: "Demo User".into(),
-            external_system: None,
-            external_principal_id: None,
-        })
-        .expect("create_or_bind_user should succeed");
-    assert_eq!(user.display_name, "Demo User");
+    let profile = principal_profile
+        .get_profile("t_demo", "u_demo", "user")
+        .expect("get_profile should succeed")
+        .expect("profile should exist");
+    assert_eq!(profile.display_name, "Demo User");
 
     let device = device_access
         .register_device(DeviceAccessRegistrationRequest {
@@ -1080,21 +1040,11 @@ fn test_provider_ports_can_be_implemented_without_vendor_sdk_types_leaking_into_
         .expect("signed_download_url should succeed");
     assert!(signed_url.contains("ttl=600"));
 
-    let mapped_user = user_module
-        .map_external_principal("t_demo", "iam", "ext_demo")
+    let mapped_profile = principal_profile
+        .map_external_principal("t_demo", "user", "iam", "ext_demo")
         .expect("map_external_principal should succeed")
-        .expect("mapped user should exist");
-    assert_eq!(mapped_user.external_system.as_deref(), Some("iam"));
-
-    let updated_user = user_module
-        .update_user_profile(UserModuleUpdateProfileRequest {
-            tenant_id: "t_demo".into(),
-            user_id: "u_demo".into(),
-            display_name: Some("Updated User".into()),
-            attributes: BTreeMap::from([("department".into(), "platform".into())]),
-        })
-        .expect("update_user_profile should succeed");
-    assert_eq!(updated_user.display_name, "Updated User");
+        .expect("mapped profile should exist");
+    assert_eq!(mapped_profile.external_system.as_deref(), Some("iam"));
 
     assert_eq!(
         rtc.provider_health_snapshot(),
@@ -1105,8 +1055,11 @@ fn test_provider_ports_can_be_implemented_without_vendor_sdk_types_leaking_into_
         ProviderHealthSnapshot::healthy("object-storage-aws", "2026-04-08T00:00:00Z")
     );
     assert_eq!(
-        user_module.provider_health_snapshot(),
-        ProviderHealthSnapshot::healthy("user-module-local", "2026-04-08T00:00:00Z")
+        principal_profile.provider_health_snapshot(),
+        ProviderHealthSnapshot::healthy(
+            "principal-profile-upstream-context",
+            "2026-04-08T00:00:00Z"
+        )
     );
     assert_eq!(
         device_access.provider_health_snapshot(),

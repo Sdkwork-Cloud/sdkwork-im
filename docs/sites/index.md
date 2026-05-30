@@ -38,15 +38,16 @@ features:
 Craw Chat is a Rust workspace with three primary runtime surfaces in the current repository state,
 plus checked-in SDK workspaces built from those services:
 
-- `services/local-minimal-node`, the app-facing node that serves session, conversation, message,
+- `services/local-minimal-node`, the IM open-platform node that serves device sessions, conversation, message,
   media, stream, RTC, platform, ops, audit, and provider-health routes.
 - `services/control-plane-api`, the separate governance surface for protocol registry, provider
   policy, and node lifecycle operations.
 - `services/web-gateway`, the unified external entrypoint that publishes the canonical
   `craw-chat-server` binary, aggregates OpenAPI discovery, and fronts operator-facing single-port
   server installs.
-- `sdks/`, which currently contains the App, Control-Plane, and IM Admin SDK families used by product,
-  governance, and operator-console integrations.
+- `sdks/`, which currently contains the IM standard, App API, Backend API, and independent RTC SDK
+  families used by product, app-business, backend/operator, admin, governance, and provider-runtime
+  integrations.
 
 The default runnable profile is `local-minimal`. The `local-default` profile already has script,
 config, and Docker entry points, but it still reuses the current `local-minimal` runtime contract
@@ -78,11 +79,11 @@ For most new integrations, the fastest reading order is:
   </div>
   <div class="fact-card">
     <h3>Public Auth Model</h3>
-    <p>Public HTTP surfaces use <code>Authorization: Bearer &lt;token&gt;</code> signed with <code>CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET</code>.</p>
+    <p>Public clients authenticate through SDKWork dual tokens; craw-chat receives only verified <code>x-sdkwork-*</code> AppContext projection headers.</p>
   </div>
   <div class="fact-card">
     <h3>SDK Delivery State</h3>
-    <p>The official application-facing TypeScript package is <code>@sdkwork/im-sdk</code>. App, Control-Plane, and IM Admin SDK families all have materialized TypeScript and Flutter workspaces in-repo, while package publication is still pending for every line.</p>
+    <p>The official IM consumer TypeScript package is <code>@sdkwork/im-sdk</code>. <code>sdkwork-im-app-sdk</code> owns <code>/app/v3/api</code>, <code>sdkwork-im-backend-sdk</code> owns all <code>/backend/v3/api</code> control/admin modules, and <code>sdkwork-rtc-sdk</code> remains an independent provider-runtime SDK.</p>
   </div>
 </div>
 
@@ -98,7 +99,7 @@ For most new integrations, the fastest reading order is:
 4. Read [Storage Management](/architecture/storage-management) before changing tenant provider
    resolution, admin storage behavior, or upload issuance assumptions. Keep
    [Admin Storage Contract](/reference/admin-storage-contract) open when you need the current
-   `/api/admin/storage/*` route set and sandbox promotion boundary.
+   `/backend/v3/api/admin/storage/*` route set and sandbox promotion boundary.
 5. Use [Server Lifecycle](/deployment/server-lifecycle) when validating the packaged
    `craw-chat-server` install contract, PostgreSQL-backed storage wiring, or unified gateway
    endpoints.
@@ -128,12 +129,12 @@ For most new integrations, the fastest reading order is:
 
 | Area | What is currently implemented |
 | --- | --- |
-| App runtime | Session resume, presence, realtime delivery, device sync, conversations, membership, messages, media, streams, RTC, notifications, automation, audit, ops, and provider health |
+| App runtime | Device route resume, presence, realtime delivery, device sync, conversations, membership, messages, media, streams, RTC, notifications, automation, audit, ops, and provider health |
 | Control plane | Protocol registry, protocol governance, provider registry, effective bindings, provider policy preview and rollback, plus node drain, activate, and route migration |
 | Unified gateway and server | `web-gateway` publishes the canonical `craw-chat-server` binary, the aggregate OpenAPI and discovery routes, service-schema proxies, rendered docs, and the single-port server install contract |
 | Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, server install/service-management scripts, runtime inspection, repair, backup listing, archive, preview, and restore |
-| SDK workspaces | App SDK workspace with checked-in OpenAPI authority and derived sdkgen input; control-plane SDK workspace with checked-in OpenAPI authority plus materialized TypeScript and Flutter package lines; IM admin SDK workspace with checked-in OpenAPI authority, derived sdkgen input, and materialized TypeScript and Flutter package lines |
-| Frontend apps | `apps/craw-chat-admin` already provides a verified standalone operator shell, a first-class storage-management workflow, and a documented `/api/admin/storage/*` contract surface, while `apps/craw-chat-portal` exists in-repo but is not yet documented here as a mature product surface |
+| SDK workspaces | IM standard SDK for `/im/v3/api`; App API SDK for `/app/v3/api`; Backend SDK for `/backend/v3/api` including control and admin modules; independent RTC provider-standard SDK for provider runtime integration |
+| Frontend apps | `apps/craw-chat-admin` already provides a verified standalone operator shell, a first-class storage-management workflow, and a documented `/backend/v3/api/admin/storage/*` contract surface, while `apps/craw-chat-portal` exists in-repo but is not yet documented here as a mature product surface |
 
 ::: warning Scope rule
 This documentation intentionally describes only what can be verified from the current repository

@@ -1,1 +1,0 @@
-{"version":3,"file":"realtime-ack-state.d.ts","sourceRoot":"","sources":["../../../src/generated/types/realtime-ack-state.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,gBAAgB;IAC/B,QAAQ,EAAE,MAAM,CAAC;IACjB,WAAW,EAAE,MAAM,CAAC;IACpB,QAAQ,EAAE,MAAM,CAAC;IACjB,eAAe,EAAE,MAAM,CAAC;IACxB,iBAAiB,EAAE,MAAM,CAAC;IAC1B,kBAAkB,EAAE,MAAM,CAAC;IAC3B,OAAO,EAAE,MAAM,CAAC;CACjB"}

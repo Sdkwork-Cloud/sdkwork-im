@@ -29,7 +29,7 @@ async fn gateway_exposes_aggregate_openapi_json() {
             "openapi": "3.1.0",
             "info": { "title": "Control Plane API", "version": "0.1.0" },
             "paths": {
-                "/api/v1/control/protocol-registry": {
+                "/backend/v3/api/control/protocol-registry": {
                     "get": { "summary": "Get protocol registry", "responses": { "200": { "description": "ok" } } }
                 }
             }
@@ -42,7 +42,7 @@ async fn gateway_exposes_aggregate_openapi_json() {
             "openapi": "3.1.0",
             "info": { "title": "Craw Chat Projection Service API", "version": "0.1.0" },
             "paths": {
-                "/api/v1/conversations/{conversation_id}/messages": {
+                "/im/v3/api/chat/conversations/{conversation_id}/messages": {
                     "get": { "summary": "Get messages", "responses": { "200": { "description": "ok" } } }
                 }
             }
@@ -55,7 +55,7 @@ async fn gateway_exposes_aggregate_openapi_json() {
             "openapi": "3.1.0",
             "info": { "title": "Craw Chat Conversation Runtime API", "version": "0.1.0" },
             "paths": {
-                "/api/v1/conversations/{conversation_id}/messages": {
+                "/im/v3/api/chat/conversations/{conversation_id}/messages": {
                     "post": { "summary": "Post message", "responses": { "200": { "description": "ok" } } }
                 }
             }
@@ -120,9 +120,15 @@ async fn gateway_exposes_aggregate_openapi_json() {
             ["$ref"],
         "#/components/schemas/GatewaySurfaceGroupSummary"
     );
-    assert!(value["paths"]["/api/v1/control/protocol-registry"]["get"].is_object());
-    assert!(value["paths"]["/api/v1/conversations/{conversation_id}/messages"]["get"].is_object());
-    assert!(value["paths"]["/api/v1/conversations/{conversation_id}/messages"]["post"].is_object());
+    assert!(value["paths"]["/backend/v3/api/control/protocol-registry"]["get"].is_object());
+    assert!(
+        value["paths"]["/im/v3/api/chat/conversations/{conversation_id}/messages"]["get"]
+            .is_object()
+    );
+    assert!(
+        value["paths"]["/im/v3/api/chat/conversations/{conversation_id}/messages"]["post"]
+            .is_object()
+    );
 }
 
 #[tokio::test]
@@ -133,7 +139,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
             "openapi": "3.1.0",
             "info": { "title": "Control Plane API", "version": "0.1.0" },
             "paths": {
-                "/api/v1/control/protocol-registry": {
+                "/backend/v3/api/control/protocol-registry": {
                     "get": { "summary": "Get protocol registry", "responses": { "200": { "description": "ok" } } }
                 }
             }
@@ -193,7 +199,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
             .any(|route| {
                 route["serviceId"] == "control-plane-api"
                     && route["operationGroup"] == "control"
-                    && route["pathPattern"] == "/api/v1/control/{*path}"
+                    && route["pathPattern"] == "/backend/v3/api/control/{*path}"
                     && route["methods"]
                         == json!(["delete", "get", "head", "options", "patch", "post", "put"])
                     && route["protocol"] == "http"
@@ -245,13 +251,13 @@ async fn gateway_service_index_surfaces_session_websocket_metadata() {
             "openapi": "3.1.0",
             "info": { "title": "Craw Chat Session Gateway API", "version": "0.1.0" },
             "paths": {
-                "/api/v1/sessions/resume": {
+                "/im/v3/api/device/sessions/resume": {
                     "post": { "summary": "Resume session", "responses": { "200": { "description": "ok" } } }
                 },
-                "/api/v1/presence/me": {
+                "/im/v3/api/presence/me": {
                     "get": { "summary": "Get current presence", "responses": { "200": { "description": "ok" } } }
                 },
-                "/api/v1/realtime/ws": {
+                "/im/v3/api/realtime/ws": {
                     "get": {
                         "summary": "Open realtime websocket session",
                         "responses": { "101": { "description": "websocket upgrade successful" } },
@@ -311,7 +317,7 @@ async fn gateway_service_index_surfaces_session_websocket_metadata() {
             .any(|route| {
                 route["serviceId"] == "session-gateway"
                     && route["operationGroup"] == "realtime"
-                    && route["pathPattern"] == "/api/v1/realtime/ws"
+                    && route["pathPattern"] == "/im/v3/api/realtime/ws"
                     && route["protocol"] == "websocket"
                     && route["websocketSubprotocols"] == json!([LINK_WEBSOCKET_SUBPROTOCOL])
             })
@@ -349,13 +355,13 @@ async fn gateway_service_index_surfaces_projection_device_metadata() {
             "openapi": "3.1.0",
             "info": { "title": "Craw Chat Projection Service API", "version": "0.1.0" },
             "paths": {
-                "/api/v1/devices/register": {
+                "/im/v3/api/devices/register": {
                     "post": { "summary": "Register device", "responses": { "200": { "description": "ok" } } }
                 },
-                "/api/v1/devices/{device_id}/sync-feed": {
+                "/im/v3/api/devices/{device_id}/sync_feed": {
                     "get": { "summary": "Get device sync feed", "responses": { "200": { "description": "ok" } } }
                 },
-                "/api/v1/inbox": {
+                "/im/v3/api/chat/inbox": {
                     "get": { "summary": "Get inbox", "responses": { "200": { "description": "ok" } } }
                 }
             }
@@ -410,7 +416,7 @@ async fn gateway_service_index_surfaces_projection_device_metadata() {
             .any(|route| {
                 route["serviceId"] == "projection-service"
                     && route["operationGroup"] == "devices"
-                    && route["pathPattern"] == "/api/v1/devices/register"
+                    && route["pathPattern"] == "/im/v3/api/devices/register"
                     && route["methods"] == json!(["post"])
                     && route["protocol"] == "http"
                     && route["sdkTargets"] == json!(["crawChatAppSdk"])
@@ -424,7 +430,7 @@ async fn gateway_service_index_surfaces_projection_device_metadata() {
             .any(|route| {
                 route["serviceId"] == "projection-service"
                     && route["operationGroup"] == "devices"
-                    && route["pathPattern"] == "/api/v1/devices/{device_id}/sync-feed"
+                    && route["pathPattern"] == "/im/v3/api/devices/{device_id}/sync_feed"
                     && route["methods"] == json!(["get"])
                     && route["protocol"] == "http"
                     && route["sdkTargets"] == json!(["crawChatAppSdk"])
@@ -453,7 +459,7 @@ async fn gateway_exposes_runtime_summary_json() {
             "openapi": "3.1.0",
             "info": { "title": "Control Plane API", "version": "0.1.0" },
             "paths": {
-                "/api/v1/control/protocol-registry": {
+                "/backend/v3/api/control/protocol-registry": {
                     "get": { "summary": "Get protocol registry", "responses": { "200": { "description": "ok" } } }
                 }
             }
@@ -466,13 +472,13 @@ async fn gateway_exposes_runtime_summary_json() {
             "openapi": "3.1.0",
             "info": { "title": "Craw Chat Session Gateway API", "version": "0.1.0" },
             "paths": {
-                "/api/v1/sessions/resume": {
+                "/im/v3/api/device/sessions/resume": {
                     "post": { "summary": "Resume session", "responses": { "200": { "description": "ok" } } }
                 },
-                "/api/v1/presence/me": {
+                "/im/v3/api/presence/me": {
                     "get": { "summary": "Get current presence", "responses": { "200": { "description": "ok" } } }
                 },
-                "/api/v1/realtime/ws": {
+                "/im/v3/api/realtime/ws": {
                     "get": {
                         "summary": "Open realtime websocket session",
                         "responses": { "101": { "description": "websocket upgrade successful" } },
@@ -533,7 +539,7 @@ async fn gateway_exposes_runtime_summary_json() {
             .expect("public endpoints should be an array")
             .iter()
             .any(|endpoint| {
-                endpoint["pathPattern"] == "/api/v1/realtime/ws"
+                endpoint["pathPattern"] == "/im/v3/api/realtime/ws"
                     && endpoint["protocol"] == "websocket"
                     && endpoint["visibility"] == "public"
             })
@@ -580,7 +586,7 @@ fn startup_summary_lists_gateway_openapi_endpoints() {
     assert!(text.contains("http://127.0.0.1:18079/"));
     assert!(text.contains("http://127.0.0.1:18079/admin/"));
     assert!(text.contains("Gateway Endpoints"));
-    assert!(text.contains("/api/v1/realtime/ws"));
+    assert!(text.contains("/im/v3/api/realtime/ws"));
     assert!(text.contains("Gateway Surface Groups"));
     assert!(text.contains(
         "public session-gateway realtime [sdk:crawChatAppSdk] [protocols:http,websocket]: 2 routes"

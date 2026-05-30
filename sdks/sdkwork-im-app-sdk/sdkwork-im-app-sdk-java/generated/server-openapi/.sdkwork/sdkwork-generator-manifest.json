@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "generator": "@sdkwork/sdk-generator",
+  "sdk": {
+    "name": "sdkwork-im-app-sdk",
+    "version": "0.1.0",
+    "language": "java",
+    "sdkType": "app",
+    "packageName": "com.sdkwork:im-app-api-generated"
+  },
+  "generatedFiles": [
+    {
+      "path": "bin/publish-core.mjs",
+      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+    },
+    {
+      "path": "bin/publish.ps1",
+      "sha256": "33394b9189a458f6b36bf7fd74815ea4b71a435083e0c428a9d3ca4673e28c3e"
+    },
+    {
+      "path": "bin/publish.sh",
+      "sha256": "da4bd76701864b29d52b6b260c20f65305bcd4b9eea8696f7751b991f6aba345"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "fb941a0806986a54fc192f98a98f6d9c282b8d350b2b19a3e71dda404e92d545"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "7840cc7d2b36ff364ac16c2fc5ec15b861bfe96854eecf81fb59b00edb8b1447"
+    },
+    {
+      "path": "pom.xml",
+      "sha256": "a47cbb8d0e9a155f044fe7dbb40f0bac8537ca3d1cd239333cec2dec6fcc9840"
+    },
+    {
+      "path": "README.md",
+      "sha256": "c9f6b29b090fdba460c5b85bc40bb578f292b0526098be49312ab98f098d85c0"
+    },
+    {
+      "path": "sdkwork-sdk.json",
+      "sha256": "95e3d050bbd620b43a466c639c8d5b1917c3984f59a9a25d16d0161f805d807d"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/ApiPaths.java",
+      "sha256": "94299fec0e661c879fb16073613abb6b7e017460884d33edd43b276a83e43de0"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/AutomationApi.java",
+      "sha256": "678a5f88356130f1e66467ac223880dfc0805825f1fb2b01cf31fcde8c2cd98f"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/DeviceApi.java",
+      "sha256": "1be53490b662c53ef379071b752aa6d9efce77010ede3e99e237fa29a1a02169"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/IotApi.java",
+      "sha256": "4986a0b78b3ba3b8eef3387f4c1e6a51338774e795102ea71bbb853b131ad9ca"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/NotificationApi.java",
+      "sha256": "688d9239c8611b3bf009c9cd91d112681195f8ea8caa4732029a29e2342dabaf"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/package-info.java",
+      "sha256": "47c2bed65be4cc1a70a68f3b7ca0348ca0d06d519fdd68f0a1713ae2078eaf02"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/PortalApi.java",
+      "sha256": "49a71c7256253af84bb4a044e141f58ad5201be0bfe490f5529e34ebb49aa5c9"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/ProviderApi.java",
+      "sha256": "d521334195ceb77643db49fa8241d928f48e8367da3516e98b6a92ff8cd42df7"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/RtcApi.java",
+      "sha256": "bb2f4e058f121f7217da30b4e843955d3b01677aff70428d9709ddd704650e91"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/http/HttpClient.java",
+      "sha256": "8d0c280061307090be810d37a92786039225a4bdad43f6fd8825e114d7bc2891"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/AgentSubject.java",
+      "sha256": "497b6f3d4be667db34900de43852d0b6e49b392f0d85013fd924c58f5dfa35f5"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/AgentToolCall.java",
+      "sha256": "f7cf277791105a029bdb5261812e6f8296241006ef4643f4220ed87d35fc5972"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/AppendAgentResponseDeltaRequest.java",
+      "sha256": "e0e71bbc187986783537f6991ca8c262988d85e92346b369ef4cd89ecdae0442"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/AutomationExecution.java",
+      "sha256": "c28224df3f3f16e1799280b4517fd694ad93ff594bdad54647736f545a9e7cc1"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/AutomationExecutionRequestResponse.java",
+      "sha256": "ed8b25cf23f6178c623516dfba06a6cc059bb180b14896a0abd9ad7f0e903efa"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/CompleteAgentResponseRequest.java",
+      "sha256": "d7ea52530748ac28a0b2007f5e047f5533b9c2ff57220d8a83a85eea281a0542"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/CompleteAgentToolCallRequest.java",
+      "sha256": "d61491cdd0112695023681d5b096bc949a39dc0d602f7b5b66be5e129e2134f5"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/DeviceTwinView.java",
+      "sha256": "4ec97d826252afe0b29ceef0ca6443de2c0932de54304715d101469ef0f6e76d"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationListResponse.java",
+      "sha256": "a1273c0b9af5d6704028462d7796ee78909c16a176e62a146fbb3ede2f1d3faf"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationRequestResponse.java",
+      "sha256": "96f6c6415246583bf12c710d70d72ec43a366c013dd908fc197442ad22c9411a"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationTask.java",
+      "sha256": "1cb8f8bf3db99f5d92ea3dfc7c2aefc7f63fe82203037c0b83e371cd6369991d"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/PortalWorkspaceView.java",
+      "sha256": "2825c9b5887b4e225388bc515c219ed7320784ac396dc67d6446ed932d852c93"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/ProblemDetail.java",
+      "sha256": "b70361ccf16fd53ba4b6e64ded61f1ece4a1b6289c1273a4fdfbb21797b5e383"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/RequestAgentToolCallRequest.java",
+      "sha256": "fadb25edf53c9373904e13ea6fd65396421eee0572bb348293da0ec1b5506060"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/RequestAutomationExecution.java",
+      "sha256": "ab1d1326147b8383fcf4cbf3c890a0d58df14c0f261b0f8917c6d2cfafe65b36"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/RequestNotification.java",
+      "sha256": "ce0afa19202b27d28ecd5109e187f010a8d86c00247a2942652f62ef0e6125dd"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/Sender.java",
+      "sha256": "8695af1d567ee70d4627fa472b89ef6ae219d33f421e22635b336b4eab160c1f"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/StartAgentResponseRequest.java",
+      "sha256": "7468dbe2473b021d4747e2fae4f9bad7d09957a64580cd54651c905825df116f"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/StreamFrame.java",
+      "sha256": "f94f16d542f8c9d2fb3db6dbc576f8a7b2d337361c000bbba5ba9fe9a1c0c831"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/StreamSession.java",
+      "sha256": "2917264a8369d0039599d0b1fc93f7c28aeca3cc2db133f03656ff02391d66f7"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinDesiredRequest.java",
+      "sha256": "b322a76ae0c123a5e0032d1b036a5d393345dd10c888cf7b712f209bd1081b83"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinReportedRequest.java",
+      "sha256": "c2227e87dffc9ba28ad4ab3bf1341b228182ea6d81346ff91f9663327b86f948"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/SdkworkAppClient.java",
+      "sha256": "b004616f84ee0538b9ba3bc165d2344c959c15ee3e62ec08cf41b9f694f325e4"
+    }
+  ],
+  "scaffoldFiles": [
+    "custom/README.md"
+  ],
+  "customRoots": [
+    "custom/"
+  ]
+}

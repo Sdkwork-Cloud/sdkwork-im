@@ -1237,7 +1237,7 @@ fn test_duplicate_create_system_channel_is_idempotent_and_conflicting_retry_is_r
     );
     assert_eq!(
         first.request_key.as_deref(),
-        Some("6#t_demo6#system7#svc_ops21#create-system-channel22#c_system_channel_retry")
+        Some("6#t_demo6#system7#svc_ops21#create-system_channel22#c_system_channel_retry")
     );
 
     let duplicate = source_runtime
@@ -1439,7 +1439,7 @@ fn test_duplicate_create_agent_handoff_is_idempotent_and_conflicting_retry_is_re
     );
     assert_eq!(
         first.request_key.as_deref(),
-        Some("6#t_demo5#agent9#ag_source20#create-agent-handoff21#c_agent_handoff_retry")
+        Some("6#t_demo5#agent9#ag_source20#create-agent_handoff21#c_agent_handoff_retry")
     );
 
     let duplicate = source_runtime

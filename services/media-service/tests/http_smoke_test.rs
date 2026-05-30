@@ -30,7 +30,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
     assert_eq!(value["openapi"], "3.1.0");
     assert_eq!(value["info"]["title"], "Craw Chat Media Service API");
-    assert!(value["paths"]["/api/v1/media/uploads"].is_object());
+    assert!(value["paths"]["/im/v3/api/media/uploads"].is_object());
 }
 
 #[tokio::test]

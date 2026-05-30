@@ -12,7 +12,7 @@ This standard applies to:
 
 - `local-minimal-node` when launched through managed lifecycle scripts
 - explicit runtime-dir builders used by local/private deployment packaging
-- restart and rebuild scenarios after `POST /api/v1/sessions/disconnect`
+- restart and rebuild scenarios after `POST /im/v3/api/device/sessions/disconnect`
 
 This standard does not redefine SaaS production storage choices.
 
