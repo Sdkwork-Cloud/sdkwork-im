@@ -1,10 +1,107 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+<!-- SDKWORK-AGENTS-GENERATED: v1 -->
+
+## SDKWORK Soul
+
+Read `../sdkwork-specs/SOUL.md` before executing tasks in this root. Follow specs before memory, dictionary before context, stop on ambiguity, and evidence before completion.
+
+## SDKWORK Standards
+
+Canonical SDKWORK specs path from this root:
+
+- `../sdkwork-specs/README.md`
+- `../sdkwork-specs/SOUL.md`
+- `../sdkwork-specs/AGENTS_SPEC.md`
+- `../sdkwork-specs/CODE_STYLE_SPEC.md`
+- `../sdkwork-specs/NAMING_SPEC.md`
+
+Do not copy root standard text into this repository. If these relative paths do not resolve, stop and report the broken workspace layout.
+
+## Application Identity
+
+Read `sdkwork.app.config.json` before changing application behavior, runtime config, SDK wiring, release metadata, or app-owned capabilities.
+
+## Local Dictionary Structure
+
+- `AGENTS.md`: local agent entrypoint and relative SDKWORK spec index.
+- `CLAUDE.md`: Claude Code compatibility shim that points to `AGENTS.md` and must not duplicate rules.
+- `GEMINI.md`: Gemini CLI compatibility shim that points to `AGENTS.md` and must not duplicate rules.
+- `CODEX.md`: Codex compatibility shim that points to `AGENTS.md` and must not duplicate rules.
+- `sdkwork.app.config.json`: application identity and owned capability metadata.
+- `.sdkwork/`: reserved local dictionary folder; create only for local skills, plugins, manifests, or AI workspace metadata.
+- `specs/`: local application/component contracts and narrowing rules.
+- `sdks/`: SDK families, OpenAPI authorities, route manifests, and generated SDK artifacts.
+- `package.json`, `Cargo.toml`: language/build manifests.
+- Local directories to inspect first when relevant: `.github/`, `adapters/`, `apps/`, `artifacts/`, `bin/`, `config/`, `crates/`, `deployments/`, `docs/`, `external/`, `scripts/`, `sdks/`.
+
+## Spec Resolution Order
+
+1. Read this `AGENTS.md` and any nearer component-level `AGENTS.md`.
+2. Read `sdkwork.app.config.json` when present.
+3. Read local `specs/README.md` and `specs/component.spec.json` when present.
+4. Read local `.sdkwork/README.md`, `.sdkwork/skills/`, and `.sdkwork/plugins/` when relevant.
+5. Read `../sdkwork-specs/README.md` and the task-specific root specs.
+6. Inspect implementation files only after the relevant dictionary entries are clear.
+
+## Required Specs By Task Type
+
+- Agent/workflow changes: `../sdkwork-specs/SOUL.md`, `../sdkwork-specs/AGENTS_SPEC.md`, `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`.
+- Any code change: `../sdkwork-specs/CODE_STYLE_SPEC.md`, `../sdkwork-specs/NAMING_SPEC.md`, plus only the touched language/framework spec.
+- Rust code: `../sdkwork-specs/RUST_CODE_SPEC.md` and `../sdkwork-specs/RUST_RPC_SPEC.md` when RPC is touched.
+- Java/Spring code: `../sdkwork-specs/JAVA_CODE_SPEC.md` and `../sdkwork-specs/WEB_BACKEND_SPEC.md` when HTTP backend behavior is touched.
+- TypeScript/Node code: `../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md`.
+- Frontend/UI code: `../sdkwork-specs/FRONTEND_CODE_SPEC.md`, `../sdkwork-specs/FRONTEND_SPEC.md`, `../sdkwork-specs/UI_ARCHITECTURE_SPEC.md`, and exactly one detailed UI architecture spec.
+- API, SDK, database, runtime, security, and deployment changes must follow the task matrix in `../sdkwork-specs/README.md`.
+
+Language-specific specs are on-demand; do not load Rust, Java, TypeScript, and frontend specs for unrelated tasks.
+
+## Code Style Rules
+
+Read `../sdkwork-specs/CODE_STYLE_SPEC.md` and `../sdkwork-specs/NAMING_SPEC.md` before code changes.
+
+Load language specs only when touched: Rust uses `RUST_CODE_SPEC.md`, Java/Spring uses `JAVA_CODE_SPEC.md`, TypeScript/Node uses `TYPESCRIPT_CODE_SPEC.md`, and frontend/UI uses `FRONTEND_CODE_SPEC.md`.
+
+For Rust, keep `src/lib.rs` limited to module declarations, re-exports, light docs, and wiring; move handlers, services, repositories, DTOs, SQL, provider clients, and tests into focused modules.
+
+For TypeScript or frontend code, prefer strict types, explicit package exports, colocated tests, and existing package/module boundaries.
+
+## Build, Test, and Verification
+
+Run commands from this directory unless a command explicitly targets another path.
+
+- `pnpm install`: install dependencies for this workspace or package.
+- `pnpm run dev`: start the local development server or app shell.
+- `pnpm run check:commercial-readiness`: run repository verification or architecture checks.
+- `pnpm run test:database-naming-standard`: run the configured test suite for this scope.
+- `pnpm run test:runtime-standard`: run the configured test suite for this scope.
+- `pnpm run test:sdkwork-chat-pc-dev-command`: run the configured test suite for this scope.
+- `pnpm run test:sdkwork-chat-pc-i18n`: run the configured test suite for this scope.
+- `pnpm run test:sdkwork-chat-pc-sidebar-modules`: run the configured test suite for this scope.
+- `pnpm run test:workflow-commercial-gates`: run the configured test suite for this scope.
+- `cargo fmt --all --check`: verify Rust formatting across workspace crates.
+- `cargo test --workspace`: run workspace Rust tests.
+- `cargo clippy --workspace --tests -- -D warnings`: lint Rust tests and crates with warnings denied.
+
+Run the narrowest relevant check first, then broader verification when API contracts, SDK generation, persistence, security, or cross-package boundaries change.
+
+## Agent Execution Rules
+
+Use the convention dictionary instead of broad context loading. Do not hand-edit generated SDK output unless the task is explicitly about generated artifacts and the source contract is verified. Do not replace generated SDK integration with raw HTTP. Keep changes scoped to the owning module, package, crate, or app root. Record the exact verification commands and important outputs before reporting completion.
+
+## Human Review Rules
+
+Request human review before breaking SDKWORK standards, changing public naming, altering security/auth behavior, changing database migrations or production deployment config, deleting data/files, or changing generated SDK ownership. Surface unresolved spec paths, app identity conflicts, component ownership conflicts, and API authority ambiguity instead of guessing.
+
+## Existing Local Guidance
+
+The repository-specific guidance below was preserved from the previous `AGENTS.md`. If it conflicts with the SDKWORK sections above or with `../sdkwork-specs/`, the SDKWORK standards win.
+
+### Project Structure & Module Organization
 
 This repository is a Rust 2024 workspace for Craw Chat, with SDK, docs, and release tooling. Core domain and contract crates live in `crates/`, runtime services in `services/`, storage/provider integrations in `adapters/`, and command-line tools in `tools/`. Local lifecycle scripts are under `bin/`, deployment helpers under `deployments/`, docs under `docs/`, SDK work under `sdks/`, and Node governance scripts under `scripts/`. Rust tests are colocated with each crate or service in `tests/`. Avoid editing `vendor/`, `.runtime/`, `target/`, and generated SDK outputs unless explicitly required.
 
-## Build, Test, and Development Commands
+### Build, Test, and Development Commands
 
 - `cargo test -p local-minimal-node --tests`: run main local integration tests.
 - `cargo test --workspace`: run all workspace tests; expect this to be slower.
@@ -14,18 +111,18 @@ This repository is a Rust 2024 workspace for Craw Chat, with SDK, docs, and rele
 - `pnpm server:dev`: start the unified local web server script.
 - `./bin/start-local.ps1` and `./bin/status-local.ps1`: start and inspect the default local profile.
 
-## Coding Style & Naming Conventions
+### Coding Style & Naming Conventions
 
 Use Rust 2024 edition and standard `rustfmt` output. Keep crates/packages kebab-case, modules/functions snake_case, types/traits PascalCase, and constants SCREAMING_SNAKE_CASE. Keep boundaries explicit: shared contracts belong in `crates/`, runtime behavior in `services/`, and provider logic in `adapters/`. Prefer workspace dependencies from `Cargo.toml` over duplicated member versions.
 
-## Testing Guidelines
+### Testing Guidelines
 
 Add focused Rust integration tests under the owning package's `tests/` directory. Test names should describe behavior, for example `test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejected`. For HTTP or runtime behavior, update the relevant smoke or e2e test and run `cargo test -p <package> --test <file>` first, then broader checks as risk warrants.
 
-## Commit & Pull Request Guidelines
+### Commit & Pull Request Guidelines
 
 Recent history uses Conventional Commit prefixes such as `feat:`, `fix:`, `test:`, `docs:`, and `chore:`; keep subjects imperative and scoped. Pull requests should describe the affected crate/service, list verification commands, note config or migration impacts, and link the relevant issue or design document in `docs/` or `specs/`. Include screenshots only for UI-facing changes under `apps/` or `docs/sites`.
 
-## Security & Configuration Tips
+### Security & Configuration Tips
 
 Do not commit secrets, local runtime state, or generated caches. Keep license-sensitive changes aligned with `COMMERCIAL-LICENSE.md`, and use environment variables such as `CRAW_CHAT_POSTGRES_TEST_DATABASE_URL` for live PostgreSQL integration tests.

@@ -329,3 +329,43 @@ cargo test --workspace
 - Commercial use requires a separate commercial license；包括生产部署、paid SaaS、托管服务、商业分发、OEM/白标、专有产品集成、转售或其他商业化使用。
 - 商业用途必须先购买或取得单独的 commercial authorization，具体以 [COMMERCIAL-LICENSE.md](./COMMERCIAL-LICENSE.md) 为准。
 - AGPL-3.0-or-later 正文入口见 [LICENSE](./LICENSE)。
+
+## SDKWork Documentation Contract
+
+Domain: communication
+Capability: chat
+Package type: app
+Status: ACTIVE
+
+### Public API
+
+Public exports are declared in `specs/component.spec.json` under `contracts.publicExports`.
+
+### Required SDK Surface
+
+- None declared in `specs/component.spec.json`.
+
+### Configuration
+
+Configuration keys and runtime entrypoints are declared in `specs/component.spec.json`.
+
+### SaaS/Private/Local Behavior
+
+This module follows the canonical standards linked from `specs/component.spec.json`, including deployment and runtime configuration rules where applicable.
+
+### Security
+
+Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module.
+
+### Extension Points
+
+Extension points are limited to declared public exports, runtime entrypoints, SDK clients, events, and config keys.
+
+### Verification
+
+- `cargo test --manifest-path apps/craw-chat/Cargo.toml`
+- `node scripts/dev/sdkwork-chat-database-naming-standard.test.mjs`
+
+### Owner And Status
+
+Owner and lifecycle status are tracked in `specs/component.spec.json`.

@@ -14,7 +14,10 @@
 /.codex-submit-probe/
 /.codex-tmp/
 /.npm-cache/
-/.sdkwork/
+/.sdkwork/local/
+/.sdkwork/tmp/
+/.sdkwork/cache/
+/.sdkwork/secrets/
 /$jsonFile
 /$outputFile
 *.log
@@ -51,3 +54,13 @@ apps/craw-chat-admin/dist-portal/
 apps/craw-chat-admin/src-tauri/target/
 apps/craw-chat-admin/src-tauri/target-local/
 apps/sdkwork-chat-pc.zip
+
+# SDKWork local environment and runtime config overrides
+.env.local
+.env.development.local
+.env.test.local
+.env.staging.local
+.env.production.local
+.env.postgres
+.env.release.local
+config/*.local.toml
