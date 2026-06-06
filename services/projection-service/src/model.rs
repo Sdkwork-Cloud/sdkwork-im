@@ -1,6 +1,8 @@
 use im_domain_core::conversation::{
-    ConversationAgentHandoffView, ConversationMember, MembershipRole, MembershipState,
+    ConversationAgentHandoffView, ConversationInboxEntry, ConversationMember, MembershipRole,
+    MembershipState,
 };
+use im_domain_core::message::{MessageBody, MessageType, Sender};
 use im_domain_core::social::DirectChatStatus;
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +14,24 @@ pub struct TimelineViewEntry {
     pub message_id: String,
     pub message_seq: u64,
     pub summary: Option<String>,
+    #[serde(default = "default_sender")]
+    pub sender: Sender,
+    #[serde(default = "default_message_body")]
+    pub body: MessageBody,
+    #[serde(default = "default_message_type")]
+    pub message_type: MessageType,
+    #[serde(default = "default_delivery_mode")]
+    pub delivery_mode: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub client_msg_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stream_session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rtc_session_id: Option<String>,
+    #[serde(default)]
+    pub occurred_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub committed_at: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -131,6 +151,14 @@ pub struct DeviceSyncFeedWindowView {
     pub trimmed_through_seq: u64,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InboxWindowView {
+    pub items: Vec<ConversationInboxEntry>,
+    pub next_cursor: Option<String>,
+    pub has_more: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RealtimeFanoutTarget {
     pub principal_id: String,
@@ -162,6 +190,14 @@ pub struct ContactView {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ContactWindowView {
+    pub items: Vec<ContactView>,
+    pub next_cursor: Option<String>,
+    pub has_more: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(super) struct ContactDirectChatBindingView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) tenant_id: Option<String>,
@@ -176,6 +212,34 @@ pub(super) struct ContactDirectChatBindingView {
 
 fn default_direct_chat_status() -> DirectChatStatus {
     DirectChatStatus::Active
+}
+
+fn default_sender() -> Sender {
+    Sender {
+        id: "system".into(),
+        kind: "system".into(),
+        member_id: None,
+        device_id: None,
+        session_id: None,
+        metadata: Default::default(),
+    }
+}
+
+fn default_message_body() -> MessageBody {
+    MessageBody {
+        summary: None,
+        parts: Vec::new(),
+        render_hints: Default::default(),
+        reply_to: None,
+    }
+}
+
+fn default_message_type() -> MessageType {
+    MessageType::Standard
+}
+
+fn default_delivery_mode() -> String {
+    "discrete".into()
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

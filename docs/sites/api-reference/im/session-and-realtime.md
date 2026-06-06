@@ -26,8 +26,8 @@
 | SDKWork appbase credential pass-through | constructor `authToken`; generated transport `setAuthToken(...)` when working at transport level |
 | Live push receive | `sdk.connect(...)` |
 | Durable replay and ACK | `sdk.sync.catchUp(...)`, `sdk.sync.ack(...)` |
-| Device route bootstrap before connect | `sdk.connect({ deviceId, subscriptions })` or `sdk.deviceSessions.resume(...)` |
-| Disconnect the current routed device | `sdk.deviceSessions.disconnect(...)` |
+| Device route bootstrap before connect | `sdk.connect({ deviceId, subscriptions })` or `sdk.device.sessions.resume(...)` |
+| Disconnect the current routed device | `sdk.device.sessions.disconnect(...)` |
 | Presence heartbeat and snapshot | `sdk.generated.presence.heartbeat(...)`, `sdk.generated.presence.getPresenceMe()` |
 | Route-level subscription sync and polling | `sdk.generated.realtime.syncRealtimeSubscriptions(...)`, `sdk.generated.realtime.listRealtimeEvents(...)`, `sdk.generated.realtime.ackRealtimeEvents(...)` |
 | Health probes | Direct HTTP `GET /healthz` and `GET /readyz` when you need infrastructure probes |
@@ -47,7 +47,7 @@ When you need exact transport-level control, the semantic runtime and the genera
 designed to coexist:
 
 ```ts
-await sdk.deviceSessions.resume({
+await sdk.device.sessions.resume({
   deviceId: 'web-chrome-01',
 });
 
@@ -140,7 +140,7 @@ Resumes the current device session and returns the active presence snapshot with
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect({ deviceId })`, `sdk.deviceSessions.resume(...)`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect({ deviceId })`, `sdk.device.sessions.resume(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 DeviceSessionResumeView`</span></div>
 </div>
@@ -210,7 +210,7 @@ Disconnects the current device session.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.deviceSessions.disconnect(...)`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.device.sessions.disconnect(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
 </div>

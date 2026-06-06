@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use crate::api::{PortalApi, DeviceApi, PresenceApi, RealtimeApi, SocialApi, ChatApi, MediaApi, StreamApi, RtcApi, NotificationApi, AutomationApi};
+use crate::api::{AutomationApi, DeviceApi, NotificationApi, PortalApi, ProviderApi, IotApi, RtcApi};
 use crate::http::{SdkworkConfig, SdkworkError, SdkworkHttpClient};
 
 #[derive(Clone)]
-pub struct SdkworkAppClient {
+pub struct SdkworkImAppClient {
     http: Arc<SdkworkHttpClient>,
 }
 
-impl SdkworkAppClient {
+impl SdkworkImAppClient {
     pub fn new(config: SdkworkConfig) -> Result<Self, SdkworkError> {
         Ok(Self {
             http: Arc::new(SdkworkHttpClient::new(config)?),
@@ -39,47 +39,33 @@ impl SdkworkAppClient {
         Arc::clone(&self.http)
     }
 
-    pub fn portal(&self) -> PortalApi {
-            PortalApi::new(Arc::clone(&self.http))
+    pub fn automation(&self) -> AutomationApi {
+            AutomationApi::new(Arc::clone(&self.http))
         }
 
     pub fn device(&self) -> DeviceApi {
             DeviceApi::new(Arc::clone(&self.http))
         }
 
-    pub fn presence(&self) -> PresenceApi {
-            PresenceApi::new(Arc::clone(&self.http))
+    pub fn notification(&self) -> NotificationApi {
+            NotificationApi::new(Arc::clone(&self.http))
         }
 
-    pub fn realtime(&self) -> RealtimeApi {
-            RealtimeApi::new(Arc::clone(&self.http))
+    pub fn portal(&self) -> PortalApi {
+            PortalApi::new(Arc::clone(&self.http))
         }
 
-    pub fn social(&self) -> SocialApi {
-            SocialApi::new(Arc::clone(&self.http))
+    pub fn provider(&self) -> ProviderApi {
+            ProviderApi::new(Arc::clone(&self.http))
         }
 
-    pub fn chat(&self) -> ChatApi {
-            ChatApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn media(&self) -> MediaApi {
-            MediaApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn stream(&self) -> StreamApi {
-            StreamApi::new(Arc::clone(&self.http))
+    pub fn iot(&self) -> IotApi {
+            IotApi::new(Arc::clone(&self.http))
         }
 
     pub fn rtc(&self) -> RtcApi {
             RtcApi::new(Arc::clone(&self.http))
         }
-
-    pub fn notification(&self) -> NotificationApi {
-            NotificationApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn automation(&self) -> AutomationApi {
-            AutomationApi::new(Arc::clone(&self.http))
-        }
 }
+
+pub type SdkworkAppClient = SdkworkImAppClient;

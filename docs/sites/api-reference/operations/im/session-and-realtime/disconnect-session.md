@@ -23,7 +23,7 @@ Disconnects the current device session.
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.deviceSessions.disconnect(...)`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.device.sessions.disconnect(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
 </div>

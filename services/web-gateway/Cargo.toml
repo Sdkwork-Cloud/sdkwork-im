@@ -16,6 +16,7 @@ craw-chat-gateway-config = { path = "../../crates/craw-chat-gateway-config" }
 craw-chat-gateway-observability = { path = "../../crates/craw-chat-gateway-observability" }
 craw-chat-runtime-link = { path = "../../crates/craw-chat-runtime-link" }
 futures-util.workspace = true
+local-minimal-node = { path = "../local-minimal-node" }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde.workspace = true
 serde_json.workspace = true
@@ -24,6 +25,7 @@ sdkwork-api-product-runtime = { path = "../../crates/sdkwork-api-product-runtime
 tokio.workspace = true
 tokio-tungstenite = "0.28.0"
 tower.workspace = true
+tower-http = { version = "0.6.6", features = ["cors"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
 

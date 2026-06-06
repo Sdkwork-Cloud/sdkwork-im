@@ -27,6 +27,10 @@ CREATE INDEX IF NOT EXISTS idx_im_commit_journal_tenant_aggregate_seq
 CREATE INDEX IF NOT EXISTS idx_im_commit_journal_tenant_occurred
     ON im_commit_journal (tenant_id, occurred_at, event_id);
 
+CREATE INDEX IF NOT EXISTS idx_im_commit_journal_retention_until
+    ON im_commit_journal (retention_until)
+    WHERE retention_until IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS im_outbox_events (
     tenant_id TEXT NOT NULL,
     outbox_id TEXT NOT NULL,
@@ -44,11 +48,16 @@ CREATE TABLE IF NOT EXISTS im_outbox_events (
     updated_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_outbox_events PRIMARY KEY (tenant_id, outbox_id),
-    CONSTRAINT uk_im_outbox_events_event UNIQUE (tenant_id, event_id)
+    CONSTRAINT uk_im_outbox_events_event UNIQUE (tenant_id, event_id),
+    CONSTRAINT chk_im_outbox_events_publish_status CHECK (publish_status IN ('pending', 'published', 'failed'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_outbox_events_status_available
     ON im_outbox_events (tenant_id, publish_status, available_at, outbox_id);
+
+CREATE INDEX IF NOT EXISTS idx_im_outbox_events_retention_until
+    ON im_outbox_events (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_inbox_events (
     tenant_id TEXT NOT NULL,
@@ -66,11 +75,16 @@ CREATE TABLE IF NOT EXISTS im_inbox_events (
     updated_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_inbox_events PRIMARY KEY (tenant_id, inbox_id),
-    CONSTRAINT uk_im_inbox_events_source UNIQUE (tenant_id, source_system, source_event_id)
+    CONSTRAINT uk_im_inbox_events_source UNIQUE (tenant_id, source_system, source_event_id),
+    CONSTRAINT chk_im_inbox_events_process_status CHECK (process_status IN ('pending', 'processed', 'failed'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_inbox_events_status_received
     ON im_inbox_events (tenant_id, consumer_name, process_status, received_at, inbox_id);
+
+CREATE INDEX IF NOT EXISTS idx_im_inbox_events_retention_until
+    ON im_inbox_events (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_idempotency_keys (
     tenant_id TEXT NOT NULL,
@@ -83,12 +97,24 @@ CREATE TABLE IF NOT EXISTS im_idempotency_keys (
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
-    CONSTRAINT pk_im_idempotency_keys PRIMARY KEY (tenant_id, request_scope, idempotency_key),
-    CONSTRAINT uk_im_idempotency_keys_scope UNIQUE (tenant_id, request_scope, idempotency_key)
+    CONSTRAINT pk_im_idempotency_keys PRIMARY KEY (tenant_id, request_scope, idempotency_key)
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_idempotency_keys_expires
     ON im_idempotency_keys (expires_at);
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'uk_im_idempotency_keys_scope'
+          AND conrelid = 'im_idempotency_keys'::regclass
+    ) THEN
+        ALTER TABLE im_idempotency_keys
+            DROP CONSTRAINT uk_im_idempotency_keys_scope;
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS im_conversation_messages (
     tenant_id TEXT NOT NULL,
@@ -120,6 +146,59 @@ CREATE INDEX IF NOT EXISTS idx_im_messages_tenant_conversation_seq
 CREATE INDEX IF NOT EXISTS idx_im_messages_sender_created
     ON im_conversation_messages (tenant_id, sender_principal_kind, sender_principal_id, created_at DESC);
 
+CREATE INDEX IF NOT EXISTS idx_im_conversation_messages_retention_until
+    ON im_conversation_messages (retention_until)
+    WHERE retention_until IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS im_message_media_refs (
+    tenant_id TEXT NOT NULL,
+    conversation_id TEXT NOT NULL,
+    message_seq BIGINT NOT NULL CHECK (message_seq > 0),
+    message_id TEXT NOT NULL,
+    part_index INTEGER NOT NULL CHECK (part_index >= 0),
+    media_role TEXT NOT NULL,
+    drive_space_id TEXT NOT NULL,
+    drive_node_id TEXT NOT NULL,
+    drive_uri TEXT NOT NULL,
+    drive_node_version TEXT,
+    media_kind TEXT NOT NULL,
+    media_source TEXT NOT NULL,
+    mime_type TEXT,
+    size_bytes TEXT,
+    checksum_algorithm TEXT,
+    checksum_value TEXT,
+    object_blob_id TEXT,
+    media_resource_snapshot JSONB NOT NULL,
+    resource_hash TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    retention_until TIMESTAMPTZ,
+    CONSTRAINT pk_im_message_media_refs PRIMARY KEY (tenant_id, conversation_id, message_seq, part_index),
+    CONSTRAINT uk_im_message_media_refs_message_part UNIQUE (tenant_id, message_id, part_index),
+    CONSTRAINT fk_im_message_media_refs_message FOREIGN KEY (tenant_id, conversation_id, message_seq)
+        REFERENCES im_conversation_messages (tenant_id, conversation_id, message_seq)
+        ON DELETE CASCADE,
+    CONSTRAINT chk_im_message_media_refs_drive_uri CHECK (
+        drive_uri = ('drive://spaces/' || drive_space_id || '/nodes/' || drive_node_id)
+    ),
+    CONSTRAINT chk_im_message_media_refs_media_source CHECK (
+        media_source IN ('drive', 'external_url', 'data_url', 'provider_asset', 'generated')
+    ),
+    CONSTRAINT chk_im_message_media_refs_size_bytes CHECK (
+        size_bytes IS NULL OR size_bytes ~ '^[0-9]+$'
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_im_message_media_refs_drive_node
+    ON im_message_media_refs (tenant_id, drive_space_id, drive_node_id, message_seq DESC);
+
+CREATE INDEX IF NOT EXISTS idx_im_message_media_refs_role
+    ON im_message_media_refs (tenant_id, conversation_id, media_role, message_seq DESC, part_index);
+
+CREATE INDEX IF NOT EXISTS idx_im_message_media_refs_retention_until
+    ON im_message_media_refs (retention_until)
+    WHERE retention_until IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS im_realtime_device_events (
     tenant_id TEXT NOT NULL,
     device_scope_key TEXT NOT NULL,
@@ -145,6 +224,10 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_device_events_scope_seq
 CREATE INDEX IF NOT EXISTS idx_im_realtime_device_events_scope_fanout
     ON im_realtime_device_events (tenant_id, scope_type, scope_id, event_type, realtime_seq);
 
+CREATE INDEX IF NOT EXISTS idx_im_realtime_device_events_retention_until
+    ON im_realtime_device_events (retention_until)
+    WHERE retention_until IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS im_realtime_checkpoints (
     tenant_id TEXT NOT NULL,
     device_scope_key TEXT NOT NULL,
@@ -160,12 +243,12 @@ CREATE TABLE IF NOT EXISTS im_realtime_checkpoints (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     CONSTRAINT pk_im_realtime_checkpoints PRIMARY KEY (tenant_id, device_scope_key),
-    CONSTRAINT ck_im_realtime_checkpoints_order CHECK (
+    CONSTRAINT chk_im_realtime_checkpoints_order CHECK (
         acked_through_seq <= latest_realtime_seq
         AND trimmed_through_seq <= latest_realtime_seq
         AND capacity_trimmed_through_seq <= trimmed_through_seq
     ),
-    CONSTRAINT ck_im_realtime_checkpoints_capacity_trim_meta CHECK (
+    CONSTRAINT chk_im_realtime_checkpoints_capacity_trim_meta CHECK (
         (
             capacity_trimmed_event_count = 0
             AND capacity_trimmed_through_seq = 0
@@ -230,6 +313,10 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_subscriptions_synced_at
 CREATE INDEX IF NOT EXISTS idx_im_realtime_subscriptions_items_gin
     ON im_realtime_subscriptions USING GIN (subscriptions_json);
 
+CREATE INDEX IF NOT EXISTS idx_im_realtime_subscriptions_retention_until
+    ON im_realtime_subscriptions (retention_until)
+    WHERE retention_until IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS im_realtime_subscription_scopes (
     tenant_id TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
@@ -286,7 +373,8 @@ CREATE TABLE IF NOT EXISTS im_presence_states (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_presence_states PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id)
+    CONSTRAINT pk_im_presence_states PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id),
+    CONSTRAINT chk_im_presence_states_status CHECK (presence_status IN ('online', 'offline'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_presence_states_principal
@@ -302,6 +390,10 @@ CREATE INDEX IF NOT EXISTS idx_im_presence_states_online_seen_at
     )
     WHERE presence_status = 'online' AND last_seen_at IS NOT NULL;
 
+CREATE INDEX IF NOT EXISTS idx_im_presence_states_retention_until
+    ON im_presence_states (retention_until)
+    WHERE retention_until IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS im_route_bindings (
     tenant_id TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
@@ -314,7 +406,8 @@ CREATE TABLE IF NOT EXISTS im_route_bindings (
     bound_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
-    CONSTRAINT pk_im_route_bindings PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id)
+    CONSTRAINT pk_im_route_bindings PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id),
+    CONSTRAINT chk_im_route_bindings_connection_kind CHECK (connection_kind IN ('websocket', 'http'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_route_bindings_owner_node
@@ -341,6 +434,10 @@ CREATE TABLE IF NOT EXISTS im_realtime_disconnect_fences (
 CREATE INDEX IF NOT EXISTS idx_im_realtime_disconnect_fences_disconnected_at
     ON im_realtime_disconnect_fences (tenant_id, disconnected_at, principal_kind, principal_id, device_id);
 
+CREATE INDEX IF NOT EXISTS idx_im_realtime_disconnect_fences_retention_until
+    ON im_realtime_disconnect_fences (retention_until)
+    WHERE retention_until IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS im_rtc_sessions (
     tenant_id TEXT NOT NULL,
     rtc_session_id TEXT NOT NULL,
@@ -364,7 +461,7 @@ CREATE TABLE IF NOT EXISTS im_rtc_sessions (
     updated_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_rtc_sessions PRIMARY KEY (tenant_id, rtc_session_id),
-    CONSTRAINT ck_im_rtc_sessions_state CHECK (session_state IN ('started', 'accepted', 'rejected', 'ended'))
+    CONSTRAINT chk_im_rtc_sessions_state CHECK (session_state IN ('started', 'accepted', 'rejected', 'ended'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_rtc_sessions_conversation
@@ -377,6 +474,10 @@ CREATE INDEX IF NOT EXISTS idx_im_rtc_sessions_state
 CREATE INDEX IF NOT EXISTS idx_im_rtc_sessions_provider_session
     ON im_rtc_sessions (tenant_id, provider_plugin_id, provider_session_id)
     WHERE provider_plugin_id IS NOT NULL AND provider_session_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_sessions_retention_until
+    ON im_rtc_sessions (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_rtc_signals (
     tenant_id TEXT NOT NULL,
@@ -397,6 +498,10 @@ CREATE TABLE IF NOT EXISTS im_rtc_signals (
 
 CREATE INDEX IF NOT EXISTS idx_im_rtc_signals_session_seq
     ON im_rtc_signals (tenant_id, rtc_session_id, signal_seq);
+
+CREATE INDEX IF NOT EXISTS idx_im_rtc_signals_retention_until
+    ON im_rtc_signals (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_audit_records (
     tenant_id TEXT NOT NULL,
@@ -425,6 +530,10 @@ CREATE INDEX IF NOT EXISTS idx_im_audit_records_tenant_seq
 CREATE INDEX IF NOT EXISTS idx_im_audit_records_target
     ON im_audit_records (tenant_id, target_type, target_id, audit_seq);
 
+CREATE INDEX IF NOT EXISTS idx_im_audit_records_retention_until
+    ON im_audit_records (retention_until)
+    WHERE retention_until IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS im_notification_tasks (
     tenant_id TEXT NOT NULL,
     notification_id TEXT NOT NULL,
@@ -447,7 +556,7 @@ CREATE TABLE IF NOT EXISTS im_notification_tasks (
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_notification_tasks PRIMARY KEY (tenant_id, notification_id),
     CONSTRAINT uk_im_notification_tasks_source UNIQUE (tenant_id, source_event_id, recipient_kind, recipient_id, category, channel),
-    CONSTRAINT ck_im_notification_tasks_status CHECK (notification_status IN ('requested', 'dispatched', 'failed'))
+    CONSTRAINT chk_im_notification_tasks_status CHECK (notification_status IN ('requested', 'dispatched', 'failed'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_notification_tasks_recipient_updated
@@ -455,6 +564,10 @@ CREATE INDEX IF NOT EXISTS idx_im_notification_tasks_recipient_updated
 
 CREATE INDEX IF NOT EXISTS idx_im_notification_tasks_status
     ON im_notification_tasks (tenant_id, notification_status, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_im_notification_tasks_retention_until
+    ON im_notification_tasks (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_automation_executions (
     tenant_id TEXT NOT NULL,
@@ -481,7 +594,7 @@ CREATE TABLE IF NOT EXISTS im_automation_executions (
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_automation_executions PRIMARY KEY (tenant_id, principal_kind, principal_id, execution_id),
     CONSTRAINT uk_im_automation_executions_request UNIQUE (tenant_id, principal_kind, principal_id, execution_id, request_hash),
-    CONSTRAINT ck_im_automation_executions_state CHECK (execution_state IN ('requested', 'running', 'succeeded', 'failed'))
+    CONSTRAINT chk_im_automation_executions_state CHECK (execution_state IN ('requested', 'running', 'succeeded', 'failed'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_automation_executions_principal_updated
@@ -489,6 +602,10 @@ CREATE INDEX IF NOT EXISTS idx_im_automation_executions_principal_updated
 
 CREATE INDEX IF NOT EXISTS idx_im_automation_executions_state
     ON im_automation_executions (tenant_id, execution_state, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_im_automation_executions_retention_until
+    ON im_automation_executions (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_projection_timeline_entries (
     tenant_id TEXT NOT NULL,
@@ -507,6 +624,10 @@ CREATE TABLE IF NOT EXISTS im_projection_timeline_entries (
 
 CREATE INDEX IF NOT EXISTS idx_im_projection_timeline_entries_message
     ON im_projection_timeline_entries (tenant_id, message_id);
+
+CREATE INDEX IF NOT EXISTS idx_im_projection_timeline_entries_retention_until
+    ON im_projection_timeline_entries (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_projection_conversation_summaries (
     tenant_id TEXT NOT NULL,
@@ -532,6 +653,10 @@ CREATE TABLE IF NOT EXISTS im_projection_conversation_summaries (
 CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_summaries_activity
     ON im_projection_conversation_summaries (tenant_id, last_activity_at DESC, conversation_id);
 
+CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_summaries_retention_until
+    ON im_projection_conversation_summaries (retention_until)
+    WHERE retention_until IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS im_projection_conversation_members (
     tenant_id TEXT NOT NULL,
     conversation_id TEXT NOT NULL,
@@ -551,8 +676,25 @@ CREATE TABLE IF NOT EXISTS im_projection_conversation_members (
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_projection_conversation_members PRIMARY KEY (tenant_id, conversation_id, principal_kind, principal_id),
     CONSTRAINT uk_im_projection_conversation_members_member UNIQUE (tenant_id, conversation_id, member_id),
-    CONSTRAINT ck_im_projection_conversation_members_state CHECK (membership_state IN ('invited', 'joined', 'removed', 'left'))
+    CONSTRAINT chk_im_projection_conversation_members_state CHECK (membership_state IN ('invited', 'joined', 'linked', 'removed', 'left'))
 );
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'chk_im_projection_conversation_members_state'
+          AND conrelid = 'im_projection_conversation_members'::regclass
+    ) THEN
+        ALTER TABLE im_projection_conversation_members
+            DROP CONSTRAINT chk_im_projection_conversation_members_state;
+    END IF;
+
+    ALTER TABLE im_projection_conversation_members
+        ADD CONSTRAINT chk_im_projection_conversation_members_state
+        CHECK (membership_state IN ('invited', 'joined', 'linked', 'removed', 'left'));
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_members_principal
     ON im_projection_conversation_members (tenant_id, principal_kind, principal_id, membership_state, conversation_id);
@@ -560,6 +702,10 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_members_principal
 CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_members_active
     ON im_projection_conversation_members (tenant_id, conversation_id, principal_kind, principal_id)
     WHERE membership_state = 'joined';
+
+CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_members_retention_until
+    ON im_projection_conversation_members (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_projection_read_cursors (
     tenant_id TEXT NOT NULL,
@@ -580,6 +726,10 @@ CREATE TABLE IF NOT EXISTS im_projection_read_cursors (
 CREATE INDEX IF NOT EXISTS idx_im_projection_read_cursors_principal
     ON im_projection_read_cursors (tenant_id, principal_kind, principal_id, conversation_id);
 
+CREATE INDEX IF NOT EXISTS idx_im_projection_read_cursors_retention_until
+    ON im_projection_read_cursors (retention_until)
+    WHERE retention_until IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS im_projection_registered_devices (
     tenant_id TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
@@ -593,6 +743,10 @@ CREATE TABLE IF NOT EXISTS im_projection_registered_devices (
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_projection_registered_devices PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_im_projection_registered_devices_retention_until
+    ON im_projection_registered_devices (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_projection_device_sync_feeds (
     tenant_id TEXT NOT NULL,
@@ -627,6 +781,10 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_device_sync_feeds_conversation
     ON im_projection_device_sync_feeds (tenant_id, conversation_id, sync_seq)
     WHERE conversation_id IS NOT NULL;
 
+CREATE INDEX IF NOT EXISTS idx_im_projection_device_sync_feeds_retention_until
+    ON im_projection_device_sync_feeds (retention_until)
+    WHERE retention_until IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS im_projection_device_sync_checkpoints (
     tenant_id TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
@@ -640,8 +798,12 @@ CREATE TABLE IF NOT EXISTS im_projection_device_sync_checkpoints (
     updated_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_projection_device_sync_checkpoints PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id),
-    CONSTRAINT ck_im_projection_device_sync_checkpoints_order CHECK (trimmed_through_seq <= latest_sync_seq)
+    CONSTRAINT chk_im_projection_device_sync_checkpoints_order CHECK (trimmed_through_seq <= latest_sync_seq)
 );
+
+CREATE INDEX IF NOT EXISTS idx_im_projection_device_sync_checkpoints_retention_until
+    ON im_projection_device_sync_checkpoints (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_projection_contacts (
     tenant_id TEXT NOT NULL,
@@ -665,6 +827,10 @@ CREATE TABLE IF NOT EXISTS im_projection_contacts (
 CREATE INDEX IF NOT EXISTS idx_im_projection_contacts_owner_activity
     ON im_projection_contacts (tenant_id, owner_user_id, last_interaction_at DESC, target_user_id);
 
+CREATE INDEX IF NOT EXISTS idx_im_projection_contacts_retention_until
+    ON im_projection_contacts (retention_until)
+    WHERE retention_until IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS im_projection_direct_chat_bindings (
     tenant_id TEXT NOT NULL,
     direct_chat_id TEXT NOT NULL,
@@ -678,11 +844,15 @@ CREATE TABLE IF NOT EXISTS im_projection_direct_chat_bindings (
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_projection_direct_chat_bindings PRIMARY KEY (tenant_id, direct_chat_id),
     CONSTRAINT uk_im_projection_direct_chat_bindings_conversation UNIQUE (tenant_id, conversation_id),
-    CONSTRAINT ck_im_projection_direct_chat_bindings_status CHECK (direct_chat_status IN ('active', 'archived'))
+    CONSTRAINT chk_im_projection_direct_chat_bindings_status CHECK (direct_chat_status IN ('active', 'archived'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_projection_direct_chat_bindings_conversation
     ON im_projection_direct_chat_bindings (tenant_id, conversation_id, direct_chat_status);
+
+CREATE INDEX IF NOT EXISTS idx_im_projection_direct_chat_bindings_retention_until
+    ON im_projection_direct_chat_bindings (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_stream_sessions (
     tenant_id TEXT NOT NULL,
@@ -711,8 +881,8 @@ CREATE TABLE IF NOT EXISTS im_stream_sessions (
     updated_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
     CONSTRAINT pk_im_stream_sessions PRIMARY KEY (tenant_id, stream_id),
-    CONSTRAINT ck_im_stream_sessions_state CHECK (stream_state IN ('created', 'opened', 'active', 'checkpointed', 'completed', 'aborted', 'expired')),
-    CONSTRAINT ck_im_stream_sessions_seq_order CHECK (
+    CONSTRAINT chk_im_stream_sessions_state CHECK (stream_state IN ('created', 'opened', 'active', 'checkpointed', 'completed', 'aborted', 'expired')),
+    CONSTRAINT chk_im_stream_sessions_seq_order CHECK (
         COALESCE(last_checkpoint_seq, 0) <= last_frame_seq
         AND COALESCE(complete_frame_seq, 0) <= last_frame_seq
         AND COALESCE(abort_frame_seq, 0) <= last_frame_seq
@@ -724,6 +894,10 @@ CREATE INDEX IF NOT EXISTS idx_im_stream_sessions_scope
 
 CREATE INDEX IF NOT EXISTS idx_im_stream_sessions_updated
     ON im_stream_sessions (tenant_id, updated_at DESC, stream_id);
+
+CREATE INDEX IF NOT EXISTS idx_im_stream_sessions_retention_until
+    ON im_stream_sessions (retention_until)
+    WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_stream_frames (
     tenant_id TEXT NOT NULL,
@@ -742,3 +916,7 @@ CREATE TABLE IF NOT EXISTS im_stream_frames (
 
 CREATE INDEX IF NOT EXISTS idx_im_stream_frames_stream_seq
     ON im_stream_frames (tenant_id, stream_id, frame_seq);
+
+CREATE INDEX IF NOT EXISTS idx_im_stream_frames_retention_until
+    ON im_stream_frames (retention_until)
+    WHERE retention_until IS NOT NULL;

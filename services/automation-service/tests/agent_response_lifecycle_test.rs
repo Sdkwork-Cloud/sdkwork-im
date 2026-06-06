@@ -33,11 +33,18 @@ fn test_agent_response_stream_and_tool_call_lifecycle_are_verifiable() {
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -176,11 +183,18 @@ fn test_same_event_type_records_use_distinct_idempotency_keys() {
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -308,11 +322,18 @@ fn test_start_agent_response_rejects_stream_id_reuse_across_executions() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -389,11 +410,18 @@ fn test_agent_response_stream_isolation_across_principal_kind() {
     let runtime = automation_service::AutomationRuntime::default();
     let user_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -458,11 +486,18 @@ fn test_agent_response_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
     let runtime = automation_service::AutomationRuntime::default();
     let first_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u:demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_first".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -577,11 +612,18 @@ fn test_agent_tool_call_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
     let runtime = automation_service::AutomationRuntime::default();
     let first_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u:demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_first".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -717,11 +759,18 @@ fn test_start_agent_response_rejects_second_stream_for_same_execution() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -789,11 +838,18 @@ fn test_request_tool_call_rejects_when_agent_response_stream_completed() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -860,11 +916,18 @@ fn test_complete_agent_response_rejects_when_tool_call_pending() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -955,11 +1018,18 @@ async fn test_restricted_tool_call_requires_operator_override_and_is_auditable()
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1024,7 +1094,7 @@ async fn test_restricted_tool_call_requires_operator_override_and_is_auditable()
     assert_eq!(denied_json["code"], "automation_guardrail_denied");
 
     let override_auth = AppContext {
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
             "automation.operator_override".to_string(),
@@ -1081,11 +1151,18 @@ async fn test_agent_runtime_rejects_oversized_delta_and_tool_payloads() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1226,11 +1303,18 @@ fn test_append_agent_response_delta_rejects_oversized_stream_id_path() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1259,11 +1343,18 @@ fn test_complete_agent_response_rejects_oversized_stream_id_path() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1288,11 +1379,18 @@ fn test_complete_agent_tool_call_rejects_oversized_path_ids() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1326,11 +1424,18 @@ async fn test_agent_runtime_rejects_oversized_delta_contract_fields() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1427,11 +1532,18 @@ fn test_start_agent_response_rejects_oversized_stream_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1480,11 +1592,18 @@ fn test_start_agent_response_rejects_oversized_stream_contract_fields() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1567,11 +1686,18 @@ fn test_start_agent_response_rejects_oversized_member_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1622,11 +1748,18 @@ fn test_start_agent_response_rejects_oversized_execution_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1662,11 +1795,18 @@ fn test_start_agent_response_rejects_oversized_agent_metadata() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1714,11 +1854,18 @@ fn test_complete_agent_response_rejects_oversized_result_message_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1790,11 +1937,18 @@ fn test_start_agent_response_rejects_oversized_agent_identity_fields() {
         let runtime = automation_service::AutomationRuntime::default();
         let auth = AppContext {
             tenant_id: "t_demo".into(),
+            organization_id: None,
+            user_id: "u_demo".into(),
+            app_id: None,
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: Default::default(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),
             session_id: Some("s_user".into()),
             device_id: None,
-            permissions: BTreeSet::from([
+            permission_scope: BTreeSet::from([
                 "automation.execute".to_string(),
                 "automation.read".to_string(),
             ]),
@@ -1850,11 +2004,18 @@ fn test_request_agent_tool_call_rejects_oversized_tool_call_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1915,11 +2076,18 @@ fn test_request_agent_tool_call_rejects_oversized_execution_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -1945,11 +2113,18 @@ fn test_request_agent_tool_call_rejects_oversized_tool_name() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),

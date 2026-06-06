@@ -4,11 +4,12 @@ use im_domain_core::conversation::{ConversationInboxEntry, ConversationReadCurso
 use im_domain_core::social::DirectChatStatus;
 
 use super::{
-    ContactView, ConversationMemberDirectoryEntry, ConversationSummaryView,
+    ContactView, ContactWindowView, ConversationMemberDirectoryEntry, ConversationSummaryView,
     DeviceSyncFeedWindowView, MessageInteractionSummaryView, NotificationRecipientView,
     PROJECTION_DEVICE_SYNC_FEED_DEFAULT_LIMIT, PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT,
-    PROJECTION_TIMELINE_DEFAULT_LIMIT, PROJECTION_TIMELINE_MAX_LIMIT, RealtimeFanoutTarget,
-    RegisteredDeviceView, TimelineProjectionService, TimelineWindowView,
+    PROJECTION_LIST_DEFAULT_LIMIT, PROJECTION_LIST_MAX_LIMIT, PROJECTION_TIMELINE_DEFAULT_LIMIT,
+    PROJECTION_TIMELINE_MAX_LIMIT, RealtimeFanoutTarget, RegisteredDeviceView,
+    TimelineProjectionService, TimelineWindowView,
 };
 
 const PROJECTION_MAX_DEVICE_ID_BYTES: usize = 256;
@@ -367,12 +368,43 @@ impl TimelineProjectionService {
         .collect()
     }
 
+    pub fn inbox_window_from_auth_context(
+        &self,
+        auth: &AppContext,
+        limit: Option<usize>,
+        cursor: Option<&str>,
+    ) -> Result<super::InboxWindowView, ProjectionAccessError> {
+        let limit = validate_list_limit(limit)?;
+        list_window(self.inbox_from_auth_context(auth), limit, cursor).map(|window| {
+            super::InboxWindowView {
+                items: window.items,
+                next_cursor: window.next_cursor,
+                has_more: window.has_more,
+            }
+        })
+    }
+
     pub fn contacts_from_auth_context(
         &self,
         auth: &AppContext,
     ) -> Result<Vec<ContactView>, ProjectionAccessError> {
         ensure_user_contact_owner(auth)?;
         Ok(self.contacts(auth.tenant_id.as_str(), auth.actor_id.as_str()))
+    }
+
+    pub fn contact_window_from_auth_context(
+        &self,
+        auth: &AppContext,
+        limit: Option<usize>,
+        cursor: Option<&str>,
+    ) -> Result<ContactWindowView, ProjectionAccessError> {
+        let limit = validate_list_limit(limit)?;
+        let contacts = self.contacts_from_auth_context(auth)?;
+        list_window(contacts, limit, cursor).map(|window| ContactWindowView {
+            items: window.items,
+            next_cursor: window.next_cursor,
+            has_more: window.has_more,
+        })
     }
 
     pub fn timeline_window_from_auth_context(
@@ -618,4 +650,66 @@ fn validate_device_sync_feed_limit(limit: Option<usize>) -> Result<usize, Projec
         ));
     }
     Ok(limit)
+}
+
+fn validate_list_limit(limit: Option<usize>) -> Result<usize, ProjectionAccessError> {
+    let limit = limit.unwrap_or(PROJECTION_LIST_DEFAULT_LIMIT);
+    if limit == 0 || limit > PROJECTION_LIST_MAX_LIMIT {
+        return Err(ProjectionAccessError::bad_request(
+            "limit_invalid",
+            format!("list limit must be between 1 and {PROJECTION_LIST_MAX_LIMIT}: {limit}"),
+        ));
+    }
+    Ok(limit)
+}
+
+#[derive(Debug)]
+struct ProjectionListWindow<T> {
+    items: Vec<T>,
+    next_cursor: Option<String>,
+    has_more: bool,
+}
+
+fn list_window<T>(
+    items: Vec<T>,
+    limit: usize,
+    cursor: Option<&str>,
+) -> Result<ProjectionListWindow<T>, ProjectionAccessError> {
+    let offset = parse_list_cursor(cursor)?;
+    if offset > items.len() {
+        return Ok(ProjectionListWindow {
+            items: Vec::new(),
+            next_cursor: None,
+            has_more: false,
+        });
+    }
+
+    let mut window = items
+        .into_iter()
+        .skip(offset)
+        .take(limit + 1)
+        .collect::<Vec<_>>();
+    let has_more = window.len() > limit;
+    if has_more {
+        window.truncate(limit);
+    }
+    let next_cursor = has_more.then(|| (offset + window.len()).to_string());
+
+    Ok(ProjectionListWindow {
+        items: window,
+        next_cursor,
+        has_more,
+    })
+}
+
+fn parse_list_cursor(cursor: Option<&str>) -> Result<usize, ProjectionAccessError> {
+    let Some(cursor) = cursor.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(0);
+    };
+    cursor.parse::<usize>().map_err(|_| {
+        ProjectionAccessError::bad_request(
+            "cursor_invalid",
+            format!("list cursor is invalid: {cursor}"),
+        )
+    })
 }

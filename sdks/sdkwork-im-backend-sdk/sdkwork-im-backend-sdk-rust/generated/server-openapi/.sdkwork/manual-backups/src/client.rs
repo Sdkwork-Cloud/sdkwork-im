@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use crate::api::{OpsApi, AuditApi, ProviderApi, IotApi, RtcApi, AutomationApi};
+use crate::api::{OpsApi, AuditApi, AutomationApi, ControlApi, AdminApi};
 use crate::http::{SdkworkConfig, SdkworkError, SdkworkHttpClient};
 
 #[derive(Clone)]
-pub struct SdkworkBackendClient {
+pub struct SdkworkImBackendClient {
     http: Arc<SdkworkHttpClient>,
 }
 
-impl SdkworkBackendClient {
+impl SdkworkImBackendClient {
     pub fn new(config: SdkworkConfig) -> Result<Self, SdkworkError> {
         Ok(Self {
             http: Arc::new(SdkworkHttpClient::new(config)?),
@@ -47,19 +47,17 @@ impl SdkworkBackendClient {
             AuditApi::new(Arc::clone(&self.http))
         }
 
-    pub fn provider(&self) -> ProviderApi {
-            ProviderApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn iot(&self) -> IotApi {
-            IotApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn rtc(&self) -> RtcApi {
-            RtcApi::new(Arc::clone(&self.http))
-        }
-
     pub fn automation(&self) -> AutomationApi {
             AutomationApi::new(Arc::clone(&self.http))
         }
+
+    pub fn control(&self) -> ControlApi {
+            ControlApi::new(Arc::clone(&self.http))
+        }
+
+    pub fn admin(&self) -> AdminApi {
+            AdminApi::new(Arc::clone(&self.http))
+        }
 }
+
+pub type SdkworkBackendClient = SdkworkImBackendClient;

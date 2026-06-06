@@ -4,39 +4,35 @@ import com.sdkwork.common.core.SdkConfig
 import com.sdkwork.im.backend.api.generated.http.HttpClient
 import com.sdkwork.im.backend.api.generated.api.OpsApi
 import com.sdkwork.im.backend.api.generated.api.AuditApi
-import com.sdkwork.im.backend.api.generated.api.ProviderApi
-import com.sdkwork.im.backend.api.generated.api.IotApi
-import com.sdkwork.im.backend.api.generated.api.RtcApi
 import com.sdkwork.im.backend.api.generated.api.AutomationApi
+import com.sdkwork.im.backend.api.generated.api.ControlApi
+import com.sdkwork.im.backend.api.generated.api.AdminApi
 
 class SdkworkBackendClient {
     private val httpClient: HttpClient
 
     lateinit var ops: OpsApi
     lateinit var audit: AuditApi
-    lateinit var provider: ProviderApi
-    lateinit var iot: IotApi
-    lateinit var rtc: RtcApi
     lateinit var automation: AutomationApi
+    lateinit var control: ControlApi
+    lateinit var admin: AdminApi
 
     constructor(baseUrl: String) {
         this.httpClient = HttpClient(baseUrl)
         ops = OpsApi(httpClient)
         audit = AuditApi(httpClient)
-        provider = ProviderApi(httpClient)
-        iot = IotApi(httpClient)
-        rtc = RtcApi(httpClient)
         automation = AutomationApi(httpClient)
+        control = ControlApi(httpClient)
+        admin = AdminApi(httpClient)
     }
 
     constructor(config: SdkConfig) {
         this.httpClient = HttpClient(config)
         ops = OpsApi(httpClient)
         audit = AuditApi(httpClient)
-        provider = ProviderApi(httpClient)
-        iot = IotApi(httpClient)
-        rtc = RtcApi(httpClient)
         automation = AutomationApi(httpClient)
+        control = ControlApi(httpClient)
+        admin = AdminApi(httpClient)
     }
 
 

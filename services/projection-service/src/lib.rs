@@ -5,7 +5,7 @@ use std::sync::{Mutex, MutexGuard};
 use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursor, ConversationReadCursorView, DeviceSyncFeedEntry,
 };
-use im_domain_core::message::{Message, MessageEdited, MessageRecalled};
+use im_domain_core::message::{ContentPart, Message, MessageEdited, MessageRecalled};
 use im_domain_events::CommitEnvelope;
 
 mod access;
@@ -41,9 +41,9 @@ use scope::{
 pub use access::{DeviceSyncStateSnapshot, ProjectionAccessError};
 pub use http::{build_app, build_default_app, build_public_app, build_public_app_with_service};
 pub use model::{
-    ContactView, ConversationMemberDirectoryEntry, ConversationSummaryView,
-    DeviceSyncFeedWindowView, InteractionActorView, MessageInteractionSummaryView, MessagePinView,
-    MessageReactionCountView, NotificationRecipientView, RealtimeFanoutTarget,
+    ContactView, ContactWindowView, ConversationMemberDirectoryEntry, ConversationSummaryView,
+    DeviceSyncFeedWindowView, InboxWindowView, InteractionActorView, MessageInteractionSummaryView,
+    MessagePinView, MessageReactionCountView, NotificationRecipientView, RealtimeFanoutTarget,
     RegisteredDeviceView, SummarySenderView, TimelineViewEntry, TimelineWindowView,
 };
 pub use observability::{
@@ -55,6 +55,8 @@ pub use projection::ProjectionError;
 
 pub const PROJECTION_TIMELINE_DEFAULT_LIMIT: usize = 100;
 pub const PROJECTION_TIMELINE_MAX_LIMIT: usize = 1000;
+pub const PROJECTION_LIST_DEFAULT_LIMIT: usize = 100;
+pub const PROJECTION_LIST_MAX_LIMIT: usize = 1000;
 pub const PROJECTION_DEVICE_SYNC_FEED_DEFAULT_LIMIT: usize = 100;
 pub const PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT: usize = 1000;
 pub const PROJECTION_DEVICE_SYNC_FEED_MAX_RETAINED_EVENTS: usize =
@@ -258,6 +260,15 @@ impl TimelineProjectionService {
             message_id: message_id.clone(),
             message_seq,
             summary: summary.clone(),
+            sender: message.sender.clone(),
+            body: message.body.clone(),
+            message_type: message.message_type.clone(),
+            delivery_mode: message.delivery_mode.clone(),
+            client_msg_id: message.client_msg_id.clone(),
+            stream_session_id: message.stream_session_id.clone(),
+            rtc_session_id: message.rtc_session_id.clone(),
+            occurred_at: message.occurred_at.clone(),
+            committed_at: message.committed_at.clone(),
         };
 
         let mut entries = lock_projection_mutex(&self.entries, "projection store");
@@ -595,6 +606,7 @@ impl TimelineProjectionService {
     }
 
     fn fan_out_message_to_device_sync_feeds(&self, event: &CommitEnvelope, message: &Message) {
+        let (payload_schema, payload) = message_device_sync_payload(event, message);
         let draft = DeviceSyncEntryDraft {
             tenant_id: message.tenant_id.clone(),
             origin_event_id: event.event_id.clone(),
@@ -609,8 +621,8 @@ impl TimelineProjectionService {
             actor_kind: Some(message.sender.kind.clone()),
             actor_device_id: message.sender.device_id.clone(),
             summary: message.body.summary.clone(),
-            payload_schema: None,
-            payload: None,
+            payload_schema,
+            payload,
             occurred_at: message
                 .committed_at
                 .clone()
@@ -801,6 +813,34 @@ impl TimelineProjectionService {
             self.append_device_sync_draft(&target, &draft);
         }
     }
+}
+
+fn message_device_sync_payload(
+    event: &CommitEnvelope,
+    message: &Message,
+) -> (Option<String>, Option<String>) {
+    if !message_requires_device_sync_payload(message) {
+        return (None, None);
+    }
+
+    (event.payload_schema.clone(), Some(event.payload.clone()))
+}
+
+fn message_requires_device_sync_payload(message: &Message) -> bool {
+    message.rtc_session_id.is_some()
+        || message.message_type == im_domain_core::message::MessageType::Signal
+        || message
+            .body
+            .render_hints
+            .get("channel")
+            .is_some_and(|channel| channel == "rtc")
+        || message.body.reply_to.is_some()
+        || !message.body.render_hints.is_empty()
+        || message
+            .body
+            .parts
+            .iter()
+            .any(|part| !matches!(part, ContentPart::Text(_)))
 }
 
 fn lock_projection_mutex<'a, T>(mutex: &'a Mutex<T>, lock_name: &'static str) -> MutexGuard<'a, T> {

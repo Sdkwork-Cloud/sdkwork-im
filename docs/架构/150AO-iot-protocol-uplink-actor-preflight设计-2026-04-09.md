@@ -2,7 +2,7 @@
 
 ## 1. 目标
 
-把 `/backend/v3/api/iot/protocol/uplink` 的最外层授权边界继续前移：在还不知道最终 `payload.deviceId` 之前，只要 auth 已经足够证明请求不合法，就先拒绝，再决定是否进入 `decode_uplink()`。
+把 `/app/v3/api/iot/protocol/uplink` 的最外层授权边界继续前移：在还不知道最终 `payload.deviceId` 之前，只要 auth 已经足够证明请求不合法，就先拒绝，再决定是否进入 `decode_uplink()`。
 
 ## 2. 设计约束
 
@@ -86,7 +86,7 @@
 ## 7. 关键词冻结
 
 - `local-minimal-node`
-- `/backend/v3/api/iot/protocol/uplink`
+- `/app/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `ensure_iot_protocol_uplink_actor_preflight`

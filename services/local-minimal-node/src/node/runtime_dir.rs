@@ -6,14 +6,13 @@ use im_time::utc_now_rfc3339_millis;
 
 mod preview;
 
-const EXPECTED_RUNTIME_STATE_FILES: [&str; 13] = [
+const EXPECTED_RUNTIME_STATE_FILES: [&str; 12] = [
     "commit-journal.json",
     "realtime-disconnect-fences.json",
     "realtime-checkpoints.json",
     "realtime-event-windows.json",
     "realtime-subscriptions.json",
     "presence-state.json",
-    "device-twin-state.json",
     "stream-state.json",
     "rtc-state.json",
     "notification-tasks.json",
@@ -257,9 +256,6 @@ fn validate_runtime_state_file(
             .map_err(runtime_state_parse_failure),
         "presence-state.json" => {
             validate_presence_state_store_file(file_path).map_err(runtime_state_parse_failure)
-        }
-        "device-twin-state.json" => {
-            validate_device_twin_store_file(file_path).map_err(runtime_state_parse_failure)
         }
         "stream-state.json" => {
             validate_stream_state_store_file(file_path).map_err(runtime_state_parse_failure)

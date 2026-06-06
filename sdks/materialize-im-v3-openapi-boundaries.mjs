@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { loadGeneratorYaml } from './workspace-sdk-generator-root-shared.mjs';
 import {
+  applyFlutterCompatibilityTransforms,
   cloneOpenApiJson,
   loadOpenApiDocument,
   writeOpenApiYamlDocument,
@@ -23,6 +24,26 @@ const backendDerivedPath = path.join(backendRoot, 'openapi', 'craw-chat-backend-
 const appAuthorityPath = path.join(appRoot, 'openapi', 'craw-chat-app-api.openapi.yaml');
 const appDerivedPath = path.join(appRoot, 'openapi', 'craw-chat-app-api.sdkgen.yaml');
 const appFlutterDerivedPath = path.join(appRoot, 'openapi', 'craw-chat-app-api.flutter.sdkgen.yaml');
+const appbaseAppAuthorityPath = path.resolve(
+  sdkRoot,
+  '..',
+  '..',
+  'sdkwork-appbase',
+  'sdks',
+  'sdkwork-appbase-app-sdk',
+  'openapi',
+  'sdkwork-appbase-app-api.openapi.yaml',
+);
+const appbaseBackendAuthorityPath = path.resolve(
+  sdkRoot,
+  '..',
+  '..',
+  'sdkwork-appbase',
+  'sdks',
+  'sdkwork-appbase-backend-sdk',
+  'openapi',
+  'sdkwork-appbase-backend-api.openapi.yaml',
+);
 
 const backendPrefix = '/backend/v3/api';
 const appPrefix = '/app/v3/api';
@@ -52,6 +73,16 @@ function pathWithoutPrefix(pathKey, prefix) {
   return stripped ? stripped.replace(/\{[^}]+\}/g, '{}') : '';
 }
 
+function collectRouteSet(document, prefix) {
+  const routes = new Set();
+  for (const pathKey of Object.keys(document.paths ?? {})) {
+    if (pathKey.startsWith(`${prefix}/`)) {
+      routes.add(pathWithoutPrefix(pathKey, prefix));
+    }
+  }
+  return routes;
+}
+
 function rebasePath(pathKey, fromPrefix, toPrefix) {
   if (!pathKey.startsWith(`${fromPrefix}/`)) {
     fail(`Cannot rebase path outside ${fromPrefix}: ${pathKey}`);
@@ -66,14 +97,20 @@ function isImStandardPath(pathKey, prefix) {
     || route === 'devices/{}/sync_feed'
     || route.startsWith('chat/')
     || route.startsWith('device/sessions/')
-    || route.startsWith('media/uploads')
-    || route.startsWith('media/{}/')
-    || route === 'media/{}'
     || route.startsWith('presence/')
     || route.startsWith('realtime/')
     || route.startsWith('rtc/sessions')
     || route.startsWith('social/')
     || route.startsWith('streams')
+  );
+}
+
+function isDriveOwnedMediaLifecyclePath(pathKey, prefix) {
+  const route = pathWithoutPrefix(pathKey, prefix);
+  return (
+    route.startsWith('media/uploads')
+    || route.startsWith('media/{}/')
+    || route === 'media/{}'
   );
 }
 
@@ -161,6 +198,205 @@ function normalizeTags(document, allowedTagNames) {
   document.tags = normalizedTags;
 }
 
+function annotateOwnerMetadata(document, { owner, apiAuthority }) {
+  document['x-sdkwork-owner'] = owner;
+  document['x-sdkwork-api-authority'] = apiAuthority;
+  for (const pathItem of Object.values(document.paths ?? {})) {
+    if (!pathItem || typeof pathItem !== 'object') {
+      continue;
+    }
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (!['delete', 'get', 'head', 'options', 'patch', 'post', 'put', 'trace'].includes(method.toLowerCase())) {
+        continue;
+      }
+      if (!operation || typeof operation !== 'object') {
+        continue;
+      }
+      operation['x-sdkwork-owner'] = owner;
+      operation['x-sdkwork-api-authority'] = apiAuthority;
+    }
+  }
+}
+
+function removeSchemaProperties(schema, propertyNames) {
+  if (!schema?.properties || typeof schema.properties !== 'object') {
+    return;
+  }
+  for (const propertyName of propertyNames) {
+    delete schema.properties[propertyName];
+  }
+}
+
+function driveReferenceSchema() {
+  return {
+    additionalProperties: false,
+    properties: {
+      driveUri: { type: 'string' },
+      spaceId: { type: 'string' },
+      nodeId: { type: 'string' },
+      nodeVersion: { type: 'string' },
+    },
+    required: ['driveUri', 'spaceId', 'nodeId'],
+    type: 'object',
+  };
+}
+
+function constStringSchema(value) {
+  return {
+    enum: [value],
+    type: 'string',
+  };
+}
+
+function normalizeContentPartSchema(schemas) {
+  if (!schemas.ContentPart?.properties || typeof schemas.ContentPart.properties !== 'object') {
+    return;
+  }
+
+  const baseProperties = schemas.ContentPart.properties;
+  const textContentPart = {
+    additionalProperties: false,
+    properties: {
+      kind: constStringSchema('text'),
+      text: cloneOpenApiJson(baseProperties.text ?? { type: 'string' }),
+    },
+    required: ['kind', 'text'],
+    type: 'object',
+  };
+  const dataContentPart = {
+    additionalProperties: false,
+    properties: {
+      kind: constStringSchema('data'),
+      schemaRef: cloneOpenApiJson(baseProperties.schemaRef ?? { type: 'string' }),
+      encoding: cloneOpenApiJson(baseProperties.encoding ?? { type: 'string' }),
+      payload: cloneOpenApiJson(baseProperties.payload ?? { type: 'string' }),
+    },
+    required: ['kind', 'schemaRef', 'encoding', 'payload'],
+    type: 'object',
+  };
+  const mediaContentPart = {
+    additionalProperties: false,
+    properties: {
+      kind: constStringSchema('media'),
+      drive: { $ref: '#/components/schemas/DriveReference' },
+      resource: { $ref: '#/components/schemas/MediaResource' },
+      mediaRole: cloneOpenApiJson(baseProperties.mediaRole ?? { type: 'string' }),
+    },
+    required: ['kind', 'drive', 'resource'],
+    type: 'object',
+  };
+  const signalContentPart = {
+    additionalProperties: false,
+    properties: {
+      kind: constStringSchema('signal'),
+      signalType: cloneOpenApiJson(baseProperties.signalType ?? { type: 'string' }),
+      schemaRef: cloneOpenApiJson(baseProperties.schemaRef ?? { type: 'string' }),
+      payload: cloneOpenApiJson(baseProperties.payload ?? { type: 'string' }),
+    },
+    required: ['kind', 'signalType', 'payload'],
+    type: 'object',
+  };
+  const streamRefContentPart = {
+    additionalProperties: false,
+    properties: {
+      kind: constStringSchema('stream_ref'),
+      streamId: cloneOpenApiJson(baseProperties.streamId ?? { type: 'string' }),
+      streamType: cloneOpenApiJson(baseProperties.streamType ?? { type: 'string' }),
+      state: cloneOpenApiJson(baseProperties.state ?? { type: 'string' }),
+    },
+    required: ['kind', 'streamId', 'streamType', 'state'],
+    type: 'object',
+  };
+
+  schemas.TextContentPart = textContentPart;
+  schemas.DataContentPart = dataContentPart;
+  schemas.MediaContentPart = mediaContentPart;
+  schemas.SignalContentPart = signalContentPart;
+  schemas.StreamRefContentPart = streamRefContentPart;
+  schemas.ContentPart = {
+    discriminator: {
+      propertyName: 'kind',
+    },
+    oneOf: [
+      { $ref: '#/components/schemas/TextContentPart' },
+      { $ref: '#/components/schemas/DataContentPart' },
+      { $ref: '#/components/schemas/MediaContentPart' },
+      { $ref: '#/components/schemas/SignalContentPart' },
+      { $ref: '#/components/schemas/StreamRefContentPart' },
+    ],
+  };
+}
+
+function normalizeDriveBackedMediaComponents(document) {
+  const schemas = document.components?.schemas;
+  if (!schemas || typeof schemas !== 'object') {
+    return;
+  }
+
+  schemas.DriveReference = driveReferenceSchema();
+
+  removeSchemaProperties(schemas.ContentPart, ['mediaAssetId']);
+  if (schemas.ContentPart?.properties && typeof schemas.ContentPart.properties === 'object') {
+    schemas.ContentPart.properties.drive = { $ref: '#/components/schemas/DriveReference' };
+  }
+  normalizeContentPartSchema(schemas);
+
+  for (const schemaName of ['MediaResource', 'MediaRendition']) {
+    removeSchemaProperties(schemas[schemaName], ['bucketId', 'objectKey', 'objectVersion']);
+  }
+
+  for (const schemaName of ['MediaSource']) {
+    const schema = schemas[schemaName];
+    if (!Array.isArray(schema?.enum)) {
+      continue;
+    }
+    schema.enum = schema.enum
+      .filter((value) => value !== 'object_storage')
+      .map((value) => (value === 'object_storage' ? 'drive' : value));
+    if (!schema.enum.includes('drive')) {
+      schema.enum.unshift('drive');
+    }
+  }
+
+  if (schemas.RtcRecordingArtifact && typeof schemas.RtcRecordingArtifact === 'object') {
+    schemas.RtcRecordingArtifact = {
+      additionalProperties: false,
+      properties: {
+        tenantId: { type: 'string' },
+        rtcSessionId: { type: 'string' },
+        drive: { $ref: '#/components/schemas/DriveReference' },
+        resource: { $ref: '#/components/schemas/MediaResource' },
+        mediaRole: { type: 'string' },
+      },
+      required: ['tenantId', 'rtcSessionId', 'drive', 'resource', 'mediaRole'],
+      type: 'object',
+    };
+  }
+}
+
+function collectComponentRefs(value, groupName, refs = new Set()) {
+  if (!value || typeof value !== 'object') {
+    return refs;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectComponentRefs(item, groupName, refs);
+    }
+    return refs;
+  }
+  if (typeof value.$ref === 'string') {
+    const escapedGroup = groupName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const componentName = value.$ref.match(new RegExp(`^#/components/${escapedGroup}/([^/]+)$`))?.[1];
+    if (componentName) {
+      refs.add(componentName);
+    }
+  }
+  for (const child of Object.values(value)) {
+    collectComponentRefs(child, groupName, refs);
+  }
+  return refs;
+}
+
 function collectSchemaRefs(value, refs = new Set()) {
   if (!value || typeof value !== 'object') {
     return refs;
@@ -209,6 +445,20 @@ function pruneUnreachableSchemas(document) {
   }
 }
 
+function pruneUnreachableParameters(document) {
+  const parameters = document.components?.parameters;
+  if (!parameters || typeof parameters !== 'object') {
+    return;
+  }
+
+  const reachable = collectComponentRefs(document.paths ?? {}, 'parameters');
+  for (const parameterName of Object.keys(parameters)) {
+    if (!reachable.has(parameterName)) {
+      delete parameters[parameterName];
+    }
+  }
+}
+
 function normalizeImAuthority(im) {
   const next = cloneOpenApiJson(im);
   next.info = {
@@ -232,11 +482,13 @@ function normalizeImAuthority(im) {
     }
   }
   normalizeTags(next, allowedTagNames);
+  normalizeDriveBackedMediaComponents(next);
   pruneUnreachableSchemas(next);
+  pruneUnreachableParameters(next);
   return next;
 }
 
-function normalizeBackendAuthority(backend) {
+function normalizeBackendAuthority(backend, dependencyBackendRouteSet) {
   const next = cloneOpenApiJson(backend);
   next.info = {
     title: 'Craw Chat Backend Management API',
@@ -250,6 +502,9 @@ function normalizeBackendAuthority(backend) {
     if (!pathKey.startsWith(`${backendPrefix}/`)) {
       fail(`Backend authority contains a path outside ${backendPrefix}: ${pathKey}`);
     }
+    if (dependencyBackendRouteSet.has(pathWithoutPrefix(pathKey, backendPrefix))) {
+      continue;
+    }
     if (!isBackendManagementPath(pathKey)) {
       fail(`Backend authority contains non-management API path that belongs in ${appPrefix}: ${pathKey}`);
     }
@@ -259,28 +514,36 @@ function normalizeBackendAuthority(backend) {
   normalizeTags(next, new Set(['admin', 'audit', 'automation', 'control', 'ops']));
   normalizeBackendOperationIds(next);
   pruneUnreachableSchemas(next);
+  pruneUnreachableParameters(next);
   return next;
 }
 
-function normalizeAppAuthority(app, im) {
+function normalizeAppAuthority(app, im, dependencyAppRouteSet) {
   const next = cloneOpenApiJson(app);
   next.info = {
     title: app.info?.title || 'Craw Chat App API',
     version: app.info?.version || '0.1.0',
     description:
-      'App-development OpenAPI contract for app-business and non-management HTTP APIs outside the IM standard API.',
+      'Owner-only app-development OpenAPI contract for Craw Chat-owned app-business and non-management HTTP APIs. Dependency capabilities, including sdkwork-appbase identity/session/IAM/QR auth, are consumed through sdkDependencies and dependency SDKs instead of being regenerated here.',
   };
   const appNativePaths = collectRebasedPaths({
     sources: [app],
     fromPrefix: appPrefix,
     toPrefix: appPrefix,
-    shouldInclude: (pathKey) => !isAppManagementPath(pathKey) && !isImStandardPath(pathKey, appPrefix),
+    shouldInclude: (pathKey) =>
+      !isAppManagementPath(pathKey)
+      && !isImStandardPath(pathKey, appPrefix)
+      && !isDriveOwnedMediaLifecyclePath(pathKey, appPrefix)
+      && !dependencyAppRouteSet.has(pathWithoutPrefix(pathKey, appPrefix)),
   });
   const appPathsFromImAuthority = collectRebasedPaths({
     sources: [im],
     fromPrefix: imPrefix,
     toPrefix: appPrefix,
-    shouldInclude: (pathKey) => !isImStandardPath(pathKey, imPrefix),
+    shouldInclude: (pathKey) =>
+      !isImStandardPath(pathKey, imPrefix)
+      && !isDriveOwnedMediaLifecyclePath(pathKey, imPrefix)
+      && !dependencyAppRouteSet.has(pathWithoutPrefix(pathKey, imPrefix)),
   });
   next.paths = {
     ...appPathsFromImAuthority,
@@ -302,16 +565,38 @@ function normalizeAppAuthority(app, im) {
   }
 
   normalizeTags(next, allowedTagNames);
+  normalizeDriveBackedMediaComponents(next);
   pruneUnreachableSchemas(next);
+  pruneUnreachableParameters(next);
   return next;
 }
 
-function appFlutterDerivedDocument(app) {
-  const next = cloneOpenApiJson(app);
+function sdkgenDerivedDocument(
+  document,
+  {
+    describeRealtimeWebsocketExclusion = false,
+    applyFlutterCompatibility = false,
+    describeFlutterCompatibility = false,
+  } = {},
+) {
+  const next = cloneOpenApiJson(document);
+  let removedRealtimeWebsocket = false;
   for (const pathKey of Object.keys(next.paths ?? {})) {
     if (pathKey.endsWith('/realtime/ws')) {
       delete next.paths[pathKey];
+      removedRealtimeWebsocket = true;
     }
+  }
+  if (removedRealtimeWebsocket && describeRealtimeWebsocketExclusion && next.info && typeof next.info === 'object') {
+    const description = typeof next.info.description === 'string' ? next.info.description.trim() : '';
+    const suffix =
+      'Derived sdkgen input excludes the realtime websocket upgrade route. Websocket transport stays manual-owned.';
+    next.info.description = description ? `${description}\n${suffix}` : suffix;
+  }
+  if (applyFlutterCompatibility) {
+    applyFlutterCompatibilityTransforms(next, {
+      describePrimitiveRefExpansion: describeFlutterCompatibility,
+    });
   }
   return next;
 }
@@ -320,17 +605,44 @@ const yaml = await loadGeneratorYaml(sdkRoot);
 const im = loadOpenApiDocument({ prefix: 'sdkwork-im-sdk', filePath: imAuthorityPath, yaml });
 const backend = loadOpenApiDocument({ prefix: 'sdkwork-im-backend-sdk', filePath: backendAuthorityPath, yaml });
 const app = loadOpenApiDocument({ prefix: 'sdkwork-im-app-sdk', filePath: appAuthorityPath, yaml });
+const appbaseApp = loadOpenApiDocument({
+  prefix: 'sdkwork-appbase-app-sdk',
+  filePath: appbaseAppAuthorityPath,
+  yaml,
+});
+const appbaseBackend = loadOpenApiDocument({
+  prefix: 'sdkwork-appbase-backend-sdk',
+  filePath: appbaseBackendAuthorityPath,
+  yaml,
+});
+const appbaseAppRouteSet = collectRouteSet(appbaseApp, appPrefix);
+const appbaseBackendRouteSet = collectRouteSet(appbaseBackend, backendPrefix);
+const dependencyAppRouteSet = appbaseAppRouteSet;
+const dependencyBackendRouteSet = appbaseBackendRouteSet;
 
 const consolidatedIm = normalizeImAuthority(im);
 applySdkworkV3OpenApiStandard(consolidatedIm);
-const consolidatedImFlutter = appFlutterDerivedDocument(consolidatedIm);
+annotateOwnerMetadata(consolidatedIm, { owner: 'craw-chat', apiAuthority: 'craw-chat.im' });
+const consolidatedImSdkgen = sdkgenDerivedDocument(consolidatedIm, {
+  describeRealtimeWebsocketExclusion: true,
+});
+const consolidatedImFlutter = sdkgenDerivedDocument(consolidatedIm, {
+  describeRealtimeWebsocketExclusion: true,
+  applyFlutterCompatibility: true,
+  describeFlutterCompatibility: true,
+});
 
-const consolidatedBackend = normalizeBackendAuthority(backend);
+const consolidatedBackend = normalizeBackendAuthority(backend, dependencyBackendRouteSet);
 applySdkworkV3OpenApiStandard(consolidatedBackend);
+annotateOwnerMetadata(consolidatedBackend, { owner: 'craw-chat', apiAuthority: 'craw-chat.backend' });
 
-const consolidatedApp = normalizeAppAuthority(app, im);
+const consolidatedApp = normalizeAppAuthority(app, im, dependencyAppRouteSet);
 applySdkworkV3OpenApiStandard(consolidatedApp);
-const consolidatedAppFlutter = appFlutterDerivedDocument(consolidatedApp);
+annotateOwnerMetadata(consolidatedApp, { owner: 'craw-chat', apiAuthority: 'craw-chat.app' });
+const consolidatedAppSdkgen = sdkgenDerivedDocument(consolidatedApp);
+const consolidatedAppFlutter = sdkgenDerivedDocument(consolidatedApp, {
+  applyFlutterCompatibility: true,
+});
 
 if (!consolidatedIm.paths['/im/v3/api/chat/conversations']) {
   fail('IM authority is missing /im/v3/api/chat/conversations.');
@@ -367,12 +679,12 @@ if (consolidatedApp.paths['/app/v3/api/chat/conversations']) {
 }
 
 writeOpenApiYamlDocument({ filePath: imAuthorityPath, document: consolidatedIm, yaml });
-writeOpenApiYamlDocument({ filePath: imDerivedPath, document: consolidatedIm, yaml });
+writeOpenApiYamlDocument({ filePath: imDerivedPath, document: consolidatedImSdkgen, yaml });
 writeOpenApiYamlDocument({ filePath: imFlutterDerivedPath, document: consolidatedImFlutter, yaml });
 writeOpenApiYamlDocument({ filePath: backendAuthorityPath, document: consolidatedBackend, yaml });
 writeOpenApiYamlDocument({ filePath: backendDerivedPath, document: consolidatedBackend, yaml });
 writeOpenApiYamlDocument({ filePath: appAuthorityPath, document: consolidatedApp, yaml });
-writeOpenApiYamlDocument({ filePath: appDerivedPath, document: consolidatedApp, yaml });
+writeOpenApiYamlDocument({ filePath: appDerivedPath, document: consolidatedAppSdkgen, yaml });
 writeOpenApiYamlDocument({ filePath: appFlutterDerivedPath, document: consolidatedAppFlutter, yaml });
 
 console.log('[materialize-im-v3-openapi-boundaries] OpenAPI SDK boundaries materialized.');

@@ -10,15 +10,24 @@ EOF
 }
 
 instance_name="default"
-config_dir="/etc/craw-chat/default"
+config_dir="/etc/sdkwork/chat"
 mode="verify-only"
 output_format="text"
+
+server_config_dir_for_instance() {
+  local name="$1"
+  if [[ "$name" == "default" ]]; then
+    printf '/etc/sdkwork/chat\n'
+  else
+    printf '/etc/sdkwork/chat/instances/%s\n' "$name"
+  fi
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="/etc/craw-chat/${instance_name}"
+      config_dir="$(server_config_dir_for_instance "$instance_name")"
       shift 2
       ;;
     --config-dir)
@@ -45,12 +54,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-postgresql_yaml="${config_dir}/storage/postgresql.yaml"
+postgresql_yaml="${config_dir}/postgresql.yaml"
 report_path="${config_dir}/storage-init-report.json"
 missing=()
 
 if [[ ! -f "$postgresql_yaml" ]]; then
-  missing+=("storage/postgresql.yaml")
+  missing+=("postgresql.yaml")
   postgresql_content=""
 else
   postgresql_content="$(cat "$postgresql_yaml")"

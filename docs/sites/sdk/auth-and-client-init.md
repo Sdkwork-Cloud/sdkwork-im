@@ -44,7 +44,7 @@ const sdk = new ImSdkClient({
   authToken: process.env.CRAW_CHAT_TOKEN,
 });
 
-const session = await sdk.deviceSessions.resume({
+const session = await sdk.device.sessions.resume({
   deviceId: "device-web-01",
   lastSeenSyncSeq: 0,
 });
@@ -60,7 +60,7 @@ final client = ImSdkClient.create(
   authToken: token,
 );
 
-final session = await client.deviceSessions.resume(
+final session = await client.device.sessions.resume(
   ResumeDeviceSessionRequest(
     deviceId: 'device-mobile-01',
     lastSeenSyncSeq: 0,

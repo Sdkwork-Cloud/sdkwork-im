@@ -82,11 +82,18 @@ fn test_request_execution_appends_requested_and_completed_events() {
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_demo".into()),
         device_id: None,
-        permissions: BTreeSet::from(["automation.execute".to_string()]),
+        permission_scope: BTreeSet::from(["automation.execute".to_string()]),
     };
 
     let execution = runtime
@@ -133,22 +140,36 @@ fn test_get_execution_is_scoped_to_requesting_principal() {
     let runtime = automation_service::AutomationRuntime::default();
     let owner_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_owner".into(),
         actor_kind: "user".into(),
         session_id: Some("s_owner".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
     };
     let other_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_other".into(),
         actor_kind: "user".into(),
         session_id: Some("s_other".into()),
         device_id: None,
-        permissions: BTreeSet::from(["automation.read".to_string()]),
+        permission_scope: BTreeSet::from(["automation.read".to_string()]),
     };
 
     runtime
@@ -177,11 +198,18 @@ fn test_duplicate_request_execution_is_idempotent_when_payload_matches() {
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_demo".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -224,11 +252,18 @@ fn test_duplicate_request_execution_rejects_conflicting_payload() {
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_demo".into()),
         device_id: None,
-        permissions: BTreeSet::from(["automation.execute".to_string()]),
+        permission_scope: BTreeSet::from(["automation.execute".to_string()]),
     };
 
     runtime
@@ -268,11 +303,18 @@ fn test_execution_timestamps_advance_between_distinct_requests() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_demo".into()),
         device_id: None,
-        permissions: BTreeSet::from(["automation.execute".to_string()]),
+        permission_scope: BTreeSet::from(["automation.execute".to_string()]),
     };
 
     let first = runtime
@@ -318,11 +360,18 @@ fn test_request_execution_with_outcome_exposes_applied_then_replayed_delivery_st
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_demo".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -374,11 +423,18 @@ fn test_request_execution_with_outcome_surfaces_accepted_during_inflight_apply()
     let runtime = Arc::new(automation_service::AutomationRuntime::with_journal(journal));
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_demo".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -433,11 +489,18 @@ fn test_request_execution_rejects_oversized_input_payload() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_demo".into()),
         device_id: None,
-        permissions: BTreeSet::from(["automation.execute".to_string()]),
+        permission_scope: BTreeSet::from(["automation.execute".to_string()]),
     };
     let oversized_input = "x".repeat(131073);
 
@@ -462,11 +525,18 @@ fn test_request_execution_rejects_oversized_execution_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_demo".into()),
         device_id: None,
-        permissions: BTreeSet::from(["automation.execute".to_string()]),
+        permission_scope: BTreeSet::from(["automation.execute".to_string()]),
     };
     let oversized_execution_id = "e".repeat(257);
 
@@ -491,11 +561,18 @@ fn test_get_execution_rejects_oversized_execution_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_demo".into()),
         device_id: None,
-        permissions: BTreeSet::from(["automation.read".to_string()]),
+        permission_scope: BTreeSet::from(["automation.read".to_string()]),
     };
     let oversized_execution_id = "e".repeat(257);
 
@@ -511,11 +588,18 @@ fn test_execution_requests_are_isolated_by_principal_kind_for_same_actor_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let user_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -580,11 +664,18 @@ fn test_execution_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
     let runtime = automation_service::AutomationRuntime::default();
     let first_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u:demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_first".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -644,11 +735,18 @@ fn test_execution_journal_metadata_is_isolated_by_principal_kind_for_same_actor_
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let user_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),

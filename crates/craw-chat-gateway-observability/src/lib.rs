@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use craw_chat_api_registry::{
-    HttpMethod, RouteProtocol, RouteRegistry, RouteVisibility, SdkTarget,
+    ContractKind, HttpMethod, RouteProtocol, RouteRegistry, RouteVisibility, SdkContractSummary,
+    SdkTarget, sdk_contract_summaries,
 };
 use craw_chat_gateway_config::{GatewayRuntimeMode, WebGatewayConfig};
 use serde::Serialize;
@@ -10,6 +11,7 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct GatewayServiceContractSummary {
     pub service_id: String,
+    pub contract_kind: ContractKind,
     pub schema_url: String,
     pub docs_url: String,
 }
@@ -63,6 +65,7 @@ pub struct GatewayStartupSummary {
     pub runtime_summary_url: String,
     pub docs_url: String,
     pub runtime_mode: GatewayRuntimeMode,
+    pub sdk_contracts: Vec<SdkContractSummary>,
     pub upstreams: Vec<(String, String)>,
     pub service_contracts: Vec<GatewayServiceContractSummary>,
     pub public_endpoints: Vec<GatewayPublicEndpointSummary>,
@@ -92,6 +95,7 @@ pub fn build_startup_summary_with_registry(
         runtime_summary_url: format!("{}/openapi/runtime-summary.json", base_url),
         docs_url: format!("{}/docs", base_url),
         runtime_mode: config.runtime_mode.clone(),
+        sdk_contracts: sdk_contract_summaries(base_url.as_str()),
         upstreams: config
             .upstreams
             .iter()
@@ -102,6 +106,7 @@ pub fn build_startup_summary_with_registry(
             .iter()
             .map(|item| GatewayServiceContractSummary {
                 service_id: item.service_id.clone(),
+                contract_kind: ContractKind::UpstreamOperational,
                 schema_url: format!(
                     "{}/openapi/services/{}.openapi.json",
                     base_url, item.service_id
@@ -136,25 +141,25 @@ pub fn format_startup_summary(summary: &GatewayStartupSummary) -> String {
         format!("  index: {}", summary.openapi_index_url),
         format!("  runtime summary: {}", summary.runtime_summary_url),
         format!("  docs: {}", summary.docs_url),
-        "Upstream Status".to_owned(),
     ];
+
+    if !summary.sdk_contracts.is_empty() {
+        lines.push("SDK Contracts".to_owned());
+        for contract in &summary.sdk_contracts {
+            lines.push(format!(
+                "  {} schema: {} [sdk:{}] [prefix:{}]",
+                contract.group_id,
+                contract.schema_url,
+                format_sdk_target(contract.sdk_target),
+                contract.api_prefix
+            ));
+        }
+    }
+
+    lines.push("Upstream Status".to_owned());
 
     for (service_id, base_url) in &summary.upstreams {
         lines.push(format!("  {service_id}: {base_url}"));
-    }
-
-    if !summary.service_contracts.is_empty() {
-        lines.push("Service Contracts".to_owned());
-        for contract in &summary.service_contracts {
-            lines.push(format!(
-                "  {} schema: {}",
-                contract.service_id, contract.schema_url
-            ));
-            lines.push(format!(
-                "  {} docs: {}",
-                contract.service_id, contract.docs_url
-            ));
-        }
     }
 
     if !summary.public_endpoints.is_empty() {
@@ -320,13 +325,18 @@ fn format_methods(methods: &[HttpMethod]) -> String {
 fn format_sdk_targets(sdk_targets: &[SdkTarget]) -> String {
     sdk_targets
         .iter()
-        .map(|sdk_target| match sdk_target {
-            SdkTarget::CrawChatAppSdk => "crawChatAppSdk",
-            SdkTarget::ControlPlaneSdk => "controlPlaneSdk",
-            SdkTarget::None => "none",
-        })
+        .map(|sdk_target| format_sdk_target(*sdk_target))
         .collect::<Vec<_>>()
         .join(",")
+}
+
+fn format_sdk_target(sdk_target: SdkTarget) -> &'static str {
+    match sdk_target {
+        SdkTarget::SdkworkImSdk => "sdkworkImSdk",
+        SdkTarget::SdkworkImAppSdk => "sdkworkImAppSdk",
+        SdkTarget::SdkworkImBackendSdk => "sdkworkImBackendSdk",
+        SdkTarget::None => "none",
+    }
 }
 
 fn format_protocols(protocols: &[RouteProtocol]) -> String {

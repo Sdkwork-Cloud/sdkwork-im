@@ -3,13 +3,13 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "im-app-context",
-    "displayName": "Im Principal Context",
+    "displayName": "Im App Context",
     "version": "0.1.0",
     "type": "rust-crate",
     "root": "craw-chat/crates/im-app-context",
-    "domain": "iam",
+    "domain": "communication",
     "declaredDomain": null,
-    "capability": "auth",
+    "capability": "im",
     "status": "standardizing",
     "languages": [
       "rust"
@@ -52,16 +52,6 @@
       "purpose": "Standard ownership, exception, compatibility, and migration rules."
     },
     {
-      "file": "I18N_SPEC.md",
-      "path": "../../../../../specs/I18N_SPEC.md",
-      "purpose": "User-facing language, locale, message catalog, and fallback rules."
-    },
-    {
-      "file": "IAM_SPEC.md",
-      "path": "../../../../../specs/IAM_SPEC.md",
-      "purpose": "Auth, user, tenant, organization, role, and permission rules."
-    },
-    {
       "file": "MODULE_SPEC.md",
       "path": "../../../../../specs/MODULE_SPEC.md",
       "purpose": "Reusable package contract and dependency direction."
@@ -77,19 +67,9 @@
       "purpose": "Latency, pagination, bundle, scalability, and retry budget rules."
     },
     {
-      "file": "PRIVACY_SPEC.md",
-      "path": "../../../../../specs/PRIVACY_SPEC.md",
-      "purpose": "Personal, tenant, sensitive, and regulated data rules."
-    },
-    {
       "file": "README.md",
       "path": "../../../../../specs/README.md",
       "purpose": "SDKWork root standards entrypoint."
-    },
-    {
-      "file": "SECURITY_SPEC.md",
-      "path": "../../../../../specs/SECURITY_SPEC.md",
-      "purpose": "Secure auth, token, secrets, CORS, validation, and logging rules."
     },
     {
       "file": "TEST_SPEC.md",
@@ -104,7 +84,10 @@
     ],
     "sdkClients": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [
+      "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE",
+      "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET"
+    ]
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

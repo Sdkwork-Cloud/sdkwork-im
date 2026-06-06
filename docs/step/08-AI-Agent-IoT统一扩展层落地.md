@@ -354,7 +354,7 @@ IoT 必须采用双层抽象：
 
 ## 17. 2026-04-09 As-Built（IoT access provider health HTTP surface）
 - `local-minimal-node` 已新增：
-  - `GET /backend/v3/api/iot/access/provider_health`
+  - `GET /app/v3/api/iot/access/provider_health`
 - 该路由已真实返回当前注入的：
   - `DeviceAccessProvider::provider_health_snapshot()`
 - 当前默认 `iot-access-local` 已具备直接 HTTP 可见性：

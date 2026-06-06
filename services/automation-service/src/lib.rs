@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use axum::extract::{Path, State};
+use axum::extract::{DefaultBodyLimit, Extension, Path, State};
 use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
@@ -16,9 +16,7 @@ use craw_chat_contract_message::{CommitJournal, CommitPosition};
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_app_context::{
-    AppContext, AppContextError, resolve_app_context,
-};
+use im_app_context::{AppContext, AppContextError, resolve_app_context};
 pub use im_domain_core::automation::{
     AgentToolCall, AgentToolCallState, AutomationExecution, AutomationExecutionState,
 };
@@ -28,10 +26,26 @@ use im_domain_core::stream::{
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Semaphore;
+
+const AUTOMATION_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "CRAW_CHAT_AUTOMATION_MAX_IN_FLIGHT_REQUESTS";
+const AUTOMATION_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
+const AUTOMATION_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
+const AUTOMATION_MAX_REQUEST_BODY_BYTES_ENV: &str = "CRAW_CHAT_AUTOMATION_MAX_REQUEST_BODY_BYTES";
+const AUTOMATION_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
+const AUTOMATION_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
+const AUTOMATION_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
+    "CRAW_CHAT_AUTOMATION_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
 struct AppState {
     runtime: Arc<AutomationRuntime>,
+}
+
+#[derive(Clone)]
+struct PublicAppGuardrails {
+    request_gate: Arc<Semaphore>,
+    require_dual_token_headers: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
@@ -1359,7 +1373,16 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_app_context))
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+        require_dual_token_headers: resolve_require_dual_token_headers(),
+    };
+    build_default_app()
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            require_app_context,
+        ))
 }
 
 pub fn build_app(runtime: Arc<AutomationRuntime>) -> Router {
@@ -1368,42 +1391,70 @@ pub fn build_app(runtime: Arc<AutomationRuntime>) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .route("/im/v3/api/automation/executions", post(request_execution))
+        .route("/app/v3/api/automation/executions", post(request_execution))
         .route("/backend/v3/api/automation/governance", get(get_governance))
         .route(
-            "/im/v3/api/automation/agent_responses",
+            "/app/v3/api/automation/agent_responses",
             post(start_agent_response),
         )
         .route(
-            "/im/v3/api/automation/agent_responses/{stream_id}/frames",
+            "/app/v3/api/automation/agent_responses/{stream_id}/frames",
             post(append_agent_response_delta),
         )
         .route(
-            "/im/v3/api/automation/agent_responses/{stream_id}/complete",
+            "/app/v3/api/automation/agent_responses/{stream_id}/complete",
             post(complete_agent_response),
         )
         .route(
-            "/im/v3/api/automation/agent_tool_calls",
+            "/app/v3/api/automation/agent_tool_calls",
             post(request_agent_tool_call),
         )
         .route(
-            "/im/v3/api/automation/executions/{execution_id}/agent_tool_calls/{tool_call_id}/complete",
+            "/app/v3/api/automation/executions/{execution_id}/agent_tool_calls/{tool_call_id}/complete",
             post(complete_agent_tool_call),
         )
         .route(
-            "/im/v3/api/automation/executions/{execution_id}",
+            "/app/v3/api/automation/executions/{execution_id}",
             get(get_execution),
         )
         .with_state(AppState { runtime })
 }
 
-async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(
+    State(guardrails): State<PublicAppGuardrails>,
+    mut request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_app_context(request.headers()) {
-            Ok(_) => next.run(request).await,
-            Err(error) => AutomationError::from(error).into_response(),
-        },
+        _ => {
+            let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+                Ok(permit) => permit,
+                Err(_) => {
+                    return AutomationError {
+                        status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                        code: "http_overloaded",
+                        message:
+                            "server is at maximum in-flight request capacity, please retry later"
+                                .to_owned(),
+                    }
+                    .into_response();
+                }
+            };
+            if guardrails.require_dual_token_headers
+                && let Err(error) = require_dual_token_headers(request.headers())
+            {
+                return error.into_response();
+            }
+            let auth = match resolve_app_context(request.headers()) {
+                Ok(auth) => auth,
+                Err(error) => return AutomationError::from(error).into_response(),
+            };
+            request.extensions_mut().insert(auth);
+            let response = next.run(request).await;
+            drop(permit);
+            response
+        }
     }
 }
 
@@ -1497,11 +1548,12 @@ fn automation_service_method_display(method: HttpMethod) -> &'static str {
 }
 
 async fn request_execution(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<RequestAutomationExecution>,
 ) -> Result<Json<AutomationExecutionRequestResponse>, AutomationError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let result = state
         .runtime
         .request_execution_with_outcome(&auth, request)?;
@@ -1510,39 +1562,43 @@ async fn request_execution(
 
 async fn get_execution(
     Path(execution_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AutomationExecution>, AutomationError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(
         state.runtime.get_execution(&auth, execution_id.as_str())?,
     ))
 }
 
 async fn get_governance(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AutomationGovernanceSnapshot>, AutomationError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(state.runtime.governance_snapshot(&auth)?))
 }
 
 async fn start_agent_response(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<StartAgentResponseRequest>,
 ) -> Result<Json<StreamSession>, AutomationError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(state.runtime.start_agent_response(&auth, request)?))
 }
 
 async fn append_agent_response_delta(
     Path(stream_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<AppendAgentResponseDeltaRequest>,
 ) -> Result<Json<StreamFrame>, AutomationError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(state.runtime.append_agent_response_delta(
         &auth,
         stream_id.as_str(),
@@ -1552,11 +1608,12 @@ async fn append_agent_response_delta(
 
 async fn complete_agent_response(
     Path(stream_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CompleteAgentResponseRequest>,
 ) -> Result<Json<StreamSession>, AutomationError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(state.runtime.complete_agent_response(
         &auth,
         stream_id.as_str(),
@@ -1565,21 +1622,23 @@ async fn complete_agent_response(
 }
 
 async fn request_agent_tool_call(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<RequestAgentToolCallRequest>,
 ) -> Result<Json<AgentToolCall>, AutomationError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(state.runtime.request_agent_tool_call(&auth, request)?))
 }
 
 async fn complete_agent_tool_call(
     Path((execution_id, tool_call_id)): Path<(String, String)>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CompleteAgentToolCallRequest>,
 ) -> Result<Json<AgentToolCall>, AutomationError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(state.runtime.complete_agent_tool_call(
         &auth,
         execution_id.as_str(),
@@ -1602,6 +1661,91 @@ fn ensure_automation_read_access(auth: &AppContext) -> Result<(), AutomationErro
     }
 
     Err(AutomationError::forbidden("automation.read"))
+}
+
+fn resolve_request_app_context(
+    auth: Option<Extension<AppContext>>,
+    headers: &HeaderMap,
+) -> Result<AppContext, AutomationError> {
+    match auth {
+        Some(Extension(auth)) => Ok(auth),
+        None => resolve_app_context(headers).map_err(AutomationError::from),
+    }
+}
+
+fn require_dual_token_headers(headers: &HeaderMap) -> Result<(), AutomationError> {
+    if !has_bearer_auth_token(headers) {
+        return Err(AutomationError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "auth_token_missing",
+            message: "authorization header must provide a bearer token".to_owned(),
+        });
+    }
+    if !has_access_token_header(headers) {
+        return Err(AutomationError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "access_token_missing",
+            message: "access-token header is required".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn has_bearer_auth_token(headers: &HeaderMap) -> bool {
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .and_then(|value| {
+            let (scheme, token) = value.split_once(' ')?;
+            if scheme.eq_ignore_ascii_case("bearer") && !token.trim().is_empty() {
+                return Some(());
+            }
+            None
+        })
+        .is_some()
+}
+
+fn has_access_token_header(headers: &HeaderMap) -> bool {
+    headers
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty())
+}
+
+fn resolve_max_in_flight_requests() -> usize {
+    std::env::var(AUTOMATION_MAX_IN_FLIGHT_REQUESTS_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(AUTOMATION_MAX_IN_FLIGHT_REQUESTS_DEFAULT)
+        .min(AUTOMATION_MAX_IN_FLIGHT_REQUESTS_MAX)
+}
+
+fn resolve_max_http_request_body_bytes() -> usize {
+    std::env::var(AUTOMATION_MAX_REQUEST_BODY_BYTES_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(AUTOMATION_MAX_REQUEST_BODY_BYTES_DEFAULT)
+        .min(AUTOMATION_MAX_REQUEST_BODY_BYTES_MAX)
+}
+
+fn resolve_require_dual_token_headers() -> bool {
+    std::env::var(AUTOMATION_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
+        .ok()
+        .map(|value| parse_truthy_env_flag(Some(value)))
+        .unwrap_or(true)
+}
+
+fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+    raw.as_deref().map(str::trim).is_some_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
 }
 
 fn execution_scope_key(
@@ -1987,6 +2131,7 @@ fn automation_operator_override_active(auth: &AppContext) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::http::{HeaderMap, HeaderValue};
     use std::collections::BTreeSet;
     use std::panic::{self, AssertUnwindSafe};
 
@@ -2025,11 +2170,18 @@ mod tests {
     fn demo_auth_context() -> AppContext {
         AppContext {
             tenant_id: "t_demo".into(),
+            organization_id: None,
+            user_id: "u_demo".into(),
+            session_id: Some("s_demo".into()),
+            app_id: None,
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: Default::default(),
+            permission_scope: BTreeSet::from(["automation.execute".to_string()]),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),
-            session_id: Some("s_demo".into()),
             device_id: Some("d_demo".into()),
-            permissions: BTreeSet::from(["automation.execute".to_string()]),
         }
     }
 
@@ -2170,5 +2322,31 @@ mod tests {
             Some("2026-05-06T00:00:02.000Z")
         );
         assert_eq!(restored.updated_at, "2026-05-06T00:00:02.000Z");
+    }
+
+    #[test]
+    fn parse_truthy_env_flag_accepts_common_truthy_values() {
+        for value in ["1", "true", "TRUE", " yes ", "On"] {
+            assert!(parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        for value in ["0", "false", "off", "no", "", "  "] {
+            assert!(!parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        assert!(!parse_truthy_env_flag(None));
+    }
+
+    #[test]
+    fn dual_token_header_helpers_validate_auth_and_access_headers() {
+        let mut headers = HeaderMap::new();
+        assert!(!has_bearer_auth_token(&headers));
+        assert!(!has_access_token_header(&headers));
+
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer auth_token"),
+        );
+        headers.insert("access-token", HeaderValue::from_static("access_token"));
+        assert!(has_bearer_auth_token(&headers));
+        assert!(has_access_token_header(&headers));
     }
 }

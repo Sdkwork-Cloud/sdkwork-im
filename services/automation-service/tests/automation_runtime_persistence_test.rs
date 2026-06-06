@@ -25,11 +25,18 @@ fn test_runtime_restores_automation_projection_on_rebuild_with_shared_store() {
     let execution_store = Arc::new(MemoryAutomationExecutionStore::default());
     let auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_demo".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),
@@ -69,11 +76,18 @@ fn test_runtime_restores_principal_kind_isolated_executions_on_rebuild_with_shar
     let execution_store = Arc::new(MemoryAutomationExecutionStore::default());
     let user_auth = AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
         session_id: Some("s_user".into()),
         device_id: None,
-        permissions: BTreeSet::from([
+        permission_scope: BTreeSet::from([
             "automation.execute".to_string(),
             "automation.read".to_string(),
         ]),

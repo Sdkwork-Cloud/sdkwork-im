@@ -630,6 +630,7 @@ fn handoff_lifecycle_changed_at(state: &AgentHandoffStateView) -> Option<String>
 pub(super) fn build_message_body(
     summary: Option<String>,
     text: Option<String>,
+    reply_to: Option<im_domain_core::message::MessageReplyReference>,
     parts: Vec<ContentPart>,
     render_hints: BTreeMap<String, String>,
 ) -> Result<MessageBody, ApiError> {
@@ -652,6 +653,7 @@ pub(super) fn build_message_body(
         summary,
         parts: resolved_parts,
         render_hints,
+        reply_to,
     }
     .with_derived_summary())
 }
@@ -690,6 +692,7 @@ pub(super) fn emit_rtc_signal_message(
                 payload,
             })],
             render_hints: BTreeMap::from([("channel".into(), "rtc".into())]),
+            reply_to: None,
         },
     )
     .map(|_| ())
@@ -733,6 +736,7 @@ pub(super) fn emit_rtc_custom_signal_message(
                 payload,
             })],
             render_hints: BTreeMap::from([("channel".into(), "rtc".into())]),
+            reply_to: None,
         },
     )
     .map(|_| ())

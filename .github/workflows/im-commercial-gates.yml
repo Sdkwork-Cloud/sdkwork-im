@@ -9,11 +9,13 @@ on:
       - '.github/workflows/im-commercial-gates.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'config/shared-sdk-release-sources.json'
       - 'package.json'
       - 'README.md'
       - 'adapters/**'
       - 'apps/craw-chat-admin/**'
       - 'apps/craw-chat-portal/**'
+      - 'apps/sdkwork-chat-pc/**'
       - 'crates/**'
       - 'deployments/**'
       - 'docs/**'
@@ -319,17 +321,14 @@ jobs:
       - name: Test local-minimal rtc duplicate side-effect suppression
         run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects -- --exact
 
-      - name: Test media duplicate completion retry
-        run: cargo test -p media-service --test provider_integration_test test_duplicate_complete_upload_retry_uses_existing_asset_without_reinvoking_provider -- --exact
+      - name: Test local-minimal media provider health surface
+        run: cargo test -p local-minimal-node --test media_provider_http_test
 
-      - name: Test media download url zero ttl rejection
-        run: cargo test -p media-service --test provider_integration_test test_get_media_download_url_rejects_zero_ttl_over_http -- --exact
+      - name: Test local-minimal rejects removed media upload lifecycle
+        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_accept_legacy_media_upload_lifecycle_requests -- --exact
 
       - name: Test local-minimal realtime limit guardrail
         run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_realtime_limit_above_guardrail_over_http -- --exact
-
-      - name: Test local-minimal duplicate media upload
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_media_upload_requests_as_idempotent -- --exact
 
       - name: Test stream duplicate open
         run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejected -- --exact

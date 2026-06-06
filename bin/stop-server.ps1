@@ -1,17 +1,33 @@
 param(
     [string]$InstanceName = "default",
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "config")),
-    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "run")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
+    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Run")),
     [switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
 
+function Get-ServerPathForInstance {
+    param([string]$Root, [string]$Name, [string]$Leaf)
+
+    if ($Name -eq "default") {
+        if ([string]::IsNullOrWhiteSpace($Leaf)) {
+            return $Root
+        }
+        return [System.IO.Path]::Combine($Root, $Leaf)
+    }
+    if ([string]::IsNullOrWhiteSpace($Leaf)) {
+        return [System.IO.Path]::Combine($Root, "instances", $Name)
+    }
+    return [System.IO.Path]::Combine($Root, "instances", $Name, $Leaf)
+}
+
+$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("ConfigDir")) {
-    $ConfigDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "config")
+    $ConfigDir = Get-ServerPathForInstance $programDataRoot $InstanceName ""
 }
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("RunDir")) {
-    $RunDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "run")
+    $RunDir = Get-ServerPathForInstance $programDataRoot $InstanceName "Run"
 }
 
 if ($Help) {

@@ -6,9 +6,9 @@ import type { NotificationListResponse, NotificationRequestResponse, Notificatio
 
 export class NotificationRequestsApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -21,10 +21,10 @@ export class NotificationRequestsApi {
 export class NotificationApi {
   private client: HttpClient;
   public readonly requests: NotificationRequestsApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
-    this.requests = new NotificationRequestsApi(client); 
+    this.requests = new NotificationRequestsApi(client);
   }
 
 

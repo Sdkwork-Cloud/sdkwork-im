@@ -176,3 +176,55 @@ test('craw-chat local-minimal runner materializes build and run plans and suppor
   assert.match(output.join(''), /127\.0\.0\.1:28080/u);
   assert.doesNotMatch(output.join(''), /USER_CENTER|user-center/u);
 });
+
+test('craw-chat local-minimal runner invokes the shared command sequence with root cwd and merged env', async () => {
+  const module = await loadModule();
+
+  let receivedSequenceArgument;
+  const exitCode = module.runLocalMinimal({
+    argv: [
+      '--no-build',
+      '--bind-addr',
+      '127.0.0.1:28080',
+      '--browser-origins',
+      'http://127.0.0.1:1620,http://localhost:1620',
+    ],
+    baseEnv: {
+      PATH: 'demo-path',
+    },
+    cargoExecutable: 'cargo-custom',
+    existsSyncImpl() {
+      return false;
+    },
+    repoRoot: 'D:/workspace/craw-chat',
+    runCommandSequenceImpl(argument) {
+      receivedSequenceArgument = argument;
+      return 0;
+    },
+    stdout: {
+      write() {},
+    },
+  });
+
+  assert.equal(exitCode, 0);
+  assert.ok(receivedSequenceArgument, 'shared runner must be invoked');
+  assert.ok(
+    Array.isArray(receivedSequenceArgument.commands),
+    'shared runner expects a { commands, cwd, env } argument, not a bare command array',
+  );
+  assert.equal(receivedSequenceArgument.cwd, 'D:/workspace/craw-chat');
+  assert.equal(receivedSequenceArgument.env.CRAW_CHAT_BIND_ADDR, '127.0.0.1:28080');
+  assert.equal(
+    receivedSequenceArgument.env.CRAW_CHAT_BROWSER_ORIGINS,
+    'http://127.0.0.1:1620,http://localhost:1620',
+  );
+  assert.deepEqual(receivedSequenceArgument.commands, [
+    {
+      args: ['run', '-p', 'local-minimal-node', '--offline'],
+      command: 'cargo-custom',
+      cwd: 'D:/workspace/craw-chat',
+      env: receivedSequenceArgument.env,
+      label: 'run local-minimal-node',
+    },
+  ]);
+});

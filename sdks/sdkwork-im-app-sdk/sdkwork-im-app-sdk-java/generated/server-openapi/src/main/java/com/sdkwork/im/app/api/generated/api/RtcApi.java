@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class RtcApi {
     private final HttpClient client;
-    
+
     public RtcApi(HttpClient client) {
         this.client = client;
     }

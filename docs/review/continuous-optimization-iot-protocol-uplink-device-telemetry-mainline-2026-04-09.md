@@ -19,7 +19,7 @@
 - 红灯命令：
   - `cargo test -p local-minimal-node --offline --test iot_protocol_adapter_mainline_test -- --nocapture`
 - 初始失败原因：
-  - `POST /backend/v3/api/iot/protocol/uplink` 返回 `404`
+  - `POST /app/v3/api/iot/protocol/uplink` 返回 `404`
 - 中间修正：
   - 首个最小实现后出现 `409`
   - 注入式 adapter 测试暴露 `device_id` 没有从 `auth.device_id` 回退
@@ -45,7 +45,7 @@
 ## 本轮冻结的设计事实
 
 - route：
-  - `POST /backend/v3/api/iot/protocol/uplink`
+  - `POST /app/v3/api/iot/protocol/uplink`
 - runtime seam：
   - `IotProtocolAdapter::decode_uplink()`
 - 统一目标：

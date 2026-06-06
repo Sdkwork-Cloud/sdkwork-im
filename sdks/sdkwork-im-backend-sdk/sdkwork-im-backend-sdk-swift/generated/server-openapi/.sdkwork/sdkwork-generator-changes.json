@@ -8,17 +8,19 @@
     "sdkType": "backend",
     "packageName": "ImBackendApiGenerated"
   },
-  "changeFingerprint": "4b4ece7362cffa92a10ec3a3efed54ab6c82093dd3258573a75b8d186b849ade",
+  "changeFingerprint": "16b5c9a4a98835ff68a0623edb5a6fe3bbe2e8bdd9458e520b76341e73dfd171",
   "changes": {
-    "createdGeneratedFiles": [
-      "Sources/API/AdminApi.swift",
-      "Sources/API/ControlApi.swift"
-    ],
+    "createdGeneratedFiles": [],
     "updatedGeneratedFiles": [
       "README.md",
-      "Sources/API/API.swift",
+      "sdkwork-sdk.json",
+      "Sources/API/AdminApi.swift",
+      "Sources/API/ApiPaths.swift",
+      "Sources/API/AuditApi.swift",
+      "Sources/API/AutomationApi.swift",
+      "Sources/API/ControlApi.swift",
+      "Sources/API/OpsApi.swift",
       "Sources/HTTP/HttpClient.swift",
-      "Sources/Models.swift",
       "Sources/SdkworkBackendClient.swift"
     ],
     "unchangedGeneratedFiles": [
@@ -28,23 +30,23 @@
       "CHANGELOG.md",
       "LICENSE",
       "Package.swift",
-      "sdkwork-sdk.json",
-      "Sources/API/ApiPaths.swift",
-      "Sources/API/AuditApi.swift",
-      "Sources/API/AutomationApi.swift",
-      "Sources/API/OpsApi.swift"
+      "Sources/API/API.swift",
+      "Sources/Models.swift"
     ],
-    "deletedGeneratedFiles": [
-      "Sources/API/IotApi.swift",
-      "Sources/API/ProviderApi.swift",
-      "Sources/API/RtcApi.swift"
-    ],
+    "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/README.md"
     ],
     "backedUpFiles": [
       "README.md",
+      "sdkwork-sdk.json",
+      "Sources/API/AdminApi.swift",
+      "Sources/API/ApiPaths.swift",
+      "Sources/API/AuditApi.swift",
+      "Sources/API/AutomationApi.swift",
+      "Sources/API/ControlApi.swift",
+      "Sources/API/OpsApi.swift",
       "Sources/HTTP/HttpClient.swift",
       "Sources/SdkworkBackendClient.swift"
     ]
@@ -53,8 +55,8 @@
     "schemaVersion": 1,
     "areas": [
       "api-surface",
-      "models",
       "runtime",
+      "build-metadata",
       "documentation",
       "unknown"
     ],
@@ -63,23 +65,23 @@
         "area": "api-surface",
         "paths": [
           "Sources/API/AdminApi.swift",
-          "Sources/API/API.swift",
+          "Sources/API/ApiPaths.swift",
+          "Sources/API/AuditApi.swift",
+          "Sources/API/AutomationApi.swift",
           "Sources/API/ControlApi.swift",
-          "Sources/API/IotApi.swift",
-          "Sources/API/ProviderApi.swift",
-          "Sources/API/RtcApi.swift"
-        ]
-      },
-      {
-        "area": "models",
-        "paths": [
-          "Sources/Models.swift"
+          "Sources/API/OpsApi.swift"
         ]
       },
       {
         "area": "runtime",
         "paths": [
           "Sources/HTTP/HttpClient.swift"
+        ]
+      },
+      {
+        "area": "build-metadata",
+        "paths": [
+          "sdkwork-sdk.json"
         ]
       },
       {
@@ -96,18 +98,18 @@
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, runtime, documentation, unknown. Verification is required."
+    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, runtime, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, documentation, unknown.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-swift\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -132,7 +134,6 @@
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
       "backed-up-generated-files",
-      "deleted-generated-files",
       "manual-review-required",
       "unknown-impact",
       "verification-required"

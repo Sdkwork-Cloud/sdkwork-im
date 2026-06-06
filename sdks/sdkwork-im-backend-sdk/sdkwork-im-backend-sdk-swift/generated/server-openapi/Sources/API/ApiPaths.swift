@@ -2,7 +2,7 @@ import Foundation
 
 public struct ApiPaths {
     public static let apiPrefix = "/backend/v3/api"
-    
+
     public static func backendPath(_ path: String = "") -> String {
         if path.isEmpty {
             return apiPrefix

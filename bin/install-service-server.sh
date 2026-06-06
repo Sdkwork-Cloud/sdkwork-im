@@ -10,17 +10,27 @@ EOF
 }
 
 instance_name="default"
-install_root="/opt/craw-chat"
-config_dir="/etc/craw-chat/default"
-log_dir="/var/log/craw-chat/default"
+install_root="/opt/sdkwork/chat"
+config_dir="/etc/sdkwork/chat"
+log_dir="/var/log/sdkwork/chat"
 service_mode="auto"
+
+server_path_for_instance() {
+  local root="$1"
+  local name="$2"
+  if [[ "$name" == "default" ]]; then
+    printf '%s\n' "$root"
+  else
+    printf '%s/instances/%s\n' "$root" "$name"
+  fi
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="/etc/craw-chat/${instance_name}"
-      log_dir="/var/log/craw-chat/${instance_name}"
+      config_dir="$(server_path_for_instance "/etc/sdkwork/chat" "$instance_name")"
+      log_dir="$(server_path_for_instance "/var/log/sdkwork/chat" "$instance_name")"
       shift 2
       ;;
     --install-root)
@@ -63,7 +73,7 @@ generated_windows_service_xml="${generated_dir}/CrawChatServer.xml"
 generated_windows_service_install_script="${generated_dir}/install-CrawChatServer.ps1"
 generated_windows_service_uninstall_script="${generated_dir}/uninstall-CrawChatServer.ps1"
 service_binary_path="${install_root}/bin/craw-chat-server"
-server_config_path="${config_dir}/server.yaml"
+server_config_path="${config_dir}/chat.toml"
 windows_service_wrapper_exe="${install_root}/bin/CrawChatServer.exe"
 windows_service_wrapper_xml_target="${install_root}/bin/CrawChatServer.xml"
 stdout_log_path="${log_dir}/craw-chat-server.out.log"
@@ -71,15 +81,16 @@ stderr_log_path="${log_dir}/craw-chat-server.err.log"
 
 if [[ -f "$systemd_template" ]]; then
   sed \
-    -e "s|EnvironmentFile=/etc/craw-chat/%i/server.env|EnvironmentFile=${config_dir}/server.env|g" \
-    -e "s|ExecStart=/opt/craw-chat/bin/craw-chat-server --config /etc/craw-chat/%i/server.yaml|ExecStart=${service_binary_path} --config ${server_config_path}|g" \
+    -e "s|WorkingDirectory=/opt/sdkwork/chat|WorkingDirectory=${install_root}|g" \
+    -e "s|EnvironmentFile=/etc/sdkwork/chat/server.env|EnvironmentFile=${config_dir}/server.env|g" \
+    -e "s|ExecStart=/opt/sdkwork/chat/bin/craw-chat-server --config /etc/sdkwork/chat/chat.toml|ExecStart=${service_binary_path} --config ${server_config_path}|g" \
     "$systemd_template" >"$generated_unit"
 fi
 
 if [[ -f "$launchd_template" ]]; then
   sed \
     -e "s|__INSTALL_ROOT__/bin/craw-chat-server|${service_binary_path}|g" \
-    -e "s|__CONFIG_DIR__/server.yaml|${server_config_path}|g" \
+    -e "s|__CONFIG_DIR__/chat.toml|${server_config_path}|g" \
     -e "s|__LOG_DIR__/craw-chat-server.out.log|${stdout_log_path}|g" \
     -e "s|__LOG_DIR__/craw-chat-server.err.log|${stderr_log_path}|g" \
     -e "s|__INSTALL_ROOT__|${install_root}|g" \

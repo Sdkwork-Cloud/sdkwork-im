@@ -4,11 +4,11 @@ use crate::api::{OpsApi, AuditApi, AutomationApi, ControlApi, AdminApi};
 use crate::http::{SdkworkConfig, SdkworkError, SdkworkHttpClient};
 
 #[derive(Clone)]
-pub struct SdkworkBackendClient {
+pub struct SdkworkImBackendClient {
     http: Arc<SdkworkHttpClient>,
 }
 
-impl SdkworkBackendClient {
+impl SdkworkImBackendClient {
     pub fn new(config: SdkworkConfig) -> Result<Self, SdkworkError> {
         Ok(Self {
             http: Arc::new(SdkworkHttpClient::new(config)?),
@@ -59,3 +59,5 @@ impl SdkworkBackendClient {
             AdminApi::new(Arc::clone(&self.http))
         }
 }
+
+pub type SdkworkBackendClient = SdkworkImBackendClient;

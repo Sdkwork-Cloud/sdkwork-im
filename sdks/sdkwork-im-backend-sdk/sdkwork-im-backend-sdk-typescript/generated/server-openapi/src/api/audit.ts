@@ -6,9 +6,9 @@ import type { ExportRetrieveResponse, RecordsCreateResponse, RecordsListResponse
 
 export class AuditExportApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -20,9 +20,9 @@ export class AuditExportApi {
 
 export class AuditRecordsApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -41,11 +41,11 @@ export class AuditApi {
   private client: HttpClient;
   public readonly records: AuditRecordsApi;
   public readonly export: AuditExportApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.records = new AuditRecordsApi(client);
-    this.export = new AuditExportApi(client); 
+    this.export = new AuditExportApi(client);
   }
 
 }

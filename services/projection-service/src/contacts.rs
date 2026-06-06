@@ -8,6 +8,7 @@ use im_domain_events::social::{
 };
 use im_time::{max_rfc3339_string, rfc3339_cmp};
 
+use crate::device_sync::registered_devices_for_principal_kind;
 use crate::model::ContactDirectChatBindingView;
 use crate::{ContactView, TimelineProjectionService};
 
@@ -133,6 +134,7 @@ impl TimelineProjectionService {
             &payload,
             binding.as_ref(),
         );
+        self.fan_out_friendship_activated_to_device_sync_feeds(event, &payload);
 
         Ok(())
     }
@@ -161,6 +163,7 @@ impl TimelineProjectionService {
             payload.user_low_id.as_str(),
             payload.friendship_id.as_str(),
         );
+        self.fan_out_friendship_removed_to_device_sync_feeds(event, &payload);
 
         Ok(())
     }
@@ -318,6 +321,92 @@ impl TimelineProjectionService {
         self.lock_direct_chat_bindings("direct_chat_binding")
             .get_by_direct_chat_id(direct_chat_id)
             .cloned()
+    }
+
+    fn fan_out_friendship_activated_to_device_sync_feeds(
+        &self,
+        event: &CommitEnvelope,
+        payload: &FriendshipActivatedPayload,
+    ) {
+        self.fan_out_friendship_to_device_sync_feeds(
+            event,
+            payload.user_low_id.as_str(),
+            payload.user_high_id.as_str(),
+            payload.initiator_user_id.as_str(),
+            payload.established_at.as_str(),
+        );
+        self.fan_out_friendship_to_device_sync_feeds(
+            event,
+            payload.user_high_id.as_str(),
+            payload.user_low_id.as_str(),
+            payload.initiator_user_id.as_str(),
+            payload.established_at.as_str(),
+        );
+    }
+
+    fn fan_out_friendship_removed_to_device_sync_feeds(
+        &self,
+        event: &CommitEnvelope,
+        payload: &FriendshipRemovedPayload,
+    ) {
+        self.fan_out_friendship_to_device_sync_feeds(
+            event,
+            payload.user_low_id.as_str(),
+            payload.user_high_id.as_str(),
+            payload.removed_by_user_id.as_str(),
+            payload.removed_at.as_str(),
+        );
+        self.fan_out_friendship_to_device_sync_feeds(
+            event,
+            payload.user_high_id.as_str(),
+            payload.user_low_id.as_str(),
+            payload.removed_by_user_id.as_str(),
+            payload.removed_at.as_str(),
+        );
+    }
+
+    fn fan_out_friendship_to_device_sync_feeds(
+        &self,
+        event: &CommitEnvelope,
+        principal_id: &str,
+        peer_user_id: &str,
+        actor_id: &str,
+        occurred_at: &str,
+    ) {
+        for device in registered_devices_for_principal_kind(
+            self,
+            event.tenant_id.as_str(),
+            principal_id,
+            "user",
+        ) {
+            self.append_device_sync_entry(
+                event.tenant_id.as_str(),
+                principal_id,
+                "user",
+                device.device_id.as_str(),
+                |sync_seq| im_domain_core::conversation::DeviceSyncFeedEntry {
+                    tenant_id: event.tenant_id.clone(),
+                    principal_id: principal_id.into(),
+                    device_id: device.device_id.clone(),
+                    sync_seq,
+                    origin_event_id: event.event_id.clone(),
+                    origin_event_type: event.event_type.clone(),
+                    conversation_id: None,
+                    message_id: None,
+                    message_seq: None,
+                    member_id: None,
+                    read_seq: None,
+                    last_read_message_id: None,
+                    actor_id: Some(actor_id.into()),
+                    actor_kind: Some("user".into()),
+                    actor_device_id: None,
+                    summary: Some(peer_user_id.into()),
+                    payload_schema: event.payload_schema.clone(),
+                    payload: Some(event.payload.clone()),
+                    occurred_at: occurred_at.into(),
+                },
+            );
+        }
     }
 
     fn lock_contact_store(

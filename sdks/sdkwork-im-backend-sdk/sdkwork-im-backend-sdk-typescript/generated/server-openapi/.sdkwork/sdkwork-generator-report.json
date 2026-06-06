@@ -11,8 +11,8 @@
   "status": "ok",
   "mode": "apply",
   "hasChanges": true,
-  "hasDestructiveChanges": true,
-  "changeFingerprint": "042a7b5babd55a6de6fafb8d713141870c172dd4ffa15bbb6000642927a6f90e",
+  "hasDestructiveChanges": false,
+  "changeFingerprint": "4a6deb43145e3f2aff2ffdc27ba06df6697d0c4b3bc7d2ed7618cf364aae1413",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
@@ -20,12 +20,16 @@
       "models",
       "runtime",
       "build-metadata",
-      "documentation"
+      "documentation",
+      "unknown"
     ],
     "details": [
       {
         "area": "api-surface",
         "paths": [
+          "src/api/admin.ts",
+          "src/api/audit.ts",
+          "src/api/automation.ts",
           "src/api/control.ts",
           "src/api/ops.ts",
           "src/http/client.ts",
@@ -35,24 +39,13 @@
       {
         "area": "models",
         "paths": [
-          "src/types/accept-friend-request-request.ts",
-          "src/types/cancel-friend-request-request.ts",
-          "src/types/common.ts",
-          "src/types/control-plane-error-response.ts",
-          "src/types/decline-friend-request-request.ts",
-          "src/types/error-envelope.ts",
-          "src/types/health-response.ts",
-          "src/types/index.ts",
-          "src/types/ops-provider-bindings-drift-retrieve-response.ts",
-          "src/types/ops-provider-bindings-list-response.ts",
-          "src/types/provider-bindings-drift-retrieve-response.ts",
-          "src/types/provider-bindings-list-response.ts",
-          "src/types/remove-friendship-request.ts"
+          "src/types/common.ts"
         ]
       },
       {
         "area": "runtime",
         "paths": [
+          "src/auth/index.ts",
           "src/http/client.ts"
         ]
       },
@@ -68,10 +61,16 @@
         "paths": [
           "README.md"
         ]
+      },
+      {
+        "area": "unknown",
+        "paths": [
+          "src/index.ts"
+        ]
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation. Verification is required."
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required."
   },
   "executionDecision": {
     "schemaVersion": 1,
@@ -82,8 +81,8 @@
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
       "backed-up-generated-files",
-      "deleted-generated-files",
       "manual-review-required",
+      "unknown-impact",
       "verification-required"
     ]
   },
@@ -95,7 +94,7 @@
         "id": "verify-check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -113,7 +112,7 @@
         "id": "verify-build",
         "title": "Unified package build",
         "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation.",
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -132,13 +131,13 @@
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -156,7 +155,7 @@
         "id": "build",
         "title": "Unified package build",
         "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation.",
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -193,31 +192,29 @@
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 15,
+    "writtenFiles": 13,
     "skippedScaffoldFiles": 2,
-    "skippedUnchangedGeneratedFiles": 91,
-    "deletedGeneratedFiles": 5,
+    "skippedUnchangedGeneratedFiles": 93,
+    "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "042a7b5babd55a6de6fafb8d713141870c172dd4ffa15bbb6000642927a6f90e",
+    "changeFingerprint": "4a6deb43145e3f2aff2ffdc27ba06df6697d0c4b3bc7d2ed7618cf364aae1413",
     "changes": {
       "createdGeneratedFiles": [
-        "src/types/accept-friend-request-request.ts",
-        "src/types/cancel-friend-request-request.ts",
-        "src/types/decline-friend-request-request.ts",
-        "src/types/ops-provider-bindings-drift-retrieve-response.ts",
-        "src/types/ops-provider-bindings-list-response.ts",
-        "src/types/remove-friendship-request.ts"
+        "src/auth/index.ts"
       ],
       "updatedGeneratedFiles": [
         "package.json",
         "README.md",
         "sdkwork-sdk.json",
+        "src/api/admin.ts",
+        "src/api/audit.ts",
+        "src/api/automation.ts",
         "src/api/control.ts",
         "src/api/ops.ts",
         "src/http/client.ts",
+        "src/index.ts",
         "src/sdk.ts",
-        "src/types/common.ts",
-        "src/types/index.ts"
+        "src/types/common.ts"
       ],
       "unchangedGeneratedFiles": [
         "bin/publish-core.mjs",
@@ -227,36 +224,37 @@
         "bin/sdk-gen.sh",
         "CHANGELOG.md",
         "LICENSE",
-        "src/api/admin.ts",
-        "src/api/audit.ts",
-        "src/api/automation.ts",
         "src/api/base.ts",
         "src/api/index.ts",
         "src/api/paths.ts",
-        "src/auth/index.ts",
         "src/http/index.ts",
-        "src/index.ts",
+        "src/types/accept-friend-request-request.ts",
         "src/types/activate-friendship-request.ts",
         "src/types/apply-shared-channel-policy-request.ts",
         "src/types/bind-direct-chat-request.ts",
         "src/types/bind-external-member-link-request.ts",
         "src/types/block-user-request.ts",
         "src/types/business-policy-vocabulary-response.ts",
+        "src/types/cancel-friend-request-request.ts",
         "src/types/capability-profile-response.ts",
         "src/types/client-compatibility-response.ts",
         "src/types/cluster-retrieve-response.ts",
         "src/types/commercial-readiness-retrieve-response.ts",
+        "src/types/decline-friend-request-request.ts",
         "src/types/diagnostics-retrieve-response.ts",
         "src/types/effective-protocol-snapshot-response.ts",
         "src/types/establish-external-connection-request.ts",
         "src/types/export-retrieve-response.ts",
         "src/types/governance-retrieve-response.ts",
         "src/types/health-retrieve-response.ts",
+        "src/types/index.ts",
         "src/types/kill-switch-response.ts",
         "src/types/lag-retrieve-response.ts",
         "src/types/loose-json-object.ts",
         "src/types/loose-json-value.ts",
         "src/types/migrate-routes-request.ts",
+        "src/types/ops-provider-bindings-drift-retrieve-response.ts",
+        "src/types/ops-provider-bindings-list-response.ts",
         "src/types/problem-detail.ts",
         "src/types/protocol-governance-response.ts",
         "src/types/protocol-registry-response.ts",
@@ -270,6 +268,7 @@
         "src/types/quota-profile-response.ts",
         "src/types/records-create-response.ts",
         "src/types/records-list-response.ts",
+        "src/types/remove-friendship-request.ts",
         "src/types/replay-status-retrieve-response.ts",
         "src/types/rollout-policy-response.ts",
         "src/types/route-migration-result.ts",
@@ -312,13 +311,7 @@
         "src/types/upsert-provider-binding-policy-request.ts",
         "tsconfig.json"
       ],
-      "deletedGeneratedFiles": [
-        "src/types/control-plane-error-response.ts",
-        "src/types/error-envelope.ts",
-        "src/types/health-response.ts",
-        "src/types/provider-bindings-drift-retrieve-response.ts",
-        "src/types/provider-bindings-list-response.ts"
-      ],
+      "deletedGeneratedFiles": [],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/build-runtime.mjs",
@@ -328,7 +321,13 @@
         "package.json",
         "README.md",
         "sdkwork-sdk.json",
+        "src/api/admin.ts",
+        "src/api/audit.ts",
+        "src/api/automation.ts",
+        "src/api/control.ts",
+        "src/api/ops.ts",
         "src/http/client.ts",
+        "src/index.ts",
         "src/sdk.ts",
         "src/types/common.ts"
       ]
@@ -340,12 +339,16 @@
         "models",
         "runtime",
         "build-metadata",
-        "documentation"
+        "documentation",
+        "unknown"
       ],
       "details": [
         {
           "area": "api-surface",
           "paths": [
+            "src/api/admin.ts",
+            "src/api/audit.ts",
+            "src/api/automation.ts",
             "src/api/control.ts",
             "src/api/ops.ts",
             "src/http/client.ts",
@@ -355,24 +358,13 @@
         {
           "area": "models",
           "paths": [
-            "src/types/accept-friend-request-request.ts",
-            "src/types/cancel-friend-request-request.ts",
-            "src/types/common.ts",
-            "src/types/control-plane-error-response.ts",
-            "src/types/decline-friend-request-request.ts",
-            "src/types/error-envelope.ts",
-            "src/types/health-response.ts",
-            "src/types/index.ts",
-            "src/types/ops-provider-bindings-drift-retrieve-response.ts",
-            "src/types/ops-provider-bindings-list-response.ts",
-            "src/types/provider-bindings-drift-retrieve-response.ts",
-            "src/types/provider-bindings-list-response.ts",
-            "src/types/remove-friendship-request.ts"
+            "src/types/common.ts"
           ]
         },
         {
           "area": "runtime",
           "paths": [
+            "src/auth/index.ts",
             "src/http/client.ts"
           ]
         },
@@ -388,21 +380,27 @@
           "paths": [
             "README.md"
           ]
+        },
+        {
+          "area": "unknown",
+          "paths": [
+            "src/index.ts"
+          ]
         }
       ],
       "requiresVerification": true,
-      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation. Verification is required."
+      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required."
     },
     "verificationPlan": {
       "shouldRun": true,
       "runPhase": "now",
-      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
       "steps": [
         {
           "id": "check",
           "title": "Unified package check",
           "required": true,
-          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation.",
+          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
           "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-typescript\\generated\\server-openapi",
           "command": "node",
           "args": [
@@ -420,7 +418,7 @@
           "id": "build",
           "title": "Unified package build",
           "required": true,
-          "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation.",
+          "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
           "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-typescript\\generated\\server-openapi",
           "command": "node",
           "args": [
@@ -445,8 +443,8 @@
       "summary": "Changes have been applied. Run the required verification plan now.",
       "reasons": [
         "backed-up-generated-files",
-        "deleted-generated-files",
         "manual-review-required",
+        "unknown-impact",
         "verification-required"
       ]
     },
@@ -454,7 +452,13 @@
       "package.json",
       "README.md",
       "sdkwork-sdk.json",
+      "src/api/admin.ts",
+      "src/api/audit.ts",
+      "src/api/automation.ts",
+      "src/api/control.ts",
+      "src/api/ops.ts",
       "src/http/client.ts",
+      "src/index.ts",
       "src/sdk.ts",
       "src/types/common.ts"
     ],

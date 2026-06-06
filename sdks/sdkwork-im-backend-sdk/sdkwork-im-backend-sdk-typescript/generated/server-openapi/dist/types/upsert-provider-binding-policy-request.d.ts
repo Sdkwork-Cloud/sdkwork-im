@@ -1,6 +1,6 @@
 export interface UpsertProviderBindingPolicyRequest {
     domain: string;
-    expectedBaseVersion?: number | null;
+    expectedBaseVersion?: string | null;
     pluginId: string;
     tenantId?: string | null;
 }

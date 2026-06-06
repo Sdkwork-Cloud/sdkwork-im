@@ -1,8 +1,10 @@
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{BTreeMap, HashMap};
+use std::hash::{Hash, Hasher};
 use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use axum::extract::{Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Extension, Path, Query, State};
 use axum::http::HeaderMap;
 use axum::http::Request;
 use axum::middleware::{self, Next};
@@ -17,33 +19,26 @@ use craw_chat_contract_rtc::{RtcStateRecord, RtcStateStore};
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_adapter_object_storage_s3::{
-    ALIYUN_OBJECT_STORAGE_PLUGIN_ID, AWS_OBJECT_STORAGE_PLUGIN_ID, GOOGLE_OBJECT_STORAGE_PLUGIN_ID,
-    MICROSOFT_OBJECT_STORAGE_PLUGIN_ID, S3CompatibleObjectStorageProvider,
-    TENCENT_OBJECT_STORAGE_PLUGIN_ID, VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID,
-};
 use im_adapter_rtc_aliyun::{ALIYUN_RTC_PLUGIN_ID, AliyunRtcProvider};
 use im_adapter_rtc_tencent::{TENCENT_RTC_PLUGIN_ID, TencentRtcProvider};
 use im_adapter_rtc_volcengine::{VOLCENGINE_RTC_PLUGIN_ID, VolcengineRtcProvider};
-use im_app_context::{
-    AppContext, AppContextError, resolve_app_context,
-};
+use im_app_context::{AppContext, AppContextError, resolve_app_context};
 use im_domain_core::message::Sender;
 use im_domain_core::rtc::{RtcSession, RtcSessionState, RtcSignalEvent};
 use im_platform_contracts::{
-    EffectiveProviderBinding, ObjectStorageDownloadUrlRequest, ObjectStorageProvider,
-    ProviderDomain, ProviderHealthSnapshot, ProviderRegistry, RtcCallbackEvent, RtcCallbackRequest,
+    EffectiveProviderBinding, ProviderDomain, ProviderHealthSnapshot, ProviderRegistry,
+    RtcCallbackEvent, RtcCallbackRequest,
     RtcCreateSessionRequest as ProviderRtcCreateSessionRequest, RtcParticipantCredential,
     RtcProviderPort, RtcRecordingArtifact, StaticProviderRegistry,
 };
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Semaphore;
 
 mod session_store;
 
 use session_store::RtcSessionRuntimeStore;
 
-const DEFAULT_RTC_RECORDING_PLAYBACK_URL_TTL_SECONDS: u32 = 3600;
 const RTC_MAX_SESSION_ID_BYTES: usize = 256;
 const RTC_MAX_CONVERSATION_ID_BYTES: usize = 512;
 const RTC_MAX_MODE_BYTES: usize = 64;
@@ -55,6 +50,14 @@ const RTC_MAX_SIGNAL_PAYLOAD_BYTES: usize = 256 * 1024;
 const RTC_MAX_PARTICIPANT_ID_BYTES: usize = 256;
 const RTC_SIGNAL_LIST_MAX_LIMIT: usize = 1000;
 const RTC_SESSION_DELIVERY_PROOF_VERSION: &str = "rtc.session.delivery-proof.v1";
+const RTC_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "CRAW_CHAT_RTC_MAX_IN_FLIGHT_REQUESTS";
+const RTC_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
+const RTC_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
+const RTC_MAX_REQUEST_BODY_BYTES_ENV: &str = "CRAW_CHAT_RTC_MAX_REQUEST_BODY_BYTES";
+const RTC_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
+const RTC_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
+const RTC_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str = "CRAW_CHAT_RTC_REQUIRE_DUAL_TOKEN_HEADERS";
+const RTC_CREATE_SESSION_LOCK_STRIPES: usize = 256;
 
 fn lock_rtc_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexGuard<'a, T> {
     match mutex.lock() {
@@ -71,13 +74,19 @@ struct AppState {
     runtime: Arc<RtcRuntime>,
 }
 
+#[derive(Clone)]
+struct PublicAppGuardrails {
+    request_gate: Arc<Semaphore>,
+    require_dual_token_headers: bool,
+}
+
 pub struct RtcRuntime {
     sessions: Mutex<RtcSessionRuntimeStore>,
     signals: Mutex<HashMap<String, BTreeMap<u64, RtcSignalEvent>>>,
+    create_session_locks: Arc<Vec<Mutex<()>>>,
     state_store: Arc<dyn RtcStateStore>,
     provider_registry: Arc<dyn ProviderRegistry>,
     rtc_providers: HashMap<String, Arc<dyn RtcProviderPort>>,
-    object_storage_providers: HashMap<String, Arc<dyn ObjectStorageProvider>>,
 }
 
 #[derive(Clone, Debug)]
@@ -180,13 +189,8 @@ impl RtcRuntime {
         let volcengine = Arc::new(VolcengineRtcProvider::default()) as Arc<dyn RtcProviderPort>;
         let aliyun = Arc::new(AliyunRtcProvider::default()) as Arc<dyn RtcProviderPort>;
         let tencent = Arc::new(TencentRtcProvider::default()) as Arc<dyn RtcProviderPort>;
-        let provider_registry = Arc::new(
-            StaticProviderRegistry::platform_default().with_deployment_profile(
-                ProviderDomain::ObjectStorage,
-                VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID,
-            ),
-        );
-        Self::with_store_and_provider_registry_and_object_storage_providers(
+        let provider_registry = Arc::new(StaticProviderRegistry::platform_default());
+        Self::with_store_and_provider_registry(
             state_store,
             provider_registry,
             [
@@ -194,7 +198,6 @@ impl RtcRuntime {
                 (ALIYUN_RTC_PLUGIN_ID.into(), aliyun),
                 (TENCENT_RTC_PLUGIN_ID.into(), tencent),
             ],
-            built_in_object_storage_providers(),
         )
     }
 
@@ -206,31 +209,17 @@ impl RtcRuntime {
     where
         I: IntoIterator<Item = (String, Arc<dyn RtcProviderPort>)>,
     {
-        Self::with_store_and_provider_registry_and_object_storage_providers(
-            state_store,
-            provider_registry,
-            rtc_providers,
-            built_in_object_storage_providers(),
-        )
-    }
-
-    pub fn with_store_and_provider_registry_and_object_storage_providers<I, J>(
-        state_store: Arc<dyn RtcStateStore>,
-        provider_registry: Arc<dyn ProviderRegistry>,
-        rtc_providers: I,
-        object_storage_providers: J,
-    ) -> Self
-    where
-        I: IntoIterator<Item = (String, Arc<dyn RtcProviderPort>)>,
-        J: IntoIterator<Item = (String, Arc<dyn ObjectStorageProvider>)>,
-    {
         Self {
             sessions: Mutex::new(RtcSessionRuntimeStore::default()),
             signals: Mutex::new(HashMap::new()),
+            create_session_locks: Arc::new(
+                (0..RTC_CREATE_SESSION_LOCK_STRIPES)
+                    .map(|_| Mutex::new(()))
+                    .collect(),
+            ),
             state_store,
             provider_registry,
             rtc_providers: rtc_providers.into_iter().collect(),
-            object_storage_providers: object_storage_providers.into_iter().collect(),
         }
     }
 
@@ -258,11 +247,7 @@ impl RtcRuntime {
         Ok(())
     }
 
-    pub fn session(
-        &self,
-        auth: &AppContext,
-        rtc_session_id: &str,
-    ) -> Result<RtcSession, RtcError> {
+    pub fn session(&self, auth: &AppContext, rtc_session_id: &str) -> Result<RtcSession, RtcError> {
         self.ensure_session_state(auth.tenant_id.as_str(), rtc_session_id)?;
         lock_rtc_mutex(&self.sessions, "sessions")
             .session(auth.tenant_id.as_str(), rtc_session_id)
@@ -288,37 +273,52 @@ impl RtcRuntime {
     ) -> Result<RtcSessionMutationOutcome, RtcError> {
         validate_create_rtc_session_request_payload_size(&request)?;
         self.ensure_session_state(auth.tenant_id.as_str(), request.rtc_session_id.as_str())?;
-        let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
-        if let Some(existing) =
-            sessions.session(auth.tenant_id.as_str(), request.rtc_session_id.as_str())
-        {
-            if rtc_session_matches_create_request(&existing, auth, &request) {
-                return Ok(RtcSessionMutationOutcome {
-                    session: existing,
-                    applied: false,
-                });
-            }
+        let create_lock_index = hash_scope_lock_index(
+            auth.tenant_id.as_str(),
+            request.rtc_session_id.as_str(),
+            self.create_session_locks.len(),
+        );
+        let _create_lock = lock_rtc_mutex(
+            &self.create_session_locks[create_lock_index],
+            "create_session_locks",
+        );
 
-            return Err(RtcError::conflict(request.rtc_session_id.as_str()));
+        {
+            let sessions = lock_rtc_mutex(&self.sessions, "sessions");
+            if let Some(existing) =
+                sessions.session(auth.tenant_id.as_str(), request.rtc_session_id.as_str())
+            {
+                if rtc_session_matches_create_request(&existing, auth, &request) {
+                    return Ok(RtcSessionMutationOutcome {
+                        session: existing,
+                        applied: false,
+                    });
+                }
+
+                return Err(RtcError::conflict(request.rtc_session_id.as_str()));
+            }
         }
 
         let provider_plugin_id = self.selected_provider_plugin_id(auth.tenant_id.as_str(), None)?;
         let provider = self.rtc_provider(provider_plugin_id.as_str())?;
+        let requested_session_id = request.rtc_session_id.clone();
+        let requested_conversation_id = request.conversation_id.clone();
+        let requested_rtc_mode = request.rtc_mode.clone();
         let provider_session = provider
             .create_session(ProviderRtcCreateSessionRequest {
                 tenant_id: auth.tenant_id.clone(),
-                rtc_session_id: request.rtc_session_id.clone(),
-                conversation_id: request.conversation_id.clone(),
-                rtc_mode: request.rtc_mode.clone(),
+                rtc_session_id: requested_session_id.clone(),
+                conversation_id: requested_conversation_id.clone(),
+                rtc_mode: requested_rtc_mode.clone(),
                 initiator_id: auth.actor_id.clone(),
             })
             .map_err(RtcError::rtc_provider)?;
         let started_at = utc_now_rfc3339_millis();
         let session = RtcSession {
             tenant_id: auth.tenant_id.clone(),
-            rtc_session_id: request.rtc_session_id.clone(),
-            conversation_id: request.conversation_id,
-            rtc_mode: request.rtc_mode,
+            rtc_session_id: requested_session_id.clone(),
+            conversation_id: requested_conversation_id,
+            rtc_mode: requested_rtc_mode,
             initiator_id: auth.actor_id.clone(),
             initiator_kind: auth.actor_kind.clone(),
             provider_plugin_id: Some(provider_plugin_id),
@@ -332,15 +332,28 @@ impl RtcRuntime {
             ended_at: None,
         };
 
-        sessions.insert_session(session.clone());
-        drop(sessions);
+        {
+            let mut sessions = lock_rtc_mutex(&self.sessions, "sessions");
+            if let Some(existing) =
+                sessions.session(auth.tenant_id.as_str(), requested_session_id.as_str())
+            {
+                if rtc_session_matches_create_request(&existing, auth, &request) {
+                    return Ok(RtcSessionMutationOutcome {
+                        session: existing,
+                        applied: false,
+                    });
+                }
+                return Err(RtcError::conflict(requested_session_id.as_str()));
+            }
+            sessions.insert_session(session.clone());
+        }
         lock_rtc_mutex(&self.signals, "signals")
             .entry(rtc_scope_key(
                 auth.tenant_id.as_str(),
-                request.rtc_session_id.as_str(),
+                requested_session_id.as_str(),
             ))
             .or_default();
-        self.persist_state(auth.tenant_id.as_str(), request.rtc_session_id.as_str())?;
+        self.persist_state(auth.tenant_id.as_str(), requested_session_id.as_str())?;
 
         Ok(RtcSessionMutationOutcome {
             session,
@@ -386,25 +399,10 @@ impl RtcRuntime {
     ) -> Result<RtcRecordingArtifact, RtcError> {
         let session = self.session(auth, rtc_session_id)?;
         let provider = self.rtc_provider_for_session(auth.tenant_id.as_str(), &session)?;
-        let mut artifact = provider
+        let artifact = provider
             .export_recording_artifact(auth.tenant_id.as_str(), rtc_session_id)
             .map_err(RtcError::rtc_provider)?
             .ok_or_else(|| RtcError::recording_artifact_not_found(rtc_session_id))?;
-        let object_storage_plugin_id = self.selected_object_storage_provider_plugin_id(
-            auth.tenant_id.as_str(),
-            artifact.storage_provider.as_deref(),
-        )?;
-        let object_storage_provider =
-            self.object_storage_provider(object_storage_plugin_id.as_str())?;
-        let playback_url = object_storage_provider
-            .signed_download_url(ObjectStorageDownloadUrlRequest {
-                bucket: artifact.bucket.clone(),
-                object_key: artifact.object_key.clone(),
-                expires_in_seconds: DEFAULT_RTC_RECORDING_PLAYBACK_URL_TTL_SECONDS,
-            })
-            .map_err(RtcError::object_storage_provider)?;
-        artifact.storage_provider = Some(object_storage_plugin_id);
-        artifact.playback_url = Some(playback_url);
         Ok(artifact)
     }
 
@@ -951,47 +949,6 @@ impl RtcRuntime {
             ))
         })
     }
-
-    fn selected_object_storage_provider_plugin_id(
-        &self,
-        tenant_id: &str,
-        frozen_plugin_id: Option<&str>,
-    ) -> Result<String, RtcError> {
-        if let Some(plugin_id) = frozen_plugin_id.filter(|value| !value.trim().is_empty()) {
-            return Ok(plugin_id.to_string());
-        }
-
-        let binding = self
-            .provider_registry
-            .effective_binding(ProviderDomain::ObjectStorage, Some(tenant_id))
-            .ok_or_else(|| {
-                RtcError::recording_storage_binding_missing(
-                    "object storage provider binding is missing for the current tenant",
-                )
-            })?;
-        binding
-            .selected_plugin_id
-            .or(binding.default_plugin_id)
-            .ok_or_else(|| {
-                RtcError::recording_storage_binding_missing(
-                    "object storage provider selection is missing for the current tenant",
-                )
-            })
-    }
-
-    fn object_storage_provider(
-        &self,
-        plugin_id: &str,
-    ) -> Result<Arc<dyn ObjectStorageProvider>, RtcError> {
-        self.object_storage_providers
-            .get(plugin_id)
-            .cloned()
-            .ok_or_else(|| {
-                RtcError::recording_storage_binding_missing(format!(
-                    "object storage provider is not installed in runtime: {plugin_id}"
-                ))
-            })
-    }
 }
 
 #[derive(Debug)]
@@ -1050,38 +1007,10 @@ impl RtcError {
         }
     }
 
-    fn object_storage_provider(value: ContractError) -> Self {
-        match value {
-            ContractError::Unavailable(message) => Self {
-                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                code: "rtc_artifact_storage_unavailable",
-                message,
-            },
-            ContractError::Conflict(message) => Self {
-                status: axum::http::StatusCode::CONFLICT,
-                code: "rtc_artifact_storage_conflict",
-                message,
-            },
-            ContractError::UnsupportedCapability(message) => Self {
-                status: axum::http::StatusCode::NOT_IMPLEMENTED,
-                code: "rtc_artifact_storage_unsupported",
-                message,
-            },
-        }
-    }
-
     fn provider_binding_missing(message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
             code: "rtc_provider_binding_missing",
-            message: message.into(),
-        }
-    }
-
-    fn recording_storage_binding_missing(message: impl Into<String>) -> Self {
-        Self {
-            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            code: "rtc_artifact_storage_binding_missing",
             message: message.into(),
         }
     }
@@ -1210,7 +1139,16 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_app_context))
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+        require_dual_token_headers: resolve_require_dual_token_headers(),
+    };
+    build_default_app()
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            require_app_context,
+        ))
 }
 
 pub fn build_app(runtime: Arc<RtcRuntime>) -> Router {
@@ -1249,23 +1187,48 @@ pub fn build_app(runtime: Arc<RtcRuntime>) -> Router {
             get(get_recording_artifact),
         )
         .route(
-            "/backend/v3/api/rtc/provider_callbacks",
+            "/app/v3/api/rtc/provider_callbacks",
             post(map_provider_callback),
         )
-        .route(
-            "/backend/v3/api/rtc/provider_health",
-            get(get_provider_health),
-        )
+        .route("/app/v3/api/rtc/provider_health", get(get_provider_health))
         .with_state(AppState { runtime })
 }
 
-async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(
+    State(guardrails): State<PublicAppGuardrails>,
+    mut request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_app_context(request.headers()) {
-            Ok(_) => next.run(request).await,
-            Err(error) => RtcError::from(error).into_response(),
-        },
+        _ => {
+            let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+                Ok(permit) => permit,
+                Err(_) => {
+                    return RtcError {
+                        status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                        code: "http_overloaded",
+                        message:
+                            "server is at maximum in-flight request capacity, please retry later"
+                                .to_owned(),
+                    }
+                    .into_response();
+                }
+            };
+            if guardrails.require_dual_token_headers
+                && let Err(error) = require_dual_token_headers(request.headers())
+            {
+                return error.into_response();
+            }
+            let auth = match resolve_app_context(request.headers()) {
+                Ok(auth) => auth,
+                Err(error) => return RtcError::from(error).into_response(),
+            };
+            request.extensions_mut().insert(auth);
+            let response = next.run(request).await;
+            drop(permit);
+            response
+        }
     }
 }
 
@@ -1360,11 +1323,12 @@ fn rtc_signaling_service_method_display(method: HttpMethod) -> &'static str {
 }
 
 async fn create_session(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CreateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_rtc_create_allowed(&request)?;
     let request_key = rtc_create_request_key(&auth, &request);
     let outcome = state.runtime.create_session_with_outcome(&auth, request)?;
@@ -1376,11 +1340,12 @@ async fn create_session(
 
 async fn invite_session(
     Path(rtc_session_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<InviteRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     let request_key =
         rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "invite");
@@ -1396,11 +1361,12 @@ async fn invite_session(
 
 async fn accept_session(
     Path(rtc_session_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     let request_key =
         rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "accept");
@@ -1416,11 +1382,12 @@ async fn accept_session(
 
 async fn reject_session(
     Path(rtc_session_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     let request_key =
         rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "reject");
@@ -1436,11 +1403,12 @@ async fn reject_session(
 
 async fn end_session(
     Path(rtc_session_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<UpdateRtcSessionRequest>,
 ) -> Result<Json<RtcSessionMutationResponse>, RtcError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     let request_key =
         rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "end");
@@ -1456,11 +1424,12 @@ async fn end_session(
 
 async fn post_signal(
     Path(rtc_session_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<PostRtcSignalRequest>,
 ) -> Result<Json<RtcSignalEvent>, RtcError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     Ok(Json(state.runtime.post_signal(
         &auth,
@@ -1472,10 +1441,11 @@ async fn post_signal(
 async fn list_signals(
     Path(rtc_session_id): Path<String>,
     Query(query): Query<ListRtcSignalsQuery>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<RtcSignalWindow>, RtcError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     Ok(Json(state.runtime.list_signals(
         &auth,
@@ -1486,11 +1456,12 @@ async fn list_signals(
 
 async fn issue_participant_credential(
     Path(rtc_session_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<IssueRtcParticipantCredentialRequest>,
 ) -> Result<Json<RtcParticipantCredential>, RtcError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     Ok(Json(state.runtime.issue_participant_credential(
         &auth,
@@ -1501,10 +1472,11 @@ async fn issue_participant_credential(
 
 async fn get_recording_artifact(
     Path(rtc_session_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<RtcRecordingArtifact>, RtcError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_rtc_session_allowed(&state.runtime, &auth, rtc_session_id.as_str())?;
     Ok(Json(
         state
@@ -1514,19 +1486,21 @@ async fn get_recording_artifact(
 }
 
 async fn map_provider_callback(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<RtcCallbackRequest>,
 ) -> Result<Json<RtcCallbackEvent>, RtcError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(state.runtime.map_provider_callback(&auth, request)?))
 }
 
 async fn get_provider_health(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderHealthSnapshot>, RtcError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(
         state
             .runtime
@@ -1544,6 +1518,91 @@ fn validate_payload_size(
         return Err(RtcError::payload_too_large(field, max_bytes, payload_len));
     }
     Ok(())
+}
+
+fn resolve_request_app_context(
+    auth: Option<Extension<AppContext>>,
+    headers: &HeaderMap,
+) -> Result<AppContext, RtcError> {
+    match auth {
+        Some(Extension(auth)) => Ok(auth),
+        None => resolve_app_context(headers).map_err(RtcError::from),
+    }
+}
+
+fn require_dual_token_headers(headers: &HeaderMap) -> Result<(), RtcError> {
+    if !has_bearer_auth_token(headers) {
+        return Err(RtcError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "auth_token_missing",
+            message: "authorization header must provide a bearer token".to_owned(),
+        });
+    }
+    if !has_access_token_header(headers) {
+        return Err(RtcError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "access_token_missing",
+            message: "access-token header is required".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn has_bearer_auth_token(headers: &HeaderMap) -> bool {
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .and_then(|value| {
+            let (scheme, token) = value.split_once(' ')?;
+            if scheme.eq_ignore_ascii_case("bearer") && !token.trim().is_empty() {
+                return Some(());
+            }
+            None
+        })
+        .is_some()
+}
+
+fn has_access_token_header(headers: &HeaderMap) -> bool {
+    headers
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty())
+}
+
+fn resolve_max_in_flight_requests() -> usize {
+    std::env::var(RTC_MAX_IN_FLIGHT_REQUESTS_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(RTC_MAX_IN_FLIGHT_REQUESTS_DEFAULT)
+        .min(RTC_MAX_IN_FLIGHT_REQUESTS_MAX)
+}
+
+fn resolve_require_dual_token_headers() -> bool {
+    std::env::var(RTC_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
+        .ok()
+        .map(|value| parse_truthy_env_flag(Some(value)))
+        .unwrap_or(true)
+}
+
+fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+    raw.as_deref().map(str::trim).is_some_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
+}
+
+fn resolve_max_http_request_body_bytes() -> usize {
+    std::env::var(RTC_MAX_REQUEST_BODY_BYTES_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(RTC_MAX_REQUEST_BODY_BYTES_DEFAULT)
+        .min(RTC_MAX_REQUEST_BODY_BYTES_MAX)
 }
 
 fn validate_create_rtc_session_request_payload_size(
@@ -1638,35 +1697,6 @@ fn validate_rtc_callback_request_payload_size(
     Ok(())
 }
 
-fn built_in_object_storage_providers() -> Vec<(String, Arc<dyn ObjectStorageProvider>)> {
-    vec![
-        (
-            ALIYUN_OBJECT_STORAGE_PLUGIN_ID.into(),
-            Arc::new(S3CompatibleObjectStorageProvider::aliyun_default()),
-        ),
-        (
-            TENCENT_OBJECT_STORAGE_PLUGIN_ID.into(),
-            Arc::new(S3CompatibleObjectStorageProvider::tencent_default()),
-        ),
-        (
-            VOLCENGINE_OBJECT_STORAGE_PLUGIN_ID.into(),
-            Arc::new(S3CompatibleObjectStorageProvider::volcengine_default()),
-        ),
-        (
-            AWS_OBJECT_STORAGE_PLUGIN_ID.into(),
-            Arc::new(S3CompatibleObjectStorageProvider::aws_default()),
-        ),
-        (
-            GOOGLE_OBJECT_STORAGE_PLUGIN_ID.into(),
-            Arc::new(S3CompatibleObjectStorageProvider::google_default()),
-        ),
-        (
-            MICROSOFT_OBJECT_STORAGE_PLUGIN_ID.into(),
-            Arc::new(S3CompatibleObjectStorageProvider::microsoft_default()),
-        ),
-    ]
-}
-
 fn rtc_scope_key(tenant_id: &str, rtc_session_id: &str) -> String {
     encode_rtc_key_segments([tenant_id, rtc_session_id])
 }
@@ -1686,6 +1716,16 @@ fn rtc_signal_index(signals: Vec<RtcSignalEvent>) -> BTreeMap<u64, RtcSignalEven
         .into_iter()
         .map(|signal| (signal.signal_seq, signal))
         .collect()
+}
+
+fn hash_scope_lock_index(tenant_id: &str, session_id: &str, stripe_count: usize) -> usize {
+    if stripe_count == 0 {
+        return 0;
+    }
+    let mut hasher = DefaultHasher::new();
+    tenant_id.hash(&mut hasher);
+    session_id.hash(&mut hasher);
+    (hasher.finish() as usize) % stripe_count
 }
 
 pub fn rtc_create_request_key(auth: &AppContext, request: &CreateRtcSessionRequest) -> String {
@@ -1768,18 +1808,52 @@ fn rtc_session_matches_update_request(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::http::{HeaderMap, HeaderValue};
     use im_platform_contracts::{ProviderPluginDescriptor, RtcSessionHandle};
     use std::panic::{self, AssertUnwindSafe};
     use std::sync::atomic::{AtomicBool, Ordering};
 
+    #[test]
+    fn parse_truthy_env_flag_accepts_common_truthy_values() {
+        for value in ["1", "true", "TRUE", " yes ", "On"] {
+            assert!(parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        for value in ["0", "false", "off", "no", "", "  "] {
+            assert!(!parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        assert!(!parse_truthy_env_flag(None));
+    }
+
+    #[test]
+    fn dual_token_header_helpers_validate_auth_and_access_headers() {
+        let mut headers = HeaderMap::new();
+        assert!(!has_bearer_auth_token(&headers));
+        assert!(!has_access_token_header(&headers));
+
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer auth_token"),
+        );
+        headers.insert("access-token", HeaderValue::from_static("access_token"));
+        assert!(has_bearer_auth_token(&headers));
+        assert!(has_access_token_header(&headers));
+    }
+
     fn demo_auth_context() -> AppContext {
         AppContext {
             tenant_id: "t_demo".into(),
+            organization_id: None,
+            user_id: "u_demo".into(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),
             session_id: Some("s_demo".into()),
+            app_id: None,
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: Default::default(),
+            permission_scope: Default::default(),
             device_id: Some("d_demo".into()),
-            permissions: Default::default(),
         }
     }
 
@@ -1845,6 +1919,7 @@ mod tests {
 
     #[derive(Clone)]
     struct SessionLockProbeRtcProvider {
+        lock_was_free_during_create: Arc<AtomicBool>,
         lock_was_free_during_close: Arc<AtomicBool>,
     }
 
@@ -1863,6 +1938,27 @@ mod tests {
             &self,
             request: ProviderRtcCreateSessionRequest,
         ) -> Result<RtcSessionHandle, ContractError> {
+            let key = rtc_scope_key(request.tenant_id.as_str(), request.rtc_session_id.as_str());
+            let runtime = ACTIVE_LOCK_PROBE_RUNTIME
+                .lock()
+                .expect("lock probe runtime pointer should lock")
+                .clone()
+                .expect("lock probe runtime should be installed before create");
+            let sessions_available = runtime
+                .sessions
+                .try_lock()
+                .map(|sessions| {
+                    !sessions
+                        .has_session(request.tenant_id.as_str(), request.rtc_session_id.as_str())
+                })
+                .unwrap_or(false);
+            let signals_available = runtime
+                .signals
+                .try_lock()
+                .map(|signals| !signals.contains_key(key.as_str()))
+                .unwrap_or(false);
+            self.lock_was_free_during_create
+                .store(sessions_available && signals_available, Ordering::SeqCst);
             Ok(RtcSessionHandle {
                 tenant_id: request.tenant_id,
                 rtc_session_id: request.rtc_session_id.clone(),
@@ -1939,14 +2035,13 @@ mod tests {
             tenant_id: &str,
             rtc_session_id: &str,
         ) -> Result<Option<RtcRecordingArtifact>, ContractError> {
-            Ok(Some(RtcRecordingArtifact {
-                tenant_id: tenant_id.into(),
-                rtc_session_id: rtc_session_id.into(),
-                bucket: "rtc-artifacts".into(),
-                object_key: "probe.mp4".into(),
-                storage_provider: None,
-                playback_url: None,
-            }))
+            Ok(Some(RtcRecordingArtifact::drive_backed_recording(
+                tenant_id,
+                rtc_session_id,
+                "space_rtc_recordings",
+                format!("node_{rtc_session_id}"),
+                None,
+            )))
         }
 
         fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
@@ -1989,8 +2084,10 @@ mod tests {
 
     #[test]
     fn test_end_session_calls_provider_without_holding_runtime_locks() {
+        let lock_was_free_during_create = Arc::new(AtomicBool::new(false));
         let lock_was_free_during_close = Arc::new(AtomicBool::new(false));
         let provider = Arc::new(SessionLockProbeRtcProvider {
+            lock_was_free_during_create: lock_was_free_during_create.clone(),
             lock_was_free_during_close: lock_was_free_during_close.clone(),
         });
         let descriptor = provider.descriptor();
@@ -2017,6 +2114,10 @@ mod tests {
                 },
             )
             .expect("session should be created before end");
+        assert!(
+            lock_was_free_during_create.load(Ordering::SeqCst),
+            "provider create_session must not run while rtc runtime session/signal locks are held"
+        );
         runtime
             .end_session(
                 &auth,

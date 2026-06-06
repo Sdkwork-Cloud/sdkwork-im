@@ -46,6 +46,12 @@ async fn run() -> Result<(), String> {
         .map_err(|error| format!("web-gateway failed to resolve listener addr: {error}"))?;
     let base_url = format!("http://{}", display_listener_addr(local_addr));
     let registry = web_gateway::build_gateway_registry()?;
+    let embedded_runtime_router =
+        if config.runtime_mode == craw_chat_gateway_config::GatewayRuntimeMode::Embedded {
+            Some(local_minimal_node::build_default_app())
+        } else {
+            None
+        };
     let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
     println!(
         "{}",
@@ -58,9 +64,10 @@ async fn run() -> Result<(), String> {
 
     axum::serve(
         listener,
-        web_gateway::build_app_with_registry_and_product_runtime(
+        web_gateway::build_app_with_registry_and_runtime_routers(
             config,
             registry,
+            embedded_runtime_router,
             Some(product_runtime_router),
         ),
     )
@@ -95,26 +102,39 @@ fn resolve_product_site_dirs() -> ProductSiteDirs {
         .join("..")
         .to_path_buf();
 
-    let admin_site_dir = resolve_site_dir_from_env("CRAW_CHAT_ADMIN_SITE_DIR")
+    let admin_site_dir = resolve_site_dir_from_env(&[
+        "SDKWORK_CHAT_ADMIN_SITE_DIR",
+        "CRAW_CHAT_ADMIN_SITE_DIR",
+    ])
         .unwrap_or_else(|| repo_root.join("apps").join("craw-chat-admin").join("dist"));
-    let portal_site_dir = resolve_site_dir_from_env("CRAW_CHAT_PORTAL_SITE_DIR")
+    let portal_site_dir = resolve_site_dir_from_env(&[
+        "SDKWORK_CHAT_PORTAL_SITE_DIR",
+        "CRAW_CHAT_PORTAL_SITE_DIR",
+    ])
         .unwrap_or_else(|| repo_root.join("apps").join("craw-chat-portal").join("dist"));
 
     ProductSiteDirs::new(admin_site_dir, portal_site_dir)
 }
 
-fn resolve_site_dir_from_env(env_name: &str) -> Option<PathBuf> {
-    std::env::var(env_name)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
+fn resolve_site_dir_from_env(env_names: &[&str]) -> Option<PathBuf> {
+    env_names.iter().find_map(|env_name| {
+        std::env::var(env_name)
+            .ok()
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+    })
 }
 
 fn has_explicit_portal_api_base_url() -> bool {
     [
         "CRAW_CHAT_PORTAL_API_BASE_URL",
         "SDKWORK_PORTAL_API_BASE_URL",
+        "SDKWORK_CHAT_SERVER_API_BASE_URL",
+        "SDKWORK_CHAT_SERVER_BASE_URL",
+        "SDKWORK_CHAT_SERVER_BIND",
+        "CRAW_CHAT_SERVER_API_BASE_URL",
+        "CRAW_CHAT_SERVER_BASE_URL",
         "CRAW_CHAT_BIND_ADDR",
     ]
     .iter()
@@ -137,6 +157,71 @@ fn display_listener_addr(addr: SocketAddr) -> String {
     format!("{host}:{}", addr.port())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::has_explicit_portal_api_base_url;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+        GUARD
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("web gateway main env guard should not be poisoned")
+    }
+
+    struct ScopedEnvVar {
+        name: &'static str,
+        previous: Option<String>,
+    }
+
+    impl ScopedEnvVar {
+        fn set(name: &'static str, value: &str) -> Self {
+            let previous = std::env::var(name).ok();
+            unsafe {
+                std::env::set_var(name, value);
+            }
+            Self { name, previous }
+        }
+
+        fn remove(name: &'static str) -> Self {
+            let previous = std::env::var(name).ok();
+            unsafe {
+                std::env::remove_var(name);
+            }
+            Self { name, previous }
+        }
+    }
+
+    impl Drop for ScopedEnvVar {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(value) => unsafe {
+                    std::env::set_var(self.name, value);
+                },
+                None => unsafe {
+                    std::env::remove_var(self.name);
+                },
+            }
+        }
+    }
+
+    #[test]
+    fn server_public_base_url_envs_count_as_explicit_portal_binding() {
+        let _guard = env_guard();
+        let _portal = ScopedEnvVar::remove("CRAW_CHAT_PORTAL_API_BASE_URL");
+        let _sdkwork_portal = ScopedEnvVar::remove("SDKWORK_PORTAL_API_BASE_URL");
+        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_CHAT_SERVER_BASE_URL");
+        let _sdkwork_chat_server_api =
+            ScopedEnvVar::set("SDKWORK_CHAT_SERVER_API_BASE_URL", "https://chat.example.com/sdkwork/chat");
+        let _server_base = ScopedEnvVar::remove("CRAW_CHAT_SERVER_BASE_URL");
+        let _server_api = ScopedEnvVar::remove("CRAW_CHAT_SERVER_API_BASE_URL");
+        let _bind = ScopedEnvVar::remove("CRAW_CHAT_BIND_ADDR");
+
+        assert!(has_explicit_portal_api_base_url());
+    }
+}
+
 fn resolve_startup_mode() -> Result<StartupMode, String> {
     let mut args = std::env::args().skip(1);
     let mut config_path: Option<PathBuf> = None;
@@ -150,9 +235,9 @@ fn resolve_startup_mode() -> Result<StartupMode, String> {
                 config_path = Some(PathBuf::from(path));
             }
             "-h" | "--help" => {
-                println!("Usage: craw-chat-server [--config <server.yaml>]");
+                println!("Usage: craw-chat-server [--config <chat.toml>]");
                 println!(
-                    "Start the Craw Chat unified gateway using env defaults or a server.yaml file."
+                    "Start the Craw Chat unified gateway using env defaults or a chat.toml file."
                 );
                 return Ok(StartupMode::ExitSuccess);
             }

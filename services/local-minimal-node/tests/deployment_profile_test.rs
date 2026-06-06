@@ -361,7 +361,7 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
 
 #[test]
 fn test_security_and_audit_api_docs_cover_app_context_shared_sync_and_chain_verification_contracts()
- {
+{
     let root = workspace_root();
     let auth_and_errors_doc_path = root
         .join("docs")
@@ -514,9 +514,8 @@ fn test_local_default_post_release_verification_samples_are_documented_and_archi
     }
 
     assert!(
-        deployment_doc.contains(
-            "当前 `local-default` 仍复用 `local-minimal` �?compose 服务合同�?smoke 链路"
-        ),
+        deployment_doc
+            .contains("当前 `local-default` 仍复用 `local-minimal` �?compose 服务合同�?smoke 链路"),
         "local-default发布后验证样本.md must keep the current local-default boundary explicit"
     );
     assert!(
@@ -5659,12 +5658,23 @@ fn test_server_templates_freeze_cross_platform_contract() {
         "CRAW_CHAT_SERVER_DATA_DIR=",
         "CRAW_CHAT_SERVER_LOG_DIR=",
         "CRAW_CHAT_SERVER_RUN_DIR=",
+        "CRAW_CHAT_SERVER_BASE_URL=",
+        "CRAW_CHAT_SERVER_API_BASE_URL=",
+        "CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=",
+        "CRAW_CHAT_BROWSER_ORIGINS=",
+        "CRAW_CHAT_PC_API_UPSTREAM=",
     ] {
         assert!(
             server_env_template.contains(contract),
             "server.env.example must freeze the env overlay contract `{contract}`"
         );
     }
+    assert!(
+        !server_env_template.contains(
+            "CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=wss://realtime.example.com/im/v3/api/realtime/ws"
+        ),
+        "server.env.example must document the websocket base URL, not the SDK-owned realtime websocket endpoint"
+    );
 
     for contract in [
         "provider: postgresql",
@@ -5688,6 +5698,8 @@ fn test_server_templates_freeze_cross_platform_contract() {
         "CRAW_CHAT_SERVER_BASE_URL=",
         "CRAW_CHAT_SERVER_API_BASE_URL=",
         "CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=",
+        "CRAW_CHAT_BROWSER_ORIGINS=",
+        "CRAW_CHAT_PC_API_UPSTREAM=",
         "CRAW_CHAT_POSTGRES_HOST=",
         "CRAW_CHAT_POSTGRES_DATABASE=",
     ] {
@@ -5696,6 +5708,12 @@ fn test_server_templates_freeze_cross_platform_contract() {
             "quickstart-server-compose.env.example must align with the same server config model `{contract}`"
         );
     }
+    assert!(
+        !quickstart_env_template.contains(
+            "CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=ws://127.0.0.1:18080/im/v3/api/realtime/ws"
+        ),
+        "quickstart-server-compose.env.example must document the websocket base URL, not the SDK-owned realtime websocket endpoint"
+    );
 }
 
 #[test]
@@ -5725,6 +5743,29 @@ fn test_server_install_scripts_expose_consistent_help_surface() {
                 script.display()
             );
         }
+    }
+
+    for script in [
+        root.join("bin").join("init-config-server.ps1"),
+        root.join("bin").join("init-config-server.sh"),
+    ] {
+        let content = fs::read_to_string(&script)
+            .unwrap_or_else(|_| panic!("missing server config script: {}", script.display()));
+        assert!(
+            content.to_ascii_lowercase().contains("browser-origins"),
+            "{} must advertise the browser CORS origin allowlist contract",
+            script.display()
+        );
+        assert!(
+            !content.contains("ws://127.0.0.1:18080/im/v3/api/realtime/ws"),
+            "{} must default websocket-base-url to the websocket base origin, not the SDK-owned realtime endpoint",
+            script.display()
+        );
+        assert!(
+            content.contains("CRAW_CHAT_BROWSER_ORIGINS"),
+            "{} must materialize the browser CORS origin allowlist in server.env",
+            script.display()
+        );
     }
 
     for script in [

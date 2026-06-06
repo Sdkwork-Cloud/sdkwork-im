@@ -1,0 +1,276 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.database.tableRegistry",
+  "appCode": "chat",
+  "authority": "../../../specs/DATABASE_SPEC.md",
+  "prefixRegistry": "./database-prefix-registry.json",
+  "databaseProfiles": [
+    "postgresql",
+    "sqlite"
+  ],
+  "tables": [
+    {
+      "tableName": "im_commit_journal",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "event_log",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_outbox_events",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "outbox_event",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_inbox_events",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "inbox_event",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_idempotency_keys",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "idempotency",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_conversation_messages",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_message_media_refs",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "relation_entity",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_realtime_device_events",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "event_log",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_realtime_checkpoints",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "checkpoint",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_realtime_subscriptions",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "subscription",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_realtime_subscription_scopes",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "fanout_index",
+      "systemOfRecord": false,
+      "writeOwner": "session-gateway",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_presence_states",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "presence_state",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_route_bindings",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "route_state",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_realtime_disconnect_fences",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "coordination_fence",
+      "systemOfRecord": true,
+      "writeOwner": "session-gateway",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_rtc_sessions",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "rtc_session",
+      "systemOfRecord": true,
+      "writeOwner": "rtc-signaling-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_rtc_signals",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "rtc_signal_log",
+      "systemOfRecord": true,
+      "writeOwner": "rtc-signaling-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_audit_records",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "audit_log",
+      "systemOfRecord": true,
+      "writeOwner": "audit-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_notification_tasks",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "notification_task",
+      "systemOfRecord": true,
+      "writeOwner": "notification-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql",
+      "notes": "IM notification tasks use im_ because the source of truth is the chat message/realtime domain. Product-wide notification tables must use their own notification prefix."
+    },
+    {
+      "tableName": "im_automation_executions",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "automation_execution",
+      "systemOfRecord": true,
+      "writeOwner": "automation-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql",
+      "notes": "IM automation executions use im_ only when they execute against chat/realtime message flows."
+    },
+    {
+      "tableName": "im_projection_timeline_entries",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_projection_conversation_summaries",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_projection_conversation_members",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_projection_read_cursors",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_projection_registered_devices",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_projection_device_sync_feeds",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_projection_device_sync_checkpoints",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_projection_contacts",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_projection_direct_chat_bindings",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "projection",
+      "systemOfRecord": false,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_stream_sessions",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "stream_session",
+      "systemOfRecord": true,
+      "writeOwner": "streaming-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_stream_frames",
+      "modulePrefix": "im",
+      "boundedContext": "instant_messaging",
+      "tableProfile": "stream_frame_log",
+      "systemOfRecord": true,
+      "writeOwner": "streaming-service",
+      "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    }
+  ]
+}

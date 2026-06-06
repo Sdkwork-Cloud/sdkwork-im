@@ -346,7 +346,11 @@ export function runLocalMinimal({
     return 0;
   }
 
-  return runCommandSequenceImpl(plan);
+  return runCommandSequenceImpl({
+    commands: plan,
+    cwd: resolvedRepoRoot,
+    env: environment,
+  });
 }
 
 const isDirectExecution = process.argv[1] && path.resolve(process.argv[1]) === __filename;

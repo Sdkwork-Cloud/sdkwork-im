@@ -38,7 +38,7 @@ async fn test_control_plane_exposes_provider_registry_snapshot_to_control_reader
         serde_json::from_slice(&body).expect("provider registry body should be valid json");
 
     assert_eq!(json["status"], "registry");
-    assert_eq!(json["interfaceVersion"], "provider_registry/v1");
+    assert_eq!(json["interfaceVersion"], "provider-registry/v1");
     assert_eq!(
         json["precedence"],
         serde_json::json!(["tenant_override", "deployment_profile", "global_default"])
@@ -149,7 +149,7 @@ async fn test_control_plane_exposes_deployment_profile_provider_bindings_to_cont
         serde_json::from_slice(&body).expect("provider bindings body should be valid json");
 
     assert_eq!(json["status"], "bindings");
-    assert_eq!(json["interfaceVersion"], "provider_registry/v1");
+    assert_eq!(json["interfaceVersion"], "provider-registry/v1");
     assert_eq!(json["tenantId"], serde_json::Value::Null);
     assert_eq!(
         json["precedence"],
@@ -472,7 +472,8 @@ async fn test_control_plane_rejects_cross_domain_provider_policy_write() {
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("cross-domain body should be valid json");
-    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["status"], 400);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "invalid_provider_policy");
 }
 
@@ -1052,7 +1053,8 @@ async fn test_control_plane_rejects_stale_provider_policy_confirm_write_after_pr
         .to_bytes();
     let stale_json: serde_json::Value =
         serde_json::from_slice(&stale_body).expect("stale body should be valid json");
-    assert_eq!(stale_json["status"], "conflict");
+    assert_eq!(stale_json["status"], 409);
+    assert_eq!(stale_json["errorStatus"], "conflict");
     assert_eq!(stale_json["code"], "provider_policy_conflict");
     assert!(
         stale_json["message"]
@@ -1201,7 +1203,8 @@ async fn test_control_plane_returns_unavailable_status_when_provider_policy_runt
             .to_bytes();
         let json: serde_json::Value =
             serde_json::from_slice(&body).expect("unavailable body should be valid json");
-        assert_eq!(json["status"], "unavailable");
+        assert_eq!(json["status"], 503);
+        assert_eq!(json["errorStatus"], "unavailable");
         assert_eq!(json["code"], expected_code);
     }
 }
@@ -1257,7 +1260,8 @@ async fn test_control_plane_returns_conflict_status_for_unknown_provider_policy_
             .to_bytes();
         let json: serde_json::Value =
             serde_json::from_slice(&body).expect("unknown-version body should be valid json");
-        assert_eq!(json["status"], "conflict");
+        assert_eq!(json["status"], 409);
+        assert_eq!(json["errorStatus"], "conflict");
         assert_eq!(json["code"], "provider_policy_conflict");
         assert!(
             json["message"]
@@ -1320,7 +1324,8 @@ async fn test_control_plane_rejects_provider_policy_diff_with_reversed_version_r
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("reversed diff body should be valid json");
-    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["status"], 400);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "invalid_provider_policy");
     assert!(
         json["message"]

@@ -10,7 +10,7 @@ EOF
 }
 
 instance_name="default"
-config_dir="/etc/craw-chat/default"
+config_dir="/etc/sdkwork/chat"
 release_gate_path=""
 output_format="text"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,11 +37,20 @@ json_array_strings() {
   printf ']'
 }
 
+server_config_dir_for_instance() {
+  local name="$1"
+  if [[ "$name" == "default" ]]; then
+    printf '/etc/sdkwork/chat\n'
+  else
+    printf '/etc/sdkwork/chat/instances/%s\n' "$name"
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="/etc/craw-chat/${instance_name}"
+      config_dir="$(server_config_dir_for_instance "$instance_name")"
       shift 2
       ;;
     --config-dir)
@@ -68,19 +77,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-server_yaml="${config_dir}/server.yaml"
-postgresql_yaml="${config_dir}/storage/postgresql.yaml"
-password_file="${config_dir}/secrets/postgresql.password"
+server_yaml="${config_dir}/chat.toml"
+postgresql_yaml="${config_dir}/postgresql.yaml"
+password_file="${config_dir}/database.secret"
 missing=()
 
-[[ -f "$server_yaml" ]] || missing+=("server.yaml")
-[[ -f "$postgresql_yaml" ]] || missing+=("storage/postgresql.yaml")
-[[ -f "$password_file" ]] || missing+=("secrets/postgresql.password")
+[[ -f "$server_yaml" ]] || missing+=("chat.toml")
+[[ -f "$postgresql_yaml" ]] || missing+=("postgresql.yaml")
+[[ -f "$password_file" ]] || missing+=("database.secret")
 
 server_content="$(cat "$server_yaml" 2>/dev/null || true)"
 storage_content="$(cat "$postgresql_yaml" 2>/dev/null || true)"
 
-for contract in "instance:" "network:" "publicEndpoints:" "runtime:"; do
+for contract in "[runtime]" "deployment_mode = \"server\"" "app_code = \"chat\"" "[server]" "bind_address ="; do
   [[ "$server_content" == *"$contract"* ]] || missing+=("$contract")
 done
 for contract in "provider: postgresql" "passwordFile:" "migrationMode:"; do

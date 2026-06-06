@@ -1,8 +1,11 @@
-openapi: 3.0.3
+openapi: 3.1.2
 info:
   title: Craw Chat App API
   version: 0.1.0
-  description: App-development OpenAPI contract for app-business and non-management HTTP APIs outside the IM standard API.
+  description: >-
+    Owner-only app-development OpenAPI contract for Craw Chat-owned app-business and non-management HTTP APIs.
+    Dependency capabilities, including sdkwork-appbase identity/session/IAM/QR auth, are consumed through
+    sdkDependencies and dependency SDKs instead of being regenerated here.
 servers:
   - url: http://127.0.0.1:18090
 security:
@@ -82,6 +85,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/automation/agent_responses/{streamId}/complete:
     post:
       tags:
@@ -148,6 +153,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/automation/agent_responses/{streamId}/frames:
     post:
       tags:
@@ -214,6 +221,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/automation/agent_tool_calls:
     post:
       tags:
@@ -278,6 +287,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/automation/executions:
     post:
       tags:
@@ -336,6 +347,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/automation/executions/{executionId}:
     get:
       tags:
@@ -378,6 +391,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/automation/executions/{executionId}/agent_tool_calls/{toolCallId}/complete:
     post:
       tags:
@@ -445,6 +460,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/devices/{deviceId}/twin:
     get:
       tags:
@@ -487,6 +504,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/devices/{deviceId}/twin/desired:
     post:
       tags:
@@ -553,6 +572,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/devices/{deviceId}/twin/reported:
     post:
       tags:
@@ -619,6 +640,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/notifications:
     get:
       tags:
@@ -653,6 +676,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/notifications/requests:
     post:
       tags:
@@ -711,6 +736,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/notifications/{notificationId}:
     get:
       tags:
@@ -753,6 +780,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/portal/access:
     get:
       tags:
@@ -767,6 +796,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PortalSnapshot'
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/portal/automation:
     get:
       tags:
@@ -795,6 +826,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/portal/conversations:
     get:
       tags:
@@ -823,6 +856,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/portal/dashboard:
     get:
       tags:
@@ -851,6 +886,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/portal/governance:
     get:
       tags:
@@ -879,6 +916,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/portal/home:
     get:
       tags:
@@ -893,6 +932,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PortalSnapshot'
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/portal/media:
     get:
       tags:
@@ -921,6 +962,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/portal/realtime:
     get:
       tags:
@@ -949,6 +992,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/portal/workspace:
     get:
       tags:
@@ -977,6 +1022,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/media/provider_health:
     get:
       tags:
@@ -1012,6 +1059,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/principal/profiles/provider_health:
     get:
       tags:
@@ -1047,6 +1096,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/iot/access/provider_health:
     get:
       tags:
@@ -1082,6 +1133,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/iot/protocol/provider_health:
     get:
       tags:
@@ -1117,6 +1170,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/iot/protocol/uplink:
     post:
       tags:
@@ -1152,6 +1207,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/iot/protocol/downlink:
     post:
       tags:
@@ -1187,6 +1244,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/rtc/provider_callbacks:
     post:
       tags:
@@ -1222,6 +1281,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
   /app/v3/api/rtc/provider_health:
     get:
       tags:
@@ -1257,6 +1318,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.app
 components:
   securitySchemes:
     AuthToken:
@@ -1268,26 +1331,8 @@ components:
       in: header
       name: Access-Token
   parameters:
-    ConversationIdPath:
-      name: conversationId
-      in: path
-      required: true
-      schema:
-        type: string
     DeviceIdPath:
       name: deviceId
-      in: path
-      required: true
-      schema:
-        type: string
-    MessageIdPath:
-      name: messageId
-      in: path
-      required: true
-      schema:
-        type: string
-    MediaAssetIdPath:
-      name: mediaAssetId
       in: path
       required: true
       schema:
@@ -1298,59 +1343,9 @@ components:
       required: true
       schema:
         type: string
-    RtcSessionIdPath:
-      name: rtcSessionId
-      in: path
-      required: true
-      schema:
-        type: string
-    AfterSeqQuery:
-      name: afterSeq
-      in: query
-      required: false
-      schema:
-        type: integer
-        format: int64
-        minimum: 0
-    AfterFrameSeqQuery:
-      name: afterFrameSeq
-      in: query
-      required: false
-      schema:
-        type: integer
-        format: int64
-        minimum: 0
-    LimitQuery:
-      name: limit
-      in: query
-      required: false
-      schema:
-        type: integer
-        format: int32
-        minimum: 1
-    ExpiresInSecondsQuery:
-      name: expiresInSeconds
-      in: query
-      required: false
-      schema:
-        type: integer
-        format: int32
-        minimum: 1
-    CursorQuery:
-      in: query
-      name: cursor
-      required: false
-      schema:
-        type: string
     ExecutionIdPath:
       in: path
       name: executionId
-      required: true
-      schema:
-        type: string
-    FriendshipIdPath:
-      in: path
-      name: friendshipId
       required: true
       schema:
         type: string
@@ -1360,35 +1355,6 @@ components:
       required: true
       schema:
         type: string
-    RequestIdPath:
-      in: path
-      name: requestId
-      required: true
-      schema:
-        type: string
-    SocialFriendRequestDirectionQuery:
-      in: query
-      name: direction
-      required: true
-      schema:
-        type: string
-        enum:
-          - incoming
-          - outgoing
-    SocialFriendRequestStatusQuery:
-      in: query
-      name: status
-      required: false
-      schema:
-        type: string
-        enum:
-          - pending
-          - accepted
-          - declined
-          - canceled
-          - expired
-          - all
-        default: pending
     ToolCallIdPath:
       in: path
       name: toolCallId
@@ -2074,3 +2040,5 @@ components:
       properties:
         reportedStateJson:
           type: string
+x-sdkwork-owner: craw-chat
+x-sdkwork-api-authority: craw-chat.app

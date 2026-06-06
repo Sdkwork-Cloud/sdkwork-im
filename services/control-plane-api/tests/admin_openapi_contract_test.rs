@@ -36,7 +36,7 @@ async fn admin_openapi_contract_exposes_live_openapi_document_without_auth() {
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("openapi body should be valid json");
 
-    assert_eq!(json["openapi"], "3.0.3");
+    assert_eq!(json["openapi"], "3.1.2");
     assert_eq!(json["info"]["title"], "Control Plane API");
     assert_eq!(json["info"]["version"], env!("CARGO_PKG_VERSION"));
 

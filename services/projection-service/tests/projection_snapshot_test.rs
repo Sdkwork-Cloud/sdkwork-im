@@ -5,6 +5,30 @@ use im_domain_core::conversation::{
 };
 use projection_service::TimelineProjectionService;
 
+fn app_context(
+    tenant_id: &str,
+    actor_id: &str,
+    actor_kind: &str,
+    session_id: Option<&str>,
+    device_id: Option<&str>,
+) -> AppContext {
+    AppContext {
+        tenant_id: tenant_id.into(),
+        organization_id: None,
+        user_id: actor_id.into(),
+        session_id: session_id.map(str::to_owned),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
+        permission_scope: Default::default(),
+        actor_id: actor_id.into(),
+        actor_kind: actor_kind.into(),
+        device_id: device_id.map(str::to_owned),
+    }
+}
+
 fn typed_member_id(conversation_id: &str, principal_kind: &str, principal_id: &str) -> String {
     format!("cm_{conversation_id}_{principal_kind}_{principal_id}")
 }
@@ -781,22 +805,20 @@ fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_d
         "snapshot should exist"
     );
 
-    let user_auth = AppContext {
-        tenant_id: "t_alpha".into(),
-        actor_id: "u_dual".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_typed_restore_user".into()),
-        device_id: Some("d_shared".into()),
-        permissions: Default::default(),
-    };
-    let agent_auth = AppContext {
-        tenant_id: "t_alpha".into(),
-        actor_id: "u_dual".into(),
-        actor_kind: "agent".into(),
-        session_id: Some("s_typed_restore_agent".into()),
-        device_id: Some("d_shared".into()),
-        permissions: Default::default(),
-    };
+    let user_auth = app_context(
+        "t_alpha",
+        "u_dual",
+        "user",
+        Some("s_typed_restore_user"),
+        Some("d_shared"),
+    );
+    let agent_auth = app_context(
+        "t_alpha",
+        "u_dual",
+        "agent",
+        Some("s_typed_restore_agent"),
+        Some("d_shared"),
+    );
 
     let user_devices = restored.registered_devices_from_auth_context(&user_auth);
     assert_eq!(user_devices.len(), 1);

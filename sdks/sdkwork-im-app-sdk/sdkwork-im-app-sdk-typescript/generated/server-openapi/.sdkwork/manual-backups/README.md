@@ -15,9 +15,9 @@ npm install @sdkwork-internal/im-app-api-generated
 ## Usage
 
 ```typescript
-import { SdkworkAppClient } from '@sdkwork-internal/im-app-api-generated';
+import { SdkworkImAppClient } from '@sdkwork-internal/im-app-api-generated';
 
-const client = new SdkworkAppClient({
+const client = new SdkworkImAppClient({
   baseUrl: 'http://127.0.0.1:18090',
   authToken: appbaseAuthToken,
   accessToken: appbaseAccessToken,
@@ -32,6 +32,7 @@ client.setAccessToken(appbaseAccessToken);
 - `Authorization: Bearer <authToken>` carries the upstream authenticated principal context.
 - `Access-Token: <accessToken>` carries the upstream access token context.
 - Login, refresh, current-user, tenant, organization, and account-session APIs stay outside this package.
+
 
 ## Regeneration Contract
 

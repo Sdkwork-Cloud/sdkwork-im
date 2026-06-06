@@ -62,6 +62,10 @@ fn resolve_portal_api_base_url() -> Result<String> {
     for key in [
         "CRAW_CHAT_PORTAL_API_BASE_URL",
         "SDKWORK_PORTAL_API_BASE_URL",
+        "SDKWORK_CHAT_SERVER_API_BASE_URL",
+        "SDKWORK_CHAT_SERVER_BASE_URL",
+        "CRAW_CHAT_SERVER_API_BASE_URL",
+        "CRAW_CHAT_SERVER_BASE_URL",
     ] {
         if let Some(value) = env::var(key)
             .ok()
@@ -201,39 +205,110 @@ mod tests {
             .unwrap_or_else(|error| error.into_inner())
     }
 
-    fn restore_env(name: &str, previous: Option<String>) {
-        match previous {
-            Some(value) => unsafe {
+    struct ScopedEnvVar {
+        name: &'static str,
+        previous: Option<String>,
+    }
+
+    impl ScopedEnvVar {
+        fn set(name: &'static str, value: &str) -> Self {
+            let previous = env::var(name).ok();
+            unsafe {
                 env::set_var(name, value);
-            },
-            None => unsafe {
+            }
+            Self { name, previous }
+        }
+
+        fn remove(name: &'static str) -> Self {
+            let previous = env::var(name).ok();
+            unsafe {
                 env::remove_var(name);
-            },
+            }
+            Self { name, previous }
+        }
+    }
+
+    impl Drop for ScopedEnvVar {
+        fn drop(&mut self) {
+            match &self.previous {
+                Some(value) => unsafe {
+                    env::set_var(self.name, value);
+                },
+                None => unsafe {
+                    env::remove_var(self.name);
+                },
+            }
         }
     }
 
     #[test]
     fn resolve_portal_api_base_url_prefers_explicit_url_and_falls_back_to_bind_addr() {
         let _guard = env_guard();
-        let explicit_key = "CRAW_CHAT_PORTAL_API_BASE_URL";
-        let bind_key = "CRAW_CHAT_BIND_ADDR";
-        let previous_explicit = env::var(explicit_key).ok();
-        let previous_bind = env::var(bind_key).ok();
-
-        unsafe {
-            env::set_var(
-                explicit_key,
-                " https://portal-api.example.com/runtime-edge/ ",
-            );
-            env::set_var(bind_key, "127.0.0.1:19990");
-        }
+        let _explicit = ScopedEnvVar::set(
+            "CRAW_CHAT_PORTAL_API_BASE_URL",
+            " https://portal-api.example.com/runtime-edge/ ",
+        );
+        let _sdkwork_chat_server_api = ScopedEnvVar::remove("SDKWORK_CHAT_SERVER_API_BASE_URL");
+        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_CHAT_SERVER_BASE_URL");
+        let _server_api = ScopedEnvVar::remove("CRAW_CHAT_SERVER_API_BASE_URL");
+        let _server_base = ScopedEnvVar::remove("CRAW_CHAT_SERVER_BASE_URL");
+        let _bind = ScopedEnvVar::set("CRAW_CHAT_BIND_ADDR", "127.0.0.1:19990");
         assert_eq!(
             resolve_portal_api_base_url().expect("explicit portal api base url should resolve"),
             "https://portal-api.example.com/runtime-edge"
         );
 
         unsafe {
-            env::remove_var(explicit_key);
+            env::remove_var("CRAW_CHAT_PORTAL_API_BASE_URL");
+            env::set_var(
+                "SDKWORK_CHAT_SERVER_API_BASE_URL",
+                " https://chat.example.com/sdkwork/chat/ ",
+            );
+        }
+        assert_eq!(
+            resolve_portal_api_base_url()
+                .expect("canonical server api base url should resolve as public portal api fallback"),
+            "https://chat.example.com/sdkwork/chat"
+        );
+
+        unsafe {
+            env::remove_var("SDKWORK_CHAT_SERVER_API_BASE_URL");
+            env::set_var(
+                "SDKWORK_CHAT_SERVER_BASE_URL",
+                " https://chat.example.com/sdkwork/chat/ ",
+            );
+        }
+        assert_eq!(
+            resolve_portal_api_base_url()
+                .expect("canonical server base url should resolve as public portal api fallback"),
+            "https://chat.example.com/sdkwork/chat"
+        );
+
+        unsafe {
+            env::remove_var("SDKWORK_CHAT_SERVER_BASE_URL");
+            env::set_var(
+                "CRAW_CHAT_SERVER_API_BASE_URL",
+                " https://chat.example.com/api-edge/ ",
+            );
+        }
+        assert_eq!(
+            resolve_portal_api_base_url()
+                .expect("server api base url should resolve as public portal api fallback"),
+            "https://chat.example.com/api-edge"
+        );
+
+        unsafe {
+            env::remove_var("CRAW_CHAT_SERVER_API_BASE_URL");
+            env::set_var("CRAW_CHAT_SERVER_BASE_URL", " https://chat.example.com/ ");
+        }
+        assert_eq!(
+            resolve_portal_api_base_url()
+                .expect("server base url should resolve as public portal api fallback"),
+            "https://chat.example.com"
+        );
+
+        unsafe {
+            env::remove_var("CRAW_CHAT_SERVER_BASE_URL");
         }
         assert_eq!(
             resolve_portal_api_base_url().expect("bind addr fallback should resolve"),
@@ -241,7 +316,7 @@ mod tests {
         );
 
         unsafe {
-            env::set_var(bind_key, "0.0.0.0:29990");
+            env::set_var("CRAW_CHAT_BIND_ADDR", "0.0.0.0:29990");
         }
         assert_eq!(
             resolve_portal_api_base_url().expect("wildcard ipv4 bind should normalize"),
@@ -249,31 +324,35 @@ mod tests {
         );
 
         unsafe {
-            env::set_var(bind_key, "[::]:39990");
+            env::set_var("CRAW_CHAT_BIND_ADDR", "[::]:39990");
         }
         assert_eq!(
             resolve_portal_api_base_url().expect("wildcard ipv6 bind should normalize"),
             "http://[::1]:39990"
         );
-
-        restore_env(explicit_key, previous_explicit);
-        restore_env(bind_key, previous_bind);
     }
 
     #[test]
     fn resolve_portal_api_base_url_rejects_unspecified_explicit_public_url() {
         let _guard = env_guard();
-        let explicit_key = "CRAW_CHAT_PORTAL_API_BASE_URL";
-        let previous_explicit = env::var(explicit_key).ok();
-
-        unsafe {
-            env::set_var(explicit_key, "http://0.0.0.0:18090");
-        }
+        let _explicit = ScopedEnvVar::set("CRAW_CHAT_PORTAL_API_BASE_URL", "http://0.0.0.0:18090");
+        let _sdkwork_chat_server_api = ScopedEnvVar::remove("SDKWORK_CHAT_SERVER_API_BASE_URL");
+        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_CHAT_SERVER_BASE_URL");
+        let _server_api = ScopedEnvVar::remove("CRAW_CHAT_SERVER_API_BASE_URL");
+        let _server_base = ScopedEnvVar::remove("CRAW_CHAT_SERVER_BASE_URL");
+        let _bind = ScopedEnvVar::remove("CRAW_CHAT_BIND_ADDR");
 
         let error = resolve_portal_api_base_url()
             .expect_err("unspecified explicit public url should be rejected");
         assert!(error.to_string().contains("CRAW_CHAT_PORTAL_API_BASE_URL"));
 
-        restore_env(explicit_key, previous_explicit);
+        unsafe {
+            env::remove_var("CRAW_CHAT_PORTAL_API_BASE_URL");
+            env::set_var("CRAW_CHAT_SERVER_API_BASE_URL", "http://0.0.0.0:18079");
+        }
+
+        let error = resolve_portal_api_base_url()
+            .expect_err("unspecified server api public url should be rejected");
+        assert!(error.to_string().contains("CRAW_CHAT_SERVER_API_BASE_URL"));
     }
 }

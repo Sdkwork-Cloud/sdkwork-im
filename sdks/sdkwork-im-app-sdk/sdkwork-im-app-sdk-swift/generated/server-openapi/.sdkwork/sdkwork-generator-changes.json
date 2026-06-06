@@ -8,22 +8,21 @@
     "sdkType": "app",
     "packageName": "ImAppApiGenerated"
   },
-  "changeFingerprint": "5ead5e36318ae27d002c5e3ce1fee740d9876d5dd6767ae6cff3890c01123150",
+  "changeFingerprint": "e1142ab62364e8650ee1d7310709acdc06a0175a67d6569e22fedb51677bc87f",
   "changes": {
-    "createdGeneratedFiles": [
-      "Sources/API/IotApi.swift",
-      "Sources/API/ProviderApi.swift"
-    ],
+    "createdGeneratedFiles": [],
     "updatedGeneratedFiles": [
       "README.md",
-      "Sources/API/API.swift",
+      "sdkwork-sdk.json",
+      "Sources/API/ApiPaths.swift",
       "Sources/API/AutomationApi.swift",
       "Sources/API/DeviceApi.swift",
+      "Sources/API/IotApi.swift",
       "Sources/API/NotificationApi.swift",
       "Sources/API/PortalApi.swift",
+      "Sources/API/ProviderApi.swift",
       "Sources/API/RtcApi.swift",
       "Sources/HTTP/HttpClient.swift",
-      "Sources/Models.swift",
       "Sources/SdkworkAppClient.swift"
     ],
     "unchangedGeneratedFiles": [
@@ -33,23 +32,25 @@
       "CHANGELOG.md",
       "LICENSE",
       "Package.swift",
-      "sdkwork-sdk.json",
-      "Sources/API/ApiPaths.swift"
+      "Sources/API/API.swift",
+      "Sources/Models.swift"
     ],
-    "deletedGeneratedFiles": [
-      "Sources/API/ChatApi.swift",
-      "Sources/API/MediaApi.swift",
-      "Sources/API/PresenceApi.swift",
-      "Sources/API/RealtimeApi.swift",
-      "Sources/API/SocialApi.swift",
-      "Sources/API/StreamApi.swift"
-    ],
+    "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/README.md"
     ],
     "backedUpFiles": [
       "README.md",
+      "sdkwork-sdk.json",
+      "Sources/API/ApiPaths.swift",
+      "Sources/API/AutomationApi.swift",
+      "Sources/API/DeviceApi.swift",
+      "Sources/API/IotApi.swift",
+      "Sources/API/NotificationApi.swift",
+      "Sources/API/PortalApi.swift",
+      "Sources/API/ProviderApi.swift",
+      "Sources/API/RtcApi.swift",
       "Sources/HTTP/HttpClient.swift",
       "Sources/SdkworkAppClient.swift"
     ]
@@ -58,8 +59,8 @@
     "schemaVersion": 1,
     "areas": [
       "api-surface",
-      "models",
       "runtime",
+      "build-metadata",
       "documentation",
       "unknown"
     ],
@@ -67,32 +68,26 @@
       {
         "area": "api-surface",
         "paths": [
-          "Sources/API/API.swift",
+          "Sources/API/ApiPaths.swift",
           "Sources/API/AutomationApi.swift",
-          "Sources/API/ChatApi.swift",
           "Sources/API/DeviceApi.swift",
           "Sources/API/IotApi.swift",
-          "Sources/API/MediaApi.swift",
           "Sources/API/NotificationApi.swift",
           "Sources/API/PortalApi.swift",
-          "Sources/API/PresenceApi.swift",
           "Sources/API/ProviderApi.swift",
-          "Sources/API/RealtimeApi.swift",
-          "Sources/API/RtcApi.swift",
-          "Sources/API/SocialApi.swift",
-          "Sources/API/StreamApi.swift"
-        ]
-      },
-      {
-        "area": "models",
-        "paths": [
-          "Sources/Models.swift"
+          "Sources/API/RtcApi.swift"
         ]
       },
       {
         "area": "runtime",
         "paths": [
           "Sources/HTTP/HttpClient.swift"
+        ]
+      },
+      {
+        "area": "build-metadata",
+        "paths": [
+          "sdkwork-sdk.json"
         ]
       },
       {
@@ -109,18 +104,18 @@
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, runtime, documentation, unknown. Verification is required."
+    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, runtime, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, documentation, unknown.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-swift\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -145,7 +140,6 @@
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
       "backed-up-generated-files",
-      "deleted-generated-files",
       "manual-review-required",
       "unknown-impact",
       "verification-required"

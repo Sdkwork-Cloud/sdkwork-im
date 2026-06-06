@@ -13,15 +13,16 @@ use im_domain_core::conversation::{
     build_conversation_member_with_attributes, build_default_read_cursor, member_episode_id,
     member_id,
 };
+use im_domain_core::media::{DriveReference, MediaResource, MediaSource};
 use im_domain_core::message::{
-    ConversationMessageLog, Message, MessageBody, MessageEdited, MessageLocatorIndex,
+    ContentPart, ConversationMessageLog, Message, MessageBody, MessageEdited, MessageLocatorIndex,
     MessagePinned, MessageReactionAdded, MessageReactionRemoved, MessageRecalled, MessageType,
     MessageUnpinned, ReactionActorIdentity, Sender,
 };
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{Value as JsonValue, json};
 use sha2::{Digest, Sha256};
 
 mod binding;
@@ -71,6 +72,8 @@ const MESSAGE_REACTION_KEY_MAX_BYTES: usize = 128;
 const MESSAGE_BODY_MAX_BYTES: usize = 512 * 1024;
 const MESSAGE_HISTORY_DEFAULT_LIMIT: usize = 100;
 const MESSAGE_HISTORY_MAX_LIMIT: usize = 1000;
+const CONVERSATION_MEMBER_LIST_DEFAULT_LIMIT: usize = 100;
+const CONVERSATION_MEMBER_LIST_MAX_LIMIT: usize = 1000;
 const CONVERSATION_CREATE_DELIVERY_PROOF_VERSION: &str = "conversation.create.delivery-proof.v1";
 const CONVERSATION_MESSAGE_DELIVERY_PROOF_VERSION: &str = "conversation.message.delivery-proof.v1";
 const CONVERSATION_MAX_IN_MEMORY_DEFAULT: usize = 10_000;
@@ -82,6 +85,16 @@ fn normalize_message_history_limit(limit: Option<usize>) -> Result<usize, String
     if limit == 0 || limit > MESSAGE_HISTORY_MAX_LIMIT {
         return Err(format!(
             "message history limit must be between 1 and {MESSAGE_HISTORY_MAX_LIMIT}: {limit}"
+        ));
+    }
+    Ok(limit)
+}
+
+fn normalize_member_list_limit(limit: Option<usize>) -> Result<usize, String> {
+    let limit = limit.unwrap_or(CONVERSATION_MEMBER_LIST_DEFAULT_LIMIT);
+    if limit == 0 || limit > CONVERSATION_MEMBER_LIST_MAX_LIMIT {
+        return Err(format!(
+            "conversation member list limit must be between 1 and {CONVERSATION_MEMBER_LIST_MAX_LIMIT}: {limit}"
         ));
     }
     Ok(limit)
@@ -617,11 +630,7 @@ impl CreateConversationCommand {
 }
 
 impl CreateAgentDialogCommand {
-    pub fn from_auth_context(
-        auth: &AppContext,
-        conversation_id: String,
-        agent_id: String,
-    ) -> Self {
+    pub fn from_auth_context(auth: &AppContext, conversation_id: String, agent_id: String) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
             conversation_id,
@@ -998,6 +1007,14 @@ pub struct MessageHistoryResult {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ListMembersResult {
+    pub items: Vec<ConversationMember>,
+    pub next_cursor: Option<String>,
+    pub has_more: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageReactionMutationResult {
     pub conversation_id: String,
     pub message_id: String,
@@ -1021,6 +1038,7 @@ pub struct MessagePinMutationResult {
 pub enum RuntimeError {
     ConversationAlreadyExists(String),
     ConversationTypeInvalid(String),
+    AgentIdInvalid(String),
     InvalidInput(String),
     PayloadTooLarge(String),
     ConversationNotFound(String),
@@ -1183,6 +1201,42 @@ fn validate_optional_payload_size(
     Ok(())
 }
 
+fn validate_standard_agent_id(agent_id: &str) -> Result<(), RuntimeError> {
+    if agent_id.trim().is_empty() {
+        return Err(RuntimeError::AgentIdInvalid("agentId is required".into()));
+    }
+    if agent_id.trim() != agent_id {
+        return Err(RuntimeError::AgentIdInvalid(
+            "agentId must not contain leading or trailing whitespace".into(),
+        ));
+    }
+    if agent_id.chars().count() > 128 {
+        return Err(RuntimeError::AgentIdInvalid(
+            "agentId must be at most 128 characters".into(),
+        ));
+    }
+    if !agent_id.chars().all(is_standard_agent_id_character) {
+        return Err(RuntimeError::AgentIdInvalid(
+            "agentId must use lowercase standard id characters".into(),
+        ));
+    }
+    if !agent_id.split('.').all(|segment| !segment.is_empty()) {
+        return Err(RuntimeError::AgentIdInvalid(
+            "agentId must use non-empty dot-delimited segments".into(),
+        ));
+    }
+    if !agent_id.starts_with("agent.") {
+        return Err(RuntimeError::AgentIdInvalid(
+            "agentId must start with agent.".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn is_standard_agent_id_character(ch: char) -> bool {
+    ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '.' | '_' | '-')
+}
+
 fn validate_string_vec_payload_size(
     field: &str,
     values: &[String],
@@ -1293,6 +1347,85 @@ fn validate_message_body_size(body: &MessageBody) -> Result<(), RuntimeError> {
             actual_bytes,
         ));
     }
+    Ok(())
+}
+
+fn validate_message_body_semantics(body: &MessageBody) -> Result<(), RuntimeError> {
+    for (index, part) in body.parts.iter().enumerate() {
+        if let ContentPart::Media(media_part) = part {
+            let drive = &media_part.drive;
+            validate_media_drive_reference(index, drive)?;
+            validate_media_resource_drive_snapshot(index, &media_part.resource, drive)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_message_body_contract(body: &MessageBody) -> Result<(), RuntimeError> {
+    validate_message_body_size(body)?;
+    validate_message_body_semantics(body)
+}
+
+fn validate_media_drive_reference(
+    part_index: usize,
+    drive: &DriveReference,
+) -> Result<(), RuntimeError> {
+    for (field, value) in [
+        ("driveUri", drive.drive_uri.as_str()),
+        ("spaceId", drive.space_id.as_str()),
+        ("nodeId", drive.node_id.as_str()),
+    ] {
+        if value.trim().is_empty() {
+            return Err(RuntimeError::InvalidInput(format!(
+                "message body parts[{part_index}].drive.{field} must not be empty"
+            )));
+        }
+    }
+
+    if !drive.is_canonical() {
+        return Err(RuntimeError::InvalidInput(format!(
+            "message body parts[{part_index}].drive.driveUri must equal drive://spaces/{{spaceId}}/nodes/{{nodeId}}"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_media_resource_drive_snapshot(
+    part_index: usize,
+    resource: &MediaResource,
+    drive: &DriveReference,
+) -> Result<(), RuntimeError> {
+    match resource.source {
+        MediaSource::Drive | MediaSource::ProviderAsset | MediaSource::Generated => {}
+        MediaSource::ExternalUrl | MediaSource::DataUrl => {
+            return Err(RuntimeError::InvalidInput(format!(
+                "message body parts[{part_index}].resource.source must be drive, provider_asset, or generated for Drive-backed media parts"
+            )));
+        }
+    }
+
+    match resource.uri.as_deref() {
+        Some(uri) if uri == drive.drive_uri => {}
+        Some(_) => {
+            return Err(RuntimeError::InvalidInput(format!(
+                "message body parts[{part_index}].resource.uri must match parts[{part_index}].drive.driveUri"
+            )));
+        }
+        None => {
+            return Err(RuntimeError::InvalidInput(format!(
+                "message body parts[{part_index}].resource.uri is required for Drive-backed media"
+            )));
+        }
+    }
+
+    if let Some(id) = resource.id.as_deref()
+        && id != drive.node_id
+    {
+        return Err(RuntimeError::InvalidInput(format!(
+            "message body parts[{part_index}].resource.id must match parts[{part_index}].drive.nodeId when present"
+        )));
+    }
+
     Ok(())
 }
 
@@ -1489,6 +1622,30 @@ fn posted_message_replay_matches(
         && existing.sender_kind == command.sender.kind
         && existing.message_type == command.message_type
         && existing.body == command.body
+}
+
+fn rtc_session_id_from_signal_message(command: &PostMessageCommand) -> Option<String> {
+    if command.message_type != MessageType::Signal {
+        return None;
+    }
+
+    command.body.parts.iter().find_map(|part| {
+        let ContentPart::Signal(signal) = part else {
+            return None;
+        };
+        let payload = serde_json::from_str::<JsonValue>(signal.payload.as_str()).ok()?;
+        string_json_field(&payload, &["rtcSessionId", "rtc_session_id"]).map(str::to_owned)
+    })
+}
+
+fn string_json_field<'a>(value: &'a JsonValue, names: &[&str]) -> Option<&'a str> {
+    names.iter().find_map(|name| {
+        value
+            .get(*name)
+            .and_then(JsonValue::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    })
 }
 
 fn generated_message_id(conversation_id: &str, message_seq: u64) -> String {
@@ -1744,7 +1901,7 @@ where
             command.client_msg_id.as_deref(),
             MESSAGE_CLIENT_MSG_ID_MAX_BYTES,
         )?;
-        validate_message_body_size(&command.body)?;
+        validate_message_body_contract(&command.body)?;
         self.ensure_conversation_loaded(
             command.tenant_id.as_str(),
             command.conversation_id.as_str(),
@@ -1823,7 +1980,7 @@ where
                         delivery_mode: "discrete".into(),
                         client_msg_id: command.client_msg_id.clone(),
                         stream_session_id: None,
-                        rtc_session_id: None,
+                        rtc_session_id: rtc_session_id_from_signal_message(&command),
                         body: command.body.clone(),
                         attributes: BTreeMap::new(),
                         metadata: BTreeMap::new(),
@@ -1918,7 +2075,7 @@ where
             CONVERSATION_MAX_ID_BYTES,
         )?;
         validate_sender_payload_size("editor", &command.editor)?;
-        validate_message_body_size(&command.body)?;
+        validate_message_body_contract(&command.body)?;
         let conversation_id = {
             let state = read_runtime_state(&self.state, "runtime.state.edit_message.locate");
             state
@@ -2773,6 +2930,7 @@ mod tests {
                     summary: Some("hello".into()),
                     parts: vec![im_domain_core::message::ContentPart::text("hello")],
                     render_hints: BTreeMap::new(),
+                    reply_to: None,
                 },
             })
         }));

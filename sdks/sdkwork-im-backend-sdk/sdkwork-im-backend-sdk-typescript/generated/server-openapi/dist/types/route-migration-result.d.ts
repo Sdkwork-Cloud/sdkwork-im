@@ -1,5 +1,5 @@
 export interface RouteMigrationResult {
-    migratedRouteCount: number;
+    migratedRouteCount: string;
     sourceDrainStatus: string;
     sourceNodeId: string;
     sourceRebalanceState: string;

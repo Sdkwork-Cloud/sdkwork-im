@@ -21,16 +21,8 @@ const BACKGROUND_LAUNCH_ENV = 'SDKWORK_ROUTER_BACKGROUND';
 const WIX_UI_EXTENSION = 'WixUIExtension';
 const WIX_PDB_NAME = 'output.wixpdb';
 const WINDOWS_WIX_ARTIFACT_CLOCK_SKEW_MS = 10_000;
-const REQUIRED_APP_PACKAGES = [
-  '@tailwindcss/vite',
+const REQUIRED_TAURI_CLI_PACKAGES = [
   '@tauri-apps/cli',
-  '@vitejs/plugin-react',
-  'lucide-react',
-  'react',
-  'react-dom',
-  'react-router-dom',
-  'tailwindcss',
-  'vite',
 ];
 
 function normalizeCliArgs(args = []) {
@@ -361,7 +353,7 @@ function resolveReadableTauriCliPath({
   ensureLocalNodeModules({
     appRoot: cwd,
     donorRoots,
-    requiredPackages: REQUIRED_APP_PACKAGES,
+    requiredPackages: REQUIRED_TAURI_CLI_PACKAGES,
   });
   return resolveReadablePackageEntry({
     appRoot: cwd,

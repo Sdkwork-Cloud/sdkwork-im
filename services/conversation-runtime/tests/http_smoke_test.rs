@@ -113,6 +113,44 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 }
 
 #[tokio::test]
+async fn test_public_app_rejects_missing_access_token_header_over_http() {
+    let app = conversation_runtime::build_public_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("authorization", "Bearer auth_demo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_missing_access_token",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("request should return response");
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("body should be valid json");
+
+    assert_eq!(value["code"], "access_token_missing");
+}
+
+#[tokio::test]
 async fn test_create_conversation_and_post_message_over_http() {
     let app = conversation_runtime::build_default_app();
 
@@ -172,6 +210,242 @@ async fn test_create_conversation_and_post_message_over_http() {
 
     assert_eq!(value["messageSeq"], 1);
     assert_eq!(value["messageId"], "msg_c_http_1");
+}
+
+#[tokio::test]
+async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_media_missing_drive_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_media_missing_drive_http/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_media_missing_drive_http",
+                        "summary":"missing drive",
+                        "parts":[
+                            {
+                                "kind":"media",
+                                "resource":{
+                                    "id":"node_missing_drive",
+                                    "kind":"image",
+                                    "source":"drive",
+                                    "uri":"drive://spaces/space_app_upload_demo/nodes/node_missing_drive"
+                                }
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post missing Drive media request should return response");
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "invalid_json");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("drive")
+    );
+}
+
+#[tokio::test]
+async fn test_post_media_message_rejects_noncanonical_drive_reference_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_media_bad_drive_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_media_bad_drive_http/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_media_bad_drive_http",
+                        "summary":"bad drive",
+                        "parts":[
+                            {
+                                "kind":"media",
+                                "drive":{
+                                    "driveUri":"drive://spaces/space_app_upload_demo/nodes/node_other",
+                                    "spaceId":"space_app_upload_demo",
+                                    "nodeId":"node_bad_drive"
+                                },
+                                "resource":{
+                                    "id":"node_bad_drive",
+                                    "kind":"image",
+                                    "source":"drive",
+                                    "uri":"drive://spaces/space_app_upload_demo/nodes/node_bad_drive"
+                                }
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post noncanonical Drive media request should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_request_invalid");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("drive.driveUri")
+    );
+}
+
+#[tokio::test]
+async fn test_post_media_message_rejects_external_url_source_with_drive_reference_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_media_external_url_source_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_media_external_url_source_http/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_media_external_url_source_http",
+                        "summary":"external url source",
+                        "parts":[
+                            {
+                                "kind":"media",
+                                "drive":{
+                                    "driveUri":"drive://spaces/space_app_upload_demo/nodes/node_external_url_source",
+                                    "spaceId":"space_app_upload_demo",
+                                    "nodeId":"node_external_url_source"
+                                },
+                                "resource":{
+                                    "id":"node_external_url_source",
+                                    "kind":"image",
+                                    "source":"external_url",
+                                    "uri":"drive://spaces/space_app_upload_demo/nodes/node_external_url_source",
+                                    "url":"https://example.com/not-drive-owned.png"
+                                }
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post external URL media request should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "conversation_request_invalid");
+    assert!(
+        value["message"]
+            .as_str()
+            .expect("message should be present")
+            .contains("resource.source")
+    );
 }
 
 #[tokio::test]
@@ -805,6 +1079,42 @@ async fn test_group_create_preserves_actor_kind_over_http() {
 }
 
 #[tokio::test]
+async fn test_create_agent_dialog_rejects_non_standard_agent_id_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/agent_dialogs")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_dialog_invalid_agent_id_http",
+                        "agentId":"ag_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("invalid agent dialog request should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid agent dialog body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["code"], "agent_id_invalid");
+}
+
+#[tokio::test]
 async fn test_create_agent_dialog_over_http() {
     let app = conversation_runtime::build_default_app();
 
@@ -821,7 +1131,7 @@ async fn test_create_agent_dialog_over_http() {
                 .body(Body::from(
                     r#"{
                         "conversationId":"c_agent_dialog_http",
-                        "agentId":"ag_demo"
+                        "agentId":"agent.demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -864,7 +1174,7 @@ async fn test_create_agent_dialog_over_http() {
             .as_array()
             .unwrap()
             .iter()
-            .any(|item| item["principalId"] == "ag_demo" && item["principalKind"] == "agent")
+            .any(|item| item["principalId"] == "agent.demo" && item["principalKind"] == "agent")
     );
 }
 
@@ -886,7 +1196,7 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
                 .body(Body::from(
                     r#"{
                         "conversationId":"c_agent_dialog_retry_http",
-                        "agentId":"ag_demo"
+                        "agentId":"agent.demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -925,7 +1235,7 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
                 .body(Body::from(
                     r#"{
                         "conversationId":"c_agent_dialog_retry_http",
-                        "agentId":"ag_demo"
+                        "agentId":"agent.demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -963,7 +1273,7 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
                 .body(Body::from(
                     r#"{
                         "conversationId":"c_agent_dialog_retry_http",
-                        "agentId":"ag_other"
+                        "agentId":"agent.other"
                     }"#,
                 ))
                 .unwrap(),
@@ -998,7 +1308,7 @@ async fn test_create_agent_dialog_rejects_non_user_actor_over_http() {
                 .body(Body::from(
                     r#"{
                         "conversationId":"c_agent_dialog_system_http",
-                        "agentId":"ag_demo"
+                        "agentId":"agent.demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -1036,7 +1346,7 @@ async fn test_create_agent_dialog_rejects_unknown_user_requester_over_http() {
                 .body(Body::from(
                     r#"{
                         "conversationId":"c_agent_dialog_unknown_requester_http",
-                        "agentId":"ag_demo"
+                        "agentId":"agent.demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -2092,14 +2402,20 @@ async fn test_post_message_accepts_structured_parts_over_http() {
                             },
                             {
                                 "kind":"media",
-                                "mediaAssetId":"ma_demo",
+                                "drive":{
+                                    "driveUri":"drive://spaces/space_app_upload_demo/nodes/node_ma_demo",
+                                    "spaceId":"space_app_upload_demo",
+                                    "nodeId":"node_ma_demo"
+                                },
+                                "mediaRole":"attachment",
                                 "resource":{
-                                    "uuid":"res_demo",
-                                    "type":"image",
+                                    "id":"node_ma_demo",
+                                    "kind":"image",
+                                    "source":"provider_asset",
+                                    "uri":"drive://spaces/space_app_upload_demo/nodes/node_ma_demo",
                                     "mimeType":"image/png",
-                                    "size":42,
-                                    "name":"demo.png",
-                                    "extension":"png"
+                                    "sizeBytes":"42",
+                                    "fileName":"demo.png"
                                 }
                             }
                         ]
@@ -2941,6 +3257,148 @@ async fn test_change_member_role_over_http() {
         .find(|item| item["principalId"] == "u_member")
         .expect("member should exist");
     assert_eq!(member["role"], "admin");
+}
+
+#[tokio::test]
+async fn test_list_members_returns_bounded_cursor_window_over_http() {
+    let app = conversation_runtime::build_default_app();
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_members_window_http",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation request should succeed");
+    assert_eq!(create_response.status(), StatusCode::OK);
+
+    for principal_id in ["u_alpha", "u_beta", "u_gamma"] {
+        let add_member_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/im/v3/api/chat/conversations/c_members_window_http/members/add")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_owner")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("content-type", "application/json")
+                    .body(Body::from(format!(
+                        r#"{{
+                            "principalId":"{principal_id}",
+                            "principalKind":"user",
+                            "role":"member"
+                        }}"#,
+                    )))
+                    .unwrap(),
+            )
+            .await
+            .expect("add member request should succeed");
+        assert_eq!(add_member_response.status(), StatusCode::OK);
+    }
+
+    let first_page_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/conversations/c_members_window_http/members?limit=2")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first member page should return response");
+    assert_eq!(first_page_response.status(), StatusCode::OK);
+    let first_page_body = first_page_response
+        .into_body()
+        .collect()
+        .await
+        .expect("first page body should collect")
+        .to_bytes();
+    let first_page_json: serde_json::Value =
+        serde_json::from_slice(&first_page_body).expect("first page should be valid json");
+    assert_eq!(first_page_json["items"].as_array().unwrap().len(), 2);
+    assert_eq!(first_page_json["hasMore"], true);
+    let next_cursor = first_page_json["nextCursor"]
+        .as_str()
+        .expect("first member page should include nextCursor")
+        .to_owned();
+
+    let second_page_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/c_members_window_http/members?limit=2&cursor={next_cursor}"
+                ))
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second member page should return response");
+    assert_eq!(second_page_response.status(), StatusCode::OK);
+    let second_page_body = second_page_response
+        .into_body()
+        .collect()
+        .await
+        .expect("second page body should collect")
+        .to_bytes();
+    let second_page_json: serde_json::Value =
+        serde_json::from_slice(&second_page_body).expect("second page should be valid json");
+    assert_eq!(second_page_json["items"].as_array().unwrap().len(), 2);
+    assert_eq!(second_page_json["hasMore"], false);
+    assert!(second_page_json["nextCursor"].is_null());
+
+    let mut principal_ids = first_page_json["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(second_page_json["items"].as_array().unwrap().iter())
+        .map(|item| item["principalId"].as_str().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    principal_ids.sort();
+    assert_eq!(principal_ids, ["u_alpha", "u_beta", "u_gamma", "u_owner"]);
+
+    let invalid_limit_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/conversations/c_members_window_http/members?limit=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid member limit should return response");
+    assert_eq!(invalid_limit_response.status(), StatusCode::BAD_REQUEST);
+    let invalid_limit_body = invalid_limit_response
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid limit body should collect")
+        .to_bytes();
+    let invalid_limit_json: serde_json::Value = serde_json::from_slice(&invalid_limit_body)
+        .expect("invalid limit body should be valid json");
+    assert_eq!(invalid_limit_json["code"], "limit_invalid");
 }
 
 #[tokio::test]
@@ -4756,7 +5214,10 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "control-plane-sync")
                 .header("x-sdkwork-actor-kind", "system")
-                .header("x-sdkwork-permission-scope", "conversation.shared_channel.sync")
+                .header(
+                    "x-sdkwork-permission-scope",
+                    "conversation.shared_channel.sync",
+                )
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4922,7 +5383,10 @@ async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "control-plane-sync")
                 .header("x-sdkwork-actor-kind", "system")
-                .header("x-sdkwork-permission-scope", "conversation.shared_channel.sync")
+                .header(
+                    "x-sdkwork-permission-scope",
+                    "conversation.shared_channel.sync",
+                )
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4998,7 +5462,10 @@ async fn test_shared_history_sync_rejects_oversized_local_actor_kind_over_http()
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "control-plane-sync")
                 .header("x-sdkwork-actor-kind", "system")
-                .header("x-sdkwork-permission-scope", "conversation.shared_channel.sync")
+                .header(
+                    "x-sdkwork-permission-scope",
+                    "conversation.shared_channel.sync",
+                )
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

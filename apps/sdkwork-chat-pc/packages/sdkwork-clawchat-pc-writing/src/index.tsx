@@ -1,0 +1,32 @@
+import React from 'react';
+import { PenTool } from 'lucide-react';
+import { useTranslation, I18nextProvider } from 'react-i18next';
+import i18n from './i18n';
+
+const WritingViewComponent: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center bg-[#1e1e1e] min-w-0">
+      <div className="bg-[#2b2b2d] p-8 rounded-2xl border border-white/5 flex flex-col items-center max-w-md w-full">
+        <div className="w-16 h-16 bg-pink-500/10 rounded-2xl flex items-center justify-center mb-6 border border-pink-500/20">
+          <PenTool className="text-pink-400" size={32} />
+        </div>
+        <h2 className="text-xl font-bold text-gray-200 mb-2">{t('title')}</h2>
+        <p className="text-gray-400 text-center text-sm leading-relaxed mb-8">
+          {t('desc')}
+        </p>
+        <button className="w-full bg-pink-600 hover:bg-pink-500 text-white font-medium py-2.5 rounded-xl transition-colors">
+          {t('button')}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export const WritingView: React.FC = () => {
+  return (
+    <I18nextProvider i18n={i18n}>
+      <WritingViewComponent />
+    </I18nextProvider>
+  );
+};

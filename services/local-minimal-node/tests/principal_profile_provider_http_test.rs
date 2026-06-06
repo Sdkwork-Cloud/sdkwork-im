@@ -47,7 +47,7 @@ async fn test_local_minimal_profile_gets_principal_profile_provider_health_over_
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/principal/profiles/provider_health")
+                .uri("/app/v3/api/principal/profiles/provider_health")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -99,7 +99,7 @@ async fn test_local_minimal_profile_gets_unavailable_external_principal_profile_
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/principal/profiles/provider_health")
+                .uri("/app/v3/api/principal/profiles/provider_health")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")

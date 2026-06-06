@@ -221,7 +221,7 @@ fn wait_for_friend_request_status(
     timeout: Duration,
 ) -> serde_json::Value {
     let deadline = Instant::now() + timeout;
-    let path = format!("/backend/v3/api/control/social/friend-requests/{request_id}");
+    let path = format!("/backend/v3/api/control/social/friend_requests/{request_id}");
     let mut last_status = None;
     let mut last_body = serde_json::Value::Null;
 
@@ -362,7 +362,7 @@ fn test_local_minimal_process_blackbox_concurrent_accept_and_cancel_across_insta
         "canceled"
     };
 
-    let snapshot_path = format!("/backend/v3/api/control/social/friend-requests/{request_id}");
+    let snapshot_path = format!("/backend/v3/api/control/social/friend_requests/{request_id}");
     let snapshot_response = send_http_request(
         server_a.base_url.as_str(),
         "GET",
@@ -487,7 +487,7 @@ fn test_local_minimal_process_blackbox_concurrent_accepts_converge_idempotently_
         first_accept_json["conversation"]["conversationId"]
     );
 
-    let snapshot_path = format!("/backend/v3/api/control/social/friend-requests/{request_id}");
+    let snapshot_path = format!("/backend/v3/api/control/social/friend_requests/{request_id}");
     let snapshot_response = send_http_request(
         server_a.base_url.as_str(),
         "GET",
@@ -583,7 +583,7 @@ fn test_local_minimal_process_blackbox_cross_instance_accept_and_submit_same_pai
     assert_eq!(accept_status, 200);
     assert_eq!(accept_json["friendRequest"]["status"], "accepted");
 
-    let snapshot_path = format!("/backend/v3/api/control/social/friend-requests/{request_id}");
+    let snapshot_path = format!("/backend/v3/api/control/social/friend_requests/{request_id}");
     let snapshot_response = send_http_request(
         server_b.base_url.as_str(),
         "GET",
@@ -699,7 +699,7 @@ fn test_local_minimal_process_blackbox_cross_instance_submit_same_pair_converges
     );
 
     let snapshot_path =
-        format!("/backend/v3/api/control/social/friend-requests/{alice_request_id}");
+        format!("/backend/v3/api/control/social/friend_requests/{alice_request_id}");
     let snapshot_response = send_http_request(
         server_a.base_url.as_str(),
         "GET",
@@ -1013,7 +1013,7 @@ fn test_local_minimal_process_blackbox_cross_instance_remove_and_submit_converge
             .as_str()
             .expect("successful resubmit should expose request id");
         let request_snapshot_path =
-            format!("/backend/v3/api/control/social/friend-requests/{new_request_id}");
+            format!("/backend/v3/api/control/social/friend_requests/{new_request_id}");
         let request_snapshot = send_http_request(
             server_b.base_url.as_str(),
             "GET",

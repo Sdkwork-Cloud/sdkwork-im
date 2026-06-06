@@ -13,10 +13,11 @@ fn device_sync_state_snapshot(
 
 pub(super) async fn resume_device_session(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<ResumeDeviceSessionRequest>,
 ) -> Result<Json<DeviceSessionResumeView>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
     state.bind_device_registration(&auth, device_id.as_str(), "http", true)?;
     let sync_state = device_sync_state_snapshot(&state, &auth, Some(device_id.as_str()))?;
@@ -32,9 +33,10 @@ pub(super) async fn resume_device_session(
 
 pub(super) async fn get_presence_me(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<PresenceSnapshotView>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let sync_state = device_sync_state_snapshot(&state, &auth, auth.device_id.as_deref())?;
     Ok(Json(state.device_presence_runtime.presence_snapshot(
         &auth,
@@ -45,10 +47,11 @@ pub(super) async fn get_presence_me(
 
 pub(super) async fn heartbeat_presence(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<DevicePresenceRequest>,
 ) -> Result<Json<PresenceSnapshotView>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
     state.prepare_active_device_route(&auth, device_id.as_str(), "http")?;
     let sync_state = device_sync_state_snapshot(&state, &auth, Some(device_id.as_str()))?;
@@ -63,10 +66,11 @@ pub(super) async fn heartbeat_presence(
 
 pub(super) async fn disconnect_device_session(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<DevicePresenceRequest>,
 ) -> Result<Json<PresenceSnapshotView>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
     let outcome = state.disconnect_active_device_route(&auth, device_id.as_str(), "http")?;
     let sync_state = device_sync_state_snapshot(&state, &auth, Some(device_id.as_str()))?;
@@ -91,10 +95,11 @@ pub(super) async fn disconnect_device_session(
 
 pub(super) async fn register_device(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<RegisterDeviceRequest>,
 ) -> Result<Json<projection_service::RegisteredDeviceView>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
     Ok(Json(state.prepare_active_device_route(
         &auth,
@@ -105,10 +110,11 @@ pub(super) async fn register_device(
 
 pub(super) async fn sync_realtime_subscriptions(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<SyncRealtimeSubscriptionsRequest>,
 ) -> Result<Json<im_domain_core::realtime::RealtimeSubscriptionSnapshot>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
     state.prepare_active_device_route(&auth, device_id.as_str(), "http")?;
 
@@ -128,9 +134,10 @@ pub(super) async fn sync_realtime_subscriptions(
 pub(super) async fn list_realtime_events(
     Query(query): Query<ListRealtimeEventsQuery>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<im_domain_core::realtime::RealtimeEventWindow>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let device_id = access::resolve_requested_device_id(&auth, None)?;
     state.prepare_active_device_route(&auth, device_id.as_str(), "http_poll")?;
     let limit = query.limit.unwrap_or(100);
@@ -156,10 +163,11 @@ pub(super) async fn list_realtime_events(
 
 pub(super) async fn ack_realtime_events(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<AckRealtimeEventsRequest>,
 ) -> Result<Json<im_domain_core::realtime::RealtimeAckState>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
     state.prepare_active_device_route(&auth, device_id.as_str(), "http")?;
 
@@ -175,9 +183,10 @@ pub(super) async fn ack_realtime_events(
 pub(super) async fn realtime_websocket(
     ws: WebSocketUpgrade,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<axum::response::Response, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let device_id = access::resolve_requested_device_id(&auth, None)?;
     state.prepare_active_device_route(&auth, device_id.as_str(), "websocket")?;
     let runtime = state.realtime_runtime.clone();
@@ -211,9 +220,10 @@ pub(super) async fn get_device_sync_feed(
     Path(device_id): Path<String>,
     Query(query): Query<SyncFeedQuery>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<DeviceSyncFeedResponse>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     Ok(Json(device_sync_feed_window_visible_to_local_policy(
         &state,
         &auth,

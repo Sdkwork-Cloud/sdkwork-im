@@ -1,4 +1,4 @@
 export interface CompleteAgentResponseRequest {
-  frameSeq: number;
+  frameSeq: string;
   resultMessageId?: string;
 }

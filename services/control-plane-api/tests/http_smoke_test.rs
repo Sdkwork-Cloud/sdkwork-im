@@ -1,5 +1,5 @@
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::{Request, StatusCode, header::CONTENT_TYPE};
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
@@ -57,7 +57,7 @@ async fn test_public_app_exports_live_openapi_json() {
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("body should be valid json");
 
-    assert_eq!(value["openapi"], "3.0.3");
+    assert_eq!(value["openapi"], "3.1.2");
     assert_eq!(value["info"]["title"], "Control Plane API");
     assert!(value["paths"]["/backend/v3/api/control/protocol_registry"].is_object());
 }
@@ -189,6 +189,13 @@ async fn test_shared_channel_sync_inventory_rejects_invalid_limit() {
         .expect("request should succeed");
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json; charset=utf-8")
+    );
     let body = response
         .into_body()
         .collect()
@@ -197,6 +204,10 @@ async fn test_shared_channel_sync_inventory_rejects_invalid_limit() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(value["type"], "about:blank");
+    assert_eq!(value["title"], "Bad Request");
+    assert_eq!(value["status"], 400);
+    assert_eq!(value["errorStatus"], "invalid");
     assert_eq!(value["code"], "limit_invalid");
 }
 
@@ -229,6 +240,13 @@ async fn test_control_plane_social_friend_request_rejects_oversized_request_id_o
         .expect("friend request should return response");
 
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(
+        response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json; charset=utf-8")
+    );
     let body = response
         .into_body()
         .collect()
@@ -236,6 +254,10 @@ async fn test_control_plane_social_friend_request_rejects_oversized_request_id_o
         .expect("body should collect")
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["type"], "about:blank");
+    assert_eq!(json["title"], "Payload Too Large");
+    assert_eq!(json["status"], 413);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "payload_too_large");
     assert!(
         json["message"]
@@ -277,6 +299,13 @@ async fn test_control_plane_external_member_link_rejects_oversized_display_name_
         .expect("external member link request should return response");
 
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(
+        response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json; charset=utf-8")
+    );
     let body = response
         .into_body()
         .collect()
@@ -284,6 +313,10 @@ async fn test_control_plane_external_member_link_rejects_oversized_display_name_
         .expect("body should collect")
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["type"], "about:blank");
+    assert_eq!(json["title"], "Payload Too Large");
+    assert_eq!(json["status"], 413);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "payload_too_large");
     assert!(
         json["message"]
@@ -318,6 +351,13 @@ async fn test_control_plane_targeted_pending_claim_rejects_oversized_request_key
         .expect("targeted pending claim should return response");
 
     assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    assert_eq!(
+        response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json; charset=utf-8")
+    );
     let body = response
         .into_body()
         .collect()
@@ -325,6 +365,10 @@ async fn test_control_plane_targeted_pending_claim_rejects_oversized_request_key
         .expect("body should collect")
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).expect("body should be valid json");
+    assert_eq!(json["type"], "about:blank");
+    assert_eq!(json["title"], "Payload Too Large");
+    assert_eq!(json["status"], 413);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "payload_too_large");
     assert!(
         json["message"]

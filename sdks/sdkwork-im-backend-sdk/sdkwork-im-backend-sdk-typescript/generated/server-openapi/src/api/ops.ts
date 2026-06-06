@@ -6,9 +6,9 @@ import type { ClusterRetrieveResponse, CommercialReadinessRetrieveResponse, Diag
 
 export class OpsDiagnosticsApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -20,14 +20,14 @@ export class OpsDiagnosticsApi {
 
 export class OpsProviderBindingsDriftApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
 /** Retrieve provider binding drift */
-  async list(): Promise<OpsProviderBindingsDriftRetrieveResponse> {
+  async retrieve(): Promise<OpsProviderBindingsDriftRetrieveResponse> {
     return this.client.get<OpsProviderBindingsDriftRetrieveResponse>(backendApiPath(`/ops/provider_bindings/drift`));
   }
 }
@@ -35,10 +35,10 @@ export class OpsProviderBindingsDriftApi {
 export class OpsProviderBindingsApi {
   private client: HttpClient;
   public readonly drift: OpsProviderBindingsDriftApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
-    this.drift = new OpsProviderBindingsDriftApi(client); 
+    this.drift = new OpsProviderBindingsDriftApi(client);
   }
 
 
@@ -50,9 +50,9 @@ export class OpsProviderBindingsApi {
 
 export class OpsRuntimeDirApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -64,9 +64,9 @@ export class OpsRuntimeDirApi {
 
 export class OpsCommercialReadinessApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -78,9 +78,9 @@ export class OpsCommercialReadinessApi {
 
 export class OpsReplayStatusApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -92,9 +92,9 @@ export class OpsReplayStatusApi {
 
 export class OpsLagApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -106,9 +106,9 @@ export class OpsLagApi {
 
 export class OpsClusterApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -120,9 +120,9 @@ export class OpsClusterApi {
 
 export class OpsHealthApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -142,8 +142,8 @@ export class OpsApi {
   public readonly runtimeDir: OpsRuntimeDirApi;
   public readonly providerBindings: OpsProviderBindingsApi;
   public readonly diagnostics: OpsDiagnosticsApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.health = new OpsHealthApi(client);
     this.cluster = new OpsClusterApi(client);
@@ -152,7 +152,7 @@ export class OpsApi {
     this.commercialReadiness = new OpsCommercialReadinessApi(client);
     this.runtimeDir = new OpsRuntimeDirApi(client);
     this.providerBindings = new OpsProviderBindingsApi(client);
-    this.diagnostics = new OpsDiagnosticsApi(client); 
+    this.diagnostics = new OpsDiagnosticsApi(client);
   }
 
 }

@@ -10,8 +10,8 @@ export interface StreamSession {
     orderingScope: string;
     schemaRef?: string;
     state: StreamSessionState;
-    lastFrameSeq: number;
-    lastCheckpointSeq?: number;
+    lastFrameSeq: string;
+    lastCheckpointSeq?: string;
     resultMessageId?: string;
     openedAt: string;
     closedAt?: string;

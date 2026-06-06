@@ -483,7 +483,7 @@ fn test_local_minimal_node_manifest_avoids_rand_0_8_direct_dependency() {
 #[test]
 fn test_local_minimal_node_route_preflight_owner_moves_out_of_session_entrypoints() {
     let node_source = include_str!("../src/node.rs");
-    let session_source = include_str!("../src/node/session.rs");
+    let session_source = include_str!("../src/node/device_session.rs");
     let owner_source = std::fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/node/device_registration.rs"),
     )
@@ -491,7 +491,7 @@ fn test_local_minimal_node_route_preflight_owner_moves_out_of_session_entrypoint
 
     assert!(
         !session_source.contains("fn bind_device("),
-        "services/local-minimal-node/src/node/session.rs should not keep local route preflight glue helper once device_registration owns that seam"
+        "services/local-minimal-node/src/node/device_session.rs should not keep local route preflight glue helper once device_registration owns that seam"
     );
 
     for required_symbol in [
@@ -508,7 +508,7 @@ fn test_local_minimal_node_route_preflight_owner_moves_out_of_session_entrypoint
         let required_symbol = "state.prepare_active_device_route(";
         assert!(
             session_source.contains(required_symbol),
-            "services/local-minimal-node/src/node/session.rs should consume the shared route preflight owner seam: {required_symbol}"
+            "services/local-minimal-node/src/node/device_session.rs should consume the shared route preflight owner seam: {required_symbol}"
         );
     }
 
@@ -527,7 +527,7 @@ fn test_local_minimal_node_route_preflight_owner_moves_out_of_session_entrypoint
 #[test]
 fn test_local_minimal_node_disconnect_lifecycle_owner_moves_out_of_session_entrypoints() {
     let node_source = include_str!("../src/node.rs");
-    let session_source = include_str!("../src/node/session.rs");
+    let session_source = include_str!("../src/node/device_session.rs");
     let owner_source = std::fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/node/device_registration.rs"),
     )
@@ -542,7 +542,7 @@ fn test_local_minimal_node_disconnect_lifecycle_owner_moves_out_of_session_entry
     ] {
         assert!(
             !session_source.contains(forbidden_symbol),
-            "services/local-minimal-node/src/node/session.rs should not keep raw disconnect lifecycle glue once device_registration owns that seam: {forbidden_symbol}"
+            "services/local-minimal-node/src/node/device_session.rs should not keep raw disconnect lifecycle glue once device_registration owns that seam: {forbidden_symbol}"
         );
     }
 
@@ -558,7 +558,7 @@ fn test_local_minimal_node_disconnect_lifecycle_owner_moves_out_of_session_entry
 
     assert!(
         session_source.contains("state.disconnect_active_device_route("),
-        "services/local-minimal-node/src/node/session.rs should consume the shared disconnect lifecycle owner seam"
+        "services/local-minimal-node/src/node/device_session.rs should consume the shared disconnect lifecycle owner seam"
     );
 
     for required_symbol in [
@@ -739,7 +739,7 @@ fn test_local_minimal_node_read_cursor_write_path_uses_strict_domain_membership_
 #[test]
 fn test_local_minimal_node_session_projection_paths_use_projection_service_auth_context_entrypoints()
  {
-    let session_source = include_str!("../src/node/session.rs");
+    let session_source = include_str!("../src/node/device_session.rs");
 
     for required_symbol in [
         ".device_sync_state_snapshot_from_auth_context(",
@@ -768,39 +768,22 @@ fn test_local_minimal_node_session_projection_paths_use_projection_service_auth_
 }
 
 #[test]
-fn test_local_minimal_node_notification_request_path_uses_notification_runtime_app_context_owner()
-{
+fn test_local_minimal_node_platform_does_not_keep_appbase_app_side_notification_and_automation_seams()
+ {
     let platform_source = include_str!("../src/node/platform.rs");
 
-    assert!(
-        platform_source.contains(".request_notification_from_app_context("),
-        "services/local-minimal-node/src/node/platform.rs should consume notification-service's runtime-owned AppContext notification request seam"
-    );
-
     for forbidden_symbol in [
+        ".request_notification_from_app_context(",
         "access::ensure_notification_request_access(",
         ".request_notification_with_outcome(&auth, request)",
+        ".request_automation_result_notification(",
+        "let _ = state.notification_runtime.request_notification(",
     ] {
         assert!(
             !platform_source.contains(forbidden_symbol),
-            "services/local-minimal-node/src/node/platform.rs should not keep local notification AppContext access enforcement once notification-service owns that boundary: {forbidden_symbol}"
+            "local-minimal-node platform.rs must not keep appbase-owned app-side notification/automation seam: {forbidden_symbol}"
         );
     }
-}
-
-#[test]
-fn test_local_minimal_node_automation_path_uses_notification_runtime_automation_result_owner() {
-    let platform_source = include_str!("../src/node/platform.rs");
-
-    assert!(
-        platform_source.contains(".request_automation_result_notification("),
-        "services/local-minimal-node/src/node/platform.rs should consume notification-service's runtime-owned automation result notification seam"
-    );
-
-    assert!(
-        !platform_source.contains("let _ = state.notification_runtime.request_notification("),
-        "services/local-minimal-node/src/node/platform.rs should not hand-assemble automation result notifications once notification-service owns that seam"
-    );
 }
 
 #[test]
@@ -936,6 +919,121 @@ fn test_local_minimal_node_runtime_dir_surface_moves_out_of_node_impl() {
         assert!(
             !node_source.contains(forbidden_symbol),
             "services/local-minimal-node/src/node.rs should not keep runtime_dir lifecycle symbol: {forbidden_symbol}"
+        );
+    }
+}
+
+#[test]
+fn test_local_minimal_node_does_not_keep_appbase_owned_local_api_modules() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let node_source = include_str!("../src/node.rs");
+    let build_source = include_str!("../src/node/build.rs");
+    let runtime_dir_source = include_str!("../src/node/runtime_dir.rs");
+    let access_source = include_str!("../src/node/access.rs");
+    let platform_source = include_str!("../src/node/platform.rs");
+    let principal_profile_source = include_str!("../src/node/principal_profile.rs");
+    let rtc_source = include_str!("../src/node/rtc.rs");
+
+    for removed_module in ["iam.rs", "iot.rs", "portal.rs", "twin.rs"] {
+        let module_path = manifest_dir.join("src").join("node").join(removed_module);
+        assert!(
+            !module_path.exists(),
+            "local-minimal-node must not keep appbase-owned local API module {}",
+            module_path.display()
+        );
+    }
+
+    for forbidden_symbol in [
+        "mod iam;",
+        "mod iot;",
+        "mod portal;",
+        "mod twin;",
+        "DeviceTwinStore",
+        "device_twin_store",
+        "MediaRuntime",
+        "media_runtime",
+        "fn iot_access_provider_health(",
+        "fn iot_protocol_provider_health(",
+        "fn principal_profile_provider_health(",
+        "fn get_media_provider_health(",
+        "impl From<media_service::MediaError> for ApiError",
+    ] {
+        assert!(
+            !node_source.contains(forbidden_symbol),
+            "local-minimal-node node.rs must not keep appbase-owned local API residue: {forbidden_symbol}"
+        );
+    }
+
+    for forbidden_symbol in [
+        "FileDeviceTwinStore",
+        "MemoryDeviceTwinStore",
+        "device-twin-state.json",
+        "device_twin_store",
+        "MediaRuntime::new()",
+        "media_runtime",
+    ] {
+        assert!(
+            !build_source.contains(forbidden_symbol),
+            "local-minimal-node build.rs must not assemble appbase-owned local API state: {forbidden_symbol}"
+        );
+    }
+
+    for forbidden_symbol in ["device-twin-state.json", "validate_device_twin_store_file"] {
+        assert!(
+            !runtime_dir_source.contains(forbidden_symbol),
+            "local-minimal-node runtime_dir.rs must not manage appbase-owned local API state: {forbidden_symbol}"
+        );
+    }
+
+    for forbidden_symbol in [
+        "fn ensure_portal_access(",
+        "fn ensure_iot_protocol_uplink_access(",
+        "fn ensure_iot_protocol_downlink_access(",
+        "fn ensure_iot_protocol_uplink_actor_preflight(",
+        "fn ensure_iot_protocol_uplink_decoded_device_matches_preflight(",
+        "fn ensure_device_twin_read_access(",
+        "fn ensure_device_twin_desired_write_access(",
+        "fn ensure_device_twin_reported_write_access(",
+    ] {
+        assert!(
+            !access_source.contains(forbidden_symbol),
+            "local-minimal-node access.rs must not keep appbase-owned local API guards: {forbidden_symbol}"
+        );
+    }
+
+    for forbidden_symbol in [
+        "async fn request_notification(",
+        "async fn list_notifications(",
+        "async fn get_notification(",
+        "async fn request_automation_execution(",
+        "async fn get_automation_execution(",
+        "async fn start_agent_response(",
+        "async fn append_agent_response_delta(",
+        "async fn complete_agent_response(",
+        "async fn request_agent_tool_call(",
+        "async fn complete_agent_tool_call(",
+        "fn record_automation_audit_anchor(",
+        "fn automation_audit_aggregate_id(",
+        "fn automation_audit_record_id(",
+    ] {
+        assert!(
+            !platform_source.contains(forbidden_symbol),
+            "local-minimal-node platform.rs must not keep appbase-owned app-side handlers: {forbidden_symbol}"
+        );
+    }
+
+    assert!(
+        !principal_profile_source.contains("async fn get_principal_profile_provider_health("),
+        "local-minimal-node principal_profile.rs must not expose appbase-owned provider-health route handlers"
+    );
+
+    for forbidden_symbol in [
+        "async fn map_rtc_provider_callback(",
+        "async fn get_rtc_provider_health(",
+    ] {
+        assert!(
+            !rtc_source.contains(forbidden_symbol),
+            "local-minimal-node rtc.rs must not keep appbase-owned provider handlers: {forbidden_symbol}"
         );
     }
 }

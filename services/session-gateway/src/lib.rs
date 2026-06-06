@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use axum::extract::{Query, State};
+use axum::extract::{DefaultBodyLimit, Extension, Query, State};
 use axum::http::HeaderMap;
 use axum::http::Request;
+use axum::http::header::CONTENT_TYPE;
 use axum::middleware::{self, Next};
 use axum::response::Html;
 use axum::response::IntoResponse;
@@ -17,9 +18,7 @@ use craw_chat_openapi::{
     extract_routes_from_function, render_docs_html,
 };
 use im_adapter_iot_access_local::LocalDeviceAccessProvider;
-use im_app_context::{
-    AppContext, AppContextError, resolve_app_context,
-};
+use im_app_context::{AppContext, AppContextError, resolve_app_context};
 use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEventWindow, RealtimeSubscriptionSnapshot,
 };
@@ -77,6 +76,16 @@ const SESSION_GATEWAY_MAX_DEVICE_ID_BYTES: usize = 256;
 const REALTIME_MAX_WEBSOCKET_CONNECTIONS_ENV: &str = "CRAW_CHAT_REALTIME_MAX_WEBSOCKET_CONNECTIONS";
 const REALTIME_MAX_WEBSOCKET_CONNECTIONS_DEFAULT: usize = 10_000;
 const REALTIME_MAX_WEBSOCKET_CONNECTIONS_MAX: usize = 100_000;
+const SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS_ENV: &str =
+    "CRAW_CHAT_SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS";
+const SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 2_000;
+const SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 50_000;
+const SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES_ENV: &str =
+    "CRAW_CHAT_SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES";
+const SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
+const SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
+const SESSION_GATEWAY_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
+    "CRAW_CHAT_SESSION_GATEWAY_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -92,6 +101,12 @@ struct AppState {
     device_sync_state: DeviceSyncState,
     device_registration: DeviceRouteRegistration,
     websocket_connection_semaphore: Arc<Semaphore>,
+}
+
+#[derive(Clone)]
+struct PublicAppGuardrails {
+    request_gate: Arc<Semaphore>,
+    require_dual_token_headers: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -185,15 +200,15 @@ impl From<RealtimeRuntimeError> for ApiError {
             "conversation_archived" | "conversation_blocked" | "realtime_scope_access_denied" => {
                 axum::http::StatusCode::FORBIDDEN
             }
-            "checkpoint_store_unavailable" | "subscription_store_unavailable" => {
-                axum::http::StatusCode::SERVICE_UNAVAILABLE
-            }
-            "checkpoint_store_conflict" | "subscription_store_conflict" => {
-                axum::http::StatusCode::CONFLICT
-            }
-            "checkpoint_store_unsupported" | "subscription_store_unsupported" => {
-                axum::http::StatusCode::NOT_IMPLEMENTED
-            }
+            "checkpoint_store_unavailable"
+            | "subscription_store_unavailable"
+            | "event_window_store_unavailable" => axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            "checkpoint_store_conflict"
+            | "subscription_store_conflict"
+            | "event_window_store_conflict" => axum::http::StatusCode::CONFLICT,
+            "checkpoint_store_unsupported"
+            | "subscription_store_unsupported"
+            | "event_window_store_unsupported" => axum::http::StatusCode::NOT_IMPLEMENTED,
             _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
         };
         Self {
@@ -244,11 +259,20 @@ impl From<ContractError> for ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
+        let status = self.status;
+        let detail = self.message;
+        let message = detail.clone();
+        let title = status.canonical_reason().unwrap_or("Unknown Error");
         (
-            self.status,
+            status,
+            [(CONTENT_TYPE, "application/problem+json; charset=utf-8")],
             Json(serde_json::json!({
+                "type": "about:blank",
+                "title": title,
+                "status": status.as_u16(),
+                "detail": detail,
                 "code": self.code,
-                "message": self.message
+                "message": message
             })),
         )
             .into_response()
@@ -304,7 +328,16 @@ pub fn build_app_with_cluster_runtime_and_presence(
 }
 
 pub fn build_public_app() -> Router {
-    build_app().layer(middleware::from_fn(require_app_context))
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+        require_dual_token_headers: resolve_require_dual_token_headers(),
+    };
+    build_app()
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            require_app_context,
+        ))
 }
 
 fn build_default_device_access_provider() -> Arc<dyn DeviceAccessProvider> {
@@ -345,13 +378,41 @@ fn build_app_with_state(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(
+    State(guardrails): State<PublicAppGuardrails>,
+    mut request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
     match request.uri().path() {
         "/healthz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_app_context(request.headers()) {
-            Ok(_) => next.run(request).await,
-            Err(error) => ApiError::from(error).into_response(),
-        },
+        _ => {
+            let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+                Ok(permit) => permit,
+                Err(_) => {
+                    return ApiError {
+                        status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                        code: "http_overloaded",
+                        message:
+                            "server is at maximum in-flight request capacity, please retry later"
+                                .to_owned(),
+                    }
+                    .into_response();
+                }
+            };
+            if guardrails.require_dual_token_headers
+                && let Err(error) = require_dual_token_headers(request.headers())
+            {
+                return error.into_response();
+            }
+            let auth = match resolve_app_context(request.headers()) {
+                Ok(auth) => auth,
+                Err(error) => return ApiError::from(error).into_response(),
+            };
+            request.extensions_mut().insert(auth);
+            let response = next.run(request).await;
+            drop(permit);
+            response
+        }
     }
 }
 
@@ -373,11 +434,12 @@ async fn docs() -> Html<String> {
 }
 
 async fn sync_realtime_subscriptions(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<SyncRealtimeSubscriptionsRequest>,
 ) -> Result<Json<RealtimeSubscriptionSnapshot>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
     state
         .realtime_runtime
@@ -403,10 +465,11 @@ async fn sync_realtime_subscriptions(
 
 async fn list_realtime_events(
     Query(query): Query<ListRealtimeEventsQuery>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<RealtimeEventWindow>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let device_id = resolve_requested_device_id(&auth, None)?;
     let limit = query.limit.unwrap_or(100);
     realtime::validate_realtime_event_limit(limit)?;
@@ -424,11 +487,12 @@ async fn list_realtime_events(
 }
 
 async fn ack_realtime_events(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<AckRealtimeEventsRequest>,
 ) -> Result<Json<RealtimeAckState>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
     let previous_route = state.current_active_device_route(&auth, device_id.as_str());
     state.prepare_active_device_route(&auth, device_id.as_str(), "http", false)?;
@@ -656,6 +720,16 @@ fn resolve_requested_device_id(
     }
 }
 
+pub(crate) fn resolve_request_app_context(
+    auth: Option<Extension<AppContext>>,
+    headers: &HeaderMap,
+) -> Result<AppContext, ApiError> {
+    match auth {
+        Some(Extension(auth)) => Ok(auth),
+        None => resolve_app_context(headers).map_err(ApiError::from),
+    }
+}
+
 fn validate_device_id(device_id: &str) -> Result<(), ApiError> {
     let actual_bytes = device_id.len();
     if actual_bytes > SESSION_GATEWAY_MAX_DEVICE_ID_BYTES {
@@ -666,6 +740,47 @@ fn validate_device_id(device_id: &str) -> Result<(), ApiError> {
         ));
     }
     Ok(())
+}
+
+fn require_dual_token_headers(headers: &HeaderMap) -> Result<(), ApiError> {
+    if !has_bearer_auth_token(headers) {
+        return Err(ApiError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "auth_token_missing",
+            message: "authorization header must provide a bearer token".to_owned(),
+        });
+    }
+    if !has_access_token_header(headers) {
+        return Err(ApiError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "access_token_missing",
+            message: "access-token header is required".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn has_bearer_auth_token(headers: &HeaderMap) -> bool {
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .and_then(|value| {
+            let (scheme, token) = value.split_once(' ')?;
+            if scheme.eq_ignore_ascii_case("bearer") && !token.trim().is_empty() {
+                return Some(());
+            }
+            None
+        })
+        .is_some()
+}
+
+fn has_access_token_header(headers: &HeaderMap) -> bool {
+    headers
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty())
 }
 
 fn build_session_gateway_openapi_document() -> Result<serde_json::Value, String> {
@@ -750,7 +865,69 @@ fn resolve_max_websocket_connections() -> usize {
         .min(REALTIME_MAX_WEBSOCKET_CONNECTIONS_MAX)
 }
 
+fn resolve_max_in_flight_requests() -> usize {
+    std::env::var(SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS_DEFAULT)
+        .min(SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS_MAX)
+}
+
+fn resolve_max_http_request_body_bytes() -> usize {
+    std::env::var(SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES_DEFAULT)
+        .min(SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES_MAX)
+}
+
+fn resolve_require_dual_token_headers() -> bool {
+    std::env::var(SESSION_GATEWAY_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
+        .ok()
+        .map(|value| parse_truthy_env_flag(Some(value)))
+        .unwrap_or(true)
+}
+
+fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+    raw.as_deref().map(str::trim).is_some_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    // websocket upgrade seam tests live in `src/websocket_upgrade.rs`
+    use axum::http::{HeaderMap, HeaderValue};
+
+    use super::{has_access_token_header, has_bearer_auth_token, parse_truthy_env_flag};
+
+    #[test]
+    fn parse_truthy_env_flag_accepts_common_truthy_values() {
+        for value in ["1", "true", "TRUE", " yes ", "On"] {
+            assert!(parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        for value in ["0", "false", "off", "no", "", "  "] {
+            assert!(!parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        assert!(!parse_truthy_env_flag(None));
+    }
+
+    #[test]
+    fn dual_token_header_helpers_validate_auth_and_access_headers() {
+        let mut headers = HeaderMap::new();
+        assert!(!has_bearer_auth_token(&headers));
+        assert!(!has_access_token_header(&headers));
+
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer auth_token"),
+        );
+        headers.insert("access-token", HeaderValue::from_static("access_token"));
+        assert!(has_bearer_auth_token(&headers));
+        assert!(has_access_token_header(&headers));
+    }
 }

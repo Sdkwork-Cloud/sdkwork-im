@@ -342,6 +342,7 @@ fn test_conversation_message_log_applies_edit_and_recall_mutations() {
             summary: Some("edited".into()),
             parts: vec![ContentPart::text("edited body")],
             render_hints: BTreeMap::new(),
+            reply_to: None,
         },
         editor: demo_sender(),
         edited_at: "2026-04-07T12:08:00.000Z".into(),
@@ -468,6 +469,7 @@ fn test_conversation_message_log_derives_summary_for_missing_rich_message_summar
             .to_string(),
         })],
         render_hints: BTreeMap::new(),
+        reply_to: None,
     };
     log.store_posted(message.clone());
 
@@ -495,6 +497,7 @@ fn test_conversation_message_log_derives_summary_for_missing_rich_message_summar
                 .to_string(),
             })],
             render_hints: BTreeMap::new(),
+            reply_to: None,
         },
         editor: demo_sender(),
         edited_at: "2026-04-07T12:08:30.000Z".into(),
@@ -576,6 +579,7 @@ fn demo_message(message_seq: u64) -> Message {
             summary: Some("hello".into()),
             parts: vec![ContentPart::text("hello world")],
             render_hints: BTreeMap::new(),
+            reply_to: None,
         },
         attributes: BTreeMap::new(),
         metadata: BTreeMap::new(),

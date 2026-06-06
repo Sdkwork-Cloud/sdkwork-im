@@ -1,15 +1,11 @@
 from .http_client import HttpClient, SdkConfig
-from .api.portal import PortalApi
-from .api.device import DeviceApi
-from .api.presence import PresenceApi
-from .api.realtime import RealtimeApi
-from .api.social import SocialApi
-from .api.chat import ChatApi
-from .api.media import MediaApi
-from .api.stream import StreamApi
-from .api.rtc import RtcApi
-from .api.notification import NotificationApi
 from .api.automation import AutomationApi
+from .api.device import DeviceApi
+from .api.notification import NotificationApi
+from .api.portal import PortalApi
+from .api.provider import ProviderApi
+from .api.iot import IotApi
+from .api.rtc import RtcApi
 
 
 class SdkworkAppClient:
@@ -17,30 +13,22 @@ class SdkworkAppClient:
 
     def __init__(self, config: SdkConfig):
         self._client = HttpClient(config)
-        self.portal: PortalApi
-        self.device: DeviceApi
-        self.presence: PresenceApi
-        self.realtime: RealtimeApi
-        self.social: SocialApi
-        self.chat: ChatApi
-        self.media: MediaApi
-        self.stream: StreamApi
-        self.rtc: RtcApi
-        self.notification: NotificationApi
         self.automation: AutomationApi
+        self.device: DeviceApi
+        self.notification: NotificationApi
+        self.portal: PortalApi
+        self.provider: ProviderApi
+        self.iot: IotApi
+        self.rtc: RtcApi
 
         # Initialize API modules
-        self.portal = PortalApi(self._client)
-        self.device = DeviceApi(self._client)
-        self.presence = PresenceApi(self._client)
-        self.realtime = RealtimeApi(self._client)
-        self.social = SocialApi(self._client)
-        self.chat = ChatApi(self._client)
-        self.media = MediaApi(self._client)
-        self.stream = StreamApi(self._client)
-        self.rtc = RtcApi(self._client)
-        self.notification = NotificationApi(self._client)
         self.automation = AutomationApi(self._client)
+        self.device = DeviceApi(self._client)
+        self.notification = NotificationApi(self._client)
+        self.portal = PortalApi(self._client)
+        self.provider = ProviderApi(self._client)
+        self.iot = IotApi(self._client)
+        self.rtc = RtcApi(self._client)
 
 
     def set_auth_token(self, token: str) -> 'SdkworkAppClient':

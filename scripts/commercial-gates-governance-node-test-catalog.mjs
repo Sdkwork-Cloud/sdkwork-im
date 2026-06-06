@@ -7,6 +7,12 @@ export const COMMERCIAL_GATES_GOVERNANCE_NODE_TEST_FILES = [
   'scripts/im-commercial-gates-watch-catalog.test.mjs',
   'scripts/im-commercial-gates-step-contract-catalog.test.mjs',
   'scripts/im-commercial-gates-workflow.test.mjs',
+  'scripts/dev/sdkwork-chat-pc-dev-command.test.mjs',
+  'scripts/dev/sdkwork-chat-pc-i18n.test.mjs',
+  'scripts/dev/sdkwork-chat-pc-sidebar-modules.test.mjs',
+  'scripts/dev/sdkwork-chat-pc-im-api-standard.test.mjs',
+  'scripts/dev/sdkwork-chat-pc-sdk-integration.test.mjs',
+  'apps/sdkwork-chat-pc/scripts/auth-appbase-ui-contract.test.mjs',
   'scripts/release/commercial-readiness.test.mjs',
   'apps/craw-chat-portal/tests/product-entrypoint-scripts.test.mjs',
 ];

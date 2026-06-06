@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use axum::extract::{Query, State};
+use axum::extract::{DefaultBodyLimit, Extension, Query, State};
 use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
@@ -14,12 +14,11 @@ use craw_chat_api_registry::HttpMethod;
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_app_context::{
-    AppContext, AppContextError, resolve_app_context,
-};
+use im_app_context::{AppContext, AppContextError, resolve_app_context};
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tokio::sync::Semaphore;
 
 const AUDIT_RECORD_ID_MAX_BYTES: usize = 256;
 const AUDIT_AGGREGATE_TYPE_MAX_BYTES: usize = 128;
@@ -28,10 +27,23 @@ const AUDIT_ACTION_MAX_BYTES: usize = 128;
 const AUDIT_PAYLOAD_MAX_BYTES: usize = 128 * 1024;
 const AUDIT_RECORD_LIST_MAX_LIMIT: usize = 1000;
 const AUDIT_RECORD_DELIVERY_PROOF_VERSION: &str = "audit.record.delivery-proof.v1";
+const AUDIT_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "CRAW_CHAT_AUDIT_MAX_IN_FLIGHT_REQUESTS";
+const AUDIT_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
+const AUDIT_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
+const AUDIT_MAX_REQUEST_BODY_BYTES_ENV: &str = "CRAW_CHAT_AUDIT_MAX_REQUEST_BODY_BYTES";
+const AUDIT_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
+const AUDIT_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
+const AUDIT_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str = "CRAW_CHAT_AUDIT_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
 struct AppState {
     runtime: Arc<AuditRuntime>,
+}
+
+#[derive(Clone)]
+struct PublicAppGuardrails {
+    request_gate: Arc<Semaphore>,
+    require_dual_token_headers: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -587,7 +599,16 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_app_context))
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+        require_dual_token_headers: resolve_require_dual_token_headers(),
+    };
+    build_default_app()
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            require_app_context,
+        ))
 }
 
 pub fn build_app(runtime: Arc<AuditRuntime>) -> Router {
@@ -603,13 +624,41 @@ pub fn build_app(runtime: Arc<AuditRuntime>) -> Router {
         .with_state(AppState { runtime })
 }
 
-async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(
+    State(guardrails): State<PublicAppGuardrails>,
+    mut request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_app_context(request.headers()) {
-            Ok(_) => next.run(request).await,
-            Err(error) => AuditError::from(error).into_response(),
-        },
+        _ => {
+            let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+                Ok(permit) => permit,
+                Err(_) => {
+                    return AuditError {
+                        status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                        code: "http_overloaded",
+                        message:
+                            "server is at maximum in-flight request capacity, please retry later"
+                                .to_owned(),
+                    }
+                    .into_response();
+                }
+            };
+            if guardrails.require_dual_token_headers
+                && let Err(error) = require_dual_token_headers(request.headers())
+            {
+                return error.into_response();
+            }
+            let auth = match resolve_app_context(request.headers()) {
+                Ok(auth) => auth,
+                Err(error) => return AuditError::from(error).into_response(),
+            };
+            request.extensions_mut().insert(auth);
+            let response = next.run(request).await;
+            drop(permit);
+            response
+        }
     }
 }
 
@@ -700,11 +749,12 @@ fn audit_service_method_display(method: HttpMethod) -> &'static str {
 }
 
 async fn record_anchor(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<RecordAuditAnchor>,
 ) -> Result<Json<AuditRecordMutationResponse>, AuditError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_audit_write_access(&auth)?;
     validate_record_audit_anchor_request(&request)?;
     let request_key = audit_record_request_key(&auth, request.record_id.as_str());
@@ -716,28 +766,31 @@ async fn record_anchor(
 
 async fn list_records(
     Query(query): Query<ListAuditRecordsQuery>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AuditRecordListResponse>, AuditError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_audit_read_access(&auth)?;
     Ok(Json(state.runtime.list_records_window(&auth, query)?))
 }
 
 async fn export_bundle(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AuditExportBundle>, AuditError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_audit_read_access(&auth)?;
     Ok(Json(state.runtime.export_bundle(&auth)))
 }
 
 async fn verify_chain(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<AuditChainVerification>, AuditError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_audit_read_access(&auth)?;
     Ok(Json(state.runtime.verify_chain(&auth)))
 }
@@ -758,6 +811,91 @@ fn ensure_audit_write_access(auth: &AppContext) -> Result<(), AuditError> {
     Err(AuditError::forbidden("audit.write"))
 }
 
+fn resolve_request_app_context(
+    auth: Option<Extension<AppContext>>,
+    headers: &HeaderMap,
+) -> Result<AppContext, AuditError> {
+    match auth {
+        Some(Extension(auth)) => Ok(auth),
+        None => resolve_app_context(headers).map_err(AuditError::from),
+    }
+}
+
+fn require_dual_token_headers(headers: &HeaderMap) -> Result<(), AuditError> {
+    if !has_bearer_auth_token(headers) {
+        return Err(AuditError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "auth_token_missing",
+            message: "authorization header must provide a bearer token".to_owned(),
+        });
+    }
+    if !has_access_token_header(headers) {
+        return Err(AuditError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "access_token_missing",
+            message: "access-token header is required".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn has_bearer_auth_token(headers: &HeaderMap) -> bool {
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .and_then(|value| {
+            let (scheme, token) = value.split_once(' ')?;
+            if scheme.eq_ignore_ascii_case("bearer") && !token.trim().is_empty() {
+                return Some(());
+            }
+            None
+        })
+        .is_some()
+}
+
+fn has_access_token_header(headers: &HeaderMap) -> bool {
+    headers
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty())
+}
+
+fn resolve_max_in_flight_requests() -> usize {
+    std::env::var(AUDIT_MAX_IN_FLIGHT_REQUESTS_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(AUDIT_MAX_IN_FLIGHT_REQUESTS_DEFAULT)
+        .min(AUDIT_MAX_IN_FLIGHT_REQUESTS_MAX)
+}
+
+fn resolve_max_http_request_body_bytes() -> usize {
+    std::env::var(AUDIT_MAX_REQUEST_BODY_BYTES_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(AUDIT_MAX_REQUEST_BODY_BYTES_DEFAULT)
+        .min(AUDIT_MAX_REQUEST_BODY_BYTES_MAX)
+}
+
+fn resolve_require_dual_token_headers() -> bool {
+    std::env::var(AUDIT_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
+        .ok()
+        .map(|value| parse_truthy_env_flag(Some(value)))
+        .unwrap_or(true)
+}
+
+fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+    raw.as_deref().map(str::trim).is_some_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
+}
+
 pub fn audit_record_request_key(auth: &AppContext, record_id: &str) -> String {
     format!("{}:audit-record:{}", auth.tenant_id, record_id)
 }
@@ -775,4 +913,37 @@ fn audit_record_matches_request(
         && existing.actor_id == auth.actor_id
         && existing.actor_kind == auth.actor_kind
         && existing.payload == request.payload
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::http::{HeaderMap, HeaderValue};
+
+    use super::*;
+
+    #[test]
+    fn parse_truthy_env_flag_accepts_common_truthy_values() {
+        for value in ["1", "true", "TRUE", " yes ", "On"] {
+            assert!(parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        for value in ["0", "false", "off", "no", "", "  "] {
+            assert!(!parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        assert!(!parse_truthy_env_flag(None));
+    }
+
+    #[test]
+    fn dual_token_header_helpers_validate_auth_and_access_headers() {
+        let mut headers = HeaderMap::new();
+        assert!(!has_bearer_auth_token(&headers));
+        assert!(!has_access_token_header(&headers));
+
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer auth_token"),
+        );
+        headers.insert("access-token", HeaderValue::from_static("access_token"));
+        assert!(has_bearer_auth_token(&headers));
+        assert!(has_access_token_header(&headers));
+    }
 }

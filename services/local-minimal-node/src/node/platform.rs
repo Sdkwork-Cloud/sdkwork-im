@@ -1,134 +1,11 @@
 use super::*;
 
-pub(super) async fn request_notification(
-    headers: HeaderMap,
-    State(state): State<AppState>,
-    Json(request): Json<RequestNotification>,
-) -> Result<Json<NotificationRequestResponse>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
-    let result = state
-        .notification_runtime
-        .request_notification_from_app_context(&auth, request)
-        .map_err(IntoResponse::into_response)?;
-    let is_new = result.is_new;
-    let task = result.task.clone();
-
-    if is_new {
-        let _ = state.audit_runtime.record_anchor(
-            &auth,
-            RecordAuditAnchor {
-                record_id: stable_local_audit_record_id("audit_", task.notification_id.as_str()),
-                aggregate_type: "notification".into(),
-                aggregate_id: stable_local_audit_aggregate_id(
-                    "notification",
-                    task.notification_id.as_str(),
-                ),
-                action: "notification.requested".into(),
-                payload: Some(
-                    serde_json::json!({
-                        "notificationId": task.notification_id,
-                        "sourceEventType": task.source_event_type,
-                        "recipientId": task.recipient_id,
-                    })
-                    .to_string(),
-                ),
-            },
-        );
-    }
-
-    Ok(Json(result.into()))
-}
-
-pub(super) async fn list_notifications(
-    headers: HeaderMap,
-    State(state): State<AppState>,
-) -> Result<Json<serde_json::Value>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
-    let items = state
-        .notification_runtime
-        .list_notifications(&auth)
-        .map_err(IntoResponse::into_response)?;
-    Ok(Json(serde_json::json!({
-        "items": items
-    })))
-}
-
-pub(super) async fn get_notification(
-    Path(notification_id): Path<String>,
-    headers: HeaderMap,
-    State(state): State<AppState>,
-) -> Result<Json<NotificationTask>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
-    let task = state
-        .notification_runtime
-        .get_notification(&auth, notification_id.as_str())
-        .map_err(IntoResponse::into_response)?;
-    Ok(Json(task))
-}
-
-pub(super) async fn request_automation_execution(
-    headers: HeaderMap,
-    State(state): State<AppState>,
-    Json(request): Json<RequestAutomationExecution>,
-) -> Result<Json<automation_service::AutomationExecutionRequestResponse>, axum::response::Response>
-{
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
-    let result = state
-        .automation_runtime
-        .request_execution_with_outcome(&auth, request)
-        .map_err(IntoResponse::into_response)?;
-    let is_new = result.is_new;
-    let execution = result.execution.clone();
-
-    if is_new {
-        let _ = state.audit_runtime.record_anchor(
-            &auth,
-            RecordAuditAnchor {
-                record_id: automation_audit_record_id(
-                    auth.actor_kind.as_str(),
-                    "automation.execution_requested",
-                    execution.execution_id.as_str(),
-                ),
-                aggregate_type: "automation_execution".into(),
-                aggregate_id: execution.execution_id.clone(),
-                action: "automation.execution_requested".into(),
-                payload: execution.input_payload.clone(),
-            },
-        );
-
-        let _ = state
-            .notification_runtime
-            .request_automation_result_notification(
-                &auth,
-                notification_service::RequestAutomationResultNotification {
-                    execution_id: execution.execution_id.clone(),
-                    target_ref: execution.target_ref.clone(),
-                    output_payload: execution.output_payload.clone(),
-                },
-            );
-    }
-
-    Ok(Json(result.into()))
-}
-
-pub(super) async fn get_automation_execution(
-    Path(execution_id): Path<String>,
-    headers: HeaderMap,
-    State(state): State<AppState>,
-) -> Result<Json<AutomationExecution>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
-    let execution = state
-        .automation_runtime
-        .get_execution(&auth, execution_id.as_str())
-        .map_err(IntoResponse::into_response)?;
-    Ok(Json(execution))
-}
-
 pub(super) async fn get_automation_governance(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<automation_service::AutomationGovernanceSnapshot>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     let snapshot = state
         .automation_runtime
         .governance_snapshot(&auth)
@@ -136,153 +13,13 @@ pub(super) async fn get_automation_governance(
     Ok(Json(snapshot))
 }
 
-pub(super) async fn start_agent_response(
-    headers: HeaderMap,
-    State(state): State<AppState>,
-    Json(request): Json<automation_service::StartAgentResponseRequest>,
-) -> Result<Json<im_domain_core::stream::StreamSession>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
-    let session = state
-        .automation_runtime
-        .start_agent_response(&auth, request)
-        .map_err(IntoResponse::into_response)?;
-    record_automation_audit_anchor(
-        &state,
-        &auth,
-        session.stream_id.as_str(),
-        "automation.agent_response_started",
-        &session,
-    );
-    Ok(Json(session))
-}
-
-pub(super) async fn append_agent_response_delta(
-    Path(stream_id): Path<String>,
-    headers: HeaderMap,
-    State(state): State<AppState>,
-    Json(request): Json<automation_service::AppendAgentResponseDeltaRequest>,
-) -> Result<Json<im_domain_core::stream::StreamFrame>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
-    let frame = state
-        .automation_runtime
-        .append_agent_response_delta(&auth, stream_id.as_str(), request)
-        .map_err(IntoResponse::into_response)?;
-    record_automation_audit_anchor(
-        &state,
-        &auth,
-        frame.stream_id.as_str(),
-        "automation.agent_response_delta",
-        &frame,
-    );
-    Ok(Json(frame))
-}
-
-pub(super) async fn complete_agent_response(
-    Path(stream_id): Path<String>,
-    headers: HeaderMap,
-    State(state): State<AppState>,
-    Json(request): Json<automation_service::CompleteAgentResponseRequest>,
-) -> Result<Json<im_domain_core::stream::StreamSession>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
-    let session = state
-        .automation_runtime
-        .complete_agent_response(&auth, stream_id.as_str(), request)
-        .map_err(IntoResponse::into_response)?;
-    record_automation_audit_anchor(
-        &state,
-        &auth,
-        session.stream_id.as_str(),
-        "automation.agent_response_completed",
-        &session,
-    );
-    Ok(Json(session))
-}
-
-pub(super) async fn request_agent_tool_call(
-    headers: HeaderMap,
-    State(state): State<AppState>,
-    Json(request): Json<automation_service::RequestAgentToolCallRequest>,
-) -> Result<Json<automation_service::AgentToolCall>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
-    let tool_call_requires_override =
-        automation_service::automation_tool_requires_operator_override(request.tool_name.as_str());
-    let operator_override_active =
-        auth.has_permission(automation_service::automation_operator_override_permission());
-    let tool_call = match state
-        .automation_runtime
-        .request_agent_tool_call(&auth, request.clone())
-    {
-        Ok(tool_call) => tool_call,
-        Err(error) => {
-            if error.code() == "automation_guardrail_denied" {
-                record_automation_audit_anchor(
-                    &state,
-                    &auth,
-                    request.execution_id.as_str(),
-                    "automation.guardrail_denied",
-                    &serde_json::json!({
-                        "executionId": request.execution_id,
-                        "toolCallId": request.tool_call_id,
-                        "toolName": request.tool_name,
-                        "operatorOverridePermission": automation_service::automation_operator_override_permission(),
-                    }),
-                );
-            }
-            return Err(error.into_response());
-        }
-    };
-    if tool_call_requires_override && operator_override_active {
-        record_automation_audit_anchor(
-            &state,
-            &auth,
-            tool_call.execution_id.as_str(),
-            "automation.operator_override_applied",
-            &serde_json::json!({
-                "executionId": tool_call.execution_id,
-                "toolCallId": tool_call.tool_call_id,
-                "toolName": tool_call.tool_name,
-                "operatorOverridePermission": automation_service::automation_operator_override_permission(),
-                "operatorOverrideActive": true,
-            }),
-        );
-    }
-    record_automation_audit_anchor(
-        &state,
-        &auth,
-        tool_call.tool_call_id.as_str(),
-        "automation.agent_tool_call_requested",
-        &tool_call,
-    );
-    Ok(Json(tool_call))
-}
-
-pub(super) async fn complete_agent_tool_call(
-    Path((execution_id, tool_call_id)): Path<(String, String)>,
-    headers: HeaderMap,
-    State(state): State<AppState>,
-    Json(request): Json<automation_service::CompleteAgentToolCallRequest>,
-) -> Result<Json<automation_service::AgentToolCall>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
-    let tool_call = state
-        .automation_runtime
-        .complete_agent_tool_call(&auth, execution_id.as_str(), tool_call_id.as_str(), request)
-        .map_err(IntoResponse::into_response)?;
-    record_automation_audit_anchor(
-        &state,
-        &auth,
-        tool_call.tool_call_id.as_str(),
-        "automation.agent_tool_call_completed",
-        &tool_call,
-    );
-    Ok(Json(tool_call))
-}
-
 pub(super) async fn record_audit_anchor(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<RecordAuditAnchor>,
 ) -> Result<Json<AuditRecordMutationResponse>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_audit_write_access(&auth).map_err(IntoResponse::into_response)?;
     audit_service::validate_record_audit_anchor_request(&request)
         .map_err(IntoResponse::into_response)?;
@@ -297,50 +34,12 @@ pub(super) async fn record_audit_anchor(
     )))
 }
 
-fn record_automation_audit_anchor<T: serde::Serialize>(
-    state: &AppState,
-    auth: &im_app_context::AppContext,
-    aggregate_id: &str,
-    action: &str,
-    payload: &T,
-) {
-    let _ = state.audit_runtime.record_anchor(
-        auth,
-        RecordAuditAnchor {
-            record_id: automation_audit_record_id(auth.actor_kind.as_str(), action, aggregate_id),
-            aggregate_type: "automation_execution".into(),
-            aggregate_id: automation_audit_aggregate_id(action, aggregate_id),
-            action: action.into(),
-            payload: serde_json::to_string(payload).ok(),
-        },
-    );
-}
-
-fn automation_audit_aggregate_id(action: &str, aggregate_id: &str) -> String {
-    let namespace = match action {
-        "automation.agent_response_started"
-        | "automation.agent_response_delta"
-        | "automation.agent_response_completed" => "automation-stream",
-        "automation.agent_tool_call_requested" | "automation.agent_tool_call_completed" => {
-            "automation-tool-call"
-        }
-        _ => "automation-execution",
-    };
-    stable_local_audit_aggregate_id(namespace, aggregate_id)
-}
-
-fn automation_audit_record_id(actor_kind: &str, action: &str, aggregate_id: &str) -> String {
-    stable_local_audit_record_id(
-        format!("audit_{action}_{actor_kind}_").as_str(),
-        aggregate_id,
-    )
-}
-
 pub(super) async fn list_audit_records(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_audit_read_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(serde_json::json!({
         "items": state.audit_runtime.list_records(&auth)
@@ -349,18 +48,20 @@ pub(super) async fn list_audit_records(
 
 pub(super) async fn export_audit_bundle(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<AuditExportBundle>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_audit_read_access(&auth).map_err(IntoResponse::into_response)?;
     Ok(Json(state.audit_runtime.export_bundle(&auth)))
 }
 
 pub(super) async fn get_ops_health(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<OpsHealthResponse>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_ops_read_access(&auth).map_err(IntoResponse::into_response)?;
     refresh_node_operational_view(&state);
     Ok(Json(state.ops_runtime.health_view()))
@@ -368,9 +69,10 @@ pub(super) async fn get_ops_health(
 
 pub(super) async fn get_ops_cluster(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<ClusterView>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_ops_read_access(&auth).map_err(IntoResponse::into_response)?;
     refresh_node_operational_view(&state);
     Ok(Json(state.ops_runtime.cluster_view()))
@@ -378,9 +80,10 @@ pub(super) async fn get_ops_cluster(
 
 pub(super) async fn get_ops_lag(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<LagView>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_ops_read_access(&auth).map_err(IntoResponse::into_response)?;
     refresh_node_operational_view(&state);
     Ok(Json(state.ops_runtime.lag_view()))
@@ -388,9 +91,10 @@ pub(super) async fn get_ops_lag(
 
 pub(super) async fn get_ops_replay_status(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<ops_service::ProjectionReplayStatusView>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_ops_read_access(&auth).map_err(IntoResponse::into_response)?;
     refresh_node_operational_view(&state);
     Ok(Json(state.ops_runtime.replay_status_view()))
@@ -398,8 +102,9 @@ pub(super) async fn get_ops_replay_status(
 
 pub(super) async fn get_ops_commercial_readiness(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
 ) -> Result<Json<CommercialReadinessReport>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_ops_read_access(&auth).map_err(IntoResponse::into_response)?;
     evaluate_commercial_readiness_from_env(resolve_commercial_evidence_root())
         .map(Json)
@@ -414,9 +119,10 @@ pub(super) async fn get_ops_commercial_readiness(
 
 pub(super) async fn get_ops_runtime_dir(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<RuntimeDirInspectionView>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_ops_read_access(&auth).map_err(IntoResponse::into_response)?;
     refresh_node_operational_view(&state);
     Ok(Json(state.ops_runtime.runtime_dir_view()))
@@ -424,9 +130,10 @@ pub(super) async fn get_ops_runtime_dir(
 
 pub(super) async fn get_ops_provider_bindings(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderBindingsView>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_ops_read_access(&auth).map_err(IntoResponse::into_response)?;
     refresh_node_operational_view(&state);
     Ok(Json(state.ops_runtime.provider_bindings_view()))
@@ -434,9 +141,10 @@ pub(super) async fn get_ops_provider_bindings(
 
 pub(super) async fn get_ops_provider_binding_drift(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderBindingDriftView>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_ops_read_access(&auth).map_err(IntoResponse::into_response)?;
     refresh_node_operational_view(&state);
     Ok(Json(state.ops_runtime.provider_binding_drift_view()))
@@ -444,9 +152,10 @@ pub(super) async fn get_ops_provider_binding_drift(
 
 pub(super) async fn get_ops_diagnostics(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<DiagnosticBundle>, axum::response::Response> {
-    let auth = resolve_app_context(&headers).map_err(IntoResponse::into_response)?;
+    let auth = resolve_request_app_context(auth, &headers).map_err(IntoResponse::into_response)?;
     access::ensure_ops_read_access(&auth).map_err(IntoResponse::into_response)?;
     refresh_node_operational_view(&state);
     Ok(Json(state.ops_runtime.diagnostic_bundle()))

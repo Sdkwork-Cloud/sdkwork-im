@@ -225,7 +225,10 @@ pub(crate) async fn connect_realtime_socket(
         .with_header("x-sdkwork-session-id", context.auth.session_id.as_str())
         .with_header("x-sdkwork-device-id", context.auth.device_id.as_str());
     if !context.auth.permissions.is_empty() {
-        request = request.with_header("x-sdkwork-permission-scope", context.auth.permissions.join(" "));
+        request = request.with_header(
+            "x-sdkwork-permission-scope",
+            context.auth.permissions.join(" "),
+        );
     }
     if let Some(authorization) = resolve_authorization_header(&context.auth) {
         request = request.with_header("authorization", authorization.as_str());
@@ -719,5 +722,4 @@ mod tests {
         handle.abort();
         let _ = handle.await;
     }
-
 }

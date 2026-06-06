@@ -6,6 +6,44 @@ use std::time::Duration;
 use tower::ServiceExt;
 
 #[tokio::test]
+async fn test_public_app_rejects_missing_access_token_header_over_http() {
+    let app = rtc_signaling_service::build_public_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/rtc/sessions")
+                .header("authorization", "Bearer auth_demo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_missing_access_token",
+                        "rtcMode":"voice"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("request should return response");
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("body should be valid json");
+
+    assert_eq!(value["code"], "access_token_missing");
+}
+
+#[tokio::test]
 async fn test_invite_accept_and_end_rtc_session_over_http() {
     let app = rtc_signaling_service::build_default_app();
 

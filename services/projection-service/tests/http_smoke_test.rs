@@ -1,5 +1,5 @@
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::{Request, StatusCode, header::CONTENT_TYPE};
 use http_body_util::BodyExt;
 use std::thread::sleep;
 use std::time::Duration;
@@ -496,6 +496,13 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .await
         .expect("invalid limit request should complete");
     assert_eq!(invalid_limit_response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        invalid_limit_response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json; charset=utf-8")
+    );
     let invalid_body = invalid_limit_response
         .into_body()
         .collect()
@@ -504,6 +511,15 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .to_bytes();
     let invalid_value: serde_json::Value =
         serde_json::from_slice(&invalid_body).expect("invalid response should be valid json");
+    assert_eq!(invalid_value["type"], "about:blank");
+    assert_eq!(invalid_value["title"], "Bad Request");
+    assert_eq!(invalid_value["status"], 400);
+    assert!(
+        invalid_value["detail"]
+            .as_str()
+            .expect("detail should be present")
+            .contains("limit")
+    );
     assert_eq!(invalid_value["code"], "limit_invalid");
 }
 
@@ -586,6 +602,13 @@ async fn test_timeline_query_rejects_same_actor_id_with_different_actor_kind_ove
         .expect("actor-kind mismatch timeline request should return response");
 
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|header| header.to_str().ok()),
+        Some("application/problem+json; charset=utf-8")
+    );
     let body = response
         .into_body()
         .collect()
@@ -594,6 +617,16 @@ async fn test_timeline_query_rejects_same_actor_id_with_different_actor_kind_ove
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response should be valid json");
+    assert_eq!(value["type"], "about:blank");
+    assert_eq!(value["title"], "Forbidden");
+    assert_eq!(value["status"], 403);
+    assert!(
+        !value["detail"]
+            .as_str()
+            .expect("detail should be present")
+            .is_empty()
+    );
+    assert_eq!(value["detail"], value["message"]);
     assert_eq!(value["code"], "conversation_permission_denied");
 }
 
@@ -825,6 +858,158 @@ async fn test_inbox_query_returns_projected_entries() {
     assert_eq!(value["items"][0]["conversationId"], "c_inbox");
     assert_eq!(value["items"][0]["conversationType"], "group");
     assert_eq!(value["items"][0]["messageCount"], 2);
+}
+
+#[tokio::test]
+async fn test_inbox_query_returns_bounded_cursor_window() {
+    let service = projection_service::TimelineProjectionService::default();
+
+    for seq in 1..=3 {
+        let conversation_id = format!("c_inbox_page_{seq}");
+        service
+            .apply(
+                &im_domain_events::CommitEnvelope::minimal(
+                    &format!("evt_inbox_page_conversation_{seq}"),
+                    "t_demo",
+                    "conversation.created",
+                    "conversation",
+                    conversation_id.as_str(),
+                    seq,
+                )
+                .with_payload(
+                    "conversation.created.v1",
+                    &serde_json::json!({
+                        "conversationId": conversation_id,
+                        "conversationType": "group"
+                    })
+                    .to_string(),
+                ),
+            )
+            .expect("conversation projection should succeed");
+        service
+            .apply(
+                &im_domain_events::CommitEnvelope::minimal(
+                    &format!("evt_inbox_page_member_{seq}"),
+                    "t_demo",
+                    "conversation.member_joined",
+                    "conversation",
+                    conversation_id.as_str(),
+                    seq,
+                )
+                .with_payload(
+                    "conversation.member.v1",
+                    &serde_json::json!({
+                        "tenantId":"t_demo",
+                        "conversationId": conversation_id,
+                        "memberId": format!("cm_inbox_page_{seq}"),
+                        "principalId":"u_demo",
+                        "principalKind":"user",
+                        "role":"owner",
+                        "state":"joined",
+                        "invitedBy":null,
+                        "joinedAt":"2026-04-05T10:00:00Z",
+                        "removedAt":null,
+                        "attributes":{}
+                    })
+                    .to_string(),
+                ),
+            )
+            .expect("member projection should succeed");
+        service
+            .apply(&timeline_message_posted_event(
+                "t_demo",
+                conversation_id.as_str(),
+                &format!("m_inbox_page_{seq}"),
+                seq,
+                "u_demo",
+                &format!("cm_inbox_page_{seq}"),
+                &format!("page {seq}"),
+            ))
+            .expect("message projection should succeed");
+    }
+
+    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/inbox?limit=2")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first inbox page should return response");
+    assert_eq!(first.status(), StatusCode::OK);
+    let first_body = first
+        .into_body()
+        .collect()
+        .await
+        .expect("first inbox page body should collect")
+        .to_bytes();
+    let first_json: serde_json::Value =
+        serde_json::from_slice(&first_body).expect("first inbox page should be json");
+    assert_eq!(first_json["items"].as_array().unwrap().len(), 2);
+    assert_eq!(first_json["items"][0]["conversationId"], "c_inbox_page_3");
+    assert_eq!(first_json["items"][1]["conversationId"], "c_inbox_page_2");
+    assert_eq!(first_json["hasMore"], true);
+    let next_cursor = first_json["nextCursor"]
+        .as_str()
+        .expect("first inbox page should include nextCursor");
+
+    let second = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/inbox?limit=2&cursor={next_cursor}"
+                ))
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second inbox page should return response");
+    assert_eq!(second.status(), StatusCode::OK);
+    let second_body = second
+        .into_body()
+        .collect()
+        .await
+        .expect("second inbox page body should collect")
+        .to_bytes();
+    let second_json: serde_json::Value =
+        serde_json::from_slice(&second_body).expect("second inbox page should be json");
+    assert_eq!(second_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_json["items"][0]["conversationId"], "c_inbox_page_1");
+    assert_eq!(second_json["hasMore"], false);
+    assert_eq!(second_json["nextCursor"], serde_json::Value::Null);
+
+    let invalid = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/inbox?limit=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid inbox limit should return response");
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    let invalid_body = invalid
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid inbox body should collect")
+        .to_bytes();
+    let invalid_json: serde_json::Value =
+        serde_json::from_slice(&invalid_body).expect("invalid inbox body should be json");
+    assert_eq!(invalid_json["code"], "limit_invalid");
 }
 
 #[tokio::test]
@@ -1816,6 +2001,106 @@ async fn test_contacts_query_returns_friendship_projection_with_direct_chat_enri
     assert_eq!(items[0]["lastInteractionAt"], "2026-04-10T12:05:00Z");
     assert_eq!(items[1]["targetUserId"], "u_cathy");
     assert_eq!(items[1]["conversationId"], serde_json::Value::Null);
+}
+
+#[tokio::test]
+async fn test_contacts_query_returns_bounded_cursor_window() {
+    let service = projection_service::TimelineProjectionService::default();
+    for seq in 1..=3 {
+        service
+            .apply(&friendship_activated_event(
+                "t_demo",
+                &format!("fs_contact_page_{seq}"),
+                "u_alice",
+                &format!("u_friend_{seq}"),
+                None,
+                &format!("2026-04-10T12:0{seq}:00Z"),
+            ))
+            .expect("friendship projection should succeed");
+    }
+
+    let app = projection_service::build_app(std::sync::Arc::new(service));
+    let first = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/contacts?limit=2")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_alice")
+                .header("x-sdkwork-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("first contacts page should return response");
+    assert_eq!(first.status(), StatusCode::OK);
+    let first_body = first
+        .into_body()
+        .collect()
+        .await
+        .expect("first contacts page body should collect")
+        .to_bytes();
+    let first_json: serde_json::Value =
+        serde_json::from_slice(&first_body).expect("first contacts page should be json");
+    assert_eq!(first_json["items"].as_array().unwrap().len(), 2);
+    assert_eq!(first_json["items"][0]["targetUserId"], "u_friend_3");
+    assert_eq!(first_json["items"][1]["targetUserId"], "u_friend_2");
+    assert_eq!(first_json["hasMore"], true);
+    let next_cursor = first_json["nextCursor"]
+        .as_str()
+        .expect("first contacts page should include nextCursor");
+
+    let second = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/contacts?limit=2&cursor={next_cursor}"
+                ))
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_alice")
+                .header("x-sdkwork-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("second contacts page should return response");
+    assert_eq!(second.status(), StatusCode::OK);
+    let second_body = second
+        .into_body()
+        .collect()
+        .await
+        .expect("second contacts page body should collect")
+        .to_bytes();
+    let second_json: serde_json::Value =
+        serde_json::from_slice(&second_body).expect("second contacts page should be json");
+    assert_eq!(second_json["items"].as_array().unwrap().len(), 1);
+    assert_eq!(second_json["items"][0]["targetUserId"], "u_friend_1");
+    assert_eq!(second_json["hasMore"], false);
+    assert_eq!(second_json["nextCursor"], serde_json::Value::Null);
+
+    let invalid = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/contacts?limit=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_alice")
+                .header("x-sdkwork-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invalid contacts limit should return response");
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    let invalid_body = invalid
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid contacts body should collect")
+        .to_bytes();
+    let invalid_json: serde_json::Value =
+        serde_json::from_slice(&invalid_body).expect("invalid contacts body should be json");
+    assert_eq!(invalid_json["code"], "limit_invalid");
 }
 
 #[tokio::test]

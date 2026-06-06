@@ -8,11 +8,32 @@
     "sdkType": "backend",
     "packageName": "sdkwork-im-backend-api-generated"
   },
-  "changeFingerprint": "c8550779ef291e60b50d57ca9f14848c41abb399bc1df8307de7cec4f20fb265",
+  "changeFingerprint": "531c79f963abb2319e5224ce6d7a749d604360feff697ae65391671f42fc5262",
   "changes": {
-    "createdGeneratedFiles": [
+    "createdGeneratedFiles": [],
+    "updatedGeneratedFiles": [
+      "Cargo.toml",
+      "README.md",
+      "sdkwork-sdk.json",
+      "src/client.rs",
+      "src/http/client.rs",
+      "src/lib.rs"
+    ],
+    "unchangedGeneratedFiles": [
+      "bin/publish-core.mjs",
+      "bin/publish.ps1",
+      "bin/publish.sh",
+      "CHANGELOG.md",
+      "LICENSE",
       "src/api/admin.rs",
+      "src/api/audit.rs",
+      "src/api/automation.rs",
+      "src/api/base.rs",
       "src/api/control.rs",
+      "src/api/mod.rs",
+      "src/api/ops.rs",
+      "src/api/paths.rs",
+      "src/http/mod.rs",
       "src/models/accept_friend_request_request.rs",
       "src/models/activate_friendship_request.rs",
       "src/models/apply_shared_channel_policy_request.rs",
@@ -23,11 +44,14 @@
       "src/models/cancel_friend_request_request.rs",
       "src/models/capability_profile_response.rs",
       "src/models/client_compatibility_response.rs",
+      "src/models/common.rs",
       "src/models/decline_friend_request_request.rs",
       "src/models/effective_protocol_snapshot_response.rs",
       "src/models/establish_external_connection_request.rs",
       "src/models/kill_switch_response.rs",
       "src/models/migrate_routes_request.rs",
+      "src/models/mod.rs",
+      "src/models/problem_detail.rs",
       "src/models/protocol_governance_response.rs",
       "src/models/protocol_registry_response.rs",
       "src/models/protocol_schema_response.rs",
@@ -78,52 +102,26 @@
       "src/models/submit_friend_request_request.rs",
       "src/models/upsert_provider_binding_policy_request.rs"
     ],
-    "updatedGeneratedFiles": [
-      "README.md",
-      "src/api/mod.rs",
-      "src/client.rs",
-      "src/http/client.rs",
-      "src/models/mod.rs"
-    ],
-    "unchangedGeneratedFiles": [
-      "bin/publish-core.mjs",
-      "bin/publish.ps1",
-      "bin/publish.sh",
-      "Cargo.toml",
-      "CHANGELOG.md",
-      "LICENSE",
-      "sdkwork-sdk.json",
-      "src/api/audit.rs",
-      "src/api/automation.rs",
-      "src/api/base.rs",
-      "src/api/ops.rs",
-      "src/api/paths.rs",
-      "src/http/mod.rs",
-      "src/lib.rs",
-      "src/models/common.rs",
-      "src/models/problem_detail.rs"
-    ],
-    "deletedGeneratedFiles": [
-      "src/api/iot.rs",
-      "src/api/provider.rs",
-      "src/api/rtc.rs"
-    ],
+    "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/README.md"
     ],
     "backedUpFiles": [
+      "Cargo.toml",
       "README.md",
+      "sdkwork-sdk.json",
       "src/client.rs",
-      "src/http/client.rs"
+      "src/http/client.rs",
+      "src/lib.rs"
     ]
   },
   "impact": {
     "schemaVersion": 1,
     "areas": [
       "api-surface",
-      "models",
       "runtime",
+      "build-metadata",
       "documentation",
       "unknown"
     ],
@@ -131,88 +129,20 @@
       {
         "area": "api-surface",
         "paths": [
-          "src/api/admin.rs",
-          "src/api/control.rs",
-          "src/api/iot.rs",
-          "src/api/mod.rs",
-          "src/api/provider.rs",
-          "src/api/rtc.rs"
-        ]
-      },
-      {
-        "area": "models",
-        "paths": [
-          "src/models/accept_friend_request_request.rs",
-          "src/models/activate_friendship_request.rs",
-          "src/models/apply_shared_channel_policy_request.rs",
-          "src/models/bind_direct_chat_request.rs",
-          "src/models/bind_external_member_link_request.rs",
-          "src/models/block_user_request.rs",
-          "src/models/business_policy_vocabulary_response.rs",
-          "src/models/cancel_friend_request_request.rs",
-          "src/models/capability_profile_response.rs",
-          "src/models/client_compatibility_response.rs",
-          "src/models/decline_friend_request_request.rs",
-          "src/models/effective_protocol_snapshot_response.rs",
-          "src/models/establish_external_connection_request.rs",
-          "src/models/kill_switch_response.rs",
-          "src/models/migrate_routes_request.rs",
-          "src/models/mod.rs",
-          "src/models/protocol_governance_response.rs",
-          "src/models/protocol_registry_response.rs",
-          "src/models/protocol_schema_response.rs",
-          "src/models/provider_binding_commit_response.rs",
-          "src/models/provider_bindings_response.rs",
-          "src/models/provider_policy_diff_response.rs",
-          "src/models/provider_policy_history_response.rs",
-          "src/models/provider_policy_rollback_request.rs",
-          "src/models/provider_registry_snapshot_response.rs",
-          "src/models/quota_profile_response.rs",
-          "src/models/remove_friendship_request.rs",
-          "src/models/rollout_policy_response.rs",
-          "src/models/route_migration_result.rs",
-          "src/models/route_node_lifecycle.rs",
-          "src/models/sdk_compatibility_baseline_response.rs",
-          "src/models/social_direct_chat_commit_response.rs",
-          "src/models/social_direct_chat_snapshot_response.rs",
-          "src/models/social_external_connection_commit_response.rs",
-          "src/models/social_external_connection_snapshot_response.rs",
-          "src/models/social_external_member_link_commit_response.rs",
-          "src/models/social_external_member_link_snapshot_response.rs",
-          "src/models/social_friend_request_commit_response.rs",
-          "src/models/social_friend_request_snapshot_response.rs",
-          "src/models/social_friendship_commit_response.rs",
-          "src/models/social_friendship_snapshot_response.rs",
-          "src/models/social_runtime_repair_response.rs",
-          "src/models/social_shared_channel_policy_commit_response.rs",
-          "src/models/social_shared_channel_policy_snapshot_response.rs",
-          "src/models/social_shared_channel_sync_dead_letter_inventory_response.rs",
-          "src/models/social_shared_channel_sync_dead_letter_requeue_response.rs",
-          "src/models/social_shared_channel_sync_dead_letter_targeted_requeue_request.rs",
-          "src/models/social_shared_channel_sync_dead_letter_targeted_requeue_response.rs",
-          "src/models/social_shared_channel_sync_delivered_inventory_response.rs",
-          "src/models/social_shared_channel_sync_delivery_state_inventory_response.rs",
-          "src/models/social_shared_channel_sync_pending_claim_response.rs",
-          "src/models/social_shared_channel_sync_pending_inventory_response.rs",
-          "src/models/social_shared_channel_sync_pending_release_response.rs",
-          "src/models/social_shared_channel_sync_pending_stale_reclaim_response.rs",
-          "src/models/social_shared_channel_sync_pending_takeover_response.rs",
-          "src/models/social_shared_channel_sync_pending_targeted_claim_request.rs",
-          "src/models/social_shared_channel_sync_pending_targeted_release_request.rs",
-          "src/models/social_shared_channel_sync_pending_targeted_takeover_request.rs",
-          "src/models/social_shared_channel_sync_repair_response.rs",
-          "src/models/social_shared_channel_sync_targeted_republish_request.rs",
-          "src/models/social_shared_channel_sync_targeted_republish_response.rs",
-          "src/models/social_user_block_commit_response.rs",
-          "src/models/social_user_block_snapshot_response.rs",
-          "src/models/submit_friend_request_request.rs",
-          "src/models/upsert_provider_binding_policy_request.rs"
+          "src/lib.rs"
         ]
       },
       {
         "area": "runtime",
         "paths": [
           "src/http/client.rs"
+        ]
+      },
+      {
+        "area": "build-metadata",
+        "paths": [
+          "Cargo.toml",
+          "sdkwork-sdk.json"
         ]
       },
       {
@@ -229,18 +159,18 @@
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, runtime, documentation, unknown. Verification is required."
+    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, runtime, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, documentation, unknown.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -258,7 +188,7 @@
         "id": "build",
         "title": "Unified package build",
         "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, documentation, unknown.",
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -283,7 +213,6 @@
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
       "backed-up-generated-files",
-      "deleted-generated-files",
       "manual-review-required",
       "unknown-impact",
       "verification-required"

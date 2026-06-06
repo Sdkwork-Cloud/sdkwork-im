@@ -73,7 +73,7 @@ async fn test_local_minimal_profile_iot_protocol_uplink_enters_device_telemetry_
             device_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/backend/v3/api/iot/protocol/uplink"),
+                    .uri("/app/v3/api/iot/protocol/uplink"),
             )
             .header("content-type", "application/json")
             .body(Body::from(
@@ -364,7 +364,7 @@ async fn test_iot_protocol_uplink_route_uses_injected_iot_protocol_adapter() {
             device_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/backend/v3/api/iot/protocol/uplink"),
+                    .uri("/app/v3/api/iot/protocol/uplink"),
             )
             .header("content-type", "application/json")
             .body(Body::from(
@@ -417,7 +417,7 @@ async fn test_local_minimal_profile_iot_protocol_downlink_enters_device_command_
             owner_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/backend/v3/api/iot/protocol/downlink"),
+                    .uri("/app/v3/api/iot/protocol/downlink"),
             )
             .header("x-sdkwork-permission-scope", "device.command.send")
             .header("content-type", "application/json")
@@ -508,7 +508,7 @@ async fn test_iot_protocol_downlink_route_uses_injected_iot_protocol_adapter() {
             owner_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/backend/v3/api/iot/protocol/downlink"),
+                    .uri("/app/v3/api/iot/protocol/downlink"),
             )
             .header("x-sdkwork-permission-scope", "device.command.send")
             .header("content-type", "application/json")
@@ -574,7 +574,7 @@ async fn test_iot_protocol_uplink_known_device_preflight_rejects_before_adapter_
             owner_actor_without_device(
                 Request::builder()
                     .method("POST")
-                    .uri("/backend/v3/api/iot/protocol/uplink"),
+                    .uri("/app/v3/api/iot/protocol/uplink"),
             )
             .header("content-type", "application/json")
             .body(Body::from(
@@ -624,7 +624,7 @@ async fn test_iot_protocol_uplink_non_device_actor_without_request_device_id_rej
             owner_actor_without_device(
                 Request::builder()
                     .method("POST")
-                    .uri("/backend/v3/api/iot/protocol/uplink"),
+                    .uri("/app/v3/api/iot/protocol/uplink"),
             )
             .header("content-type", "application/json")
             .body(Body::from(
@@ -672,7 +672,7 @@ async fn test_iot_protocol_uplink_request_device_mismatch_rejects_before_adapter
             device_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/backend/v3/api/iot/protocol/uplink"),
+                    .uri("/app/v3/api/iot/protocol/uplink"),
             )
             .header("content-type", "application/json")
             .body(Body::from(
@@ -721,7 +721,7 @@ async fn test_iot_protocol_uplink_decoded_device_mismatch_returns_bad_request_af
             device_actor(
                 Request::builder()
                     .method("POST")
-                    .uri("/backend/v3/api/iot/protocol/uplink"),
+                    .uri("/app/v3/api/iot/protocol/uplink"),
             )
             .header("content-type", "application/json")
             .body(Body::from(

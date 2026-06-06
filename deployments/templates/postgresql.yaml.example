@@ -1,24 +1,24 @@
 provider: postgresql
 
 connection:
-  host: 127.0.0.1
+  host: db.example.com
   port: 5432
-  database: craw_chat
-  username: craw_chat_app
-  passwordFile: /etc/craw-chat/default/secrets/postgresql.password
-  sslmode: prefer
-  applicationName: craw-chat-server
+  database: sdkwork_chat_prod
+  username: sdkwork_chat_prod
+  passwordFile: /etc/sdkwork/chat/database.secret
+  sslmode: require
+  applicationName: sdkwork-chat-server
   connectTimeoutSeconds: 10
 
 schema:
-  name: craw_chat
+  name: sdkwork_chat_prod
   provisioningMode: none
   migrationMode: apply
   expectedVersion: latest
 
 pool:
   minConnections: 5
-  maxConnections: 30
+  maxConnections: 20
   idleTimeoutSeconds: 300
   maxLifetimeSeconds: 1800
 

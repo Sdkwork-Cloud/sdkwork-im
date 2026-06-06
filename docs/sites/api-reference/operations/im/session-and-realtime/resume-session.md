@@ -22,7 +22,7 @@ Resumes the current device session and returns the active presence snapshot with
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect({ deviceId })`, `sdk.deviceSessions.resume(...)`</span></div>
+  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect({ deviceId })`, `sdk.device.sessions.resume(...)`</span></div>
   <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 DeviceSessionResumeView`</span></div>
 </div>

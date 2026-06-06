@@ -1,0 +1,13 @@
+name: im_backend_sdk
+description: Composed Flutter backend SDK built on the generated im_backend_api_generated package
+version: 0.1.0
+homepage: https://github.com/sdkwork-team/spring-ai-plus/tree/main/spring-ai-plus-business/apps/craw-chat/sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-flutter/composed
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  im_backend_api_generated: ^0.1.0
+
+dev_dependencies:
+  lints: ^3.0.0

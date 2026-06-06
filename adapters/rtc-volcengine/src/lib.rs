@@ -123,15 +123,13 @@ impl RtcProviderPort for VolcengineRtcProvider {
         tenant_id: &str,
         rtc_session_id: &str,
     ) -> Result<Option<RtcRecordingArtifact>, ContractError> {
-        let object_key = format!("recordings/{tenant_id}/{rtc_session_id}.mp4");
-        Ok(Some(RtcRecordingArtifact {
-            tenant_id: tenant_id.into(),
-            rtc_session_id: rtc_session_id.into(),
-            bucket: "rtc-artifacts".into(),
-            object_key,
-            storage_provider: None,
-            playback_url: None,
-        }))
+        Ok(Some(RtcRecordingArtifact::drive_backed_recording(
+            tenant_id,
+            rtc_session_id,
+            "space_rtc_recordings",
+            format!("node_{rtc_session_id}"),
+            None,
+        )))
     }
 
     fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {

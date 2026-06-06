@@ -10,7 +10,7 @@ public class RouteNodeLifecycle {
     public String getDrainStatus() {
         return this.drainStatus;
     }
-    
+
     public void setDrainStatus(String drainStatus) {
         this.drainStatus = drainStatus;
     }
@@ -18,7 +18,7 @@ public class RouteNodeLifecycle {
     public String getNodeId() {
         return this.nodeId;
     }
-    
+
     public void setNodeId(String nodeId) {
         this.nodeId = nodeId;
     }
@@ -26,7 +26,7 @@ public class RouteNodeLifecycle {
     public Integer getOwnedRouteCount() {
         return this.ownedRouteCount;
     }
-    
+
     public void setOwnedRouteCount(Integer ownedRouteCount) {
         this.ownedRouteCount = ownedRouteCount;
     }
@@ -34,7 +34,7 @@ public class RouteNodeLifecycle {
     public String getRebalanceState() {
         return this.rebalanceState;
     }
-    
+
     public void setRebalanceState(String rebalanceState) {
         this.rebalanceState = rebalanceState;
     }

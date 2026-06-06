@@ -2,7 +2,7 @@
 
 ## 1. 目标
 
-把 request body `deviceId` 与 `auth.device_id` 的一致性判断前移到 `/backend/v3/api/iot/protocol/uplink` 的 decode 前边界。
+把 request body `deviceId` 与 `auth.device_id` 的一致性判断前移到 `/app/v3/api/iot/protocol/uplink` 的 decode 前边界。
 
 ## 2. 设计约束
 
@@ -79,7 +79,7 @@
 ## 7. 关键词冻结
 
 - `local-minimal-node`
-- `/backend/v3/api/iot/protocol/uplink`
+- `/app/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `resolve_requested_device_id`

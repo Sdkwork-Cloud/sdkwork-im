@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
+use axum::extract::Extension;
 use axum::http::HeaderMap;
-use im_app_context::{AppContext, resolve_app_context};
+use im_app_context::AppContext;
 
 use crate::device_registration::DeviceRouteRegistration;
 use crate::{ApiError, AppState, RealtimeDeliveryRuntime, resolve_requested_device_id};
@@ -14,10 +15,11 @@ pub(crate) struct RealtimeWebsocketRouteContext {
 }
 
 pub(crate) fn prepare_realtime_websocket_route(
+    auth: Option<Extension<AppContext>>,
     headers: &HeaderMap,
     state: &AppState,
 ) -> Result<RealtimeWebsocketRouteContext, ApiError> {
-    let auth = resolve_app_context(headers)?;
+    let auth = crate::resolve_request_app_context(auth, headers)?;
     let device_id = resolve_requested_device_id(&auth, None)?;
     state.prepare_active_device_route(&auth, device_id.as_str(), "websocket", false)?;
     Ok(RealtimeWebsocketRouteContext {

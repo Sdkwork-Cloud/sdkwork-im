@@ -1,6 +1,6 @@
 param(
     [string]$InstanceName = "default",
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "config")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
     [string]$ReleaseGatePath = "",
     [ValidateSet("text", "json")]
     [string]$OutputFormat = "text",
@@ -9,8 +9,18 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Get-ServerConfigDirForInstance {
+    param([string]$Name)
+
+    $root = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
+    if ($Name -eq "default") {
+        return $root
+    }
+    return [System.IO.Path]::Combine($root, "instances", $Name)
+}
+
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("ConfigDir")) {
-    $ConfigDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "config")
+    $ConfigDir = Get-ServerConfigDirForInstance $InstanceName
 }
 
 if ($Help) {

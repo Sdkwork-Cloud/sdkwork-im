@@ -10,7 +10,7 @@ EOF
 }
 
 instance_name="default"
-config_dir="/etc/craw-chat/default"
+config_dir="/etc/sdkwork/chat"
 release_gate_path=""
 output_format="text"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,11 +37,20 @@ json_array_strings() {
   printf ']'
 }
 
+server_config_dir_for_instance() {
+  local name="$1"
+  if [[ "$name" == "default" ]]; then
+    printf '/etc/sdkwork/chat\n'
+  else
+    printf '/etc/sdkwork/chat/instances/%s\n' "$name"
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="/etc/craw-chat/${instance_name}"
+      config_dir="$(server_config_dir_for_instance "$instance_name")"
       shift 2
       ;;
     --config-dir)

@@ -6,9 +6,9 @@ import type { AccessProviderHealthRetrieveResponse, ProtocolDownlinkCreateRespon
 
 export class IotProtocolDownlinkApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -20,9 +20,9 @@ export class IotProtocolDownlinkApi {
 
 export class IotProtocolUplinkApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -36,20 +36,20 @@ export class IotProtocolApi {
   private client: HttpClient;
   public readonly uplink: IotProtocolUplinkApi;
   public readonly downlink: IotProtocolDownlinkApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.uplink = new IotProtocolUplinkApi(client);
-    this.downlink = new IotProtocolDownlinkApi(client); 
+    this.downlink = new IotProtocolDownlinkApi(client);
   }
 
 }
 
 export class IotProtocolProviderHealthApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -61,9 +61,9 @@ export class IotProtocolProviderHealthApi {
 
 export class IotAccessProviderHealthApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -78,12 +78,12 @@ export class IotApi {
   public readonly accessProviderHealth: IotAccessProviderHealthApi;
   public readonly protocolProviderHealth: IotProtocolProviderHealthApi;
   public readonly protocol: IotProtocolApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.accessProviderHealth = new IotAccessProviderHealthApi(client);
     this.protocolProviderHealth = new IotProtocolProviderHealthApi(client);
-    this.protocol = new IotProtocolApi(client); 
+    this.protocol = new IotProtocolApi(client);
   }
 
 }

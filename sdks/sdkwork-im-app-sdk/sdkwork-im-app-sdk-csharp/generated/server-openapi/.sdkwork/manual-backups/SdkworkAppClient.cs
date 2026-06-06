@@ -9,48 +9,36 @@ namespace Sdkwork.Im.AppApi.Generated
     {
         private readonly SdkHttpClient _httpClient;
 
-        public PortalApi Portal { get; }
-        public DeviceApi Device { get; }
-        public PresenceApi Presence { get; }
-        public RealtimeApi Realtime { get; }
-        public SocialApi Social { get; }
-        public ChatApi Chat { get; }
-        public MediaApi Media { get; }
-        public StreamApi Stream { get; }
-        public RtcApi Rtc { get; }
-        public NotificationApi Notification { get; }
         public AutomationApi Automation { get; }
+        public DeviceApi Device { get; }
+        public NotificationApi Notification { get; }
+        public PortalApi Portal { get; }
+        public ProviderApi Provider { get; }
+        public IotApi Iot { get; }
+        public RtcApi Rtc { get; }
 
         public SdkworkAppClient(string baseUrl)
         {
             _httpClient = new SdkHttpClient(baseUrl);
-            Portal = new PortalApi(_httpClient);
-            Device = new DeviceApi(_httpClient);
-            Presence = new PresenceApi(_httpClient);
-            Realtime = new RealtimeApi(_httpClient);
-            Social = new SocialApi(_httpClient);
-            Chat = new ChatApi(_httpClient);
-            Media = new MediaApi(_httpClient);
-            Stream = new StreamApi(_httpClient);
-            Rtc = new RtcApi(_httpClient);
-            Notification = new NotificationApi(_httpClient);
             Automation = new AutomationApi(_httpClient);
+            Device = new DeviceApi(_httpClient);
+            Notification = new NotificationApi(_httpClient);
+            Portal = new PortalApi(_httpClient);
+            Provider = new ProviderApi(_httpClient);
+            Iot = new IotApi(_httpClient);
+            Rtc = new RtcApi(_httpClient);
         }
 
         public SdkworkAppClient(SdkConfig config)
         {
             _httpClient = new SdkHttpClient(config);
-            Portal = new PortalApi(_httpClient);
-            Device = new DeviceApi(_httpClient);
-            Presence = new PresenceApi(_httpClient);
-            Realtime = new RealtimeApi(_httpClient);
-            Social = new SocialApi(_httpClient);
-            Chat = new ChatApi(_httpClient);
-            Media = new MediaApi(_httpClient);
-            Stream = new StreamApi(_httpClient);
-            Rtc = new RtcApi(_httpClient);
-            Notification = new NotificationApi(_httpClient);
             Automation = new AutomationApi(_httpClient);
+            Device = new DeviceApi(_httpClient);
+            Notification = new NotificationApi(_httpClient);
+            Portal = new PortalApi(_httpClient);
+            Provider = new ProviderApi(_httpClient);
+            Iot = new IotApi(_httpClient);
+            Rtc = new RtcApi(_httpClient);
         }
 
 

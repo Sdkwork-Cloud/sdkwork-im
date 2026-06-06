@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use axum::extract::{Path, Query, State};
-use axum::http::{HeaderMap, Request};
+use axum::extract::{DefaultBodyLimit, Extension, Path, Query, State};
+use axum::http::{HeaderMap, Request, StatusCode, header::CONTENT_TYPE};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{
@@ -12,12 +12,13 @@ use craw_chat_api_registry::HttpMethod;
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_app_context::{AppContextError, resolve_app_context};
-use im_domain_core::conversation::{ConversationInboxEntry, ConversationReadCursorView};
+use im_app_context::{AppContext, AppContextError, resolve_app_context};
+use im_domain_core::conversation::ConversationReadCursorView;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Semaphore;
 
 use super::{
-    ContactView, ConversationMemberDirectoryEntry, ConversationSummaryView,
+    ContactWindowView, ConversationMemberDirectoryEntry, ConversationSummaryView, InboxWindowView,
     MessageInteractionSummaryView, ProjectionAccessError, RegisteredDeviceView,
     TimelineProjectionService, TimelineWindowView,
 };
@@ -42,6 +43,13 @@ struct TimelineQuery {
     limit: Option<usize>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct ListQuery {
+    limit: Option<usize>,
+    cursor: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct HealthResponse {
@@ -50,18 +58,8 @@ struct HealthResponse {
 }
 
 type TimelineResponse = TimelineWindowView;
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct InboxResponse {
-    items: Vec<ConversationInboxEntry>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ContactsResponse {
-    items: Vec<ContactView>,
-}
+type InboxResponse = InboxWindowView;
+type ContactsResponse = ContactWindowView;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,6 +74,21 @@ struct PinnedMessagesResponse {
 }
 
 type DeviceSyncFeedResponse = super::DeviceSyncFeedWindowView;
+
+const PROJECTION_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "CRAW_CHAT_PROJECTION_MAX_IN_FLIGHT_REQUESTS";
+const PROJECTION_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
+const PROJECTION_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 50_000;
+const PROJECTION_MAX_REQUEST_BODY_BYTES_ENV: &str = "CRAW_CHAT_PROJECTION_MAX_REQUEST_BODY_BYTES";
+const PROJECTION_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
+const PROJECTION_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
+const PROJECTION_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
+    "CRAW_CHAT_PROJECTION_REQUIRE_DUAL_TOKEN_HEADERS";
+
+#[derive(Clone)]
+struct PublicAppGuardrails {
+    request_gate: Arc<Semaphore>,
+    require_dual_token_headers: bool,
+}
 
 #[derive(Debug)]
 pub struct ProjectionApiError {
@@ -116,11 +129,20 @@ impl From<ProjectionAccessError> for ProjectionApiError {
 
 impl IntoResponse for ProjectionApiError {
     fn into_response(self) -> axum::response::Response {
+        let status = self.status;
+        let detail = self.message;
+        let message = detail.clone();
+        let title = status.canonical_reason().unwrap_or("Unknown Error");
         (
-            self.status,
+            status,
+            [(CONTENT_TYPE, "application/problem+json; charset=utf-8")],
             Json(serde_json::json!({
+                "type": "about:blank",
+                "title": title,
+                "status": status.as_u16(),
+                "detail": detail,
                 "code": self.code,
-                "message": self.message
+                "message": message
             })),
         )
             .into_response()
@@ -132,11 +154,29 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_app_context))
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+        require_dual_token_headers: resolve_require_dual_token_headers(),
+    };
+    build_default_app()
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            require_app_context,
+        ))
 }
 
 pub fn build_public_app_with_service(service: Arc<TimelineProjectionService>) -> Router {
-    build_app(service).layer(middleware::from_fn(require_app_context))
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+        require_dual_token_headers: resolve_require_dual_token_headers(),
+    };
+    build_app(service)
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            require_app_context,
+        ))
 }
 
 pub fn build_app(service: Arc<TimelineProjectionService>) -> Router {
@@ -179,13 +219,41 @@ pub fn build_app(service: Arc<TimelineProjectionService>) -> Router {
         .with_state(service)
 }
 
-async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(
+    State(guardrails): State<PublicAppGuardrails>,
+    mut request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_app_context(request.headers()) {
-            Ok(_) => next.run(request).await,
-            Err(error) => ProjectionApiError::from(error).into_response(),
-        },
+        _ => {
+            let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+                Ok(permit) => permit,
+                Err(_) => {
+                    return ProjectionApiError {
+                        status: StatusCode::SERVICE_UNAVAILABLE,
+                        code: "http_overloaded",
+                        message:
+                            "server is at maximum in-flight request capacity, please retry later"
+                                .to_owned(),
+                    }
+                    .into_response();
+                }
+            };
+            if guardrails.require_dual_token_headers
+                && let Err(error) = require_dual_token_headers(request.headers())
+            {
+                return error.into_response();
+            }
+            let auth = match resolve_request_app_context(None, request.headers()) {
+                Ok(auth) => auth,
+                Err(error) => return error.into_response(),
+            };
+            request.extensions_mut().insert(auth);
+            let response = next.run(request).await;
+            drop(permit);
+            response
+        }
     }
 }
 
@@ -279,11 +347,12 @@ fn projection_service_method_display(method: HttpMethod) -> &'static str {
 }
 
 async fn register_device(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
     Json(request): Json<RegisterDeviceRequest>,
 ) -> Result<Json<RegisteredDeviceView>, ProjectionApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(service.register_device_from_auth_context(
         &auth,
         request.device_id,
@@ -293,10 +362,11 @@ async fn register_device(
 async fn get_device_sync_feed(
     Path(device_id): Path<String>,
     Query(query): Query<SyncFeedQuery>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<DeviceSyncFeedResponse>, ProjectionApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(service.device_sync_feed_window_from_auth_context(
         &auth,
         device_id.as_str(),
@@ -308,10 +378,11 @@ async fn get_device_sync_feed(
 async fn get_timeline(
     Path(conversation_id): Path<String>,
     Query(query): Query<TimelineQuery>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<TimelineResponse>, ProjectionApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(service.timeline_window_from_auth_context(
         &auth,
         conversation_id.as_str(),
@@ -321,31 +392,40 @@ async fn get_timeline(
 }
 
 async fn get_inbox(
+    Query(query): Query<ListQuery>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<InboxResponse>, ProjectionApiError> {
-    let auth = resolve_app_context(&headers)?;
-    Ok(Json(InboxResponse {
-        items: service.inbox_from_auth_context(&auth),
-    }))
+    let auth = resolve_request_app_context(auth, &headers)?;
+    Ok(Json(service.inbox_window_from_auth_context(
+        &auth,
+        query.limit,
+        query.cursor.as_deref(),
+    )?))
 }
 
 async fn get_contacts(
+    Query(query): Query<ListQuery>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<ContactsResponse>, ProjectionApiError> {
-    let auth = resolve_app_context(&headers)?;
-    Ok(Json(ContactsResponse {
-        items: service.contacts_from_auth_context(&auth)?,
-    }))
+    let auth = resolve_request_app_context(auth, &headers)?;
+    Ok(Json(service.contact_window_from_auth_context(
+        &auth,
+        query.limit,
+        query.cursor.as_deref(),
+    )?))
 }
 
 async fn get_conversation_summary(
     Path(conversation_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<ConversationSummaryView>, ProjectionApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let summary = service
         .conversation_summary_from_auth_context(&auth, conversation_id.as_str())?
         .ok_or_else(|| ProjectionApiError {
@@ -358,10 +438,11 @@ async fn get_conversation_summary(
 
 async fn get_read_cursor(
     Path(conversation_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<ConversationReadCursorView>, ProjectionApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let cursor = service
         .read_cursor_from_auth_context(&auth, conversation_id.as_str())?
         .ok_or_else(|| ProjectionApiError {
@@ -374,10 +455,11 @@ async fn get_read_cursor(
 
 async fn get_member_directory(
     Path(conversation_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<MemberDirectoryResponse>, ProjectionApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(MemberDirectoryResponse {
         items: service.member_directory_from_auth_context(&auth, conversation_id.as_str())?,
     }))
@@ -385,10 +467,11 @@ async fn get_member_directory(
 
 async fn get_pinned_messages(
     Path(conversation_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<PinnedMessagesResponse>, ProjectionApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     Ok(Json(PinnedMessagesResponse {
         items: service.pinned_messages_from_auth_context(&auth, conversation_id.as_str())?,
     }))
@@ -396,10 +479,11 @@ async fn get_pinned_messages(
 
 async fn get_message_interaction_summary(
     Path((conversation_id, message_id)): Path<(String, String)>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(service): State<Arc<TimelineProjectionService>>,
 ) -> Result<Json<MessageInteractionSummaryView>, ProjectionApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let summary = service
         .message_interaction_summary_from_auth_context(
             &auth,
@@ -414,4 +498,129 @@ async fn get_message_interaction_summary(
             ),
         })?;
     Ok(Json(summary))
+}
+
+fn resolve_request_app_context(
+    auth: Option<Extension<AppContext>>,
+    headers: &HeaderMap,
+) -> Result<AppContext, ProjectionApiError> {
+    match auth {
+        Some(Extension(auth)) => Ok(auth),
+        None => resolve_app_context(headers).map_err(ProjectionApiError::from),
+    }
+}
+
+fn require_dual_token_headers(headers: &HeaderMap) -> Result<(), ProjectionApiError> {
+    if !has_bearer_auth_token(headers) {
+        return Err(ProjectionApiError {
+            status: StatusCode::UNAUTHORIZED,
+            code: "auth_token_missing",
+            message: "authorization header must provide a bearer token".to_owned(),
+        });
+    }
+    if !has_access_token_header(headers) {
+        return Err(ProjectionApiError {
+            status: StatusCode::UNAUTHORIZED,
+            code: "access_token_missing",
+            message: "access-token header is required".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn has_bearer_auth_token(headers: &HeaderMap) -> bool {
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .and_then(|value| {
+            let (scheme, token) = value.split_once(' ')?;
+            if scheme.eq_ignore_ascii_case("bearer") && !token.trim().is_empty() {
+                return Some(());
+            }
+            None
+        })
+        .is_some()
+}
+
+fn has_access_token_header(headers: &HeaderMap) -> bool {
+    headers
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty())
+}
+
+fn resolve_max_in_flight_requests() -> usize {
+    std::env::var(PROJECTION_MAX_IN_FLIGHT_REQUESTS_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(PROJECTION_MAX_IN_FLIGHT_REQUESTS_DEFAULT)
+        .min(PROJECTION_MAX_IN_FLIGHT_REQUESTS_MAX)
+}
+
+fn resolve_max_http_request_body_bytes() -> usize {
+    std::env::var(PROJECTION_MAX_REQUEST_BODY_BYTES_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(PROJECTION_MAX_REQUEST_BODY_BYTES_DEFAULT)
+        .min(PROJECTION_MAX_REQUEST_BODY_BYTES_MAX)
+}
+
+fn resolve_require_dual_token_headers() -> bool {
+    std::env::var(PROJECTION_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
+        .ok()
+        .map(|value| parse_truthy_env_flag(Some(value)))
+        .unwrap_or(true)
+}
+
+fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+    raw.as_deref().map(str::trim).is_some_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::http::{HeaderMap, HeaderValue};
+
+    use super::*;
+
+    #[test]
+    fn parse_truthy_env_flag_accepts_common_truthy_values() {
+        for value in ["1", "true", "TRUE", " yes ", "On"] {
+            assert!(parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        for value in ["0", "false", "off", "no", "", "  "] {
+            assert!(!parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        assert!(!parse_truthy_env_flag(None));
+    }
+
+    #[test]
+    fn dual_token_header_helpers_validate_auth_and_access_headers() {
+        let mut headers = HeaderMap::new();
+        assert!(!has_bearer_auth_token(&headers));
+        assert!(!has_access_token_header(&headers));
+
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer token"),
+        );
+        assert!(has_bearer_auth_token(&headers));
+        assert!(!has_access_token_header(&headers));
+        let error =
+            require_dual_token_headers(&headers).expect_err("access-token should be required");
+        assert_eq!(error.status, StatusCode::UNAUTHORIZED);
+        assert_eq!(error.code, "access_token_missing");
+
+        headers.insert("access-token", HeaderValue::from_static("access"));
+        assert!(has_access_token_header(&headers));
+        require_dual_token_headers(&headers).expect("dual token headers should pass");
+    }
 }

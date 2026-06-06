@@ -11,14 +11,13 @@ use im_domain_events::CommitEnvelope;
 use tower::ServiceExt;
 
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
-const MANAGED_RUNTIME_STATE_FILES: [&str; 13] = [
+const MANAGED_RUNTIME_STATE_FILES: [&str; 12] = [
     "commit-journal.json",
     "realtime-disconnect-fences.json",
     "realtime-checkpoints.json",
     "realtime-event-windows.json",
     "realtime-subscriptions.json",
     "presence-state.json",
-    "device-twin-state.json",
     "stream-state.json",
     "rtc-state.json",
     "notification-tasks.json",
@@ -80,6 +79,7 @@ fn invalid_replay_message_envelope() -> CommitEnvelope {
             summary: Some("first".into()),
             parts: vec![ContentPart::text("first")],
             render_hints: Default::default(),
+            reply_to: None,
         },
         attributes: Default::default(),
         metadata: Default::default(),
@@ -154,12 +154,6 @@ async fn test_managed_runtime_dir_inspection_reports_all_expected_files_when_par
     assert_eq!(files.len(), MANAGED_RUNTIME_STATE_FILES.len());
     assert!(files.iter().any(|file| {
         file["fileName"] == "presence-state.json"
-            && file["status"] == "ok"
-            && file["recommendedAction"] == "none"
-            && file["parseable"] == true
-    }));
-    assert!(files.iter().any(|file| {
-        file["fileName"] == "device-twin-state.json"
             && file["status"] == "ok"
             && file["recommendedAction"] == "none"
             && file["parseable"] == true

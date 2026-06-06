@@ -36,5 +36,6 @@
     "api",
     "app",
     "sdkwork"
-  ]
+  ],
+  "private": true
 }

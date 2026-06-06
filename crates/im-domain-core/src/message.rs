@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
-use crate::media::{MediaResource, MediaResourceType};
+use crate::media::{DriveReference, MediaKind, MediaResource};
 
 pub type MessageAttributes = BTreeMap<String, String>;
 
@@ -353,10 +353,20 @@ fn encode_message_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) 
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct MessageReplyReference {
+    pub message_id: String,
+    pub sender_display_name: String,
+    pub content_preview: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MessageBody {
     pub summary: Option<String>,
     pub parts: Vec<ContentPart>,
     pub render_hints: MessageAttributes,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reply_to: Option<MessageReplyReference>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -374,10 +384,11 @@ pub struct DataPart {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct MediaPart {
-    pub media_asset_id: String,
-    pub resource: Option<MediaResource>,
+    pub resource: MediaResource,
+    pub drive: DriveReference,
+    pub media_role: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -556,17 +567,21 @@ fn summarize_location_payload(payload: Option<&JsonValue>) -> Option<String> {
 }
 
 fn summarize_media_part(part: &MediaPart) -> Option<String> {
-    match part
-        .resource
-        .as_ref()
-        .and_then(|resource| resource.resource_type.as_ref())
-    {
-        Some(MediaResourceType::Image) => Some("Image".into()),
-        Some(MediaResourceType::Video) => Some("Video".into()),
-        Some(MediaResourceType::Audio) => Some("Audio".into()),
-        Some(MediaResourceType::File) => Some("File".into()),
-        None => None,
+    let kind = resolve_media_kind(&part.resource);
+    match kind {
+        MediaKind::Image => Some("Image".into()),
+        MediaKind::Video => Some("Video".into()),
+        MediaKind::Audio => Some("Audio".into()),
+        MediaKind::Voice => Some("Voice".into()),
+        MediaKind::Document => Some("Document".into()),
+        MediaKind::Archive => Some("Archive".into()),
+        MediaKind::Model => Some("Model".into()),
+        MediaKind::Other => Some("File".into()),
     }
+}
+
+fn resolve_media_kind(resource: &MediaResource) -> MediaKind {
+    resource.kind.clone()
 }
 
 fn parse_json_payload(payload: &str) -> Option<JsonValue> {

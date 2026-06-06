@@ -320,6 +320,7 @@ fn test_create_thread_does_not_leak_state_when_batch_commit_fails() {
                 summary: Some("root".into()),
                 parts: vec![ContentPart::text("root")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("root message should succeed");
@@ -417,6 +418,7 @@ fn test_create_conversation_and_post_message_emits_commit_events_in_order() {
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post message should succeed");
@@ -572,6 +574,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("first post should succeed");
@@ -594,6 +597,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("duplicate same-input post should be idempotent");
@@ -637,6 +641,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
             summary: Some("hello conflict".into()),
             parts: vec![ContentPart::text("hello conflict")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
 
@@ -647,6 +652,55 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
         events.len(),
         3,
         "duplicate post retry must not append another message.posted event"
+    );
+}
+
+#[test]
+fn test_rtc_signal_message_backfills_top_level_rtc_session_id_from_signal_payload() {
+    let runtime = ConversationRuntime::new(InMemoryJournal::default());
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_rtc_signal_backfill".into(),
+            creator_id: "u_demo".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+
+    runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_rtc_signal_backfill".into(),
+            sender: Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_demo".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: None,
+            message_type: MessageType::Signal,
+            body: MessageBody {
+                summary: Some("rtc.accept".into()),
+                parts: vec![ContentPart::Signal(im_domain_core::message::SignalPart {
+                    signal_type: "rtc.accept".into(),
+                    schema_ref: Some("rtc.signal.v1".into()),
+                    payload: r#"{"rtcSessionId":"rtc_runtime_backfill","state":"accepted"}"#.into(),
+                })],
+                render_hints: BTreeMap::from([("channel".into(), "rtc".into())]),
+                reply_to: None,
+            },
+        })
+        .expect("signal message should post");
+
+    let history = list_all_messages(&runtime, "t_demo", "c_rtc_signal_backfill", "u_demo")
+        .expect("history should list");
+    assert_eq!(history.items.len(), 1);
+    assert_eq!(
+        history.items[0].message.rtc_session_id.as_deref(),
+        Some("rtc_runtime_backfill")
     );
 }
 
@@ -682,6 +736,7 @@ fn test_runtime_replays_recorded_conversation_events_after_rebuild() {
                 summary: Some("first".into()),
                 parts: vec![ContentPart::text("first")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("first post should succeed");
@@ -718,6 +773,7 @@ fn test_runtime_replays_recorded_conversation_events_after_rebuild() {
                 summary: Some("second".into()),
                 parts: vec![ContentPart::text("second")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post after replay should succeed");
@@ -766,6 +822,7 @@ fn test_same_conversation_id_is_isolated_per_tenant() {
                 summary: Some("hello alpha".into()),
                 parts: vec![ContentPart::text("hello alpha")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("tenant alpha message should succeed");
@@ -788,6 +845,7 @@ fn test_same_conversation_id_is_isolated_per_tenant() {
                 summary: Some("hello beta".into()),
                 parts: vec![ContentPart::text("hello beta")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("tenant beta message should succeed");
@@ -827,6 +885,7 @@ fn test_post_message_rejects_sender_kind_mismatch_against_member_principal_kind(
             summary: Some("should fail".into()),
             parts: vec![ContentPart::text("should fail")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
 
@@ -865,6 +924,7 @@ fn test_edit_message_rejects_editor_kind_mismatch_against_member_principal_kind(
                 summary: Some("before edit".into()),
                 parts: vec![ContentPart::text("before edit")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post message should succeed");
@@ -884,6 +944,7 @@ fn test_edit_message_rejects_editor_kind_mismatch_against_member_principal_kind(
             summary: Some("should fail".into()),
             parts: vec![ContentPart::text("should fail")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
 
@@ -922,6 +983,7 @@ fn test_recall_message_rejects_actor_kind_mismatch_against_member_principal_kind
                 summary: Some("before recall".into()),
                 parts: vec![ContentPart::text("before recall")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post message should succeed");
@@ -969,6 +1031,29 @@ fn test_generic_create_rejects_unknown_and_reserved_special_conversation_types()
 }
 
 #[test]
+fn test_create_agent_dialog_rejects_non_standard_agent_id() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal.clone());
+
+    let create = runtime.create_agent_dialog_with_requester_kind(
+        CreateAgentDialogCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_agent_dialog_invalid_agent_id".into(),
+            requester_id: "u_demo".into(),
+            agent_id: "ag_demo".into(),
+        },
+        "user",
+    );
+
+    assert!(matches!(
+        create,
+        Err(RuntimeError::AgentIdInvalid(message))
+            if message == "agentId must start with agent."
+    ));
+    assert!(journal.recorded().is_empty());
+}
+
+#[test]
 fn test_create_agent_dialog_creates_requester_and_agent_members() {
     let journal = InMemoryJournal::default();
     let runtime = ConversationRuntime::new(journal.clone());
@@ -979,7 +1064,7 @@ fn test_create_agent_dialog_creates_requester_and_agent_members() {
                 tenant_id: "t_demo".into(),
                 conversation_id: "c_agent_dialog".into(),
                 requester_id: "u_demo".into(),
-                agent_id: "ag_demo".into(),
+                agent_id: "agent.demo".into(),
             },
             "user",
         )
@@ -1002,7 +1087,7 @@ fn test_create_agent_dialog_creates_requester_and_agent_members() {
 
     let agent = members
         .iter()
-        .find(|member| member.principal_id == "ag_demo")
+        .find(|member| member.principal_id == "agent.demo")
         .expect("agent member should exist");
     assert_eq!(agent.principal_kind, "agent");
     assert_eq!(agent.role, MembershipRole::Member);
@@ -1027,7 +1112,7 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
                 tenant_id: "t_demo".into(),
                 conversation_id: "c_agent_dialog_retry".into(),
                 requester_id: "u_demo".into(),
-                agent_id: "ag_demo".into(),
+                agent_id: "agent.demo".into(),
             },
             "user",
         )
@@ -1049,7 +1134,7 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
                 tenant_id: "t_demo".into(),
                 conversation_id: "c_agent_dialog_retry".into(),
                 requester_id: "u_demo".into(),
-                agent_id: "ag_demo".into(),
+                agent_id: "agent.demo".into(),
             },
             "user",
         )
@@ -1069,7 +1154,7 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
             tenant_id: "t_demo".into(),
             conversation_id: "c_agent_dialog_retry".into(),
             requester_id: "u_demo".into(),
-            agent_id: "ag_other".into(),
+            agent_id: "agent.other".into(),
         },
         "user",
     );
@@ -1088,7 +1173,7 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
                 tenant_id: "t_demo".into(),
                 conversation_id: "c_agent_dialog_retry".into(),
                 requester_id: "u_demo".into(),
-                agent_id: "ag_demo".into(),
+                agent_id: "agent.demo".into(),
             },
             "user",
         )
@@ -1122,7 +1207,7 @@ fn test_create_agent_dialog_rejects_non_user_requester_kind() {
             tenant_id: "t_demo".into(),
             conversation_id: "c_agent_dialog_invalid".into(),
             requester_id: "svc_ops".into(),
-            agent_id: "ag_demo".into(),
+            agent_id: "agent.demo".into(),
         },
         "system",
     );
@@ -1558,6 +1643,7 @@ fn test_agent_handoff_allows_source_and_target_posts() {
                 summary: Some("source".into()),
                 parts: vec![ContentPart::text("source")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("source agent post should succeed");
@@ -1581,6 +1667,7 @@ fn test_agent_handoff_allows_source_and_target_posts() {
                 summary: Some("target".into()),
                 parts: vec![ContentPart::text("target")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("target post should succeed");
@@ -1701,6 +1788,7 @@ fn test_agent_handoff_accept_resolve_close_state_machine_and_closed_handoff_reje
             summary: Some("should fail".into()),
             parts: vec![ContentPart::text("should fail")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
     assert!(matches!(post_after_close, Err(RuntimeError::Conflict(_))));
@@ -1957,6 +2045,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
                 summary: Some("one".into()),
                 parts: vec![ContentPart::text("one")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("first message should succeed");
@@ -1979,6 +2068,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
                 summary: Some("two".into()),
                 parts: vec![ContentPart::text("two")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("second message should succeed");
@@ -2074,6 +2164,7 @@ fn test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind() 
                 summary: Some("one".into()),
                 parts: vec![ContentPart::text("one")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("message should succeed");
@@ -2155,6 +2246,7 @@ fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay(
                 summary: Some("policy target".into()),
                 parts: vec![ContentPart::text("policy target")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post message should succeed");
@@ -2285,6 +2377,7 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
                 summary: Some("retained".into()),
                 parts: vec![ContentPart::text("retained")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post message should succeed");
@@ -2330,6 +2423,7 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
                 summary: Some("retained after replay".into()),
                 parts: vec![ContentPart::text("retained after replay")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post after replay should succeed");
@@ -2376,6 +2470,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
             summary: Some("should fail".into()),
             parts: vec![ContentPart::text("should fail")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
     assert!(matches!(
@@ -2400,6 +2495,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
             summary: Some("system notice".into()),
             parts: vec![ContentPart::text("system notice")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
     assert!(matches!(
@@ -2424,6 +2520,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
                 summary: Some("should fail".into()),
                 parts: vec![ContentPart::text("should fail")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         });
     assert!(matches!(
@@ -2448,6 +2545,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
                 summary: Some("system notice".into()),
                 parts: vec![ContentPart::text("system notice")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("system publisher dedicated publish should succeed");
@@ -2474,7 +2572,7 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
                 tenant_id: "t_demo".into(),
                 conversation_id: "c_agent_cursor".into(),
                 requester_id: "u_requester".into(),
-                agent_id: "ag_demo".into(),
+                agent_id: "agent.demo".into(),
             },
             "user",
         )
@@ -2498,6 +2596,7 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
                 summary: Some("question".into()),
                 parts: vec![ContentPart::text("question")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("message should succeed");
@@ -2506,7 +2605,7 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
         .update_read_cursor(UpdateReadCursorCommand {
             tenant_id: "t_demo".into(),
             conversation_id: "c_agent_cursor".into(),
-            principal_id: "ag_demo".into(),
+            principal_id: "agent.demo".into(),
             read_seq: 1,
             last_read_message_id: Some("msg_c_agent_cursor_1".into()),
         })
@@ -2521,7 +2620,7 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
                 && event.ordering_seq == 1
         })
         .expect("read cursor update event should exist");
-    assert_eq!(read_cursor_event.actor.actor_id, "ag_demo");
+    assert_eq!(read_cursor_event.actor.actor_id, "agent.demo");
     assert_eq!(read_cursor_event.actor.actor_kind, "agent");
 }
 
@@ -2557,6 +2656,7 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post message should succeed");
@@ -2577,6 +2677,7 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
                 summary: Some("edited".into()),
                 parts: vec![ContentPart::text("edited")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("edit message should succeed");
@@ -2643,6 +2744,7 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post message should succeed");
@@ -2669,6 +2771,7 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
                 summary: Some("edited".into()),
                 parts: vec![ContentPart::text("edited")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("generated message id should remain editable");
@@ -2723,6 +2826,7 @@ fn test_non_member_cannot_post_message_to_conversation() {
             summary: Some("unauthorized".into()),
             parts: vec![ContentPart::text("unauthorized")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
 
@@ -2761,6 +2865,7 @@ fn test_non_member_cannot_edit_or_recall_message() {
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("owner message should succeed");
@@ -2780,6 +2885,7 @@ fn test_non_member_cannot_edit_or_recall_message() {
             summary: Some("edited by intruder".into()),
             parts: vec![ContentPart::text("edited by intruder")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
     assert!(matches!(edit, Err(RuntimeError::PermissionDenied(_))));
@@ -2842,6 +2948,7 @@ fn test_member_cannot_edit_or_recall_other_members_message() {
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("owner message should succeed");
@@ -2861,6 +2968,7 @@ fn test_member_cannot_edit_or_recall_other_members_message() {
             summary: Some("edited by member".into()),
             parts: vec![ContentPart::text("edited by member")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
     assert!(matches!(edit, Err(RuntimeError::PermissionDenied(_))));
@@ -2923,6 +3031,7 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
                 summary: Some("member hello".into()),
                 parts: vec![ContentPart::text("member hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("member message should succeed");
@@ -2942,6 +3051,7 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
             summary: Some("owner edit".into()),
             parts: vec![ContentPart::text("owner edit")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
     assert!(matches!(edit, Err(RuntimeError::PermissionDenied(_))));
@@ -3007,6 +3117,7 @@ fn test_direct_conversation_owner_cannot_recall_other_members_message() {
                 summary: Some("peer hello".into()),
                 parts: vec![ContentPart::text("peer hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("peer message should succeed");
@@ -3491,6 +3602,7 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post message should succeed before forced failure");
@@ -3553,6 +3665,7 @@ fn test_post_message_does_not_leak_message_when_journal_append_fails() {
             summary: Some("hello".into()),
             parts: vec![ContentPart::text("hello")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
     assert!(matches!(
@@ -3602,6 +3715,7 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post should succeed before forced failure");
@@ -3621,6 +3735,7 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
             summary: Some("edited".into()),
             parts: vec![ContentPart::text("edited")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
     assert!(matches!(
@@ -3674,6 +3789,7 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post should succeed before forced failure");
@@ -3738,6 +3854,7 @@ fn test_add_reaction_does_not_leak_reaction_when_journal_append_fails() {
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post should succeed before forced failure");
@@ -3807,6 +3924,7 @@ fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post should succeed before forced failure");
@@ -3895,6 +4013,7 @@ fn test_pin_message_does_not_leak_pin_state_when_journal_append_fails() {
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post should succeed before forced failure");
@@ -3955,6 +4074,7 @@ fn test_unpin_message_does_not_leak_pin_removal_when_journal_append_fails() {
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post should succeed before forced failure");
@@ -4273,6 +4393,7 @@ fn test_group_member_can_leave_and_loses_access() {
             summary: Some("after leave".into()),
             parts: vec![ContentPart::text("after leave")],
             render_hints: Default::default(),
+            reply_to: None,
         },
     });
     assert!(matches!(
@@ -4969,6 +5090,7 @@ fn test_posted_message_timestamps_advance_between_distinct_messages() {
                 summary: Some("one".into()),
                 parts: vec![ContentPart::text("one")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("first message should succeed");
@@ -4993,6 +5115,7 @@ fn test_posted_message_timestamps_advance_between_distinct_messages() {
                 summary: Some("two".into()),
                 parts: vec![ContentPart::text("two")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("second message should succeed");
@@ -5045,6 +5168,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
                 summary: Some("one".into()),
                 parts: vec![ContentPart::text("one")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("first message should succeed");
@@ -5066,6 +5190,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
                 summary: Some("two".into()),
                 parts: vec![ContentPart::text("two")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("second message should succeed");
@@ -5210,6 +5335,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 summary: Some("one".into()),
                 parts: vec![ContentPart::text("one")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("first message should succeed");
@@ -5231,6 +5357,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 summary: Some("two".into()),
                 parts: vec![ContentPart::text("two")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("second message should succeed");
@@ -5251,6 +5378,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 summary: Some("edited one".into()),
                 parts: vec![ContentPart::text("edited one")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("first edit should succeed");
@@ -5273,6 +5401,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
                 summary: Some("edited two".into()),
                 parts: vec![ContentPart::text("edited two")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("second edit should succeed");
@@ -5363,6 +5492,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
                 summary: Some("reaction target".into()),
                 parts: vec![ContentPart::text("reaction target")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post message should succeed");
@@ -5501,6 +5631,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
                 summary: Some("pin target".into()),
                 parts: vec![ContentPart::text("pin target")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("member post should succeed");
@@ -5634,6 +5765,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
                 summary: Some("replay target".into()),
                 parts: vec![ContentPart::text("replay target")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("post message should succeed");
@@ -5870,6 +6002,7 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
                 summary: Some("root".into()),
                 parts: vec![ContentPart::text("root")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("root message should succeed");
@@ -5941,6 +6074,7 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
                 summary: Some("reply".into()),
                 parts: vec![ContentPart::text("reply")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("thread reply should succeed");
@@ -6022,6 +6156,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
                 summary: Some("root-1".into()),
                 parts: vec![ContentPart::text("root-1")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("first root message should succeed");
@@ -6044,6 +6179,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
                 summary: Some("root-2".into()),
                 parts: vec![ContentPart::text("root-2")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("second root message should succeed");
@@ -6189,6 +6325,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
                 summary: Some("root notify".into()),
                 parts: vec![ContentPart::text("root notify")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("root author should post parent message");
@@ -6302,6 +6439,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
                 summary: Some("reply from root author".into()),
                 parts: vec![ContentPart::text("reply from root author")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("replayed thread should allow auto-subscribed root author to reply");
@@ -6355,6 +6493,7 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
                 summary: Some("hello runtime sync".into()),
                 parts: vec![ContentPart::text("hello runtime sync")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("shared-sync root message should post");
@@ -6757,6 +6896,7 @@ fn test_post_message_rejects_oversized_sender_session_id() {
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect_err("oversized sender session id should be rejected");
@@ -6825,6 +6965,7 @@ fn test_post_message_rejects_oversized_sender_metadata() {
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect_err("oversized sender metadata should be rejected");
@@ -6868,6 +7009,7 @@ fn test_post_message_rejects_oversized_render_hints() {
                 summary: Some("hello".into()),
                 parts: vec![ContentPart::text("hello")],
                 render_hints: BTreeMap::from([("preview".into(), "x".repeat(70 * 1024))]),
+                reply_to: None,
             },
         })
         .expect_err("oversized render hints should be rejected");

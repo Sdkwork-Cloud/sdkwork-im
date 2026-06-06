@@ -21,6 +21,19 @@ startup, AppContext projection, and shared-channel sync behavior.
 | `CRAW_CHAT_RUNTIME_DIR` | Managed runtime directory |
 | `CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET` | Domain signing secret for friend-request pagination cursors |
 
+## Production Domain Variables
+
+For packaged server and web release deployments, use [Production Domain Binding](/deployment/production-domain-binding)
+as the source of truth.
+
+| Variable | Purpose |
+| --- | --- |
+| `CRAW_CHAT_SERVER_BASE_URL` | Public web/docs origin for the packaged server deployment. |
+| `CRAW_CHAT_SERVER_API_BASE_URL` | Public HTTP gateway base URL. The generated SDKs append `/app/v3/api` and `/im/v3/api`. |
+| `CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL` | Public realtime WebSocket gateway base URL. The IM SDK appends `/im/v3/api/realtime/ws`. |
+| `CRAW_CHAT_BROWSER_ORIGINS` | Comma-separated browser origins allowed to call the public gateway. Required for split web/API domains. |
+| `CRAW_CHAT_PC_API_UPSTREAM` | Optional upstream for PC auxiliary `/api/agent/*` routes. |
+
 ### Authentication Boundary
 
 `sdkwork-appbase` owns login, IAM sessions, dual-token validation, users, tenants, organizations,

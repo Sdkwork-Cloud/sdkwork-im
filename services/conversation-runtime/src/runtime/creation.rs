@@ -869,6 +869,7 @@ where
             command.agent_id.as_str(),
             CONVERSATION_MAX_ID_BYTES,
         )?;
+        validate_standard_agent_id(command.agent_id.as_str())?;
         validate_payload_size("requesterKind", requester_kind, CONVERSATION_MAX_KIND_BYTES)?;
         policy::ensure_agent_dialog_requester_kind(requester_kind)?;
         let request_key = agent_dialog_create_request_key(
@@ -878,11 +879,6 @@ where
             command.conversation_id.as_str(),
         );
 
-        if command.agent_id.trim().is_empty() {
-            return Err(RuntimeError::PermissionDenied(
-                "agent dialog requires target agent id".into(),
-            ));
-        }
         if command.requester_id == command.agent_id {
             return Err(RuntimeError::PermissionDenied(
                 "agent dialog agent must differ from requester".into(),

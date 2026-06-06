@@ -1,19 +1,65 @@
 # Server 版本配置与 PostgreSQL 接入
 
-`craw-chat-server` 默认采用 PostgreSQL 作为 server 版本数据库基线。
+`craw-chat-server` 是 SDKWork Chat 的 server 版本入口。应用标准 identity 为 `chat`，发布包名为 `sdkwork-chat`，对外 SDKWork 路径为 `/sdkwork/chat`。
 
-## 已部署 PostgreSQL 的接入方式
+Server 和 container 默认使用 PostgreSQL。Desktop 本地数据默认使用 SQLite，文件位于 `~/.sdkwork/chat/data/chat.sqlite`。
 
-如果 PostgreSQL 已经由 DBA 或现有平台安装部署完成，推荐直接使用 configuration file 方式接入，而不是让安装器强制创建数据库。
+## 标准文件
 
-核心文件：
+Linux server/service/container:
 
-- `server.yaml`
-- `server.env`
-- `storage/postgresql.yaml`
-- `secrets/postgresql.password`
+```text
+/etc/sdkwork/chat/chat.toml
+/etc/sdkwork/chat/server.env
+/etc/sdkwork/chat/postgresql.yaml
+/etc/sdkwork/chat/database.secret
+/var/lib/sdkwork/chat
+/var/log/sdkwork/chat
+/run/sdkwork/chat
+```
 
-## `storage/postgresql.yaml` 示例
+Windows Service:
+
+```text
+%ProgramFiles%/sdkwork/chat
+%ProgramData%/sdkwork/chat/chat.toml
+%ProgramData%/sdkwork/chat/server.env
+%ProgramData%/sdkwork/chat/postgresql.yaml
+%ProgramData%/sdkwork/chat/database.secret
+%ProgramData%/sdkwork/chat/Data
+%ProgramData%/sdkwork/chat/Logs
+%ProgramData%/sdkwork/chat/Run
+```
+
+macOS service:
+
+```text
+/usr/lib/sdkwork/chat
+/Library/Application Support/sdkwork/chat/chat.toml
+/Library/Application Support/sdkwork/chat/server.env
+/Library/Application Support/sdkwork/chat/postgresql.yaml
+/Library/Application Support/sdkwork/chat/database.secret
+/Library/Application Support/sdkwork/chat/Data
+/Library/Logs/sdkwork/chat
+/Library/Application Support/sdkwork/chat/Run
+```
+
+## chat.toml 数据库段
+
+```toml
+[database]
+engine = "postgresql"
+host = "10.10.20.15"
+port = 5432
+database = "sdkwork_chat_prod"
+schema = "sdkwork_chat_prod"
+username = "sdkwork_chat_prod"
+password_file = "/etc/sdkwork/chat/database.secret"
+ssl_mode = "require"
+max_connections = 20
+```
+
+## postgresql.yaml 初始化辅助配置
 
 ```yaml
 provider: postgresql
@@ -21,46 +67,52 @@ provider: postgresql
 connection:
   host: 10.10.20.15
   port: 5432
-  database: craw_chat
-  username: craw_chat_app
-  passwordFile: ./secrets/postgresql.password
+  database: sdkwork_chat_prod
+  username: sdkwork_chat_prod
+  passwordFile: /etc/sdkwork/chat/database.secret
   sslmode: require
-  applicationName: craw-chat-server
+  applicationName: sdkwork-chat-server
   connectTimeoutSeconds: 10
 
 schema:
-  name: craw_chat
+  name: sdkwork_chat_prod
   provisioningMode: none
   migrationMode: apply
   expectedVersion: latest
 
 pool:
   minConnections: 5
-  maxConnections: 30
+  maxConnections: 20
   idleTimeoutSeconds: 300
   maxLifetimeSeconds: 1800
 ```
 
 ## 初始化模式
 
-- `verify-only`
-- `bootstrap-schema`
-- `create-db-and-schema`
+- `verify-only`: 外部已建库、已建账号、已建 schema，只校验配置和连接。
+- `bootstrap-schema`: 外部已安装 PostgreSQL，应用账号可初始化 schema。
+- `create-db-and-schema`: 管理员授权脚本创建数据库和 schema。
 
-推荐关系：
+`init-storage-server` 使用 `/etc/sdkwork/chat/postgresql.yaml` 或平台等价路径。密码来自 `database.secret` 或平台密钥，不能写入发布包。
 
-- 外部已建库已建账号: `verify-only`
-- 外部已装 PostgreSQL 但 schema 未初始化: `bootstrap-schema`
-- 授权应用创建数据库与 schema: `create-db-and-schema`
+## 环境变量覆盖
 
-## 关键字段
+标准变量前缀是 `SDKWORK_CHAT_*`：
 
-- `passwordFile`
-- `migrationMode`
-- `provisioningMode`
+```env
+SDKWORK_CHAT_DEPLOYMENT_MODE=server
+SDKWORK_CHAT_CONFIG_FILE=/etc/sdkwork/chat/chat.toml
+SDKWORK_CHAT_DATA_DIR=/var/lib/sdkwork/chat
+SDKWORK_CHAT_LOG_DIR=/var/log/sdkwork/chat
+SDKWORK_CHAT_RUN_DIR=/run/sdkwork/chat
+SDKWORK_CHAT_DATABASE_ENGINE=postgresql
+SDKWORK_CHAT_DATABASE_HOST=10.10.20.15
+SDKWORK_CHAT_DATABASE_PORT=5432
+SDKWORK_CHAT_DATABASE_NAME=sdkwork_chat_prod
+SDKWORK_CHAT_DATABASE_SCHEMA=sdkwork_chat_prod
+SDKWORK_CHAT_DATABASE_USERNAME=sdkwork_chat_prod
+SDKWORK_CHAT_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret
+SDKWORK_CHAT_DATABASE_SSL_MODE=require
+```
 
-## 注意事项
-
-- `external-managed` 场景下，直接维护 configuration file 即可。
-- 第一阶段 `init-storage-server` 会真实校验 file-based contract 并生成 report，不会伪造 live connectivity 成功。
-- 后续阶段再补 PostgreSQL 真连接验证、migrate apply 和 schema version gate。
+`DATABASE_PROVIDER` 和 `DATABASE_SSLMODE` 不是标准名称。

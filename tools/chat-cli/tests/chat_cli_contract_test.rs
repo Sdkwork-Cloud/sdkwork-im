@@ -187,12 +187,8 @@ fn test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points()
         .join("sdks")
         .join("sdkwork-im-backend-sdk")
         .join("README.md");
-    let backend_sdk = fs::read_to_string(&backend_sdk_path).unwrap_or_else(|_| {
-        panic!(
-            "missing backend SDK README: {}",
-            backend_sdk_path.display()
-        )
-    });
+    let backend_sdk = fs::read_to_string(&backend_sdk_path)
+        .unwrap_or_else(|_| panic!("missing backend SDK README: {}", backend_sdk_path.display()));
     let rtc_sdk_path = root.join("sdks").join("sdkwork-rtc-sdk").join("README.md");
     let rtc_sdk = fs::read_to_string(&rtc_sdk_path)
         .unwrap_or_else(|_| panic!("missing RTC SDK README: {}", rtc_sdk_path.display()));
@@ -292,12 +288,8 @@ fn test_step12_cli_and_sdk_docs_freeze_recovery_baseline() {
         .join("sdks")
         .join("sdkwork-im-backend-sdk")
         .join("README.md");
-    let backend_sdk = fs::read_to_string(&backend_sdk_path).unwrap_or_else(|_| {
-        panic!(
-            "missing backend SDK README: {}",
-            backend_sdk_path.display()
-        )
-    });
+    let backend_sdk = fs::read_to_string(&backend_sdk_path)
+        .unwrap_or_else(|_| panic!("missing backend SDK README: {}", backend_sdk_path.display()));
 
     for required_text in ["chat-cli.*", "chat-window.*", "open-chat-test"] {
         assert!(
@@ -318,7 +310,12 @@ fn test_step12_cli_and_sdk_docs_freeze_recovery_baseline() {
         );
     }
 
-    for required_text in ["control-plane", "admin", "/backend/v3/api", "sdkwork-im-backend-sdk"] {
+    for required_text in [
+        "control-plane",
+        "admin",
+        "/backend/v3/api",
+        "sdkwork-im-backend-sdk",
+    ] {
         assert!(
             backend_sdk.contains(required_text),
             "backend SDK README must contain backend boundary text {required_text}"
@@ -343,17 +340,9 @@ fn test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline(
         .join("sdks")
         .join("sdkwork-im-backend-sdk")
         .join("README.md");
-    let backend_sdk = fs::read_to_string(&backend_sdk_path).unwrap_or_else(|_| {
-        panic!(
-            "missing backend SDK README: {}",
-            backend_sdk_path.display()
-        )
-    });
-    let index_doc_path = root
-        .join("docs")
-        .join("sites")
-        .join("sdk")
-        .join("index.md");
+    let backend_sdk = fs::read_to_string(&backend_sdk_path)
+        .unwrap_or_else(|_| panic!("missing backend SDK README: {}", backend_sdk_path.display()));
+    let index_doc_path = root.join("docs").join("sites").join("sdk").join("index.md");
     let index_doc = fs::read_to_string(&index_doc_path)
         .unwrap_or_else(|_| panic!("missing validation index doc: {}", index_doc_path.display()));
 
@@ -377,7 +366,12 @@ fn test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline(
         );
     }
 
-    for required_text in ["control-plane", "admin", "/backend/v3/api", "sdkwork-im-backend-sdk"] {
+    for required_text in [
+        "control-plane",
+        "admin",
+        "/backend/v3/api",
+        "sdkwork-im-backend-sdk",
+    ] {
         assert!(
             backend_sdk.contains(required_text),
             "backend SDK README must contain backend boundary text {required_text}"
@@ -400,11 +394,7 @@ fn test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline(
 #[test]
 fn test_continuous_optimization_docs_freeze_single_validation_index() {
     let root = workspace_root();
-    let index_doc_path = root
-        .join("docs")
-        .join("sites")
-        .join("sdk")
-        .join("index.md");
+    let index_doc_path = root.join("docs").join("sites").join("sdk").join("index.md");
     let index_doc = fs::read_to_string(&index_doc_path).unwrap_or_else(|_| {
         panic!(
             "missing continuous optimization validation index doc: {}",
@@ -442,10 +432,7 @@ fn test_continuous_optimization_docs_freeze_single_validation_index() {
         );
     }
 
-    for required_text in [
-        "chat-cli.*",
-        "open-chat-test",
-    ] {
+    for required_text in ["chat-cli.*", "open-chat-test"] {
         assert!(
             deploy_readme.contains(required_text),
             "CLI docs must contain {required_text}"
@@ -764,9 +751,7 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_release_catalog_boundary
         ),
         (
             "RTC SDK README",
-            root.join("sdks")
-                .join("sdkwork-rtc-sdk")
-                .join("README.md"),
+            root.join("sdks").join("sdkwork-rtc-sdk").join("README.md"),
             [
                 "sdk-release-catalog.json",
                 "template_only_pending_generation",
@@ -810,9 +795,7 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_release_catalog_bou
         ),
         (
             "RTC SDK container README",
-            root.join("sdks")
-                .join("sdkwork-rtc-sdk")
-                .join("README.md"),
+            root.join("sdks").join("sdkwork-rtc-sdk").join("README.md"),
         ),
     ] {
         let readme = fs::read_to_string(&path)

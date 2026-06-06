@@ -267,7 +267,7 @@ class OpsProviderBindingsDriftApi {
         this.client = client;
     }
     /** Retrieve provider binding drift */
-    async list() {
+    async retrieve() {
         return this.client.get(backendApiPath(`/ops/provider_bindings/drift`));
     }
 }
@@ -1505,7 +1505,7 @@ function serializePathPrimitive(value) {
     return String(value);
 }
 
-class SdkworkBackendClient {
+class SdkworkImBackendClient {
     constructor(config) {
         this.httpClient = createHttpClient(config);
         this.ops = createOpsApi(this.httpClient);
@@ -1531,7 +1531,7 @@ class SdkworkBackendClient {
     }
 }
 function createClient(config) {
-    return new SdkworkBackendClient(config);
+    return new SdkworkImBackendClient(config);
 }
 
 class BaseApi {
@@ -1563,17 +1563,9 @@ Object.defineProperty(exports, "DEFAULT_TIMEOUT", {
     enumerable: true,
     get: function () { return sdkCommon.DEFAULT_TIMEOUT; }
 });
-Object.defineProperty(exports, "DefaultAuthTokenManager", {
-    enumerable: true,
-    get: function () { return sdkCommon.DefaultAuthTokenManager; }
-});
 Object.defineProperty(exports, "SUCCESS_CODES", {
     enumerable: true,
     get: function () { return sdkCommon.SUCCESS_CODES; }
-});
-Object.defineProperty(exports, "createTokenManager", {
-    enumerable: true,
-    get: function () { return sdkCommon.createTokenManager; }
 });
 exports.AdminApi = AdminApi;
 exports.AuditApi = AuditApi;
@@ -1582,7 +1574,8 @@ exports.BaseApi = BaseApi;
 exports.ControlApi = ControlApi;
 exports.HttpClient = HttpClient;
 exports.OpsApi = OpsApi;
-exports.SdkworkBackendClient = SdkworkBackendClient;
+exports.SdkworkBackendClient = SdkworkImBackendClient;
+exports.SdkworkImBackendClient = SdkworkImBackendClient;
 exports.backendApiPath = backendApiPath;
 exports.createAdminApi = createAdminApi;
 exports.createAuditApi = createAuditApi;

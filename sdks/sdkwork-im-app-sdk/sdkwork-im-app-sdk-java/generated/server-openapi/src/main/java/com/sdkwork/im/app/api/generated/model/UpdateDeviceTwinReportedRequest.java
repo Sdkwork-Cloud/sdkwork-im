@@ -7,7 +7,7 @@ public class UpdateDeviceTwinReportedRequest {
     public String getReportedStateJson() {
         return this.reportedStateJson;
     }
-    
+
     public void setReportedStateJson(String reportedStateJson) {
         this.reportedStateJson = reportedStateJson;
     }

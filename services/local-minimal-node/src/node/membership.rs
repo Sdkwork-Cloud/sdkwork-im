@@ -2,25 +2,63 @@ use super::*;
 
 pub(super) async fn list_members(
     Path(conversation_id): Path<String>,
+    Query(query): Query<MemberListQuery>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<ListMembersResponse>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
+    let window = state
+        .conversation_runtime
+        .list_members_window_from_auth_context(
+            &auth,
+            conversation_id.as_str(),
+            query.limit,
+            query.cursor.as_deref(),
+        )
+        .map_err(map_member_list_window_error)?;
     Ok(Json(ListMembersResponse {
-        items: state
-            .conversation_runtime
-            .list_members_from_auth_context(&auth, conversation_id.as_str())?,
+        items: window.items,
+        next_cursor: window.next_cursor,
+        has_more: window.has_more,
     }))
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct MemberListQuery {
+    limit: Option<usize>,
+    cursor: Option<String>,
+}
+
+fn map_member_list_window_error(error: conversation_runtime::RuntimeError) -> ApiError {
+    match error {
+        conversation_runtime::RuntimeError::InvalidInput(message)
+            if message.contains("member list limit") || message.contains("member list cursor") =>
+        {
+            ApiError {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: if message.contains("cursor") {
+                    "cursor_invalid"
+                } else {
+                    "limit_invalid"
+                },
+                message,
+            }
+        }
+        other => ApiError::from(other),
+    }
 }
 
 pub(super) async fn add_member(
     Path(conversation_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<AddConversationMemberRequest>,
 ) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let AddConversationMemberRequest {
         principal_id,
         principal_kind,
@@ -86,10 +124,11 @@ pub(super) async fn add_member(
 pub(super) async fn remove_member(
     Path(conversation_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<RemoveConversationMemberRequest>,
 ) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
     let base_recipients = effects::conversation_member_principal_recipients_from_auth_context(
@@ -138,10 +177,11 @@ pub(super) async fn remove_member(
 pub(super) async fn transfer_conversation_owner(
     Path(conversation_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<TransferConversationOwnerRequest>,
 ) -> Result<Json<TransferConversationOwnerResult>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
     let transfer = state
@@ -160,10 +200,11 @@ pub(super) async fn transfer_conversation_owner(
 pub(super) async fn change_conversation_member_role(
     Path(conversation_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<ChangeConversationMemberRoleRequest>,
 ) -> Result<Json<ChangeConversationMemberRoleResult>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
     let base_recipients = effects::conversation_member_principal_recipients_from_auth_context(
@@ -216,9 +257,10 @@ pub(super) async fn change_conversation_member_role(
 pub(super) async fn leave_conversation(
     Path(conversation_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<ConversationMember>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
     let base_recipients = effects::conversation_member_principal_recipients_from_auth_context(

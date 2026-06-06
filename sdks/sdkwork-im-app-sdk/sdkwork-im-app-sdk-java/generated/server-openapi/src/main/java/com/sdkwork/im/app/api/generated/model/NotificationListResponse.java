@@ -8,7 +8,7 @@ public class NotificationListResponse {
     public List<NotificationTask> getItems() {
         return this.items;
     }
-    
+
     public void setItems(List<NotificationTask> items) {
         this.items = items;
     }

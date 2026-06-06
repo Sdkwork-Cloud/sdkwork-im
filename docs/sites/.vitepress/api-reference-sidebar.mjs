@@ -142,14 +142,6 @@ export const pageOperationGroups = {
       ],
     },
   ],
-  "/api-reference/im/media": [
-    {
-      text: "Upload Lifecycle",
-      anchors: ["create-media-upload", "complete-media-upload"],
-    },
-    { text: "Asset Access", anchors: ["get-media", "get-media-download-url"] },
-    { text: "Conversation Attachment", anchors: ["attach-media"] },
-  ],
   "/api-reference/im/streams": [
     {
       text: "Stream Lifecycle",

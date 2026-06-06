@@ -90,14 +90,13 @@ impl RtcProviderPort for StubRtcProvider {
         tenant_id: &str,
         rtc_session_id: &str,
     ) -> Result<Option<RtcRecordingArtifact>, craw_chat_contract_core::ContractError> {
-        Ok(Some(RtcRecordingArtifact {
-            tenant_id: tenant_id.into(),
-            rtc_session_id: rtc_session_id.into(),
-            bucket: "rtc-artifacts".into(),
-            object_key: "rtc/demo.mp4".into(),
-            storage_provider: None,
-            playback_url: Some("https://storage.example/rtc/demo.mp4".into()),
-        }))
+        Ok(Some(RtcRecordingArtifact::drive_backed_recording(
+            tenant_id,
+            rtc_session_id,
+            "space_rtc_recordings",
+            format!("node_{rtc_session_id}"),
+            Some("1".into()),
+        )))
     }
 
     fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {

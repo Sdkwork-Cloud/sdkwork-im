@@ -6,7 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde_json::json;
 
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
-const MANAGED_RUNTIME_STATE_FILE_COUNT: usize = 13;
+const MANAGED_RUNTIME_STATE_FILE_COUNT: usize = 12;
 
 fn unique_runtime_dir(prefix: &str) -> PathBuf {
     let unique = SystemTime::now()
@@ -31,7 +31,6 @@ fn write_full_snapshot(root: &Path) {
         "realtime-event-windows.json",
         "realtime-subscriptions.json",
         "presence-state.json",
-        "device-twin-state.json",
         "stream-state.json",
         "rtc-state.json",
         "notification-tasks.json",

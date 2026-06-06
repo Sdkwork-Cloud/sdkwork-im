@@ -380,7 +380,7 @@ class DeviceTwinReportedApi {
         this.client = client;
     }
     /** Update the reported state for a device twin */
-    async create(deviceId, body) {
+    async update(deviceId, body) {
         return this.client.post(appApiPath(`/devices/${serializePathParameter$1(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin/reported`), body, undefined, undefined, 'application/json');
     }
 }
@@ -389,7 +389,7 @@ class DeviceTwinDesiredApi {
         this.client = client;
     }
     /** Update the desired state for a device twin */
-    async create(deviceId, body) {
+    async update(deviceId, body) {
         return this.client.post(appApiPath(`/devices/${serializePathParameter$1(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin/desired`), body, undefined, undefined, 'application/json');
     }
 }
@@ -400,7 +400,7 @@ class DeviceTwinApi {
         this.reported = new DeviceTwinReportedApi(client);
     }
     /** Get the device twin */
-    async list(deviceId) {
+    async retrieve(deviceId) {
         return this.client.get(appApiPath(`/devices/${serializePathParameter$1(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin`));
     }
 }
@@ -758,7 +758,7 @@ function createRtcApi(client) {
     return new RtcApi(client);
 }
 
-class SdkworkAppClient {
+class SdkworkImAppClient {
     constructor(config) {
         this.httpClient = createHttpClient(config);
         this.automation = createAutomationApi(this.httpClient);
@@ -786,7 +786,7 @@ class SdkworkAppClient {
     }
 }
 function createClient(config) {
-    return new SdkworkAppClient(config);
+    return new SdkworkImAppClient(config);
 }
 
 class BaseApi {
@@ -818,17 +818,9 @@ Object.defineProperty(exports, "DEFAULT_TIMEOUT", {
     enumerable: true,
     get: function () { return sdkCommon.DEFAULT_TIMEOUT; }
 });
-Object.defineProperty(exports, "DefaultAuthTokenManager", {
-    enumerable: true,
-    get: function () { return sdkCommon.DefaultAuthTokenManager; }
-});
 Object.defineProperty(exports, "SUCCESS_CODES", {
     enumerable: true,
     get: function () { return sdkCommon.SUCCESS_CODES; }
-});
-Object.defineProperty(exports, "createTokenManager", {
-    enumerable: true,
-    get: function () { return sdkCommon.createTokenManager; }
 });
 exports.AutomationApi = AutomationApi;
 exports.BaseApi = BaseApi;
@@ -839,7 +831,8 @@ exports.NotificationApi = NotificationApi;
 exports.PortalApi = PortalApi;
 exports.ProviderApi = ProviderApi;
 exports.RtcApi = RtcApi;
-exports.SdkworkAppClient = SdkworkAppClient;
+exports.SdkworkAppClient = SdkworkImAppClient;
+exports.SdkworkImAppClient = SdkworkImAppClient;
 exports.appApiPath = appApiPath;
 exports.createAutomationApi = createAutomationApi;
 exports.createClient = createClient;

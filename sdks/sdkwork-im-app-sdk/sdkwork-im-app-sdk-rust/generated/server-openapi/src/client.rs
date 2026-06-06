@@ -4,11 +4,11 @@ use crate::api::{AutomationApi, DeviceApi, NotificationApi, PortalApi, ProviderA
 use crate::http::{SdkworkConfig, SdkworkError, SdkworkHttpClient};
 
 #[derive(Clone)]
-pub struct SdkworkAppClient {
+pub struct SdkworkImAppClient {
     http: Arc<SdkworkHttpClient>,
 }
 
-impl SdkworkAppClient {
+impl SdkworkImAppClient {
     pub fn new(config: SdkworkConfig) -> Result<Self, SdkworkError> {
         Ok(Self {
             http: Arc::new(SdkworkHttpClient::new(config)?),
@@ -67,3 +67,5 @@ impl SdkworkAppClient {
             RtcApi::new(Arc::clone(&self.http))
         }
 }
+
+pub type SdkworkAppClient = SdkworkImAppClient;

@@ -8,7 +8,7 @@ import { PortalApi } from './api/portal';
 import { ProviderApi } from './api/provider';
 import { IotApi } from './api/iot';
 import { RtcApi } from './api/rtc';
-export declare class SdkworkAppClient {
+export declare class SdkworkImAppClient {
     private httpClient;
     readonly automation: AutomationApi;
     readonly device: DeviceApi;
@@ -23,6 +23,7 @@ export declare class SdkworkAppClient {
     setTokenManager(manager: AuthTokenManager): this;
     get http(): HttpClient;
 }
-export declare function createClient(config: SdkworkAppConfig): SdkworkAppClient;
-export default SdkworkAppClient;
+export declare function createClient(config: SdkworkAppConfig): SdkworkImAppClient;
+export { SdkworkImAppClient as SdkworkAppClient };
+export default SdkworkImAppClient;
 //# sourceMappingURL=sdk.d.ts.map

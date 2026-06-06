@@ -2,7 +2,7 @@
 
 ## 本轮目标
 
-继续收敛 `/backend/v3/api/iot/protocol/uplink` 的 decode 前边界：
+继续收敛 `/app/v3/api/iot/protocol/uplink` 的 decode 前边界：
 
 - `local-minimal-node`
 - 当 device actor 已绑定 `auth.device_id`
@@ -43,7 +43,7 @@
 ## 关键词冻结
 
 - `local-minimal-node`
-- `/backend/v3/api/iot/protocol/uplink`
+- `/app/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `resolve_requested_device_id`

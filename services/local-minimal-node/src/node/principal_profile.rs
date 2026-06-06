@@ -20,7 +20,7 @@ const PRINCIPAL_PROFILE_EXTERNAL_SYSTEM_ENV: &str = "CRAW_CHAT_PRINCIPAL_PROFILE
 pub(super) fn build_default_principal_profile_provider() -> Arc<dyn PrincipalProfileProvider> {
     match resolve_default_principal_profile_provider_mode() {
         Ok(DefaultPrincipalProfileProviderMode::UpstreamContext) => {
-            Arc::new(UpstreamContextPrincipalProfileProvider::default())
+            Arc::new(UpstreamContextPrincipalProfileProvider)
         }
         Ok(DefaultPrincipalProfileProviderMode::ExternalCatalog) => {
             let default_external_system = resolve_external_principal_profile_system();
@@ -95,14 +95,6 @@ fn resolve_external_principal_profile_system() -> String {
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| "external-directory".into())
-}
-
-pub(super) async fn get_principal_profile_provider_health(
-    headers: HeaderMap,
-    State(state): State<AppState>,
-) -> Result<Json<ProviderHealthSnapshot>, ApiError> {
-    let _auth = resolve_app_context(&headers)?;
-    Ok(Json(state.principal_profile_provider_health()))
 }
 
 pub(super) fn resolve_sender_from_auth_context(
@@ -300,9 +292,11 @@ impl PrincipalProfileProvider for UpstreamContextPrincipalProfileProvider {
         principal_kind: &str,
         keyword: &str,
     ) -> Result<Vec<PrincipalProfile>, ContractError> {
-        if keyword.trim().is_empty() {
+        let keyword = keyword.trim();
+        if principal_kind != "user" || !is_upstream_context_exact_user_id_query(keyword) {
             return Ok(Vec::new());
         }
+
         Ok(vec![self.default_profile(
             tenant_id,
             keyword,
@@ -328,6 +322,30 @@ impl PrincipalProfileProvider for UpstreamContextPrincipalProfileProvider {
             details: BTreeMap::from([("providerKind".into(), "upstream-context".into())]),
         }
     }
+}
+
+fn is_upstream_context_exact_user_id_query(keyword: &str) -> bool {
+    if let Some(suffix) = keyword.strip_prefix('U') {
+        return suffix.len() == 10 && suffix.chars().all(|ch| ch.is_ascii_digit());
+    }
+
+    if keyword == "local-default-user" {
+        return true;
+    }
+
+    if let Some(suffix) = keyword.strip_prefix("local-user-") {
+        return suffix.len() == 16 && suffix.chars().all(|ch| ch.is_ascii_hexdigit());
+    }
+
+    keyword
+        .strip_prefix("u_")
+        .is_some_and(|suffix| !suffix.is_empty() && is_portable_principal_id_suffix(suffix))
+}
+
+fn is_portable_principal_id_suffix(value: &str) -> bool {
+    value
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-'))
 }
 
 #[derive(Debug)]

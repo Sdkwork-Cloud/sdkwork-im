@@ -8,7 +8,7 @@ import 'src/api/provider.dart';
 import 'src/api/iot.dart';
 import 'src/api/rtc.dart';
 
-class SdkworkAppClient {
+class SdkworkImAppClient {
   final HttpClient _httpClient;
 
   late final AutomationApi automation;
@@ -19,7 +19,7 @@ class SdkworkAppClient {
   late final IotApi iot;
   late final RtcApi rtc;
 
-  SdkworkAppClient({
+  SdkworkImAppClient({
     required SdkConfig config,
   }) : _httpClient = HttpClient(config: config) {
     automation = AutomationApi(_httpClient);
@@ -31,14 +31,14 @@ class SdkworkAppClient {
     rtc = RtcApi(_httpClient);
   }
 
-  factory SdkworkAppClient.withBaseUrl({
+  factory SdkworkImAppClient.withBaseUrl({
     required String baseUrl,
     String? authToken,
     String? accessToken,
     Map<String, String>? headers,
     int timeout = 30000,
   }) {
-    return SdkworkAppClient(
+    return SdkworkImAppClient(
       config: SdkConfig(
         baseUrl: baseUrl,
         timeout: timeout,
@@ -62,3 +62,5 @@ class SdkworkAppClient {
     _httpClient.setHeader(key, value);
   }
 }
+
+typedef SdkworkAppClient = SdkworkImAppClient;

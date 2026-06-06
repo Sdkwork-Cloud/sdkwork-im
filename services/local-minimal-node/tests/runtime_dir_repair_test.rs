@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
-const MANAGED_RUNTIME_STATE_FILE_COUNT: usize = 13;
+const MANAGED_RUNTIME_STATE_FILE_COUNT: usize = 12;
 
 fn unique_runtime_dir() -> PathBuf {
     let unique = SystemTime::now()

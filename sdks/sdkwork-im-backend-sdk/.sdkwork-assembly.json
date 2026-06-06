@@ -2,7 +2,7 @@
   "workspace": "sdkwork-im-backend-sdk",
   "title": "SDKWork IM Backend API SDK",
   "apiVersion": "0.1.0",
-  "openapiVersion": "3.0.3",
+  "openapiVersion": "3.1.2",
   "authoritySpec": "openapi/craw-chat-backend-api.openapi.yaml",
   "generationInputSpec": "openapi/craw-chat-backend-api.sdkgen.yaml",
   "derivedSpecs": {
@@ -17,6 +17,27 @@
     ],
     "manualTransports": []
   },
+  "sdkDependencies": [
+    {
+      "workspace": "sdkwork-appbase-backend-sdk",
+      "role": "appbase-backend-management-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/backend/v3/api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/appbase-backend-sdk",
+        "flutter": "sdkwork_appbase_backend_sdk",
+        "rust": "sdkwork-appbase-backend-sdk",
+        "java": "com.sdkwork:sdkwork-appbase-backend-sdk",
+        "csharp": "SDKWork.Appbase.BackendSdk",
+        "swift": "sdkwork-appbase-backend-sdk",
+        "kotlin": "com.sdkwork:sdkwork-appbase-backend-sdk",
+        "go": "github.com/sdkwork/sdkwork-appbase-backend-sdk",
+        "python": "sdkwork-appbase-backend-sdk"
+      }
+    }
+  ],
   "languages": [
     {
       "language": "typescript",
@@ -29,7 +50,8 @@
       "version": "0.1.0",
       "description": "Generator-owned TypeScript transport SDK for the Craw Chat backend/operator API.",
       "consumerSurface": {
-        "primaryClient": "SdkworkBackendClient",
+        "primaryClient": "SdkworkImBackendClient",
+        "legacyClient": "SdkworkBackendClient",
         "apiPrefix": "/backend/v3/api"
       }
     },
@@ -121,5 +143,7 @@
       "version": "0.1.0",
       "description": "Generator-owned Python transport SDK for the Craw Chat backend/operator API."
     }
-  ]
+  ],
+  "sdkOwner": "craw-chat",
+  "apiAuthority": "craw-chat.backend"
 }

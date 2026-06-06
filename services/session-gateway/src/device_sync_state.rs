@@ -171,11 +171,18 @@ mod tests {
     fn auth_context(principal_id: &str, actor_kind: &str, device_id: &str) -> AppContext {
         AppContext {
             tenant_id: "t_demo".into(),
+            organization_id: None,
+            user_id: principal_id.into(),
             actor_id: principal_id.into(),
             actor_kind: actor_kind.into(),
             session_id: Some(format!("s_{actor_kind}")),
+            app_id: None,
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: Default::default(),
+            permission_scope: Default::default(),
             device_id: Some(device_id.into()),
-            permissions: Default::default(),
         }
     }
 

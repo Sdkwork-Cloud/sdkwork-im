@@ -5,7 +5,7 @@
 在 `iot-mqtt` 已经作为默认 `IotProtocolAdapter` 注入、且 `protocol provider-health` 已可见的前提下，补齐第一条真实 `runtime mainline consumption`：
 
 - `local-minimal-node`
-- `POST /backend/v3/api/iot/protocol/uplink`
+- `POST /app/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter::decode_uplink()`
 - 写入统一 `device.telemetry` stream mainline
 
@@ -31,7 +31,7 @@
 ## 本轮决策
 
 - 最小 route 固定为：
-  - `POST /backend/v3/api/iot/protocol/uplink`
+  - `POST /app/v3/api/iot/protocol/uplink`
 - 请求先构造 `IotProtocolDecodeRequest`，其中 `device_id` 取：
   - `request.device_id.or_else(|| auth.device_id.clone())`
 - 解码后只落到一个冻结的统一目标：
@@ -53,13 +53,13 @@
 - 新增 uplink access guard：
   - `services/local-minimal-node/src/node/access.rs`
 - 在 `build.rs` 装配 route：
-  - `POST /backend/v3/api/iot/protocol/uplink`
+  - `POST /app/v3/api/iot/protocol/uplink`
 
 ## 验证
 
 - 红灯：
   - `cargo test -p local-minimal-node --offline --test iot_protocol_adapter_mainline_test -- --nocapture`
-  - 初始失败点：`POST /backend/v3/api/iot/protocol/uplink` 返回 `404`
+  - 初始失败点：`POST /app/v3/api/iot/protocol/uplink` 返回 `404`
 - 绿灯：
   - `cargo test -p local-minimal-node --offline --test iot_protocol_adapter_mainline_test -- --nocapture`
 

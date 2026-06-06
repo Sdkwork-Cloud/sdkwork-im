@@ -9,10 +9,9 @@ type SdkworkBackendClient struct {
     http *sdkhttp.Client
     Ops *api.OpsApi
     Audit *api.AuditApi
-    Provider *api.ProviderApi
-    Iot *api.IotApi
-    Rtc *api.RtcApi
     Automation *api.AutomationApi
+    Control *api.ControlApi
+    Admin *api.AdminApi
 }
 
 func NewSdkworkBackendClient(baseURL string) *SdkworkBackendClient {
@@ -26,10 +25,9 @@ func NewSdkworkBackendClientWithConfig(config sdkhttp.Config) *SdkworkBackendCli
         http: client,
         Ops: api.NewOpsApi(client),
         Audit: api.NewAuditApi(client),
-        Provider: api.NewProviderApi(client),
-        Iot: api.NewIotApi(client),
-        Rtc: api.NewRtcApi(client),
         Automation: api.NewAutomationApi(client),
+        Control: api.NewControlApi(client),
+        Admin: api.NewAdminApi(client),
     }
 }
 

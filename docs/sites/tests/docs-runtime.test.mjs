@@ -146,16 +146,62 @@ test('sdk docs preserve SDKWork credential and Craw Chat device-session terminol
   }
 });
 
-test('media API reference documents upload session mutation responses', () => {
-  const mediaDoc = readFileSync(path.join(docsRoot, 'api-reference', 'im', 'media.md'), 'utf8');
+test('media API reference documents sdkwork-drive delegation and standardized MediaResource usage', () => {
+  const checkedFiles = [
+    path.join(docsRoot, 'api-reference', 'im', 'media.md'),
+    path.join(docsRoot, 'api-reference', 'im', 'messages.md'),
+  ];
+  const forbiddenPatterns = [
+    /mediaAssetId/,
+    /MediaAsset/,
+    /MediaUploadMutationResponse/,
+    /MediaUploadSession/,
+    /CreateUploadRequest/,
+    /CompleteUploadRequest/,
+    /bucketId/,
+    /objectKey/,
+    /storageProvider/,
+    /\/im\/v3\/api\/media\/uploads/,
+    /download_url/,
+    /presigned upload/i,
+    /object_storage/,
+  ];
 
-  assert.match(mediaDoc, /Success<\/strong><span>`200 MediaUploadMutationResponse`<\/span>/);
-  assert.match(mediaDoc, /ApiSchemaTable schema="MediaUploadMutationResponse"/);
-  assert.match(mediaDoc, /ApiSchemaTable schema="MediaUploadSession"/);
-  assert.match(mediaDoc, /presigned upload session/i);
+  for (const filePath of checkedFiles) {
+    const relativePath = path.relative(currentWorkspaceRoot, filePath);
+    const source = readFileSync(filePath, 'utf8');
+
+    for (const forbidden of forbiddenPatterns) {
+      assert.doesNotMatch(
+        source,
+        forbidden,
+        `${relativePath} must document Drive-backed media references instead of the removed IM upload lifecycle`,
+      );
+    }
+
+    assert.match(source, /sdkwork-drive/, `${relativePath} must name sdkwork-drive as the file authority`);
+    assert.match(
+      source,
+      /drive:\/\/spaces\/\{spaceId\}\/nodes\/\{nodeId\}/,
+      `${relativePath} must show the canonical Drive URI shape`,
+    );
+    assert.match(source, /DriveReference/, `${relativePath} must document DriveReference`);
+    assert.match(source, /ContentPart\.drive/, `${relativePath} must document ContentPart.drive`);
+    assert.match(source, /MediaResource/, `${relativePath} must document MediaResource as the usage structure`);
+  }
 });
 
-test('authority openapi contract exposes media upload mutation schemas', () => {
+test('media operation reference pages are not generated for removed IM media lifecycle routes', () => {
+  const operationsMediaRoot = path.join(docsRoot, 'api-reference', 'operations', 'im', 'media');
+
+  assert.equal(
+    existsSync(operationsMediaRoot),
+    false,
+    'removed /im/v3/api/media lifecycle routes must not keep operation reference pages',
+  );
+});
+
+test('authority openapi contract exposes Drive-backed media references without upload mutations', () => {
   const workspaceRoot = path.resolve(docsRoot, '..', '..');
   const openapiPath = path.join(
     workspaceRoot,
@@ -166,29 +212,53 @@ test('authority openapi contract exposes media upload mutation schemas', () => {
   );
   const openapi = readFileSync(openapiPath, 'utf8');
 
-  assert.match(openapi, /operationId:\s*uploads\.create[\s\S]*MediaUploadMutationResponse/);
-  assert.match(openapi, /operationId:\s*uploads\.complete[\s\S]*MediaUploadMutationResponse/);
-  assert.match(openapi, /MediaUploadMutationResponse:/);
-  assert.match(openapi, /MediaUploadSession:/);
+  assert.doesNotMatch(openapi, /operationId:\s*uploads\.create/);
+  assert.doesNotMatch(openapi, /operationId:\s*uploads\.complete/);
+  assert.doesNotMatch(openapi, /MediaUploadMutationResponse:/);
+  assert.doesNotMatch(openapi, /MediaUploadSession:/);
+  assert.doesNotMatch(openapi, /mediaAssetId:/);
+  assert.doesNotMatch(openapi, /bucketId:/);
+  assert.doesNotMatch(openapi, /objectKey:/);
+  assert.match(openapi, /DriveReference:/);
+  assert.match(openapi, /drive:/);
+  assert.match(openapi, /MediaResource:/);
 });
 
-test('sdk docs describe Flutter presigned upload flow', () => {
-  const flutterDoc = readFileSync(path.join(docsRoot, 'sdk', 'flutter-sdk.md'), 'utf8');
+test('sdk docs describe Drive-backed media message references instead of IM upload helpers', () => {
+  const checkedFiles = [
+    path.join(docsRoot, 'sdk', 'flutter-sdk.md'),
+    path.join(docsRoot, 'sdk', 'typescript-sdk.md'),
+  ];
+  const forbiddenPatterns = [
+    /sdk\.media\.upload\(/,
+    /sdk\.upload\(/,
+    /sdk\.uploadAndSendMessage\(/,
+    /ImUploadedMediaAsset/,
+    /ImMediaUploadSession/,
+    /MediaUploadMutationResponse/,
+    /MediaUploadSession/,
+    /presigned upload/i,
+    /mediaAssetId/,
+    /object_storage/,
+  ];
 
-  assert.match(flutterDoc, /sdk\.media\.upload\(/);
-  assert.match(flutterDoc, /MediaUploadMutationResponse/);
-  assert.match(flutterDoc, /MediaUploadSession/);
-  assert.match(flutterDoc, /presigned upload session/i);
-});
+  for (const filePath of checkedFiles) {
+    const relativePath = path.relative(currentWorkspaceRoot, filePath);
+    const source = readFileSync(filePath, 'utf8');
 
-test('sdk docs describe TypeScript flat client creation and upload flow', () => {
-  const typescriptDoc = readFileSync(path.join(docsRoot, 'sdk', 'typescript-sdk.md'), 'utf8');
+    for (const forbidden of forbiddenPatterns) {
+      assert.doesNotMatch(
+        source,
+        forbidden,
+        `${relativePath} must route file lifecycle work to sdkwork-drive and keep IM SDK media usage reference-only`,
+      );
+    }
 
-  assert.match(typescriptDoc, /new ImSdkClient\(\{\s*baseUrl:/);
-  assert.doesNotMatch(typescriptDoc, /generatedConfig/);
-  assert.match(typescriptDoc, /sdk\.media\.upload\(/);
-  assert.match(typescriptDoc, /ImUploadedMediaAsset/);
-  assert.match(typescriptDoc, /ImMediaUploadSession/);
+    assert.match(source, /sdkwork-drive/);
+    assert.match(source, /DriveReference/);
+    assert.match(source, /ContentPart\.drive/);
+    assert.match(source, /createImageMessage/);
+  }
 });
 
 test('language support doc links to the dedicated TypeScript and Flutter SDK references', () => {

@@ -114,6 +114,17 @@ where
         self.list_members(auth.tenant_id.as_str(), conversation_id)
     }
 
+    pub fn list_members_window_from_auth_context(
+        &self,
+        auth: &AppContext,
+        conversation_id: &str,
+        limit: Option<usize>,
+        cursor: Option<&str>,
+    ) -> Result<ListMembersResult, RuntimeError> {
+        self.require_active_member_from_auth_context(auth, conversation_id)?;
+        self.list_members_window(auth.tenant_id.as_str(), conversation_id, limit, cursor)
+    }
+
     pub fn list_messages_window_from_auth_context(
         &self,
         auth: &AppContext,
@@ -1015,6 +1026,19 @@ where
             .collect())
     }
 
+    pub fn list_members_window(
+        &self,
+        tenant_id: &str,
+        conversation_id: &str,
+        limit: Option<usize>,
+        cursor: Option<&str>,
+    ) -> Result<ListMembersResult, RuntimeError> {
+        let limit = normalize_member_list_limit(limit).map_err(RuntimeError::InvalidInput)?;
+        let offset = parse_member_list_cursor(cursor)?;
+        let items = self.list_members(tenant_id, conversation_id)?;
+        Ok(member_list_window(items, offset, limit))
+    }
+
     pub fn update_read_cursor(
         &self,
         command: UpdateReadCursorCommand,
@@ -1261,6 +1285,48 @@ where
 
 fn validate_message_history_limit(limit: usize) -> Result<usize, RuntimeError> {
     normalize_message_history_limit(Some(limit)).map_err(RuntimeError::InvalidInput)
+}
+
+fn parse_member_list_cursor(cursor: Option<&str>) -> Result<usize, RuntimeError> {
+    let Some(cursor) = cursor.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(0);
+    };
+    cursor.parse::<usize>().map_err(|_| {
+        RuntimeError::InvalidInput(format!(
+            "conversation member list cursor is invalid: {cursor}"
+        ))
+    })
+}
+
+fn member_list_window(
+    items: Vec<ConversationMember>,
+    offset: usize,
+    limit: usize,
+) -> ListMembersResult {
+    if offset > items.len() {
+        return ListMembersResult {
+            items: Vec::new(),
+            next_cursor: None,
+            has_more: false,
+        };
+    }
+
+    let mut window = items
+        .into_iter()
+        .skip(offset)
+        .take(limit + 1)
+        .collect::<Vec<_>>();
+    let has_more = window.len() > limit;
+    if has_more {
+        window.truncate(limit);
+    }
+    let next_cursor = has_more.then(|| (offset + window.len()).to_string());
+
+    ListMembersResult {
+        items: window,
+        next_cursor,
+        has_more,
+    }
 }
 
 fn message_history_window(

@@ -332,7 +332,7 @@ async fn test_default_app_boots_with_invalid_principal_profile_provider_mode_and
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/principal/profiles/provider_health")
+                .uri("/app/v3/api/principal/profiles/provider_health")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")

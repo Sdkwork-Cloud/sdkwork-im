@@ -1,9 +1,9 @@
 param(
     [string]$InstanceName = "default",
-    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "CrawChat")),
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "config")),
-    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "logs")),
-    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "run")),
+    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "sdkwork", "chat")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
+    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Logs")),
+    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Run")),
     [string]$EnvFile,
     [string]$BinaryPath,
     [switch]$Release,
@@ -15,14 +15,30 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Get-ServerPathForInstance {
+    param([string]$Root, [string]$Name, [string]$Leaf)
+
+    if ($Name -eq "default") {
+        if ([string]::IsNullOrWhiteSpace($Leaf)) {
+            return $Root
+        }
+        return [System.IO.Path]::Combine($Root, $Leaf)
+    }
+    if ([string]::IsNullOrWhiteSpace($Leaf)) {
+        return [System.IO.Path]::Combine($Root, "instances", $Name)
+    }
+    return [System.IO.Path]::Combine($Root, "instances", $Name, $Leaf)
+}
+
+$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("ConfigDir")) {
-    $ConfigDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "config")
+    $ConfigDir = Get-ServerPathForInstance $programDataRoot $InstanceName ""
 }
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("LogDir")) {
-    $LogDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "logs")
+    $LogDir = Get-ServerPathForInstance $programDataRoot $InstanceName "Logs"
 }
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("RunDir")) {
-    $RunDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "run")
+    $RunDir = Get-ServerPathForInstance $programDataRoot $InstanceName "Run"
 }
 
 if ($Help) {
@@ -36,8 +52,11 @@ function Read-ConfigValue {
     param([string]$ConfigFile, [string]$Key)
     if (-not (Test-Path $ConfigFile)) { return $null }
     foreach ($line in Get-Content -Path $ConfigFile) {
-        if ($line -match "^\s*$Key:\s*(.+?)\s*$") {
+        if ($line -match "^\s*${Key}:\s*(.+?)\s*$") {
             return $Matches[1].Trim().Trim('"')
+        }
+        if ($line -match "^\s*${Key}\s*=\s*(.+?)\s*$") {
+            return $Matches[1].Trim().Trim('"').Trim("'")
         }
     }
     return $null
@@ -51,6 +70,18 @@ function Resolve-ServerEnvFilePath {
     }
 
     return (Join-Path $ResolvedConfigDir "server.env")
+}
+
+function Get-FirstEnvValue {
+    param([string[]]$Names)
+
+    foreach ($name in $Names) {
+        $value = [Environment]::GetEnvironmentVariable($name)
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            return $value
+        }
+    }
+    return $null
 }
 
 function Read-ServerEnvFile {
@@ -182,12 +213,39 @@ function Get-ManagedProcess {
 $root = Split-Path -Parent $PSScriptRoot
 $serverEnvPath = Resolve-ServerEnvFilePath -ExplicitEnvFile $EnvFile -ResolvedConfigDir $ConfigDir
 Import-ServerEnvFile -EnvFilePath $serverEnvPath
-$serverYamlPath = Join-Path $ConfigDir "server.yaml"
+$standardConfigFile = Get-FirstEnvValue @("SDKWORK_CHAT_CONFIG_FILE")
+if ([string]::IsNullOrWhiteSpace($standardConfigFile)) {
+    $serverYamlPath = Join-Path $ConfigDir "chat.toml"
+    if (-not (Test-Path $serverYamlPath)) {
+        $serverYamlPath = Join-Path $ConfigDir "server.yaml"
+    }
+}
+else {
+    $serverYamlPath = $standardConfigFile
+}
 if (-not (Test-Path $serverYamlPath)) {
-    throw "Missing server config. Run init-config-server first: $serverYamlPath"
+    $chatTomlPath = Join-Path $ConfigDir "chat.toml"
+    if (Test-Path $chatTomlPath) {
+        $serverYamlPath = $chatTomlPath
+    }
+    else {
+        throw "Missing server config. Run init-config-server first: $serverYamlPath"
+    }
 }
 
-$resolvedBindAddress = Read-ConfigValue -ConfigFile $serverYamlPath -Key "bindAddress"
+$standardBindAddress = Get-FirstEnvValue @("SDKWORK_CHAT_SERVER_BIND", "CRAW_CHAT_SERVER_BIND_ADDRESS")
+$resolvedBindAddress = if (-not [string]::IsNullOrWhiteSpace($standardBindAddress)) {
+    $standardBindAddress
+}
+else {
+    $fromToml = Read-ConfigValue -ConfigFile $serverYamlPath -Key "bind_address"
+    if ([string]::IsNullOrWhiteSpace($fromToml)) {
+        Read-ConfigValue -ConfigFile $serverYamlPath -Key "bindAddress"
+    }
+    else {
+        $fromToml
+    }
+}
 if ([string]::IsNullOrWhiteSpace($resolvedBindAddress)) {
     $resolvedBindAddress = "127.0.0.1:18079"
 }
@@ -213,7 +271,17 @@ if ($null -ne $existing) {
     throw "craw-chat-server is already running with PID $($existing.Id)."
 }
 
+$env:SDKWORK_CHAT_SERVER_BIND = $resolvedBindAddress
 $env:CRAW_CHAT_WEB_GATEWAY_BIND = $resolvedBindAddress
+if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_CHAT_SERVER_API_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:CRAW_CHAT_SERVER_API_BASE_URL)) {
+    $env:CRAW_CHAT_SERVER_API_BASE_URL = $env:SDKWORK_CHAT_SERVER_API_BASE_URL
+}
+if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_CHAT_SERVER_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:CRAW_CHAT_SERVER_BASE_URL)) {
+    $env:CRAW_CHAT_SERVER_BASE_URL = $env:SDKWORK_CHAT_SERVER_BASE_URL
+}
+if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL)) {
+    $env:CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL = $env:SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL
+}
 $serverArguments = @("--config", $serverYamlPath)
 
 if ($Foreground) {

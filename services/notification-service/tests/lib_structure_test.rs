@@ -13,9 +13,8 @@ fn test_notification_runtime_exposes_public_request_access_owner() {
     );
 
     assert!(
-        !source.contains(
-            "ensure_notification_request_access(&auth, request.recipient_id.as_str())?;"
-        ),
+        !source
+            .contains("ensure_notification_request_access(&auth, request.recipient_id.as_str())?;"),
         "notification-service HTTP request path should not inline cross-recipient notification access control once NotificationRuntime owns that AppContext boundary"
     );
 }

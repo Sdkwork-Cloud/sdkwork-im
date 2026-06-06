@@ -13,20 +13,20 @@ List<dynamic>? _sdkworkAsList(dynamic value) {
 }
 
 class ProblemDetail {
-  final String? type;
-  final String? title;
-  final int? status;
-  final String? detail;
+  final String type;
+  final String title;
+  final int status;
+  final String detail;
   final String? code;
   final String? message;
   final String? traceId;
   final bool? retryable;
 
   ProblemDetail({
-    this.type,
-    this.title,
-    this.status,
-    this.detail,
+    required this.type,
+    required this.title,
+    required this.status,
+    required this.detail,
     this.code,
     this.message,
     this.traceId,
@@ -35,10 +35,34 @@ class ProblemDetail {
 
   factory ProblemDetail.fromJson(Map<String, dynamic> json) {
     return ProblemDetail(
-      type: json['type']?.toString(),
-      title: json['title']?.toString(),
-      status: json['status'] is int ? json['status'] : null,
-      detail: json['detail']?.toString(),
+      type: (() {
+        final value = json['type']?.toString();
+        if (value == null) {
+          throw FormatException('ProblemDetail.type is required');
+        }
+        return value;
+      })(),
+      title: (() {
+        final value = json['title']?.toString();
+        if (value == null) {
+          throw FormatException('ProblemDetail.title is required');
+        }
+        return value;
+      })(),
+      status: (() {
+        final value = json['status'];
+        if (value is! int) {
+          throw FormatException('ProblemDetail.status is required');
+        }
+        return value;
+      })(),
+      detail: (() {
+        final value = json['detail']?.toString();
+        if (value == null) {
+          throw FormatException('ProblemDetail.detail is required');
+        }
+        return value;
+      })(),
       code: json['code']?.toString(),
       message: json['message']?.toString(),
       traceId: json['traceId']?.toString(),
@@ -62,29 +86,59 @@ class ProblemDetail {
 
 class ActivateFriendshipRequest {
   final String? directChatId;
-  final String? establishedAt;
-  final String? eventId;
-  final String? friendshipId;
-  final String? initiatorUserId;
-  final String? peerUserId;
+  final String establishedAt;
+  final String eventId;
+  final String friendshipId;
+  final String initiatorUserId;
+  final String peerUserId;
 
   ActivateFriendshipRequest({
     this.directChatId,
-    this.establishedAt,
-    this.eventId,
-    this.friendshipId,
-    this.initiatorUserId,
-    this.peerUserId
+    required this.establishedAt,
+    required this.eventId,
+    required this.friendshipId,
+    required this.initiatorUserId,
+    required this.peerUserId
   });
 
   factory ActivateFriendshipRequest.fromJson(Map<String, dynamic> json) {
     return ActivateFriendshipRequest(
       directChatId: json['directChatId']?.toString(),
-      establishedAt: json['establishedAt']?.toString(),
-      eventId: json['eventId']?.toString(),
-      friendshipId: json['friendshipId']?.toString(),
-      initiatorUserId: json['initiatorUserId']?.toString(),
-      peerUserId: json['peerUserId']?.toString()
+      establishedAt: (() {
+        final value = json['establishedAt']?.toString();
+        if (value == null) {
+          throw FormatException('ActivateFriendshipRequest.establishedAt is required');
+        }
+        return value;
+      })(),
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('ActivateFriendshipRequest.eventId is required');
+        }
+        return value;
+      })(),
+      friendshipId: (() {
+        final value = json['friendshipId']?.toString();
+        if (value == null) {
+          throw FormatException('ActivateFriendshipRequest.friendshipId is required');
+        }
+        return value;
+      })(),
+      initiatorUserId: (() {
+        final value = json['initiatorUserId']?.toString();
+        if (value == null) {
+          throw FormatException('ActivateFriendshipRequest.initiatorUserId is required');
+        }
+        return value;
+      })(),
+      peerUserId: (() {
+        final value = json['peerUserId']?.toString();
+        if (value == null) {
+          throw FormatException('ActivateFriendshipRequest.peerUserId is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -101,36 +155,78 @@ class ActivateFriendshipRequest {
 }
 
 class ApplySharedChannelPolicyRequest {
-  final String? appliedAt;
-  final String? channelId;
-  final String? connectionId;
+  final String appliedAt;
+  final String channelId;
+  final String connectionId;
   final String? conversationId;
-  final String? eventId;
-  final String? historyVisibility;
-  final String? policyId;
-  final int? policyVersion;
+  final String eventId;
+  final String historyVisibility;
+  final String policyId;
+  final int policyVersion;
 
   ApplySharedChannelPolicyRequest({
-    this.appliedAt,
-    this.channelId,
-    this.connectionId,
+    required this.appliedAt,
+    required this.channelId,
+    required this.connectionId,
     this.conversationId,
-    this.eventId,
-    this.historyVisibility,
-    this.policyId,
-    this.policyVersion
+    required this.eventId,
+    required this.historyVisibility,
+    required this.policyId,
+    required this.policyVersion
   });
 
   factory ApplySharedChannelPolicyRequest.fromJson(Map<String, dynamic> json) {
     return ApplySharedChannelPolicyRequest(
-      appliedAt: json['appliedAt']?.toString(),
-      channelId: json['channelId']?.toString(),
-      connectionId: json['connectionId']?.toString(),
+      appliedAt: (() {
+        final value = json['appliedAt']?.toString();
+        if (value == null) {
+          throw FormatException('ApplySharedChannelPolicyRequest.appliedAt is required');
+        }
+        return value;
+      })(),
+      channelId: (() {
+        final value = json['channelId']?.toString();
+        if (value == null) {
+          throw FormatException('ApplySharedChannelPolicyRequest.channelId is required');
+        }
+        return value;
+      })(),
+      connectionId: (() {
+        final value = json['connectionId']?.toString();
+        if (value == null) {
+          throw FormatException('ApplySharedChannelPolicyRequest.connectionId is required');
+        }
+        return value;
+      })(),
       conversationId: json['conversationId']?.toString(),
-      eventId: json['eventId']?.toString(),
-      historyVisibility: json['historyVisibility']?.toString(),
-      policyId: json['policyId']?.toString(),
-      policyVersion: json['policyVersion'] is int ? json['policyVersion'] : null
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('ApplySharedChannelPolicyRequest.eventId is required');
+        }
+        return value;
+      })(),
+      historyVisibility: (() {
+        final value = json['historyVisibility']?.toString();
+        if (value == null) {
+          throw FormatException('ApplySharedChannelPolicyRequest.historyVisibility is required');
+        }
+        return value;
+      })(),
+      policyId: (() {
+        final value = json['policyId']?.toString();
+        if (value == null) {
+          throw FormatException('ApplySharedChannelPolicyRequest.policyId is required');
+        }
+        return value;
+      })(),
+      policyVersion: (() {
+        final value = json['policyVersion'];
+        if (value is! int) {
+          throw FormatException('ApplySharedChannelPolicyRequest.policyVersion is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -149,30 +245,66 @@ class ApplySharedChannelPolicyRequest {
 }
 
 class BindDirectChatRequest {
-  final String? boundAt;
-  final String? conversationId;
-  final String? directChatId;
-  final String? eventId;
-  final String? leftActorId;
-  final String? rightActorId;
+  final String boundAt;
+  final String conversationId;
+  final String directChatId;
+  final String eventId;
+  final String leftActorId;
+  final String rightActorId;
 
   BindDirectChatRequest({
-    this.boundAt,
-    this.conversationId,
-    this.directChatId,
-    this.eventId,
-    this.leftActorId,
-    this.rightActorId
+    required this.boundAt,
+    required this.conversationId,
+    required this.directChatId,
+    required this.eventId,
+    required this.leftActorId,
+    required this.rightActorId
   });
 
   factory BindDirectChatRequest.fromJson(Map<String, dynamic> json) {
     return BindDirectChatRequest(
-      boundAt: json['boundAt']?.toString(),
-      conversationId: json['conversationId']?.toString(),
-      directChatId: json['directChatId']?.toString(),
-      eventId: json['eventId']?.toString(),
-      leftActorId: json['leftActorId']?.toString(),
-      rightActorId: json['rightActorId']?.toString()
+      boundAt: (() {
+        final value = json['boundAt']?.toString();
+        if (value == null) {
+          throw FormatException('BindDirectChatRequest.boundAt is required');
+        }
+        return value;
+      })(),
+      conversationId: (() {
+        final value = json['conversationId']?.toString();
+        if (value == null) {
+          throw FormatException('BindDirectChatRequest.conversationId is required');
+        }
+        return value;
+      })(),
+      directChatId: (() {
+        final value = json['directChatId']?.toString();
+        if (value == null) {
+          throw FormatException('BindDirectChatRequest.directChatId is required');
+        }
+        return value;
+      })(),
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('BindDirectChatRequest.eventId is required');
+        }
+        return value;
+      })(),
+      leftActorId: (() {
+        final value = json['leftActorId']?.toString();
+        if (value == null) {
+          throw FormatException('BindDirectChatRequest.leftActorId is required');
+        }
+        return value;
+      })(),
+      rightActorId: (() {
+        final value = json['rightActorId']?.toString();
+        if (value == null) {
+          throw FormatException('BindDirectChatRequest.rightActorId is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -189,36 +321,78 @@ class BindDirectChatRequest {
 }
 
 class BindExternalMemberLinkRequest {
-  final String? connectionId;
-  final String? eventId;
+  final String connectionId;
+  final String eventId;
   final String? externalDisplayName;
-  final String? externalMemberId;
-  final String? linkId;
-  final String? linkedAt;
-  final String? localActorId;
-  final String? localActorKind;
+  final String externalMemberId;
+  final String linkId;
+  final String linkedAt;
+  final String localActorId;
+  final String localActorKind;
 
   BindExternalMemberLinkRequest({
-    this.connectionId,
-    this.eventId,
+    required this.connectionId,
+    required this.eventId,
     this.externalDisplayName,
-    this.externalMemberId,
-    this.linkId,
-    this.linkedAt,
-    this.localActorId,
-    this.localActorKind
+    required this.externalMemberId,
+    required this.linkId,
+    required this.linkedAt,
+    required this.localActorId,
+    required this.localActorKind
   });
 
   factory BindExternalMemberLinkRequest.fromJson(Map<String, dynamic> json) {
     return BindExternalMemberLinkRequest(
-      connectionId: json['connectionId']?.toString(),
-      eventId: json['eventId']?.toString(),
+      connectionId: (() {
+        final value = json['connectionId']?.toString();
+        if (value == null) {
+          throw FormatException('BindExternalMemberLinkRequest.connectionId is required');
+        }
+        return value;
+      })(),
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('BindExternalMemberLinkRequest.eventId is required');
+        }
+        return value;
+      })(),
       externalDisplayName: json['externalDisplayName']?.toString(),
-      externalMemberId: json['externalMemberId']?.toString(),
-      linkId: json['linkId']?.toString(),
-      linkedAt: json['linkedAt']?.toString(),
-      localActorId: json['localActorId']?.toString(),
-      localActorKind: json['localActorKind']?.toString()
+      externalMemberId: (() {
+        final value = json['externalMemberId']?.toString();
+        if (value == null) {
+          throw FormatException('BindExternalMemberLinkRequest.externalMemberId is required');
+        }
+        return value;
+      })(),
+      linkId: (() {
+        final value = json['linkId']?.toString();
+        if (value == null) {
+          throw FormatException('BindExternalMemberLinkRequest.linkId is required');
+        }
+        return value;
+      })(),
+      linkedAt: (() {
+        final value = json['linkedAt']?.toString();
+        if (value == null) {
+          throw FormatException('BindExternalMemberLinkRequest.linkedAt is required');
+        }
+        return value;
+      })(),
+      localActorId: (() {
+        final value = json['localActorId']?.toString();
+        if (value == null) {
+          throw FormatException('BindExternalMemberLinkRequest.localActorId is required');
+        }
+        return value;
+      })(),
+      localActorKind: (() {
+        final value = json['localActorKind']?.toString();
+        if (value == null) {
+          throw FormatException('BindExternalMemberLinkRequest.localActorKind is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -237,36 +411,72 @@ class BindExternalMemberLinkRequest {
 }
 
 class BlockUserRequest {
-  final String? blockId;
-  final String? blockedUserId;
-  final String? blockerUserId;
+  final String blockId;
+  final String blockedUserId;
+  final String blockerUserId;
   final String? directChatId;
-  final String? effectiveAt;
-  final String? eventId;
+  final String effectiveAt;
+  final String eventId;
   final String? expiresAt;
-  final String? scope;
+  final String scope;
 
   BlockUserRequest({
-    this.blockId,
-    this.blockedUserId,
-    this.blockerUserId,
+    required this.blockId,
+    required this.blockedUserId,
+    required this.blockerUserId,
     this.directChatId,
-    this.effectiveAt,
-    this.eventId,
+    required this.effectiveAt,
+    required this.eventId,
     this.expiresAt,
-    this.scope
+    required this.scope
   });
 
   factory BlockUserRequest.fromJson(Map<String, dynamic> json) {
     return BlockUserRequest(
-      blockId: json['blockId']?.toString(),
-      blockedUserId: json['blockedUserId']?.toString(),
-      blockerUserId: json['blockerUserId']?.toString(),
+      blockId: (() {
+        final value = json['blockId']?.toString();
+        if (value == null) {
+          throw FormatException('BlockUserRequest.blockId is required');
+        }
+        return value;
+      })(),
+      blockedUserId: (() {
+        final value = json['blockedUserId']?.toString();
+        if (value == null) {
+          throw FormatException('BlockUserRequest.blockedUserId is required');
+        }
+        return value;
+      })(),
+      blockerUserId: (() {
+        final value = json['blockerUserId']?.toString();
+        if (value == null) {
+          throw FormatException('BlockUserRequest.blockerUserId is required');
+        }
+        return value;
+      })(),
       directChatId: json['directChatId']?.toString(),
-      effectiveAt: json['effectiveAt']?.toString(),
-      eventId: json['eventId']?.toString(),
+      effectiveAt: (() {
+        final value = json['effectiveAt']?.toString();
+        if (value == null) {
+          throw FormatException('BlockUserRequest.effectiveAt is required');
+        }
+        return value;
+      })(),
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('BlockUserRequest.eventId is required');
+        }
+        return value;
+      })(),
       expiresAt: json['expiresAt']?.toString(),
-      scope: json['scope']?.toString()
+      scope: (() {
+        final value = json['scope']?.toString();
+        if (value == null) {
+          throw FormatException('BlockUserRequest.scope is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -285,42 +495,66 @@ class BlockUserRequest {
 }
 
 class BusinessPolicyVocabularyResponse {
-  final String? capabilityFlagsField;
-  final String? historyVisibilityField;
-  final List<String>? historyVisibilityModes;
-  final String? policyVersionField;
-  final String? retentionPolicyRefField;
-  final List<String>? retentionPolicyScopes;
+  final String capabilityFlagsField;
+  final String historyVisibilityField;
+  final List<String> historyVisibilityModes;
+  final String policyVersionField;
+  final String retentionPolicyRefField;
+  final List<String> retentionPolicyScopes;
 
   BusinessPolicyVocabularyResponse({
-    this.capabilityFlagsField,
-    this.historyVisibilityField,
-    this.historyVisibilityModes,
-    this.policyVersionField,
-    this.retentionPolicyRefField,
-    this.retentionPolicyScopes
+    required this.capabilityFlagsField,
+    required this.historyVisibilityField,
+    required this.historyVisibilityModes,
+    required this.policyVersionField,
+    required this.retentionPolicyRefField,
+    required this.retentionPolicyScopes
   });
 
   factory BusinessPolicyVocabularyResponse.fromJson(Map<String, dynamic> json) {
     return BusinessPolicyVocabularyResponse(
-      capabilityFlagsField: json['capabilityFlagsField']?.toString(),
-      historyVisibilityField: json['historyVisibilityField']?.toString(),
+      capabilityFlagsField: (() {
+        final value = json['capabilityFlagsField']?.toString();
+        if (value == null) {
+          throw FormatException('BusinessPolicyVocabularyResponse.capabilityFlagsField is required');
+        }
+        return value;
+      })(),
+      historyVisibilityField: (() {
+        final value = json['historyVisibilityField']?.toString();
+        if (value == null) {
+          throw FormatException('BusinessPolicyVocabularyResponse.historyVisibilityField is required');
+        }
+        return value;
+      })(),
       historyVisibilityModes: (() {
         final list = _sdkworkAsList(json['historyVisibilityModes']);
         if (list == null) {
-          return null;
+          throw FormatException('BusinessPolicyVocabularyResponse.historyVisibilityModes is required');
         }
         return list
             .map((item) => item?.toString())
             .whereType<String>()
             .toList();
       })(),
-      policyVersionField: json['policyVersionField']?.toString(),
-      retentionPolicyRefField: json['retentionPolicyRefField']?.toString(),
+      policyVersionField: (() {
+        final value = json['policyVersionField']?.toString();
+        if (value == null) {
+          throw FormatException('BusinessPolicyVocabularyResponse.policyVersionField is required');
+        }
+        return value;
+      })(),
+      retentionPolicyRefField: (() {
+        final value = json['retentionPolicyRefField']?.toString();
+        if (value == null) {
+          throw FormatException('BusinessPolicyVocabularyResponse.retentionPolicyRefField is required');
+        }
+        return value;
+      })(),
       retentionPolicyScopes: (() {
         final list = _sdkworkAsList(json['retentionPolicyScopes']);
         if (list == null) {
-          return null;
+          throw FormatException('BusinessPolicyVocabularyResponse.retentionPolicyScopes is required');
         }
         return list
             .map((item) => item?.toString())
@@ -334,25 +568,25 @@ class BusinessPolicyVocabularyResponse {
     return <String, dynamic>{
       'capabilityFlagsField': capabilityFlagsField,
       'historyVisibilityField': historyVisibilityField,
-      'historyVisibilityModes': historyVisibilityModes?.map((item) => item).toList(),
+      'historyVisibilityModes': historyVisibilityModes.map((item) => item).toList(),
       'policyVersionField': policyVersionField,
       'retentionPolicyRefField': retentionPolicyRefField,
-      'retentionPolicyScopes': retentionPolicyScopes?.map((item) => item).toList(),
+      'retentionPolicyScopes': retentionPolicyScopes.map((item) => item).toList(),
     };
   }
 }
 
 class CapabilityProfileResponse {
-  final List<String>? enabledCapabilities;
-  final List<String>? experimentalCapabilities;
-  final String? profileId;
-  final String? releaseChannel;
+  final List<String> enabledCapabilities;
+  final List<String> experimentalCapabilities;
+  final String profileId;
+  final String releaseChannel;
 
   CapabilityProfileResponse({
-    this.enabledCapabilities,
-    this.experimentalCapabilities,
-    this.profileId,
-    this.releaseChannel
+    required this.enabledCapabilities,
+    required this.experimentalCapabilities,
+    required this.profileId,
+    required this.releaseChannel
   });
 
   factory CapabilityProfileResponse.fromJson(Map<String, dynamic> json) {
@@ -360,7 +594,7 @@ class CapabilityProfileResponse {
       enabledCapabilities: (() {
         final list = _sdkworkAsList(json['enabledCapabilities']);
         if (list == null) {
-          return null;
+          throw FormatException('CapabilityProfileResponse.enabledCapabilities is required');
         }
         return list
             .map((item) => item?.toString())
@@ -370,22 +604,34 @@ class CapabilityProfileResponse {
       experimentalCapabilities: (() {
         final list = _sdkworkAsList(json['experimentalCapabilities']);
         if (list == null) {
-          return null;
+          throw FormatException('CapabilityProfileResponse.experimentalCapabilities is required');
         }
         return list
             .map((item) => item?.toString())
             .whereType<String>()
             .toList();
       })(),
-      profileId: json['profileId']?.toString(),
-      releaseChannel: json['releaseChannel']?.toString()
+      profileId: (() {
+        final value = json['profileId']?.toString();
+        if (value == null) {
+          throw FormatException('CapabilityProfileResponse.profileId is required');
+        }
+        return value;
+      })(),
+      releaseChannel: (() {
+        final value = json['releaseChannel']?.toString();
+        if (value == null) {
+          throw FormatException('CapabilityProfileResponse.releaseChannel is required');
+        }
+        return value;
+      })()
     );
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'enabledCapabilities': enabledCapabilities?.map((item) => item).toList(),
-      'experimentalCapabilities': experimentalCapabilities?.map((item) => item).toList(),
+      'enabledCapabilities': enabledCapabilities.map((item) => item).toList(),
+      'experimentalCapabilities': experimentalCapabilities.map((item) => item).toList(),
       'profileId': profileId,
       'releaseChannel': releaseChannel,
     };
@@ -393,20 +639,20 @@ class CapabilityProfileResponse {
 }
 
 class ClientCompatibilityResponse {
-  final List<String>? blockedExperimentalCapabilities;
-  final String? clientType;
-  final String? minimumProtocolVersion;
-  final List<String>? supportedBindings;
-  final List<String>? supportedCapabilities;
-  final List<String>? supportedCodecs;
+  final List<String> blockedExperimentalCapabilities;
+  final String clientType;
+  final String minimumProtocolVersion;
+  final List<String> supportedBindings;
+  final List<String> supportedCapabilities;
+  final List<String> supportedCodecs;
 
   ClientCompatibilityResponse({
-    this.blockedExperimentalCapabilities,
-    this.clientType,
-    this.minimumProtocolVersion,
-    this.supportedBindings,
-    this.supportedCapabilities,
-    this.supportedCodecs
+    required this.blockedExperimentalCapabilities,
+    required this.clientType,
+    required this.minimumProtocolVersion,
+    required this.supportedBindings,
+    required this.supportedCapabilities,
+    required this.supportedCodecs
   });
 
   factory ClientCompatibilityResponse.fromJson(Map<String, dynamic> json) {
@@ -414,19 +660,31 @@ class ClientCompatibilityResponse {
       blockedExperimentalCapabilities: (() {
         final list = _sdkworkAsList(json['blockedExperimentalCapabilities']);
         if (list == null) {
-          return null;
+          throw FormatException('ClientCompatibilityResponse.blockedExperimentalCapabilities is required');
         }
         return list
             .map((item) => item?.toString())
             .whereType<String>()
             .toList();
       })(),
-      clientType: json['clientType']?.toString(),
-      minimumProtocolVersion: json['minimumProtocolVersion']?.toString(),
+      clientType: (() {
+        final value = json['clientType']?.toString();
+        if (value == null) {
+          throw FormatException('ClientCompatibilityResponse.clientType is required');
+        }
+        return value;
+      })(),
+      minimumProtocolVersion: (() {
+        final value = json['minimumProtocolVersion']?.toString();
+        if (value == null) {
+          throw FormatException('ClientCompatibilityResponse.minimumProtocolVersion is required');
+        }
+        return value;
+      })(),
       supportedBindings: (() {
         final list = _sdkworkAsList(json['supportedBindings']);
         if (list == null) {
-          return null;
+          throw FormatException('ClientCompatibilityResponse.supportedBindings is required');
         }
         return list
             .map((item) => item?.toString())
@@ -436,7 +694,7 @@ class ClientCompatibilityResponse {
       supportedCapabilities: (() {
         final list = _sdkworkAsList(json['supportedCapabilities']);
         if (list == null) {
-          return null;
+          throw FormatException('ClientCompatibilityResponse.supportedCapabilities is required');
         }
         return list
             .map((item) => item?.toString())
@@ -446,7 +704,7 @@ class ClientCompatibilityResponse {
       supportedCodecs: (() {
         final list = _sdkworkAsList(json['supportedCodecs']);
         if (list == null) {
-          return null;
+          throw FormatException('ClientCompatibilityResponse.supportedCodecs is required');
         }
         return list
             .map((item) => item?.toString())
@@ -458,35 +716,35 @@ class ClientCompatibilityResponse {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'blockedExperimentalCapabilities': blockedExperimentalCapabilities?.map((item) => item).toList(),
+      'blockedExperimentalCapabilities': blockedExperimentalCapabilities.map((item) => item).toList(),
       'clientType': clientType,
       'minimumProtocolVersion': minimumProtocolVersion,
-      'supportedBindings': supportedBindings?.map((item) => item).toList(),
-      'supportedCapabilities': supportedCapabilities?.map((item) => item).toList(),
-      'supportedCodecs': supportedCodecs?.map((item) => item).toList(),
+      'supportedBindings': supportedBindings.map((item) => item).toList(),
+      'supportedCapabilities': supportedCapabilities.map((item) => item).toList(),
+      'supportedCodecs': supportedCodecs.map((item) => item).toList(),
     };
   }
 }
 
 class EffectiveProtocolSnapshotResponse {
-  final List<String>? allowedBindings;
-  final List<String>? allowedCodecs;
-  final List<String>? enabledCapabilities;
-  final bool? killSwitchActive;
-  final List<String>? precedence;
-  final String? protocolVersion;
-  final String? quotaProfileId;
-  final String? releaseChannel;
+  final List<String> allowedBindings;
+  final List<String> allowedCodecs;
+  final List<String> enabledCapabilities;
+  final bool killSwitchActive;
+  final List<String> precedence;
+  final String protocolVersion;
+  final String quotaProfileId;
+  final String releaseChannel;
 
   EffectiveProtocolSnapshotResponse({
-    this.allowedBindings,
-    this.allowedCodecs,
-    this.enabledCapabilities,
-    this.killSwitchActive,
-    this.precedence,
-    this.protocolVersion,
-    this.quotaProfileId,
-    this.releaseChannel
+    required this.allowedBindings,
+    required this.allowedCodecs,
+    required this.enabledCapabilities,
+    required this.killSwitchActive,
+    required this.precedence,
+    required this.protocolVersion,
+    required this.quotaProfileId,
+    required this.releaseChannel
   });
 
   factory EffectiveProtocolSnapshotResponse.fromJson(Map<String, dynamic> json) {
@@ -494,7 +752,7 @@ class EffectiveProtocolSnapshotResponse {
       allowedBindings: (() {
         final list = _sdkworkAsList(json['allowedBindings']);
         if (list == null) {
-          return null;
+          throw FormatException('EffectiveProtocolSnapshotResponse.allowedBindings is required');
         }
         return list
             .map((item) => item?.toString())
@@ -504,7 +762,7 @@ class EffectiveProtocolSnapshotResponse {
       allowedCodecs: (() {
         final list = _sdkworkAsList(json['allowedCodecs']);
         if (list == null) {
-          return null;
+          throw FormatException('EffectiveProtocolSnapshotResponse.allowedCodecs is required');
         }
         return list
             .map((item) => item?.toString())
@@ -514,37 +772,61 @@ class EffectiveProtocolSnapshotResponse {
       enabledCapabilities: (() {
         final list = _sdkworkAsList(json['enabledCapabilities']);
         if (list == null) {
-          return null;
+          throw FormatException('EffectiveProtocolSnapshotResponse.enabledCapabilities is required');
         }
         return list
             .map((item) => item?.toString())
             .whereType<String>()
             .toList();
       })(),
-      killSwitchActive: json['killSwitchActive'] is bool ? json['killSwitchActive'] : null,
+      killSwitchActive: (() {
+        final value = json['killSwitchActive'];
+        if (value is! bool) {
+          throw FormatException('EffectiveProtocolSnapshotResponse.killSwitchActive is required');
+        }
+        return value;
+      })(),
       precedence: (() {
         final list = _sdkworkAsList(json['precedence']);
         if (list == null) {
-          return null;
+          throw FormatException('EffectiveProtocolSnapshotResponse.precedence is required');
         }
         return list
             .map((item) => item?.toString())
             .whereType<String>()
             .toList();
       })(),
-      protocolVersion: json['protocolVersion']?.toString(),
-      quotaProfileId: json['quotaProfileId']?.toString(),
-      releaseChannel: json['releaseChannel']?.toString()
+      protocolVersion: (() {
+        final value = json['protocolVersion']?.toString();
+        if (value == null) {
+          throw FormatException('EffectiveProtocolSnapshotResponse.protocolVersion is required');
+        }
+        return value;
+      })(),
+      quotaProfileId: (() {
+        final value = json['quotaProfileId']?.toString();
+        if (value == null) {
+          throw FormatException('EffectiveProtocolSnapshotResponse.quotaProfileId is required');
+        }
+        return value;
+      })(),
+      releaseChannel: (() {
+        final value = json['releaseChannel']?.toString();
+        if (value == null) {
+          throw FormatException('EffectiveProtocolSnapshotResponse.releaseChannel is required');
+        }
+        return value;
+      })()
     );
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'allowedBindings': allowedBindings?.map((item) => item).toList(),
-      'allowedCodecs': allowedCodecs?.map((item) => item).toList(),
-      'enabledCapabilities': enabledCapabilities?.map((item) => item).toList(),
+      'allowedBindings': allowedBindings.map((item) => item).toList(),
+      'allowedCodecs': allowedCodecs.map((item) => item).toList(),
+      'enabledCapabilities': enabledCapabilities.map((item) => item).toList(),
       'killSwitchActive': killSwitchActive,
-      'precedence': precedence?.map((item) => item).toList(),
+      'precedence': precedence.map((item) => item).toList(),
       'protocolVersion': protocolVersion,
       'quotaProfileId': quotaProfileId,
       'releaseChannel': releaseChannel,
@@ -553,30 +835,60 @@ class EffectiveProtocolSnapshotResponse {
 }
 
 class EstablishExternalConnectionRequest {
-  final String? connectionId;
-  final String? connectionKind;
-  final String? establishedAt;
-  final String? eventId;
+  final String connectionId;
+  final String connectionKind;
+  final String establishedAt;
+  final String eventId;
   final String? externalOrgName;
-  final String? externalTenantId;
+  final String externalTenantId;
 
   EstablishExternalConnectionRequest({
-    this.connectionId,
-    this.connectionKind,
-    this.establishedAt,
-    this.eventId,
+    required this.connectionId,
+    required this.connectionKind,
+    required this.establishedAt,
+    required this.eventId,
     this.externalOrgName,
-    this.externalTenantId
+    required this.externalTenantId
   });
 
   factory EstablishExternalConnectionRequest.fromJson(Map<String, dynamic> json) {
     return EstablishExternalConnectionRequest(
-      connectionId: json['connectionId']?.toString(),
-      connectionKind: json['connectionKind']?.toString(),
-      establishedAt: json['establishedAt']?.toString(),
-      eventId: json['eventId']?.toString(),
+      connectionId: (() {
+        final value = json['connectionId']?.toString();
+        if (value == null) {
+          throw FormatException('EstablishExternalConnectionRequest.connectionId is required');
+        }
+        return value;
+      })(),
+      connectionKind: (() {
+        final value = json['connectionKind']?.toString();
+        if (value == null) {
+          throw FormatException('EstablishExternalConnectionRequest.connectionKind is required');
+        }
+        return value;
+      })(),
+      establishedAt: (() {
+        final value = json['establishedAt']?.toString();
+        if (value == null) {
+          throw FormatException('EstablishExternalConnectionRequest.establishedAt is required');
+        }
+        return value;
+      })(),
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('EstablishExternalConnectionRequest.eventId is required');
+        }
+        return value;
+      })(),
       externalOrgName: json['externalOrgName']?.toString(),
-      externalTenantId: json['externalTenantId']?.toString()
+      externalTenantId: (() {
+        final value = json['externalTenantId']?.toString();
+        if (value == null) {
+          throw FormatException('EstablishExternalConnectionRequest.externalTenantId is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -593,29 +905,35 @@ class EstablishExternalConnectionRequest {
 }
 
 class KillSwitchResponse {
-  final bool? active;
-  final List<String>? disabledBindings;
-  final List<String>? disabledCapabilities;
-  final List<String>? disabledCodecs;
-  final String? reason;
-  final String? ruleId;
+  final bool active;
+  final List<String> disabledBindings;
+  final List<String> disabledCapabilities;
+  final List<String> disabledCodecs;
+  final String reason;
+  final String ruleId;
 
   KillSwitchResponse({
-    this.active,
-    this.disabledBindings,
-    this.disabledCapabilities,
-    this.disabledCodecs,
-    this.reason,
-    this.ruleId
+    required this.active,
+    required this.disabledBindings,
+    required this.disabledCapabilities,
+    required this.disabledCodecs,
+    required this.reason,
+    required this.ruleId
   });
 
   factory KillSwitchResponse.fromJson(Map<String, dynamic> json) {
     return KillSwitchResponse(
-      active: json['active'] is bool ? json['active'] : null,
+      active: (() {
+        final value = json['active'];
+        if (value is! bool) {
+          throw FormatException('KillSwitchResponse.active is required');
+        }
+        return value;
+      })(),
       disabledBindings: (() {
         final list = _sdkworkAsList(json['disabledBindings']);
         if (list == null) {
-          return null;
+          throw FormatException('KillSwitchResponse.disabledBindings is required');
         }
         return list
             .map((item) => item?.toString())
@@ -625,7 +943,7 @@ class KillSwitchResponse {
       disabledCapabilities: (() {
         final list = _sdkworkAsList(json['disabledCapabilities']);
         if (list == null) {
-          return null;
+          throw FormatException('KillSwitchResponse.disabledCapabilities is required');
         }
         return list
             .map((item) => item?.toString())
@@ -635,24 +953,36 @@ class KillSwitchResponse {
       disabledCodecs: (() {
         final list = _sdkworkAsList(json['disabledCodecs']);
         if (list == null) {
-          return null;
+          throw FormatException('KillSwitchResponse.disabledCodecs is required');
         }
         return list
             .map((item) => item?.toString())
             .whereType<String>()
             .toList();
       })(),
-      reason: json['reason']?.toString(),
-      ruleId: json['ruleId']?.toString()
+      reason: (() {
+        final value = json['reason']?.toString();
+        if (value == null) {
+          throw FormatException('KillSwitchResponse.reason is required');
+        }
+        return value;
+      })(),
+      ruleId: (() {
+        final value = json['ruleId']?.toString();
+        if (value == null) {
+          throw FormatException('KillSwitchResponse.ruleId is required');
+        }
+        return value;
+      })()
     );
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'active': active,
-      'disabledBindings': disabledBindings?.map((item) => item).toList(),
-      'disabledCapabilities': disabledCapabilities?.map((item) => item).toList(),
-      'disabledCodecs': disabledCodecs?.map((item) => item).toList(),
+      'disabledBindings': disabledBindings.map((item) => item).toList(),
+      'disabledCapabilities': disabledCapabilities.map((item) => item).toList(),
+      'disabledCodecs': disabledCodecs.map((item) => item).toList(),
       'reason': reason,
       'ruleId': ruleId,
     };
@@ -660,15 +990,21 @@ class KillSwitchResponse {
 }
 
 class MigrateRoutesRequest {
-  final String? targetNodeId;
+  final String targetNodeId;
 
   MigrateRoutesRequest({
-    this.targetNodeId
+    required this.targetNodeId
   });
 
   factory MigrateRoutesRequest.fromJson(Map<String, dynamic> json) {
     return MigrateRoutesRequest(
-      targetNodeId: json['targetNodeId']?.toString()
+      targetNodeId: (() {
+        final value = json['targetNodeId']?.toString();
+        if (value == null) {
+          throw FormatException('MigrateRoutesRequest.targetNodeId is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -680,83 +1016,104 @@ class MigrateRoutesRequest {
 }
 
 class ProtocolGovernanceResponse {
-  final BusinessPolicyVocabularyResponse? businessPolicyVocabulary;
-  final CapabilityProfileResponse? capabilityProfile;
-  final EffectiveProtocolSnapshotResponse? effectiveSnapshot;
-  final KillSwitchResponse? killSwitch;
-  final QuotaProfileResponse? quotaProfile;
-  final RolloutPolicyResponse? rolloutPolicy;
-  final SdkCompatibilityBaselineResponse? sdkCompatibilityBaseline;
+  final BusinessPolicyVocabularyResponse businessPolicyVocabulary;
+  final CapabilityProfileResponse capabilityProfile;
+  final EffectiveProtocolSnapshotResponse effectiveSnapshot;
+  final KillSwitchResponse killSwitch;
+  final QuotaProfileResponse quotaProfile;
+  final RolloutPolicyResponse rolloutPolicy;
+  final SdkCompatibilityBaselineResponse sdkCompatibilityBaseline;
 
   ProtocolGovernanceResponse({
-    this.businessPolicyVocabulary,
-    this.capabilityProfile,
-    this.effectiveSnapshot,
-    this.killSwitch,
-    this.quotaProfile,
-    this.rolloutPolicy,
-    this.sdkCompatibilityBaseline
+    required this.businessPolicyVocabulary,
+    required this.capabilityProfile,
+    required this.effectiveSnapshot,
+    required this.killSwitch,
+    required this.quotaProfile,
+    required this.rolloutPolicy,
+    required this.sdkCompatibilityBaseline
   });
 
   factory ProtocolGovernanceResponse.fromJson(Map<String, dynamic> json) {
     return ProtocolGovernanceResponse(
       businessPolicyVocabulary: (() {
         final map = _sdkworkAsMap(json['businessPolicyVocabulary']);
-        return map == null ? null : BusinessPolicyVocabularyResponse.fromJson(map);
+        if (map == null) {
+          throw FormatException('ProtocolGovernanceResponse.businessPolicyVocabulary is required');
+        }
+        return BusinessPolicyVocabularyResponse.fromJson(map);
       })(),
       capabilityProfile: (() {
         final map = _sdkworkAsMap(json['capabilityProfile']);
-        return map == null ? null : CapabilityProfileResponse.fromJson(map);
+        if (map == null) {
+          throw FormatException('ProtocolGovernanceResponse.capabilityProfile is required');
+        }
+        return CapabilityProfileResponse.fromJson(map);
       })(),
       effectiveSnapshot: (() {
         final map = _sdkworkAsMap(json['effectiveSnapshot']);
-        return map == null ? null : EffectiveProtocolSnapshotResponse.fromJson(map);
+        if (map == null) {
+          throw FormatException('ProtocolGovernanceResponse.effectiveSnapshot is required');
+        }
+        return EffectiveProtocolSnapshotResponse.fromJson(map);
       })(),
       killSwitch: (() {
         final map = _sdkworkAsMap(json['killSwitch']);
-        return map == null ? null : KillSwitchResponse.fromJson(map);
+        if (map == null) {
+          throw FormatException('ProtocolGovernanceResponse.killSwitch is required');
+        }
+        return KillSwitchResponse.fromJson(map);
       })(),
       quotaProfile: (() {
         final map = _sdkworkAsMap(json['quotaProfile']);
-        return map == null ? null : QuotaProfileResponse.fromJson(map);
+        if (map == null) {
+          throw FormatException('ProtocolGovernanceResponse.quotaProfile is required');
+        }
+        return QuotaProfileResponse.fromJson(map);
       })(),
       rolloutPolicy: (() {
         final map = _sdkworkAsMap(json['rolloutPolicy']);
-        return map == null ? null : RolloutPolicyResponse.fromJson(map);
+        if (map == null) {
+          throw FormatException('ProtocolGovernanceResponse.rolloutPolicy is required');
+        }
+        return RolloutPolicyResponse.fromJson(map);
       })(),
       sdkCompatibilityBaseline: (() {
         final map = _sdkworkAsMap(json['sdkCompatibilityBaseline']);
-        return map == null ? null : SdkCompatibilityBaselineResponse.fromJson(map);
+        if (map == null) {
+          throw FormatException('ProtocolGovernanceResponse.sdkCompatibilityBaseline is required');
+        }
+        return SdkCompatibilityBaselineResponse.fromJson(map);
       })()
     );
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'businessPolicyVocabulary': businessPolicyVocabulary?.toJson(),
-      'capabilityProfile': capabilityProfile?.toJson(),
-      'effectiveSnapshot': effectiveSnapshot?.toJson(),
-      'killSwitch': killSwitch?.toJson(),
-      'quotaProfile': quotaProfile?.toJson(),
-      'rolloutPolicy': rolloutPolicy?.toJson(),
-      'sdkCompatibilityBaseline': sdkCompatibilityBaseline?.toJson(),
+      'businessPolicyVocabulary': businessPolicyVocabulary.toJson(),
+      'capabilityProfile': capabilityProfile.toJson(),
+      'effectiveSnapshot': effectiveSnapshot.toJson(),
+      'killSwitch': killSwitch.toJson(),
+      'quotaProfile': quotaProfile.toJson(),
+      'rolloutPolicy': rolloutPolicy.toJson(),
+      'sdkCompatibilityBaseline': sdkCompatibilityBaseline.toJson(),
     };
   }
 }
 
 class ProtocolRegistryResponse {
-  final List<String>? bindings;
-  final List<String>? codecs;
-  final List<ClientCompatibilityResponse>? compatibilityMatrix;
-  final String? protocolVersion;
-  final List<ProtocolSchemaResponse>? schemas;
+  final List<String> bindings;
+  final List<String> codecs;
+  final List<ClientCompatibilityResponse> compatibilityMatrix;
+  final String protocolVersion;
+  final List<ProtocolSchemaResponse> schemas;
 
   ProtocolRegistryResponse({
-    this.bindings,
-    this.codecs,
-    this.compatibilityMatrix,
-    this.protocolVersion,
-    this.schemas
+    required this.bindings,
+    required this.codecs,
+    required this.compatibilityMatrix,
+    required this.protocolVersion,
+    required this.schemas
   });
 
   factory ProtocolRegistryResponse.fromJson(Map<String, dynamic> json) {
@@ -764,7 +1121,7 @@ class ProtocolRegistryResponse {
       bindings: (() {
         final list = _sdkworkAsList(json['bindings']);
         if (list == null) {
-          return null;
+          throw FormatException('ProtocolRegistryResponse.bindings is required');
         }
         return list
             .map((item) => item?.toString())
@@ -774,7 +1131,7 @@ class ProtocolRegistryResponse {
       codecs: (() {
         final list = _sdkworkAsList(json['codecs']);
         if (list == null) {
-          return null;
+          throw FormatException('ProtocolRegistryResponse.codecs is required');
         }
         return list
             .map((item) => item?.toString())
@@ -784,7 +1141,7 @@ class ProtocolRegistryResponse {
       compatibilityMatrix: (() {
         final list = _sdkworkAsList(json['compatibilityMatrix']);
         if (list == null) {
-          return null;
+          throw FormatException('ProtocolRegistryResponse.compatibilityMatrix is required');
         }
         return list
             .map((item) => (() {
@@ -794,11 +1151,17 @@ class ProtocolRegistryResponse {
             .whereType<ClientCompatibilityResponse>()
             .toList();
       })(),
-      protocolVersion: json['protocolVersion']?.toString(),
+      protocolVersion: (() {
+        final value = json['protocolVersion']?.toString();
+        if (value == null) {
+          throw FormatException('ProtocolRegistryResponse.protocolVersion is required');
+        }
+        return value;
+      })(),
       schemas: (() {
         final list = _sdkworkAsList(json['schemas']);
         if (list == null) {
-          return null;
+          throw FormatException('ProtocolRegistryResponse.schemas is required');
         }
         return list
             .map((item) => (() {
@@ -813,30 +1176,30 @@ class ProtocolRegistryResponse {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'bindings': bindings?.map((item) => item).toList(),
-      'codecs': codecs?.map((item) => item).toList(),
-      'compatibilityMatrix': compatibilityMatrix?.map((item) => item.toJson()).toList(),
+      'bindings': bindings.map((item) => item).toList(),
+      'codecs': codecs.map((item) => item).toList(),
+      'compatibilityMatrix': compatibilityMatrix.map((item) => item.toJson()).toList(),
       'protocolVersion': protocolVersion,
-      'schemas': schemas?.map((item) => item.toJson()).toList(),
+      'schemas': schemas.map((item) => item.toJson()).toList(),
     };
   }
 }
 
 class ProtocolSchemaResponse {
-  final List<String>? bindingProtocols;
-  final String? kind;
-  final List<String>? requiredCapabilities;
-  final String? schema;
-  final String? stage;
-  final List<String>? supportedConsumers;
+  final List<String> bindingProtocols;
+  final String kind;
+  final List<String> requiredCapabilities;
+  final String schema;
+  final String stage;
+  final List<String> supportedConsumers;
 
   ProtocolSchemaResponse({
-    this.bindingProtocols,
-    this.kind,
-    this.requiredCapabilities,
-    this.schema,
-    this.stage,
-    this.supportedConsumers
+    required this.bindingProtocols,
+    required this.kind,
+    required this.requiredCapabilities,
+    required this.schema,
+    required this.stage,
+    required this.supportedConsumers
   });
 
   factory ProtocolSchemaResponse.fromJson(Map<String, dynamic> json) {
@@ -844,30 +1207,48 @@ class ProtocolSchemaResponse {
       bindingProtocols: (() {
         final list = _sdkworkAsList(json['bindingProtocols']);
         if (list == null) {
-          return null;
+          throw FormatException('ProtocolSchemaResponse.bindingProtocols is required');
         }
         return list
             .map((item) => item?.toString())
             .whereType<String>()
             .toList();
       })(),
-      kind: json['kind']?.toString(),
+      kind: (() {
+        final value = json['kind']?.toString();
+        if (value == null) {
+          throw FormatException('ProtocolSchemaResponse.kind is required');
+        }
+        return value;
+      })(),
       requiredCapabilities: (() {
         final list = _sdkworkAsList(json['requiredCapabilities']);
         if (list == null) {
-          return null;
+          throw FormatException('ProtocolSchemaResponse.requiredCapabilities is required');
         }
         return list
             .map((item) => item?.toString())
             .whereType<String>()
             .toList();
       })(),
-      schema: json['schema']?.toString(),
-      stage: json['stage']?.toString(),
+      schema: (() {
+        final value = json['schema']?.toString();
+        if (value == null) {
+          throw FormatException('ProtocolSchemaResponse.schema is required');
+        }
+        return value;
+      })(),
+      stage: (() {
+        final value = json['stage']?.toString();
+        if (value == null) {
+          throw FormatException('ProtocolSchemaResponse.stage is required');
+        }
+        return value;
+      })(),
       supportedConsumers: (() {
         final list = _sdkworkAsList(json['supportedConsumers']);
         if (list == null) {
-          return null;
+          throw FormatException('ProtocolSchemaResponse.supportedConsumers is required');
         }
         return list
             .map((item) => item?.toString())
@@ -879,12 +1260,12 @@ class ProtocolSchemaResponse {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'bindingProtocols': bindingProtocols?.map((item) => item).toList(),
+      'bindingProtocols': bindingProtocols.map((item) => item).toList(),
       'kind': kind,
-      'requiredCapabilities': requiredCapabilities?.map((item) => item).toList(),
+      'requiredCapabilities': requiredCapabilities.map((item) => item).toList(),
       'schema': schema,
       'stage': stage,
-      'supportedConsumers': supportedConsumers?.map((item) => item).toList(),
+      'supportedConsumers': supportedConsumers.map((item) => item).toList(),
     };
   }
 }
@@ -946,15 +1327,21 @@ class ProviderPolicyHistoryResponse {
 }
 
 class ProviderPolicyRollbackRequest {
-  final int? targetVersion;
+  final int targetVersion;
 
   ProviderPolicyRollbackRequest({
-    this.targetVersion
+    required this.targetVersion
   });
 
   factory ProviderPolicyRollbackRequest.fromJson(Map<String, dynamic> json) {
     return ProviderPolicyRollbackRequest(
-      targetVersion: json['targetVersion'] is int ? json['targetVersion'] : null
+      targetVersion: (() {
+        final value = json['targetVersion'];
+        if (value is! int) {
+          throw FormatException('ProviderPolicyRollbackRequest.targetVersion is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -980,27 +1367,57 @@ class ProviderRegistrySnapshotResponse {
 }
 
 class QuotaProfileResponse {
-  final int? maxConcurrentSessionsPerTenant;
-  final int? maxInflightMessages;
-  final int? maxPayloadBytes;
-  final int? maxSubscriptionsPerSession;
-  final String? profileId;
+  final int maxConcurrentSessionsPerTenant;
+  final int maxInflightMessages;
+  final int maxPayloadBytes;
+  final int maxSubscriptionsPerSession;
+  final String profileId;
 
   QuotaProfileResponse({
-    this.maxConcurrentSessionsPerTenant,
-    this.maxInflightMessages,
-    this.maxPayloadBytes,
-    this.maxSubscriptionsPerSession,
-    this.profileId
+    required this.maxConcurrentSessionsPerTenant,
+    required this.maxInflightMessages,
+    required this.maxPayloadBytes,
+    required this.maxSubscriptionsPerSession,
+    required this.profileId
   });
 
   factory QuotaProfileResponse.fromJson(Map<String, dynamic> json) {
     return QuotaProfileResponse(
-      maxConcurrentSessionsPerTenant: json['maxConcurrentSessionsPerTenant'] is int ? json['maxConcurrentSessionsPerTenant'] : null,
-      maxInflightMessages: json['maxInflightMessages'] is int ? json['maxInflightMessages'] : null,
-      maxPayloadBytes: json['maxPayloadBytes'] is int ? json['maxPayloadBytes'] : null,
-      maxSubscriptionsPerSession: json['maxSubscriptionsPerSession'] is int ? json['maxSubscriptionsPerSession'] : null,
-      profileId: json['profileId']?.toString()
+      maxConcurrentSessionsPerTenant: (() {
+        final value = json['maxConcurrentSessionsPerTenant'];
+        if (value is! int) {
+          throw FormatException('QuotaProfileResponse.maxConcurrentSessionsPerTenant is required');
+        }
+        return value;
+      })(),
+      maxInflightMessages: (() {
+        final value = json['maxInflightMessages'];
+        if (value is! int) {
+          throw FormatException('QuotaProfileResponse.maxInflightMessages is required');
+        }
+        return value;
+      })(),
+      maxPayloadBytes: (() {
+        final value = json['maxPayloadBytes'];
+        if (value is! int) {
+          throw FormatException('QuotaProfileResponse.maxPayloadBytes is required');
+        }
+        return value;
+      })(),
+      maxSubscriptionsPerSession: (() {
+        final value = json['maxSubscriptionsPerSession'];
+        if (value is! int) {
+          throw FormatException('QuotaProfileResponse.maxSubscriptionsPerSession is required');
+        }
+        return value;
+      })(),
+      profileId: (() {
+        final value = json['profileId']?.toString();
+        if (value == null) {
+          throw FormatException('QuotaProfileResponse.profileId is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -1016,42 +1433,78 @@ class QuotaProfileResponse {
 }
 
 class RolloutPolicyResponse {
-  final String? cellSelector;
-  final bool? operatorOverride;
-  final String? policyId;
-  final String? regionSelector;
-  final String? releaseChannel;
-  final List<String>? tenantAllowlist;
-  final int? trafficPercent;
+  final String cellSelector;
+  final bool operatorOverride;
+  final String policyId;
+  final String regionSelector;
+  final String releaseChannel;
+  final List<String> tenantAllowlist;
+  final int trafficPercent;
 
   RolloutPolicyResponse({
-    this.cellSelector,
-    this.operatorOverride,
-    this.policyId,
-    this.regionSelector,
-    this.releaseChannel,
-    this.tenantAllowlist,
-    this.trafficPercent
+    required this.cellSelector,
+    required this.operatorOverride,
+    required this.policyId,
+    required this.regionSelector,
+    required this.releaseChannel,
+    required this.tenantAllowlist,
+    required this.trafficPercent
   });
 
   factory RolloutPolicyResponse.fromJson(Map<String, dynamic> json) {
     return RolloutPolicyResponse(
-      cellSelector: json['cellSelector']?.toString(),
-      operatorOverride: json['operatorOverride'] is bool ? json['operatorOverride'] : null,
-      policyId: json['policyId']?.toString(),
-      regionSelector: json['regionSelector']?.toString(),
-      releaseChannel: json['releaseChannel']?.toString(),
+      cellSelector: (() {
+        final value = json['cellSelector']?.toString();
+        if (value == null) {
+          throw FormatException('RolloutPolicyResponse.cellSelector is required');
+        }
+        return value;
+      })(),
+      operatorOverride: (() {
+        final value = json['operatorOverride'];
+        if (value is! bool) {
+          throw FormatException('RolloutPolicyResponse.operatorOverride is required');
+        }
+        return value;
+      })(),
+      policyId: (() {
+        final value = json['policyId']?.toString();
+        if (value == null) {
+          throw FormatException('RolloutPolicyResponse.policyId is required');
+        }
+        return value;
+      })(),
+      regionSelector: (() {
+        final value = json['regionSelector']?.toString();
+        if (value == null) {
+          throw FormatException('RolloutPolicyResponse.regionSelector is required');
+        }
+        return value;
+      })(),
+      releaseChannel: (() {
+        final value = json['releaseChannel']?.toString();
+        if (value == null) {
+          throw FormatException('RolloutPolicyResponse.releaseChannel is required');
+        }
+        return value;
+      })(),
       tenantAllowlist: (() {
         final list = _sdkworkAsList(json['tenantAllowlist']);
         if (list == null) {
-          return null;
+          throw FormatException('RolloutPolicyResponse.tenantAllowlist is required');
         }
         return list
             .map((item) => item?.toString())
             .whereType<String>()
             .toList();
       })(),
-      trafficPercent: json['trafficPercent'] is int ? json['trafficPercent'] : null
+      trafficPercent: (() {
+        final value = json['trafficPercent'];
+        if (value is! int) {
+          throw FormatException('RolloutPolicyResponse.trafficPercent is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -1062,40 +1515,82 @@ class RolloutPolicyResponse {
       'policyId': policyId,
       'regionSelector': regionSelector,
       'releaseChannel': releaseChannel,
-      'tenantAllowlist': tenantAllowlist?.map((item) => item).toList(),
+      'tenantAllowlist': tenantAllowlist.map((item) => item).toList(),
       'trafficPercent': trafficPercent,
     };
   }
 }
 
 class RouteMigrationResult {
-  final int? migratedRouteCount;
-  final String? sourceDrainStatus;
-  final String? sourceNodeId;
-  final String? sourceRebalanceState;
-  final String? targetDrainStatus;
-  final String? targetNodeId;
-  final String? targetRebalanceState;
+  final int migratedRouteCount;
+  final String sourceDrainStatus;
+  final String sourceNodeId;
+  final String sourceRebalanceState;
+  final String targetDrainStatus;
+  final String targetNodeId;
+  final String targetRebalanceState;
 
   RouteMigrationResult({
-    this.migratedRouteCount,
-    this.sourceDrainStatus,
-    this.sourceNodeId,
-    this.sourceRebalanceState,
-    this.targetDrainStatus,
-    this.targetNodeId,
-    this.targetRebalanceState
+    required this.migratedRouteCount,
+    required this.sourceDrainStatus,
+    required this.sourceNodeId,
+    required this.sourceRebalanceState,
+    required this.targetDrainStatus,
+    required this.targetNodeId,
+    required this.targetRebalanceState
   });
 
   factory RouteMigrationResult.fromJson(Map<String, dynamic> json) {
     return RouteMigrationResult(
-      migratedRouteCount: json['migratedRouteCount'] is int ? json['migratedRouteCount'] : null,
-      sourceDrainStatus: json['sourceDrainStatus']?.toString(),
-      sourceNodeId: json['sourceNodeId']?.toString(),
-      sourceRebalanceState: json['sourceRebalanceState']?.toString(),
-      targetDrainStatus: json['targetDrainStatus']?.toString(),
-      targetNodeId: json['targetNodeId']?.toString(),
-      targetRebalanceState: json['targetRebalanceState']?.toString()
+      migratedRouteCount: (() {
+        final value = json['migratedRouteCount'];
+        if (value is! int) {
+          throw FormatException('RouteMigrationResult.migratedRouteCount is required');
+        }
+        return value;
+      })(),
+      sourceDrainStatus: (() {
+        final value = json['sourceDrainStatus']?.toString();
+        if (value == null) {
+          throw FormatException('RouteMigrationResult.sourceDrainStatus is required');
+        }
+        return value;
+      })(),
+      sourceNodeId: (() {
+        final value = json['sourceNodeId']?.toString();
+        if (value == null) {
+          throw FormatException('RouteMigrationResult.sourceNodeId is required');
+        }
+        return value;
+      })(),
+      sourceRebalanceState: (() {
+        final value = json['sourceRebalanceState']?.toString();
+        if (value == null) {
+          throw FormatException('RouteMigrationResult.sourceRebalanceState is required');
+        }
+        return value;
+      })(),
+      targetDrainStatus: (() {
+        final value = json['targetDrainStatus']?.toString();
+        if (value == null) {
+          throw FormatException('RouteMigrationResult.targetDrainStatus is required');
+        }
+        return value;
+      })(),
+      targetNodeId: (() {
+        final value = json['targetNodeId']?.toString();
+        if (value == null) {
+          throw FormatException('RouteMigrationResult.targetNodeId is required');
+        }
+        return value;
+      })(),
+      targetRebalanceState: (() {
+        final value = json['targetRebalanceState']?.toString();
+        if (value == null) {
+          throw FormatException('RouteMigrationResult.targetRebalanceState is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -1113,24 +1608,48 @@ class RouteMigrationResult {
 }
 
 class RouteNodeLifecycle {
-  final String? drainStatus;
-  final String? nodeId;
-  final int? ownedRouteCount;
-  final String? rebalanceState;
+  final String drainStatus;
+  final String nodeId;
+  final int ownedRouteCount;
+  final String rebalanceState;
 
   RouteNodeLifecycle({
-    this.drainStatus,
-    this.nodeId,
-    this.ownedRouteCount,
-    this.rebalanceState
+    required this.drainStatus,
+    required this.nodeId,
+    required this.ownedRouteCount,
+    required this.rebalanceState
   });
 
   factory RouteNodeLifecycle.fromJson(Map<String, dynamic> json) {
     return RouteNodeLifecycle(
-      drainStatus: json['drainStatus']?.toString(),
-      nodeId: json['nodeId']?.toString(),
-      ownedRouteCount: json['ownedRouteCount'] is int ? json['ownedRouteCount'] : null,
-      rebalanceState: json['rebalanceState']?.toString()
+      drainStatus: (() {
+        final value = json['drainStatus']?.toString();
+        if (value == null) {
+          throw FormatException('RouteNodeLifecycle.drainStatus is required');
+        }
+        return value;
+      })(),
+      nodeId: (() {
+        final value = json['nodeId']?.toString();
+        if (value == null) {
+          throw FormatException('RouteNodeLifecycle.nodeId is required');
+        }
+        return value;
+      })(),
+      ownedRouteCount: (() {
+        final value = json['ownedRouteCount'];
+        if (value is! int) {
+          throw FormatException('RouteNodeLifecycle.ownedRouteCount is required');
+        }
+        return value;
+      })(),
+      rebalanceState: (() {
+        final value = json['rebalanceState']?.toString();
+        if (value == null) {
+          throw FormatException('RouteNodeLifecycle.rebalanceState is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -1145,42 +1664,78 @@ class RouteNodeLifecycle {
 }
 
 class SdkCompatibilityBaselineResponse {
-  final String? appSdkFamily;
-  final String? backendSdkFamily;
-  final String? imSdkFamily;
-  final String? rtcSdkFamily;
-  final List<String>? matrixClientTypes;
-  final String? protocolGovernancePath;
-  final String? protocolRegistryPath;
+  final String appSdkFamily;
+  final String backendSdkFamily;
+  final String imSdkFamily;
+  final String rtcSdkFamily;
+  final List<String> matrixClientTypes;
+  final String protocolGovernancePath;
+  final String protocolRegistryPath;
 
   SdkCompatibilityBaselineResponse({
-    this.appSdkFamily,
-    this.backendSdkFamily,
-    this.imSdkFamily,
-    this.rtcSdkFamily,
-    this.matrixClientTypes,
-    this.protocolGovernancePath,
-    this.protocolRegistryPath
+    required this.appSdkFamily,
+    required this.backendSdkFamily,
+    required this.imSdkFamily,
+    required this.rtcSdkFamily,
+    required this.matrixClientTypes,
+    required this.protocolGovernancePath,
+    required this.protocolRegistryPath
   });
 
   factory SdkCompatibilityBaselineResponse.fromJson(Map<String, dynamic> json) {
     return SdkCompatibilityBaselineResponse(
-      appSdkFamily: json['appSdkFamily']?.toString(),
-      backendSdkFamily: json['backendSdkFamily']?.toString(),
-      imSdkFamily: json['imSdkFamily']?.toString(),
-      rtcSdkFamily: json['rtcSdkFamily']?.toString(),
+      appSdkFamily: (() {
+        final value = json['appSdkFamily']?.toString();
+        if (value == null) {
+          throw FormatException('SdkCompatibilityBaselineResponse.appSdkFamily is required');
+        }
+        return value;
+      })(),
+      backendSdkFamily: (() {
+        final value = json['backendSdkFamily']?.toString();
+        if (value == null) {
+          throw FormatException('SdkCompatibilityBaselineResponse.backendSdkFamily is required');
+        }
+        return value;
+      })(),
+      imSdkFamily: (() {
+        final value = json['imSdkFamily']?.toString();
+        if (value == null) {
+          throw FormatException('SdkCompatibilityBaselineResponse.imSdkFamily is required');
+        }
+        return value;
+      })(),
+      rtcSdkFamily: (() {
+        final value = json['rtcSdkFamily']?.toString();
+        if (value == null) {
+          throw FormatException('SdkCompatibilityBaselineResponse.rtcSdkFamily is required');
+        }
+        return value;
+      })(),
       matrixClientTypes: (() {
         final list = _sdkworkAsList(json['matrixClientTypes']);
         if (list == null) {
-          return null;
+          throw FormatException('SdkCompatibilityBaselineResponse.matrixClientTypes is required');
         }
         return list
             .map((item) => item?.toString())
             .whereType<String>()
             .toList();
       })(),
-      protocolGovernancePath: json['protocolGovernancePath']?.toString(),
-      protocolRegistryPath: json['protocolRegistryPath']?.toString()
+      protocolGovernancePath: (() {
+        final value = json['protocolGovernancePath']?.toString();
+        if (value == null) {
+          throw FormatException('SdkCompatibilityBaselineResponse.protocolGovernancePath is required');
+        }
+        return value;
+      })(),
+      protocolRegistryPath: (() {
+        final value = json['protocolRegistryPath']?.toString();
+        if (value == null) {
+          throw FormatException('SdkCompatibilityBaselineResponse.protocolRegistryPath is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -1190,7 +1745,7 @@ class SdkCompatibilityBaselineResponse {
       'backendSdkFamily': backendSdkFamily,
       'imSdkFamily': imSdkFamily,
       'rtcSdkFamily': rtcSdkFamily,
-      'matrixClientTypes': matrixClientTypes?.map((item) => item).toList(),
+      'matrixClientTypes': matrixClientTypes.map((item) => item).toList(),
       'protocolGovernancePath': protocolGovernancePath,
       'protocolRegistryPath': protocolRegistryPath,
     };
@@ -1198,21 +1753,39 @@ class SdkCompatibilityBaselineResponse {
 }
 
 class AcceptFriendRequestRequest {
-  final String? acceptedAt;
-  final String? acceptedByUserId;
-  final String? eventId;
+  final String acceptedAt;
+  final String acceptedByUserId;
+  final String eventId;
 
   AcceptFriendRequestRequest({
-    this.acceptedAt,
-    this.acceptedByUserId,
-    this.eventId
+    required this.acceptedAt,
+    required this.acceptedByUserId,
+    required this.eventId
   });
 
   factory AcceptFriendRequestRequest.fromJson(Map<String, dynamic> json) {
     return AcceptFriendRequestRequest(
-      acceptedAt: json['acceptedAt']?.toString(),
-      acceptedByUserId: json['acceptedByUserId']?.toString(),
-      eventId: json['eventId']?.toString()
+      acceptedAt: (() {
+        final value = json['acceptedAt']?.toString();
+        if (value == null) {
+          throw FormatException('AcceptFriendRequestRequest.acceptedAt is required');
+        }
+        return value;
+      })(),
+      acceptedByUserId: (() {
+        final value = json['acceptedByUserId']?.toString();
+        if (value == null) {
+          throw FormatException('AcceptFriendRequestRequest.acceptedByUserId is required');
+        }
+        return value;
+      })(),
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('AcceptFriendRequestRequest.eventId is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -1226,21 +1799,39 @@ class AcceptFriendRequestRequest {
 }
 
 class DeclineFriendRequestRequest {
-  final String? declinedAt;
-  final String? declinedByUserId;
-  final String? eventId;
+  final String declinedAt;
+  final String declinedByUserId;
+  final String eventId;
 
   DeclineFriendRequestRequest({
-    this.declinedAt,
-    this.declinedByUserId,
-    this.eventId
+    required this.declinedAt,
+    required this.declinedByUserId,
+    required this.eventId
   });
 
   factory DeclineFriendRequestRequest.fromJson(Map<String, dynamic> json) {
     return DeclineFriendRequestRequest(
-      declinedAt: json['declinedAt']?.toString(),
-      declinedByUserId: json['declinedByUserId']?.toString(),
-      eventId: json['eventId']?.toString()
+      declinedAt: (() {
+        final value = json['declinedAt']?.toString();
+        if (value == null) {
+          throw FormatException('DeclineFriendRequestRequest.declinedAt is required');
+        }
+        return value;
+      })(),
+      declinedByUserId: (() {
+        final value = json['declinedByUserId']?.toString();
+        if (value == null) {
+          throw FormatException('DeclineFriendRequestRequest.declinedByUserId is required');
+        }
+        return value;
+      })(),
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('DeclineFriendRequestRequest.eventId is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -1254,21 +1845,39 @@ class DeclineFriendRequestRequest {
 }
 
 class CancelFriendRequestRequest {
-  final String? canceledAt;
-  final String? canceledByUserId;
-  final String? eventId;
+  final String canceledAt;
+  final String canceledByUserId;
+  final String eventId;
 
   CancelFriendRequestRequest({
-    this.canceledAt,
-    this.canceledByUserId,
-    this.eventId
+    required this.canceledAt,
+    required this.canceledByUserId,
+    required this.eventId
   });
 
   factory CancelFriendRequestRequest.fromJson(Map<String, dynamic> json) {
     return CancelFriendRequestRequest(
-      canceledAt: json['canceledAt']?.toString(),
-      canceledByUserId: json['canceledByUserId']?.toString(),
-      eventId: json['eventId']?.toString()
+      canceledAt: (() {
+        final value = json['canceledAt']?.toString();
+        if (value == null) {
+          throw FormatException('CancelFriendRequestRequest.canceledAt is required');
+        }
+        return value;
+      })(),
+      canceledByUserId: (() {
+        final value = json['canceledByUserId']?.toString();
+        if (value == null) {
+          throw FormatException('CancelFriendRequestRequest.canceledByUserId is required');
+        }
+        return value;
+      })(),
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('CancelFriendRequestRequest.eventId is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -1282,21 +1891,39 @@ class CancelFriendRequestRequest {
 }
 
 class RemoveFriendshipRequest {
-  final String? eventId;
-  final String? removedAt;
-  final String? removedByUserId;
+  final String eventId;
+  final String removedAt;
+  final String removedByUserId;
 
   RemoveFriendshipRequest({
-    this.eventId,
-    this.removedAt,
-    this.removedByUserId
+    required this.eventId,
+    required this.removedAt,
+    required this.removedByUserId
   });
 
   factory RemoveFriendshipRequest.fromJson(Map<String, dynamic> json) {
     return RemoveFriendshipRequest(
-      eventId: json['eventId']?.toString(),
-      removedAt: json['removedAt']?.toString(),
-      removedByUserId: json['removedByUserId']?.toString()
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('RemoveFriendshipRequest.eventId is required');
+        }
+        return value;
+      })(),
+      removedAt: (() {
+        final value = json['removedAt']?.toString();
+        if (value == null) {
+          throw FormatException('RemoveFriendshipRequest.removedAt is required');
+        }
+        return value;
+      })(),
+      removedByUserId: (() {
+        final value = json['removedByUserId']?.toString();
+        if (value == null) {
+          throw FormatException('RemoveFriendshipRequest.removedByUserId is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -1520,10 +2147,10 @@ class SocialSharedChannelSyncDeadLetterRequeueResponse {
 }
 
 class SocialSharedChannelSyncDeadLetterTargetedRequeueRequest {
-  final List<String>? requestKeys;
+  final List<String> requestKeys;
 
   SocialSharedChannelSyncDeadLetterTargetedRequeueRequest({
-    this.requestKeys
+    required this.requestKeys
   });
 
   factory SocialSharedChannelSyncDeadLetterTargetedRequeueRequest.fromJson(Map<String, dynamic> json) {
@@ -1531,7 +2158,7 @@ class SocialSharedChannelSyncDeadLetterTargetedRequeueRequest {
       requestKeys: (() {
         final list = _sdkworkAsList(json['requestKeys']);
         if (list == null) {
-          return null;
+          throw FormatException('SocialSharedChannelSyncDeadLetterTargetedRequeueRequest.requestKeys is required');
         }
         return list
             .map((item) => item?.toString())
@@ -1543,7 +2170,7 @@ class SocialSharedChannelSyncDeadLetterTargetedRequeueRequest {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'requestKeys': requestKeys?.map((item) => item).toList(),
+      'requestKeys': requestKeys.map((item) => item).toList(),
     };
   }
 }
@@ -1661,10 +2288,10 @@ class SocialSharedChannelSyncPendingTakeoverResponse {
 }
 
 class SocialSharedChannelSyncPendingTargetedClaimRequest {
-  final List<String>? requestKeys;
+  final List<String> requestKeys;
 
   SocialSharedChannelSyncPendingTargetedClaimRequest({
-    this.requestKeys
+    required this.requestKeys
   });
 
   factory SocialSharedChannelSyncPendingTargetedClaimRequest.fromJson(Map<String, dynamic> json) {
@@ -1672,7 +2299,7 @@ class SocialSharedChannelSyncPendingTargetedClaimRequest {
       requestKeys: (() {
         final list = _sdkworkAsList(json['requestKeys']);
         if (list == null) {
-          return null;
+          throw FormatException('SocialSharedChannelSyncPendingTargetedClaimRequest.requestKeys is required');
         }
         return list
             .map((item) => item?.toString())
@@ -1684,16 +2311,16 @@ class SocialSharedChannelSyncPendingTargetedClaimRequest {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'requestKeys': requestKeys?.map((item) => item).toList(),
+      'requestKeys': requestKeys.map((item) => item).toList(),
     };
   }
 }
 
 class SocialSharedChannelSyncPendingTargetedReleaseRequest {
-  final List<String>? requestKeys;
+  final List<String> requestKeys;
 
   SocialSharedChannelSyncPendingTargetedReleaseRequest({
-    this.requestKeys
+    required this.requestKeys
   });
 
   factory SocialSharedChannelSyncPendingTargetedReleaseRequest.fromJson(Map<String, dynamic> json) {
@@ -1701,7 +2328,7 @@ class SocialSharedChannelSyncPendingTargetedReleaseRequest {
       requestKeys: (() {
         final list = _sdkworkAsList(json['requestKeys']);
         if (list == null) {
-          return null;
+          throw FormatException('SocialSharedChannelSyncPendingTargetedReleaseRequest.requestKeys is required');
         }
         return list
             .map((item) => item?.toString())
@@ -1713,18 +2340,18 @@ class SocialSharedChannelSyncPendingTargetedReleaseRequest {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'requestKeys': requestKeys?.map((item) => item).toList(),
+      'requestKeys': requestKeys.map((item) => item).toList(),
     };
   }
 }
 
 class SocialSharedChannelSyncPendingTargetedTakeoverRequest {
   final bool? allowLegacyUntracked;
-  final List<String>? requestKeys;
+  final List<String> requestKeys;
 
   SocialSharedChannelSyncPendingTargetedTakeoverRequest({
     this.allowLegacyUntracked,
-    this.requestKeys
+    required this.requestKeys
   });
 
   factory SocialSharedChannelSyncPendingTargetedTakeoverRequest.fromJson(Map<String, dynamic> json) {
@@ -1733,7 +2360,7 @@ class SocialSharedChannelSyncPendingTargetedTakeoverRequest {
       requestKeys: (() {
         final list = _sdkworkAsList(json['requestKeys']);
         if (list == null) {
-          return null;
+          throw FormatException('SocialSharedChannelSyncPendingTargetedTakeoverRequest.requestKeys is required');
         }
         return list
             .map((item) => item?.toString())
@@ -1746,7 +2373,7 @@ class SocialSharedChannelSyncPendingTargetedTakeoverRequest {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'allowLegacyUntracked': allowLegacyUntracked,
-      'requestKeys': requestKeys?.map((item) => item).toList(),
+      'requestKeys': requestKeys.map((item) => item).toList(),
     };
   }
 }
@@ -1766,10 +2393,10 @@ class SocialSharedChannelSyncRepairResponse {
 }
 
 class SocialSharedChannelSyncTargetedRepublishRequest {
-  final List<String>? requestKeys;
+  final List<String> requestKeys;
 
   SocialSharedChannelSyncTargetedRepublishRequest({
-    this.requestKeys
+    required this.requestKeys
   });
 
   factory SocialSharedChannelSyncTargetedRepublishRequest.fromJson(Map<String, dynamic> json) {
@@ -1777,7 +2404,7 @@ class SocialSharedChannelSyncTargetedRepublishRequest {
       requestKeys: (() {
         final list = _sdkworkAsList(json['requestKeys']);
         if (list == null) {
-          return null;
+          throw FormatException('SocialSharedChannelSyncTargetedRepublishRequest.requestKeys is required');
         }
         return list
             .map((item) => item?.toString())
@@ -1789,7 +2416,7 @@ class SocialSharedChannelSyncTargetedRepublishRequest {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'requestKeys': requestKeys?.map((item) => item).toList(),
+      'requestKeys': requestKeys.map((item) => item).toList(),
     };
   }
 }
@@ -1837,30 +2464,60 @@ class SocialUserBlockSnapshotResponse {
 }
 
 class SubmitFriendRequestRequest {
-  final String? eventId;
-  final String? requestId;
+  final String eventId;
+  final String requestId;
   final String? requestMessage;
-  final String? requestedAt;
-  final String? requesterUserId;
-  final String? targetUserId;
+  final String requestedAt;
+  final String requesterUserId;
+  final String targetUserId;
 
   SubmitFriendRequestRequest({
-    this.eventId,
-    this.requestId,
+    required this.eventId,
+    required this.requestId,
     this.requestMessage,
-    this.requestedAt,
-    this.requesterUserId,
-    this.targetUserId
+    required this.requestedAt,
+    required this.requesterUserId,
+    required this.targetUserId
   });
 
   factory SubmitFriendRequestRequest.fromJson(Map<String, dynamic> json) {
     return SubmitFriendRequestRequest(
-      eventId: json['eventId']?.toString(),
-      requestId: json['requestId']?.toString(),
+      eventId: (() {
+        final value = json['eventId']?.toString();
+        if (value == null) {
+          throw FormatException('SubmitFriendRequestRequest.eventId is required');
+        }
+        return value;
+      })(),
+      requestId: (() {
+        final value = json['requestId']?.toString();
+        if (value == null) {
+          throw FormatException('SubmitFriendRequestRequest.requestId is required');
+        }
+        return value;
+      })(),
       requestMessage: json['requestMessage']?.toString(),
-      requestedAt: json['requestedAt']?.toString(),
-      requesterUserId: json['requesterUserId']?.toString(),
-      targetUserId: json['targetUserId']?.toString()
+      requestedAt: (() {
+        final value = json['requestedAt']?.toString();
+        if (value == null) {
+          throw FormatException('SubmitFriendRequestRequest.requestedAt is required');
+        }
+        return value;
+      })(),
+      requesterUserId: (() {
+        final value = json['requesterUserId']?.toString();
+        if (value == null) {
+          throw FormatException('SubmitFriendRequestRequest.requesterUserId is required');
+        }
+        return value;
+      })(),
+      targetUserId: (() {
+        final value = json['targetUserId']?.toString();
+        if (value == null) {
+          throw FormatException('SubmitFriendRequestRequest.targetUserId is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -1877,23 +2534,35 @@ class SubmitFriendRequestRequest {
 }
 
 class UpsertProviderBindingPolicyRequest {
-  final String? domain;
+  final String domain;
   final int? expectedBaseVersion;
-  final String? pluginId;
+  final String pluginId;
   final String? tenantId;
 
   UpsertProviderBindingPolicyRequest({
-    this.domain,
+    required this.domain,
     this.expectedBaseVersion,
-    this.pluginId,
+    required this.pluginId,
     this.tenantId
   });
 
   factory UpsertProviderBindingPolicyRequest.fromJson(Map<String, dynamic> json) {
     return UpsertProviderBindingPolicyRequest(
-      domain: json['domain']?.toString(),
+      domain: (() {
+        final value = json['domain']?.toString();
+        if (value == null) {
+          throw FormatException('UpsertProviderBindingPolicyRequest.domain is required');
+        }
+        return value;
+      })(),
       expectedBaseVersion: json['expectedBaseVersion'] is int ? json['expectedBaseVersion'] : null,
-      pluginId: json['pluginId']?.toString(),
+      pluginId: (() {
+        final value = json['pluginId']?.toString();
+        if (value == null) {
+          throw FormatException('UpsertProviderBindingPolicyRequest.pluginId is required');
+        }
+        return value;
+      })(),
       tenantId: json['tenantId']?.toString()
     );
   }

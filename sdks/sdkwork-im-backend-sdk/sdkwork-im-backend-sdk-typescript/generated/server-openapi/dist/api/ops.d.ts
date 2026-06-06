@@ -10,7 +10,7 @@ export declare class OpsProviderBindingsDriftApi {
     private client;
     constructor(client: HttpClient);
     /** Retrieve provider binding drift */
-    list(): Promise<OpsProviderBindingsDriftRetrieveResponse>;
+    retrieve(): Promise<OpsProviderBindingsDriftRetrieveResponse>;
 }
 export declare class OpsProviderBindingsApi {
     private client;

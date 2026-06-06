@@ -7,13 +7,8 @@ version.workspace = true
 [dependencies]
 axum.workspace = true
 craw-chat-api-registry = { path = "../../crates/craw-chat-api-registry" }
-craw-chat-contract-core = { path = "../../crates/craw-chat-contract-core" }
-craw-chat-contract-message = { path = "../../crates/craw-chat-contract-message" }
 craw-chat-openapi = { path = "../../crates/craw-chat-openapi" }
-im-adapter-object-storage-s3 = { path = "../../adapters/object-storage-s3" }
 im-app-context = { path = "../../crates/im-app-context" }
-im-domain-core = { path = "../../crates/im-domain-core" }
-im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time = { path = "../../crates/im-time" }
 serde.workspace = true

@@ -129,5 +129,6 @@ the selected platform plan and the `contractsValid` flag stay aligned with the s
 ## Related Pages
 
 - [Deployment Overview](/deployment/index)
+- [Production Domain Binding](/deployment/production-domain-binding)
 - [CLI and Scripts](/reference/cli-and-scripts)
 - [Gateway OpenAPI](/api-reference/gateway-openapi)

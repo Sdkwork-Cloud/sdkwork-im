@@ -7,7 +7,7 @@ export interface StreamFrame {
   streamType: string;
   scopeKind: string;
   scopeId: string;
-  frameSeq: number;
+  frameSeq: string;
   frameType: string;
   schemaRef?: string;
   encoding: string;

@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class PortalApi {
     private final HttpClient client;
-    
+
     public PortalApi(HttpClient client) {
         this.client = client;
     }

@@ -2,7 +2,7 @@
 
 ## 1. 目标
 
-把 `local-minimal-node` 上 `/backend/v3/api/iot/protocol/uplink` 的最小授权边界前移：当目标设备已知时，先鉴权，再调用 `decode_uplink()`。
+把 `local-minimal-node` 上 `/app/v3/api/iot/protocol/uplink` 的最小授权边界前移：当目标设备已知时，先鉴权，再调用 `decode_uplink()`。
 
 ## 2. 设计约束
 
@@ -71,7 +71,7 @@
 ## 7. 关键词冻结
 
 - `local-minimal-node`
-- `/backend/v3/api/iot/protocol/uplink`
+- `/app/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `request.device_id.clone().or_else(|| auth.device_id.clone())`

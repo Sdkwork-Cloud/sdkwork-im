@@ -18,6 +18,18 @@ fn assert_contains_all(source: &str, expected: &[&str]) {
     }
 }
 
+fn schema_section<'a>(source: &'a str, start_marker: &str, end_marker: &str) -> &'a str {
+    let start = source
+        .find(start_marker)
+        .unwrap_or_else(|| panic!("schema is missing section start marker: {start_marker}"));
+    let tail = &source[start..];
+    let end = tail
+        .find(end_marker)
+        .map(|offset| start + offset)
+        .unwrap_or_else(|| panic!("schema is missing section end marker: {end_marker}"));
+    &source[start..end]
+}
+
 #[test]
 fn test_core_im_postgres_schema_defines_append_only_and_idempotency_tables() {
     let schema = postgres_core_schema();
@@ -31,8 +43,9 @@ fn test_core_im_postgres_schema_defines_append_only_and_idempotency_tables() {
             "create table if not exists im_idempotency_keys",
             "constraint pk_im_commit_journal primary key (partition_key, commit_offset)",
             "constraint uk_im_commit_journal_event unique (event_id)",
-            "constraint uk_im_idempotency_keys_scope unique (tenant_id, request_scope, idempotency_key)",
             "constraint uk_im_inbox_events_source unique (tenant_id, source_system, source_event_id)",
+            "constraint chk_im_outbox_events_publish_status check (publish_status in ('pending', 'published', 'failed'))",
+            "constraint chk_im_inbox_events_process_status check (process_status in ('pending', 'processed', 'failed'))",
             "idx_im_outbox_events_status_available",
             "idx_im_inbox_events_status_received",
         ],
@@ -73,22 +86,22 @@ fn test_core_im_postgres_schema_defines_hot_cursor_tables_and_indexes() {
             "capacity_trimmed_event_count bigint not null default 0 check (capacity_trimmed_event_count >= 0)",
             "capacity_trimmed_through_seq bigint not null default 0 check (capacity_trimmed_through_seq >= 0)",
             "last_capacity_trimmed_at timestamptz",
-            "constraint ck_im_realtime_checkpoints_order check (\n        acked_through_seq <= latest_realtime_seq\n        and trimmed_through_seq <= latest_realtime_seq\n        and capacity_trimmed_through_seq <= trimmed_through_seq\n    )",
-            "constraint ck_im_realtime_checkpoints_capacity_trim_meta check (\n        (\n            capacity_trimmed_event_count = 0\n            and capacity_trimmed_through_seq = 0\n            and last_capacity_trimmed_at is null\n        )\n        or (\n            capacity_trimmed_event_count > 0\n            and capacity_trimmed_through_seq > 0\n            and last_capacity_trimmed_at is not null\n        )\n    )",
+            "constraint chk_im_realtime_checkpoints_order check (\n        acked_through_seq <= latest_realtime_seq\n        and trimmed_through_seq <= latest_realtime_seq\n        and capacity_trimmed_through_seq <= trimmed_through_seq\n    )",
+            "constraint chk_im_realtime_checkpoints_capacity_trim_meta check (\n        (\n            capacity_trimmed_event_count = 0\n            and capacity_trimmed_through_seq = 0\n            and last_capacity_trimmed_at is null\n        )\n        or (\n            capacity_trimmed_event_count > 0\n            and capacity_trimmed_through_seq > 0\n            and last_capacity_trimmed_at is not null\n        )\n    )",
             "where conname = 'fk_im_realtime_device_events_checkpoint'\n          and conrelid = 'im_realtime_device_events'::regclass",
             "constraint fk_im_realtime_device_events_checkpoint\n            foreign key (tenant_id, device_scope_key)\n            references im_realtime_checkpoints (tenant_id, device_scope_key)\n            on delete cascade\n            deferrable initially deferred\n            not valid",
             "constraint fk_im_realtime_subscription_scopes_device foreign key (tenant_id, device_scope_key)",
             "constraint pk_im_rtc_sessions primary key (tenant_id, rtc_session_id)",
-            "constraint ck_im_rtc_sessions_state check (device_sync_state in ('started', 'accepted', 'rejected', 'ended'))",
+            "constraint chk_im_rtc_sessions_state check (session_state in ('started', 'accepted', 'rejected', 'ended'))",
             "constraint pk_im_rtc_signals primary key (tenant_id, rtc_session_id, signal_seq)",
             "constraint pk_im_audit_records primary key (tenant_id, audit_seq)",
             "constraint pk_im_notification_tasks primary key (tenant_id, notification_id)",
-            "constraint ck_im_notification_tasks_status check (notification_status in ('requested', 'dispatched', 'failed'))",
+            "constraint chk_im_notification_tasks_status check (notification_status in ('requested', 'dispatched', 'failed'))",
             "constraint pk_im_automation_executions primary key (tenant_id, principal_kind, principal_id, execution_id)",
-            "constraint ck_im_automation_executions_state check (execution_state in ('requested', 'running', 'succeeded', 'failed'))",
+            "constraint chk_im_automation_executions_state check (execution_state in ('requested', 'running', 'succeeded', 'failed'))",
             "constraint pk_im_stream_sessions primary key (tenant_id, stream_id)",
-            "constraint ck_im_stream_sessions_state check (stream_state in ('created', 'opened', 'active', 'checkpointed', 'completed', 'aborted', 'expired'))",
-            "constraint ck_im_stream_sessions_seq_order check (",
+            "constraint chk_im_stream_sessions_state check (stream_state in ('created', 'opened', 'active', 'checkpointed', 'completed', 'aborted', 'expired'))",
+            "constraint chk_im_stream_sessions_seq_order check (",
             "constraint pk_im_stream_frames primary key (tenant_id, stream_id, frame_seq)",
             "idx_im_messages_tenant_conversation_seq",
             "idx_im_realtime_device_events_scope_seq",
@@ -112,8 +125,60 @@ fn test_core_im_postgres_schema_defines_hot_cursor_tables_and_indexes() {
             "idx_im_realtime_disconnect_fences_disconnected_at",
             "idx_im_presence_states_principal",
             "idx_im_presence_states_online_seen_at",
+            "constraint chk_im_presence_states_status check (presence_status in ('online', 'offline'))",
+            "constraint chk_im_route_bindings_connection_kind check (connection_kind in ('websocket', 'http'))",
         ],
     );
+}
+
+#[test]
+fn test_core_im_postgres_schema_defines_drive_backed_message_media_refs() {
+    let schema = postgres_core_schema();
+
+    assert_contains_all(
+        &schema,
+        &[
+            "create table if not exists im_message_media_refs",
+            "drive_space_id text not null",
+            "drive_node_id text not null",
+            "drive_uri text not null",
+            "drive_node_version text",
+            "media_resource_snapshot jsonb not null",
+            "resource_hash text not null",
+            "constraint pk_im_message_media_refs primary key (tenant_id, conversation_id, message_seq, part_index)",
+            "constraint uk_im_message_media_refs_message_part unique (tenant_id, message_id, part_index)",
+            "constraint fk_im_message_media_refs_message foreign key (tenant_id, conversation_id, message_seq)",
+            "references im_conversation_messages (tenant_id, conversation_id, message_seq)",
+            "constraint chk_im_message_media_refs_drive_uri check (",
+            "drive_uri = ('drive://spaces/' || drive_space_id || '/nodes/' || drive_node_id)",
+            "constraint chk_im_message_media_refs_media_source check (\n        media_source in ('drive', 'external_url', 'data_url', 'provider_asset', 'generated')\n    )",
+            "create index if not exists idx_im_message_media_refs_drive_node",
+            "on im_message_media_refs (tenant_id, drive_space_id, drive_node_id, message_seq desc)",
+            "create index if not exists idx_im_message_media_refs_role",
+            "create index if not exists idx_im_message_media_refs_retention_until",
+        ],
+    );
+
+    let media_refs = schema_section(
+        &schema,
+        "create table if not exists im_message_media_refs",
+        "create table if not exists im_realtime_device_events",
+    );
+    for forbidden in [
+        "bucket",
+        "object_key",
+        "objectkey",
+        "storage_provider",
+        "upload_session",
+        "download_url",
+        "presign",
+        "object_storage",
+    ] {
+        assert!(
+            !media_refs.contains(forbidden),
+            "im_message_media_refs must not store Drive-owned storage lifecycle field `{forbidden}`"
+        );
+    }
 }
 
 #[test]
@@ -129,7 +194,7 @@ fn test_core_im_postgres_schema_defines_notification_and_automation_hot_paths() 
             "notification_status text not null",
             "constraint pk_im_notification_tasks primary key (tenant_id, notification_id)",
             "constraint uk_im_notification_tasks_source unique (tenant_id, source_event_id, recipient_kind, recipient_id, category, channel)",
-            "constraint ck_im_notification_tasks_status check (notification_status in ('requested', 'dispatched', 'failed'))",
+            "constraint chk_im_notification_tasks_status check (notification_status in ('requested', 'dispatched', 'failed'))",
             "create index if not exists idx_im_notification_tasks_recipient_updated",
             "on im_notification_tasks (tenant_id, recipient_kind, recipient_id, updated_at desc, notification_id)",
             "create index if not exists idx_im_notification_tasks_status",
@@ -141,7 +206,7 @@ fn test_core_im_postgres_schema_defines_notification_and_automation_hot_paths() 
             "retry_count integer not null default 0 check (retry_count >= 0)",
             "constraint pk_im_automation_executions primary key (tenant_id, principal_kind, principal_id, execution_id)",
             "constraint uk_im_automation_executions_request unique (tenant_id, principal_kind, principal_id, execution_id, request_hash)",
-            "constraint ck_im_automation_executions_state check (execution_state in ('requested', 'running', 'succeeded', 'failed'))",
+            "constraint chk_im_automation_executions_state check (execution_state in ('requested', 'running', 'succeeded', 'failed'))",
             "create index if not exists idx_im_automation_executions_principal_updated",
             "on im_automation_executions (tenant_id, principal_kind, principal_id, updated_at desc, execution_id)",
             "create index if not exists idx_im_automation_executions_state",
@@ -186,7 +251,7 @@ fn test_core_im_postgres_schema_defines_projection_hot_paths() {
             "on im_projection_device_sync_feeds (tenant_id, principal_kind, principal_id, device_id, sync_seq)",
             "create table if not exists im_projection_device_sync_checkpoints",
             "constraint pk_im_projection_device_sync_checkpoints primary key (tenant_id, principal_kind, principal_id, device_id)",
-            "constraint ck_im_projection_device_sync_checkpoints_order check (trimmed_through_seq <= latest_sync_seq)",
+            "constraint chk_im_projection_device_sync_checkpoints_order check (trimmed_through_seq <= latest_sync_seq)",
             "create table if not exists im_projection_contacts",
             "constraint pk_im_projection_contacts primary key (tenant_id, owner_user_id, contact_type, target_user_id)",
             "create index if not exists idx_im_projection_contacts_owner_activity",
@@ -197,6 +262,25 @@ fn test_core_im_postgres_schema_defines_projection_hot_paths() {
             "create index if not exists idx_im_projection_direct_chat_bindings_conversation",
             "on im_projection_direct_chat_bindings (tenant_id, conversation_id, direct_chat_status)",
         ],
+    );
+}
+
+#[test]
+fn test_core_im_postgres_schema_allows_shared_history_linked_members() {
+    let schema = postgres_core_schema();
+    let conversation_members = schema_section(
+        &schema,
+        "create table if not exists im_projection_conversation_members",
+        "create table if not exists im_projection_read_cursors",
+    );
+
+    assert!(
+        conversation_members.contains(
+            "constraint chk_im_projection_conversation_members_state check (membership_state in ('invited', 'joined', 'linked', 'removed', 'left'))"
+        ) || conversation_members.contains(
+            "constraint chk_im_projection_conversation_members_state check (membership_state in ('invited', 'joined', 'removed', 'left', 'linked'))"
+        ),
+        "conversation member projection must allow membership_state='linked' because shared-channel linked members are runtime/domain-valid readers"
     );
 }
 
@@ -253,7 +337,7 @@ fn test_core_im_postgres_schema_separates_stream_and_rtc_sessions_from_append_lo
             "last_checkpoint_seq bigint check (last_checkpoint_seq >= 0)",
             "complete_frame_seq bigint check (complete_frame_seq >= 0)",
             "abort_frame_seq bigint check (abort_frame_seq >= 0)",
-            "constraint ck_im_stream_sessions_seq_order check (\n        coalesce(last_checkpoint_seq, 0) <= last_frame_seq\n        and coalesce(complete_frame_seq, 0) <= last_frame_seq\n        and coalesce(abort_frame_seq, 0) <= last_frame_seq\n    )",
+            "constraint chk_im_stream_sessions_seq_order check (\n        coalesce(last_checkpoint_seq, 0) <= last_frame_seq\n        and coalesce(complete_frame_seq, 0) <= last_frame_seq\n        and coalesce(abort_frame_seq, 0) <= last_frame_seq\n    )",
             "create table if not exists im_stream_frames",
             "constraint pk_im_stream_frames primary key (tenant_id, stream_id, frame_seq)",
             "create table if not exists im_rtc_sessions",
@@ -261,7 +345,7 @@ fn test_core_im_postgres_schema_separates_stream_and_rtc_sessions_from_append_lo
             "latest_signal_seq bigint not null default 0 check (latest_signal_seq >= 0)",
             "constraint pk_im_rtc_signals primary key (tenant_id, rtc_session_id, signal_seq)",
             "idx_im_rtc_sessions_state",
-            "on im_rtc_sessions (tenant_id, device_sync_state, updated_at desc, rtc_session_id)",
+            "on im_rtc_sessions (tenant_id, session_state, updated_at desc, rtc_session_id)",
             "idx_im_rtc_sessions_provider_session",
             "on im_rtc_sessions (tenant_id, provider_plugin_id, provider_session_id)",
             "where provider_plugin_id is not null and provider_session_id is not null",
@@ -305,5 +389,51 @@ fn test_core_im_postgres_schema_indexes_presence_lease_expiration() {
             "last_seen_at timestamptz",
             "resume_required boolean not null default false",
         ],
+    );
+}
+
+#[test]
+fn test_core_im_postgres_schema_indexes_retention_cleanup_paths() {
+    let schema = postgres_core_schema();
+
+    assert_contains_all(
+        &schema,
+        &[
+            "create index if not exists idx_im_commit_journal_retention_until",
+            "create index if not exists idx_im_outbox_events_retention_until",
+            "create index if not exists idx_im_inbox_events_retention_until",
+            "create index if not exists idx_im_conversation_messages_retention_until",
+            "create index if not exists idx_im_realtime_device_events_retention_until",
+            "create index if not exists idx_im_realtime_subscriptions_retention_until",
+            "create index if not exists idx_im_presence_states_retention_until",
+            "create index if not exists idx_im_realtime_disconnect_fences_retention_until",
+            "create index if not exists idx_im_rtc_sessions_retention_until",
+            "create index if not exists idx_im_rtc_signals_retention_until",
+            "create index if not exists idx_im_audit_records_retention_until",
+            "create index if not exists idx_im_notification_tasks_retention_until",
+            "create index if not exists idx_im_automation_executions_retention_until",
+            "create index if not exists idx_im_projection_timeline_entries_retention_until",
+            "create index if not exists idx_im_projection_conversation_summaries_retention_until",
+            "create index if not exists idx_im_projection_conversation_members_retention_until",
+            "create index if not exists idx_im_projection_read_cursors_retention_until",
+            "create index if not exists idx_im_projection_registered_devices_retention_until",
+            "create index if not exists idx_im_projection_device_sync_feeds_retention_until",
+            "create index if not exists idx_im_projection_device_sync_checkpoints_retention_until",
+            "create index if not exists idx_im_projection_contacts_retention_until",
+            "create index if not exists idx_im_projection_direct_chat_bindings_retention_until",
+            "create index if not exists idx_im_stream_sessions_retention_until",
+            "create index if not exists idx_im_stream_frames_retention_until",
+            "where retention_until is not null",
+        ],
+    );
+}
+
+#[test]
+fn test_core_im_postgres_schema_drops_redundant_idempotency_unique_constraint() {
+    let schema = postgres_core_schema();
+
+    assert!(
+        schema.contains("drop constraint uk_im_idempotency_keys_scope"),
+        "schema should drop redundant uk_im_idempotency_keys_scope to avoid duplicated uniqueness with primary key"
     );
 }

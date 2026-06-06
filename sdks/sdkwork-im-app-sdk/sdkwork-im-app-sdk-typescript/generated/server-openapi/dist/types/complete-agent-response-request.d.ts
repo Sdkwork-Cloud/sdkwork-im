@@ -1,5 +1,5 @@
 export interface CompleteAgentResponseRequest {
-    frameSeq: number;
+    frameSeq: string;
     resultMessageId?: string;
 }
 //# sourceMappingURL=complete-agent-response-request.d.ts.map

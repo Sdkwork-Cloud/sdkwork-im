@@ -96,10 +96,9 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idempotent -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_actor_kind -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects -- --exact",
-        "cargo test -p media-service --test provider_integration_test test_duplicate_complete_upload_retry_uses_existing_asset_without_reinvoking_provider -- --exact",
-        "cargo test -p media-service --test provider_integration_test test_get_media_download_url_rejects_zero_ttl_over_http -- --exact",
+        "cargo test -p local-minimal-node --test media_provider_http_test",
+        "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_accept_legacy_media_upload_lifecycle_requests -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_realtime_limit_above_guardrail_over_http -- --exact",
-        "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_media_upload_requests_as_idempotent -- --exact",
         "cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejected -- --exact",
         "cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_open_stream_with_different_actor_is_conflict -- --exact",
         "cargo test -p streaming-service --test http_smoke_test test_open_stream_rejects_oversized_durability_class_over_http -- --exact",
@@ -134,6 +133,15 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
         );
     }
 
+    assert!(
+        !workflow.contains(
+            "test_duplicate_complete_upload_retry_uses_existing_asset_without_reinvoking_provider"
+        ) && !workflow.contains("test_get_media_download_url_rejects_zero_ttl_over_http")
+            && !workflow.contains(
+                "test_local_minimal_profile_treats_duplicate_media_upload_requests_as_idempotent"
+            ),
+        "commercial gate workflow must not preserve removed IM-owned media upload/download lifecycle tests"
+    );
     assert!(
         workflow.contains("- 'adapters/**'"),
         "commercial gate workflow must trigger when adapter crates change"

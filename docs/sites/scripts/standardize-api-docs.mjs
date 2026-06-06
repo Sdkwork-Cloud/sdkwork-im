@@ -97,10 +97,10 @@ function sdkLabel(page, route, method) {
       return "Direct HTTP probe";
     }
     if (isRoute(route, "/device/sessions/resume")) {
-      return "`@sdkwork/im-sdk` / `sdk.connect({ deviceId })`, `sdk.deviceSessions.resume(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.connect({ deviceId })`, `sdk.device.sessions.resume(...)`";
     }
     if (isRoute(route, "/device/sessions/disconnect")) {
-      return "`@sdkwork/im-sdk` / `sdk.deviceSessions.disconnect(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.device.sessions.disconnect(...)`";
     }
     if (isRoute(route, "/presence/heartbeat")) {
       return "`@sdkwork/im-sdk` / `sdk.generated.presence.heartbeat(...)`";

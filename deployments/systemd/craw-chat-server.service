@@ -1,12 +1,12 @@
 [Unit]
-Description=Craw Chat Server (%i)
+Description=Craw Chat Server
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/craw-chat
-EnvironmentFile=/etc/craw-chat/%i/server.env
-ExecStart=/opt/craw-chat/bin/craw-chat-server --config /etc/craw-chat/%i/server.yaml
+WorkingDirectory=/opt/sdkwork/chat
+EnvironmentFile=/etc/sdkwork/chat/server.env
+ExecStart=/opt/sdkwork/chat/bin/craw-chat-server --config /etc/sdkwork/chat/chat.toml
 Restart=on-failure
 RestartSec=5
 

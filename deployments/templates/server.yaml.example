@@ -1,20 +1,44 @@
-instance:
-  name: default
+runtime:
+  environment: production
+  deploymentMode: server
+  appCode: chat
+  configDirectory: /etc/sdkwork/chat
+  configFile: /etc/sdkwork/chat/chat.toml
+  dataDirectory: /var/lib/sdkwork/chat
+  logDirectory: /var/log/sdkwork/chat
+  cacheDirectory: /var/cache/sdkwork/chat
+  runtimeDirectory: /run/sdkwork/chat
 
 network:
   bindAddress: 0.0.0.0:18080
+  trustForwardedHeaders: true
 
 publicEndpoints:
-  baseUrl: https://chat.example.com
-  apiBaseUrl: https://chat.example.com
-  websocketBaseUrl: wss://realtime.example.com
-  docsBaseUrl: https://chat.example.com/docs
+  baseUrl: https://chat.example.com/sdkwork/chat
+  apiBaseUrl: https://chat.example.com/sdkwork/chat
+  websocketBaseUrl: wss://realtime.example.com/sdkwork/chat
+  docsBaseUrl: https://chat.example.com/sdkwork/chat/docs
 
-runtime:
-  configDir: /etc/craw-chat/default
-  dataDir: /var/lib/craw-chat/default
-  logDir: /var/log/craw-chat/default
-  runDir: /var/run/craw-chat/default
+database:
+  engine: postgresql
+  host: db.example.com
+  port: 5432
+  database: sdkwork_chat_prod
+  schema: sdkwork_chat_prod
+  username: sdkwork_chat_prod
+  passwordFile: /etc/sdkwork/chat/database.secret
+  sslMode: require
+  maxConnections: 20
+
+redis:
+  enabled: true
+  host: redis.example.com
+  port: 6379
+  database: 0
+  passwordFile: /etc/sdkwork/chat/redis.secret
+  keyPrefix: chat
+  tls: false
+  maxConnections: 16
 
 storage:
-  postgresqlConfig: /etc/craw-chat/default/storage/postgresql.yaml
+  postgresqlConfig: /etc/sdkwork/chat/postgresql.yaml

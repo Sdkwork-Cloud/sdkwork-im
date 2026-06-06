@@ -1,8 +1,8 @@
 param(
     [string]$InstanceName = "default",
-    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "CrawChat")),
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "config")),
-    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "logs")),
+    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "sdkwork", "chat")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
+    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Logs")),
     [ValidateSet("auto", "systemd", "launchd", "windows-service")]
     [string]$ServiceMode = "auto",
     [switch]$Help
@@ -10,11 +10,27 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Get-ServerPathForInstance {
+    param([string]$Root, [string]$Name, [string]$Leaf)
+
+    if ($Name -eq "default") {
+        if ([string]::IsNullOrWhiteSpace($Leaf)) {
+            return $Root
+        }
+        return [System.IO.Path]::Combine($Root, $Leaf)
+    }
+    if ([string]::IsNullOrWhiteSpace($Leaf)) {
+        return [System.IO.Path]::Combine($Root, "instances", $Name)
+    }
+    return [System.IO.Path]::Combine($Root, "instances", $Name, $Leaf)
+}
+
+$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("ConfigDir")) {
-    $ConfigDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "config")
+    $ConfigDir = Get-ServerPathForInstance $programDataRoot $InstanceName ""
 }
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("LogDir")) {
-    $LogDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "logs")
+    $LogDir = Get-ServerPathForInstance $programDataRoot $InstanceName "Logs"
 }
 
 if ($Help) {
@@ -43,7 +59,7 @@ $normalizedInstallRoot = $InstallRoot.TrimEnd('\', '/')
 $normalizedConfigDir = $ConfigDir.TrimEnd('\', '/')
 $normalizedLogDir = $LogDir.TrimEnd('\', '/')
 $environmentFile = Join-Path $normalizedConfigDir "server.env"
-$serverConfigPath = Join-Path $normalizedConfigDir "server.yaml"
+$serverConfigPath = Join-Path $normalizedConfigDir "chat.toml"
 $serviceBinaryPath = "$normalizedInstallRoot/bin/craw-chat-server"
 $windowsServiceWrapperExePath = Join-Path (Join-Path $normalizedInstallRoot "bin") "CrawChatServer.exe"
 $windowsServiceWrapperXmlTargetPath = Join-Path (Join-Path $normalizedInstallRoot "bin") "CrawChatServer.xml"
@@ -53,9 +69,9 @@ $stderrLogPath = Join-Path $normalizedLogDir "craw-chat-server.err.log"
 if (Test-Path $systemdTemplate) {
     $unitContent = Get-Content -Path $systemdTemplate -Raw
     $rendered = $unitContent.
-        Replace('WorkingDirectory=/opt/craw-chat', "WorkingDirectory=$normalizedInstallRoot").
-        Replace('EnvironmentFile=/etc/craw-chat/%i/server.env', "EnvironmentFile=$environmentFile").
-        Replace('ExecStart=/opt/craw-chat/bin/craw-chat-server --config /etc/craw-chat/%i/server.yaml', "ExecStart=$serviceBinaryPath --config $serverConfigPath")
+        Replace('WorkingDirectory=/opt/sdkwork/chat', "WorkingDirectory=$normalizedInstallRoot").
+        Replace('EnvironmentFile=/etc/sdkwork/chat/server.env', "EnvironmentFile=$environmentFile").
+        Replace('ExecStart=/opt/sdkwork/chat/bin/craw-chat-server --config /etc/sdkwork/chat/chat.toml', "ExecStart=$serviceBinaryPath --config $serverConfigPath")
     $rendered | Set-Content -Path $generatedUnitPath -Encoding utf8
 }
 
@@ -63,7 +79,7 @@ if (Test-Path $launchdTemplate) {
     $plistContent = Get-Content -Path $launchdTemplate -Raw
     $rendered = $plistContent.
         Replace('__INSTALL_ROOT__/bin/craw-chat-server', $serviceBinaryPath).
-        Replace('__CONFIG_DIR__/server.yaml', $serverConfigPath).
+        Replace('__CONFIG_DIR__/chat.toml', $serverConfigPath).
         Replace('__LOG_DIR__/craw-chat-server.out.log', $stdoutLogPath).
         Replace('__LOG_DIR__/craw-chat-server.err.log', $stderrLogPath).
         Replace('__INSTALL_ROOT__', $normalizedInstallRoot).

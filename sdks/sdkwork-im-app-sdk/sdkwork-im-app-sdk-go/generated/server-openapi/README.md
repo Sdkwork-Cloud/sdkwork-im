@@ -12,6 +12,7 @@ owned by `sdkwork-appbase`; this SDK only forwards the already validated dual-to
 - `Access-Token: <accessToken>` carries the upstream access token context.
 - Login, refresh, current-user, tenant, organization, and account-session APIs stay outside this package.
 
+
 ## Regeneration Contract
 
 - Generated files are tracked by the SDK generator under `.sdkwork/`.

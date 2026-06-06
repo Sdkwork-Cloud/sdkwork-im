@@ -772,7 +772,7 @@ async fn test_social_friend_request_accept_rejects_unknown_requester_user() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/control/social/friend-requests")
+                .uri("/backend/v3/api/control/social/friend_requests")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")
@@ -1691,7 +1691,7 @@ async fn test_local_principal_profile_provider_enriches_bootstrap_user_members_a
                 .body(Body::from(
                     r#"{
                         "conversationId":"c_bootstrap_agent_dialog_local",
-                        "agentId":"ag_assistant"
+                        "agentId":"agent.assistant"
                     }"#,
                 ))
                 .unwrap(),
@@ -1905,7 +1905,7 @@ async fn test_local_principal_profile_provider_rejects_disabled_user_agent_dialo
                 .body(Body::from(
                     r#"{
                         "conversationId":"c_disabled_creator_agent_dialog",
-                        "agentId":"ag_disabled_target"
+                        "agentId":"agent.disabled.target"
                     }"#,
                 ))
                 .unwrap(),

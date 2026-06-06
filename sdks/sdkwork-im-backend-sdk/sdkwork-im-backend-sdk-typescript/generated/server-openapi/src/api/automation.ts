@@ -6,9 +6,9 @@ import type { GovernanceRetrieveResponse } from '../types';
 
 export class AutomationGovernanceApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -21,10 +21,10 @@ export class AutomationGovernanceApi {
 export class AutomationApi {
   private client: HttpClient;
   public readonly governance: AutomationGovernanceApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
-    this.governance = new AutomationGovernanceApi(client); 
+    this.governance = new AutomationGovernanceApi(client);
   }
 
 }

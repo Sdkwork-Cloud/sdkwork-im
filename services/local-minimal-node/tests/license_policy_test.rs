@@ -96,19 +96,18 @@ fn test_project_owned_sdk_license_metadata_follows_repository_policy() {
         );
     }
 
-    for relative_path in ["docs/sites/.vitepress/config.mjs"] {
-        let path = root.join(relative_path);
-        let content = fs::read_to_string(&path)
-            .unwrap_or_else(|_| panic!("missing project-owned SDK manifest: {}", path.display()));
-        assert!(
-            content.contains("AGPL-3.0-or-later"),
-            "{relative_path} must follow the repository AGPL-3.0-or-later policy"
-        );
-        assert!(
-            !content.contains("\"MIT\"")
-                && !content.contains(">MIT<")
-                && !content.contains("license = \"MIT\""),
-            "{relative_path} must not keep the old MIT project license"
-        );
-    }
+    let relative_path = "docs/sites/.vitepress/config.mjs";
+    let path = root.join(relative_path);
+    let content = fs::read_to_string(&path)
+        .unwrap_or_else(|_| panic!("missing project-owned SDK manifest: {}", path.display()));
+    assert!(
+        content.contains("AGPL-3.0-or-later"),
+        "{relative_path} must follow the repository AGPL-3.0-or-later policy"
+    );
+    assert!(
+        !content.contains("\"MIT\"")
+            && !content.contains(">MIT<")
+            && !content.contains("license = \"MIT\""),
+        "{relative_path} must not keep the old MIT project license"
+    );
 }

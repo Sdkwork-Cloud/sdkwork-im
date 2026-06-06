@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use axum::extract::State;
 use axum::extract::WebSocketUpgrade;
 use axum::extract::ws::WebSocket;
+use axum::extract::{Extension, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
 use craw_chat_runtime_link::{
@@ -29,6 +29,7 @@ pub(crate) struct RealtimeWebsocketUpgradeContext {
 
 pub(crate) async fn realtime_websocket(
     ws: WebSocketUpgrade,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
@@ -41,7 +42,7 @@ pub(crate) async fn realtime_websocket(
             code: "websocket_overloaded",
             message: "server is at maximum websocket capacity, please retry later".to_owned(),
         })?;
-    let context = websocket_route::prepare_realtime_websocket_route(&headers, &state)?;
+    let context = websocket_route::prepare_realtime_websocket_route(auth, &headers, &state)?;
     Ok(upgrade_realtime_websocket(
         ws,
         context.auth,
@@ -147,7 +148,6 @@ async fn serve_realtime_websocket_upgrade(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
     use std::sync::Arc;
 
     use craw_chat_runtime_link::LinkWebsocketMode;
@@ -186,11 +186,18 @@ mod tests {
             Some(crate::CCP_WEBSOCKET_SUBPROTOCOL),
             AppContext {
                 tenant_id: "t_demo".into(),
+                organization_id: None,
+                user_id: "u_demo".into(),
                 actor_id: "u_demo".into(),
                 actor_kind: "user".into(),
-                device_id: Some("d_pad".into()),
                 session_id: Some("s_demo".into()),
-                permissions: BTreeSet::new(),
+                app_id: None,
+                environment: None,
+                deployment_mode: None,
+                auth_level: None,
+                data_scope: Default::default(),
+                permission_scope: Default::default(),
+                device_id: Some("d_pad".into()),
             },
             "d_pad".into(),
             runtime.clone(),

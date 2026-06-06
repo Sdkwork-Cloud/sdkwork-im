@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class ControlApi {
     private final HttpClient client;
-    
+
     public ControlApi(HttpClient client) {
         this.client = client;
     }

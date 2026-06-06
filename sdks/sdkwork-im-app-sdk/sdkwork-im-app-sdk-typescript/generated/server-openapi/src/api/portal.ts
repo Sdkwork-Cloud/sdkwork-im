@@ -6,9 +6,9 @@ import type { PortalSnapshot, PortalWorkspaceView } from '../types';
 
 export class PortalWorkspaceApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -20,9 +20,9 @@ export class PortalWorkspaceApi {
 
 export class PortalRealtimeApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -34,9 +34,9 @@ export class PortalRealtimeApi {
 
 export class PortalMediaApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -48,9 +48,9 @@ export class PortalMediaApi {
 
 export class PortalHomeApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -62,9 +62,9 @@ export class PortalHomeApi {
 
 export class PortalGovernanceApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -76,9 +76,9 @@ export class PortalGovernanceApi {
 
 export class PortalDashboardApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -90,9 +90,9 @@ export class PortalDashboardApi {
 
 export class PortalConversationSnapshotApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -104,9 +104,9 @@ export class PortalConversationSnapshotApi {
 
 export class PortalAutomationApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -118,9 +118,9 @@ export class PortalAutomationApi {
 
 export class PortalAccessApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -141,8 +141,8 @@ export class PortalApi {
   public readonly media: PortalMediaApi;
   public readonly realtime: PortalRealtimeApi;
   public readonly workspace: PortalWorkspaceApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.access = new PortalAccessApi(client);
     this.automation = new PortalAutomationApi(client);
@@ -152,7 +152,7 @@ export class PortalApi {
     this.home = new PortalHomeApi(client);
     this.media = new PortalMediaApi(client);
     this.realtime = new PortalRealtimeApi(client);
-    this.workspace = new PortalWorkspaceApi(client); 
+    this.workspace = new PortalWorkspaceApi(client);
   }
 
 }

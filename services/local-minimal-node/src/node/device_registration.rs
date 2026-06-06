@@ -1,7 +1,7 @@
 use super::*;
 use im_platform_contracts::{
     ContractError, DeviceAccessOwnerBindingRequest, DeviceAccessProvider,
-    DeviceAccessRegistrationRequest, ProviderHealthSnapshot,
+    DeviceAccessRegistrationRequest,
 };
 use tokio::sync::watch;
 
@@ -296,10 +296,6 @@ impl LocalNodeDeviceRegistration {
             )?;
         platform::refresh_node_operational_view(state);
         Ok(DisconnectActiveDeviceRouteOutcome::DeviceDisconnected)
-    }
-
-    pub(crate) fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
-        self.device_access_provider.provider_health_snapshot()
     }
 
     pub(crate) fn provider_descriptor(&self) -> im_platform_contracts::ProviderPluginDescriptor {

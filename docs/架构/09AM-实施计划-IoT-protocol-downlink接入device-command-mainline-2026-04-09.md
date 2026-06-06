@@ -16,7 +16,7 @@
 
 本轮包含：
 
-- `POST /backend/v3/api/iot/protocol/downlink`
+- `POST /app/v3/api/iot/protocol/downlink`
 - `IotProtocolAdapter::encode_downlink()`
 - `build_default_app_with_iot_protocol_adapter` 的 runtime 主链路消费
 - `device.command` stream 写入
@@ -34,7 +34,7 @@
 
 ## 执行步骤
 
-1. 先写失败测试，确认当前 `POST /backend/v3/api/iot/protocol/downlink` 返回 `404`。
+1. 先写失败测试，确认当前 `POST /app/v3/api/iot/protocol/downlink` 返回 `404`。
 2. 在 `iot.rs` 增加 downlink handler，消费当前注入的 `IotProtocolAdapter`。
 3. 在 `access.rs` 增加最小访问控制，确保设备已注册且调用方具备 `device.command.send`。
 4. 调用 `encode_downlink()` 后，归一写入 `device.command` stream，并复用现有 realtime stream-frame side effect。
@@ -48,7 +48,7 @@
 
 ## 退出标准
 
-- `POST /backend/v3/api/iot/protocol/downlink` 返回 `200`
+- `POST /app/v3/api/iot/protocol/downlink` 返回 `200`
 - 响应包含：
   - `frame`
   - `protocolPayload`

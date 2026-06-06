@@ -288,6 +288,63 @@ mod tests {
             "legacy bearerAuth scheme must not be emitted"
         );
     }
+
+    #[test]
+    fn operation_id_uses_dotted_lower_camel_resource_action_contract() {
+        assert_eq!(
+            operation_id("/app/v3/api/auth/sessions", HttpMethod::Post),
+            "sessions.create"
+        );
+        assert_eq!(
+            operation_id("/app/v3/api/auth/sessions/current", HttpMethod::Get),
+            "sessions.current.retrieve"
+        );
+        assert_eq!(
+            operation_id("/app/v3/api/auth/sessions/current", HttpMethod::Delete),
+            "sessions.current.delete"
+        );
+        assert_eq!(
+            operation_id(
+                "/app/v3/api/auth/verification_codes/verify",
+                HttpMethod::Post
+            ),
+            "verificationCodes.verify"
+        );
+        assert_eq!(
+            operation_id("/backend/v3/api/iam/users", HttpMethod::Get),
+            "users.list"
+        );
+        assert_eq!(
+            operation_id("/backend/v3/api/iam/users/{userId}", HttpMethod::Get),
+            "users.retrieve"
+        );
+        assert_eq!(
+            operation_id("/backend/v3/api/iam/users/{userId}", HttpMethod::Patch),
+            "users.update"
+        );
+        assert_eq!(
+            operation_id("/app/v3/api/iam/organization_memberships", HttpMethod::Get),
+            "organizationMemberships.list"
+        );
+        assert_eq!(
+            operation_id("/backend/v3/api/iam/organization_memberships", HttpMethod::Post),
+            "organizationMemberships.create"
+        );
+        assert_eq!(
+            operation_id(
+                "/backend/v3/api/iam/organization_memberships/{membershipId}",
+                HttpMethod::Patch
+            ),
+            "organizationMemberships.update"
+        );
+        assert_eq!(
+            operation_id(
+                "/backend/v3/api/iam/roles/{roleId}/permissions/{permissionId}",
+                HttpMethod::Delete
+            ),
+            "roles.permissions.delete"
+        );
+    }
 }
 
 pub fn render_docs_html(spec: &OpenApiServiceSpec<'_>) -> String {
@@ -735,16 +792,201 @@ fn method_name(method: HttpMethod) -> &'static str {
 }
 
 fn operation_id(path: &str, method: HttpMethod) -> String {
-    let normalized = path
-        .trim_matches('/')
-        .replace('/', "_")
-        .replace(['{', '}'], "")
-        .replace(['-', '.'], "_");
+    let mut resources = operation_resource_segments(path);
+    let action = operation_action(
+        &mut resources,
+        method,
+        path_contains_parameter(path),
+        path_ends_with_parameter(path),
+    );
+    if resources.is_empty() {
+        resources.push("resource".to_owned());
+    }
+    format!("{}.{}", resources.join("."), action)
+}
 
-    if normalized.is_empty() {
-        method_name(method).to_owned()
+fn operation_resource_segments(path: &str) -> Vec<String> {
+    let raw_segments = path
+        .trim_matches('/')
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+    let scoped_segments = strip_api_prefix(raw_segments);
+
+    let mut resources = scoped_segments
+        .into_iter()
+        .filter(|segment| !is_path_parameter(segment))
+        .map(to_lower_camel_segment)
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+
+    // API paths include an explicit surface domain segment that maps to the top-level
+    // SDK namespace; remove it from operationId resources to avoid duplication.
+    if resources.len() > 1 && has_standard_api_prefix(path) {
+        resources.remove(0);
+    }
+
+    resources
+}
+
+fn strip_api_prefix(segments: Vec<&str>) -> Vec<&str> {
+    if segments.len() >= 3
+        && matches!(segments[0], "im" | "app" | "backend")
+        && segments[1] == "v3"
+        && segments[2] == "api"
+    {
+        segments[3..].to_vec()
     } else {
-        format!("{}_{}", method_name(method), normalized)
+        segments
+    }
+}
+
+fn has_standard_api_prefix(path: &str) -> bool {
+    let normalized = path.trim_start_matches('/');
+    normalized.starts_with("im/v3/api/")
+        || normalized.starts_with("app/v3/api/")
+        || normalized.starts_with("backend/v3/api/")
+}
+
+fn is_path_parameter(segment: &str) -> bool {
+    segment.starts_with('{') && segment.ends_with('}')
+}
+
+fn path_ends_with_parameter(path: &str) -> bool {
+    path.trim_matches('/')
+        .split('/')
+        .next_back()
+        .is_some_and(is_path_parameter)
+}
+
+fn path_contains_parameter(path: &str) -> bool {
+    path.trim_matches('/').split('/').any(is_path_parameter)
+}
+
+fn looks_like_collection_resource(segment: &str) -> bool {
+    segment.ends_with('s') || segment.ends_with("List")
+}
+
+fn to_lower_camel_segment(value: &str) -> String {
+    let mut output = String::new();
+    let mut uppercase_next = false;
+
+    for ch in value.chars() {
+        if ch.is_ascii_alphanumeric() {
+            if output.is_empty() {
+                output.push(ch.to_ascii_lowercase());
+                uppercase_next = false;
+            } else if uppercase_next {
+                output.push(ch.to_ascii_uppercase());
+                uppercase_next = false;
+            } else {
+                output.push(ch.to_ascii_lowercase());
+            }
+        } else {
+            uppercase_next = !output.is_empty();
+        }
+    }
+
+    output
+}
+
+fn operation_action(
+    resources: &mut Vec<String>,
+    method: HttpMethod,
+    contains_parameter: bool,
+    ends_with_parameter: bool,
+) -> String {
+    if resources.is_empty() {
+        return match method {
+            HttpMethod::Get => "retrieve".to_owned(),
+            HttpMethod::Post => "create".to_owned(),
+            HttpMethod::Put | HttpMethod::Patch => "update".to_owned(),
+            HttpMethod::Delete => "delete".to_owned(),
+            HttpMethod::Options => "options".to_owned(),
+            HttpMethod::Head => "head".to_owned(),
+        };
+    }
+
+    let command_suffixes = [
+        "accept",
+        "ack",
+        "activate",
+        "apply",
+        "approve",
+        "archive",
+        "batchCreate",
+        "batchDelete",
+        "batchUpdate",
+        "bind",
+        "cancel",
+        "claim",
+        "decline",
+        "deactivate",
+        "diff",
+        "disconnect",
+        "drain",
+        "establish",
+        "migrate",
+        "preview",
+        "publish",
+        "reclaim",
+        "refresh",
+        "reject",
+        "release",
+        "remove",
+        "repair",
+        "republish",
+        "requeue",
+        "restore",
+        "resume",
+        "revoke",
+        "rollback",
+        "submit",
+        "sync",
+        "takeover",
+        "unpublish",
+        "verify",
+    ];
+    let singleton_resources = ["current", "default", "healthz", "me", "readyz"];
+    let singleton_verbs = ["diff"];
+
+    match method {
+        HttpMethod::Get => {
+            if ends_with_parameter
+                || (contains_parameter
+                    && resources
+                        .last()
+                        .is_some_and(|segment| !looks_like_collection_resource(segment)))
+            {
+                "retrieve".to_owned()
+            } else if resources
+                .last()
+                .is_some_and(|segment| singleton_verbs.contains(&segment.as_str()))
+            {
+                resources.pop().unwrap_or_else(|| "retrieve".to_owned())
+            } else if resources
+                .last()
+                .is_some_and(|segment| singleton_resources.contains(&segment.as_str()))
+            {
+                "retrieve".to_owned()
+            } else {
+                "list".to_owned()
+            }
+        }
+        HttpMethod::Post => {
+            if resources
+                .last()
+                .is_some_and(|segment| command_suffixes.contains(&segment.as_str()))
+            {
+                resources.pop().unwrap_or_else(|| "create".to_owned())
+            } else {
+                "create".to_owned()
+            }
+        }
+        HttpMethod::Put | HttpMethod::Patch => "update".to_owned(),
+        HttpMethod::Delete => "delete".to_owned(),
+        HttpMethod::Options => "options".to_owned(),
+        HttpMethod::Head => "head".to_owned(),
     }
 }
 

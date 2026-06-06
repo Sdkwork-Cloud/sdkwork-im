@@ -30,6 +30,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | [APPLICATION_SPEC.md](../../../specs/APPLICATION_SPEC.md) | Application shell and module composition. |
 | [COMPONENT_SPEC.md](../../../specs/COMPONENT_SPEC.md) | Local component specs directory and manifest rules. |
 | [CONFIG_SPEC.md](../../../specs/CONFIG_SPEC.md) | Runtime configuration, environment, SDK bootstrap, and feature flag rules. |
+| [DATABASE_SPEC.md](../../../specs/DATABASE_SPEC.md) | Database table naming, table profiles, schema registry, and prefix governance. |
 | [DEPLOYMENT_SPEC.md](../../../specs/DEPLOYMENT_SPEC.md) | SaaS/private/local runtime parity and deployment rules. |
 | [DOCUMENTATION_SPEC.md](../../../specs/DOCUMENTATION_SPEC.md) | Module README, examples, ADR, changelog, and runbook rules. |
 | [DOMAIN_SPEC.md](../../../specs/DOMAIN_SPEC.md) | Canonical domain ownership and naming. |
@@ -51,8 +52,12 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Local Extension Specs
 
-- No local extension specs are declared yet.
+- [im-app-api-sdk-integration.spec.md](./im-app-api-sdk-integration.spec.md) defines Craw Chat's IM API, IM app API, IM backend API, product SDK ownership, IAM login integration, shared database, local source-link development, and git-backed release dependency rules.
+- [database-prefix-registry.json](./database-prefix-registry.json) registers `im` as the controlled prefix for instant-messaging tables in the `chat` app.
+- [database-table-registry.json](./database-table-registry.json) lists the checked-in IM table contracts, table profiles, write owners, and migration source.
+- [database-table-naming-standard.md](../docs/部署/database-table-naming-standard.md) documents the local naming policy: IM tables use `im_`; non-IM tables keep their own business prefix or approved legacy name.
 
 ## Verification
 
 - `cargo test --manifest-path apps/craw-chat/Cargo.toml`
+- `node scripts/dev/sdkwork-chat-database-naming-standard.test.mjs`

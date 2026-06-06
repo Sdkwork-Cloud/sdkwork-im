@@ -11,102 +11,34 @@
   "status": "ok",
   "mode": "apply",
   "hasChanges": true,
-  "hasDestructiveChanges": true,
-  "changeFingerprint": "959ac8607fb728dbefc434c217d5ea7065c795ee69d30219e5915df86aae7795",
+  "hasDestructiveChanges": false,
+  "changeFingerprint": "86395eb9be69846cbb43d1155d0a2010838314ccaa148f5795c4ebd59a0e153b",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
       "api-surface",
-      "models",
       "runtime",
+      "build-metadata",
       "documentation"
     ],
     "details": [
       {
         "area": "api-surface",
         "paths": [
-          "Api/AdminApi.cs",
-          "Api/Api.cs",
-          "Api/ControlApi.cs",
-          "Api/IotApi.cs",
-          "Api/ProviderApi.cs",
-          "Api/RtcApi.cs",
           "SdkworkBackendClient.cs"
-        ]
-      },
-      {
-        "area": "models",
-        "paths": [
-          "Models/AcceptFriendRequestRequest.cs",
-          "Models/ActivateFriendshipRequest.cs",
-          "Models/ApplySharedChannelPolicyRequest.cs",
-          "Models/BindDirectChatRequest.cs",
-          "Models/BindExternalMemberLinkRequest.cs",
-          "Models/BlockUserRequest.cs",
-          "Models/BusinessPolicyVocabularyResponse.cs",
-          "Models/CancelFriendRequestRequest.cs",
-          "Models/CapabilityProfileResponse.cs",
-          "Models/ClientCompatibilityResponse.cs",
-          "Models/DeclineFriendRequestRequest.cs",
-          "Models/EffectiveProtocolSnapshotResponse.cs",
-          "Models/EstablishExternalConnectionRequest.cs",
-          "Models/KillSwitchResponse.cs",
-          "Models/MigrateRoutesRequest.cs",
-          "Models/ProtocolGovernanceResponse.cs",
-          "Models/ProtocolRegistryResponse.cs",
-          "Models/ProtocolSchemaResponse.cs",
-          "Models/ProviderBindingCommitResponse.cs",
-          "Models/ProviderBindingsResponse.cs",
-          "Models/ProviderPolicyDiffResponse.cs",
-          "Models/ProviderPolicyHistoryResponse.cs",
-          "Models/ProviderPolicyRollbackRequest.cs",
-          "Models/ProviderRegistrySnapshotResponse.cs",
-          "Models/QuotaProfileResponse.cs",
-          "Models/RemoveFriendshipRequest.cs",
-          "Models/RolloutPolicyResponse.cs",
-          "Models/RouteMigrationResult.cs",
-          "Models/RouteNodeLifecycle.cs",
-          "Models/SdkCompatibilityBaselineResponse.cs",
-          "Models/SocialDirectChatCommitResponse.cs",
-          "Models/SocialDirectChatSnapshotResponse.cs",
-          "Models/SocialExternalConnectionCommitResponse.cs",
-          "Models/SocialExternalConnectionSnapshotResponse.cs",
-          "Models/SocialExternalMemberLinkCommitResponse.cs",
-          "Models/SocialExternalMemberLinkSnapshotResponse.cs",
-          "Models/SocialFriendRequestCommitResponse.cs",
-          "Models/SocialFriendRequestSnapshotResponse.cs",
-          "Models/SocialFriendshipCommitResponse.cs",
-          "Models/SocialFriendshipSnapshotResponse.cs",
-          "Models/SocialRuntimeRepairResponse.cs",
-          "Models/SocialSharedChannelPolicyCommitResponse.cs",
-          "Models/SocialSharedChannelPolicySnapshotResponse.cs",
-          "Models/SocialSharedChannelSyncDeadLetterInventoryResponse.cs",
-          "Models/SocialSharedChannelSyncDeadLetterRequeueResponse.cs",
-          "Models/SocialSharedChannelSyncDeadLetterTargetedRequeueRequest.cs",
-          "Models/SocialSharedChannelSyncDeadLetterTargetedRequeueResponse.cs",
-          "Models/SocialSharedChannelSyncDeliveredInventoryResponse.cs",
-          "Models/SocialSharedChannelSyncDeliveryStateInventoryResponse.cs",
-          "Models/SocialSharedChannelSyncPendingClaimResponse.cs",
-          "Models/SocialSharedChannelSyncPendingInventoryResponse.cs",
-          "Models/SocialSharedChannelSyncPendingReleaseResponse.cs",
-          "Models/SocialSharedChannelSyncPendingStaleReclaimResponse.cs",
-          "Models/SocialSharedChannelSyncPendingTakeoverResponse.cs",
-          "Models/SocialSharedChannelSyncPendingTargetedClaimRequest.cs",
-          "Models/SocialSharedChannelSyncPendingTargetedReleaseRequest.cs",
-          "Models/SocialSharedChannelSyncPendingTargetedTakeoverRequest.cs",
-          "Models/SocialSharedChannelSyncRepairResponse.cs",
-          "Models/SocialSharedChannelSyncTargetedRepublishRequest.cs",
-          "Models/SocialSharedChannelSyncTargetedRepublishResponse.cs",
-          "Models/SocialUserBlockCommitResponse.cs",
-          "Models/SocialUserBlockSnapshotResponse.cs",
-          "Models/SubmitFriendRequestRequest.cs",
-          "Models/UpsertProviderBindingPolicyRequest.cs"
         ]
       },
       {
         "area": "runtime",
         "paths": [
           "Http/HttpClient.cs"
+        ]
+      },
+      {
+        "area": "build-metadata",
+        "paths": [
+          "sdkwork-sdk.json",
+          "Sdkwork.Im.BackendApi.Generated.csproj"
         ]
       },
       {
@@ -117,7 +49,7 @@
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, runtime, documentation. Verification is required."
+    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required."
   },
   "executionDecision": {
     "schemaVersion": 1,
@@ -128,7 +60,6 @@
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
       "backed-up-generated-files",
-      "deleted-generated-files",
       "manual-review-required",
       "verification-required"
     ]
@@ -141,7 +72,7 @@
         "id": "verify-check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, documentation.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-csharp\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -160,13 +91,13 @@
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, runtime, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, documentation.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-csharp\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -203,16 +134,34 @@
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 70,
+    "writtenFiles": 5,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 12,
-    "deletedGeneratedFiles": 3,
+    "skippedUnchangedGeneratedFiles": 77,
+    "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "959ac8607fb728dbefc434c217d5ea7065c795ee69d30219e5915df86aae7795",
+    "changeFingerprint": "86395eb9be69846cbb43d1155d0a2010838314ccaa148f5795c4ebd59a0e153b",
     "changes": {
-      "createdGeneratedFiles": [
+      "createdGeneratedFiles": [],
+      "updatedGeneratedFiles": [
+        "Http/HttpClient.cs",
+        "README.md",
+        "sdkwork-sdk.json",
+        "Sdkwork.Im.BackendApi.Generated.csproj",
+        "SdkworkBackendClient.cs"
+      ],
+      "unchangedGeneratedFiles": [
         "Api/AdminApi.cs",
+        "Api/Api.cs",
+        "Api/ApiPaths.cs",
+        "Api/AuditApi.cs",
+        "Api/AutomationApi.cs",
         "Api/ControlApi.cs",
+        "Api/OpsApi.cs",
+        "bin/publish-core.mjs",
+        "bin/publish.ps1",
+        "bin/publish.sh",
+        "CHANGELOG.md",
+        "LICENSE",
         "Models/AcceptFriendRequestRequest.cs",
         "Models/ActivateFriendshipRequest.cs",
         "Models/ApplySharedChannelPolicyRequest.cs",
@@ -228,6 +177,7 @@
         "Models/EstablishExternalConnectionRequest.cs",
         "Models/KillSwitchResponse.cs",
         "Models/MigrateRoutesRequest.cs",
+        "Models/ProblemDetail.cs",
         "Models/ProtocolGovernanceResponse.cs",
         "Models/ProtocolRegistryResponse.cs",
         "Models/ProtocolSchemaResponse.cs",
@@ -278,31 +228,7 @@
         "Models/SubmitFriendRequestRequest.cs",
         "Models/UpsertProviderBindingPolicyRequest.cs"
       ],
-      "updatedGeneratedFiles": [
-        "Api/Api.cs",
-        "Http/HttpClient.cs",
-        "README.md",
-        "SdkworkBackendClient.cs"
-      ],
-      "unchangedGeneratedFiles": [
-        "Api/ApiPaths.cs",
-        "Api/AuditApi.cs",
-        "Api/AutomationApi.cs",
-        "Api/OpsApi.cs",
-        "bin/publish-core.mjs",
-        "bin/publish.ps1",
-        "bin/publish.sh",
-        "CHANGELOG.md",
-        "LICENSE",
-        "Models/ProblemDetail.cs",
-        "sdkwork-sdk.json",
-        "Sdkwork.Im.BackendApi.Generated.csproj"
-      ],
-      "deletedGeneratedFiles": [
-        "Api/IotApi.cs",
-        "Api/ProviderApi.cs",
-        "Api/RtcApi.cs"
-      ],
+      "deletedGeneratedFiles": [],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/README.md"
@@ -310,6 +236,8 @@
       "backedUpFiles": [
         "Http/HttpClient.cs",
         "README.md",
+        "sdkwork-sdk.json",
+        "Sdkwork.Im.BackendApi.Generated.csproj",
         "SdkworkBackendClient.cs"
       ]
     },
@@ -317,96 +245,28 @@
       "schemaVersion": 1,
       "areas": [
         "api-surface",
-        "models",
         "runtime",
+        "build-metadata",
         "documentation"
       ],
       "details": [
         {
           "area": "api-surface",
           "paths": [
-            "Api/AdminApi.cs",
-            "Api/Api.cs",
-            "Api/ControlApi.cs",
-            "Api/IotApi.cs",
-            "Api/ProviderApi.cs",
-            "Api/RtcApi.cs",
             "SdkworkBackendClient.cs"
-          ]
-        },
-        {
-          "area": "models",
-          "paths": [
-            "Models/AcceptFriendRequestRequest.cs",
-            "Models/ActivateFriendshipRequest.cs",
-            "Models/ApplySharedChannelPolicyRequest.cs",
-            "Models/BindDirectChatRequest.cs",
-            "Models/BindExternalMemberLinkRequest.cs",
-            "Models/BlockUserRequest.cs",
-            "Models/BusinessPolicyVocabularyResponse.cs",
-            "Models/CancelFriendRequestRequest.cs",
-            "Models/CapabilityProfileResponse.cs",
-            "Models/ClientCompatibilityResponse.cs",
-            "Models/DeclineFriendRequestRequest.cs",
-            "Models/EffectiveProtocolSnapshotResponse.cs",
-            "Models/EstablishExternalConnectionRequest.cs",
-            "Models/KillSwitchResponse.cs",
-            "Models/MigrateRoutesRequest.cs",
-            "Models/ProtocolGovernanceResponse.cs",
-            "Models/ProtocolRegistryResponse.cs",
-            "Models/ProtocolSchemaResponse.cs",
-            "Models/ProviderBindingCommitResponse.cs",
-            "Models/ProviderBindingsResponse.cs",
-            "Models/ProviderPolicyDiffResponse.cs",
-            "Models/ProviderPolicyHistoryResponse.cs",
-            "Models/ProviderPolicyRollbackRequest.cs",
-            "Models/ProviderRegistrySnapshotResponse.cs",
-            "Models/QuotaProfileResponse.cs",
-            "Models/RemoveFriendshipRequest.cs",
-            "Models/RolloutPolicyResponse.cs",
-            "Models/RouteMigrationResult.cs",
-            "Models/RouteNodeLifecycle.cs",
-            "Models/SdkCompatibilityBaselineResponse.cs",
-            "Models/SocialDirectChatCommitResponse.cs",
-            "Models/SocialDirectChatSnapshotResponse.cs",
-            "Models/SocialExternalConnectionCommitResponse.cs",
-            "Models/SocialExternalConnectionSnapshotResponse.cs",
-            "Models/SocialExternalMemberLinkCommitResponse.cs",
-            "Models/SocialExternalMemberLinkSnapshotResponse.cs",
-            "Models/SocialFriendRequestCommitResponse.cs",
-            "Models/SocialFriendRequestSnapshotResponse.cs",
-            "Models/SocialFriendshipCommitResponse.cs",
-            "Models/SocialFriendshipSnapshotResponse.cs",
-            "Models/SocialRuntimeRepairResponse.cs",
-            "Models/SocialSharedChannelPolicyCommitResponse.cs",
-            "Models/SocialSharedChannelPolicySnapshotResponse.cs",
-            "Models/SocialSharedChannelSyncDeadLetterInventoryResponse.cs",
-            "Models/SocialSharedChannelSyncDeadLetterRequeueResponse.cs",
-            "Models/SocialSharedChannelSyncDeadLetterTargetedRequeueRequest.cs",
-            "Models/SocialSharedChannelSyncDeadLetterTargetedRequeueResponse.cs",
-            "Models/SocialSharedChannelSyncDeliveredInventoryResponse.cs",
-            "Models/SocialSharedChannelSyncDeliveryStateInventoryResponse.cs",
-            "Models/SocialSharedChannelSyncPendingClaimResponse.cs",
-            "Models/SocialSharedChannelSyncPendingInventoryResponse.cs",
-            "Models/SocialSharedChannelSyncPendingReleaseResponse.cs",
-            "Models/SocialSharedChannelSyncPendingStaleReclaimResponse.cs",
-            "Models/SocialSharedChannelSyncPendingTakeoverResponse.cs",
-            "Models/SocialSharedChannelSyncPendingTargetedClaimRequest.cs",
-            "Models/SocialSharedChannelSyncPendingTargetedReleaseRequest.cs",
-            "Models/SocialSharedChannelSyncPendingTargetedTakeoverRequest.cs",
-            "Models/SocialSharedChannelSyncRepairResponse.cs",
-            "Models/SocialSharedChannelSyncTargetedRepublishRequest.cs",
-            "Models/SocialSharedChannelSyncTargetedRepublishResponse.cs",
-            "Models/SocialUserBlockCommitResponse.cs",
-            "Models/SocialUserBlockSnapshotResponse.cs",
-            "Models/SubmitFriendRequestRequest.cs",
-            "Models/UpsertProviderBindingPolicyRequest.cs"
           ]
         },
         {
           "area": "runtime",
           "paths": [
             "Http/HttpClient.cs"
+          ]
+        },
+        {
+          "area": "build-metadata",
+          "paths": [
+            "sdkwork-sdk.json",
+            "Sdkwork.Im.BackendApi.Generated.csproj"
           ]
         },
         {
@@ -417,18 +277,18 @@
         }
       ],
       "requiresVerification": true,
-      "summary": "Detected impact areas: api-surface, models, runtime, documentation. Verification is required."
+      "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required."
     },
     "verificationPlan": {
       "shouldRun": true,
       "runPhase": "now",
-      "summary": "Detected impact areas: api-surface, models, runtime, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+      "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
       "steps": [
         {
           "id": "check",
           "title": "Unified package check",
           "required": true,
-          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, documentation.",
+          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation.",
           "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-csharp\\generated\\server-openapi",
           "command": "node",
           "args": [
@@ -453,7 +313,6 @@
       "summary": "Changes have been applied. Run the required verification plan now.",
       "reasons": [
         "backed-up-generated-files",
-        "deleted-generated-files",
         "manual-review-required",
         "verification-required"
       ]
@@ -461,6 +320,8 @@
     "backedUpFiles": [
       "Http/HttpClient.cs",
       "README.md",
+      "sdkwork-sdk.json",
+      "Sdkwork.Im.BackendApi.Generated.csproj",
       "SdkworkBackendClient.cs"
     ],
     "preservedLegacyFiles": false

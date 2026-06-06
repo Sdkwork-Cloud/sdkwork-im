@@ -517,9 +517,7 @@ fn build_websocket_url(base_url: &str, path: &str) -> Result<String, CliError> {
 }
 
 pub(crate) fn resolve_authorization_header(auth: &AuthInput) -> Option<String> {
-    auth.bearer_token
-        .as_deref()
-        .map(normalize_bearer_header)
+    auth.bearer_token.as_deref().map(normalize_bearer_header)
 }
 
 pub(crate) fn apply_app_context_projection_headers(

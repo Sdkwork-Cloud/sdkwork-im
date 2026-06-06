@@ -373,6 +373,56 @@ impl TimelineProjectionService {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn append_principal_device_sync_event(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+        origin_event_id: &str,
+        origin_event_type: &str,
+        conversation_id: Option<String>,
+        message_id: Option<String>,
+        message_seq: Option<u64>,
+        actor_device_id: Option<String>,
+        summary: Option<String>,
+        payload_schema: Option<String>,
+        payload: Option<String>,
+        occurred_at: String,
+    ) {
+        for device in
+            registered_devices_for_principal_kind(self, tenant_id, principal_id, principal_kind)
+        {
+            self.append_device_sync_entry(
+                tenant_id,
+                principal_id,
+                principal_kind,
+                device.device_id.as_str(),
+                |sync_seq| DeviceSyncFeedEntry {
+                    tenant_id: tenant_id.into(),
+                    principal_id: principal_id.into(),
+                    device_id: device.device_id.clone(),
+                    sync_seq,
+                    origin_event_id: origin_event_id.into(),
+                    origin_event_type: origin_event_type.into(),
+                    conversation_id: conversation_id.clone(),
+                    message_id: message_id.clone(),
+                    message_seq,
+                    member_id: None,
+                    read_seq: None,
+                    last_read_message_id: None,
+                    actor_id: Some(principal_id.into()),
+                    actor_kind: Some(principal_kind.into()),
+                    actor_device_id: actor_device_id.clone(),
+                    summary: summary.clone(),
+                    payload_schema: payload_schema.clone(),
+                    payload: payload.clone(),
+                    occurred_at: occurred_at.clone(),
+                },
+            );
+        }
+    }
+
     pub(crate) fn append_device_sync_entry<F>(
         &self,
         tenant_id: &str,

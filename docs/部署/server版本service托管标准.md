@@ -1,61 +1,81 @@
 # Server 版本 Service 托管标准
 
-`craw-chat-server` 对 operator 暴露一个正式 service 身份，不要求 operator 直接管理内部业务服务集合。
+`craw-chat-server` 对 operator 暴露一个正式 service 身份。应用目录、配置、日志和运行状态统一使用 app code `chat`。
 
 ## 跨平台目标
 
 - Linux: `systemd`
 - macOS: `launchd`
-- Windows Service: `CrawChatServer`
+- Windows: Windows Service `CrawChatServer`
 
-## 当前阶段
+统一托管启动命令：
 
-- 已提供 `systemd` unit 模板：`deployments/systemd/craw-chat-server.service`
-- 已提供 `launchd` plist 模板：`deployments/launchd/com.sdkwork.crawchat.server.plist`
-- 已提供 Windows Service wrapper 模板：`deployments/windows-service/CrawChatServer.xml`
-- `launchd` 目标 label：`com.sdkwork.crawchat.server`
-- Windows Service 目标名：`CrawChatServer`
-- 统一托管启动命令：`craw-chat-server --config <config-root>/server.yaml`
+```text
+craw-chat-server --config <config-root>/chat.toml
+```
 
 ## 标准路径
 
-- Linux config root: `/etc/craw-chat/default`
-- Linux data root: `/var/lib/craw-chat/default`
-- Linux log root: `/var/log/craw-chat/default`
-- Linux run root: `/var/run/craw-chat/default`
+Linux:
 
-## 一阶段命令
+- Install root: `/opt/sdkwork/chat`
+- Config root: `/etc/sdkwork/chat`
+- Config file: `/etc/sdkwork/chat/chat.toml`
+- Env file: `/etc/sdkwork/chat/server.env`
+- Data root: `/var/lib/sdkwork/chat`
+- Log root: `/var/log/sdkwork/chat`
+- Run root: `/run/sdkwork/chat`
 
-- `install-service-server`
-- `uninstall-service-server`
-- `start-server`
-- `stop-server`
-- `restart-server`
-- `status-server`
+Windows Service:
 
-## 说明
+- Install root: `%ProgramFiles%/sdkwork/chat`
+- Config root: `%ProgramData%/sdkwork/chat`
+- Config file: `%ProgramData%/sdkwork/chat/chat.toml`
+- Env file: `%ProgramData%/sdkwork/chat/server.env`
+- Data root: `%ProgramData%/sdkwork/chat/Data`
+- Log root: `%ProgramData%/sdkwork/chat/Logs`
+- Run root: `%ProgramData%/sdkwork/chat/Run`
 
-- `install-service-server` 当前阶段负责渲染和报告 service contract。
-- 生成产物位于 `<config-root>/generated/`，其中包括 `craw-chat-server.service` 与 `com.sdkwork.crawchat.server.plist`。
-- Windows Service 采用 dedicated wrapper contract，而不是将前台 console 进程直接注册为原生服务。
-- `install-service-server` 还会生成 `CrawChatServer.xml`、`install-CrawChatServer.ps1`、`uninstall-CrawChatServer.ps1`，供 Windows 托管层继续接管。
-- service 启动后必须对齐统一端口 `web-gateway`、`/healthz`、`/readyz`、`/openapi.json`、`/docs` 等外部面。
-- 手工 `start-server` 与 `systemd` 托管必须共用同一 `server.yaml` 配置源，避免前后台启动语义分叉。
-## Release payload contract
+macOS service:
 
-- Windows Service host mode is `wrapper-required`
-- release payload must ship `bin/CrawChatServer.exe` together with `deployments/windows-service/CrawChatServer.xml`
-- `install-service-server` must generate the instance-specific artifacts under `<config-root>/generated/`
-  - `CrawChatServer.xml`
-  - `install-CrawChatServer.ps1`
-  - `uninstall-CrawChatServer.ps1`
-- the wrapper must not change the service identity `CrawChatServer`
-- the wrapped process contract stays fixed as `craw-chat-server --config <config-root>/server.yaml`
+- Install root: `/usr/lib/sdkwork/chat`
+- Config root: `/Library/Application Support/sdkwork/chat`
+- Config file: `/Library/Application Support/sdkwork/chat/chat.toml`
+- Env file: `/Library/Application Support/sdkwork/chat/server.env`
+- Data root: `/Library/Application Support/sdkwork/chat/Data`
+- Log root: `/Library/Logs/sdkwork/chat`
+- Run root: `/Library/Application Support/sdkwork/chat/Run`
+
+Default instance paths do not append `default`. Non-default instances append `instances/<name>` under config/data/log/run roots only when the platform script explicitly supports multi-instance mode.
+
+## Service templates
+
+- systemd template: `deployments/systemd/craw-chat-server.service`
+- launchd template: `deployments/launchd/com.sdkwork.crawchat.server.plist`
+- Windows Service wrapper template: `deployments/windows-service/CrawChatServer.xml`
+- launchd label: `com.sdkwork.crawchat.server`
+- Windows Service name: `CrawChatServer`
+
+`install-service-server` renders instance-specific files under `<config-root>/generated/`:
+
+- `craw-chat-server.service`
+- `com.sdkwork.crawchat.server.plist`
+- `CrawChatServer.xml`
+- `install-CrawChatServer.ps1`
+- `uninstall-CrawChatServer.ps1`
+
+## Runtime contract
+
+- Foreground start, systemd, launchd, and Windows Service must share the same `chat.toml` config source.
+- `SDKWORK_CHAT_CONFIG_FILE` may override the config path.
+- `SDKWORK_CHAT_LOG_DIR` must point at the platform log root.
+- Server deployments default to PostgreSQL and Redis.
+- Desktop deployments default to SQLite and Redis disabled.
+- Browser-visible variables must not expose database URLs, Redis URLs, or password files.
 
 ## Unified Gateway Contract
 
-- the externally exposed service entry must remain `web-gateway`
-- the standard operator-visible endpoints remain `/healthz`, `/readyz`, `/openapi.json`, `/openapi/index.json`, and `/docs`
-- per-service schema proxies remain rooted at `/openapi/services/<service-id>.openapi.json`
-- per-service rendered docs remain rooted at `/docs/services/<service-id>`
-- startup output must surface the aggregate OpenAPI document, the OpenAPI service index, and the per-service schema/docs endpoints on the unified gateway port
+- The externally exposed service entry remains `web-gateway`.
+- Standard operator endpoints: `/healthz`, `/readyz`, `/openapi.json`, `/openapi/index.json`, and `/docs`.
+- Upstream operational service schema proxies remain rooted at `/openapi/services/<service-id>.openapi.json`.
+- Per-service rendered docs remain rooted at `/docs/services/<service-id>`.

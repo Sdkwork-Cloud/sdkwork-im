@@ -19,7 +19,7 @@
 - 红灯命令：
   - `cargo test -p local-minimal-node --offline --test iot_provider_http_test -- --nocapture`
 - 初始失败原因：
-  - `GET /backend/v3/api/iot/protocol/provider_health` 返回 `404`
+  - `GET /app/v3/api/iot/protocol/provider_health` 返回 `404`
 - 绿灯确认：
   - 返回 `200`
   - `pluginId = iot-mqtt`
@@ -42,7 +42,7 @@
 ## 本轮冻结的设计事实
 
 - route：
-  - `GET /backend/v3/api/iot/protocol/provider_health`
+  - `GET /app/v3/api/iot/protocol/provider_health`
 - 响应源：
   - `IotProtocolAdapter::provider_health_snapshot()`
 - runtime 注入入口：

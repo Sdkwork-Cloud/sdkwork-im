@@ -6,9 +6,9 @@ import type { AcceptFriendRequestRequest, ActivateFriendshipRequest, ApplyShared
 
 export class ControlSocialUserBlocksApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -25,9 +25,9 @@ export class ControlSocialUserBlocksApi {
 
 export class ControlSocialSharedChannelPoliciesApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -44,9 +44,9 @@ export class ControlSocialSharedChannelPoliciesApi {
 
 export class ControlSocialRuntimeTakeoverPendingSharedChannelSyncTargetedApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -58,9 +58,9 @@ export class ControlSocialRuntimeTakeoverPendingSharedChannelSyncTargetedApi {
 
 export class ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -72,9 +72,9 @@ export class ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedApi {
 
 export class ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -86,9 +86,9 @@ export class ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncApi {
 
 export class ControlSocialRuntimeRepublishPendingSharedChannelSyncTargetedApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -100,9 +100,9 @@ export class ControlSocialRuntimeRepublishPendingSharedChannelSyncTargetedApi {
 
 export class ControlSocialRuntimeRepairSharedChannelSyncApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -114,9 +114,9 @@ export class ControlSocialRuntimeRepairSharedChannelSyncApi {
 
 export class ControlSocialRuntimeRepairDerivedSnapshotApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -128,9 +128,9 @@ export class ControlSocialRuntimeRepairDerivedSnapshotApi {
 
 export class ControlSocialRuntimeReleasePendingSharedChannelSyncTargetedApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -142,9 +142,9 @@ export class ControlSocialRuntimeReleasePendingSharedChannelSyncTargetedApi {
 
 export class ControlSocialRuntimeReclaimStalePendingSharedChannelSyncApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -156,9 +156,9 @@ export class ControlSocialRuntimeReclaimStalePendingSharedChannelSyncApi {
 
 export class ControlSocialRuntimePendingSharedChannelSyncApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -170,9 +170,9 @@ export class ControlSocialRuntimePendingSharedChannelSyncApi {
 
 export class ControlSocialRuntimeDeliveryStateSharedChannelSyncApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -184,9 +184,9 @@ export class ControlSocialRuntimeDeliveryStateSharedChannelSyncApi {
 
 export class ControlSocialRuntimeDeliveredSharedChannelSyncApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -198,9 +198,9 @@ export class ControlSocialRuntimeDeliveredSharedChannelSyncApi {
 
 export class ControlSocialRuntimeDeadLetterSharedChannelSyncApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -212,9 +212,9 @@ export class ControlSocialRuntimeDeadLetterSharedChannelSyncApi {
 
 export class ControlSocialRuntimeClaimPendingSharedChannelSyncTargetedApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -239,8 +239,8 @@ export class ControlSocialRuntimeApi {
   public readonly requeueDeadLetterSharedChannelSync: ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncApi;
   public readonly requeueDeadLetterSharedChannelSyncTargeted: ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedApi;
   public readonly takeoverPendingSharedChannelSyncTargeted: ControlSocialRuntimeTakeoverPendingSharedChannelSyncTargetedApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.claimPendingSharedChannelSyncTargeted = new ControlSocialRuntimeClaimPendingSharedChannelSyncTargetedApi(client);
     this.deadLetterSharedChannelSync = new ControlSocialRuntimeDeadLetterSharedChannelSyncApi(client);
@@ -254,16 +254,16 @@ export class ControlSocialRuntimeApi {
     this.republishPendingSharedChannelSyncTargeted = new ControlSocialRuntimeRepublishPendingSharedChannelSyncTargetedApi(client);
     this.requeueDeadLetterSharedChannelSync = new ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncApi(client);
     this.requeueDeadLetterSharedChannelSyncTargeted = new ControlSocialRuntimeRequeueDeadLetterSharedChannelSyncTargetedApi(client);
-    this.takeoverPendingSharedChannelSyncTargeted = new ControlSocialRuntimeTakeoverPendingSharedChannelSyncTargetedApi(client); 
+    this.takeoverPendingSharedChannelSyncTargeted = new ControlSocialRuntimeTakeoverPendingSharedChannelSyncTargetedApi(client);
   }
 
 }
 
 export class ControlSocialFriendshipsApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -285,9 +285,9 @@ export class ControlSocialFriendshipsApi {
 
 export class ControlSocialFriendRequestsApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -319,9 +319,9 @@ export class ControlSocialFriendRequestsApi {
 
 export class ControlSocialExternalMemberLinksApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -338,9 +338,9 @@ export class ControlSocialExternalMemberLinksApi {
 
 export class ControlSocialExternalConnectionsApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -357,9 +357,9 @@ export class ControlSocialExternalConnectionsApi {
 
 export class ControlSocialDirectChatsBindingsApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -372,10 +372,10 @@ export class ControlSocialDirectChatsBindingsApi {
 export class ControlSocialDirectChatsApi {
   private client: HttpClient;
   public readonly bindings: ControlSocialDirectChatsBindingsApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
-    this.bindings = new ControlSocialDirectChatsBindingsApi(client); 
+    this.bindings = new ControlSocialDirectChatsBindingsApi(client);
   }
 
 
@@ -395,8 +395,8 @@ export class ControlSocialApi {
   public readonly runtime: ControlSocialRuntimeApi;
   public readonly sharedChannelPolicies: ControlSocialSharedChannelPoliciesApi;
   public readonly userBlocks: ControlSocialUserBlocksApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.directChats = new ControlSocialDirectChatsApi(client);
     this.externalConnections = new ControlSocialExternalConnectionsApi(client);
@@ -405,7 +405,7 @@ export class ControlSocialApi {
     this.friendships = new ControlSocialFriendshipsApi(client);
     this.runtime = new ControlSocialRuntimeApi(client);
     this.sharedChannelPolicies = new ControlSocialSharedChannelPoliciesApi(client);
-    this.userBlocks = new ControlSocialUserBlocksApi(client); 
+    this.userBlocks = new ControlSocialUserBlocksApi(client);
   }
 
 }
@@ -416,9 +416,9 @@ export interface ControlProviderBindingsListParams {
 
 export class ControlProviderBindingsApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -438,9 +438,9 @@ export class ControlProviderBindingsApi {
 
 export class ControlProviderRegistryApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -451,15 +451,15 @@ export class ControlProviderRegistryApi {
 }
 
 export interface ControlProviderPoliciesDiffListParams {
-  fromVersion: number;
-  toVersion: number;
+  fromVersion: string;
+  toVersion: string;
 }
 
 export class ControlProviderPoliciesDiffApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -476,10 +476,10 @@ export class ControlProviderPoliciesDiffApi {
 export class ControlProviderPoliciesApi {
   private client: HttpClient;
   public readonly diff: ControlProviderPoliciesDiffApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
-    this.diff = new ControlProviderPoliciesDiffApi(client); 
+    this.diff = new ControlProviderPoliciesDiffApi(client);
   }
 
 
@@ -501,9 +501,9 @@ export class ControlProviderPoliciesApi {
 
 export class ControlProtocolRegistryApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -515,9 +515,9 @@ export class ControlProtocolRegistryApi {
 
 export class ControlProtocolGovernanceApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -529,9 +529,9 @@ export class ControlProtocolGovernanceApi {
 
 export class ControlNodesRoutesApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -544,10 +544,10 @@ export class ControlNodesRoutesApi {
 export class ControlNodesApi {
   private client: HttpClient;
   public readonly routes: ControlNodesRoutesApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
-    this.routes = new ControlNodesRoutesApi(client); 
+    this.routes = new ControlNodesRoutesApi(client);
   }
 
 
@@ -571,8 +571,8 @@ export class ControlApi {
   public readonly providerRegistry: ControlProviderRegistryApi;
   public readonly providerBindings: ControlProviderBindingsApi;
   public readonly social: ControlSocialApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.nodes = new ControlNodesApi(client);
     this.protocolGovernance = new ControlProtocolGovernanceApi(client);
@@ -580,7 +580,7 @@ export class ControlApi {
     this.providerPolicies = new ControlProviderPoliciesApi(client);
     this.providerRegistry = new ControlProviderRegistryApi(client);
     this.providerBindings = new ControlProviderBindingsApi(client);
-    this.social = new ControlSocialApi(client); 
+    this.social = new ControlSocialApi(client);
   }
 
 }

@@ -1,0 +1,863 @@
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { useTranslation } from "react-i18next";
+import {
+  X,
+  Bell,
+  Shield,
+  Paintbrush,
+  MonitorSmartphone,
+  Volume2,
+  Globe,
+  LogOut,
+  LayoutGrid,
+  MessageSquare,
+  ReceiptText,
+  Store,
+  Calendar,
+  ShieldCheck,
+  BookOpen,
+  Sparkles,
+  Users,
+  Star,
+  ArrowUp,
+  ArrowDown,
+  Cpu,
+  GraduationCap,
+  Building2,
+  Mic,
+  Cloud,
+} from "lucide-react";
+import { cn } from "@sdkwork/clawchat-pc-commons";
+import { toast } from "./Toast";
+import {
+  settingsService,
+  AppSettings,
+  DeviceInfo,
+  ALL_APP_MODULES,
+  DEFAULT_SIDEBAR_MODULES,
+} from "../services/SettingsService";
+
+interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onLogout: () => void | Promise<void>;
+}
+
+type SettingsTab =
+  | "general"
+  | "modules"
+  | "notifications"
+  | "privacy"
+  | "appearance"
+  | "devices";
+
+const LANGUAGE_CHANGED_EVENT = "sdkwork-chat-pc:language-changed";
+const SUPPORTED_LANGUAGES = new Set(["zh-CN", "en-US"]);
+
+function normalizeLanguage(lang: string | undefined) {
+  return lang && SUPPORTED_LANGUAGES.has(lang) ? lang : "zh-CN";
+}
+
+function notifyLanguageChanged(lang: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(LANGUAGE_CHANGED_EVENT, {
+    detail: { lang },
+  }));
+}
+
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+  onLogout,
+}) => {
+  const { i18n } = useTranslation();
+  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [devices, setDevices] = useState<DeviceInfo[]>([]);
+  const [serverModules, setServerModules] = useState<string[]>(ALL_APP_MODULES);
+
+  useEffect(() => {
+    if (isOpen) {
+      settingsService.getSettings().then(setSettings);
+      settingsService.getDevices().then(setDevices);
+      settingsService.getServerModules().then(setServerModules);
+    }
+  }, [isOpen]);
+
+  const updateSetting = async (update: Partial<AppSettings>) => {
+    if (!settings) return;
+    const nextUpdate = { ...update };
+    if (typeof update.lang === "string") {
+      nextUpdate.lang = normalizeLanguage(update.lang);
+    }
+    const newSettings = await settingsService.updateSettings(nextUpdate);
+    setSettings(newSettings);
+    if (typeof nextUpdate.lang === "string") {
+      await i18n.changeLanguage(nextUpdate.lang);
+      notifyLanguageChanged(nextUpdate.lang);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && settings && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] backdrop-blur-sm p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="w-[900px] h-[75vh] max-h-[850px] min-h-[500px] bg-[#181818] rounded-2xl shadow-2xl flex overflow-hidden border border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Sidebar */}
+            <div className="w-[200px] bg-[#1e1e1e] flex flex-col shrink-0 relative z-20 border-r border-white/5">
+              <div className="h-[72px] px-6 flex items-center shrink-0">
+                <span className="text-lg font-semibold text-gray-200 tracking-wide">
+                  设置
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 custom-scrollbar">
+                <button
+                  onClick={() => setActiveTab("general")}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all font-medium",
+                    activeTab === "general"
+                      ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
+                      : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
+                  )}
+                >
+                  <Volume2 size={16} /> 通用设置
+                </button>
+                <button
+                  onClick={() => setActiveTab("modules")}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all font-medium",
+                    activeTab === "modules"
+                      ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
+                      : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
+                  )}
+                >
+                  <LayoutGrid size={16} /> 功能模块
+                </button>
+                <button
+                  onClick={() => setActiveTab("notifications")}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all font-medium",
+                    activeTab === "notifications"
+                      ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
+                      : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
+                  )}
+                >
+                  <Bell size={16} /> 消息通知
+                </button>
+                <button
+                  onClick={() => setActiveTab("privacy")}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all font-medium",
+                    activeTab === "privacy"
+                      ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
+                      : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
+                  )}
+                >
+                  <Shield size={16} /> 隐私安全
+                </button>
+                <button
+                  onClick={() => setActiveTab("appearance")}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all font-medium",
+                    activeTab === "appearance"
+                      ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
+                      : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
+                  )}
+                >
+                  <Paintbrush size={16} /> 外观设置
+                </button>
+                <button
+                  onClick={() => setActiveTab("devices")}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all font-medium",
+                    activeTab === "devices"
+                      ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
+                      : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
+                  )}
+                >
+                  <Cpu size={16} /> 设备管理
+                </button>
+              </div>
+              <div className="p-3 border-t border-white/5">
+                <button
+                  onClick={() => {
+                    onClose();
+                    void onLogout();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors font-medium"
+                >
+                  <LogOut size={16} /> 退出登录
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 flex flex-col min-w-0 bg-[#181818] relative z-10">
+              {/* Header Sticky */}
+              <div className="h-[72px] px-8 flex items-center justify-between shrink-0 border-b border-white/5 bg-[#181818]/90 backdrop-blur-md sticky top-0 z-30">
+                <h2 className="text-lg font-medium text-gray-100 tracking-wide">
+                  {{
+                    general: "通用设置",
+                    modules: "功能模块",
+                    notifications: "消息通知",
+                    privacy: "隐私安全",
+                    appearance: "外观设置",
+                    devices: "设备管理",
+                  }[activeTab] || "设置"}
+                </h2>
+                <button
+                  onClick={onClose}
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-100 hover:bg-white/10 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="p-8 pb-16 w-full">
+                  <AnimatePresence mode="wait">
+                    {activeTab === "general" && (
+                      <motion.div
+                        key="general"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-6"
+                      >
+                        <div className="space-y-6">
+                          <div className="space-y-2">
+                            <h3 className="text-sm font-medium text-gray-300">
+                              语言
+                            </h3>
+                            <div className="flex items-center gap-3 p-3 bg-[#2b2b2d] rounded-xl border border-white/5 flex-wrap">
+                              <Globe
+                                size={18}
+                                className="text-gray-400 shrink-0"
+                              />
+                              <select
+                                className="flex-1 bg-transparent border-none text-sm text-gray-200 outline-none hover:cursor-pointer min-w-[120px]"
+                                value={settings.lang}
+                                onChange={(e) =>
+                                  updateSetting({ lang: e.target.value })
+                                }
+                              >
+                                <option value="zh-CN">简体中文</option>
+                                <option value="en-US">English</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <h3 className="text-sm font-medium text-gray-300">
+                              系统开机启动
+                            </h3>
+                            <div className="flex items-center justify-between p-4 bg-[#2b2b2d] rounded-xl border border-white/5">
+                              <span className="text-sm text-gray-300">
+                                开机时自动启动 ClawChat
+                              </span>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="sr-only peer"
+                                  checked={settings.autoStart}
+                                  onChange={(e) =>
+                                    updateSetting({
+                                      autoStart: e.target.checked,
+                                    })
+                                  }
+                                />
+                                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {activeTab === "modules" && (
+                      <motion.div
+                        key="modules"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-6"
+                      >
+                        <div className="space-y-4">
+                          <p className="text-sm text-gray-400 mb-4">
+                            勾选需要在侧边栏显示的功能模块：
+                          </p>
+                          <div className="flex flex-col gap-3">
+                            {(() => {
+                              const allAvailable = [
+                                {
+                                  id: "chat",
+                                  name: "聊天",
+                                  icon: MessageSquare,
+                                },
+                                {
+                                  id: "workspace",
+                                  name: "工作台",
+                                  icon: LayoutGrid,
+                                },
+                                {
+                                  id: "orders",
+                                  name: "订单中心",
+                                  icon: ReceiptText,
+                                },
+                                { id: "shop", name: "购物中心", icon: Store },
+                                {
+                                  id: "calendar",
+                                  name: "日历",
+                                  icon: Calendar,
+                                },
+                                {
+                                  id: "notary",
+                                  name: "公证业务",
+                                  icon: ShieldCheck,
+                                },
+                                {
+                                  id: "knowledge",
+                                  name: "知识库",
+                                  icon: BookOpen,
+                                },
+                                {
+                                  id: "drive",
+                                  name: "网盘",
+                                  icon: Cloud,
+                                },
+                                {
+                                  id: "devices",
+                                  name: "智能硬件",
+                                  icon: Cpu,
+                                },
+                                {
+                                  id: "community",
+                                  name: "社群圈子",
+                                  icon: Users,
+                                },
+                                { 
+                                  id: "course", 
+                                  name: "在线课程", 
+                                  icon: GraduationCap 
+                                },
+                                { id: "agent", name: "智能体", icon: Sparkles },
+                                { id: "voice", name: "声音市场", icon: Mic },
+                                {
+                                  id: "enterprise",
+                                  name: "企业中心",
+                                  icon: Building2,
+                                },
+                                { id: "contacts", name: "通讯录", icon: Users },
+                                { id: "favorites", name: "收藏", icon: Star },
+                              ].filter(
+                                (mod) =>
+                                  mod.id === "chat" ||
+                                  DEFAULT_SIDEBAR_MODULES.includes(mod.id) ||
+                                  serverModules.includes(mod.id),
+                              );
+
+                              const currentModules =
+                                settings.sidebarModules?.length
+                                  ? settings.sidebarModules
+                                  : DEFAULT_SIDEBAR_MODULES;
+                              const currentOrder = currentModules.filter((id) =>
+                                allAvailable.some((m) => m.id === id),
+                              );
+
+                              const sorted = [
+                                ...currentOrder
+                                  .map((id) =>
+                                    allAvailable.find((m) => m.id === id),
+                                  )
+                                  .filter(Boolean),
+                                ...allAvailable.filter(
+                                  (m) => !currentOrder.includes(m.id),
+                                ),
+                              ] as typeof allAvailable;
+
+                              return sorted.map((mod, index) => {
+                                const isChecked =
+                                  mod.id === "chat"
+                                    ? true
+                                    : currentOrder.includes(mod.id);
+
+                                const handleMoveUp = () => {
+                                  if (index === 0) return;
+                                  const newOrder = [...sorted];
+                                  const temp = newOrder[index - 1];
+                                  newOrder[index - 1] = newOrder[index];
+                                  newOrder[index] = temp;
+
+                                  const newSidebarModules = newOrder
+                                    .filter(
+                                      (m) =>
+                                        m.id === "chat" ||
+                                        currentOrder.includes(m.id),
+                                    )
+                                    .map((m) => m.id);
+                                  updateSetting({
+                                    sidebarModules: newSidebarModules,
+                                  });
+                                };
+
+                                const handleMoveDown = () => {
+                                  if (index >= currentOrder.length - 1) return; // Prevent moving down past the last enabled item
+                                  const newOrder = [...sorted];
+                                  const temp = newOrder[index + 1];
+                                  newOrder[index + 1] = newOrder[index];
+                                  newOrder[index] = temp;
+
+                                  const newSidebarModules = newOrder
+                                    .filter(
+                                      (m) =>
+                                        m.id === "chat" ||
+                                        currentOrder.includes(m.id),
+                                    )
+                                    .map((m) => m.id);
+                                  updateSetting({
+                                    sidebarModules: newSidebarModules,
+                                  });
+                                };
+
+                                return (
+                                  <div
+                                    key={mod.id}
+                                    className="flex items-center justify-between p-4 bg-[#2b2b2d] rounded-xl border border-white/5 transition-colors hover:bg-[#343438]"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <mod.icon
+                                        size={18}
+                                        className="text-gray-400"
+                                      />
+                                      <span className="text-sm font-medium text-gray-200">
+                                        {mod.name}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          disabled={!isChecked || index === 0}
+                                          onClick={handleMoveUp}
+                                          className="p-1 px-2 text-gray-500 hover:text-gray-200 hover:bg-white/10 rounded transition-colors disabled:opacity-0 disabled:pointer-events-none"
+                                          title="上移"
+                                        >
+                                          <ArrowUp size={16} />
+                                        </button>
+                                        <button
+                                          disabled={
+                                            !isChecked ||
+                                            index >= currentOrder.length - 1
+                                          }
+                                          onClick={handleMoveDown}
+                                          className="p-1 px-2 text-gray-500 hover:text-gray-200 hover:bg-white/10 rounded transition-colors disabled:opacity-0 disabled:pointer-events-none"
+                                          title="下移"
+                                        >
+                                          <ArrowDown size={16} />
+                                        </button>
+                                      </div>
+                                      <label
+                                        className={cn(
+                                          "relative inline-flex items-center",
+                                          mod.id === "chat"
+                                            ? "cursor-not-allowed opacity-50"
+                                            : "cursor-pointer",
+                                        )}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          className="sr-only peer"
+                                          checked={isChecked}
+                                          disabled={mod.id === "chat"}
+                                          onChange={(e) => {
+                                            if (mod.id === "chat") return;
+                                            const checked = e.target.checked;
+                                            let newModules;
+                                            if (checked) {
+                                              // When enabling, keep it in the current array, just add it to 'currentOrder' effectively
+                                              // Since it's appended or kept at its current index?
+                                              // Actually it makes sense to keep it at its visual index. So the new array of checked modules should match the visual array.
+                                              newModules = sorted
+                                                .filter(
+                                                  (m) =>
+                                                    m.id === mod.id ||
+                                                    currentOrder.includes(m.id),
+                                                )
+                                                .map((m) => m.id);
+                                            } else {
+                                              newModules = currentOrder.filter(
+                                                (id) => id !== mod.id,
+                                              );
+                                            }
+                                            updateSetting({
+                                              sidebarModules: newModules,
+                                            });
+                                          }}
+                                        />
+                                        <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                                      </label>
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {activeTab === "notifications" && (
+                      <motion.div
+                        key="notifications"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-6"
+                      >
+                        <div className="space-y-6">
+                          <div className="space-y-2">
+                            <div
+                              className="flex items-center justify-between p-4 bg-[#2b2b2d] rounded-xl border border-white/5 hover:border-indigo-500/30 transition-colors cursor-pointer"
+                              onClick={() =>
+                                updateSetting({
+                                  notifySound: !settings.notifySound,
+                                })
+                              }
+                            >
+                              <div>
+                                <div className="text-sm font-medium text-gray-200 mb-1">
+                                  新消息提示音
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  收到新消息时播放声音
+                                </div>
+                              </div>
+                              <div
+                                className={cn(
+                                  "w-11 h-6 rounded-full transition-colors relative",
+                                  settings.notifySound
+                                    ? "bg-indigo-500"
+                                    : "bg-gray-600",
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform",
+                                    settings.notifySound ? "translate-x-5" : "",
+                                  )}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <div
+                              className="flex items-center justify-between p-4 bg-[#2b2b2d] rounded-xl border border-white/5 hover:border-indigo-500/30 transition-colors cursor-pointer"
+                              onClick={() =>
+                                updateSetting({
+                                  notifyDesktop: !settings.notifyDesktop,
+                                })
+                              }
+                            >
+                              <div>
+                                <div className="text-sm font-medium text-gray-200 mb-1">
+                                  桌面通知
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  在屏幕右上角显示新消息提示
+                                </div>
+                              </div>
+                              <div
+                                className={cn(
+                                  "w-11 h-6 rounded-full transition-colors relative",
+                                  settings.notifyDesktop
+                                    ? "bg-indigo-500"
+                                    : "bg-gray-600",
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform",
+                                    settings.notifyDesktop
+                                      ? "translate-x-5"
+                                      : "",
+                                  )}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              await updateSetting({
+                                notifySound: true,
+                                notifyDesktop: true,
+                              });
+                              toast("通知设置已重置为默认", "success");
+                            }}
+                            className="text-sm text-indigo-400 hover:text-indigo-300 font-medium"
+                          >
+                            恢复默认通知设置
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {activeTab === "privacy" && (
+                      <motion.div
+                        key="privacy"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-6"
+                      >
+                        <div className="space-y-4">
+                          <div className="p-4 bg-[#2b2b2d] rounded-xl border border-white/5 flex flex-col gap-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-200">
+                                加我为朋友时需要验证
+                              </span>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="sr-only peer"
+                                  checked={settings.privacyRequireAuth}
+                                  onChange={(e) =>
+                                    updateSetting({
+                                      privacyRequireAuth: e.target.checked,
+                                    })
+                                  }
+                                />
+                                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                              </label>
+                            </div>
+                            <div className="h-px w-full bg-white/5"></div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-200">
+                                向朋友展示在线状态
+                              </span>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="sr-only peer"
+                                  checked={settings.privacyShowOnline}
+                                  onChange={(e) =>
+                                    updateSetting({
+                                      privacyShowOnline: e.target.checked,
+                                    })
+                                  }
+                                />
+                                <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                              </label>
+                            </div>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              await settingsService.clearCache();
+                              toast("本地缓存数据已清理", "success");
+                            }}
+                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-medium rounded-lg transition-colors border border-red-500/20"
+                          >
+                            清理本地数据
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {activeTab === "appearance" && (
+                      <motion.div
+                        key="appearance"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-6"
+                      >
+                        <div className="space-y-6">
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-300 mb-4">
+                              主题配色
+                            </h3>
+                            <div className="flex items-center gap-4">
+                              <button
+                                onClick={() =>
+                                  updateSetting({ theme: "light" })
+                                }
+                                className={cn(
+                                  "flex flex-col gap-2 items-center",
+                                  settings.theme === "light"
+                                    ? "opacity-100"
+                                    : "opacity-50 hover:opacity-80 transition-opacity",
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    "w-24 h-16 rounded-xl border-2 flex items-center justify-center font-medium shadow-sm transition-all relative overflow-hidden",
+                                    settings.theme === "light"
+                                      ? "border-indigo-500"
+                                      : "border-transparent",
+                                  )}
+                                  style={{ backgroundColor: "#ffffff" }}
+                                >
+                                  <div
+                                    className="absolute inset-x-0 top-0 h-4 border-b border-[#00000010]"
+                                    style={{ backgroundColor: "#f3f4f6" }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs text-gray-300">
+                                  浅色
+                                </span>
+                              </button>
+                              <button
+                                onClick={() => updateSetting({ theme: "dark" })}
+                                className={cn(
+                                  "flex flex-col gap-2 items-center",
+                                  settings.theme === "dark"
+                                    ? "opacity-100"
+                                    : "opacity-50 hover:opacity-80 transition-opacity",
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    "w-24 h-16 rounded-xl border-2 flex items-center justify-center font-medium shadow-sm transition-all relative overflow-hidden",
+                                    settings.theme === "dark"
+                                      ? "border-indigo-500"
+                                      : "border-transparent",
+                                  )}
+                                  style={{ backgroundColor: "#1e1e20" }}
+                                >
+                                  <div
+                                    className="absolute inset-x-0 top-0 h-4 border-b border-[#ffffff10]"
+                                    style={{ backgroundColor: "#2b2b2d" }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs text-gray-300">
+                                  深色
+                                </span>
+                              </button>
+                              <button
+                                onClick={() =>
+                                  updateSetting({ theme: "system" })
+                                }
+                                className={cn(
+                                  "flex flex-col gap-2 items-center",
+                                  settings.theme === "system"
+                                    ? "opacity-100"
+                                    : "opacity-50 hover:opacity-80 transition-opacity",
+                                )}
+                              >
+                                <div
+                                  className={cn(
+                                    "w-24 h-16 rounded-xl border-2 flex items-center justify-center font-medium shadow-sm transition-all overflow-hidden",
+                                    settings.theme === "system"
+                                      ? "border-indigo-500"
+                                      : "border-transparent",
+                                  )}
+                                  style={{
+                                    background:
+                                      "linear-gradient(to right, #f3f4f6 50%, #1e1e20 50%)",
+                                  }}
+                                >
+                                  <div
+                                    className="absolute inset-x-0 top-0 h-4 border-b border-black/5"
+                                    style={{
+                                      background:
+                                        "linear-gradient(to right, #e5e7eb 50%, #2b2b2d 50%)",
+                                    }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs text-gray-300">
+                                  跟随系统
+                                </span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {activeTab === "devices" && (
+                      <motion.div
+                        key="devices"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-6"
+                      >
+                        <div className="space-y-4">
+                          <div className="p-4 bg-[#2b2b2d] rounded-xl border border-indigo-500/30 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <MonitorSmartphone
+                                size={24}
+                                className="text-indigo-400"
+                              />
+                              <div>
+                                <div className="text-sm font-medium text-gray-200">
+                                  当前设备 (MacBook Pro)
+                                </div>
+                                <div className="text-xs text-indigo-400 mt-1">
+                                  在线
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          {devices.map((device) => (
+                            <div
+                              key={device.id}
+                              className="p-4 bg-[#2b2b2d] rounded-xl border border-white/5 flex items-center justify-between"
+                            >
+                              <div className="flex items-center gap-4">
+                                <MonitorSmartphone
+                                  size={24}
+                                  className="text-gray-500"
+                                />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-200">
+                                    {device.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {device.time}
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  await settingsService.removeDevice(device.id);
+                                  setDevices(
+                                    devices.filter((d) => d.id !== device.id),
+                                  );
+                                  toast(`已退出 ${device.name}`, "success");
+                                }}
+                                className="text-xs text-red-400 hover:text-red-300 font-medium px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-500/10 transition-colors"
+                              >
+                                下线
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};

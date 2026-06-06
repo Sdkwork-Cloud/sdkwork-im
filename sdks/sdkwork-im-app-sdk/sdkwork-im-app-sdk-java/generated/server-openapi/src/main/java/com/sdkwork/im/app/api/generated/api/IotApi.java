@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class IotApi {
     private final HttpClient client;
-    
+
     public IotApi(HttpClient client) {
         this.client = client;
     }

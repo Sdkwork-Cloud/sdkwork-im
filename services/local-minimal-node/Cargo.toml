@@ -33,6 +33,7 @@ serde.workspace = true
 serde_json.workspace = true
 serde_yaml = "0.9.34"
 sha2 = "0.10"
+sdkwork-agent-business = { path = "../../../../../../../sdkwork-opensource/sdkwork-kernel/sdkwork-agent-business", features = ["http-axum"] }
 streaming-service = { path = "../streaming-service" }
 tokio.workspace = true
 tower.workspace = true

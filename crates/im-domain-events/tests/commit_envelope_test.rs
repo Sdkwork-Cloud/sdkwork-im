@@ -49,3 +49,17 @@ fn test_commit_envelope_ordering_key_is_segment_safe() {
         "ordering keys must not collide when tenant or scope ids contain delimiter characters"
     );
 }
+
+#[test]
+fn test_aggregate_types_do_not_include_app_local_media_asset_lifecycle() {
+    let source = include_str!("../src/lib.rs");
+
+    assert!(
+        !source.contains("MediaAsset"),
+        "domain events must not model app-local MediaAsset lifecycle aggregates"
+    );
+    assert!(
+        !source.contains("media_asset"),
+        "domain events must not expose legacy media_asset aggregate wire value"
+    );
+}

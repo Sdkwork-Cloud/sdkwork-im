@@ -2,7 +2,7 @@ package com.sdkwork.im.app.api.generated.api
 
 object ApiPaths {
     const val API_PREFIX = "/app/v3/api"
-    
+
     fun appPath(path: String = ""): String {
         if (path.isEmpty()) return API_PREFIX
         if (path.startsWith("http://") || path.startsWith("https://")) return path

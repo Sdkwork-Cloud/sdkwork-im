@@ -3,32 +3,43 @@ set -euo pipefail
 
 show_help() {
   cat <<'EOF'
-Usage: bash bin/init-config-server.sh [--instance <name>] [--config-dir <path>] [--data-dir <path>] [--log-dir <path>] [--run-dir <path>] [--bind-address <host:port>] [--base-url <url>] [--api-base-url <url>] [--websocket-base-url <url>] [--non-interactive] [--force]
+Usage: bash bin/init-config-server.sh [--instance <name>] [--config-dir <path>] [--data-dir <path>] [--log-dir <path>] [--run-dir <path>] [--bind-address <host:port>] [--base-url <url>] [--api-base-url <url>] [--websocket-base-url <url>] [--browser-origins <csv>] [--non-interactive] [--force]
 
 Render craw-chat-server configuration files for the selected instance and preserve file-based PostgreSQL settings.
 EOF
 }
 
 instance_name="default"
-config_dir="/etc/craw-chat/default"
-data_dir="/var/lib/craw-chat/default"
-log_dir="/var/log/craw-chat/default"
-run_dir="/var/run/craw-chat/default"
+config_dir="/etc/sdkwork/chat"
+data_dir="/var/lib/sdkwork/chat"
+log_dir="/var/log/sdkwork/chat"
+run_dir="/run/sdkwork/chat"
 bind_address="0.0.0.0:18080"
 base_url="http://127.0.0.1:18080"
 api_base_url="http://127.0.0.1:18080"
-websocket_base_url="ws://127.0.0.1:18080/im/v3/api/realtime/ws"
+websocket_base_url="ws://127.0.0.1:18080"
+browser_origins="http://127.0.0.1:18080,http://localhost:18080"
 non_interactive=0
 force_write=0
+
+server_path_for_instance() {
+  local root="$1"
+  local name="$2"
+  if [[ "$name" == "default" ]]; then
+    printf '%s\n' "$root"
+  else
+    printf '%s/instances/%s\n' "$root" "$name"
+  fi
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="/etc/craw-chat/${instance_name}"
-      data_dir="/var/lib/craw-chat/${instance_name}"
-      log_dir="/var/log/craw-chat/${instance_name}"
-      run_dir="/var/run/craw-chat/${instance_name}"
+      config_dir="$(server_path_for_instance "/etc/sdkwork/chat" "$instance_name")"
+      data_dir="$(server_path_for_instance "/var/lib/sdkwork/chat" "$instance_name")"
+      log_dir="$(server_path_for_instance "/var/log/sdkwork/chat" "$instance_name")"
+      run_dir="$(server_path_for_instance "/run/sdkwork/chat" "$instance_name")"
       shift 2
       ;;
     --config-dir)
@@ -63,6 +74,10 @@ while [[ $# -gt 0 ]]; do
       websocket_base_url="$2"
       shift 2
       ;;
+    --browser-origins)
+      browser_origins="$2"
+      shift 2
+      ;;
     --non-interactive)
       non_interactive=1
       shift
@@ -83,14 +98,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-storage_dir="${config_dir}/storage"
-secrets_dir="${config_dir}/secrets"
-server_yaml="${config_dir}/server.yaml"
 server_env="${config_dir}/server.env"
-postgresql_yaml="${storage_dir}/postgresql.yaml"
-password_file="${secrets_dir}/postgresql.password"
+chat_toml="${config_dir}/chat.toml"
+postgresql_yaml="${config_dir}/postgresql.yaml"
+password_file="${config_dir}/database.secret"
+redis_secret="${config_dir}/redis.secret"
 
-mkdir -p "$config_dir" "$data_dir" "$log_dir" "$run_dir" "$storage_dir" "$secrets_dir"
+mkdir -p "$config_dir" "$data_dir" "$log_dir" "$run_dir"
 
 write_if_needed() {
   local path="$1"
@@ -100,37 +114,70 @@ write_if_needed() {
   fi
 }
 
-write_if_needed "$server_yaml" "instance:
-  name: \"${instance_name}\"
+write_if_needed "$chat_toml" "[runtime]
+environment = \"production\"
+deployment_mode = \"server\"
+app_code = \"chat\"
 
-network:
-  bindAddress: \"${bind_address}\"
+[server]
+bind_address = \"${bind_address}\"
+trust_forwarded_headers = true
 
-publicEndpoints:
-  baseUrl: \"${base_url}\"
-  apiBaseUrl: \"${api_base_url}\"
-  websocketBaseUrl: \"${websocket_base_url}\"
-  docsBaseUrl: \"${base_url}/docs\"
+[public_endpoints]
+base_url = \"${base_url}\"
+api_base_url = \"${api_base_url}\"
+websocket_base_url = \"${websocket_base_url}\"
+docs_base_url = \"${base_url}/docs\"
 
-runtime:
-  configDir: \"${config_dir}\"
-  dataDir: \"${data_dir}\"
-  logDir: \"${log_dir}\"
-  runDir: \"${run_dir}\"
+[paths]
+config_directory = \"${config_dir}\"
+config_file = \"${chat_toml}\"
+data_directory = \"${data_dir}\"
+log_directory = \"${log_dir}\"
+cache_directory = \"${data_dir}/cache\"
+runtime_directory = \"${run_dir}\"
 
-storage:
-  postgresqlConfig: \"${postgresql_yaml}\"
+[database]
+engine = \"postgresql\"
+host = \"127.0.0.1\"
+port = 5432
+database = \"sdkwork_chat_prod\"
+schema = \"sdkwork_chat_prod\"
+username = \"sdkwork_chat_prod\"
+password_file = \"${password_file}\"
+ssl_mode = \"require\"
+max_connections = 20
+
+[redis]
+enabled = true
+host = \"redis.example.com\"
+port = 6379
+database = 0
+password_file = \"${redis_secret}\"
+key_prefix = \"chat\"
+tls = false
+max_connections = 16
 "
 
-write_if_needed "$server_env" "CRAW_CHAT_SERVER_INSTANCE=${instance_name}
-CRAW_CHAT_SERVER_CONFIG_DIR=${config_dir}
-CRAW_CHAT_SERVER_DATA_DIR=${data_dir}
-CRAW_CHAT_SERVER_LOG_DIR=${log_dir}
-CRAW_CHAT_SERVER_RUN_DIR=${run_dir}
-CRAW_CHAT_SERVER_BIND_ADDRESS=${bind_address}
-CRAW_CHAT_SERVER_BASE_URL=${base_url}
-CRAW_CHAT_SERVER_API_BASE_URL=${api_base_url}
-CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=${websocket_base_url}
+write_if_needed "$server_env" "SDKWORK_CHAT_DEPLOYMENT_MODE=server
+SDKWORK_CHAT_CONFIG_FILE=${chat_toml}
+SDKWORK_CHAT_DATA_DIR=${data_dir}
+SDKWORK_CHAT_LOG_DIR=${log_dir}
+SDKWORK_CHAT_RUN_DIR=${run_dir}
+SDKWORK_CHAT_SERVER_BIND=${bind_address}
+SDKWORK_CHAT_SERVER_BASE_URL=${base_url}
+SDKWORK_CHAT_SERVER_API_BASE_URL=${api_base_url}
+SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL=${websocket_base_url}
+SDKWORK_CHAT_DATABASE_ENGINE=postgresql
+SDKWORK_CHAT_DATABASE_HOST=127.0.0.1
+SDKWORK_CHAT_DATABASE_PORT=5432
+SDKWORK_CHAT_DATABASE_NAME=sdkwork_chat_prod
+SDKWORK_CHAT_DATABASE_SCHEMA=sdkwork_chat_prod
+SDKWORK_CHAT_DATABASE_USERNAME=sdkwork_chat_prod
+SDKWORK_CHAT_DATABASE_PASSWORD_FILE=${password_file}
+SDKWORK_CHAT_DATABASE_SSL_MODE=require
+SDKWORK_CHAT_DATABASE_MAX_CONNECTIONS=20
+CRAW_CHAT_BROWSER_ORIGINS=${browser_origins}
 "
 
 write_if_needed "$postgresql_yaml" "provider: postgresql
@@ -138,15 +185,15 @@ write_if_needed "$postgresql_yaml" "provider: postgresql
 connection:
   host: 127.0.0.1
   port: 5432
-  database: craw_chat
-  username: craw_chat_app
+  database: sdkwork_chat_prod
+  username: sdkwork_chat_prod
   passwordFile: \"${password_file}\"
-  sslmode: prefer
-  applicationName: craw-chat-server
+  sslmode: require
+  applicationName: sdkwork-chat-server
   connectTimeoutSeconds: 10
 
 schema:
-  name: craw_chat
+  name: sdkwork_chat_prod
   provisioningMode: none
   migrationMode: apply
   expectedVersion: latest
@@ -168,6 +215,6 @@ if [[ ! -f "$password_file" || "$force_write" -eq 1 ]]; then
 fi
 
 echo "Rendered craw-chat-server configuration for instance '${instance_name}'."
-echo "server.yaml: ${server_yaml}"
+echo "chat.toml: ${chat_toml}"
 echo "server.env: ${server_env}"
-echo "storage/postgresql.yaml: ${postgresql_yaml}"
+echo "postgresql.yaml: ${postgresql_yaml}"

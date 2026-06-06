@@ -1,5 +1,5 @@
 export interface BasePlusVO {
-    id?: string | number;
+    id?: string;
     createdAt?: string;
     updatedAt?: string;
     createdBy?: string;

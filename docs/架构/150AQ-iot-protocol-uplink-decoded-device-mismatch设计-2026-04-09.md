@@ -2,7 +2,7 @@
 
 ## 1. 目标
 
-冻结 `/backend/v3/api/iot/protocol/uplink` 在 decode 后的设备一致性边界：`envelope.device_id` 必须与 preflight 已解析的 `preflight_device_id` 一致。
+冻结 `/app/v3/api/iot/protocol/uplink` 在 decode 后的设备一致性边界：`envelope.device_id` 必须与 preflight 已解析的 `preflight_device_id` 一致。
 
 ## 2. 设计约束
 
@@ -70,7 +70,7 @@
 ## 7. 关键词冻结
 
 - `local-minimal-node`
-- `/backend/v3/api/iot/protocol/uplink`
+- `/app/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `ensure_iot_protocol_uplink_decoded_device_matches_preflight`

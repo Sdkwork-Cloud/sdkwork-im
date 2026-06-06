@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Mutex, MutexGuard};
 
 use craw_chat_contract_core::ContractError;
+use im_domain_core::media::{DriveReference, MediaKind, MediaResource, MediaSource};
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 
@@ -1239,14 +1240,64 @@ pub struct RtcCallbackEvent {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RtcRecordingArtifact {
     pub tenant_id: String,
     pub rtc_session_id: String,
-    pub bucket: String,
-    pub object_key: String,
-    pub storage_provider: Option<String>,
-    pub playback_url: Option<String>,
+    pub drive: DriveReference,
+    pub resource: MediaResource,
+    pub media_role: String,
+}
+
+impl RtcRecordingArtifact {
+    pub fn drive_backed_recording(
+        tenant_id: impl Into<String>,
+        rtc_session_id: impl Into<String>,
+        space_id: impl Into<String>,
+        node_id: impl Into<String>,
+        node_version: Option<String>,
+    ) -> Self {
+        let tenant_id = tenant_id.into();
+        let rtc_session_id = rtc_session_id.into();
+        let space_id = space_id.into();
+        let node_id = node_id.into();
+        let drive_uri = DriveReference::canonical_uri(space_id.as_str(), node_id.as_str());
+        Self {
+            tenant_id,
+            rtc_session_id: rtc_session_id.clone(),
+            drive: DriveReference {
+                drive_uri: drive_uri.clone(),
+                space_id,
+                node_id: node_id.clone(),
+                node_version,
+            },
+            resource: MediaResource {
+                id: Some(node_id),
+                kind: MediaKind::Video,
+                source: MediaSource::ProviderAsset,
+                url: None,
+                public_url: None,
+                uri: Some(drive_uri),
+                object_blob_id: None,
+                file_name: Some(format!("{rtc_session_id}.mp4")),
+                mime_type: Some("video/mp4".into()),
+                size_bytes: None,
+                checksum: None,
+                width: None,
+                height: None,
+                duration_seconds: None,
+                alt_text: None,
+                title: None,
+                poster: None,
+                thumbnails: None,
+                variants: None,
+                access: None,
+                ai: None,
+                metadata: None,
+            },
+            media_role: "rtc_recording".into(),
+        }
+    }
 }
 
 pub trait RtcProviderPort: Send + Sync {

@@ -13,36 +13,84 @@ List<dynamic>? _sdkworkAsList(dynamic value) {
 }
 
 class PortalWorkspaceView {
-  final String? name;
-  final String? slug;
-  final String? tier;
-  final String? region;
-  final String? supportPlan;
-  final int? seats;
-  final int? activeBrands;
-  final String? uptime;
+  final String name;
+  final String slug;
+  final String tier;
+  final String region;
+  final String supportPlan;
+  final int seats;
+  final int activeBrands;
+  final String uptime;
 
   PortalWorkspaceView({
-    this.name,
-    this.slug,
-    this.tier,
-    this.region,
-    this.supportPlan,
-    this.seats,
-    this.activeBrands,
-    this.uptime
+    required this.name,
+    required this.slug,
+    required this.tier,
+    required this.region,
+    required this.supportPlan,
+    required this.seats,
+    required this.activeBrands,
+    required this.uptime
   });
 
   factory PortalWorkspaceView.fromJson(Map<String, dynamic> json) {
     return PortalWorkspaceView(
-      name: json['name']?.toString(),
-      slug: json['slug']?.toString(),
-      tier: json['tier']?.toString(),
-      region: json['region']?.toString(),
-      supportPlan: json['supportPlan']?.toString(),
-      seats: json['seats'] is int ? json['seats'] : null,
-      activeBrands: json['activeBrands'] is int ? json['activeBrands'] : null,
-      uptime: json['uptime']?.toString()
+      name: (() {
+        final value = json['name']?.toString();
+        if (value == null) {
+          throw FormatException('PortalWorkspaceView.name is required');
+        }
+        return value;
+      })(),
+      slug: (() {
+        final value = json['slug']?.toString();
+        if (value == null) {
+          throw FormatException('PortalWorkspaceView.slug is required');
+        }
+        return value;
+      })(),
+      tier: (() {
+        final value = json['tier']?.toString();
+        if (value == null) {
+          throw FormatException('PortalWorkspaceView.tier is required');
+        }
+        return value;
+      })(),
+      region: (() {
+        final value = json['region']?.toString();
+        if (value == null) {
+          throw FormatException('PortalWorkspaceView.region is required');
+        }
+        return value;
+      })(),
+      supportPlan: (() {
+        final value = json['supportPlan']?.toString();
+        if (value == null) {
+          throw FormatException('PortalWorkspaceView.supportPlan is required');
+        }
+        return value;
+      })(),
+      seats: (() {
+        final value = json['seats'];
+        if (value is! int) {
+          throw FormatException('PortalWorkspaceView.seats is required');
+        }
+        return value;
+      })(),
+      activeBrands: (() {
+        final value = json['activeBrands'];
+        if (value is! int) {
+          throw FormatException('PortalWorkspaceView.activeBrands is required');
+        }
+        return value;
+      })(),
+      uptime: (() {
+        final value = json['uptime']?.toString();
+        if (value == null) {
+          throw FormatException('PortalWorkspaceView.uptime is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -61,33 +109,45 @@ class PortalWorkspaceView {
 }
 
 class Sender {
-  final String? id;
-  final String? kind;
+  final String id;
+  final String kind;
   final String? memberId;
   final String? deviceId;
   final String? sessionId;
-  final Map<String, String>? metadata;
+  final Map<String, String> metadata;
 
   Sender({
-    this.id,
-    this.kind,
+    required this.id,
+    required this.kind,
     this.memberId,
     this.deviceId,
     this.sessionId,
-    this.metadata
+    required this.metadata
   });
 
   factory Sender.fromJson(Map<String, dynamic> json) {
     return Sender(
-      id: json['id']?.toString(),
-      kind: json['kind']?.toString(),
+      id: (() {
+        final value = json['id']?.toString();
+        if (value == null) {
+          throw FormatException('Sender.id is required');
+        }
+        return value;
+      })(),
+      kind: (() {
+        final value = json['kind']?.toString();
+        if (value == null) {
+          throw FormatException('Sender.kind is required');
+        }
+        return value;
+      })(),
       memberId: json['memberId']?.toString(),
       deviceId: json['deviceId']?.toString(),
       sessionId: json['sessionId']?.toString(),
       metadata: (() {
         final map = _sdkworkAsMap(json['metadata']);
         if (map == null) {
-          return null;
+          throw FormatException('Sender.metadata is required');
         }
         final result = <String, String>{};
         map.forEach((key, item) {
@@ -108,61 +168,121 @@ class Sender {
       'memberId': memberId,
       'deviceId': deviceId,
       'sessionId': sessionId,
-      'metadata': metadata?.map((key, item) => MapEntry(key, item)),
+      'metadata': metadata.map((key, item) => MapEntry(key, item)),
     };
   }
 }
 
 class StreamSession {
-  final String? tenantId;
-  final String? streamId;
-  final String? streamType;
-  final String? scopeKind;
-  final String? scopeId;
-  final String? durabilityClass;
-  final String? orderingScope;
+  final String tenantId;
+  final String streamId;
+  final String streamType;
+  final String scopeKind;
+  final String scopeId;
+  final String durabilityClass;
+  final String orderingScope;
   final String? schemaRef;
-  final String? state;
-  final int? lastFrameSeq;
+  final String state;
+  final int lastFrameSeq;
   final int? lastCheckpointSeq;
   final String? resultMessageId;
-  final String? openedAt;
+  final String openedAt;
   final String? closedAt;
   final String? expiresAt;
 
   StreamSession({
-    this.tenantId,
-    this.streamId,
-    this.streamType,
-    this.scopeKind,
-    this.scopeId,
-    this.durabilityClass,
-    this.orderingScope,
+    required this.tenantId,
+    required this.streamId,
+    required this.streamType,
+    required this.scopeKind,
+    required this.scopeId,
+    required this.durabilityClass,
+    required this.orderingScope,
     this.schemaRef,
-    this.state,
-    this.lastFrameSeq,
+    required this.state,
+    required this.lastFrameSeq,
     this.lastCheckpointSeq,
     this.resultMessageId,
-    this.openedAt,
+    required this.openedAt,
     this.closedAt,
     this.expiresAt
   });
 
   factory StreamSession.fromJson(Map<String, dynamic> json) {
     return StreamSession(
-      tenantId: json['tenantId']?.toString(),
-      streamId: json['streamId']?.toString(),
-      streamType: json['streamType']?.toString(),
-      scopeKind: json['scopeKind']?.toString(),
-      scopeId: json['scopeId']?.toString(),
-      durabilityClass: json['durabilityClass']?.toString(),
-      orderingScope: json['orderingScope']?.toString(),
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('StreamSession.tenantId is required');
+        }
+        return value;
+      })(),
+      streamId: (() {
+        final value = json['streamId']?.toString();
+        if (value == null) {
+          throw FormatException('StreamSession.streamId is required');
+        }
+        return value;
+      })(),
+      streamType: (() {
+        final value = json['streamType']?.toString();
+        if (value == null) {
+          throw FormatException('StreamSession.streamType is required');
+        }
+        return value;
+      })(),
+      scopeKind: (() {
+        final value = json['scopeKind']?.toString();
+        if (value == null) {
+          throw FormatException('StreamSession.scopeKind is required');
+        }
+        return value;
+      })(),
+      scopeId: (() {
+        final value = json['scopeId']?.toString();
+        if (value == null) {
+          throw FormatException('StreamSession.scopeId is required');
+        }
+        return value;
+      })(),
+      durabilityClass: (() {
+        final value = json['durabilityClass']?.toString();
+        if (value == null) {
+          throw FormatException('StreamSession.durabilityClass is required');
+        }
+        return value;
+      })(),
+      orderingScope: (() {
+        final value = json['orderingScope']?.toString();
+        if (value == null) {
+          throw FormatException('StreamSession.orderingScope is required');
+        }
+        return value;
+      })(),
       schemaRef: json['schemaRef']?.toString(),
-      state: json['state']?.toString(),
-      lastFrameSeq: json['lastFrameSeq'] is int ? json['lastFrameSeq'] : null,
+      state: (() {
+        final value = json['state']?.toString();
+        if (value == null) {
+          throw FormatException('StreamSession.state is required');
+        }
+        return value;
+      })(),
+      lastFrameSeq: (() {
+        final value = json['lastFrameSeq'];
+        if (value is! int) {
+          throw FormatException('StreamSession.lastFrameSeq is required');
+        }
+        return value;
+      })(),
       lastCheckpointSeq: json['lastCheckpointSeq'] is int ? json['lastCheckpointSeq'] : null,
       resultMessageId: json['resultMessageId']?.toString(),
-      openedAt: json['openedAt']?.toString(),
+      openedAt: (() {
+        final value = json['openedAt']?.toString();
+        if (value == null) {
+          throw FormatException('StreamSession.openedAt is required');
+        }
+        return value;
+      })(),
       closedAt: json['closedAt']?.toString(),
       expiresAt: json['expiresAt']?.toString()
     );
@@ -190,56 +310,113 @@ class StreamSession {
 }
 
 class StreamFrame {
-  final String? tenantId;
-  final String? streamId;
-  final String? streamType;
-  final String? scopeKind;
-  final String? scopeId;
-  final int? frameSeq;
-  final String? frameType;
+  final String tenantId;
+  final String streamId;
+  final String streamType;
+  final String scopeKind;
+  final String scopeId;
+  final int frameSeq;
+  final String frameType;
   final String? schemaRef;
-  final String? encoding;
-  final String? payload;
-  final Sender? sender;
-  final Map<String, String>? attributes;
-  final String? occurredAt;
+  final String encoding;
+  final String payload;
+  final Sender sender;
+  final Map<String, String> attributes;
+  final String occurredAt;
 
   StreamFrame({
-    this.tenantId,
-    this.streamId,
-    this.streamType,
-    this.scopeKind,
-    this.scopeId,
-    this.frameSeq,
-    this.frameType,
+    required this.tenantId,
+    required this.streamId,
+    required this.streamType,
+    required this.scopeKind,
+    required this.scopeId,
+    required this.frameSeq,
+    required this.frameType,
     this.schemaRef,
-    this.encoding,
-    this.payload,
-    this.sender,
-    this.attributes,
-    this.occurredAt
+    required this.encoding,
+    required this.payload,
+    required this.sender,
+    required this.attributes,
+    required this.occurredAt
   });
 
   factory StreamFrame.fromJson(Map<String, dynamic> json) {
     return StreamFrame(
-      tenantId: json['tenantId']?.toString(),
-      streamId: json['streamId']?.toString(),
-      streamType: json['streamType']?.toString(),
-      scopeKind: json['scopeKind']?.toString(),
-      scopeId: json['scopeId']?.toString(),
-      frameSeq: json['frameSeq'] is int ? json['frameSeq'] : null,
-      frameType: json['frameType']?.toString(),
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('StreamFrame.tenantId is required');
+        }
+        return value;
+      })(),
+      streamId: (() {
+        final value = json['streamId']?.toString();
+        if (value == null) {
+          throw FormatException('StreamFrame.streamId is required');
+        }
+        return value;
+      })(),
+      streamType: (() {
+        final value = json['streamType']?.toString();
+        if (value == null) {
+          throw FormatException('StreamFrame.streamType is required');
+        }
+        return value;
+      })(),
+      scopeKind: (() {
+        final value = json['scopeKind']?.toString();
+        if (value == null) {
+          throw FormatException('StreamFrame.scopeKind is required');
+        }
+        return value;
+      })(),
+      scopeId: (() {
+        final value = json['scopeId']?.toString();
+        if (value == null) {
+          throw FormatException('StreamFrame.scopeId is required');
+        }
+        return value;
+      })(),
+      frameSeq: (() {
+        final value = json['frameSeq'];
+        if (value is! int) {
+          throw FormatException('StreamFrame.frameSeq is required');
+        }
+        return value;
+      })(),
+      frameType: (() {
+        final value = json['frameType']?.toString();
+        if (value == null) {
+          throw FormatException('StreamFrame.frameType is required');
+        }
+        return value;
+      })(),
       schemaRef: json['schemaRef']?.toString(),
-      encoding: json['encoding']?.toString(),
-      payload: json['payload']?.toString(),
+      encoding: (() {
+        final value = json['encoding']?.toString();
+        if (value == null) {
+          throw FormatException('StreamFrame.encoding is required');
+        }
+        return value;
+      })(),
+      payload: (() {
+        final value = json['payload']?.toString();
+        if (value == null) {
+          throw FormatException('StreamFrame.payload is required');
+        }
+        return value;
+      })(),
       sender: (() {
         final map = _sdkworkAsMap(json['sender']);
-        return map == null ? null : Sender.fromJson(map);
+        if (map == null) {
+          throw FormatException('StreamFrame.sender is required');
+        }
+        return Sender.fromJson(map);
       })(),
       attributes: (() {
         final map = _sdkworkAsMap(json['attributes']);
         if (map == null) {
-          return null;
+          throw FormatException('StreamFrame.attributes is required');
         }
         final result = <String, String>{};
         map.forEach((key, item) {
@@ -250,7 +427,13 @@ class StreamFrame {
         });
         return result;
       })(),
-      occurredAt: json['occurredAt']?.toString()
+      occurredAt: (() {
+        final value = json['occurredAt']?.toString();
+        if (value == null) {
+          throw FormatException('StreamFrame.occurredAt is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -266,28 +449,28 @@ class StreamFrame {
       'schemaRef': schemaRef,
       'encoding': encoding,
       'payload': payload,
-      'sender': sender?.toJson(),
-      'attributes': attributes?.map((key, item) => MapEntry(key, item)),
+      'sender': sender.toJson(),
+      'attributes': attributes.map((key, item) => MapEntry(key, item)),
       'occurredAt': occurredAt,
     };
   }
 }
 
 class ProblemDetail {
-  final String? type;
-  final String? title;
-  final int? status;
-  final String? detail;
+  final String type;
+  final String title;
+  final int status;
+  final String detail;
   final String? code;
   final String? message;
   final String? traceId;
   final bool? retryable;
 
   ProblemDetail({
-    this.type,
-    this.title,
-    this.status,
-    this.detail,
+    required this.type,
+    required this.title,
+    required this.status,
+    required this.detail,
     this.code,
     this.message,
     this.traceId,
@@ -296,10 +479,34 @@ class ProblemDetail {
 
   factory ProblemDetail.fromJson(Map<String, dynamic> json) {
     return ProblemDetail(
-      type: json['type']?.toString(),
-      title: json['title']?.toString(),
-      status: json['status'] is int ? json['status'] : null,
-      detail: json['detail']?.toString(),
+      type: (() {
+        final value = json['type']?.toString();
+        if (value == null) {
+          throw FormatException('ProblemDetail.type is required');
+        }
+        return value;
+      })(),
+      title: (() {
+        final value = json['title']?.toString();
+        if (value == null) {
+          throw FormatException('ProblemDetail.title is required');
+        }
+        return value;
+      })(),
+      status: (() {
+        final value = json['status'];
+        if (value is! int) {
+          throw FormatException('ProblemDetail.status is required');
+        }
+        return value;
+      })(),
+      detail: (() {
+        final value = json['detail']?.toString();
+        if (value == null) {
+          throw FormatException('ProblemDetail.detail is required');
+        }
+        return value;
+      })(),
       code: json['code']?.toString(),
       message: json['message']?.toString(),
       traceId: json['traceId']?.toString(),
@@ -322,24 +529,30 @@ class ProblemDetail {
 }
 
 class AgentSubject {
-  final String? agentId;
+  final String agentId;
   final String? sessionId;
-  final Map<String, String>? metadata;
+  final Map<String, String> metadata;
 
   AgentSubject({
-    this.agentId,
+    required this.agentId,
     this.sessionId,
-    this.metadata
+    required this.metadata
   });
 
   factory AgentSubject.fromJson(Map<String, dynamic> json) {
     return AgentSubject(
-      agentId: json['agent_id']?.toString(),
+      agentId: (() {
+        final value = json['agent_id']?.toString();
+        if (value == null) {
+          throw FormatException('AgentSubject.agent_id is required');
+        }
+        return value;
+      })(),
       sessionId: json['session_id']?.toString(),
       metadata: (() {
         final map = _sdkworkAsMap(json['metadata']);
         if (map == null) {
-          return null;
+          throw FormatException('AgentSubject.metadata is required');
         }
         final result = <String, String>{};
         map.forEach((key, item) {
@@ -357,47 +570,95 @@ class AgentSubject {
     return <String, dynamic>{
       'agent_id': agentId,
       'session_id': sessionId,
-      'metadata': metadata?.map((key, item) => MapEntry(key, item)),
+      'metadata': metadata.map((key, item) => MapEntry(key, item)),
     };
   }
 }
 
 class AgentToolCall {
-  final String? tenantId;
-  final String? executionId;
-  final String? agentId;
-  final String? toolCallId;
-  final String? toolName;
-  final String? argumentsPayload;
+  final String tenantId;
+  final String executionId;
+  final String agentId;
+  final String toolCallId;
+  final String toolName;
+  final String argumentsPayload;
   final String? resultPayload;
-  final String? state;
-  final String? requestedAt;
+  final String state;
+  final String requestedAt;
   final String? completedAt;
 
   AgentToolCall({
-    this.tenantId,
-    this.executionId,
-    this.agentId,
-    this.toolCallId,
-    this.toolName,
-    this.argumentsPayload,
+    required this.tenantId,
+    required this.executionId,
+    required this.agentId,
+    required this.toolCallId,
+    required this.toolName,
+    required this.argumentsPayload,
     this.resultPayload,
-    this.state,
-    this.requestedAt,
+    required this.state,
+    required this.requestedAt,
     this.completedAt
   });
 
   factory AgentToolCall.fromJson(Map<String, dynamic> json) {
     return AgentToolCall(
-      tenantId: json['tenantId']?.toString(),
-      executionId: json['executionId']?.toString(),
-      agentId: json['agentId']?.toString(),
-      toolCallId: json['toolCallId']?.toString(),
-      toolName: json['toolName']?.toString(),
-      argumentsPayload: json['argumentsPayload']?.toString(),
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('AgentToolCall.tenantId is required');
+        }
+        return value;
+      })(),
+      executionId: (() {
+        final value = json['executionId']?.toString();
+        if (value == null) {
+          throw FormatException('AgentToolCall.executionId is required');
+        }
+        return value;
+      })(),
+      agentId: (() {
+        final value = json['agentId']?.toString();
+        if (value == null) {
+          throw FormatException('AgentToolCall.agentId is required');
+        }
+        return value;
+      })(),
+      toolCallId: (() {
+        final value = json['toolCallId']?.toString();
+        if (value == null) {
+          throw FormatException('AgentToolCall.toolCallId is required');
+        }
+        return value;
+      })(),
+      toolName: (() {
+        final value = json['toolName']?.toString();
+        if (value == null) {
+          throw FormatException('AgentToolCall.toolName is required');
+        }
+        return value;
+      })(),
+      argumentsPayload: (() {
+        final value = json['argumentsPayload']?.toString();
+        if (value == null) {
+          throw FormatException('AgentToolCall.argumentsPayload is required');
+        }
+        return value;
+      })(),
       resultPayload: json['resultPayload']?.toString(),
-      state: json['state']?.toString(),
-      requestedAt: json['requestedAt']?.toString(),
+      state: (() {
+        final value = json['state']?.toString();
+        if (value == null) {
+          throw FormatException('AgentToolCall.state is required');
+        }
+        return value;
+      })(),
+      requestedAt: (() {
+        final value = json['requestedAt']?.toString();
+        if (value == null) {
+          throw FormatException('AgentToolCall.requestedAt is required');
+        }
+        return value;
+      })(),
       completedAt: json['completedAt']?.toString()
     );
   }
@@ -419,29 +680,53 @@ class AgentToolCall {
 }
 
 class AppendAgentResponseDeltaRequest {
-  final int? frameSeq;
-  final String? frameType;
+  final int frameSeq;
+  final String frameType;
   final String? schemaRef;
-  final String? encoding;
-  final String? payload;
+  final String encoding;
+  final String payload;
   final Map<String, String>? attributes;
 
   AppendAgentResponseDeltaRequest({
-    this.frameSeq,
-    this.frameType,
+    required this.frameSeq,
+    required this.frameType,
     this.schemaRef,
-    this.encoding,
-    this.payload,
+    required this.encoding,
+    required this.payload,
     this.attributes
   });
 
   factory AppendAgentResponseDeltaRequest.fromJson(Map<String, dynamic> json) {
     return AppendAgentResponseDeltaRequest(
-      frameSeq: json['frameSeq'] is int ? json['frameSeq'] : null,
-      frameType: json['frameType']?.toString(),
+      frameSeq: (() {
+        final value = json['frameSeq'];
+        if (value is! int) {
+          throw FormatException('AppendAgentResponseDeltaRequest.frameSeq is required');
+        }
+        return value;
+      })(),
+      frameType: (() {
+        final value = json['frameType']?.toString();
+        if (value == null) {
+          throw FormatException('AppendAgentResponseDeltaRequest.frameType is required');
+        }
+        return value;
+      })(),
       schemaRef: json['schemaRef']?.toString(),
-      encoding: json['encoding']?.toString(),
-      payload: json['payload']?.toString(),
+      encoding: (() {
+        final value = json['encoding']?.toString();
+        if (value == null) {
+          throw FormatException('AppendAgentResponseDeltaRequest.encoding is required');
+        }
+        return value;
+      })(),
+      payload: (() {
+        final value = json['payload']?.toString();
+        if (value == null) {
+          throw FormatException('AppendAgentResponseDeltaRequest.payload is required');
+        }
+        return value;
+      })(),
       attributes: (() {
         final map = _sdkworkAsMap(json['attributes']);
         if (map == null) {
@@ -472,52 +757,112 @@ class AppendAgentResponseDeltaRequest {
 }
 
 class AutomationExecution {
-  final String? tenantId;
-  final String? principalId;
-  final String? principalKind;
-  final String? executionId;
-  final String? triggerType;
-  final String? targetKind;
-  final String? targetRef;
+  final String tenantId;
+  final String principalId;
+  final String principalKind;
+  final String executionId;
+  final String triggerType;
+  final String targetKind;
+  final String targetRef;
   final String? inputPayload;
   final String? outputPayload;
-  final String? state;
-  final int? retryCount;
-  final String? requestedAt;
+  final String state;
+  final int retryCount;
+  final String requestedAt;
   final String? completedAt;
   final String? failureReason;
 
   AutomationExecution({
-    this.tenantId,
-    this.principalId,
-    this.principalKind,
-    this.executionId,
-    this.triggerType,
-    this.targetKind,
-    this.targetRef,
+    required this.tenantId,
+    required this.principalId,
+    required this.principalKind,
+    required this.executionId,
+    required this.triggerType,
+    required this.targetKind,
+    required this.targetRef,
     this.inputPayload,
     this.outputPayload,
-    this.state,
-    this.retryCount,
-    this.requestedAt,
+    required this.state,
+    required this.retryCount,
+    required this.requestedAt,
     this.completedAt,
     this.failureReason
   });
 
   factory AutomationExecution.fromJson(Map<String, dynamic> json) {
     return AutomationExecution(
-      tenantId: json['tenantId']?.toString(),
-      principalId: json['principalId']?.toString(),
-      principalKind: json['principalKind']?.toString(),
-      executionId: json['executionId']?.toString(),
-      triggerType: json['triggerType']?.toString(),
-      targetKind: json['targetKind']?.toString(),
-      targetRef: json['targetRef']?.toString(),
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecution.tenantId is required');
+        }
+        return value;
+      })(),
+      principalId: (() {
+        final value = json['principalId']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecution.principalId is required');
+        }
+        return value;
+      })(),
+      principalKind: (() {
+        final value = json['principalKind']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecution.principalKind is required');
+        }
+        return value;
+      })(),
+      executionId: (() {
+        final value = json['executionId']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecution.executionId is required');
+        }
+        return value;
+      })(),
+      triggerType: (() {
+        final value = json['triggerType']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecution.triggerType is required');
+        }
+        return value;
+      })(),
+      targetKind: (() {
+        final value = json['targetKind']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecution.targetKind is required');
+        }
+        return value;
+      })(),
+      targetRef: (() {
+        final value = json['targetRef']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecution.targetRef is required');
+        }
+        return value;
+      })(),
       inputPayload: json['inputPayload']?.toString(),
       outputPayload: json['outputPayload']?.toString(),
-      state: json['state']?.toString(),
-      retryCount: json['retryCount'] is int ? json['retryCount'] : null,
-      requestedAt: json['requestedAt']?.toString(),
+      state: (() {
+        final value = json['state']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecution.state is required');
+        }
+        return value;
+      })(),
+      retryCount: (() {
+        final value = json['retryCount'];
+        if (value is! int) {
+          throw FormatException('AutomationExecution.retryCount is required');
+        }
+        return value;
+      })(),
+      requestedAt: (() {
+        final value = json['requestedAt']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecution.requestedAt is required');
+        }
+        return value;
+      })(),
       completedAt: json['completedAt']?.toString(),
       failureReason: json['failureReason']?.toString()
     );
@@ -544,63 +889,141 @@ class AutomationExecution {
 }
 
 class AutomationExecutionRequestResponse {
-  final String? tenantId;
-  final String? principalId;
-  final String? principalKind;
-  final String? executionId;
-  final String? triggerType;
-  final String? targetKind;
-  final String? targetRef;
+  final String tenantId;
+  final String principalId;
+  final String principalKind;
+  final String executionId;
+  final String triggerType;
+  final String targetKind;
+  final String targetRef;
   final String? inputPayload;
   final String? outputPayload;
-  final String? state;
-  final int? retryCount;
-  final String? requestedAt;
+  final String state;
+  final int retryCount;
+  final String requestedAt;
   final String? completedAt;
   final String? failureReason;
-  final String? requestKey;
-  final String? deliveryStatus;
-  final String? proofVersion;
+  final String requestKey;
+  final String deliveryStatus;
+  final String proofVersion;
 
   AutomationExecutionRequestResponse({
-    this.tenantId,
-    this.principalId,
-    this.principalKind,
-    this.executionId,
-    this.triggerType,
-    this.targetKind,
-    this.targetRef,
+    required this.tenantId,
+    required this.principalId,
+    required this.principalKind,
+    required this.executionId,
+    required this.triggerType,
+    required this.targetKind,
+    required this.targetRef,
     this.inputPayload,
     this.outputPayload,
-    this.state,
-    this.retryCount,
-    this.requestedAt,
+    required this.state,
+    required this.retryCount,
+    required this.requestedAt,
     this.completedAt,
     this.failureReason,
-    this.requestKey,
-    this.deliveryStatus,
-    this.proofVersion
+    required this.requestKey,
+    required this.deliveryStatus,
+    required this.proofVersion
   });
 
   factory AutomationExecutionRequestResponse.fromJson(Map<String, dynamic> json) {
     return AutomationExecutionRequestResponse(
-      tenantId: json['tenantId']?.toString(),
-      principalId: json['principalId']?.toString(),
-      principalKind: json['principalKind']?.toString(),
-      executionId: json['executionId']?.toString(),
-      triggerType: json['triggerType']?.toString(),
-      targetKind: json['targetKind']?.toString(),
-      targetRef: json['targetRef']?.toString(),
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.tenantId is required');
+        }
+        return value;
+      })(),
+      principalId: (() {
+        final value = json['principalId']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.principalId is required');
+        }
+        return value;
+      })(),
+      principalKind: (() {
+        final value = json['principalKind']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.principalKind is required');
+        }
+        return value;
+      })(),
+      executionId: (() {
+        final value = json['executionId']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.executionId is required');
+        }
+        return value;
+      })(),
+      triggerType: (() {
+        final value = json['triggerType']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.triggerType is required');
+        }
+        return value;
+      })(),
+      targetKind: (() {
+        final value = json['targetKind']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.targetKind is required');
+        }
+        return value;
+      })(),
+      targetRef: (() {
+        final value = json['targetRef']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.targetRef is required');
+        }
+        return value;
+      })(),
       inputPayload: json['inputPayload']?.toString(),
       outputPayload: json['outputPayload']?.toString(),
-      state: json['state']?.toString(),
-      retryCount: json['retryCount'] is int ? json['retryCount'] : null,
-      requestedAt: json['requestedAt']?.toString(),
+      state: (() {
+        final value = json['state']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.state is required');
+        }
+        return value;
+      })(),
+      retryCount: (() {
+        final value = json['retryCount'];
+        if (value is! int) {
+          throw FormatException('AutomationExecutionRequestResponse.retryCount is required');
+        }
+        return value;
+      })(),
+      requestedAt: (() {
+        final value = json['requestedAt']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.requestedAt is required');
+        }
+        return value;
+      })(),
       completedAt: json['completedAt']?.toString(),
       failureReason: json['failureReason']?.toString(),
-      requestKey: json['requestKey']?.toString(),
-      deliveryStatus: json['deliveryStatus']?.toString(),
-      proofVersion: json['proofVersion']?.toString()
+      requestKey: (() {
+        final value = json['requestKey']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.requestKey is required');
+        }
+        return value;
+      })(),
+      deliveryStatus: (() {
+        final value = json['deliveryStatus']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.deliveryStatus is required');
+        }
+        return value;
+      })(),
+      proofVersion: (() {
+        final value = json['proofVersion']?.toString();
+        if (value == null) {
+          throw FormatException('AutomationExecutionRequestResponse.proofVersion is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -628,17 +1051,23 @@ class AutomationExecutionRequestResponse {
 }
 
 class CompleteAgentResponseRequest {
-  final int? frameSeq;
+  final int frameSeq;
   final String? resultMessageId;
 
   CompleteAgentResponseRequest({
-    this.frameSeq,
+    required this.frameSeq,
     this.resultMessageId
   });
 
   factory CompleteAgentResponseRequest.fromJson(Map<String, dynamic> json) {
     return CompleteAgentResponseRequest(
-      frameSeq: json['frameSeq'] is int ? json['frameSeq'] : null,
+      frameSeq: (() {
+        final value = json['frameSeq'];
+        if (value is! int) {
+          throw FormatException('CompleteAgentResponseRequest.frameSeq is required');
+        }
+        return value;
+      })(),
       resultMessageId: json['resultMessageId']?.toString()
     );
   }
@@ -652,15 +1081,21 @@ class CompleteAgentResponseRequest {
 }
 
 class CompleteAgentToolCallRequest {
-  final String? resultPayload;
+  final String resultPayload;
 
   CompleteAgentToolCallRequest({
-    this.resultPayload
+    required this.resultPayload
   });
 
   factory CompleteAgentToolCallRequest.fromJson(Map<String, dynamic> json) {
     return CompleteAgentToolCallRequest(
-      resultPayload: json['resultPayload']?.toString()
+      resultPayload: (() {
+        final value = json['resultPayload']?.toString();
+        if (value == null) {
+          throw FormatException('CompleteAgentToolCallRequest.resultPayload is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -672,27 +1107,57 @@ class CompleteAgentToolCallRequest {
 }
 
 class DeviceTwinView {
-  final String? tenantId;
-  final String? deviceId;
-  final String? desiredStateJson;
-  final String? reportedStateJson;
-  final String? updatedAt;
+  final String tenantId;
+  final String deviceId;
+  final String desiredStateJson;
+  final String reportedStateJson;
+  final String updatedAt;
 
   DeviceTwinView({
-    this.tenantId,
-    this.deviceId,
-    this.desiredStateJson,
-    this.reportedStateJson,
-    this.updatedAt
+    required this.tenantId,
+    required this.deviceId,
+    required this.desiredStateJson,
+    required this.reportedStateJson,
+    required this.updatedAt
   });
 
   factory DeviceTwinView.fromJson(Map<String, dynamic> json) {
     return DeviceTwinView(
-      tenantId: json['tenantId']?.toString(),
-      deviceId: json['deviceId']?.toString(),
-      desiredStateJson: json['desiredStateJson']?.toString(),
-      reportedStateJson: json['reportedStateJson']?.toString(),
-      updatedAt: json['updatedAt']?.toString()
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('DeviceTwinView.tenantId is required');
+        }
+        return value;
+      })(),
+      deviceId: (() {
+        final value = json['deviceId']?.toString();
+        if (value == null) {
+          throw FormatException('DeviceTwinView.deviceId is required');
+        }
+        return value;
+      })(),
+      desiredStateJson: (() {
+        final value = json['desiredStateJson']?.toString();
+        if (value == null) {
+          throw FormatException('DeviceTwinView.desiredStateJson is required');
+        }
+        return value;
+      })(),
+      reportedStateJson: (() {
+        final value = json['reportedStateJson']?.toString();
+        if (value == null) {
+          throw FormatException('DeviceTwinView.reportedStateJson is required');
+        }
+        return value;
+      })(),
+      updatedAt: (() {
+        final value = json['updatedAt']?.toString();
+        if (value == null) {
+          throw FormatException('DeviceTwinView.updatedAt is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -708,55 +1173,115 @@ class DeviceTwinView {
 }
 
 class NotificationTask {
-  final String? tenantId;
-  final String? notificationId;
-  final String? sourceEventId;
-  final String? sourceEventType;
-  final String? category;
-  final String? channel;
-  final String? recipientId;
-  final String? recipientKind;
-  final String? status;
+  final String tenantId;
+  final String notificationId;
+  final String sourceEventId;
+  final String sourceEventType;
+  final String category;
+  final String channel;
+  final String recipientId;
+  final String recipientKind;
+  final String status;
   final String? title;
   final String? body;
   final String? payload;
-  final String? requestedAt;
+  final String requestedAt;
   final String? dispatchedAt;
   final String? failureReason;
 
   NotificationTask({
-    this.tenantId,
-    this.notificationId,
-    this.sourceEventId,
-    this.sourceEventType,
-    this.category,
-    this.channel,
-    this.recipientId,
-    this.recipientKind,
-    this.status,
+    required this.tenantId,
+    required this.notificationId,
+    required this.sourceEventId,
+    required this.sourceEventType,
+    required this.category,
+    required this.channel,
+    required this.recipientId,
+    required this.recipientKind,
+    required this.status,
     this.title,
     this.body,
     this.payload,
-    this.requestedAt,
+    required this.requestedAt,
     this.dispatchedAt,
     this.failureReason
   });
 
   factory NotificationTask.fromJson(Map<String, dynamic> json) {
     return NotificationTask(
-      tenantId: json['tenantId']?.toString(),
-      notificationId: json['notificationId']?.toString(),
-      sourceEventId: json['sourceEventId']?.toString(),
-      sourceEventType: json['sourceEventType']?.toString(),
-      category: json['category']?.toString(),
-      channel: json['channel']?.toString(),
-      recipientId: json['recipientId']?.toString(),
-      recipientKind: json['recipientKind']?.toString(),
-      status: json['status']?.toString(),
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationTask.tenantId is required');
+        }
+        return value;
+      })(),
+      notificationId: (() {
+        final value = json['notificationId']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationTask.notificationId is required');
+        }
+        return value;
+      })(),
+      sourceEventId: (() {
+        final value = json['sourceEventId']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationTask.sourceEventId is required');
+        }
+        return value;
+      })(),
+      sourceEventType: (() {
+        final value = json['sourceEventType']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationTask.sourceEventType is required');
+        }
+        return value;
+      })(),
+      category: (() {
+        final value = json['category']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationTask.category is required');
+        }
+        return value;
+      })(),
+      channel: (() {
+        final value = json['channel']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationTask.channel is required');
+        }
+        return value;
+      })(),
+      recipientId: (() {
+        final value = json['recipientId']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationTask.recipientId is required');
+        }
+        return value;
+      })(),
+      recipientKind: (() {
+        final value = json['recipientKind']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationTask.recipientKind is required');
+        }
+        return value;
+      })(),
+      status: (() {
+        final value = json['status']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationTask.status is required');
+        }
+        return value;
+      })(),
       title: json['title']?.toString(),
       body: json['body']?.toString(),
       payload: json['payload']?.toString(),
-      requestedAt: json['requestedAt']?.toString(),
+      requestedAt: (() {
+        final value = json['requestedAt']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationTask.requestedAt is required');
+        }
+        return value;
+      })(),
       dispatchedAt: json['dispatchedAt']?.toString(),
       failureReason: json['failureReason']?.toString()
     );
@@ -784,10 +1309,10 @@ class NotificationTask {
 }
 
 class NotificationListResponse {
-  final List<NotificationTask>? items;
+  final List<NotificationTask> items;
 
   NotificationListResponse({
-    this.items
+    required this.items
   });
 
   factory NotificationListResponse.fromJson(Map<String, dynamic> json) {
@@ -795,7 +1320,7 @@ class NotificationListResponse {
       items: (() {
         final list = _sdkworkAsList(json['items']);
         if (list == null) {
-          return null;
+          throw FormatException('NotificationListResponse.items is required');
         }
         return list
             .map((item) => (() {
@@ -810,72 +1335,150 @@ class NotificationListResponse {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items?.map((item) => item.toJson()).toList(),
+      'items': items.map((item) => item.toJson()).toList(),
     };
   }
 }
 
 class NotificationRequestResponse {
-  final String? tenantId;
-  final String? notificationId;
-  final String? sourceEventId;
-  final String? sourceEventType;
-  final String? category;
-  final String? channel;
-  final String? recipientId;
-  final String? recipientKind;
-  final String? status;
+  final String tenantId;
+  final String notificationId;
+  final String sourceEventId;
+  final String sourceEventType;
+  final String category;
+  final String channel;
+  final String recipientId;
+  final String recipientKind;
+  final String status;
   final String? title;
   final String? body;
   final String? payload;
-  final String? requestedAt;
+  final String requestedAt;
   final String? dispatchedAt;
   final String? failureReason;
-  final String? requestKey;
-  final String? deliveryStatus;
-  final String? proofVersion;
+  final String requestKey;
+  final String deliveryStatus;
+  final String proofVersion;
 
   NotificationRequestResponse({
-    this.tenantId,
-    this.notificationId,
-    this.sourceEventId,
-    this.sourceEventType,
-    this.category,
-    this.channel,
-    this.recipientId,
-    this.recipientKind,
-    this.status,
+    required this.tenantId,
+    required this.notificationId,
+    required this.sourceEventId,
+    required this.sourceEventType,
+    required this.category,
+    required this.channel,
+    required this.recipientId,
+    required this.recipientKind,
+    required this.status,
     this.title,
     this.body,
     this.payload,
-    this.requestedAt,
+    required this.requestedAt,
     this.dispatchedAt,
     this.failureReason,
-    this.requestKey,
-    this.deliveryStatus,
-    this.proofVersion
+    required this.requestKey,
+    required this.deliveryStatus,
+    required this.proofVersion
   });
 
   factory NotificationRequestResponse.fromJson(Map<String, dynamic> json) {
     return NotificationRequestResponse(
-      tenantId: json['tenantId']?.toString(),
-      notificationId: json['notificationId']?.toString(),
-      sourceEventId: json['sourceEventId']?.toString(),
-      sourceEventType: json['sourceEventType']?.toString(),
-      category: json['category']?.toString(),
-      channel: json['channel']?.toString(),
-      recipientId: json['recipientId']?.toString(),
-      recipientKind: json['recipientKind']?.toString(),
-      status: json['status']?.toString(),
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.tenantId is required');
+        }
+        return value;
+      })(),
+      notificationId: (() {
+        final value = json['notificationId']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.notificationId is required');
+        }
+        return value;
+      })(),
+      sourceEventId: (() {
+        final value = json['sourceEventId']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.sourceEventId is required');
+        }
+        return value;
+      })(),
+      sourceEventType: (() {
+        final value = json['sourceEventType']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.sourceEventType is required');
+        }
+        return value;
+      })(),
+      category: (() {
+        final value = json['category']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.category is required');
+        }
+        return value;
+      })(),
+      channel: (() {
+        final value = json['channel']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.channel is required');
+        }
+        return value;
+      })(),
+      recipientId: (() {
+        final value = json['recipientId']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.recipientId is required');
+        }
+        return value;
+      })(),
+      recipientKind: (() {
+        final value = json['recipientKind']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.recipientKind is required');
+        }
+        return value;
+      })(),
+      status: (() {
+        final value = json['status']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.status is required');
+        }
+        return value;
+      })(),
       title: json['title']?.toString(),
       body: json['body']?.toString(),
       payload: json['payload']?.toString(),
-      requestedAt: json['requestedAt']?.toString(),
+      requestedAt: (() {
+        final value = json['requestedAt']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.requestedAt is required');
+        }
+        return value;
+      })(),
       dispatchedAt: json['dispatchedAt']?.toString(),
       failureReason: json['failureReason']?.toString(),
-      requestKey: json['requestKey']?.toString(),
-      deliveryStatus: json['deliveryStatus']?.toString(),
-      proofVersion: json['proofVersion']?.toString()
+      requestKey: (() {
+        final value = json['requestKey']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.requestKey is required');
+        }
+        return value;
+      })(),
+      deliveryStatus: (() {
+        final value = json['deliveryStatus']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.deliveryStatus is required');
+        }
+        return value;
+      })(),
+      proofVersion: (() {
+        final value = json['proofVersion']?.toString();
+        if (value == null) {
+          throw FormatException('NotificationRequestResponse.proofVersion is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -904,24 +1507,48 @@ class NotificationRequestResponse {
 }
 
 class RequestAgentToolCallRequest {
-  final String? executionId;
-  final String? toolCallId;
-  final String? toolName;
-  final String? argumentsPayload;
+  final String executionId;
+  final String toolCallId;
+  final String toolName;
+  final String argumentsPayload;
 
   RequestAgentToolCallRequest({
-    this.executionId,
-    this.toolCallId,
-    this.toolName,
-    this.argumentsPayload
+    required this.executionId,
+    required this.toolCallId,
+    required this.toolName,
+    required this.argumentsPayload
   });
 
   factory RequestAgentToolCallRequest.fromJson(Map<String, dynamic> json) {
     return RequestAgentToolCallRequest(
-      executionId: json['executionId']?.toString(),
-      toolCallId: json['toolCallId']?.toString(),
-      toolName: json['toolName']?.toString(),
-      argumentsPayload: json['argumentsPayload']?.toString()
+      executionId: (() {
+        final value = json['executionId']?.toString();
+        if (value == null) {
+          throw FormatException('RequestAgentToolCallRequest.executionId is required');
+        }
+        return value;
+      })(),
+      toolCallId: (() {
+        final value = json['toolCallId']?.toString();
+        if (value == null) {
+          throw FormatException('RequestAgentToolCallRequest.toolCallId is required');
+        }
+        return value;
+      })(),
+      toolName: (() {
+        final value = json['toolName']?.toString();
+        if (value == null) {
+          throw FormatException('RequestAgentToolCallRequest.toolName is required');
+        }
+        return value;
+      })(),
+      argumentsPayload: (() {
+        final value = json['argumentsPayload']?.toString();
+        if (value == null) {
+          throw FormatException('RequestAgentToolCallRequest.argumentsPayload is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -936,26 +1563,50 @@ class RequestAgentToolCallRequest {
 }
 
 class RequestAutomationExecution {
-  final String? executionId;
-  final String? triggerType;
-  final String? targetKind;
-  final String? targetRef;
+  final String executionId;
+  final String triggerType;
+  final String targetKind;
+  final String targetRef;
   final String? inputPayload;
 
   RequestAutomationExecution({
-    this.executionId,
-    this.triggerType,
-    this.targetKind,
-    this.targetRef,
+    required this.executionId,
+    required this.triggerType,
+    required this.targetKind,
+    required this.targetRef,
     this.inputPayload
   });
 
   factory RequestAutomationExecution.fromJson(Map<String, dynamic> json) {
     return RequestAutomationExecution(
-      executionId: json['executionId']?.toString(),
-      triggerType: json['triggerType']?.toString(),
-      targetKind: json['targetKind']?.toString(),
-      targetRef: json['targetRef']?.toString(),
+      executionId: (() {
+        final value = json['executionId']?.toString();
+        if (value == null) {
+          throw FormatException('RequestAutomationExecution.executionId is required');
+        }
+        return value;
+      })(),
+      triggerType: (() {
+        final value = json['triggerType']?.toString();
+        if (value == null) {
+          throw FormatException('RequestAutomationExecution.triggerType is required');
+        }
+        return value;
+      })(),
+      targetKind: (() {
+        final value = json['targetKind']?.toString();
+        if (value == null) {
+          throw FormatException('RequestAutomationExecution.targetKind is required');
+        }
+        return value;
+      })(),
+      targetRef: (() {
+        final value = json['targetRef']?.toString();
+        if (value == null) {
+          throw FormatException('RequestAutomationExecution.targetRef is required');
+        }
+        return value;
+      })(),
       inputPayload: json['inputPayload']?.toString()
     );
   }
@@ -972,25 +1623,25 @@ class RequestAutomationExecution {
 }
 
 class RequestNotification {
-  final String? notificationId;
-  final String? sourceEventId;
-  final String? sourceEventType;
-  final String? category;
-  final String? channel;
-  final String? recipientId;
-  final String? recipientKind;
+  final String notificationId;
+  final String sourceEventId;
+  final String sourceEventType;
+  final String category;
+  final String channel;
+  final String recipientId;
+  final String recipientKind;
   final String? title;
   final String? body;
   final String? payload;
 
   RequestNotification({
-    this.notificationId,
-    this.sourceEventId,
-    this.sourceEventType,
-    this.category,
-    this.channel,
-    this.recipientId,
-    this.recipientKind,
+    required this.notificationId,
+    required this.sourceEventId,
+    required this.sourceEventType,
+    required this.category,
+    required this.channel,
+    required this.recipientId,
+    required this.recipientKind,
     this.title,
     this.body,
     this.payload
@@ -998,13 +1649,55 @@ class RequestNotification {
 
   factory RequestNotification.fromJson(Map<String, dynamic> json) {
     return RequestNotification(
-      notificationId: json['notificationId']?.toString(),
-      sourceEventId: json['sourceEventId']?.toString(),
-      sourceEventType: json['sourceEventType']?.toString(),
-      category: json['category']?.toString(),
-      channel: json['channel']?.toString(),
-      recipientId: json['recipientId']?.toString(),
-      recipientKind: json['recipientKind']?.toString(),
+      notificationId: (() {
+        final value = json['notificationId']?.toString();
+        if (value == null) {
+          throw FormatException('RequestNotification.notificationId is required');
+        }
+        return value;
+      })(),
+      sourceEventId: (() {
+        final value = json['sourceEventId']?.toString();
+        if (value == null) {
+          throw FormatException('RequestNotification.sourceEventId is required');
+        }
+        return value;
+      })(),
+      sourceEventType: (() {
+        final value = json['sourceEventType']?.toString();
+        if (value == null) {
+          throw FormatException('RequestNotification.sourceEventType is required');
+        }
+        return value;
+      })(),
+      category: (() {
+        final value = json['category']?.toString();
+        if (value == null) {
+          throw FormatException('RequestNotification.category is required');
+        }
+        return value;
+      })(),
+      channel: (() {
+        final value = json['channel']?.toString();
+        if (value == null) {
+          throw FormatException('RequestNotification.channel is required');
+        }
+        return value;
+      })(),
+      recipientId: (() {
+        final value = json['recipientId']?.toString();
+        if (value == null) {
+          throw FormatException('RequestNotification.recipientId is required');
+        }
+        return value;
+      })(),
+      recipientKind: (() {
+        final value = json['recipientKind']?.toString();
+        if (value == null) {
+          throw FormatException('RequestNotification.recipientKind is required');
+        }
+        return value;
+      })(),
       title: json['title']?.toString(),
       body: json['body']?.toString(),
       payload: json['payload']?.toString()
@@ -1028,35 +1721,62 @@ class RequestNotification {
 }
 
 class StartAgentResponseRequest {
-  final String? executionId;
-  final String? streamId;
-  final String? streamType;
-  final String? conversationId;
+  final String executionId;
+  final String streamId;
+  final String streamType;
+  final String conversationId;
   final String? schemaRef;
   final String? memberId;
-  final AgentSubject? agent;
+  final AgentSubject agent;
 
   StartAgentResponseRequest({
-    this.executionId,
-    this.streamId,
-    this.streamType,
-    this.conversationId,
+    required this.executionId,
+    required this.streamId,
+    required this.streamType,
+    required this.conversationId,
     this.schemaRef,
     this.memberId,
-    this.agent
+    required this.agent
   });
 
   factory StartAgentResponseRequest.fromJson(Map<String, dynamic> json) {
     return StartAgentResponseRequest(
-      executionId: json['executionId']?.toString(),
-      streamId: json['streamId']?.toString(),
-      streamType: json['streamType']?.toString(),
-      conversationId: json['conversationId']?.toString(),
+      executionId: (() {
+        final value = json['executionId']?.toString();
+        if (value == null) {
+          throw FormatException('StartAgentResponseRequest.executionId is required');
+        }
+        return value;
+      })(),
+      streamId: (() {
+        final value = json['streamId']?.toString();
+        if (value == null) {
+          throw FormatException('StartAgentResponseRequest.streamId is required');
+        }
+        return value;
+      })(),
+      streamType: (() {
+        final value = json['streamType']?.toString();
+        if (value == null) {
+          throw FormatException('StartAgentResponseRequest.streamType is required');
+        }
+        return value;
+      })(),
+      conversationId: (() {
+        final value = json['conversationId']?.toString();
+        if (value == null) {
+          throw FormatException('StartAgentResponseRequest.conversationId is required');
+        }
+        return value;
+      })(),
       schemaRef: json['schemaRef']?.toString(),
       memberId: json['memberId']?.toString(),
       agent: (() {
         final map = _sdkworkAsMap(json['agent']);
-        return map == null ? null : AgentSubject.fromJson(map);
+        if (map == null) {
+          throw FormatException('StartAgentResponseRequest.agent is required');
+        }
+        return AgentSubject.fromJson(map);
       })()
     );
   }
@@ -1069,21 +1789,27 @@ class StartAgentResponseRequest {
       'conversationId': conversationId,
       'schemaRef': schemaRef,
       'memberId': memberId,
-      'agent': agent?.toJson(),
+      'agent': agent.toJson(),
     };
   }
 }
 
 class UpdateDeviceTwinDesiredRequest {
-  final String? desiredStateJson;
+  final String desiredStateJson;
 
   UpdateDeviceTwinDesiredRequest({
-    this.desiredStateJson
+    required this.desiredStateJson
   });
 
   factory UpdateDeviceTwinDesiredRequest.fromJson(Map<String, dynamic> json) {
     return UpdateDeviceTwinDesiredRequest(
-      desiredStateJson: json['desiredStateJson']?.toString()
+      desiredStateJson: (() {
+        final value = json['desiredStateJson']?.toString();
+        if (value == null) {
+          throw FormatException('UpdateDeviceTwinDesiredRequest.desiredStateJson is required');
+        }
+        return value;
+      })()
     );
   }
 
@@ -1095,15 +1821,21 @@ class UpdateDeviceTwinDesiredRequest {
 }
 
 class UpdateDeviceTwinReportedRequest {
-  final String? reportedStateJson;
+  final String reportedStateJson;
 
   UpdateDeviceTwinReportedRequest({
-    this.reportedStateJson
+    required this.reportedStateJson
   });
 
   factory UpdateDeviceTwinReportedRequest.fromJson(Map<String, dynamic> json) {
     return UpdateDeviceTwinReportedRequest(
-      reportedStateJson: json['reportedStateJson']?.toString()
+      reportedStateJson: (() {
+        final value = json['reportedStateJson']?.toString();
+        if (value == null) {
+          throw FormatException('UpdateDeviceTwinReportedRequest.reportedStateJson is required');
+        }
+        return value;
+      })()
     );
   }
 

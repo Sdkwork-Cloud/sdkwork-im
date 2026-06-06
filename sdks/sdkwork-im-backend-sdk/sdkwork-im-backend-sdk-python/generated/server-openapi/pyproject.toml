@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sdkwork-im-backend-api-generated"
 version = "0.1.0"
-description = "sdkwork-im-backend-sdk SDK"
+description = "Generator-owned Python transport SDK for the Craw Chat backend/operator API."
 authors = [{name = "SDKWork Team"}]
 readme = "README.md"
 license = "MIT"

@@ -1,7 +1,7 @@
 export interface QuotaProfileResponse {
-  maxConcurrentSessionsPerTenant: number;
-  maxInflightMessages: number;
-  maxPayloadBytes: number;
-  maxSubscriptionsPerSession: number;
+  maxConcurrentSessionsPerTenant: string;
+  maxInflightMessages: string;
+  maxPayloadBytes: string;
+  maxSubscriptionsPerSession: string;
   profileId: string;
 }

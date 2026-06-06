@@ -194,8 +194,8 @@ export declare class ControlProviderRegistryApi {
     retrieve(): Promise<ProviderRegistrySnapshotResponse>;
 }
 export interface ControlProviderPoliciesDiffListParams {
-    fromVersion: number;
-    toVersion: number;
+    fromVersion: string;
+    toVersion: string;
 }
 export declare class ControlProviderPoliciesDiffApi {
     private client;

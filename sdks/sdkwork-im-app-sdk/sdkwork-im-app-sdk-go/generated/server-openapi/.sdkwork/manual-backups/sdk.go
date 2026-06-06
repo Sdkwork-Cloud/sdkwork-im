@@ -7,17 +7,13 @@ import (
 
 type SdkworkAppClient struct {
     http *sdkhttp.Client
-    Portal *api.PortalApi
-    Device *api.DeviceApi
-    Presence *api.PresenceApi
-    Realtime *api.RealtimeApi
-    Social *api.SocialApi
-    Chat *api.ChatApi
-    Media *api.MediaApi
-    Stream *api.StreamApi
-    Rtc *api.RtcApi
-    Notification *api.NotificationApi
     Automation *api.AutomationApi
+    Device *api.DeviceApi
+    Notification *api.NotificationApi
+    Portal *api.PortalApi
+    Provider *api.ProviderApi
+    Iot *api.IotApi
+    Rtc *api.RtcApi
 }
 
 func NewSdkworkAppClient(baseURL string) *SdkworkAppClient {
@@ -29,17 +25,13 @@ func NewSdkworkAppClientWithConfig(config sdkhttp.Config) *SdkworkAppClient {
     client := sdkhttp.NewClient(config)
     return &SdkworkAppClient{
         http: client,
-        Portal: api.NewPortalApi(client),
-        Device: api.NewDeviceApi(client),
-        Presence: api.NewPresenceApi(client),
-        Realtime: api.NewRealtimeApi(client),
-        Social: api.NewSocialApi(client),
-        Chat: api.NewChatApi(client),
-        Media: api.NewMediaApi(client),
-        Stream: api.NewStreamApi(client),
-        Rtc: api.NewRtcApi(client),
-        Notification: api.NewNotificationApi(client),
         Automation: api.NewAutomationApi(client),
+        Device: api.NewDeviceApi(client),
+        Notification: api.NewNotificationApi(client),
+        Portal: api.NewPortalApi(client),
+        Provider: api.NewProviderApi(client),
+        Iot: api.NewIotApi(client),
+        Rtc: api.NewRtcApi(client),
     }
 }
 

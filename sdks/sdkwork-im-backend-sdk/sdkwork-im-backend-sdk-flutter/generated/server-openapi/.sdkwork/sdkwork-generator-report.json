@@ -11,32 +11,27 @@
   "status": "ok",
   "mode": "apply",
   "hasChanges": true,
-  "hasDestructiveChanges": true,
-  "changeFingerprint": "2e72ed3e1ea282e5be4c5c81cf08f17a875f7008bde9841e56f2607b8239e03f",
+  "hasDestructiveChanges": false,
+  "changeFingerprint": "14abc43542e2c301c3a0936944089a24b6609193f3624bd1d9353b2922656769",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
       "api-surface",
-      "models",
+      "build-metadata",
       "documentation"
     ],
     "details": [
       {
         "area": "api-surface",
         "paths": [
-          "lib/backend_client.dart",
-          "lib/src/api/admin.dart",
-          "lib/src/api/api.dart",
-          "lib/src/api/control.dart",
-          "lib/src/api/iot.dart",
-          "lib/src/api/provider.dart",
-          "lib/src/api/rtc.dart"
+          "lib/backend_client.dart"
         ]
       },
       {
-        "area": "models",
+        "area": "build-metadata",
         "paths": [
-          "lib/src/models.dart"
+          "pubspec.yaml",
+          "sdkwork-sdk.json"
         ]
       },
       {
@@ -47,7 +42,7 @@
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required."
+    "summary": "Detected impact areas: api-surface, build-metadata, documentation. Verification is required."
   },
   "executionDecision": {
     "schemaVersion": 1,
@@ -58,7 +53,6 @@
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
       "backed-up-generated-files",
-      "deleted-generated-files",
       "manual-review-required",
       "verification-required"
     ]
@@ -71,7 +65,7 @@
         "id": "verify-check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, build-metadata, documentation.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-flutter\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -90,13 +84,13 @@
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, build-metadata, documentation.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-flutter\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -133,22 +127,19 @@
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 6,
+    "writtenFiles": 4,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 15,
-    "deletedGeneratedFiles": 3,
+    "skippedUnchangedGeneratedFiles": 17,
+    "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "2e72ed3e1ea282e5be4c5c81cf08f17a875f7008bde9841e56f2607b8239e03f",
+    "changeFingerprint": "14abc43542e2c301c3a0936944089a24b6609193f3624bd1d9353b2922656769",
     "changes": {
-      "createdGeneratedFiles": [
-        "lib/src/api/admin.dart",
-        "lib/src/api/control.dart"
-      ],
+      "createdGeneratedFiles": [],
       "updatedGeneratedFiles": [
         "lib/backend_client.dart",
-        "lib/src/api/api.dart",
-        "lib/src/models.dart",
-        "README.md"
+        "pubspec.yaml",
+        "README.md",
+        "sdkwork-sdk.json"
       ],
       "unchangedGeneratedFiles": [
         "bin/publish-core.mjs",
@@ -156,55 +147,50 @@
         "bin/publish.sh",
         "CHANGELOG.md",
         "lib/im_backend_api_generated.dart",
+        "lib/src/api/admin.dart",
+        "lib/src/api/api.dart",
         "lib/src/api/audit.dart",
         "lib/src/api/automation.dart",
+        "lib/src/api/control.dart",
         "lib/src/api/ops.dart",
         "lib/src/api/paths.dart",
         "lib/src/api/response_helpers.dart",
         "lib/src/http/client.dart",
+        "lib/src/models.dart",
         "LICENSE",
-        "pubspec_overrides.yaml",
-        "pubspec.yaml",
-        "sdkwork-sdk.json"
+        "pubspec_overrides.yaml"
       ],
-      "deletedGeneratedFiles": [
-        "lib/src/api/iot.dart",
-        "lib/src/api/provider.dart",
-        "lib/src/api/rtc.dart"
-      ],
+      "deletedGeneratedFiles": [],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/README.md"
       ],
       "backedUpFiles": [
         "lib/backend_client.dart",
-        "README.md"
+        "pubspec.yaml",
+        "README.md",
+        "sdkwork-sdk.json"
       ]
     },
     "impact": {
       "schemaVersion": 1,
       "areas": [
         "api-surface",
-        "models",
+        "build-metadata",
         "documentation"
       ],
       "details": [
         {
           "area": "api-surface",
           "paths": [
-            "lib/backend_client.dart",
-            "lib/src/api/admin.dart",
-            "lib/src/api/api.dart",
-            "lib/src/api/control.dart",
-            "lib/src/api/iot.dart",
-            "lib/src/api/provider.dart",
-            "lib/src/api/rtc.dart"
+            "lib/backend_client.dart"
           ]
         },
         {
-          "area": "models",
+          "area": "build-metadata",
           "paths": [
-            "lib/src/models.dart"
+            "pubspec.yaml",
+            "sdkwork-sdk.json"
           ]
         },
         {
@@ -215,18 +201,18 @@
         }
       ],
       "requiresVerification": true,
-      "summary": "Detected impact areas: api-surface, models, documentation. Verification is required."
+      "summary": "Detected impact areas: api-surface, build-metadata, documentation. Verification is required."
     },
     "verificationPlan": {
       "shouldRun": true,
       "runPhase": "now",
-      "summary": "Detected impact areas: api-surface, models, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+      "summary": "Detected impact areas: api-surface, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
       "steps": [
         {
           "id": "check",
           "title": "Unified package check",
           "required": true,
-          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, build-metadata, documentation.",
           "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-flutter\\generated\\server-openapi",
           "command": "node",
           "args": [
@@ -251,14 +237,15 @@
       "summary": "Changes have been applied. Run the required verification plan now.",
       "reasons": [
         "backed-up-generated-files",
-        "deleted-generated-files",
         "manual-review-required",
         "verification-required"
       ]
     },
     "backedUpFiles": [
       "lib/backend_client.dart",
-      "README.md"
+      "pubspec.yaml",
+      "README.md",
+      "sdkwork-sdk.json"
     ],
     "preservedLegacyFiles": false
   }

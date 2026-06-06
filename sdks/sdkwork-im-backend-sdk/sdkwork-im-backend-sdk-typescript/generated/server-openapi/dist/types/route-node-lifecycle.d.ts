@@ -1,7 +1,7 @@
 export interface RouteNodeLifecycle {
     drainStatus: string;
     nodeId: string;
-    ownedRouteCount: number;
+    ownedRouteCount: string;
     rebalanceState: string;
 }
 //# sourceMappingURL=route-node-lifecycle.d.ts.map

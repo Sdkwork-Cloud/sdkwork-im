@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class DeviceApi {
     private final HttpClient client;
-    
+
     public DeviceApi(HttpClient client) {
         this.client = client;
     }

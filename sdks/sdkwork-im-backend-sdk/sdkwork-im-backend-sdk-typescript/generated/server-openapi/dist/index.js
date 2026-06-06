@@ -1,5 +1,5 @@
 import { BaseHttpClient, withRetry } from '@sdkwork/sdk-common';
-export { DEFAULT_TIMEOUT, DefaultAuthTokenManager, SUCCESS_CODES, createTokenManager } from '@sdkwork/sdk-common';
+export { DEFAULT_TIMEOUT, SUCCESS_CODES } from '@sdkwork/sdk-common';
 
 class HttpClient extends BaseHttpClient {
     constructor(config) {
@@ -266,7 +266,7 @@ class OpsProviderBindingsDriftApi {
         this.client = client;
     }
     /** Retrieve provider binding drift */
-    async list() {
+    async retrieve() {
         return this.client.get(backendApiPath(`/ops/provider_bindings/drift`));
     }
 }
@@ -1504,7 +1504,7 @@ function serializePathPrimitive(value) {
     return String(value);
 }
 
-class SdkworkBackendClient {
+class SdkworkImBackendClient {
     constructor(config) {
         this.httpClient = createHttpClient(config);
         this.ops = createOpsApi(this.httpClient);
@@ -1530,7 +1530,7 @@ class SdkworkBackendClient {
     }
 }
 function createClient(config) {
-    return new SdkworkBackendClient(config);
+    return new SdkworkImBackendClient(config);
 }
 
 class BaseApi {
@@ -1558,4 +1558,4 @@ class BaseApi {
     }
 }
 
-export { AdminApi, AuditApi, AutomationApi, BaseApi, ControlApi, HttpClient, OpsApi, SdkworkBackendClient, backendApiPath, createAdminApi, createAuditApi, createAutomationApi, createClient, createControlApi, createHttpClient, createOpsApi };
+export { AdminApi, AuditApi, AutomationApi, BaseApi, ControlApi, HttpClient, OpsApi, SdkworkImBackendClient as SdkworkBackendClient, SdkworkImBackendClient, backendApiPath, createAdminApi, createAuditApi, createAutomationApi, createClient, createControlApi, createHttpClient, createOpsApi };

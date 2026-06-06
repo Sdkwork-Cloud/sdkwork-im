@@ -119,22 +119,32 @@ async fn test_local_minimal_node_exports_app_api_openapi_schema() {
     );
     assert!(
         body_json["paths"].as_object().is_some_and(|paths| {
-            paths.contains_key("/app/v3/api/portal/access")
-                && paths.contains_key("/app/v3/api/automation/executions")
-                && paths.contains_key("/app/v3/api/notifications/requests")
-                && paths.contains_key("/app/v3/api/devices/{deviceId}/twin")
+            paths.contains_key("/app/v3/api/auth/registrations")
+                && paths.contains_key("/app/v3/api/auth/sessions")
+                && paths.contains_key("/app/v3/api/auth/sessions/current")
+                && paths.contains_key("/app/v3/api/auth/sessions/refresh")
+                && paths.contains_key("/app/v3/api/auth/verification_codes")
+                && paths.contains_key("/app/v3/api/auth/verification_codes/verify")
+                && paths.contains_key("/app/v3/api/iam/users/current")
+                && paths.contains_key("/app/v3/api/system/iam/runtime")
+                && paths.contains_key("/app/v3/api/system/iam/verification_policy")
+                && paths.contains_key("/app/v3/api/open_platform/qr_auth/sessions")
         }),
-        "schema must include app-business /app/v3/api routes"
+        "schema must include sdkwork-im-app-sdk IAM and QR auth /app/v3/api routes"
     );
     assert!(
         body_json["paths"].as_object().is_some_and(|paths| {
             paths.keys().all(|path| path.starts_with("/app/v3/api/"))
+                && !paths.contains_key("/app/v3/api/auth/login")
+                && !paths.contains_key("/app/v3/api/auth/register")
+                && !paths.contains_key("/app/v3/api/auth/refresh")
+                && !paths.contains_key("/app/v3/api/auth/verify/send")
+                && !paths.contains_key("/app/v3/api/auth/verify/check")
                 && !paths.contains_key("/app/v3/api/chat/conversations")
-                && !paths.contains_key("/app/v3/api/social/friend_requests")
                 && !paths.contains_key("/app/v3/api/device/sessions/resume")
                 && !paths.contains_key("/backend/v3/api/ops/health")
         }),
-        "app OpenAPI schema must only include app-api business paths outside IM standard APIs"
+        "im-app-api OpenAPI schema must come from sdkwork-im-app-sdk and must not include legacy appbase, IM, or backend paths"
     );
 }
 
@@ -155,7 +165,7 @@ async fn test_local_minimal_node_exports_backend_api_openapi_schema() {
         body_json["paths"]
             .as_object()
             .is_some_and(|paths| paths.contains_key("/backend/v3/api/ops/health")),
-        "schema must include backend-api ops routes"
+        "schema must include im-backend-api ops routes"
     );
     assert!(
         body_json["paths"].as_object().is_some_and(|paths| {
@@ -164,7 +174,7 @@ async fn test_local_minimal_node_exports_backend_api_openapi_schema() {
                 .all(|path| path.starts_with("/backend/v3/api/"))
                 && !paths.contains_key("/app/v3/api/chat/conversations")
         }),
-        "backend OpenAPI schema must only include backend-api business paths"
+        "backend OpenAPI schema must only include im-backend-api business paths"
     );
 }
 
@@ -181,7 +191,7 @@ async fn test_local_minimal_node_exports_im_openapi_schema_from_runtime_override
     fs::create_dir_all(&schema_fixture_dir).expect("schema fixture directory should be created");
 
     let schema_fixture_path = schema_fixture_dir.join("im.openapi.yaml");
-    let schema_fixture = r#"openapi: 3.0.3
+    let schema_fixture = r#"openapi: 3.1.2
 info:
   title: Runtime IM Export Override
   version: 9.9.9
@@ -224,7 +234,7 @@ async fn test_local_minimal_node_exports_app_openapi_schema_from_runtime_overrid
     fs::create_dir_all(&schema_fixture_dir).expect("schema fixture directory should be created");
 
     let schema_fixture_path = schema_fixture_dir.join("app.openapi.yaml");
-    let schema_fixture = r#"openapi: 3.0.3
+    let schema_fixture = r#"openapi: 3.1.2
 info:
   title: Runtime Export Override
   version: 9.9.9
@@ -285,7 +295,7 @@ async fn test_local_minimal_node_exports_backend_api_openapi_schema_from_runtime
     fs::create_dir_all(&schema_fixture_dir).expect("schema fixture directory should be created");
 
     let schema_fixture_path = schema_fixture_dir.join("backend.openapi.yaml");
-    let schema_fixture = r#"openapi: 3.0.3
+    let schema_fixture = r#"openapi: 3.1.2
 info:
   title: Runtime Backend Export Override
   version: 9.9.9

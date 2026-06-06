@@ -228,6 +228,146 @@ async fn create_active_friendship_direct_chat(app: &axum::Router) -> (String, St
     (fixture.friendship_id, fixture.conversation_id)
 }
 
+#[tokio::test]
+async fn test_local_minimal_profile_social_user_search_uses_real_catalog_without_mocking_input() {
+    let default_app = local_minimal_node::build_default_app();
+    let default_search = default_app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/im/v3/api/social/users?q=alice&limit=20")
+                .demo_app_context()
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("default social user search should return response");
+    assert_eq!(default_search.status(), StatusCode::OK);
+    let default_search_body = default_search
+        .into_body()
+        .collect()
+        .await
+        .expect("default social user search body should collect")
+        .to_bytes();
+    let default_search_json: serde_json::Value = serde_json::from_slice(&default_search_body)
+        .expect("default social user search body should be valid json");
+    assert_eq!(default_search_json["items"], serde_json::json!([]));
+    assert_eq!(default_search_json["hasMore"], false);
+
+    let runtime_dir = unique_test_runtime_dir("social_user_search_external_catalog");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let catalog_path = runtime_dir.join("principal-profile-catalog.json");
+    fs::write(
+        &catalog_path,
+        serde_json::json!({
+            "externalSystem": "corp-idp",
+            "profiles": [
+                {
+                    "tenantId": "t_demo",
+                    "principalId": "u_demo",
+                    "principalKind": "user",
+                    "displayName": "Demo User",
+                    "externalPrincipalId": "demo",
+                    "attributes": {
+                        "email": "demo@example.com"
+                    }
+                },
+                {
+                    "tenantId": "t_demo",
+                    "principalId": "u_alice",
+                    "principalKind": "user",
+                    "displayName": "Alice Chen",
+                    "externalPrincipalId": "alice",
+                    "attributes": {
+                        "avatarUrl": "https://example.com/alice.png",
+                        "email": "alice@example.com",
+                        "phone": "+12025550100"
+                    }
+                }
+            ]
+        })
+        .to_string(),
+    )
+    .expect("principal profile catalog should be written");
+
+    let _provider = set_scoped_env_var("CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER", "external-catalog");
+    let catalog_path_string = catalog_path.display().to_string();
+    let _catalog_path = set_scoped_env_var(
+        "CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH",
+        catalog_path_string.as_str(),
+    );
+    let _external_system =
+        set_scoped_env_var("CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_SYSTEM", "corp-idp");
+    let app = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let search = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/im/v3/api/social/users?q=alice&limit=20")
+                .demo_app_context()
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("external-catalog social user search should return response");
+    assert_eq!(search.status(), StatusCode::OK);
+    let search_body = search
+        .into_body()
+        .collect()
+        .await
+        .expect("external-catalog social user search body should collect")
+        .to_bytes();
+    let search_json: serde_json::Value = serde_json::from_slice(&search_body)
+        .expect("external-catalog social user search body should be valid json");
+    let items = search_json["items"]
+        .as_array()
+        .expect("social user search should return items");
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["tenantId"], "t_demo");
+    assert_eq!(items[0]["userId"], "u_alice");
+    assert_eq!(items[0]["displayName"], "Alice Chen");
+    assert_eq!(items[0]["relationshipState"], "none");
+    assert_eq!(items[0]["avatarUrl"], "https://example.com/alice.png");
+    assert_eq!(items[0]["email"], "alice@example.com");
+    assert_eq!(items[0]["phone"], "+12025550100");
+    assert_eq!(search_json["hasMore"], false);
+
+    let submit_request = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/social/friend_requests")
+                .demo_app_context()
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "targetUserId": "u_alice",
+                        "requestMessage": "hello alice"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("friend request to searched catalog user should return response");
+    assert_eq!(submit_request.status(), StatusCode::OK);
+    let submit_request_body = submit_request
+        .into_body()
+        .collect()
+        .await
+        .expect("friend request to searched catalog user body should collect")
+        .to_bytes();
+    let submit_request_json: serde_json::Value = serde_json::from_slice(&submit_request_body)
+        .expect("friend request to searched catalog user body should be valid json");
+    assert_eq!(
+        submit_request_json["friendRequest"]["targetUserId"],
+        "u_alice"
+    );
+    assert_eq!(submit_request_json["friendRequest"]["status"], "pending");
+}
+
 async fn remove_friendship_for_test(
     app: &axum::Router,
     friendship_id: &str,
@@ -264,7 +404,7 @@ async fn block_direct_chat_for_test(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/control/social/user-blocks")
+                .uri("/backend/v3/api/control/social/user_blocks")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")
@@ -319,6 +459,43 @@ async fn post_standard_message_for_test(
         )
         .await
         .expect("post message should return response")
+}
+
+async fn list_message_summaries_for_test(
+    app: &axum::Router,
+    conversation_id: &str,
+    reader_user_id: &str,
+) -> Vec<String> {
+    let timeline = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{conversation_id}/messages"
+                ))
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", reader_user_id)
+                .header("x-sdkwork-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("timeline request should return response");
+    assert_eq!(timeline.status(), StatusCode::OK);
+    let timeline_body = timeline
+        .into_body()
+        .collect()
+        .await
+        .expect("timeline body should collect")
+        .to_bytes();
+    let timeline_json: serde_json::Value =
+        serde_json::from_slice(&timeline_body).expect("timeline body should be valid json");
+    timeline_json["items"]
+        .as_array()
+        .expect("timeline items should be an array")
+        .iter()
+        .filter_map(|item| item["summary"].as_str().map(ToOwned::to_owned))
+        .collect()
 }
 
 async fn register_device_for_test(app: &axum::Router, user_id: &str, device_id: &str) {
@@ -871,93 +1048,48 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
         .expect("end rtc should succeed");
     assert_eq!(end_rtc.status(), StatusCode::OK);
 
-    let create_media_upload = app
+    let post_media_message = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/media/uploads")
+                .uri("/im/v3/api/chat/conversations/c_demo/messages")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
-                        "mediaAssetId":"ma_demo",
-                        "bucket":"local-media",
-                        "resource":{
-                            "uuid":"res_demo",
-                            "type":"image",
-                            "mimeType":"image/png",
-                            "size":42,
-                            "name":"demo.png",
-                            "extension":"png",
-                            "metadata":{"origin":"e2e"},
-                            "prompt":"poster"
-                        }
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create media upload should succeed");
-    assert_eq!(create_media_upload.status(), StatusCode::OK);
-
-    let complete_media_upload = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/media/uploads/ma_demo/complete")
-                .demo_app_context()
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "bucket":"local-media",
-                        "objectKey":"tenant/t_demo/ma_demo/demo.png",
-                        "storageProvider":"object-storage-volcengine",
-                        "url":"https://cdn.example.com/ma_demo/demo.png",
-                        "checksum":"sha256:demo"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("complete media upload should succeed");
-    assert_eq!(complete_media_upload.status(), StatusCode::OK);
-
-    let attach_media = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/media/ma_demo/attach")
-                .demo_app_context()
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_demo",
                         "clientMsgId":"client_attach",
                         "summary":"poster asset",
-                        "text":"see attachment"
+                        "parts":[
+                            {"kind":"text","text":"see attachment"},
+                            {
+                                "kind":"media",
+                                "mediaRole":"attachment",
+                                "drive":{
+                                    "driveUri":"drive://spaces/space_app_upload_demo/nodes/node_ma_demo",
+                                    "spaceId":"space_app_upload_demo",
+                                    "nodeId":"node_ma_demo"
+                                },
+                                "resource":{
+                                    "id":"node_ma_demo",
+                                    "kind":"image",
+                                    "source":"provider_asset",
+                                    "uri":"drive://spaces/space_app_upload_demo/nodes/node_ma_demo",
+                                    "mimeType":"image/png",
+                                    "sizeBytes":"42",
+                                    "fileName":"demo.png",
+                                    "metadata":{"origin":"e2e"},
+                                    "title":"poster"
+                                }
+                            }
+                        ]
                     }"#,
                 ))
                 .unwrap(),
         )
         .await
-        .expect("attach media should succeed");
-    assert_eq!(attach_media.status(), StatusCode::OK);
-
-    let get_media = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/im/v3/api/media/ma_demo")
-                .demo_app_context()
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("get media should succeed");
-    assert_eq!(get_media.status(), StatusCode::OK);
+        .expect("drive-backed media message should succeed");
+    assert_eq!(post_media_message.status(), StatusCode::OK);
 
     let conversation_summary_after_attach = app
         .oneshot(
@@ -1337,6 +1469,40 @@ async fn test_local_minimal_profile_treats_duplicate_create_conversation_as_idem
 }
 
 #[tokio::test]
+async fn test_local_minimal_profile_rejects_non_standard_agent_dialog_agent_id() {
+    let app = local_minimal_node::build_default_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/agent_dialogs")
+                .demo_app_context()
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_agent_dialog_invalid_agent_id",
+                        "agentId":"ag_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("invalid agent dialog create should return response");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("invalid agent dialog create body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("invalid agent dialog create should be valid json");
+    assert_eq!(value["code"], "agent_id_invalid");
+}
+
+#[tokio::test]
 async fn test_local_minimal_profile_treats_duplicate_agent_dialog_create_as_idempotent() {
     let app = local_minimal_node::build_default_app();
 
@@ -1351,7 +1517,7 @@ async fn test_local_minimal_profile_treats_duplicate_agent_dialog_create_as_idem
                 .body(Body::from(
                     r#"{
                         "conversationId":"c_agent_dialog_retry_local",
-                        "agentId":"ag_demo"
+                        "agentId":"agent.demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -1388,7 +1554,7 @@ async fn test_local_minimal_profile_treats_duplicate_agent_dialog_create_as_idem
                 .body(Body::from(
                     r#"{
                         "conversationId":"c_agent_dialog_retry_local",
-                        "agentId":"ag_demo"
+                        "agentId":"agent.demo"
                     }"#,
                 ))
                 .unwrap(),
@@ -1446,7 +1612,7 @@ async fn test_local_minimal_profile_treats_duplicate_agent_dialog_create_as_idem
                 .body(Body::from(
                     r#"{
                         "conversationId":"c_agent_dialog_retry_local",
-                        "agentId":"ag_other"
+                        "agentId":"agent.other"
                     }"#,
                 ))
                 .unwrap(),
@@ -2173,168 +2339,49 @@ async fn test_local_minimal_profile_treats_duplicate_direct_chat_binding_as_idem
 }
 
 #[tokio::test]
-async fn test_local_minimal_profile_surfaces_media_not_found_error() {
+async fn test_local_minimal_profile_does_not_expose_removed_media_resource_route() {
     let app = local_minimal_node::build_default_app();
 
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/media/ma_missing")
+                .uri("/im/v3/api/media/media_reference_missing")
                 .demo_app_context()
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("get missing media should return response");
+        .expect("removed media resource route should return response");
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
-
-    let response_body = response
-        .into_body()
-        .collect()
-        .await
-        .expect("response body should collect")
-        .to_bytes();
-    let response_json: serde_json::Value =
-        serde_json::from_slice(&response_body).expect("response should be valid json");
-    assert_eq!(response_json["code"], "media_asset_not_found");
 }
 
 #[tokio::test]
-async fn test_local_minimal_profile_treats_duplicate_media_upload_requests_as_idempotent() {
+async fn test_local_minimal_profile_does_not_accept_legacy_media_upload_lifecycle_requests() {
     let app = local_minimal_node::build_default_app();
 
-    let create_request = r#"{
-        "mediaAssetId":"ma_local_media_idempotent",
-        "bucket":"local-media",
-        "resource":{
-            "uuid":"res_local_media_idempotent",
-            "type":"image",
-            "mimeType":"image/png",
-            "size":42,
-            "name":"local-proof.png",
-            "extension":"png"
-        }
-    }"#;
-
-    let first_create = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/media/uploads")
-                .demo_app_context()
-                .header("content-type", "application/json")
-                .body(Body::from(create_request))
-                .unwrap(),
-        )
-        .await
-        .expect("first media create should return response");
-    assert_eq!(first_create.status(), StatusCode::OK);
-    let first_create_body = first_create
-        .into_body()
-        .collect()
-        .await
-        .expect("first media create body should collect")
-        .to_bytes();
-    let first_create_json: serde_json::Value = serde_json::from_slice(&first_create_body)
-        .expect("first media create should be valid json");
-    assert_eq!(first_create_json["deliveryStatus"], "applied");
-    assert_eq!(
-        first_create_json["proofVersion"],
-        "media.upload.delivery-proof.v1"
-    );
-
-    let duplicate_create = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/media/uploads")
-                .demo_app_context()
-                .header("content-type", "application/json")
-                .body(Body::from(create_request))
-                .unwrap(),
-        )
-        .await
-        .expect("duplicate media create should return response");
-    assert_eq!(duplicate_create.status(), StatusCode::OK);
-    let duplicate_create_body = duplicate_create
-        .into_body()
-        .collect()
-        .await
-        .expect("duplicate media create body should collect")
-        .to_bytes();
-    let duplicate_create_json: serde_json::Value = serde_json::from_slice(&duplicate_create_body)
-        .expect("duplicate media create should be valid json");
-    assert_eq!(duplicate_create_json["deliveryStatus"], "replayed");
-    assert_eq!(
-        duplicate_create_json["requestKey"],
-        first_create_json["requestKey"]
-    );
-
-    let complete_request = r#"{
-        "bucket":"local-media",
-        "objectKey":"tenant/t_demo/ma_local_media_idempotent/local-proof.png",
-        "storageProvider":"object-storage-volcengine",
-        "url":"https://cdn.example.com/ma_local_media_idempotent/local-proof.png",
-        "checksum":"sha256:local-proof"
-    }"#;
-
-    let first_complete = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/media/uploads/ma_local_media_idempotent/complete")
-                .demo_app_context()
-                .header("content-type", "application/json")
-                .body(Body::from(complete_request))
-                .unwrap(),
-        )
-        .await
-        .expect("first media complete should return response");
-    assert_eq!(first_complete.status(), StatusCode::OK);
-    let first_complete_body = first_complete
-        .into_body()
-        .collect()
-        .await
-        .expect("first media complete body should collect")
-        .to_bytes();
-    let first_complete_json: serde_json::Value = serde_json::from_slice(&first_complete_body)
-        .expect("first media complete should be valid json");
-    assert_eq!(first_complete_json["deliveryStatus"], "applied");
-    assert_eq!(
-        first_complete_json["proofVersion"],
-        "media.upload.delivery-proof.v1"
-    );
-
-    let duplicate_complete = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/media/uploads/ma_local_media_idempotent/complete")
-                .demo_app_context()
-                .header("content-type", "application/json")
-                .body(Body::from(complete_request))
-                .unwrap(),
-        )
-        .await
-        .expect("duplicate media complete should return response");
-    assert_eq!(duplicate_complete.status(), StatusCode::OK);
-    let duplicate_complete_body = duplicate_complete
-        .into_body()
-        .collect()
-        .await
-        .expect("duplicate media complete body should collect")
-        .to_bytes();
-    let duplicate_complete_json: serde_json::Value =
-        serde_json::from_slice(&duplicate_complete_body)
-            .expect("duplicate media complete should be valid json");
-    assert_eq!(duplicate_complete_json["deliveryStatus"], "replayed");
-    assert_eq!(
-        duplicate_complete_json["requestKey"],
-        first_complete_json["requestKey"]
-    );
+    for path in [
+        "/im/v3/api/media/uploads",
+        "/im/v3/api/media/uploads/media_reference_idempotent/complete",
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(path)
+                    .demo_app_context()
+                    .header("content-type", "application/json")
+                    .body(Body::from("{}"))
+                    .unwrap(),
+            )
+            .await
+            .expect("removed media lifecycle request should return response");
+        assert_eq!(
+            response.status(),
+            StatusCode::NOT_FOUND,
+            "{path} must stay removed because sdkwork-drive owns upload lifecycle"
+        );
+    }
 }
 
 #[tokio::test]
@@ -2360,6 +2407,9 @@ async fn test_local_minimal_profile_projects_rtc_state_changes_into_signal_messa
         .await
         .expect("create conversation should succeed");
     assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    register_device_for_test(&app, "u_demo", "d_phone").await;
+    register_device_for_test(&app, "u_demo", "d_pad").await;
 
     let create_rtc = app
         .clone()
@@ -2491,6 +2541,7 @@ async fn test_local_minimal_profile_projects_rtc_state_changes_into_signal_messa
     assert_eq!(items[3]["summary"], "rtc.end");
 
     let summary = app
+        .clone()
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_rtc_signal")
@@ -2512,6 +2563,57 @@ async fn test_local_minimal_profile_projects_rtc_state_changes_into_signal_messa
     assert_eq!(summary_json["lastMessageId"], "msg_c_rtc_signal_4");
     assert_eq!(summary_json["messageCount"], 4);
     assert_eq!(summary_json["lastSummary"], "rtc.end");
+
+    let sync_feed = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/devices/d_pad/sync_feed?afterSeq=0")
+                .demo_app_context()
+                .header("x-sdkwork-device-id", "d_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("rtc sync feed should succeed");
+    assert_eq!(sync_feed.status(), StatusCode::OK);
+    let sync_feed_body = sync_feed
+        .into_body()
+        .collect()
+        .await
+        .expect("rtc sync feed body should collect")
+        .to_bytes();
+    let sync_feed_json: serde_json::Value =
+        serde_json::from_slice(&sync_feed_body).expect("rtc sync feed should be valid json");
+    let sync_items = sync_feed_json["items"]
+        .as_array()
+        .expect("rtc sync feed items should be an array");
+    assert_eq!(sync_items.len(), 4);
+    let accept_sync_item = sync_items
+        .iter()
+        .find(|item| item["summary"] == "rtc.accept")
+        .expect("rtc accept signal should be available in device sync feed");
+    assert_eq!(accept_sync_item["originEventType"], "message.posted");
+    assert_eq!(accept_sync_item["payloadSchema"], "message.posted.v1");
+    let accept_payload: serde_json::Value = serde_json::from_str(
+        accept_sync_item["payload"]
+            .as_str()
+            .expect("rtc accept sync payload should be a string"),
+    )
+    .expect("rtc accept sync payload should be valid json");
+    assert_eq!(accept_payload["rtcSessionId"], "rtc_signal_demo");
+    assert_eq!(accept_payload["body"]["parts"][0]["kind"], "signal");
+    assert_eq!(
+        accept_payload["body"]["parts"][0]["signalType"],
+        "rtc.accept"
+    );
+    let signal_payload: serde_json::Value = serde_json::from_str(
+        accept_payload["body"]["parts"][0]["payload"]
+            .as_str()
+            .expect("rtc accept signal payload should be a string"),
+    )
+    .expect("rtc accept signal payload should be valid json");
+    assert_eq!(signal_payload["rtcSessionId"], "rtc_signal_demo");
+    assert_eq!(signal_payload["state"], "accepted");
 }
 
 #[tokio::test]
@@ -2665,6 +2767,123 @@ async fn test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idemp
     let conflicting_json: serde_json::Value = serde_json::from_slice(&conflicting_body)
         .expect("conflicting rtc create should be valid json");
     assert_eq!(conflicting_json["code"], "rtc_session_conflict");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_retrieves_rtc_session_for_state_backfill() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .demo_app_context()
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_rtc_retrieve",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create rtc retrieve conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let create_rtc = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/rtc/sessions")
+                .demo_app_context()
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "rtcSessionId":"rtc_retrieve",
+                        "conversationId":"c_rtc_retrieve",
+                        "rtcMode":"voice"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create rtc retrieve session should succeed");
+    assert_eq!(create_rtc.status(), StatusCode::OK);
+
+    let accept_rtc = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/rtc/sessions/rtc_retrieve/accept")
+                .demo_app_context()
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "artifactMessageId":"msg_rtc_retrieve_accept"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("accept rtc retrieve session should succeed");
+    assert_eq!(accept_rtc.status(), StatusCode::OK);
+
+    let retrieve_rtc = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/im/v3/api/rtc/sessions/rtc_retrieve")
+                .demo_app_context()
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("retrieve rtc session should return response");
+    assert_eq!(retrieve_rtc.status(), StatusCode::OK);
+    let retrieve_body = retrieve_rtc
+        .into_body()
+        .collect()
+        .await
+        .expect("retrieve rtc session body should collect")
+        .to_bytes();
+    let retrieve_json: serde_json::Value =
+        serde_json::from_slice(&retrieve_body).expect("retrieve rtc session should be valid json");
+    assert_eq!(retrieve_json["rtcSessionId"], "rtc_retrieve");
+    assert_eq!(retrieve_json["conversationId"], "c_rtc_retrieve");
+    assert_eq!(retrieve_json["rtcMode"], "voice");
+    assert_eq!(retrieve_json["state"], "accepted");
+    assert_eq!(
+        retrieve_json["artifactMessageId"],
+        "msg_rtc_retrieve_accept"
+    );
+
+    let missing_rtc = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/im/v3/api/rtc/sessions/rtc_retrieve_missing")
+                .demo_app_context()
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("missing rtc session retrieve should return response");
+    assert_eq!(missing_rtc.status(), StatusCode::NOT_FOUND);
+    let missing_body = missing_rtc
+        .into_body()
+        .collect()
+        .await
+        .expect("missing rtc session body should collect")
+        .to_bytes();
+    let missing_json: serde_json::Value =
+        serde_json::from_slice(&missing_body).expect("missing rtc session should be valid json");
+    assert_eq!(missing_json["code"], "rtc_session_not_found");
 }
 
 #[tokio::test]
@@ -3709,6 +3928,152 @@ async fn test_local_minimal_profile_exposes_device_sync_feed_for_multi_device_re
 }
 
 #[tokio::test]
+async fn test_local_minimal_profile_preserves_media_message_payload_in_device_sync_feed() {
+    let app = local_minimal_node::build_default_app();
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_sync_feed_media",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create media sync conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    register_device_for_test(&app, "u_demo", "d_phone").await;
+    register_device_for_test(&app, "u_demo", "d_pad").await;
+
+    let post_message = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_sync_feed_media/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_phone")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_sync_feed_media_1",
+                        "summary":"offline image",
+                        "renderHints":{
+                            "sdkworkChatPcType":"image",
+                            "fileName":"offline-image.png",
+                            "fileSize":"4.0 KB"
+                        },
+                        "replyTo":{
+                            "messageId":"msg_root",
+                            "senderDisplayName":"Alice",
+                            "contentPreview":"root message"
+                        },
+                        "parts":[{
+                            "kind":"media",
+                            "mediaRole":"attachment",
+                            "drive":{
+                                "driveUri":"drive://spaces/space_sync_feed_media/nodes/node_sync_feed_media_1",
+                                "spaceId":"space_sync_feed_media",
+                                "nodeId":"node_sync_feed_media_1"
+                            },
+                            "resource":{
+                                "id":"node_sync_feed_media_1",
+                                "kind":"image",
+                                "source":"drive",
+                                "url":"https://cdn.example.test/offline-image.png",
+                                "publicUrl":"https://cdn.example.test/offline-image.png",
+                                "uri":"drive://spaces/space_sync_feed_media/nodes/node_sync_feed_media_1",
+                                "objectBlobId":null,
+                                "fileName":"offline-image.png",
+                                "mimeType":"image/png",
+                                "sizeBytes":"4096",
+                                "checksum":null,
+                                "width":640,
+                                "height":480,
+                                "durationSeconds":null,
+                                "altText":null,
+                                "title":"offline image",
+                                "poster":null,
+                                "thumbnails":null,
+                                "variants":null,
+                                "access":null,
+                                "ai":null,
+                                "metadata":{"origin":"pc"}
+                            }
+                        }]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post media message should succeed");
+    assert_eq!(post_message.status(), StatusCode::OK);
+
+    let sync_feed = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/devices/d_pad/sync_feed?afterSeq=0")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_pad")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("media sync feed should succeed");
+    assert_eq!(sync_feed.status(), StatusCode::OK);
+    let sync_feed_body = sync_feed
+        .into_body()
+        .collect()
+        .await
+        .expect("media sync feed body should collect")
+        .to_bytes();
+    let sync_feed_json: serde_json::Value =
+        serde_json::from_slice(&sync_feed_body).expect("media sync feed should be valid json");
+
+    let items = sync_feed_json["items"]
+        .as_array()
+        .expect("items should be an array");
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["originEventType"], "message.posted");
+    assert_eq!(items[0]["payloadSchema"], "message.posted.v1");
+    let payload: serde_json::Value = serde_json::from_str(
+        items[0]["payload"]
+            .as_str()
+            .expect("media message sync feed payload should be present"),
+    )
+    .expect("media message sync feed payload should be valid json");
+    assert_eq!(payload["body"]["parts"][0]["kind"], "media");
+    assert_eq!(payload["body"]["parts"][0]["resource"]["kind"], "image");
+    assert_eq!(
+        payload["body"]["parts"][0]["resource"]["publicUrl"],
+        "https://cdn.example.test/offline-image.png"
+    );
+    assert_eq!(
+        payload["body"]["parts"][0]["resource"]["fileName"],
+        "offline-image.png"
+    );
+    assert_eq!(payload["body"]["parts"][0]["resource"]["sizeBytes"], "4096");
+    assert_eq!(payload["body"]["renderHints"]["sdkworkChatPcType"], "image");
+    assert_eq!(payload["body"]["replyTo"]["messageId"], "msg_root");
+}
+
+#[tokio::test]
 async fn test_local_minimal_profile_resumes_session_and_returns_presence_snapshot() {
     let app = local_minimal_node::build_default_app();
 
@@ -4597,358 +4962,57 @@ async fn test_local_minimal_profile_preserves_message_post_audit_for_max_length_
 }
 
 #[tokio::test]
-async fn test_local_minimal_profile_fanouts_message_notifications_to_other_active_members_only() {
+async fn test_local_minimal_profile_does_not_mount_appbase_owned_notification_routes() {
     let app = local_minimal_node::build_default_app();
 
-    let create_conversation = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_notification_fanout",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation should succeed");
-    assert_eq!(create_conversation.status(), StatusCode::OK);
-
-    let add_member = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_notification_fanout/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "principalId":"u_member",
-                        "principalKind":"user",
-                        "role":"member"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("add member should succeed");
-    assert_eq!(add_member.status(), StatusCode::OK);
-
-    let post_message = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_notification_fanout/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "clientMsgId":"client_notification_fanout",
-                        "summary":"hello member",
-                        "text":"hello member"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("post message should succeed");
-    assert_eq!(post_message.status(), StatusCode::OK);
-
-    let owner_notifications = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/im/v3/api/notifications")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("owner notifications should succeed");
-    assert_eq!(owner_notifications.status(), StatusCode::OK);
-    let owner_notifications_body = owner_notifications
-        .into_body()
-        .collect()
-        .await
-        .expect("owner notifications body should collect")
-        .to_bytes();
-    let owner_notifications_json: serde_json::Value =
-        serde_json::from_slice(&owner_notifications_body)
-            .expect("owner notifications should be valid json");
-    assert_eq!(
-        owner_notifications_json["items"]
-            .as_array()
-            .expect("owner items should be array")
-            .len(),
-        0
-    );
-
-    let member_notifications = app
-        .oneshot(
-            Request::builder()
-                .uri("/im/v3/api/notifications")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_member")
-                .header("x-sdkwork-actor-kind", "user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("member notifications should succeed");
-    assert_eq!(member_notifications.status(), StatusCode::OK);
-    let member_notifications_body = member_notifications
-        .into_body()
-        .collect()
-        .await
-        .expect("member notifications body should collect")
-        .to_bytes();
-    let member_notifications_json: serde_json::Value =
-        serde_json::from_slice(&member_notifications_body)
-            .expect("member notifications should be valid json");
-    let items = member_notifications_json["items"]
-        .as_array()
-        .expect("member items should be array");
-    assert_eq!(items.len(), 1);
-    assert_eq!(items[0]["category"], "message.new");
-    assert_eq!(items[0]["recipientId"], "u_member");
-    assert_eq!(items[0]["sourceEventType"], "message.posted");
-    assert_eq!(items[0]["title"], "hello member");
-}
-
-#[tokio::test]
-async fn test_local_minimal_profile_rejects_notification_queries_from_different_actor_kind() {
-    let app = local_minimal_node::build_default_app();
-
-    let create_notification = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_sender")
-                .header("x-sdkwork-actor-kind", "user")
+    for (method, path, body) in [
+        ("GET", "/app/v3/api/notifications", Body::empty()),
+        (
+            "GET",
+            "/app/v3/api/notifications/ntf_local_actor_kind_guard",
+            Body::empty(),
+        ),
+        (
+            "POST",
+            "/app/v3/api/notifications/requests",
+            Body::from(
+                r#"{
+                    "notificationId":"ntf_local_appbase_boundary",
+                    "sourceEventId":"evt_local_appbase_boundary",
+                    "sourceEventType":"message.posted",
+                    "category":"message.new",
+                    "channel":"inapp",
+                    "recipientId":"u_demo",
+                    "recipientKind":"user",
+                    "title":"New message",
+                    "body":"hello",
+                    "payload":"{\"conversationId\":\"c_demo\"}"
+                }"#,
+            ),
+        ),
+    ] {
+        let mut builder = Request::builder()
+            .method(method)
+            .uri(path)
+            .header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_demo")
+            .header("x-sdkwork-actor-kind", "user");
+        if method == "POST" {
+            builder = builder
                 .header("x-sdkwork-permission-scope", "notification.write")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "notificationId":"ntf_local_actor_kind_guard",
-                        "sourceEventId":"evt_local_actor_kind_guard",
-                        "sourceEventType":"message.posted",
-                        "category":"message.new",
-                        "channel":"inapp",
-                        "recipientId":"u_demo",
-                        "recipientKind":"user",
-                        "title":"New message",
-                        "body":"hello",
-                        "payload":"{\"conversationId\":\"c_demo\"}"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create notification should succeed");
-    assert_eq!(create_notification.status(), StatusCode::OK);
-
-    let recipient_notifications = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/im/v3/api/notifications")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("recipient notifications should succeed");
-    assert_eq!(recipient_notifications.status(), StatusCode::OK);
-    let recipient_notifications_body = recipient_notifications
-        .into_body()
-        .collect()
-        .await
-        .expect("recipient notifications body should collect")
-        .to_bytes();
-    let recipient_notifications_json: serde_json::Value =
-        serde_json::from_slice(&recipient_notifications_body)
-            .expect("recipient notifications should be valid json");
-    let recipient_items = recipient_notifications_json["items"]
-        .as_array()
-        .expect("recipient items should be array");
-    assert_eq!(recipient_items.len(), 1);
-    assert_eq!(
-        recipient_items[0]["notificationId"],
-        "ntf_local_actor_kind_guard"
-    );
-    assert_eq!(recipient_items[0]["recipientKind"], "user");
-
-    let cross_kind_notifications = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/im/v3/api/notifications")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "system")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("cross-kind notifications should succeed");
-    assert_eq!(cross_kind_notifications.status(), StatusCode::OK);
-    let cross_kind_notifications_body = cross_kind_notifications
-        .into_body()
-        .collect()
-        .await
-        .expect("cross-kind notifications body should collect")
-        .to_bytes();
-    let cross_kind_notifications_json: serde_json::Value =
-        serde_json::from_slice(&cross_kind_notifications_body)
-            .expect("cross-kind notifications should be valid json");
-    assert_eq!(
-        cross_kind_notifications_json["items"]
-            .as_array()
-            .expect("cross-kind items should be array")
-            .len(),
-        0
-    );
-
-    let cross_kind_get = app
-        .oneshot(
-            Request::builder()
-                .uri("/im/v3/api/notifications/ntf_local_actor_kind_guard")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "system")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("cross-kind get should succeed");
-    assert_eq!(cross_kind_get.status(), StatusCode::NOT_FOUND);
-}
-
-#[tokio::test]
-async fn test_local_minimal_profile_preserves_notification_request_audit_for_max_length_notification_ids()
- {
-    let app = local_minimal_node::build_default_app();
-    let notification_id = format!("ntf_{}", "n".repeat(508));
-
-    let create_notification = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_sender")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "notification.write")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    serde_json::json!({
-                        "notificationId": notification_id,
-                        "sourceEventId": "evt_local_notification_audit_long_id",
-                        "sourceEventType": "message.posted",
-                        "category": "message.new",
-                        "channel": "inapp",
-                        "recipientId": "u_demo",
-                        "recipientKind": "user",
-                        "title": "New message",
-                        "body": "hello",
-                        "payload": "{\"conversationId\":\"c_demo\"}",
-                    })
-                    .to_string(),
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create notification should succeed");
-    assert_eq!(create_notification.status(), StatusCode::OK);
-    let create_notification_body = create_notification
-        .into_body()
-        .collect()
-        .await
-        .expect("create notification body should collect")
-        .to_bytes();
-    let create_notification_json: serde_json::Value =
-        serde_json::from_slice(&create_notification_body)
-            .expect("create notification should be valid json");
-    assert_eq!(create_notification_json["notificationId"], notification_id);
-
-    let audit_export = app
-        .oneshot(
-            Request::builder()
-                .uri("/backend/v3/api/audit/export")
-                .header("x-sdkwork-permission-scope", "audit.read")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_sender")
-                .header("x-sdkwork-actor-kind", "user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("audit export should succeed");
-    assert_eq!(audit_export.status(), StatusCode::OK);
-    let audit_export_body = audit_export
-        .into_body()
-        .collect()
-        .await
-        .expect("audit export body should collect")
-        .to_bytes();
-    let audit_export_json: serde_json::Value =
-        serde_json::from_slice(&audit_export_body).expect("audit export should be valid json");
-    let notification_audit = audit_export_json["items"]
-        .as_array()
-        .expect("audit items should be array")
-        .iter()
-        .find(|item| {
-            item["action"] == "notification.requested"
-                && item["payload"].as_str().is_some_and(|payload| {
-                    serde_json::from_str::<serde_json::Value>(payload)
-                        .ok()
-                        .and_then(|value| {
-                            value["notificationId"]
-                                .as_str()
-                                .map(|notification_id_in_payload| {
-                                    notification_id_in_payload == notification_id
-                                })
-                        })
-                        .unwrap_or(false)
-                })
-        })
-        .expect("notification.requested audit should be recorded for legal long notification ids");
-    let notification_payload: serde_json::Value = serde_json::from_str(
-        notification_audit["payload"]
-            .as_str()
-            .expect("payload should be present"),
-    )
-    .expect("notification audit payload should be valid json");
-    assert_eq!(notification_payload["recipientId"], "u_demo");
-    assert_eq!(notification_payload["sourceEventType"], "message.posted");
+                .header("content-type", "application/json");
+        }
+        let response = app
+            .clone()
+            .oneshot(builder.body(body).unwrap())
+            .await
+            .expect("appbase-owned notification route should return response");
+        assert_eq!(
+            response.status(),
+            StatusCode::NOT_FOUND,
+            "{method} {path} must not be mounted by local-minimal-node"
+        );
+    }
 }
 
 #[tokio::test]
@@ -6472,7 +6536,27 @@ async fn test_local_minimal_profile_derives_standardized_summaries_for_rich_mess
                             },
                             {
                                 "kind":"media",
-                                "mediaAssetId":"asset_ai_generated_demo"
+                                "mediaRole":"generated_output",
+                                "drive":{
+                                    "driveUri":"drive://spaces/space_ai_generated_demo/nodes/node_asset_ai_generated_demo",
+                                    "spaceId":"space_ai_generated_demo",
+                                    "nodeId":"node_asset_ai_generated_demo"
+                                },
+                                "resource":{
+                                    "id":"node_asset_ai_generated_demo",
+                                    "kind":"image",
+                                    "source":"generated",
+                                    "uri":"drive://spaces/space_ai_generated_demo/nodes/node_asset_ai_generated_demo",
+                                    "mimeType":"image/png",
+                                    "title":"Shanghai skyline at sunset",
+                                    "ai":{
+                                        "provenance":"generated",
+                                        "provider":"openai",
+                                        "model":"gpt-image-1",
+                                        "promptId":"prompt_ai_image_demo",
+                                        "moderationStatus":"approved"
+                                    }
+                                }
                             }
                         ]
                     }"#,
@@ -10122,7 +10206,7 @@ async fn test_local_minimal_profile_gets_rtc_provider_health_over_http() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/rtc/provider_health")
+                .uri("/app/v3/api/rtc/provider_health")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -10182,7 +10266,7 @@ async fn test_local_minimal_profile_maps_rtc_provider_callback_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/rtc/provider_callbacks")
+                .uri("/app/v3/api/rtc/provider_callbacks")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -10266,19 +10350,23 @@ async fn test_local_minimal_profile_gets_rtc_recording_artifact_over_http() {
 
     assert_eq!(artifact_json["tenantId"], "t_demo");
     assert_eq!(artifact_json["rtcSessionId"], "rtc_local_recording_http");
-    assert_eq!(artifact_json["bucket"], "rtc-artifacts");
     assert_eq!(
-        artifact_json["objectKey"],
-        "recordings/t_demo/rtc_local_recording_http.mp4"
+        artifact_json["drive"]["driveUri"],
+        "drive://spaces/space_rtc_recordings/nodes/node_rtc_local_recording_http"
     );
     assert_eq!(
-        artifact_json["storageProvider"],
-        "object-storage-volcengine"
+        artifact_json["resource"]["uri"],
+        "drive://spaces/space_rtc_recordings/nodes/node_rtc_local_recording_http"
     );
-    assert_eq!(
-        artifact_json["playbackUrl"],
-        "https://tos.volcengine.local/rtc-artifacts/recordings/t_demo/rtc_local_recording_http.mp4?provider=object-storage-volcengine&expires=3600"
-    );
+    assert_eq!(artifact_json["resource"]["kind"], "video");
+    assert_eq!(artifact_json["resource"]["source"], "provider_asset");
+    assert_eq!(artifact_json["mediaRole"], "rtc_recording");
+    for forbidden in ["bucket", "objectKey", "storageProvider", "playbackUrl"] {
+        assert!(
+            artifact_json.get(forbidden).is_none(),
+            "local-minimal recording artifact must not expose object-storage field {forbidden}"
+        );
+    }
 }
 
 #[tokio::test]
@@ -11137,7 +11225,7 @@ async fn test_local_minimal_profile_recovers_existing_pending_friend_request_for
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/control/social/friend-requests")
+                .uri("/backend/v3/api/control/social/friend_requests")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")
@@ -11360,6 +11448,62 @@ async fn test_local_minimal_profile_friend_request_acceptance_creates_direct_cha
 }
 
 #[tokio::test]
+async fn test_local_minimal_profile_friend_acceptance_direct_chat_supports_two_user_messages() {
+    let app = local_minimal_node::build_default_app();
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    let alice_post = post_standard_message_for_test(
+        &app,
+        fixture.conversation_id.as_str(),
+        "u_alice",
+        "client_direct_chat_alice_1",
+        "hello bob from alice",
+    )
+    .await;
+    assert_eq!(alice_post.status(), StatusCode::OK);
+
+    let bob_post = post_standard_message_for_test(
+        &app,
+        fixture.conversation_id.as_str(),
+        "u_bob",
+        "client_direct_chat_bob_1",
+        "hello alice from bob",
+    )
+    .await;
+    assert_eq!(bob_post.status(), StatusCode::OK);
+
+    let alice_summaries =
+        list_message_summaries_for_test(&app, fixture.conversation_id.as_str(), "u_alice").await;
+    assert!(
+        alice_summaries
+            .iter()
+            .any(|summary| summary == "hello bob from alice"),
+        "alice timeline must include alice's direct chat message"
+    );
+    assert!(
+        alice_summaries
+            .iter()
+            .any(|summary| summary == "hello alice from bob"),
+        "alice timeline must include bob's direct chat message"
+    );
+
+    let bob_summaries =
+        list_message_summaries_for_test(&app, fixture.conversation_id.as_str(), "u_bob").await;
+    assert!(
+        bob_summaries
+            .iter()
+            .any(|summary| summary == "hello bob from alice"),
+        "bob timeline must include alice's direct chat message"
+    );
+    assert!(
+        bob_summaries
+            .iter()
+            .any(|summary| summary == "hello alice from bob"),
+        "bob timeline must include bob's direct chat message"
+    );
+}
+
+#[tokio::test]
 async fn test_local_minimal_profile_rejects_friend_request_submit_for_blocked_pair() {
     let app = local_minimal_node::build_default_app();
 
@@ -11368,7 +11512,7 @@ async fn test_local_minimal_profile_rejects_friend_request_submit_for_blocked_pa
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/control/social/user-blocks")
+                .uri("/backend/v3/api/control/social/user_blocks")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")
@@ -11464,7 +11608,7 @@ async fn test_local_minimal_profile_rejects_friend_request_accept_for_blocked_pa
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/control/social/user-blocks")
+                .uri("/backend/v3/api/control/social/user_blocks")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")
@@ -11518,7 +11662,7 @@ async fn test_local_minimal_profile_rejects_friend_request_accept_for_blocked_pa
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/backend/v3/api/control/social/friend-requests/{request_id}"
+                    "/backend/v3/api/control/social/friend_requests/{request_id}"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
@@ -11885,7 +12029,7 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/backend/v3/api/control/social/friend-requests/{request_id}/accept"
+                    "/backend/v3/api/control/social/friend_requests/{request_id}/accept"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_bob")
@@ -12046,7 +12190,7 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/backend/v3/api/control/social/friend-requests/{request_id}/decline"
+                    "/backend/v3/api/control/social/friend_requests/{request_id}/decline"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_bob")
@@ -12091,7 +12235,7 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/backend/v3/api/control/social/friend-requests/{request_id}"
+                    "/backend/v3/api/control/social/friend_requests/{request_id}"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
@@ -12188,7 +12332,7 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/backend/v3/api/control/social/friend-requests/{request_id}/cancel"
+                    "/backend/v3/api/control/social/friend_requests/{request_id}/cancel"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")
@@ -12233,7 +12377,7 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/backend/v3/api/control/social/friend-requests/{request_id}"
+                    "/backend/v3/api/control/social/friend_requests/{request_id}"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
@@ -12305,7 +12449,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
     let friendship_snapshot_uri =
         format!("/backend/v3/api/control/social/friendships/{friendship_id}");
     let request_snapshot_uri =
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}");
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}");
 
     let accept_app = app.clone();
     let accept_task = tokio::spawn(async move {
@@ -12573,7 +12717,7 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
 
     let accept_uri = format!("/im/v3/api/social/friend_requests/{request_id}/accept");
     let request_snapshot_uri =
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}");
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}");
     let friendship_snapshot_uri =
         format!("/backend/v3/api/control/social/friendships/{friendship_id}");
 
@@ -12767,7 +12911,7 @@ async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request
         .to_owned();
 
     let request_snapshot_uri =
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}");
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}");
     let accept_uri = format!("/im/v3/api/social/friend_requests/{request_id}/accept");
 
     let accept_app = app.clone();
@@ -12921,7 +13065,7 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
 
     let accept_uri = format!("/im/v3/api/social/friend_requests/{request_id}/accept");
     let request_snapshot_uri =
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}");
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}");
     let friendship_snapshot_uri =
         format!("/backend/v3/api/control/social/friendships/{friendship_id}");
 
@@ -13116,7 +13260,7 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
 
     let accept_uri = format!("/im/v3/api/social/friend_requests/{request_id}/accept");
     let request_snapshot_uri =
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}");
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}");
     let friendship_snapshot_uri =
         format!("/backend/v3/api/control/social/friendships/{friendship_id}");
 
@@ -13375,7 +13519,7 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
 
     let accept_uri = format!("/im/v3/api/social/friend_requests/{request_id}/accept");
     let request_snapshot_uri =
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}");
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}");
     let friendship_snapshot_uri =
         format!("/backend/v3/api/control/social/friendships/{friendship_id}");
 
@@ -13568,7 +13712,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
         .to_owned();
     let first_friendship_id = deterministic_social_id_for_test("fs_", first_request_id.as_str());
     let first_request_snapshot_uri =
-        format!("/backend/v3/api/control/social/friend-requests/{first_request_id}");
+        format!("/backend/v3/api/control/social/friend_requests/{first_request_id}");
     let first_friendship_snapshot_uri =
         format!("/backend/v3/api/control/social/friendships/{first_friendship_id}");
 
@@ -13683,7 +13827,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
         .to_owned();
     let second_friendship_id = deterministic_social_id_for_test("fs_", second_request_id.as_str());
     let second_request_snapshot_uri =
-        format!("/backend/v3/api/control/social/friend-requests/{second_request_id}");
+        format!("/backend/v3/api/control/social/friend_requests/{second_request_id}");
     let second_friendship_snapshot_uri =
         format!("/backend/v3/api/control/social/friendships/{second_friendship_id}");
 
@@ -13925,7 +14069,7 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/backend/v3/api/control/social/friend-requests/{request_id}/accept"
+                    "/backend/v3/api/control/social/friend_requests/{request_id}/accept"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_bob")
@@ -14125,7 +14269,7 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/control/social/user-blocks")
+                .uri("/backend/v3/api/control/social/user_blocks")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")
@@ -14309,7 +14453,7 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/backend/v3/api/control/social/friend-requests/{request_id}/cancel"
+                    "/backend/v3/api/control/social/friend_requests/{request_id}/cancel"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")
@@ -14363,7 +14507,7 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
             Request::builder()
                 .method("GET")
                 .uri(format!(
-                    "/backend/v3/api/control/social/friend-requests/{request_id}"
+                    "/backend/v3/api/control/social/friend_requests/{request_id}"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
@@ -14437,7 +14581,7 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/control/social/user-blocks")
+                .uri("/backend/v3/api/control/social/user_blocks")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")
@@ -14467,7 +14611,7 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/backend/v3/api/control/social/friend-requests/{request_id}"))
+                .uri(format!("/backend/v3/api/control/social/friend_requests/{request_id}"))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")
@@ -14554,7 +14698,7 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/backend/v3/api/control/social/friend-requests/{request_id}"))
+                .uri(format!("/backend/v3/api/control/social/friend_requests/{request_id}"))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")
@@ -14927,7 +15071,7 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/control/social/user-blocks")
+                .uri("/backend/v3/api/control/social/user_blocks")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")

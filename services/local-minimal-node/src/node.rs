@@ -10,9 +10,9 @@ use audit_service::{
     AuditExportBundle, AuditRecordMutationResponse, AuditRuntime, RecordAuditAnchor,
     audit_record_request_key,
 };
-use automation_service::{AutomationExecution, AutomationRuntime, RequestAutomationExecution};
+use automation_service::AutomationRuntime;
 use axum::extract::ws::WebSocketUpgrade;
-use axum::extract::{Path, Query, State};
+use axum::extract::{Extension, Path, Query, State};
 use axum::http::HeaderMap;
 use axum::http::Request;
 use axum::http::header::CONTENT_TYPE;
@@ -21,14 +21,16 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::{
     Json, Router,
-    routing::{get, post},
+    routing::{delete, get, patch, post},
 };
 use control_plane_api::SocialControlQuery;
 use conversation_runtime::{
-    AgentHandoffStateView, BindDirectChatConversationCommand, ChangeConversationMemberRoleResult,
-    ConversationRuntime, CreateConversationResult, EditMessageCommand, MessageMutationResult,
-    PostMessageCommand, PostMessageResult, PublishSystemChannelMessageCommand,
-    RecallMessageCommand, TransferConversationOwnerResult,
+    AddMessageReactionCommand, AgentHandoffStateView, BindDirectChatConversationCommand,
+    ChangeConversationMemberRoleResult, ConversationRuntime, CreateConversationResult,
+    EditMessageCommand, MessageMutationResult, MessagePinMutationResult,
+    MessageReactionMutationResult, PinMessageCommand, PostMessageCommand, PostMessageResult,
+    PublishSystemChannelMessageCommand, RecallMessageCommand, RemoveMessageReactionCommand,
+    TransferConversationOwnerResult, UnpinMessageCommand,
 };
 use im_adapters_local_disk::{
     FileAutomationExecutionStore, FileCommitJournal, FileMetadataStore, FileNotificationTaskStore,
@@ -36,11 +38,10 @@ use im_adapters_local_disk::{
     FileRealtimeEventWindowStore, FileRealtimeSubscriptionStore, FileRtcStateStore,
     FileStreamStateStore, FileTimelineProjectionStore, read_commit_journal_file,
     validate_automation_execution_store_file, validate_commit_journal_file,
-    validate_device_twin_store_file, validate_notification_task_store_file,
-    validate_presence_state_store_file, validate_realtime_checkpoint_store_file,
-    validate_realtime_disconnect_fence_store_file, validate_realtime_event_window_store_file,
-    validate_realtime_subscription_store_file, validate_rtc_state_store_file,
-    validate_stream_state_store_file,
+    validate_notification_task_store_file, validate_presence_state_store_file,
+    validate_realtime_checkpoint_store_file, validate_realtime_disconnect_fence_store_file,
+    validate_realtime_event_window_store_file, validate_realtime_subscription_store_file,
+    validate_rtc_state_store_file, validate_stream_state_store_file,
 };
 use im_adapters_local_memory::{MemoryCommitJournal, MemoryRealtimeCheckpointStore};
 use im_app_context::{AppContext, AppContextError};
@@ -48,26 +49,18 @@ use im_domain_core::conversation::{
     ConversationInboxEntry, ConversationMember, ConversationReadCursorView, MembershipRole,
 };
 use im_domain_core::device_session::{DeviceSessionResumeView, PresenceSnapshotView};
-use im_domain_core::media::MediaProcessingState;
-use im_domain_core::message::{ContentPart, MediaPart, MessageBody, MessageType, SignalPart};
+use im_domain_core::message::{ContentPart, MessageBody, MessageType, SignalPart};
 use im_domain_core::realtime::RealtimeSubscription;
 use im_domain_core::social::{DirectChat, FriendRequest, Friendship};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
-    CommitJournal, CommitPosition, ContractError, DeviceAccessProvider, DeviceTwinStore,
-    EffectiveProviderBinding, IotProtocolAdapter, MetadataStore,
-    PROVIDER_REGISTRY_INTERFACE_VERSION, PrincipalProfileProvider, ProviderDomain,
-    ProviderPluginDescriptor, ProviderRegistry, RealtimeCheckpointRecord,
-    RealtimeDisconnectFenceRecord, RealtimeEventWindowRecord, RealtimeSubscriptionRecord,
-    RtcStateRecord, StaticProviderRegistry, StreamStateRecord,
+    CommitJournal, CommitPosition, ContractError, DeviceAccessProvider, EffectiveProviderBinding,
+    IotProtocolAdapter, MetadataStore, PROVIDER_REGISTRY_INTERFACE_VERSION,
+    PrincipalProfileProvider, ProviderDomain, ProviderPluginDescriptor, ProviderRegistry,
+    RealtimeCheckpointRecord, RealtimeDisconnectFenceRecord, RealtimeEventWindowRecord,
+    RealtimeSubscriptionRecord, RtcStateRecord, StaticProviderRegistry, StreamStateRecord,
 };
-use media_service::{
-    CompleteUploadRequest, CreateUploadRequest, MediaRuntime, MediaUploadMutationResponse,
-    media_complete_upload_request_key, media_create_upload_request_key,
-};
-use notification_service::{
-    NotificationRequestResponse, NotificationRuntime, NotificationTask, RequestNotification,
-};
+use notification_service::NotificationRuntime;
 use ops_service::{
     ClusterView, DiagnosticBundle, LagItem, LagView, OpsHealthResponse, OpsRuntime,
     ProviderBindingDriftView, ProviderBindingItemView, ProviderBindingSnapshotView,
@@ -98,6 +91,7 @@ use streaming_service::{
     stream_append_request_key, stream_checkpoint_request_key, stream_complete_request_key,
     stream_open_request_key,
 };
+use tokio::sync::Semaphore;
 
 mod access;
 mod build;
@@ -107,12 +101,9 @@ mod device_registration;
 mod device_session;
 mod effects;
 mod handoff;
-mod iot;
-mod media;
 mod membership;
 mod message;
 mod platform;
-mod portal;
 mod principal_profile;
 mod projection;
 mod realtime_policy;
@@ -121,7 +112,6 @@ mod runtime_dir;
 mod side_effect_outbox;
 mod social;
 mod stream;
-mod twin;
 
 use self::device_registration::{DisconnectActiveDeviceRouteOutcome, LocalNodeDeviceRegistration};
 
@@ -171,9 +161,7 @@ struct AppState {
     device_presence_runtime: Arc<DevicePresenceRuntime>,
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
     device_registration: LocalNodeDeviceRegistration,
-    device_twin_store: Arc<dyn DeviceTwinStore>,
     iot_protocol_adapter: Arc<dyn IotProtocolAdapter>,
-    media_runtime: Arc<MediaRuntime>,
     streaming_runtime: Arc<StreamingRuntime>,
     rtc_runtime: Arc<RtcRuntime>,
     notification_runtime: Arc<NotificationRuntime>,
@@ -181,6 +169,13 @@ struct AppState {
     audit_runtime: Arc<AuditRuntime>,
     ops_runtime: Arc<OpsRuntime>,
     message_side_effect_outbox: Arc<dyn side_effect_outbox::MessageSideEffectOutboxStore>,
+    conversation_preferences: Arc<std::sync::Mutex<BTreeMap<String, ConversationPreferencesView>>>,
+    conversation_profiles: Arc<std::sync::Mutex<BTreeMap<String, ConversationProfileView>>>,
+    contact_preferences: Arc<std::sync::Mutex<BTreeMap<String, ContactPreferencesView>>>,
+    contact_tags: Arc<std::sync::Mutex<BTreeMap<String, ContactTagView>>>,
+    contact_recommendations: Arc<std::sync::Mutex<BTreeMap<String, ContactRecommendationView>>>,
+    message_visibility: Arc<std::sync::Mutex<BTreeMap<String, MessageVisibilityMutationResult>>>,
+    message_favorites: Arc<std::sync::Mutex<BTreeMap<String, MessageFavoriteView>>>,
     projection_replay_state: Arc<std::sync::Mutex<ProjectionReplayAuthorityState>>,
     pending_friend_request_accept_repairs:
         Arc<std::sync::Mutex<PendingFriendRequestAcceptanceRepairStore>>,
@@ -236,12 +231,28 @@ const PROJECTION_TIMELINE_FILE_NAME: &str = "projection-timeline.json";
 const PROJECTION_SNAPSHOT_CHECKPOINT_KEY: &str = "conversation-snapshot-checkpoint";
 const LOCAL_NODE_AUDIT_AGGREGATE_ID_MAX_BYTES: usize = 256;
 const LOCAL_NODE_AUDIT_RECORD_ID_MAX_BYTES: usize = 256;
+const LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS_ENV: &str =
+    "CRAW_CHAT_LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS";
+const LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
+const LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 50_000;
+const LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES_ENV: &str =
+    "CRAW_CHAT_LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES";
+const LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
+const LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
+const LOCAL_MINIMAL_NODE_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
+    "CRAW_CHAT_LOCAL_MINIMAL_NODE_REQUIRE_DUAL_TOKEN_HEADERS";
 const IM_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_IM_OPENAPI_SCHEMA_PATH";
 const APP_API_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_APP_API_OPENAPI_SCHEMA_PATH";
 const BACKEND_API_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_BACKEND_API_OPENAPI_SCHEMA_PATH";
 const IM_OPENAPI_SCHEMA_PATH: &str = "/im/v3/openapi.json";
 const APP_API_OPENAPI_SCHEMA_PATH: &str = "/app/v3/openapi.json";
 const BACKEND_API_OPENAPI_SCHEMA_PATH: &str = "/backend/v3/openapi.json";
+
+#[derive(Clone)]
+pub(crate) struct PublicAppGuardrails {
+    request_gate: Arc<Semaphore>,
+    require_dual_token_headers: bool,
+}
 const IM_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
     include_str!("../../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml");
 const APP_API_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
@@ -328,18 +339,6 @@ impl AppState {
         )
     }
 
-    fn iot_access_provider_health(&self) -> im_platform_contracts::ProviderHealthSnapshot {
-        self.device_registration.provider_health_snapshot()
-    }
-
-    fn iot_protocol_provider_health(&self) -> im_platform_contracts::ProviderHealthSnapshot {
-        self.iot_protocol_adapter.provider_health_snapshot()
-    }
-
-    fn principal_profile_provider_health(&self) -> im_platform_contracts::ProviderHealthSnapshot {
-        self.principal_profile_provider.provider_health_snapshot()
-    }
-
     fn provider_binding_snapshots(&self) -> Vec<ProviderBindingSnapshotView> {
         let registry = StaticProviderRegistry::platform_default();
         let mut bindings = BTreeMap::new();
@@ -353,10 +352,6 @@ impl AppState {
         if let Ok(binding) = self.rtc_runtime.provider_binding(None) {
             bindings.insert(ProviderDomain::Rtc, binding);
         }
-        if let Ok(binding) = self.media_runtime.provider_binding(None) {
-            bindings.insert(ProviderDomain::ObjectStorage, binding);
-        }
-
         bindings.insert(
             ProviderDomain::PrincipalProfile,
             binding_from_descriptor(&registry, self.principal_profile_provider.descriptor()),
@@ -787,6 +782,76 @@ fn parse_projection_snapshot_scope(scope: &str) -> Option<(&str, &str)> {
     }
 }
 
+fn encode_local_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {
+    let mut encoded = String::new();
+    for segment in segments {
+        encoded.push_str(segment.len().to_string().as_str());
+        encoded.push('#');
+        encoded.push_str(segment);
+    }
+    encoded
+}
+
+fn conversation_preferences_key(
+    tenant_id: &str,
+    conversation_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+) -> String {
+    encode_local_key_segments([tenant_id, conversation_id, principal_kind, principal_id])
+}
+
+fn conversation_profile_key(tenant_id: &str, conversation_id: &str) -> String {
+    encode_local_key_segments([tenant_id, conversation_id])
+}
+
+fn contact_preferences_key(tenant_id: &str, owner_user_id: &str, target_user_id: &str) -> String {
+    encode_local_key_segments([tenant_id, owner_user_id, target_user_id])
+}
+
+fn contact_tag_key(tenant_id: &str, owner_user_id: &str, tag_id: &str) -> String {
+    encode_local_key_segments([tenant_id, owner_user_id, tag_id])
+}
+
+fn contact_recommendation_key(
+    tenant_id: &str,
+    owner_user_id: &str,
+    target_user_id: &str,
+    recommendation_id: &str,
+) -> String {
+    encode_local_key_segments([tenant_id, owner_user_id, target_user_id, recommendation_id])
+}
+
+fn message_visibility_key(
+    tenant_id: &str,
+    message_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+) -> String {
+    encode_local_key_segments([tenant_id, message_id, principal_kind, principal_id])
+}
+
+fn message_favorite_key(
+    tenant_id: &str,
+    favorite_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+) -> String {
+    encode_local_key_segments([tenant_id, principal_kind, principal_id, favorite_id])
+}
+
+fn message_favorite_id(
+    tenant_id: &str,
+    message_id: &str,
+    principal_kind: &str,
+    principal_id: &str,
+) -> String {
+    let digest = Sha256::digest(
+        encode_local_key_segments([tenant_id, message_id, principal_kind, principal_id]).as_bytes(),
+    );
+    format!("fav_{digest:x}").chars().take(40).collect()
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct HealthResponse {
@@ -801,6 +866,7 @@ struct PostMessageRequest {
     client_msg_id: Option<String>,
     summary: Option<String>,
     text: Option<String>,
+    reply_to: Option<im_domain_core::message::MessageReplyReference>,
     #[serde(default)]
     parts: Vec<ContentPart>,
     #[serde(default)]
@@ -812,10 +878,47 @@ struct PostMessageRequest {
 struct EditMessageRequest {
     summary: Option<String>,
     text: Option<String>,
+    reply_to: Option<im_domain_core::message::MessageReplyReference>,
     #[serde(default)]
     parts: Vec<ContentPart>,
     #[serde(default)]
     render_hints: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MessageReactionRequest {
+    reaction_key: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum MessageFavoriteType {
+    Link,
+    Image,
+    File,
+    Chat,
+}
+
+impl MessageFavoriteType {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Link => "link",
+            Self::Image => "image",
+            Self::File => "file",
+            Self::Chat => "chat",
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FavoriteMessageRequest {
+    conversation_id: String,
+    favorite_type: MessageFavoriteType,
+    title: String,
+    content_preview: String,
+    source_display_name: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -901,6 +1004,8 @@ struct ChangeConversationMemberRoleRequest {
 #[serde(rename_all = "camelCase")]
 struct ListMembersResponse {
     items: Vec<ConversationMember>,
+    next_cursor: Option<String>,
+    has_more: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -913,6 +1018,87 @@ struct InboxResponse {
 #[serde(rename_all = "camelCase")]
 struct ContactsResponse {
     items: Vec<ContactView>,
+    next_cursor: Option<String>,
+    has_more: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ContactPreferencesView {
+    tenant_id: String,
+    owner_user_id: String,
+    target_user_id: String,
+    is_starred: bool,
+    remark: String,
+    is_blocked: bool,
+    updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ContactTagView {
+    tenant_id: String,
+    owner_user_id: String,
+    tag_id: String,
+    name: String,
+    color: String,
+    count: u32,
+    bg: String,
+    border: String,
+    created_at: String,
+    updated_at: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ContactTagsResponse {
+    items: Vec<ContactTagView>,
+    next_cursor: Option<String>,
+    has_more: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateContactTagRequest {
+    name: String,
+    color: String,
+    count: Option<u32>,
+    bg: Option<String>,
+    border: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateContactTagRequest {
+    name: Option<String>,
+    color: Option<String>,
+    count: Option<u32>,
+    bg: Option<String>,
+    border: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteContactTagResponse {
+    tag_id: String,
+    deleted: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ContactRecommendationView {
+    tenant_id: String,
+    owner_user_id: String,
+    target_user_id: String,
+    recommendation_id: String,
+    target_conversation_id: Option<String>,
+    created_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateContactRecommendationRequest {
+    target_conversation_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -974,6 +1160,40 @@ struct SocialFriendRequestAcceptanceResponse {
     conversation: CreateConversationResult,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SocialUserSearchResult {
+    tenant_id: String,
+    user_id: String,
+    display_name: String,
+    relationship_state: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    avatar_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    metadata: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SocialUserSearchQuery {
+    q: Option<String>,
+    limit: Option<usize>,
+    cursor: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SocialUserSearchResponse {
+    items: Vec<SocialUserSearchResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    next_cursor: Option<String>,
+    has_more: bool,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SocialFriendshipMutationResponse {
@@ -990,6 +1210,87 @@ struct MemberDirectoryResponse {
 #[serde(rename_all = "camelCase")]
 struct PinnedMessagesResponse {
     items: Vec<MessageInteractionSummaryView>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct MessageFavoritesQuery {
+    limit: Option<usize>,
+    cursor: Option<String>,
+    favorite_type: Option<MessageFavoriteType>,
+    q: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MessageFavoriteView {
+    tenant_id: String,
+    principal_kind: String,
+    principal_id: String,
+    favorite_id: String,
+    favorite_type: String,
+    conversation_id: String,
+    message_id: String,
+    message_seq: u64,
+    title: String,
+    content_preview: String,
+    source_display_name: String,
+    favorited_at: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FavoriteMessagesResponse {
+    items: Vec<MessageFavoriteView>,
+    next_cursor: Option<String>,
+    has_more: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteMessageFavoriteResponse {
+    favorite_id: String,
+    deleted: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MessageVisibilityMutationResult {
+    tenant_id: String,
+    conversation_id: String,
+    message_id: String,
+    message_seq: u64,
+    principal_kind: String,
+    principal_id: String,
+    is_deleted: bool,
+    updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConversationPreferencesView {
+    tenant_id: String,
+    conversation_id: String,
+    principal_kind: String,
+    principal_id: String,
+    is_pinned: bool,
+    is_muted: bool,
+    is_marked_unread: bool,
+    is_hidden: bool,
+    updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConversationProfileView {
+    tenant_id: String,
+    conversation_id: String,
+    display_name: String,
+    avatar_url: String,
+    notice: String,
+    updated_at: String,
+    updated_by_principal_kind: Option<String>,
+    updated_by_principal_id: Option<String>,
 }
 
 type DeviceSyncFeedResponse = projection_service::DeviceSyncFeedWindowView;
@@ -1029,13 +1330,27 @@ struct UpdateReadCursorRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct AttachMediaRequest {
-    conversation_id: String,
-    client_msg_id: Option<String>,
-    summary: Option<String>,
-    text: Option<String>,
-    #[serde(default)]
-    render_hints: BTreeMap<String, String>,
+struct UpdateConversationPreferencesRequest {
+    is_pinned: Option<bool>,
+    is_muted: Option<bool>,
+    is_marked_unread: Option<bool>,
+    is_hidden: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateContactPreferencesRequest {
+    is_starred: Option<bool>,
+    remark: Option<String>,
+    is_blocked: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateConversationProfileRequest {
+    display_name: Option<String>,
+    avatar_url: Option<String>,
+    notice: Option<String>,
 }
 
 #[derive(Debug)]
@@ -1065,14 +1380,6 @@ impl ApiError {
     fn service_unavailable(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            code,
-            message: message.into(),
-        }
-    }
-
-    fn not_found(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            status: axum::http::StatusCode::NOT_FOUND,
             code,
             message: message.into(),
         }
@@ -1108,6 +1415,11 @@ impl From<conversation_runtime::RuntimeError> for ApiError {
             conversation_runtime::RuntimeError::ConversationTypeInvalid(message) => Self {
                 status: axum::http::StatusCode::BAD_REQUEST,
                 code: "conversation_type_invalid",
+                message,
+            },
+            conversation_runtime::RuntimeError::AgentIdInvalid(message) => Self {
+                status: axum::http::StatusCode::BAD_REQUEST,
+                code: "agent_id_invalid",
                 message,
             },
             conversation_runtime::RuntimeError::InvalidInput(message) => Self {
@@ -1294,23 +1606,22 @@ impl From<rtc_signaling_service::RtcError> for ApiError {
     }
 }
 
-impl From<media_service::MediaError> for ApiError {
-    fn from(value: media_service::MediaError) -> Self {
-        Self {
-            status: value.status(),
-            code: value.code(),
-            message: value.message().to_owned(),
-        }
-    }
-}
-
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
+        let status = self.status;
+        let detail = self.message;
+        let message = detail.clone();
+        let title = status.canonical_reason().unwrap_or("Unknown Error");
         (
-            self.status,
+            status,
+            [(CONTENT_TYPE, "application/problem+json; charset=utf-8")],
             Json(serde_json::json!({
+                "type": "about:blank",
+                "title": title,
+                "status": status.as_u16(),
+                "detail": detail,
                 "code": self.code,
-                "message": self.message
+                "message": message
             })),
         )
             .into_response()
@@ -1392,7 +1703,7 @@ pub fn resolve_backend_api_openapi_schema_source_path() -> PathBuf {
 
 fn load_im_openapi_schema_json() -> Result<Value, ApiError> {
     load_openapi_schema_json(
-        "IM",
+        "im-open-api",
         IM_OPENAPI_SCHEMA_PATH_ENV,
         "../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml",
         IM_OPENAPI_SCHEMA_EMBEDDED_YAML,
@@ -1401,7 +1712,7 @@ fn load_im_openapi_schema_json() -> Result<Value, ApiError> {
 
 fn load_app_api_openapi_schema_json() -> Result<Value, ApiError> {
     load_openapi_schema_json(
-        "app-api",
+        "im-app-api",
         APP_API_OPENAPI_SCHEMA_PATH_ENV,
         "../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml",
         APP_API_OPENAPI_SCHEMA_EMBEDDED_YAML,
@@ -1410,7 +1721,7 @@ fn load_app_api_openapi_schema_json() -> Result<Value, ApiError> {
 
 fn load_backend_api_openapi_schema_json() -> Result<Value, ApiError> {
     load_openapi_schema_json(
-        "backend-api",
+        "im-backend-api",
         BACKEND_API_OPENAPI_SCHEMA_PATH_ENV,
         "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml",
         BACKEND_API_OPENAPI_SCHEMA_EMBEDDED_YAML,
@@ -1490,7 +1801,11 @@ fn normalize_public_browser_origin(value: &str) -> Result<String, String> {
     ))
 }
 
-async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
+pub(crate) async fn require_app_context_with_guardrails(
+    State(guardrails): State<PublicAppGuardrails>,
+    mut request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
     let path = request.uri().path();
     let method = request.method();
     let allows_public_route = matches!(
@@ -1502,8 +1817,6 @@ async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> 
             | BACKEND_API_OPENAPI_SCHEMA_PATH
             | "/im/v3/api/portal/home"
             | "/im/v3/api/portal/access"
-            | "/app/v3/api/portal/home"
-            | "/app/v3/api/portal/access"
     );
 
     if method == axum::http::Method::OPTIONS {
@@ -1516,9 +1829,114 @@ async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> 
         return next.run(request).await;
     }
 
-    match resolve_app_context(request.headers()) {
-        Ok(_) => next.run(request).await,
-        Err(error) => ApiError::from(error).into_response(),
+    let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+        Ok(permit) => permit,
+        Err(_) => {
+            return ApiError {
+                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                code: "http_overloaded",
+                message: "server is at maximum in-flight request capacity, please retry later"
+                    .to_owned(),
+            }
+            .into_response();
+        }
+    };
+
+    if guardrails.require_dual_token_headers
+        && let Err(error) = require_dual_token_headers(request.headers())
+    {
+        return error.into_response();
+    }
+
+    let auth = match resolve_request_app_context(None, request.headers()) {
+        Ok(auth) => auth,
+        Err(error) => return error.into_response(),
+    };
+    request.extensions_mut().insert(auth);
+    let response = next.run(request).await;
+    drop(permit);
+    response
+}
+
+fn require_dual_token_headers(headers: &HeaderMap) -> Result<(), ApiError> {
+    if !has_bearer_auth_token(headers) {
+        return Err(ApiError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "auth_token_missing",
+            message: "authorization header must provide a bearer token".to_owned(),
+        });
+    }
+    if !has_access_token_header(headers) {
+        return Err(ApiError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "access_token_missing",
+            message: "access-token header is required".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn has_bearer_auth_token(headers: &HeaderMap) -> bool {
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .and_then(|value| {
+            let (scheme, token) = value.split_once(' ')?;
+            if scheme.eq_ignore_ascii_case("bearer") && !token.trim().is_empty() {
+                return Some(());
+            }
+            None
+        })
+        .is_some()
+}
+
+fn has_access_token_header(headers: &HeaderMap) -> bool {
+    headers
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty())
+}
+
+fn resolve_max_in_flight_requests() -> usize {
+    std::env::var(LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS_DEFAULT)
+        .min(LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS_MAX)
+}
+
+pub(crate) fn resolve_max_http_request_body_bytes() -> usize {
+    std::env::var(LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES_DEFAULT)
+        .min(LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES_MAX)
+}
+
+fn resolve_require_dual_token_headers() -> bool {
+    std::env::var(LOCAL_MINIMAL_NODE_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
+        .ok()
+        .map(|value| parse_truthy_env_flag(Some(value)))
+        .unwrap_or(true)
+}
+
+fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+    raw.as_deref().map(str::trim).is_some_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
+}
+
+pub(crate) fn build_public_app_guardrails() -> PublicAppGuardrails {
+    PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+        require_dual_token_headers: resolve_require_dual_token_headers(),
     }
 }
 
@@ -1562,13 +1980,20 @@ async fn export_backend_api_openapi_schema() -> Result<impl IntoResponse, ApiErr
     ))
 }
 
-fn resolve_app_context(headers: &HeaderMap) -> Result<AppContext, ApiError> {
-    im_app_context::resolve_app_context(headers).map_err(ApiError::from)
+fn resolve_request_app_context(
+    auth: Option<Extension<AppContext>>,
+    headers: &HeaderMap,
+) -> Result<AppContext, ApiError> {
+    match auth {
+        Some(Extension(auth)) => Ok(auth),
+        None => im_app_context::resolve_app_context(headers).map_err(ApiError::from),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::http::{HeaderMap, HeaderValue};
 
     fn invalid_message_posted_envelope(event_id: &str) -> CommitEnvelope {
         CommitEnvelope::minimal(
@@ -1602,6 +2027,39 @@ mod tests {
                 "handoff":null
             }"#,
         )
+    }
+
+    #[test]
+    fn parse_truthy_env_flag_accepts_common_truthy_values() {
+        for value in ["1", "true", "TRUE", " yes ", "On"] {
+            assert!(parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        for value in ["0", "false", "off", "no", "", "  "] {
+            assert!(!parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        assert!(!parse_truthy_env_flag(None));
+    }
+
+    #[test]
+    fn dual_token_header_helpers_validate_auth_and_access_headers() {
+        let mut headers = HeaderMap::new();
+        assert!(!has_bearer_auth_token(&headers));
+        assert!(!has_access_token_header(&headers));
+
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer token"),
+        );
+        assert!(has_bearer_auth_token(&headers));
+        assert!(!has_access_token_header(&headers));
+        let error =
+            require_dual_token_headers(&headers).expect_err("access-token should be required");
+        assert_eq!(error.status, axum::http::StatusCode::UNAUTHORIZED);
+        assert_eq!(error.code, "access_token_missing");
+
+        headers.insert("access-token", HeaderValue::from_static("access"));
+        assert!(has_access_token_header(&headers));
+        require_dual_token_headers(&headers).expect("dual token headers should pass");
     }
 
     #[test]

@@ -8,22 +8,14 @@
     "sdkType": "app",
     "packageName": "im_app_api_generated"
   },
-  "changeFingerprint": "856c7aabcca19b1ac9e3b0a4364fc49340af8f5a723229b644dc19d615f737e0",
+  "changeFingerprint": "cecbee5c97ae89ea794ec1f84fa7b7ea94dae3d1037f8ebacff8be870f70106d",
   "changes": {
-    "createdGeneratedFiles": [
-      "lib/src/api/iot.dart",
-      "lib/src/api/provider.dart"
-    ],
+    "createdGeneratedFiles": [],
     "updatedGeneratedFiles": [
       "lib/app_client.dart",
-      "lib/src/api/api.dart",
-      "lib/src/api/automation.dart",
-      "lib/src/api/device.dart",
-      "lib/src/api/notification.dart",
-      "lib/src/api/portal.dart",
-      "lib/src/api/rtc.dart",
-      "lib/src/models.dart",
-      "README.md"
+      "pubspec.yaml",
+      "README.md",
+      "sdkwork-sdk.json"
     ],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
@@ -31,63 +23,52 @@
       "bin/publish.sh",
       "CHANGELOG.md",
       "lib/im_app_api_generated.dart",
+      "lib/src/api/api.dart",
+      "lib/src/api/automation.dart",
+      "lib/src/api/device.dart",
+      "lib/src/api/iot.dart",
+      "lib/src/api/notification.dart",
       "lib/src/api/paths.dart",
+      "lib/src/api/portal.dart",
+      "lib/src/api/provider.dart",
       "lib/src/api/response_helpers.dart",
+      "lib/src/api/rtc.dart",
       "lib/src/http/client.dart",
+      "lib/src/models.dart",
       "LICENSE",
-      "pubspec_overrides.yaml",
-      "pubspec.yaml",
-      "sdkwork-sdk.json"
+      "pubspec_overrides.yaml"
     ],
-    "deletedGeneratedFiles": [
-      "lib/src/api/chat.dart",
-      "lib/src/api/media.dart",
-      "lib/src/api/presence.dart",
-      "lib/src/api/realtime.dart",
-      "lib/src/api/social.dart",
-      "lib/src/api/stream.dart"
-    ],
+    "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/README.md"
     ],
     "backedUpFiles": [
       "lib/app_client.dart",
-      "README.md"
+      "pubspec.yaml",
+      "README.md",
+      "sdkwork-sdk.json"
     ]
   },
   "impact": {
     "schemaVersion": 1,
     "areas": [
       "api-surface",
-      "models",
+      "build-metadata",
       "documentation"
     ],
     "details": [
       {
         "area": "api-surface",
         "paths": [
-          "lib/app_client.dart",
-          "lib/src/api/api.dart",
-          "lib/src/api/automation.dart",
-          "lib/src/api/chat.dart",
-          "lib/src/api/device.dart",
-          "lib/src/api/iot.dart",
-          "lib/src/api/media.dart",
-          "lib/src/api/notification.dart",
-          "lib/src/api/portal.dart",
-          "lib/src/api/presence.dart",
-          "lib/src/api/provider.dart",
-          "lib/src/api/realtime.dart",
-          "lib/src/api/rtc.dart",
-          "lib/src/api/social.dart",
-          "lib/src/api/stream.dart"
+          "lib/app_client.dart"
         ]
       },
       {
-        "area": "models",
+        "area": "build-metadata",
         "paths": [
-          "lib/src/models.dart"
+          "pubspec.yaml",
+          "sdkwork-sdk.json"
         ]
       },
       {
@@ -98,18 +79,18 @@
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required."
+    "summary": "Detected impact areas: api-surface, build-metadata, documentation. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, build-metadata, documentation.",
         "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-flutter\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -134,7 +115,6 @@
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
       "backed-up-generated-files",
-      "deleted-generated-files",
       "manual-review-required",
       "verification-required"
     ]

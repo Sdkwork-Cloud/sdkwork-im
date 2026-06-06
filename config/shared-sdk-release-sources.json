@@ -1,0 +1,36 @@
+{
+  "sources": {
+    "sdkwork-appbase": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-appbase.git",
+      "ref": "main"
+    },
+    "sdkwork-core": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-core.git",
+      "ref": "main"
+    },
+    "sdkwork-ui": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-ui.git",
+      "ref": "main"
+    },
+    "sdkwork-im-app-sdk": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-im-app-sdk.git",
+      "ref": "main"
+    },
+    "sdkwork-im-backend-sdk": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-im-backend-sdk.git",
+      "ref": "main"
+    },
+    "sdkwork-im-sdk": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-im-sdk.git",
+      "ref": "main"
+    },
+    "sdkwork-claw-router": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-claw-router.git",
+      "ref": "main"
+    },
+    "sdkwork-birdcoder": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-birdcoder.git",
+      "ref": "main"
+    }
+  }
+}

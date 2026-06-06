@@ -92,6 +92,7 @@ fn seed_shared_history_conversation(runtime_dir: &Path) {
                 summary: Some("hello local shared".into()),
                 parts: vec![ContentPart::text("hello local shared")],
                 render_hints: Default::default(),
+                reply_to: None,
             },
         })
         .expect("seed post shared-history message should succeed");
@@ -110,7 +111,7 @@ async fn test_local_minimal_profile_control_plane_shared_channel_auto_sync_mater
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/control/social/external-connections")
+                .uri("/backend/v3/api/control/social/external_connections")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")
@@ -136,7 +137,7 @@ async fn test_local_minimal_profile_control_plane_shared_channel_auto_sync_mater
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/control/social/shared-channel-policies")
+                .uri("/backend/v3/api/control/social/shared_channel_policies")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")
@@ -165,7 +166,7 @@ async fn test_local_minimal_profile_control_plane_shared_channel_auto_sync_mater
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/control/social/external-member-links")
+                .uri("/backend/v3/api/control/social/external_member_links")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_admin")
                 .header("x-sdkwork-actor-kind", "user")

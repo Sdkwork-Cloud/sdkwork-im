@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use craw_chat_contract_control::{PresenceStateRecord, PresenceStateStore};
@@ -10,11 +9,18 @@ use im_domain_core::device_session::{DevicePresenceStatus, DevicePresenceView};
 fn demo_auth(actor_kind: &str, session_id: &str, device_id: &str) -> AppContext {
     AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: actor_kind.into(),
         session_id: Some(session_id.into()),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
+        permission_scope: Default::default(),
         device_id: Some(device_id.into()),
-        permissions: BTreeSet::new(),
     }
 }
 

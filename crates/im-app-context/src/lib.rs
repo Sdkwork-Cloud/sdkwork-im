@@ -1,7 +1,29 @@
 use std::collections::BTreeSet;
 
 use axum::http::HeaderMap;
+use base64::Engine;
 use craw_chat_ccp_core::{CcpActor, CcpAuthority, CcpSender};
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
+
+const APP_CONTEXT_SIGNATURE_SECRET_ENV: &str = "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET";
+const APP_CONTEXT_REQUIRE_SIGNATURE_ENV: &str = "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE";
+const APP_CONTEXT_SIGNATURE_HEADER: &str = "x-sdkwork-context-signature";
+pub const APP_CONTEXT_SIGNED_HEADER_NAMES: &[&str] = &[
+    "x-sdkwork-app-id",
+    "x-sdkwork-tenant-id",
+    "x-sdkwork-organization-id",
+    "x-sdkwork-user-id",
+    "x-sdkwork-session-id",
+    "x-sdkwork-environment",
+    "x-sdkwork-deployment-mode",
+    "x-sdkwork-auth-level",
+    "x-sdkwork-data-scope",
+    "x-sdkwork-permission-scope",
+    "x-sdkwork-actor-id",
+    "x-sdkwork-actor-kind",
+    "x-sdkwork-device-id",
+];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AppContext {
@@ -38,6 +60,13 @@ impl AppContextError {
     fn missing(message: impl Into<String>) -> Self {
         Self {
             code: "app_context_missing",
+            message: message.into(),
+        }
+    }
+
+    fn invalid(message: impl Into<String>) -> Self {
+        Self {
+            code: "app_context_invalid",
             message: message.into(),
         }
     }
@@ -88,15 +117,20 @@ impl AppContext {
     }
 }
 
-pub fn resolve_app_context(
-    headers: &HeaderMap,
-) -> Result<AppContext, AppContextError> {
+pub fn resolve_app_context(headers: &HeaderMap) -> Result<AppContext, AppContextError> {
+    validate_app_context_signature(headers, AppContextSignatureConfig::from_env())?;
     resolve_app_context_projection(headers)
 }
 
-pub fn resolve_app_context_projection(
+pub fn resolve_app_context_with_signature_config(
     headers: &HeaderMap,
+    signature_config: AppContextSignatureConfig,
 ) -> Result<AppContext, AppContextError> {
+    validate_app_context_signature(headers, signature_config)?;
+    resolve_app_context_projection(headers)
+}
+
+pub fn resolve_app_context_projection(headers: &HeaderMap) -> Result<AppContext, AppContextError> {
     let tenant_id = resolve_header(headers, &["x-sdkwork-tenant-id"])?;
     let user_id = resolve_header(headers, &["x-sdkwork-user-id"])?;
     let session_id = resolve_optional_header(headers, &["x-sdkwork-session-id"]);
@@ -166,4 +200,99 @@ fn append_scope_str(scope: &mut BTreeSet<String>, raw: &str) {
             scope.insert(item.to_owned());
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AppContextSignatureConfig {
+    pub require_signature: bool,
+    pub shared_secret: Option<String>,
+}
+
+impl AppContextSignatureConfig {
+    pub fn from_env() -> Self {
+        Self {
+            require_signature: parse_truthy_env_flag(
+                std::env::var(APP_CONTEXT_REQUIRE_SIGNATURE_ENV).ok(),
+            ),
+            shared_secret: std::env::var(APP_CONTEXT_SIGNATURE_SECRET_ENV)
+                .ok()
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty()),
+        }
+    }
+}
+
+fn validate_app_context_signature(
+    headers: &HeaderMap,
+    config: AppContextSignatureConfig,
+) -> Result<(), AppContextError> {
+    if !config.require_signature {
+        return Ok(());
+    }
+
+    let shared_secret = config.shared_secret.ok_or_else(|| {
+        AppContextError::invalid(format!(
+            "{APP_CONTEXT_SIGNATURE_SECRET_ENV} must be configured when {APP_CONTEXT_REQUIRE_SIGNATURE_ENV}=true"
+        ))
+    })?;
+    let received_signature = resolve_optional_header(headers, &[APP_CONTEXT_SIGNATURE_HEADER])
+        .ok_or_else(|| {
+            AppContextError::invalid(format!(
+                "missing app context signature header: {APP_CONTEXT_SIGNATURE_HEADER}"
+            ))
+        })?;
+    let expected_signature = sign_app_context_headers(headers, shared_secret.as_str())?;
+
+    if !constant_time_eq(received_signature.as_bytes(), expected_signature.as_bytes()) {
+        return Err(AppContextError::invalid(
+            "app context signature validation failed",
+        ));
+    }
+
+    Ok(())
+}
+
+pub fn sign_app_context_headers(
+    headers: &HeaderMap,
+    secret: &str,
+) -> Result<String, AppContextError> {
+    type HmacSha256 = Hmac<Sha256>;
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+        .map_err(|_| AppContextError::invalid("invalid app context signature secret bytes"))?;
+    let payload = canonicalize_app_context_headers(headers);
+    mac.update(payload.as_bytes());
+    let digest = mac.finalize().into_bytes();
+    Ok(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(digest))
+}
+
+pub fn canonicalize_app_context_headers(headers: &HeaderMap) -> String {
+    APP_CONTEXT_SIGNED_HEADER_NAMES
+        .iter()
+        .map(|name| {
+            let value = resolve_optional_header(headers, &[*name]).unwrap_or_default();
+            format!("{name}:{value}")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+
+    let mut diff: u8 = 0;
+    for (&a, &b) in left.iter().zip(right.iter()) {
+        diff |= a ^ b;
+    }
+    diff == 0
+}
+
+fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+    raw.as_deref().map(str::trim).is_some_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
 }

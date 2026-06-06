@@ -6,7 +6,7 @@ import { AuditApi } from './api/audit';
 import { AutomationApi } from './api/automation';
 import { ControlApi } from './api/control';
 import { AdminApi } from './api/admin';
-export declare class SdkworkBackendClient {
+export declare class SdkworkImBackendClient {
     private httpClient;
     readonly ops: OpsApi;
     readonly audit: AuditApi;
@@ -19,6 +19,7 @@ export declare class SdkworkBackendClient {
     setTokenManager(manager: AuthTokenManager): this;
     get http(): HttpClient;
 }
-export declare function createClient(config: SdkworkBackendConfig): SdkworkBackendClient;
-export default SdkworkBackendClient;
+export declare function createClient(config: SdkworkBackendConfig): SdkworkImBackendClient;
+export { SdkworkImBackendClient as SdkworkBackendClient };
+export default SdkworkImBackendClient;
 //# sourceMappingURL=sdk.d.ts.map

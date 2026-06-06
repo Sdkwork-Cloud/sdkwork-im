@@ -10,7 +10,7 @@
     <PackageId>Sdkwork.Im.AppApi.Generated</PackageId>
     <Version>0.1.0</Version>
     <Authors>SDKWork Team</Authors>
-    <Description>sdkwork-im-app-sdk SDK</Description>
+    <Description>Generator-owned C# transport SDK for the Craw Chat app-development API.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 

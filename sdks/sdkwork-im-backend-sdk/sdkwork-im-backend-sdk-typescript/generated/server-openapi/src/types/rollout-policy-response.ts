@@ -5,5 +5,5 @@ export interface RolloutPolicyResponse {
   regionSelector: string;
   releaseChannel: string;
   tenantAllowlist: string[];
-  trafficPercent: number;
+  trafficPercent: string;
 }

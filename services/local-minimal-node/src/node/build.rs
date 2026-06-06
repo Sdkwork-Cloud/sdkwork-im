@@ -6,16 +6,17 @@ use control_plane_api::{
 use conversation_runtime::SyncSharedChannelLinkedMemberCommand;
 use im_adapter_iot_access_local::LocalDeviceAccessProvider;
 use im_adapter_iot_mqtt::MqttIotProtocolAdapter;
-use im_adapters_local_disk::FileDeviceTwinStore;
-use im_adapters_local_memory::MemoryDeviceTwinStore;
 use im_adapters_postgres_realtime::{
     PostgresRealtimeCheckpointStore, PostgresRealtimeConfig, PostgresRealtimeDisconnectFenceStore,
     PostgresRealtimeEventWindowStore, PostgresRealtimePresenceStateStore,
     PostgresRealtimeSubscriptionStore,
 };
+use sdkwork_agent_business::{
+    AgentHttpState, AllowAllPolicyProvider, InMemoryAgentAuditSink, InMemoryAgentRepository,
+    build_app_router as build_agent_app_router,
+};
 use serde::Deserialize;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
-use tower_http::limit::RequestBodyLimitLayer;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum LocalMinimalRealtimeStorageProvider {
@@ -237,9 +238,14 @@ fn build_public_app_with_bind_addr(bind_addr: &str) -> Router {
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
-    .layer(RequestBodyLimitLayer::new(5 * 1024 * 1024))
+    .layer(axum::extract::DefaultBodyLimit::max(
+        resolve_max_http_request_body_bytes(),
+    ))
     .layer(build_public_browser_cors_layer())
-    .layer(middleware::from_fn(require_app_context))
+    .layer(middleware::from_fn_with_state(
+        build_public_app_guardrails(),
+        require_app_context_with_guardrails,
+    ))
 }
 
 fn build_default_app_with_bind_addr_and_runtime_dir(
@@ -486,8 +492,14 @@ fn try_build_public_app_with_bind_addr_and_runtime_dir(
         build_default_device_access_provider(),
         build_default_iot_protocol_adapter(),
     )
+    .layer(axum::extract::DefaultBodyLimit::max(
+        resolve_max_http_request_body_bytes(),
+    ))
     .layer(build_public_browser_cors_layer())
-    .layer(middleware::from_fn(require_app_context)))
+    .layer(middleware::from_fn_with_state(
+        build_public_app_guardrails(),
+        require_app_context_with_guardrails,
+    )))
 }
 
 fn build_public_browser_cors_layer() -> CorsLayer {
@@ -495,13 +507,21 @@ fn build_public_browser_cors_layer() -> CorsLayer {
     for header_name in [
         axum::http::header::AUTHORIZATION.as_str(),
         axum::http::header::CONTENT_TYPE.as_str(),
+        "access-token",
+        "x-sdkwork-app-id",
         "x-sdkwork-tenant-id",
+        "x-sdkwork-organization-id",
         "x-sdkwork-user-id",
+        "x-sdkwork-session-id",
+        "x-sdkwork-environment",
+        "x-sdkwork-deployment-mode",
+        "x-sdkwork-auth-level",
+        "x-sdkwork-data-scope",
         "x-sdkwork-actor-id",
         "x-sdkwork-actor-kind",
-        "x-sdkwork-session-id",
         "x-sdkwork-device-id",
         "x-sdkwork-permission-scope",
+        "x-sdkwork-context-signature",
     ] {
         if let Ok(parsed) = header_name.parse::<axum::http::header::HeaderName>()
             && !allowed_headers.contains(&parsed)
@@ -1278,15 +1298,6 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         journal.snapshot_stores(),
         device_access_provider,
     );
-    let device_twin_store: Arc<dyn DeviceTwinStore> = match runtime_dir.as_ref() {
-        Some(runtime_dir) => Arc::new(FileDeviceTwinStore::new(
-            runtime_dir
-                .as_path()
-                .join("state")
-                .join("device-twin-state.json"),
-        )),
-        None => Arc::new(MemoryDeviceTwinStore::default()),
-    };
     let pending_friend_request_accept_repairs =
         social::load_pending_friend_request_accept_repairs(runtime_dir.as_deref());
     let state = AppState {
@@ -1301,9 +1312,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         device_presence_runtime,
         realtime_runtime,
         device_registration,
-        device_twin_store,
         iot_protocol_adapter,
-        media_runtime: Arc::new(MediaRuntime::with_journal(Arc::new(journal.clone()))),
         streaming_runtime,
         rtc_runtime,
         notification_runtime,
@@ -1311,6 +1320,13 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         audit_runtime,
         ops_runtime,
         message_side_effect_outbox,
+        conversation_preferences: Arc::new(std::sync::Mutex::new(BTreeMap::new())),
+        conversation_profiles: Arc::new(std::sync::Mutex::new(BTreeMap::new())),
+        contact_preferences: Arc::new(std::sync::Mutex::new(BTreeMap::new())),
+        contact_tags: Arc::new(std::sync::Mutex::new(BTreeMap::new())),
+        contact_recommendations: Arc::new(std::sync::Mutex::new(BTreeMap::new())),
+        message_visibility: Arc::new(std::sync::Mutex::new(BTreeMap::new())),
+        message_favorites: Arc::new(std::sync::Mutex::new(BTreeMap::new())),
         projection_replay_state: journal.replay_state(),
         pending_friend_request_accept_repairs: Arc::new(std::sync::Mutex::new(
             pending_friend_request_accept_repairs,
@@ -1455,9 +1471,18 @@ fn build_app(state: AppState) -> Router {
             get(export_backend_api_openapi_schema),
         )
         .nest("/im/v3/api", im_standard_api_routes())
-        .nest("/app/v3/api", app_business_api_routes())
         .nest("/backend/v3/api", backend_api_routes())
         .with_state(state)
+        .merge(build_local_agent_app_router())
+}
+
+fn build_local_agent_app_router() -> Router {
+    let agent_state = AgentHttpState::new(
+        InMemoryAgentRepository::new(),
+        InMemoryAgentAuditSink::default(),
+        AllowAllPolicyProvider::allow("policy.local-minimal-agent"),
+    );
+    build_agent_app_router().with_state(agent_state)
 }
 
 fn im_standard_api_routes() -> Router<AppState> {
@@ -1493,6 +1518,7 @@ fn im_standard_api_routes() -> Router<AppState> {
             "/devices/{device_id}/sync_feed",
             get(device_session::get_device_sync_feed),
         )
+        .route("/social/users", get(social::list_social_users))
         .route(
             "/social/friend_requests",
             get(social::list_friend_requests).post(social::submit_friend_request),
@@ -1512,6 +1538,22 @@ fn im_standard_api_routes() -> Router<AppState> {
         .route(
             "/social/friendships/{friendship_id}/remove",
             post(social::remove_friendship),
+        )
+        .route(
+            "/social/contacts/tags",
+            get(projection::list_contact_tags).post(projection::create_contact_tag),
+        )
+        .route(
+            "/social/contacts/tags/{tag_id}",
+            patch(projection::update_contact_tag).delete(projection::delete_contact_tag),
+        )
+        .route(
+            "/social/contacts/{target_user_id}/recommendations",
+            post(projection::create_contact_recommendation),
+        )
+        .route(
+            "/social/contacts/{target_user_id}/preferences",
+            get(projection::get_contact_preferences).patch(projection::update_contact_preferences),
         )
         .route("/chat/contacts", get(projection::get_contacts))
         .route("/chat/inbox", get(projection::get_inbox))
@@ -1584,6 +1626,16 @@ fn im_standard_api_routes() -> Router<AppState> {
             post(membership::leave_conversation),
         )
         .route(
+            "/chat/conversations/{conversation_id}/preferences",
+            get(projection::get_conversation_preferences)
+                .patch(projection::update_conversation_preferences),
+        )
+        .route(
+            "/chat/conversations/{conversation_id}/profile",
+            get(projection::get_conversation_profile)
+                .patch(projection::update_conversation_profile),
+        )
+        .route(
             "/chat/conversations/{conversation_id}/read_cursor",
             get(projection::get_read_cursor).post(projection::update_read_cursor),
         )
@@ -1615,17 +1667,38 @@ fn im_standard_api_routes() -> Router<AppState> {
             "/chat/messages/{message_id}/recall",
             post(message::recall_message),
         )
-        .route("/media/uploads", post(media::create_media_upload))
         .route(
-            "/media/uploads/{media_asset_id}/complete",
-            post(media::complete_media_upload),
+            "/chat/messages/favorites",
+            get(message::list_message_favorites),
         )
         .route(
-            "/media/{media_asset_id}/download_url",
-            get(media::get_media_download_url),
+            "/chat/messages/{message_id}/favorites",
+            post(message::create_message_favorite),
         )
-        .route("/media/{media_asset_id}", get(media::get_media))
-        .route("/media/{media_asset_id}/attach", post(media::attach_media))
+        .route(
+            "/chat/messages/favorites/{favorite_id}",
+            delete(message::delete_message_favorite),
+        )
+        .route(
+            "/chat/messages/{message_id}/visibility",
+            delete(message::delete_message_visibility),
+        )
+        .route(
+            "/chat/messages/{message_id}/reactions",
+            post(message::add_message_reaction),
+        )
+        .route(
+            "/chat/messages/{message_id}/reactions/remove",
+            post(message::remove_message_reaction),
+        )
+        .route(
+            "/chat/messages/{message_id}/pin",
+            post(message::pin_message),
+        )
+        .route(
+            "/chat/messages/{message_id}/unpin",
+            post(message::unpin_message),
+        )
         .route("/streams", post(stream::open_stream))
         .route(
             "/streams/{stream_id}/frames",
@@ -1641,6 +1714,7 @@ fn im_standard_api_routes() -> Router<AppState> {
         )
         .route("/streams/{stream_id}/abort", post(stream::abort_stream))
         .route("/rtc/sessions", post(rtc::create_rtc_session))
+        .route("/rtc/sessions/{rtc_session_id}", get(rtc::get_rtc_session))
         .route(
             "/rtc/sessions/{rtc_session_id}/invite",
             post(rtc::invite_rtc_session),
@@ -1668,94 +1742,6 @@ fn im_standard_api_routes() -> Router<AppState> {
         .route(
             "/rtc/sessions/{rtc_session_id}/artifacts/recording",
             get(rtc::get_rtc_recording_artifact),
-        )
-}
-
-fn app_business_api_routes() -> Router<AppState> {
-    Router::new()
-        .route("/portal/home", get(portal::get_home))
-        .route("/portal/access", get(portal::get_access))
-        .route("/portal/workspace", get(portal::get_workspace))
-        .route("/portal/dashboard", get(portal::get_dashboard))
-        .route("/portal/conversations", get(portal::get_conversations))
-        .route("/portal/realtime", get(portal::get_realtime))
-        .route("/portal/media", get(portal::get_media))
-        .route("/portal/automation", get(portal::get_automation))
-        .route("/portal/governance", get(portal::get_governance))
-        .route("/devices/{device_id}/twin", get(twin::get_device_twin))
-        .route(
-            "/devices/{device_id}/twin/desired",
-            post(twin::update_device_twin_desired),
-        )
-        .route(
-            "/devices/{device_id}/twin/reported",
-            post(twin::update_device_twin_reported),
-        )
-        .route(
-            "/media/provider_health",
-            get(media::get_media_provider_health),
-        )
-        .route(
-            "/principal/profiles/provider_health",
-            get(principal_profile::get_principal_profile_provider_health),
-        )
-        .route(
-            "/iot/access/provider_health",
-            get(iot::get_iot_access_provider_health),
-        )
-        .route(
-            "/iot/protocol/provider_health",
-            get(iot::get_iot_protocol_provider_health),
-        )
-        .route(
-            "/iot/protocol/uplink",
-            post(iot::ingest_iot_protocol_uplink),
-        )
-        .route(
-            "/iot/protocol/downlink",
-            post(iot::ingest_iot_protocol_downlink),
-        )
-        .route(
-            "/rtc/provider_callbacks",
-            post(rtc::map_rtc_provider_callback),
-        )
-        .route("/rtc/provider_health", get(rtc::get_rtc_provider_health))
-        .route(
-            "/notifications/requests",
-            post(platform::request_notification),
-        )
-        .route("/notifications", get(platform::list_notifications))
-        .route(
-            "/notifications/{notification_id}",
-            get(platform::get_notification),
-        )
-        .route(
-            "/automation/executions",
-            post(platform::request_automation_execution),
-        )
-        .route(
-            "/automation/agent_responses",
-            post(platform::start_agent_response),
-        )
-        .route(
-            "/automation/agent_responses/{stream_id}/frames",
-            post(platform::append_agent_response_delta),
-        )
-        .route(
-            "/automation/agent_responses/{stream_id}/complete",
-            post(platform::complete_agent_response),
-        )
-        .route(
-            "/automation/agent_tool_calls",
-            post(platform::request_agent_tool_call),
-        )
-        .route(
-            "/automation/executions/{execution_id}/agent_tool_calls/{tool_call_id}/complete",
-            post(platform::complete_agent_tool_call),
-        )
-        .route(
-            "/automation/executions/{execution_id}",
-            get(platform::get_automation_execution),
         )
 }
 

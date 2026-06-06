@@ -7,11 +7,14 @@ The current standard model has three OpenAPI-generated HTTP SDK families plus on
 provider-standard SDK family:
 
 - `sdkwork-im-sdk`
-  IM standardized development SDKs for `/im/v3/api`.
+  IM standardized development SDKs for `/im/v3/api`; logical API authority:
+  `sdkwork-im-open-api`.
 - `sdkwork-im-app-sdk`
-  App-business and non-management HTTP SDKs for `/app/v3/api`.
+  App-business and non-management HTTP SDKs for `/app/v3/api`; app SDK composition depends on
+  `sdkwork-im-sdk` and `sdkwork-rtc-sdk`; logical API authority: `sdkwork-im-app-api`.
 - `sdkwork-im-backend-sdk`
-  Backend management, operator, control-plane, and admin SDKs for `/backend/v3/api`.
+  Backend management, operator, control-plane, and admin SDKs for `/backend/v3/api`; logical API
+  authority: `sdkwork-im-backend-api`.
 - `sdkwork-rtc-sdk`
   Provider-standard RTC SDKs for multi-provider audio/video runtime integration.
 
@@ -22,9 +25,13 @@ snapshots are the source of truth.
 
 The three Craw Chat HTTP-contract SDK families are separated by target surface:
 
-- `sdkwork-im-sdk` owns the IM standardized development API under `/im/v3/api/*`.
-- `sdkwork-im-app-sdk` owns app-business API under `/app/v3/api/*`.
-- `sdkwork-im-backend-sdk` owns backend management API under `/backend/v3/api/*`.
+- `sdkwork-im-sdk` owns `sdkwork-im-open-api`, the IM standardized development API under
+  `/im/v3/api/*`.
+- `sdkwork-im-app-sdk` owns `sdkwork-im-app-api`, the app-business API under `/app/v3/api/*`, and
+  declares SDK dependencies on `sdkwork-im-sdk` plus `sdkwork-rtc-sdk` for the full app integration
+  stack.
+- `sdkwork-im-backend-sdk` owns `sdkwork-im-backend-api`, the backend management API under
+  `/backend/v3/api/*`.
 
 The RTC workspace is intentionally separate from the OpenAPI-generated HTTP SDK families:
 
@@ -37,10 +44,12 @@ The RTC workspace is intentionally separate from the OpenAPI-generated HTTP SDK 
 
 Every API must map to exactly one SDK family:
 
-- IM standardized development API: `/im/v3/api/*` -> `sdkwork-im-sdk`.
-- App-business and non-management API: `/app/v3/api/*` -> `sdkwork-im-app-sdk`.
+- IM standardized development API: `/im/v3/api/*` -> `sdkwork-im-open-api` ->
+  `sdkwork-im-sdk`.
+- App-business and non-management API: `/app/v3/api/*` -> `sdkwork-im-app-api` ->
+  `sdkwork-im-app-sdk`.
 - Backend management, operator, governance, control-plane, and admin API:
-  `/backend/v3/api/*` -> `sdkwork-im-backend-sdk`.
+  `/backend/v3/api/*` -> `sdkwork-im-backend-api` -> `sdkwork-im-backend-sdk`.
 - RTC provider/runtime standard: `sdkwork-rtc-sdk`, not an OpenAPI HTTP family.
 
 Backend management modules currently include:
@@ -71,9 +80,13 @@ The official OpenAPI-generated language set for the three HTTP SDK families is:
 
 For OpenAPI-generated SDK families, generator-owned transport output is always under
 `generated/server-openapi`. Manual-owned consumer-facing facades live under `composed` only when a
-family has a semantic SDK layer. `sdkwork-im-app-sdk` and `sdkwork-im-backend-sdk` currently publish
-generated transport packages directly and verify the generated primary clients `SdkworkAppClient`
-and `SdkworkBackendClient`.
+family has a semantic SDK layer.
+
+Current Flutter semantic package mapping:
+
+- `sdkwork-im-sdk-flutter/composed` -> `im_sdk`
+- `sdkwork-im-app-sdk-flutter/composed` -> `im_app_sdk`
+- `sdkwork-im-backend-sdk-flutter/composed` -> `im_backend_sdk`
 
 The IM TypeScript line publishes the consumer package `@sdkwork/im-sdk`; its generated TypeScript
 transport package uses `@sdkwork-internal/im-sdk-generated` as a workspace-internal identity only.
@@ -84,9 +97,9 @@ transport package.
 
 | Workspace | Audience | Languages | Primary package boundary |
 | --- | --- | --- | --- |
-| `sdkwork-im-sdk` | IM standardized development integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Semantic IM SDK package plus generated IM transport |
-| `sdkwork-im-app-sdk` | App developers and app-business integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated app transport package with `SdkworkAppClient` |
-| `sdkwork-im-backend-sdk` | Backend, operator, control-plane, and admin integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated backend transport package with `SdkworkBackendClient` |
+| `sdkwork-im-sdk` | IM standardized development integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Semantic IM SDK package `@sdkwork/im-sdk` plus internal generated transports `@sdkwork-internal/im-sdk-generated` and `im_sdk_generated` |
+| `sdkwork-im-app-sdk` | App developers and app-business integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated app transport plus Flutter composed `im_app_sdk` with semantic `ImAppSdkClient`; family-level dependencies on `sdkwork-im-sdk` and `sdkwork-rtc-sdk` |
+| `sdkwork-im-backend-sdk` | Backend, operator, control-plane, and admin integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated backend transport plus Flutter composed `im_backend_sdk` with semantic `ImBackendSdkClient` |
 | `sdkwork-rtc-sdk` | RTC provider-standard integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Provider-standard packages and adapters, not OpenAPI-generated transport |
 
 All current package lines remain `not_published` until a release freeze assigns publishable
@@ -106,6 +119,9 @@ versions. The release snapshot is recorded in
 
 Every OpenAPI-generated SDK family follows the same boundary rules:
 
+- Family naming, API authority naming, OpenAPI authority placement, derived generator input
+  placement, and generated-output placement follow
+  [`SDK_WORKSPACE_GENERATION_SPEC.md`](../../../specs/SDK_WORKSPACE_GENERATION_SPEC.md).
 - The OpenAPI 3.x authority contract is checked into the workspace under `openapi/`.
 - Generator-compatible derived contracts stay in the same workspace and remain traceable to the
   authority contract.

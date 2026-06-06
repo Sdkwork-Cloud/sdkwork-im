@@ -43,7 +43,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "bda9902066d6c3e870e2a75abb861d07c886ae31fa7a64a6a406aade9c3a2ad7"
+      "sha256": "eb7a20927bf1a44aafea67d063aaf08d949572d6b3e1d9f5593a43387573d6fa"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -59,7 +59,7 @@
     },
     {
       "path": "src/api/device.ts",
-      "sha256": "53541f4a20f8067b655da44508942b80dc8e288bdf0151a2ce4009938417d641"
+      "sha256": "3cc99f139147867aafae4f81fd85eab7e7ad4045a9ab402d7e0094b72d79f061"
     },
     {
       "path": "src/api/index.ts",
@@ -127,7 +127,7 @@
     },
     {
       "path": "src/types/append-agent-response-delta-request.ts",
-      "sha256": "d7279bc69a631cc3698f3b4f3806f7d6e89427e5c8b8350792b8e2c3b8bfcf43"
+      "sha256": "15156c79e1fd3426054825c903a8268dae2b4e621d7e1d1da09abc4582666c1e"
     },
     {
       "path": "src/types/automation-execution-delivery-status.ts",
@@ -147,11 +147,11 @@
     },
     {
       "path": "src/types/common.ts",
-      "sha256": "80403a75e3fee42577eeb0c6e5f13c493b6b417d60129a8a9e5eb1a2ad6f4d2a"
+      "sha256": "ac5b348259c39e2cd8357dfcf8269268ee1da5f8a6e0770d714ab5eb796b3050"
     },
     {
       "path": "src/types/complete-agent-response-request.ts",
-      "sha256": "5dc4a510c3f810469193a37e72082bdb4813271b495c9e94af7f5bf4bbb2e823"
+      "sha256": "38e17bb398b539dc63d70e6a250bb7bcc43525eff5495b6ff4bc53d30387481d"
     },
     {
       "path": "src/types/complete-agent-tool-call-request.ts",
@@ -251,7 +251,7 @@
     },
     {
       "path": "src/types/stream-frame.ts",
-      "sha256": "ac35579294d22ad1657ff03308435ad1dd4bd02f11e4d4d346ac7fc9fe421af9"
+      "sha256": "c2080edfbf0c87da1cce2e9470dfe0b21211a9ee4bd3ed678f235ed5f9b764af"
     },
     {
       "path": "src/types/stream-session-state.ts",
@@ -259,7 +259,7 @@
     },
     {
       "path": "src/types/stream-session.ts",
-      "sha256": "c6e666af8246b20dd6e12a7d67b81446d31e176b4df92c7941f9770b1760dd3e"
+      "sha256": "95e0949c692e588593a1c0e065a75034f21716e72837b09fe3d31b86194fd0b7"
     },
     {
       "path": "src/types/string-map.ts",

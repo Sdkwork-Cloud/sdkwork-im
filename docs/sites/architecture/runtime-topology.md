@@ -70,13 +70,13 @@ External Client / Operator / SDK
 
 ### Platform and operator domains exposed by the same app node
 
-- `/im/v3/api/notifications/*`
-- `/im/v3/api/automation/*`
+- `/app/v3/api/notifications/*`
+- `/app/v3/api/automation/*`
+- `/app/v3/api/principal/profiles/provider_health`
+- `/app/v3/api/media/provider_health`
+- `/app/v3/api/iot/*`
 - `/backend/v3/api/audit/*`
 - `/backend/v3/api/ops/*`
-- `/backend/v3/api/principal/profiles/provider_health`
-- `/backend/v3/api/media/provider_health`
-- `/backend/v3/api/iot/*`
 
 ## Control-plane Topology
 

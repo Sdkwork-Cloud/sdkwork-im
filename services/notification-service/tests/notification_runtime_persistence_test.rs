@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 
 use im_adapters_local_memory::MemoryNotificationTaskStore;
@@ -19,18 +18,29 @@ impl CommitJournal for RecordingJournal {
     }
 }
 
+fn auth_context(actor_id: &str, actor_kind: &str, session_id: &str) -> AppContext {
+    AppContext {
+        tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: actor_id.into(),
+        actor_id: actor_id.into(),
+        actor_kind: actor_kind.into(),
+        session_id: Some(session_id.into()),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
+        permission_scope: Default::default(),
+        device_id: None,
+    }
+}
+
 #[test]
 fn test_runtime_restores_notification_projection_on_rebuild_with_shared_store() {
     let journal = Arc::new(RecordingJournal::default());
     let task_store = Arc::new(MemoryNotificationTaskStore::default());
-    let auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_demo".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_demo".into()),
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
+    let auth = auth_context("u_demo", "user", "s_demo");
 
     let runtime_before = notification_service::NotificationRuntime::with_journal_and_store(
         journal.clone(),
@@ -71,22 +81,8 @@ fn test_runtime_restores_notification_projection_on_rebuild_with_shared_store() 
 fn test_runtime_restores_actor_kind_scoped_automation_notifications_after_rebuild() {
     let journal = Arc::new(RecordingJournal::default());
     let task_store = Arc::new(MemoryNotificationTaskStore::default());
-    let user_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_demo".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_user".into()),
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
-    let system_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_demo".into(),
-        actor_kind: "system".into(),
-        session_id: Some("s_system".into()),
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
+    let user_auth = auth_context("u_demo", "user", "s_user");
+    let system_auth = auth_context("u_demo", "system", "s_system");
 
     let runtime_before = notification_service::NotificationRuntime::with_journal_and_store(
         journal.clone(),

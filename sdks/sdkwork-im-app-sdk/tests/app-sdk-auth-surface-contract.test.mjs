@@ -1,0 +1,232 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { loadGeneratorYaml } from '../../workspace-sdk-generator-root-shared.mjs';
+import { sdkFamilyConfig } from '../bin/sdk-family-config.mjs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const sdkRoot = path.resolve(__dirname, '..');
+const crawChatRoot = path.resolve(sdkRoot, '..', '..');
+const appbaseRoot = path.resolve(crawChatRoot, '..', 'sdkwork-appbase');
+
+const appPrefix = '/app/v3/api';
+
+const appbaseOwnedAppRoutes = [
+  'auth/oauth_authorization_urls',
+  'auth/oauth_sessions',
+  'auth/password_reset_requests',
+  'auth/password_resets',
+  'auth/registrations',
+  'auth/sessions',
+  'auth/sessions/refresh',
+  'auth/sessions/current',
+  'auth/verification_codes',
+  'auth/verification_codes/verify',
+  'iam/users/current',
+  'iam/organizations',
+  'iam/organizations/tree',
+  'iam/organization_memberships',
+  'iam/departments',
+  'iam/departments/tree',
+  'iam/department_assignments',
+  'iam/positions',
+  'iam/position_assignments',
+  'iam/role_bindings',
+  'system/iam/runtime',
+  'system/iam/verification_policy',
+  'open_platform/qr_auth/sessions',
+  'open_platform/qr_auth/sessions/{}',
+  'open_platform/qr_auth/sessions/{}/scans',
+  'open_platform/qr_auth/sessions/{}/passwords',
+];
+
+const forbiddenGeneratedSurface = [
+  /oauthAuthorization|OAuthAuthorization/u,
+  /passwordReset|PasswordReset/u,
+  /verificationCode|VerificationCode/u,
+  /qrAuth|QrAuth/u,
+  /IamUser|IamOrganization|IamDepartment|IamPosition|IamRoleBinding/u,
+  /AuthSession|CreateAuthSession|RefreshAuthSession|UpdateCurrentSession/u,
+  /src\/api\/auth|src\\api\\auth/u,
+  /src\/api\/iam|src\\api\\iam/u,
+  /src\/api\/open-platform|src\\api\\open-platform/u,
+  /src\/api\/system|src\\api\\system/u,
+];
+
+const scannedTextExtensions = new Set([
+  '.dart',
+  '.d.ts',
+  '.js',
+  '.json',
+  '.md',
+  '.rs',
+  '.ts',
+  '.yaml',
+  '.yml',
+]);
+
+const yaml = await loadGeneratorYaml(sdkRoot);
+
+function readText(relativePath) {
+  return fs.readFileSync(path.join(sdkRoot, relativePath), 'utf8');
+}
+
+function readYaml(relativePath) {
+  return yaml.load(readText(relativePath));
+}
+
+function readJson(relativePath) {
+  return JSON.parse(readText(relativePath));
+}
+
+function readExternalYaml(filePath) {
+  return yaml.load(fs.readFileSync(filePath, 'utf8'));
+}
+
+function relativeRoute(pathKey, prefix) {
+  assert.ok(pathKey.startsWith(`${prefix}/`), `${pathKey} must start with ${prefix}/`);
+  return pathKey.slice(prefix.length + 1).replace(/\{[^}]+\}/g, '{}');
+}
+
+function routeSet(document, prefix) {
+  return new Set(Object.keys(document.paths ?? {}).map((pathKey) => relativeRoute(pathKey, prefix)));
+}
+
+function assertRoutesPresent(label, document, prefix, expectedRoutes) {
+  const routes = routeSet(document, prefix);
+  const missing = expectedRoutes.filter((route) => !routes.has(route));
+  assert.deepEqual(missing, [], `${label} must own the appbase identity/session/IAM/QR auth routes.`);
+}
+
+function assertRoutesAbsent(label, document, prefix, forbiddenRoutes) {
+  const routes = routeSet(document, prefix);
+  const overlaps = forbiddenRoutes.filter((route) => routes.has(route));
+  assert.deepEqual(
+    overlaps,
+    [],
+    `${label} must not regenerate sdkwork-appbase-owned app-api routes; consume sdkwork-appbase-app-sdk instead.`,
+  );
+}
+
+function collectTextFiles(rootPath) {
+  if (!fs.existsSync(rootPath)) {
+    return [];
+  }
+  const files = [];
+  const visit = (targetPath) => {
+    const stats = fs.statSync(targetPath);
+    if (stats.isDirectory()) {
+      for (const entry of fs.readdirSync(targetPath)) {
+        if (['node_modules', 'dist', 'build', '.dart_tool', '.sdkwork', 'manual-backups', 'tmp'].includes(entry)) {
+          continue;
+        }
+        visit(path.join(targetPath, entry));
+      }
+      return;
+    }
+    if (stats.isFile() && scannedTextExtensions.has(path.extname(targetPath))) {
+      files.push(targetPath);
+    }
+  };
+  visit(rootPath);
+  return files.sort();
+}
+
+function assertGeneratedSurfaceAbsent(label, generatedRoots) {
+  const violations = [];
+  for (const generatedRoot of generatedRoots) {
+    for (const filePath of collectTextFiles(path.join(sdkRoot, generatedRoot))) {
+      const source = fs.readFileSync(filePath, 'utf8');
+      for (const pattern of forbiddenGeneratedSurface) {
+        const match = pattern.exec(source);
+        if (match) {
+          violations.push(`${path.relative(sdkRoot, filePath).replaceAll('\\', '/')}: ${match[0]}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(
+    violations,
+    [],
+    `${label} generated transport must not expose appbase auth/IAM/session/verification/QR auth surface.`,
+  );
+}
+
+function dependencyByWorkspace(dependencies, workspace) {
+  return dependencies.find((dependency) => dependency.workspace === workspace);
+}
+
+const appbaseAuthority = readExternalYaml(path.join(
+  appbaseRoot,
+  'sdks',
+  'sdkwork-appbase-app-sdk',
+  'openapi',
+  'sdkwork-appbase-app-api.openapi.yaml',
+));
+const crawChatAuthority = readYaml('openapi/craw-chat-app-api.openapi.yaml');
+const crawChatDerived = readYaml('openapi/craw-chat-app-api.sdkgen.yaml');
+const crawChatFlutterDerived = readYaml('openapi/craw-chat-app-api.flutter.sdkgen.yaml');
+const assembly = readJson('.sdkwork-assembly.json');
+const componentSpec = readJson('specs/component.spec.json');
+const readme = readText('README.md');
+
+assertRoutesPresent('sdkwork-appbase-app-sdk authority OpenAPI', appbaseAuthority, appPrefix, appbaseOwnedAppRoutes);
+assertRoutesAbsent('craw-chat app authority OpenAPI', crawChatAuthority, appPrefix, appbaseOwnedAppRoutes);
+assertRoutesAbsent('craw-chat app sdkgen OpenAPI', crawChatDerived, appPrefix, appbaseOwnedAppRoutes);
+assertRoutesAbsent('craw-chat app Flutter sdkgen OpenAPI', crawChatFlutterDerived, appPrefix, appbaseOwnedAppRoutes);
+
+assert.equal(
+  sdkFamilyConfig.ownsIdentityLifecycle,
+  false,
+  'sdkwork-im-app-sdk must declare ownsIdentityLifecycle: false and consume appbase identity/session capability.',
+);
+for (const appbaseRoute of appbaseOwnedAppRoutes) {
+  const pathPattern = `${appPrefix}/${appbaseRoute.replaceAll('{}', '{')}`;
+  assert.ok(
+    !sdkFamilyConfig.requiredPaths.some((requiredPath) => requiredPath.startsWith(pathPattern.replace('{', ''))),
+    `sdk-family-config requiredPaths must not include appbase-owned route ${appbaseRoute}.`,
+  );
+}
+
+const configDependency = dependencyByWorkspace(sdkFamilyConfig.sdkDependencies ?? [], 'sdkwork-appbase-app-sdk');
+const assemblyDependency = dependencyByWorkspace(assembly.sdkDependencies ?? [], 'sdkwork-appbase-app-sdk');
+const componentSpecDependency = dependencyByWorkspace(componentSpec.contracts?.sdkDependencies ?? [], 'sdkwork-appbase-app-sdk');
+
+assert.ok(configDependency, 'sdk-family-config must declare sdkwork-appbase-app-sdk dependency.');
+assert.deepEqual(assemblyDependency, configDependency, '.sdkwork-assembly.json appbase dependency must match sdk-family-config.mjs.');
+assert.deepEqual(
+  componentSpecDependency,
+  configDependency,
+  'specs/component.spec.json appbase dependency must match sdk-family-config.mjs.',
+);
+assert.equal(configDependency.required, true, 'sdkwork-appbase-app-sdk dependency must be required.');
+assert.equal(configDependency.dependencyMode, 'consumer-sdk', 'sdkwork-appbase-app-sdk dependency must use consumer-sdk mode.');
+assert.equal(
+  configDependency.generatedTransportImportPolicy,
+  'forbidden',
+  'sdkwork-appbase-app-sdk dependency must be forbidden in generated app transport.',
+);
+
+for (const marker of [
+  'sdkwork-appbase-app-sdk',
+  'appbase-identity-and-session-capability',
+  'consumer-sdk',
+  'generatedTransportImportPolicy',
+  'forbidden',
+  '@sdkwork/appbase-app-sdk',
+  'sdkwork_appbase_app_sdk',
+  'SDKWork.Appbase.AppSdk',
+  'ownsIdentityLifecycle: false',
+]) {
+  assert.ok(readme.includes(marker), `README.md must document appbase dependency marker ${marker}.`);
+}
+
+assertGeneratedSurfaceAbsent('sdkwork-im-app-sdk', [
+  'sdkwork-im-app-sdk-typescript/generated/server-openapi',
+  'sdkwork-im-app-sdk-flutter/generated/server-openapi',
+  'sdkwork-im-app-sdk-rust/generated/server-openapi',
+]);
+
+console.log('sdkwork-im-app-sdk appbase dependency boundary contract passed');

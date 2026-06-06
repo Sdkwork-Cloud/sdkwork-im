@@ -31,7 +31,6 @@ fn write_valid_backup_snapshot(root: &Path, owner_node_id: &str) {
     for file_name in [
         "realtime-checkpoints.json",
         "realtime-subscriptions.json",
-        "device-twin-state.json",
         "stream-state.json",
         "rtc-state.json",
         "automation-executions.json",
@@ -135,7 +134,7 @@ fn test_restore_runtime_dir_restores_selected_snapshot_and_creates_pre_restore_b
     assert_eq!(report.status, "restored");
     assert_eq!(report.before.status, "ok");
     assert_eq!(report.after.status, "ok");
-    assert_eq!(report.restored_file_count, 13);
+    assert_eq!(report.restored_file_count, 12);
     assert_eq!(report.skipped_file_count, 0);
     assert_eq!(report.source_backup_dir, backup_dir.display().to_string());
     assert_eq!(

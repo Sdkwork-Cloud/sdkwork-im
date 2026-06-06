@@ -13,6 +13,24 @@ use session_gateway::{
 };
 use tower::ServiceExt;
 
+fn audit_app_context() -> AppContext {
+    AppContext {
+        tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "u_admin".into(),
+        session_id: None,
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: BTreeSet::new(),
+        permission_scope: BTreeSet::new(),
+        actor_id: "u_admin".into(),
+        actor_kind: "admin".into(),
+        device_id: None,
+    }
+}
+
 #[tokio::test]
 async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
     let cluster = Arc::new(RealtimeClusterBridge::default());
@@ -113,14 +131,7 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
     assert_eq!(migrated_cluster.nodes[0].drain_status, "drained");
     assert_eq!(migrated_cluster.nodes[0].device_route_count, 0);
 
-    let audit_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_admin".into(),
-        actor_kind: "admin".into(),
-        session_id: None,
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
+    let audit_auth = audit_app_context();
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 2);
     assert_eq!(audit_export.items[0].action, "control.node_draining_marked");
@@ -320,14 +331,7 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
                 && binding.selection_source == "tenant_override")
     );
 
-    let audit_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_admin".into(),
-        actor_kind: "admin".into(),
-        session_id: None,
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
+    let audit_auth = audit_app_context();
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 2);
     assert_eq!(
@@ -457,14 +461,7 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
         "rollback should clear tenant drift when all tenant overrides are removed"
     );
 
-    let audit_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_admin".into(),
-        actor_kind: "admin".into(),
-        session_id: None,
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
+    let audit_auth = audit_app_context();
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 3);
     assert_eq!(
@@ -551,14 +548,7 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
                 && binding.selection_source == "deployment_profile")
     );
 
-    let audit_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_admin".into(),
-        actor_kind: "admin".into(),
-        session_id: None,
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
+    let audit_auth = audit_app_context();
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 2);
     assert_eq!(
@@ -666,14 +656,7 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
                 && binding.selection_source == "deployment_profile")
     );
 
-    let audit_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_admin".into(),
-        actor_kind: "admin".into(),
-        session_id: None,
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
+    let audit_auth = audit_app_context();
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 1);
     assert_eq!(
@@ -740,14 +723,7 @@ async fn test_control_plane_provider_policy_preview_does_not_touch_ops_or_audit(
         "preview must not create provider drift"
     );
 
-    let audit_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_admin".into(),
-        actor_kind: "admin".into(),
-        session_id: None,
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
+    let audit_auth = audit_app_context();
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 0);
 }
@@ -857,14 +833,7 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
         "stale confirm write must not create tenant drift"
     );
 
-    let audit_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_admin".into(),
-        actor_kind: "admin".into(),
-        session_id: None,
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
+    let audit_auth = audit_app_context();
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 1);
     assert_eq!(
@@ -938,7 +907,8 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("empty tenant provider bindings body should be json");
-    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["status"], 400);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "invalid_provider_policy");
     assert!(
         json["message"]
@@ -1002,7 +972,8 @@ async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_m
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("empty tenant provider policy body should be json");
-    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["status"], 400);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "invalid_provider_policy");
     assert!(
         json["message"]
@@ -1017,14 +988,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_m
         "invalid tenant writes must not mutate ops provider bindings"
     );
 
-    let audit_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_admin".into(),
-        actor_kind: "admin".into(),
-        session_id: None,
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
+    let audit_auth = audit_app_context();
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 0);
 }
@@ -1097,7 +1061,8 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body)
         .expect("oversized tenant provider bindings body should be json");
-    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["status"], 413);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "payload_too_large");
     assert!(
         json["message"]
@@ -1162,7 +1127,8 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body)
         .expect("oversized tenant provider policy body should be json");
-    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["status"], 413);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "payload_too_large");
     assert!(
         json["message"]
@@ -1177,14 +1143,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
         "oversized tenant writes must not mutate ops provider bindings"
     );
 
-    let audit_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_admin".into(),
-        actor_kind: "admin".into(),
-        session_id: None,
-        device_id: None,
-        permissions: BTreeSet::new(),
-    };
+    let audit_auth = audit_app_context();
     let audit_export = audit_runtime.export_bundle(&audit_auth);
     assert_eq!(audit_export.total, 0);
 }

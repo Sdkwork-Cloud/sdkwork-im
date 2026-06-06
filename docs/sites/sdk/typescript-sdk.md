@@ -9,7 +9,7 @@ This package is the primary IM consumer SDK for browser and Node.js and follows 
 - one generated transport boundary assembled under `src/generated/**`
 - one semantic SDK surface at the package root
 
-Use `ImSdkClient` for application code. Route-aligned transport modules such as `sdk.deviceSessions`,
+Use `ImSdkClient` for application code. Route-aligned transport modules such as `sdk.device.sessions`,
 `sdk.presence`, `sdk.realtime`, `sdk.device`, `sdk.inbox`, and `sdk.stream` are mounted directly on
 the same client when you need exact OpenAPI transport control.
 
@@ -30,7 +30,7 @@ The TypeScript standard is now intentionally narrow and explicit:
 | Official package | `@sdkwork/im-sdk` |
 | Primary client | `ImSdkClient` |
 | Runtime targets | Browser and Node.js |
-| Route-aligned transport modules | `sdk.deviceSessions`, `sdk.presence`, `sdk.realtime`, `sdk.device`, `sdk.inbox`, `sdk.stream` |
+| Route-aligned transport modules | `sdk.device.sessions`, `sdk.presence`, `sdk.realtime`, `sdk.device`, `sdk.inbox`, `sdk.stream` |
 | Generated source boundary | `src/generated/**` |
 | Generator-owned authoring boundary | `generated/server-openapi` |
 
@@ -127,7 +127,7 @@ For a new application, build against the SDK in this order:
 3. Send a text message with `sdk.createTextMessage(...)` and `sdk.send(...)`
 4. Add live push with `sdk.connect(...)`
 5. Add durable catch-up with `sdk.sync.catchUp(...)`
-6. Add upload-first media flows
+6. Add Drive-backed media message references
 7. Add custom, AI, and agent/workflow messages
 8. Add RTC lifecycle and signaling
 
@@ -146,8 +146,8 @@ when you need exact OpenAPI operations, request bodies, or transport DTO details
 | Conversation lifecycle and handoff | `sdk.conversations.create`, `sdk.conversations.createAgentDialog`, `sdk.conversations.createAgentHandoff`, `sdk.conversations.get` | [Conversations](/api-reference/im/conversations) |
 | Membership and read cursors | `sdk.conversations.listMembers`, `sdk.conversations.addMember`, `sdk.conversations.updateReadCursor` | [Membership and Read State](/api-reference/im/membership-and-read-state) |
 | Message schemas and semantic send ergonomics | `sdk.createTextMessage(...)`, `sdk.send(...)`, `sdk.decodeMessage(...)` | [Messages](/api-reference/im/messages) |
-| Upload registration, presigned client upload, completion, and attachment | `sdk.media.createUploadSession(...)`, `sdk.media.upload(...)`, `sdk.upload(...)`, `sdk.media.completeUpload(...)`, `sdk.media.attachText(...)` | [Media](/api-reference/im/media) |
-| Device Sessions, presence, live subscriptions, and durable replay | `sdk.connect(...)`, `sdk.sync.catchUp(...)`, `sdk.sync.ack(...)`, `sdk.deviceSessions`, `sdk.presence`, `sdk.realtime` | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
+| Drive-backed media message references | `sdkwork-drive` for file lifecycle, then `sdk.createImageMessage(...)` with `ContentPart.drive` and `MediaResource` | [Media](/api-reference/im/media) |
+| Device Sessions, presence, live subscriptions, and durable replay | `sdk.connect(...)`, `sdk.sync.catchUp(...)`, `sdk.sync.ack(...)`, `sdk.device.sessions`, `sdk.presence`, `sdk.realtime` | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
 | Device registration and sync feeds | `sdk.device.register(...)`, `sdk.device.getDeviceSyncFeed(...)` | [Device Sync](/api-reference/im/device-sync) |
 | RTC lifecycle and signaling-side HTTP calls | `sdk.rtc.create(...)`, `sdk.rtc.postJsonSignal(...)`, `sdk.rtc.issueParticipantCredential(...)`, `sdk.rtc.getRecordingArtifact(...)` | [RTC](/api-reference/im/rtc) |
 | Stream transport and checkpointing | `sdk.stream.open(...)`, `sdk.stream.appendStreamFrame(...)`, `sdk.stream.checkpoint(...)`, `sdk.stream.complete(...)` | [Streams](/api-reference/im/streams) |
@@ -294,8 +294,8 @@ The outbound experience is message-first at the client root:
 2. send it with `sdk.send(message)`
 
 The same builders remain available on `sdk.messages` when you want a namespaced module surface.
-The primary message entrypoints are `sdk.createTextMessage(...)`, `sdk.send(...)`,
-`sdk.upload(...)`, `sdk.uploadAndSendMessage(...)`, and `sdk.decodeMessage(...)`.
+The primary message entrypoints are `sdk.createTextMessage(...)`, `sdk.send(...)`, and
+`sdk.decodeMessage(...)`.
 
 ### Text
 
@@ -315,7 +315,21 @@ await sdk.send(message);
 ```ts
 const image = sdk.createImageMessage({
   conversationId: 'conversation-1',
-  mediaAssetId: 'asset-image-1',
+  drive: {
+    driveUri: 'drive://spaces/space_app_upload_demo/nodes/node_storefront_png',
+    spaceId: 'space_app_upload_demo',
+    nodeId: 'node_storefront_png',
+    nodeVersion: '1',
+  },
+  resource: {
+    id: 'node_storefront_png',
+    kind: 'image',
+    source: 'provider_asset',
+    uri: 'drive://spaces/space_app_upload_demo/nodes/node_storefront_png',
+    fileName: 'storefront.png',
+    mimeType: 'image/png',
+  },
+  mediaRole: 'attachment',
   text: 'Latest storefront concept',
   summary: 'Storefront concept',
 });
@@ -323,33 +337,9 @@ const image = sdk.createImageMessage({
 await sdk.send(image);
 ```
 
-### Presigned Upload And Send
-
-```ts
-const uploaded = await sdk.uploadAndSendMessage({
-  upload: {
-    mediaAssetId: 'asset-image-1',
-    bucket: 'tenant-media',
-    objectKey: 'conversation-1/storefront.png',
-    resource: {
-      type: 'image',
-      name: 'storefront.png',
-      mimeType: 'image/png',
-      size: file.size,
-    },
-    body: file,
-  },
-  createMessage: (preparedUpload) =>
-    sdk.createImageMessage({
-      conversationId: 'conversation-1',
-      mediaAssetId: preparedUpload.mediaAssetId,
-      text: 'Uploaded storefront image',
-      summary: 'Storefront image',
-    }),
-});
-
-console.log(uploaded.mediaAssetId, uploaded.url, uploaded.delivery.messageId);
-```
+Upload and file access are owned by `sdkwork-drive`. After Drive returns a node, the TypeScript IM
+SDK sends that node as `ContentPart.drive` using a `DriveReference`; the neighboring
+`MediaResource` describes how the message uses the media.
 
 ### Standard Message Families
 
@@ -447,61 +437,50 @@ console.log(decoded.type, decoded.summary);
 
 ## Media
 
-`sdk.media` owns the upload lifecycle and route-aligned attachment helpers. Use it when your
-application needs explicit control over upload sessions, presigned client uploads, completion,
-signed download URLs, or direct media attachment. Use `sdk.upload(...)` at the client root when
-you want the default application upload path.
-
-`sdk.media.createUploadSession(...)` returns a normalized `ImMediaUploadSession`.
-`sdk.media.upload(...)`, `sdk.media.uploadAndComplete(...)`, and `sdk.upload(...)` return
-`ImUploadedMediaAsset`, which keeps the semantic upload helper stable while still exposing the
-generated upload-session data you need for advanced diagnostics.
+The IM SDK does not own file lifecycle work. Use `sdkwork-drive` to create, version, authorize, and
+retrieve files, then use the IM SDK to send a message that references the Drive node. This keeps the
+storage authority in Drive and the IM contract focused on message semantics.
 
 | Task | Method |
 | --- | --- |
-| Create a presigned upload session | `sdk.media.createUploadSession(...)` |
-| Route-level upload-session alias | `sdk.media.createUpload(...)` |
-| Run the standard client upload flow | `sdk.media.upload(...)` or `sdk.upload(...)` |
-| Run the namespaced upload-and-complete alias | `sdk.media.uploadAndComplete(...)` |
-| Mark an upload complete | `sdk.media.completeUpload(...)` |
-| Resolve a signed download URL | `sdk.media.getDownloadUrl(...)` |
-| Read the asset metadata | `sdk.media.get(...)` |
-| Attach an asset with a raw request body | `sdk.media.attach(...)` |
-| Attach an asset with plain text | `sdk.media.attachText(...)` |
+| Upload bytes, choose version, authorize file access | `sdkwork-drive` |
+| Send an image reference | `sdk.createImageMessage(...)` |
+| Send video, audio, or document references | `sdk.createVideoMessage(...)`, `sdk.createAudioMessage(...)`, `sdk.createFileMessage(...)` |
+| Decode received message media references | `sdk.decodeMessage(...)` |
 
 ```ts
-const uploaded = await sdk.media.uploadAndComplete({
-  mediaAssetId: 'asset-file-1',
-  bucket: 'tenant-media',
-  objectKey: 'conversation-1/brief.pdf',
-  resource: {
-    type: 'file',
-    name: 'brief.pdf',
-    mimeType: 'application/pdf',
-    size: file.size,
-  },
-  body: file,
-});
+const drive = {
+  driveUri: 'drive://spaces/space_app_upload_demo/nodes/node_project_brief_pdf',
+  spaceId: 'space_app_upload_demo',
+  nodeId: 'node_project_brief_pdf',
+  nodeVersion: '3',
+};
 
-await sdk.media.attachText(uploaded.mediaAssetId, {
+const fileMessage = sdk.createFileMessage({
   conversationId: 'conversation-1',
-  text: 'Uploaded project brief',
+  drive,
+  resource: {
+    id: drive.nodeId,
+    kind: 'document',
+    source: 'provider_asset',
+    uri: drive.driveUri,
+    fileName: 'brief.pdf',
+    mimeType: 'application/pdf',
+    sizeBytes: String(file.size),
+  },
+  mediaRole: 'attachment',
+  text: 'Project brief',
   summary: 'Project brief',
 });
 
-const download = await sdk.media.getDownloadUrl(uploaded.mediaAssetId, {
-  expiresInSeconds: 600,
-});
+await sdk.send(fileMessage);
 
-const asset = await sdk.media.get(uploaded.mediaAssetId);
-
-console.log(uploaded.url, download.downloadUrl, asset.processingState);
+const decoded = sdk.decodeMessage(fileMessage.body);
+console.log(decoded.attachments[0]?.drive?.driveUri);
 ```
 
-`sdk.upload(...)` is the preferred root shortcut for normal application code. Use
-`sdk.media.uploadAndComplete(...)` when you want the same presigned upload behavior from the
-namespaced media module, and use `sdk.media.createUploadSession(...)` plus
-`sdk.media.completeUpload(...)` only when you need to control the presigned transaction manually.
+`DriveReference` is the durable pointer, and `MediaResource` is the normalized usage snapshot on the
+message. The canonical Drive URI shape is `drive://spaces/{spaceId}/nodes/{nodeId}`.
 
 ## Realtime Model
 
@@ -719,7 +698,7 @@ const sdk = new ImSdkClient({
   authToken: 'token',
 });
 
-await sdk.deviceSessions.resume({ deviceId: 'web-chrome-01' });
+await sdk.device.sessions.resume({ deviceId: 'web-chrome-01' });
 await sdk.presence.getPresenceMe();
 await sdk.realtime.listRealtimeEvents({ limit: 20 });
 await sdk.conversations.listMessages('conversation-1');
@@ -736,7 +715,7 @@ await sdk.stream.open({
 ```
 
 Use the root transport modules when you need exact DTOs or route-group control. Reach for
-`sdk.deviceSessions.resume(...)`, `sdk.presence.getPresenceMe()`, `sdk.realtime.listRealtimeEvents(...)`,
+`sdk.device.sessions.resume(...)`, `sdk.presence.getPresenceMe()`, `sdk.realtime.listRealtimeEvents(...)`,
 `sdk.device.register(...)`, `sdk.inbox.getInbox()`, and `sdk.stream.open(...)` when the route group
 already matches the API cleanly. Use the semantic domains on `ImSdkClient` for normal application
 integration.

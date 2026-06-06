@@ -353,7 +353,7 @@ fn test_iot_access_provider_health_http_surface_docs_freeze_first_external_visib
         for required in [
             "local-minimal-node",
             "iot-access-local",
-            "/backend/v3/api/iot/access/provider_health",
+            "/app/v3/api/iot/access/provider_health",
             "provider_health_snapshot",
             "DeviceAccessProvider",
             "mqtt,xiaozhi",
@@ -390,7 +390,7 @@ fn test_iot_protocol_provider_health_http_surface_docs_freeze_first_external_vis
         for required in [
             "local-minimal-node",
             "iot-mqtt",
-            "/backend/v3/api/iot/protocol/provider_health",
+            "/app/v3/api/iot/protocol/provider_health",
             "IotProtocolAdapter",
             "provider_health_snapshot",
             "build_default_app_with_iot_protocol_adapter",
@@ -427,7 +427,7 @@ fn test_iot_protocol_uplink_device_telemetry_mainline_docs_freeze_runtime_consum
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/backend/v3/api/iot/protocol/uplink",
+            "/app/v3/api/iot/protocol/uplink",
             "IotProtocolAdapter",
             "decode_uplink",
             "build_default_app_with_iot_protocol_adapter",
@@ -467,7 +467,7 @@ fn test_iot_protocol_downlink_device_command_mainline_docs_freeze_runtime_consum
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/backend/v3/api/iot/protocol/downlink",
+            "/app/v3/api/iot/protocol/downlink",
             "IotProtocolAdapter",
             "encode_downlink",
             "build_default_app_with_iot_protocol_adapter",
@@ -510,9 +510,9 @@ fn test_wave_c_93_review_refreshes_step08_continuous_optimization_closure() {
         "08-L",
         "08-M",
         "08-N",
-        "/backend/v3/api/iot/protocol/provider_health",
-        "/backend/v3/api/iot/protocol/uplink",
-        "/backend/v3/api/iot/protocol/downlink",
+        "/app/v3/api/iot/protocol/provider_health",
+        "/app/v3/api/iot/protocol/uplink",
+        "/app/v3/api/iot/protocol/downlink",
         "09AK",
         "09AL",
         "09AM",
@@ -555,7 +555,7 @@ fn test_iot_protocol_uplink_known_device_preflight_docs_freeze_auth_before_decod
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/backend/v3/api/iot/protocol/uplink",
+            "/app/v3/api/iot/protocol/uplink",
             "IotProtocolAdapter",
             "decode_uplink",
             "request.device_id.clone().or_else(|| auth.device_id.clone())",
@@ -595,7 +595,7 @@ fn test_iot_protocol_uplink_actor_preflight_docs_freeze_auth_before_decode() {
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/backend/v3/api/iot/protocol/uplink",
+            "/app/v3/api/iot/protocol/uplink",
             "IotProtocolAdapter",
             "decode_uplink",
             "ensure_iot_protocol_uplink_actor_preflight",
@@ -636,7 +636,7 @@ fn test_iot_protocol_uplink_request_device_mismatch_docs_freeze_error_before_dec
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/backend/v3/api/iot/protocol/uplink",
+            "/app/v3/api/iot/protocol/uplink",
             "IotProtocolAdapter",
             "decode_uplink",
             "resolve_requested_device_id",
@@ -676,7 +676,7 @@ fn test_iot_protocol_uplink_decoded_device_mismatch_docs_freeze_error_after_deco
     for doc in [&step_doc, &plan_doc, &architecture_doc, &review_doc] {
         for required in [
             "local-minimal-node",
-            "/backend/v3/api/iot/protocol/uplink",
+            "/app/v3/api/iot/protocol/uplink",
             "IotProtocolAdapter",
             "decode_uplink",
             "ensure_iot_protocol_uplink_decoded_device_matches_preflight",

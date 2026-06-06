@@ -7,6 +7,30 @@ use projection_service::{
 use std::thread::sleep;
 use std::time::Duration;
 
+fn app_context(
+    tenant_id: &str,
+    actor_id: &str,
+    actor_kind: &str,
+    session_id: Option<&str>,
+    device_id: Option<&str>,
+) -> AppContext {
+    AppContext {
+        tenant_id: tenant_id.into(),
+        organization_id: None,
+        user_id: actor_id.into(),
+        session_id: session_id.map(str::to_owned),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: Default::default(),
+        permission_scope: Default::default(),
+        actor_id: actor_id.into(),
+        actor_kind: actor_kind.into(),
+        device_id: device_id.map(str::to_owned),
+    }
+}
+
 #[test]
 fn test_message_posted_event_projects_into_timeline_view() {
     let service = TimelineProjectionService::default();
@@ -50,6 +74,27 @@ fn test_message_posted_event_projects_into_timeline_view() {
             message_id: "m_demo".into(),
             message_seq: 1,
             summary: Some("hello".into()),
+            sender: im_domain_core::message::Sender {
+                id: "u_demo".into(),
+                kind: "user".into(),
+                member_id: Some("cm_demo".into()),
+                device_id: Some("d_demo".into()),
+                session_id: Some("s_demo".into()),
+                metadata: Default::default(),
+            },
+            body: im_domain_core::message::MessageBody {
+                summary: Some("hello".into()),
+                parts: vec![im_domain_core::message::ContentPart::text("hello")],
+                render_hints: Default::default(),
+                reply_to: None,
+            },
+            message_type: im_domain_core::message::MessageType::Standard,
+            delivery_mode: "discrete".into(),
+            client_msg_id: Some("client_demo".into()),
+            stream_session_id: None,
+            rtc_session_id: None,
+            occurred_at: "2026-04-05T10:00:01Z".into(),
+            committed_at: Some("2026-04-05T10:00:01Z".into()),
         }]
     );
 }
@@ -143,14 +188,7 @@ fn test_timeline_window_returns_cursor_metadata_and_rejects_oversized_limit() {
     assert_eq!(second.next_after_seq, Some(3));
     assert!(!second.has_more);
 
-    let auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_demo".into(),
-        actor_kind: "user".into(),
-        device_id: None,
-        session_id: None,
-        permissions: Default::default(),
-    };
+    let auth = app_context("t_demo", "u_demo", "user", None, None);
     let invalid = service
         .timeline_window_from_auth_context(&auth, "c_page", Some(0), Some(1001))
         .expect_err("oversized limit should be rejected");
@@ -835,22 +873,14 @@ fn test_inbox_from_auth_context_isolates_same_actor_id_by_principal_kind() {
             .expect("typed inbox member projection should succeed");
     }
 
-    let user_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_dual".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_typed_inbox_user".into()),
-        device_id: None,
-        permissions: Default::default(),
-    };
-    let agent_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_dual".into(),
-        actor_kind: "agent".into(),
-        session_id: Some("s_typed_inbox_agent".into()),
-        device_id: None,
-        permissions: Default::default(),
-    };
+    let user_auth = app_context("t_demo", "u_dual", "user", Some("s_typed_inbox_user"), None);
+    let agent_auth = app_context(
+        "t_demo",
+        "u_dual",
+        "agent",
+        Some("s_typed_inbox_agent"),
+        None,
+    );
 
     let user_inbox = service.inbox_from_auth_context(&user_auth);
     assert_eq!(user_inbox.len(), 1);
@@ -978,6 +1008,254 @@ fn test_device_sync_feed_projects_registered_devices_for_message_and_read_cursor
         feed[1].last_read_message_id.as_deref(),
         Some("msg_c_sync_1")
     );
+}
+
+#[test]
+fn test_rtc_signal_message_device_sync_feed_preserves_message_payload_for_state_backfill() {
+    let service = TimelineProjectionService::default();
+
+    let member_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_rtc_sync_member",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_rtc_sync",
+        1,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_rtc_sync",
+            "memberId":"cm_rtc_sync_alice",
+            "principalId":"u_alice",
+            "principalKind":"user",
+            "role":"owner",
+            "state":"joined",
+            "invitedBy":null,
+            "joinedAt":"2026-04-05T10:00:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let rtc_signal_message = im_domain_events::CommitEnvelope::minimal(
+        "evt_rtc_signal_message",
+        "t_demo",
+        "message.posted",
+        "conversation",
+        "c_rtc_sync",
+        2,
+    )
+    .with_payload(
+        "message.posted.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_rtc_sync",
+            "messageId":"msg_rtc_signal_1",
+            "messageSeq":1,
+            "sender":{"id":"u_alice","kind":"user","memberId":"cm_rtc_sync_alice","deviceId":"d_phone","sessionId":"s_demo","metadata":{}},
+            "messageType":"signal",
+            "deliveryMode":"discrete",
+            "clientMsgId":null,
+            "streamSessionId":null,
+            "rtcSessionId":"rtc_sync_1",
+            "body":{
+                "summary":"rtc.accept",
+                "parts":[{
+                    "kind":"signal",
+                    "signalType":"rtc.accept",
+                    "schemaRef":"rtc.signal.v1",
+                    "payload":"{\"rtcSessionId\":\"rtc_sync_1\",\"conversationId\":\"c_rtc_sync\",\"rtcMode\":\"video\",\"state\":\"accepted\"}"
+                }],
+                "renderHints":{"channel":"rtc"}
+            },
+            "attributes":{},
+            "metadata":{},
+            "occurredAt":"2026-04-05T10:00:02Z",
+            "committedAt":"2026-04-05T10:00:02Z"
+        }"#,
+    );
+
+    service
+        .apply(&member_joined)
+        .expect("member projection should succeed");
+    service.register_device("t_demo", "u_alice", "d_pad");
+    service
+        .apply(&rtc_signal_message)
+        .expect("rtc signal message projection should succeed");
+
+    let feed = service
+        .device_sync_feed_window_for_principal_kind(
+            "t_demo",
+            "u_alice",
+            "user",
+            "d_pad",
+            Some(0),
+            100,
+        )
+        .items;
+    assert_eq!(feed.len(), 1);
+    assert_eq!(feed[0].origin_event_type, "message.posted");
+    assert_eq!(feed[0].message_id.as_deref(), Some("msg_rtc_signal_1"));
+    assert_eq!(feed[0].payload_schema.as_deref(), Some("message.posted.v1"));
+    let payload: serde_json::Value = serde_json::from_str(
+        feed[0]
+            .payload
+            .as_deref()
+            .expect("rtc signal message payload should be present in device sync feed"),
+    )
+    .expect("rtc signal message device sync payload should be valid json");
+    assert_eq!(payload["rtcSessionId"], "rtc_sync_1");
+    assert_eq!(payload["body"]["parts"][0]["kind"], "signal");
+    assert_eq!(payload["body"]["parts"][0]["signalType"], "rtc.accept");
+    let signal_payload: serde_json::Value =
+        serde_json::from_str(payload["body"]["parts"][0]["payload"].as_str().unwrap())
+            .expect("rtc signal part payload should be valid json");
+    assert_eq!(signal_payload["rtcSessionId"], "rtc_sync_1");
+    assert_eq!(signal_payload["rtcMode"], "video");
+}
+
+#[test]
+fn test_media_message_device_sync_feed_preserves_message_payload_for_state_backfill() {
+    let service = TimelineProjectionService::default();
+
+    let member_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_media_sync_member",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_media_sync",
+        1,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_media_sync",
+            "memberId":"cm_media_sync_alice",
+            "principalId":"u_alice",
+            "principalKind":"user",
+            "role":"owner",
+            "state":"joined",
+            "invitedBy":null,
+            "joinedAt":"2026-04-05T10:00:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let media_message = im_domain_events::CommitEnvelope::minimal(
+        "evt_media_message",
+        "t_demo",
+        "message.posted",
+        "conversation",
+        "c_media_sync",
+        2,
+    )
+    .with_payload(
+        "message.posted.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_media_sync",
+            "messageId":"msg_media_1",
+            "messageSeq":1,
+            "sender":{"id":"u_alice","kind":"user","memberId":"cm_media_sync_alice","deviceId":"d_phone","sessionId":"s_demo","metadata":{}},
+            "messageType":"standard",
+            "deliveryMode":"discrete",
+            "clientMsgId":"client_media_1",
+            "streamSessionId":null,
+            "rtcSessionId":null,
+            "body":{
+                "summary":"Image",
+                "parts":[{
+                    "kind":"media",
+                    "resource":{
+                        "id":"asset_image_1",
+                        "kind":"image",
+                        "source":"external_url",
+                        "url":null,
+                        "publicUrl":"https://cdn.example.test/offline-image.png",
+                        "uri":null,
+                        "objectBlobId":null,
+                        "fileName":"offline-image.png",
+                        "mimeType":"image/png",
+                        "sizeBytes":"4096",
+                        "checksum":null,
+                        "width":640,
+                        "height":480,
+                        "durationSeconds":null,
+                        "altText":null,
+                        "title":null,
+                        "poster":null,
+                        "thumbnails":null,
+                        "variants":null,
+                        "access":null,
+                        "ai":null,
+                        "metadata":null
+                    },
+                    "drive":{
+                        "driveUri":"drive://spaces/im-demo/nodes/node-image-1",
+                        "spaceId":"im-demo",
+                        "nodeId":"node-image-1",
+                        "nodeVersion":"v1"
+                    },
+                    "mediaRole":"attachment"
+                }],
+                "renderHints":{"sdkworkChatPcType":"image"},
+                "replyTo":{
+                    "messageId":"msg_root",
+                    "senderDisplayName":"Alice",
+                    "contentPreview":"root message"
+                }
+            },
+            "attributes":{},
+            "metadata":{},
+            "occurredAt":"2026-04-05T10:00:02Z",
+            "committedAt":"2026-04-05T10:00:02Z"
+        }"#,
+    );
+
+    service
+        .apply(&member_joined)
+        .expect("member projection should succeed");
+    service.register_device("t_demo", "u_alice", "d_pad");
+    service
+        .apply(&media_message)
+        .expect("media message projection should succeed");
+
+    let feed = service
+        .device_sync_feed_window_for_principal_kind(
+            "t_demo",
+            "u_alice",
+            "user",
+            "d_pad",
+            Some(0),
+            100,
+        )
+        .items;
+    assert_eq!(feed.len(), 1);
+    assert_eq!(feed[0].origin_event_type, "message.posted");
+    assert_eq!(feed[0].message_id.as_deref(), Some("msg_media_1"));
+    assert_eq!(feed[0].payload_schema.as_deref(), Some("message.posted.v1"));
+    let payload: serde_json::Value = serde_json::from_str(
+        feed[0]
+            .payload
+            .as_deref()
+            .expect("media message payload should be present in device sync feed"),
+    )
+    .expect("media message device sync payload should be valid json");
+    assert_eq!(payload["body"]["parts"][0]["kind"], "media");
+    assert_eq!(payload["body"]["parts"][0]["resource"]["kind"], "image");
+    assert_eq!(
+        payload["body"]["parts"][0]["resource"]["publicUrl"],
+        "https://cdn.example.test/offline-image.png"
+    );
+    assert_eq!(
+        payload["body"]["parts"][0]["resource"]["fileName"],
+        "offline-image.png"
+    );
+    assert_eq!(payload["body"]["parts"][0]["resource"]["sizeBytes"], "4096");
+    assert_eq!(payload["body"]["renderHints"]["sdkworkChatPcType"], "image");
+    assert_eq!(payload["body"]["replyTo"]["messageId"], "msg_root");
 }
 
 #[test]
@@ -1171,14 +1449,13 @@ fn test_device_sync_feed_window_from_auth_context_hides_archived_direct_chat_ent
     service.register_device_for_principal_kind("t_demo", "u_alice", "user", "d_alice_phone");
     service.register_device_for_principal_kind("t_demo", "u_alice", "user", "d_alice_pad");
 
-    let alice_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_alice".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_archived_sync_alice".into()),
-        device_id: Some("d_alice_pad".into()),
-        permissions: Default::default(),
-    };
+    let alice_auth = app_context(
+        "t_demo",
+        "u_alice",
+        "user",
+        Some("s_archived_sync_alice"),
+        Some("d_alice_pad"),
+    );
 
     service
         .apply(
@@ -1469,14 +1746,13 @@ fn test_device_sync_feed_window_is_bounded_and_reports_trimmed_boundary() {
     service.register_device_for_principal_kind("t_demo", "u_owner", "user", "d_owner");
     service.register_device_for_principal_kind("t_demo", "u_owner", "user", "d_pad");
 
-    let auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_owner".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_bounded_sync".into()),
-        device_id: Some("d_pad".into()),
-        permissions: Default::default(),
-    };
+    let auth = app_context(
+        "t_demo",
+        "u_owner",
+        "user",
+        Some("s_bounded_sync"),
+        Some("d_pad"),
+    );
 
     for message_seq in 1..=1002 {
         service
@@ -1951,6 +2227,114 @@ fn test_registered_devices_and_latest_sync_seq_are_queryable() {
 }
 
 #[test]
+fn test_friendship_events_project_to_contact_device_sync_feeds_for_both_users() {
+    let service = TimelineProjectionService::default();
+
+    service.register_device("t_demo", "u_alice", "d_alice");
+    service.register_device("t_demo", "u_bob", "d_bob");
+
+    let friendship_activated = im_domain_events::CommitEnvelope::minimal(
+        "evt_friendship_contact_sync_activated",
+        "t_demo",
+        "friendship.activated",
+        "friendship",
+        "fs_contact_sync",
+        1,
+    )
+    .with_payload(
+        "social.friendship.activated.v1",
+        r#"{
+            "friendshipId":"fs_contact_sync",
+            "userLowId":"u_alice",
+            "userHighId":"u_bob",
+            "initiatorUserId":"u_alice",
+            "directChatId":"dc_contact_sync",
+            "establishedAt":"2026-04-05T10:00:00Z"
+        }"#,
+    );
+    let friendship_removed = im_domain_events::CommitEnvelope::minimal(
+        "evt_friendship_contact_sync_removed",
+        "t_demo",
+        "friendship.removed",
+        "friendship",
+        "fs_contact_sync",
+        2,
+    )
+    .with_payload(
+        "social.friendship.removed.v1",
+        r#"{
+            "friendshipId":"fs_contact_sync",
+            "userLowId":"u_alice",
+            "userHighId":"u_bob",
+            "removedByUserId":"u_bob",
+            "removedAt":"2026-04-05T10:00:02Z"
+        }"#,
+    );
+
+    service
+        .apply(&friendship_activated)
+        .expect("friendship activation projection should succeed");
+    service
+        .apply(&friendship_removed)
+        .expect("friendship removal projection should succeed");
+
+    for (user_id, device_id, expected_peer_id) in [
+        ("u_alice", "d_alice", "u_bob"),
+        ("u_bob", "d_bob", "u_alice"),
+    ] {
+        let feed = service
+            .device_sync_feed_window_for_principal_kind(
+                "t_demo",
+                user_id,
+                "user",
+                device_id,
+                Some(0),
+                100,
+            )
+            .items;
+        assert_eq!(
+            feed.len(),
+            2,
+            "friendship sync feed for {user_id}/{device_id} must include activation and removal"
+        );
+        assert_eq!(feed[0].origin_event_type, "friendship.activated");
+        assert_eq!(
+            feed[0].payload_schema.as_deref(),
+            Some("social.friendship.activated.v1")
+        );
+        assert_eq!(feed[0].actor_id.as_deref(), Some("u_alice"));
+        assert_eq!(feed[0].summary.as_deref(), Some(expected_peer_id));
+        let activated_payload: serde_json::Value = serde_json::from_str(
+            feed[0]
+                .payload
+                .as_deref()
+                .expect("friendship activation payload should be present"),
+        )
+        .expect("friendship activation payload should be valid json");
+        assert_eq!(activated_payload["friendshipId"], "fs_contact_sync");
+        assert_eq!(activated_payload["userLowId"], "u_alice");
+        assert_eq!(activated_payload["userHighId"], "u_bob");
+
+        assert_eq!(feed[1].origin_event_type, "friendship.removed");
+        assert_eq!(
+            feed[1].payload_schema.as_deref(),
+            Some("social.friendship.removed.v1")
+        );
+        assert_eq!(feed[1].actor_id.as_deref(), Some("u_bob"));
+        assert_eq!(feed[1].summary.as_deref(), Some(expected_peer_id));
+        let removed_payload: serde_json::Value = serde_json::from_str(
+            feed[1]
+                .payload
+                .as_deref()
+                .expect("friendship removal payload should be present"),
+        )
+        .expect("friendship removal payload should be valid json");
+        assert_eq!(removed_payload["friendshipId"], "fs_contact_sync");
+        assert_eq!(removed_payload["removedByUserId"], "u_bob");
+    }
+}
+
+#[test]
 fn test_realtime_fanout_targets_for_recipients_return_registered_principal_device_pairs() {
     let service = TimelineProjectionService::default();
 
@@ -1958,14 +2342,7 @@ fn test_realtime_fanout_targets_for_recipients_return_registered_principal_devic
     service.register_device("t_demo", "u_a", "d_watch");
     service.register_device("t_demo", "u_a", "d_pad");
 
-    let auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_a".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_a".into()),
-        device_id: Some("d_pad".into()),
-        permissions: Default::default(),
-    };
+    let auth = app_context("t_demo", "u_a", "user", Some("s_a"), Some("d_pad"));
 
     let targets = service.realtime_fanout_targets_for_recipients_from_auth_context(
         &auth,
@@ -2192,14 +2569,13 @@ fn test_active_conversation_principal_recipients_from_auth_context_returns_curre
             .expect("member projection should succeed");
     }
 
-    let auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_owner".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_owner".into()),
-        device_id: Some("d_owner".into()),
-        permissions: Default::default(),
-    };
+    let auth = app_context(
+        "t_demo",
+        "u_owner",
+        "user",
+        Some("s_owner"),
+        Some("d_owner"),
+    );
 
     assert_eq!(
         service
@@ -2302,14 +2678,13 @@ fn test_message_posted_notification_recipients_from_auth_context_include_shared_
             .expect("member projection should accept notification target events");
     }
 
-    let auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_owner".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_owner".into()),
-        device_id: Some("d_owner".into()),
-        permissions: Default::default(),
-    };
+    let auth = app_context(
+        "t_demo",
+        "u_owner",
+        "user",
+        Some("s_owner"),
+        Some("d_owner"),
+    );
 
     assert_eq!(
         service
@@ -2413,14 +2788,13 @@ fn test_member_directory_and_notification_recipients_preserve_same_actor_id_acro
             .expect("typed member projection should succeed");
     }
 
-    let auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_dual".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_dual_user".into()),
-        device_id: Some("d_dual_user".into()),
-        permissions: Default::default(),
-    };
+    let auth = app_context(
+        "t_demo",
+        "u_dual",
+        "user",
+        Some("s_dual_user"),
+        Some("d_dual_user"),
+    );
 
     let directory = service
         .member_directory_from_auth_context(&auth, "c_typed_member_directory")
@@ -2520,14 +2894,13 @@ fn test_typed_realtime_recipients_exclude_non_member_devices_sharing_same_actor_
     service.register_device_for_principal_kind("t_demo", "u_dual", "user", "d_dual_user");
     service.register_device_for_principal_kind("t_demo", "u_dual", "agent", "d_dual_agent");
 
-    let auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_owner".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_owner".into()),
-        device_id: Some("d_owner".into()),
-        permissions: Default::default(),
-    };
+    let auth = app_context(
+        "t_demo",
+        "u_owner",
+        "user",
+        Some("s_owner"),
+        Some("d_owner"),
+    );
 
     let recipients = service
         .active_conversation_principal_recipients_from_auth_context(
@@ -2629,22 +3002,20 @@ fn test_device_sync_state_isolated_for_same_actor_and_device_across_principal_ki
     service.register_device_for_principal_kind("t_demo", "u_dual", "user", "d_shared");
     service.register_device_for_principal_kind("t_demo", "u_dual", "agent", "d_shared");
 
-    let user_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_dual".into(),
-        actor_kind: "user".into(),
-        session_id: Some("s_typed_device_scope_user".into()),
-        device_id: Some("d_shared".into()),
-        permissions: Default::default(),
-    };
-    let agent_auth = AppContext {
-        tenant_id: "t_demo".into(),
-        actor_id: "u_dual".into(),
-        actor_kind: "agent".into(),
-        session_id: Some("s_typed_device_scope_agent".into()),
-        device_id: Some("d_shared".into()),
-        permissions: Default::default(),
-    };
+    let user_auth = app_context(
+        "t_demo",
+        "u_dual",
+        "user",
+        Some("s_typed_device_scope_user"),
+        Some("d_shared"),
+    );
+    let agent_auth = app_context(
+        "t_demo",
+        "u_dual",
+        "agent",
+        Some("s_typed_device_scope_agent"),
+        Some("d_shared"),
+    );
 
     let user_devices = service.registered_devices_from_auth_context(&user_auth);
     assert_eq!(user_devices.len(), 1);

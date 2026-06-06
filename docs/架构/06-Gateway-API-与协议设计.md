@@ -142,12 +142,10 @@
 
 ### 3.6 文件资源
 
-- `POST /im/v3/api/media/uploads`
-- `POST /im/v3/api/media/uploads/{id}/complete`
-- `GET /im/v3/api/media/{id}`
-- `POST /im/v3/api/media/{id}/attach`
-- 当前最小实现已落地 create/complete/get/attach 四个接口，其中 `attach` 会把已就绪媒体资源包装为消息 `MediaPart` 并提交到目标会话。
-- 上传完成后服务端会写入 `media.asset.created` 事件，供审计、工作流、投影和私有化替换适配复用。
+- 文件上传、完成、版本、权限和访问 URL 接口属于 `sdkwork-drive`。
+- IM 只通过 `POST /im/v3/api/chat/conversations/{id}/messages` 接收媒体消息内容。
+- 媒体消息 part 必须携带 `ContentPart.drive` (`DriveReference`) 和 `source=drive` 的 `MediaResource` 使用快照。
+- Gateway 必须拒绝 craw-chat 自有媒体生命周期路由和存储内部字段。
 
 ### 3.7 通知
 

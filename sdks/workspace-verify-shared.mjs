@@ -121,6 +121,7 @@ export function runWorkspaceAssemblyStep({
   workspaceRoot,
   scriptDir,
   languages,
+  step = 'workspace:assemble',
 }) {
   runVerifyCommand({
     prefix,
@@ -130,7 +131,7 @@ export function runWorkspaceAssemblyStep({
       ...languages.flatMap((language) => ['--language', language]),
     ],
     cwd: workspaceRoot,
-    step: 'workspace:assemble',
+    step,
   });
 }
 

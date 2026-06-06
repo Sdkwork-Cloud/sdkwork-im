@@ -3,13 +3,13 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork-im-app-sdk",
-    "displayName": "SDKWork IM App SDK",
+    "displayName": "SDKWork IM App API SDK",
     "version": "0.1.0",
     "type": "sdk-family",
     "root": "craw-chat/sdks/sdkwork-im-app-sdk",
     "domain": "communication",
     "declaredDomain": null,
-    "capability": "chat",
+    "capability": "im",
     "status": "standardizing",
     "languages": [
       "csharp",
@@ -40,9 +40,44 @@
       "purpose": "Local component specs directory and manifest rules."
     },
     {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../../../specs/CONFIG_SPEC.md",
+      "purpose": "Runtime configuration, environment, SDK bootstrap, and feature flag rules."
+    },
+    {
       "file": "DOCUMENTATION_SPEC.md",
       "path": "../../../../../specs/DOCUMENTATION_SPEC.md",
       "purpose": "Module README, examples, ADR, changelog, and runbook rules."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../../../../specs/DOMAIN_SPEC.md",
+      "purpose": "Canonical domain ownership and naming."
+    },
+    {
+      "file": "FRONTEND_SPEC.md",
+      "path": "../../../../../specs/FRONTEND_SPEC.md",
+      "purpose": "UI, service, SDK, accessibility, and frontend runtime rules."
+    },
+    {
+      "file": "GOVERNANCE_SPEC.md",
+      "path": "../../../../../specs/GOVERNANCE_SPEC.md",
+      "purpose": "Standard ownership, exception, compatibility, and migration rules."
+    },
+    {
+      "file": "I18N_SPEC.md",
+      "path": "../../../../../specs/I18N_SPEC.md",
+      "purpose": "User-facing language, locale, message catalog, and fallback rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../../specs/MODULE_SPEC.md",
+      "purpose": "Reusable package contract and dependency direction."
+    },
+    {
+      "file": "README.md",
+      "path": "../../../../../specs/README.md",
+      "purpose": "SDKWork root standards entrypoint."
     },
     {
       "file": "SDK_SPEC.md",
@@ -50,17 +85,92 @@
       "purpose": "SDK generation and SDK integration rules."
     },
     {
+      "file": "SDK_WORKSPACE_GENERATION_SPEC.md",
+      "path": "../../../../../specs/SDK_WORKSPACE_GENERATION_SPEC.md",
+      "purpose": "Application-root sdks workspace, SDK family naming, API authority naming, and OpenAPI generation rules."
+    },
+    {
       "file": "TEST_SPEC.md",
       "path": "../../../../../specs/TEST_SPEC.md",
-      "purpose": "Contract, SDK, and documentation verification rules."
+      "purpose": "Contract, frontend, SDK, security, parity, and documentation verification rules."
     }
   ],
   "contracts": {
+    "apiAuthority": {
+      "name": "sdkwork-im-app-api",
+      "prefix": "/app/v3/api",
+      "authorityOpenApi": "openapi/craw-chat-app-api.openapi.yaml",
+      "derivedOpenApi": [
+        "openapi/craw-chat-app-api.sdkgen.yaml",
+        "openapi/craw-chat-app-api.flutter.sdkgen.yaml"
+      ],
+      "standard": "../../../../../specs/SDK_WORKSPACE_GENERATION_SPEC.md"
+    },
     "publicExports": [],
     "runtimeEntrypoints": [
       ".sdkwork-assembly.json"
     ],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-appbase-app-sdk",
+        "role": "appbase-identity-and-session-capability",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": "/app/v3/api",
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/appbase-app-sdk",
+          "flutter": "sdkwork_appbase_app_sdk",
+          "rust": "sdkwork-appbase-app-sdk",
+          "java": "com.sdkwork:sdkwork-appbase-app-sdk",
+          "csharp": "SDKWork.Appbase.AppSdk",
+          "swift": "sdkwork-appbase-app-sdk",
+          "kotlin": "com.sdkwork:sdkwork-appbase-app-sdk",
+          "go": "github.com/sdkwork/sdkwork-appbase-app-sdk",
+          "python": "sdkwork-appbase-app-sdk"
+        }
+      },
+      {
+        "workspace": "sdkwork-im-sdk",
+        "role": "standardized-im-capability",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": "/im/v3/api",
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/im-sdk",
+          "flutter": "im_sdk",
+          "rust": "im-sdk",
+          "java": "com.sdkwork:im-sdk",
+          "csharp": "Sdkwork.Im.Sdk",
+          "swift": "ImSdk",
+          "kotlin": "com.sdkwork:im-sdk",
+          "go": "github.com/sdkwork/im-sdk",
+          "python": "sdkwork-im-sdk"
+        }
+      },
+      {
+        "workspace": "sdkwork-rtc-sdk",
+        "role": "provider-standard-rtc-runtime",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": null,
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/rtc-sdk",
+          "flutter": "rtc_sdk",
+          "rust": "rtc_sdk",
+          "java": "com.sdkwork:rtc-sdk",
+          "csharp": "Sdkwork.Rtc.Sdk",
+          "swift": "RtcSdk",
+          "kotlin": "com.sdkwork:rtc-sdk",
+          "go": "github.com/sdkwork/rtc-sdk",
+          "python": "sdkwork-rtc-sdk"
+        }
+      }
+    ],
     "sdkClients": [
+      "SdkworkImAppClient",
       "SdkworkAppClient"
     ],
     "events": [],
@@ -68,9 +178,19 @@
       ".sdkwork-assembly.json"
     ]
   },
+  "integration": {
+    "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
+    "dependencyPolicy": "Consumers integrate through public package exports, declared runtime entrypoints, generated SDK clients, or documented adapters only.",
+    "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries; reusable UI must not create raw HTTP clients or manual auth headers.",
+    "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract."
+  },
   "verification": {
     "commands": [
-      "node sdks/sdkwork-im-app-sdk/bin/verify-sdk.mjs"
+      "node apps/scripts/validate-component-specs.mjs --apps-root apps --json"
     ]
+  },
+  "metadata": {
+    "managedBy": "apps/scripts/initialize-component-specs.mjs",
+    "standardVersion": "2026-05-13"
   }
 }

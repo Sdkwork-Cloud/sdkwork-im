@@ -1,8 +1,52 @@
 use axum::http::{HeaderMap, HeaderValue};
-use im_app_context::resolve_app_context;
+use base64::Engine;
+use hmac::{Hmac, Mac};
+use im_app_context::{
+    AppContextSignatureConfig, resolve_app_context, resolve_app_context_with_signature_config,
+};
+use sha2::Sha256;
 
-#[test]
-fn test_resolve_app_context_projection_supports_sdkwork_scope_fields() {
+const SIGNED_HEADER_NAMES: &[&str] = &[
+    "x-sdkwork-app-id",
+    "x-sdkwork-tenant-id",
+    "x-sdkwork-organization-id",
+    "x-sdkwork-user-id",
+    "x-sdkwork-session-id",
+    "x-sdkwork-environment",
+    "x-sdkwork-deployment-mode",
+    "x-sdkwork-auth-level",
+    "x-sdkwork-data-scope",
+    "x-sdkwork-permission-scope",
+    "x-sdkwork-actor-id",
+    "x-sdkwork-actor-kind",
+    "x-sdkwork-device-id",
+];
+
+fn canonicalize_signed_headers(headers: &HeaderMap) -> String {
+    SIGNED_HEADER_NAMES
+        .iter()
+        .map(|name| {
+            let value = headers
+                .get(*name)
+                .and_then(|value| value.to_str().ok())
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .unwrap_or("");
+            format!("{name}:{value}")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn sign_headers(headers: &HeaderMap, secret: &str) -> String {
+    type HmacSha256 = Hmac<Sha256>;
+    let mut mac =
+        HmacSha256::new_from_slice(secret.as_bytes()).expect("hmac secret should be valid");
+    mac.update(canonicalize_signed_headers(headers).as_bytes());
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes())
+}
+
+fn projection_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert("x-sdkwork-tenant-id", HeaderValue::from_static("t_demo"));
     headers.insert(
@@ -19,6 +63,12 @@ fn test_resolve_app_context_projection_supports_sdkwork_scope_fields() {
         "x-sdkwork-deployment-mode",
         HeaderValue::from_static("private"),
     );
+    headers
+}
+
+#[test]
+fn test_resolve_app_context_projection_supports_sdkwork_scope_fields() {
+    let headers = projection_headers();
 
     let context = resolve_app_context(&headers).expect("app context projection should resolve");
 
@@ -52,6 +102,66 @@ fn test_resolve_app_context_projection_rejects_missing_user_id() {
 
     assert_eq!(error.code(), "app_context_missing");
     assert!(error.message().contains("x-sdkwork-user-id"));
+}
+
+#[test]
+fn test_resolve_app_context_signature_required_rejects_missing_signature() {
+    let headers = projection_headers();
+
+    let error = resolve_app_context_with_signature_config(
+        &headers,
+        AppContextSignatureConfig {
+            require_signature: true,
+            shared_secret: Some("demo-secret".to_owned()),
+        },
+    )
+    .expect_err("signature should be required");
+
+    assert_eq!(error.code(), "app_context_invalid");
+    assert!(error.message().contains("x-sdkwork-context-signature"));
+}
+
+#[test]
+fn test_resolve_app_context_signature_required_rejects_invalid_signature() {
+    let mut headers = projection_headers();
+    headers.insert(
+        "x-sdkwork-context-signature",
+        HeaderValue::from_static("invalid-signature"),
+    );
+
+    let error = resolve_app_context_with_signature_config(
+        &headers,
+        AppContextSignatureConfig {
+            require_signature: true,
+            shared_secret: Some("demo-secret".to_owned()),
+        },
+    )
+    .expect_err("invalid signature should be rejected");
+
+    assert_eq!(error.code(), "app_context_invalid");
+    assert!(error.message().contains("signature validation failed"));
+}
+
+#[test]
+fn test_resolve_app_context_signature_required_accepts_valid_signature() {
+    let mut headers = projection_headers();
+    let signature = sign_headers(&headers, "demo-secret");
+    headers.insert(
+        "x-sdkwork-context-signature",
+        HeaderValue::from_str(signature.as_str()).expect("signature header should be valid"),
+    );
+
+    let context = resolve_app_context_with_signature_config(
+        &headers,
+        AppContextSignatureConfig {
+            require_signature: true,
+            shared_secret: Some("demo-secret".to_owned()),
+        },
+    )
+    .expect("valid signature should pass");
+
+    assert_eq!(context.tenant_id, "t_demo");
+    assert_eq!(context.user_id, "u_demo");
 }
 
 #[test]

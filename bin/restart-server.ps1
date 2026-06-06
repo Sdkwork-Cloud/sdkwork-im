@@ -1,9 +1,9 @@
 param(
     [string]$InstanceName = "default",
-    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "CrawChat")),
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "config")),
-    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "logs")),
-    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "run")),
+    [string]$InstallRoot = ([System.IO.Path]::Combine([Environment]::GetFolderPath("ProgramFiles"), "sdkwork", "chat")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
+    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Logs")),
+    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Run")),
     [string]$BinaryPath,
     [switch]$Release,
     [switch]$Foreground,
@@ -13,6 +13,32 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+function Get-ServerPathForInstance {
+    param([string]$Root, [string]$Name, [string]$Leaf)
+
+    if ($Name -eq "default") {
+        if ([string]::IsNullOrWhiteSpace($Leaf)) {
+            return $Root
+        }
+        return [System.IO.Path]::Combine($Root, $Leaf)
+    }
+    if ([string]::IsNullOrWhiteSpace($Leaf)) {
+        return [System.IO.Path]::Combine($Root, "instances", $Name)
+    }
+    return [System.IO.Path]::Combine($Root, "instances", $Name, $Leaf)
+}
+
+$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
+if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("ConfigDir")) {
+    $ConfigDir = Get-ServerPathForInstance $programDataRoot $InstanceName ""
+}
+if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("LogDir")) {
+    $LogDir = Get-ServerPathForInstance $programDataRoot $InstanceName "Logs"
+}
+if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("RunDir")) {
+    $RunDir = Get-ServerPathForInstance $programDataRoot $InstanceName "Run"
+}
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/restart-server.ps1 [-InstanceName <name>] [-InstallRoot <path>] [-ConfigDir <path>] [-LogDir <path>] [-RunDir <path>] [-BinaryPath <path>] [-Release] [-Foreground] [-HealthUrl <url>] [-SkipHealthCheck]"

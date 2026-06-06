@@ -84,7 +84,7 @@ short-lived realtime credential.
 ## Common module entrypoints
 
 ```dart
-await client.deviceSessions.resume(
+await client.device.sessions.resume(
   ResumeDeviceSessionRequest(
     deviceId: 'device-mobile-01',
     lastSeenSyncSeq: 0,

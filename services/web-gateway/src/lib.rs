@@ -11,10 +11,10 @@ use axum::{
     routing::get,
 };
 use craw_chat_api_registry::{
-    HttpMethod, RouteDescriptor, RouteProtocol, RouteRegistry, RouteVisibility, SdkTarget,
-    ServiceSchemaIndexEntry, build_registry,
+    ContractKind, HttpMethod, RouteDescriptor, RouteProtocol, RouteRegistry, RouteVisibility,
+    SdkTarget, ServiceSchemaIndexEntry, build_registry, sdk_contract_summaries,
 };
-use craw_chat_gateway_config::WebGatewayConfig;
+use craw_chat_gateway_config::{GatewayRuntimeMode, WebGatewayConfig};
 use craw_chat_gateway_observability::{
     GatewayStartupSummary, build_startup_summary_with_registry, route_summaries,
     surface_group_summaries,
@@ -32,12 +32,16 @@ use tokio_tungstenite::{
     tungstenite::client::IntoClientRequest,
 };
 use tower::ServiceExt;
+use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
+
+const BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
 
 #[derive(Clone)]
 struct GatewayState {
     client: Client,
     config: WebGatewayConfig,
     registry: RouteRegistry,
+    embedded_runtime_router: Option<Router>,
     product_runtime_router: Option<Router>,
 }
 
@@ -64,6 +68,15 @@ pub fn build_app_with_registry_and_product_runtime(
     registry: RouteRegistry,
     product_runtime_router: Option<Router>,
 ) -> Router {
+    build_app_with_registry_and_runtime_routers(config, registry, None, product_runtime_router)
+}
+
+pub fn build_app_with_registry_and_runtime_routers(
+    config: WebGatewayConfig,
+    registry: RouteRegistry,
+    embedded_runtime_router: Option<Router>,
+    product_runtime_router: Option<Router>,
+) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
@@ -85,8 +98,10 @@ pub fn build_app_with_registry_and_product_runtime(
             client: Client::new(),
             config,
             registry,
+            embedded_runtime_router,
             product_runtime_router,
         })
+        .layer(build_browser_cors_layer())
 }
 
 async fn healthz() -> Json<GatewayHealthResponse> {
@@ -110,6 +125,7 @@ async fn openapi_json(State(state): State<GatewayState>) -> Result<Json<Value>, 
 
 async fn openapi_index_json(State(state): State<GatewayState>) -> Json<Value> {
     Json(json!({
+        "sdkContracts": sdk_contract_summaries(""),
         "services": service_schema_index_entries(&state.config, &state.registry),
         "routes": route_summaries(&state.registry),
         "surfaceGroups": surface_group_summaries(&state.registry),
@@ -175,7 +191,11 @@ async fn proxy_get_request(
         return proxy_request(State(state), request).await;
     }
 
-    delegate_to_product_runtime(state.product_runtime_router.clone(), request).await
+    delegate_to_runtime_router(
+        runtime_router_for_path(&state, request.uri().path()),
+        request,
+    )
+    .await
 }
 
 async fn proxy_websocket_request(
@@ -250,21 +270,28 @@ async fn proxy_request(State(state): State<GatewayState>, request: Request) -> R
         );
     };
     let Some(route) = state.registry.resolve(registry_method, parts.uri.path()) else {
-        return delegate_to_product_runtime(
-            state.product_runtime_router.clone(),
+        return delegate_to_runtime_router(
+            runtime_router_for_path(&state, parts.uri.path()),
             Request::from_parts(parts, body),
         )
         .await;
     };
-    let method = parts.method;
-    let headers = parts.headers;
-    let uri = parts.uri;
     let Some(upstream_base_url) = state.config.upstream_base_url(route.service_id.as_str()) else {
+        if state.config.runtime_mode == GatewayRuntimeMode::Embedded {
+            return delegate_to_runtime_router(
+                runtime_router_for_missing_embedded_upstream(&state, route.service_id.as_str()),
+                Request::from_parts(parts, body),
+            )
+            .await;
+        }
         return json_error_response(
             StatusCode::BAD_GATEWAY,
             format!("upstream target is not configured for {}", route.service_id).as_str(),
         );
     };
+    let method = parts.method;
+    let headers = parts.headers;
+    let uri = parts.uri;
     let upstream_url = format!(
         "{}{}",
         upstream_base_url.trim_end_matches('/'),
@@ -305,18 +332,65 @@ async fn proxy_request(State(state): State<GatewayState>, request: Request) -> R
     }
 }
 
-async fn delegate_to_product_runtime(
-    product_runtime_router: Option<Router>,
-    request: Request,
+async fn delegate_to_runtime_router(
+    runtime_router: Option<Router>,
+    mut request: Request,
 ) -> Response {
-    let Some(router) = product_runtime_router else {
+    let Some(router) = runtime_router else {
         return json_error_response(StatusCode::NOT_FOUND, "gateway route owner not found");
     };
+
+    request.extensions_mut().clear();
 
     match router.oneshot(request).await {
         Ok(response) => response,
         Err(error) => match error {},
     }
+}
+
+fn runtime_router_for_path(state: &GatewayState, path: &str) -> Option<Router> {
+    if should_delegate_to_product_runtime(path) {
+        return state
+            .product_runtime_router
+            .clone()
+            .or_else(|| state.embedded_runtime_router.clone());
+    }
+
+    if should_delegate_to_embedded_runtime(path) {
+        return state
+            .embedded_runtime_router
+            .clone()
+            .or_else(|| state.product_runtime_router.clone());
+    }
+
+    state.product_runtime_router.clone()
+}
+
+fn runtime_router_for_missing_embedded_upstream(
+    state: &GatewayState,
+    service_id: &str,
+) -> Option<Router> {
+    if service_id == "sdkwork-appbase-app-api" {
+        return state.product_runtime_router.clone();
+    }
+
+    state
+        .embedded_runtime_router
+        .clone()
+        .or_else(|| state.product_runtime_router.clone())
+}
+
+fn should_delegate_to_embedded_runtime(path: &str) -> bool {
+    path == "/im/v3/openapi.json"
+        || path == "/app/v3/openapi.json"
+        || path == "/backend/v3/openapi.json"
+        || path.starts_with("/im/v3/api/")
+        || path.starts_with("/app/v3/api/")
+        || path.starts_with("/backend/v3/api/")
+}
+
+fn should_delegate_to_product_runtime(path: &str) -> bool {
+    path.starts_with("/app/v3/api/portal/")
 }
 
 async fn proxy_websocket_streams(
@@ -412,6 +486,97 @@ fn gateway_proxy_routes() -> axum::routing::MethodRouter<GatewayState> {
         .options(proxy_request)
 }
 
+fn build_browser_cors_layer() -> CorsLayer {
+    CorsLayer::new()
+        .allow_origin(AllowOrigin::list(resolve_browser_origins()))
+        .allow_methods(AllowMethods::list([
+            Method::DELETE,
+            Method::GET,
+            Method::HEAD,
+            Method::OPTIONS,
+            Method::PATCH,
+            Method::POST,
+            Method::PUT,
+        ]))
+        .allow_headers(AllowHeaders::list(resolve_browser_headers()))
+}
+
+fn resolve_browser_origins() -> Vec<header::HeaderValue> {
+    let configured = std::env::var(BROWSER_ORIGINS_ENV).ok();
+    let origins = configured
+        .as_deref()
+        .map(parse_browser_origin_list)
+        .filter(|origins| !origins.is_empty())
+        .unwrap_or_else(default_browser_origins);
+
+    origins
+        .into_iter()
+        .map(|origin| {
+            origin
+                .parse::<header::HeaderValue>()
+                .expect("configured browser origin should be a valid header value")
+        })
+        .collect()
+}
+
+fn parse_browser_origin_list(raw: &str) -> Vec<String> {
+    let mut origins = Vec::new();
+    for value in raw
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let normalized = value.trim_end_matches('/').to_owned();
+        if !origins.contains(&normalized) {
+            origins.push(normalized);
+        }
+    }
+    origins
+}
+
+fn default_browser_origins() -> Vec<String> {
+    [
+        "http://127.0.0.1:1620",
+        "http://localhost:1620",
+        "http://127.0.0.1:4176",
+        "http://localhost:4176",
+        "tauri://localhost",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect()
+}
+
+fn resolve_browser_headers() -> Vec<header::HeaderName> {
+    let mut headers = Vec::new();
+    for header_name in [
+        header::AUTHORIZATION.as_str(),
+        header::CONTENT_TYPE.as_str(),
+        "access-token",
+        "x-sdkwork-app-id",
+        "x-sdkwork-tenant-id",
+        "x-sdkwork-organization-id",
+        "x-sdkwork-user-id",
+        "x-sdkwork-session-id",
+        "x-sdkwork-environment",
+        "x-sdkwork-deployment-mode",
+        "x-sdkwork-auth-level",
+        "x-sdkwork-data-scope",
+        "x-sdkwork-actor-id",
+        "x-sdkwork-actor-kind",
+        "x-sdkwork-device-id",
+        "x-sdkwork-permission-scope",
+        "x-sdkwork-context-signature",
+    ] {
+        if let Ok(parsed) = header_name.parse::<header::HeaderName>()
+            && !headers.contains(&parsed)
+        {
+            headers.push(parsed);
+        }
+    }
+    headers
+}
+
 pub fn build_gateway_registry() -> Result<RouteRegistry, String> {
     build_registry(gateway_route_descriptors()).map_err(|error| error.message)
 }
@@ -424,7 +589,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Get, HttpMethod::Post],
         &["/im/v3/api/device/sessions/{*path}"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "sessions",
     ));
     entries.extend(prefix_routes(
@@ -432,7 +597,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Get, HttpMethod::Post],
         &["/im/v3/api/presence/{*path}"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "presence",
     ));
     entries.extend(prefix_routes(
@@ -440,14 +605,14 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Get, HttpMethod::Post],
         &["/im/v3/api/realtime/{*path}"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "realtime",
     ));
     entries.push(websocket_route(
         "session-gateway",
         "/im/v3/api/realtime/ws",
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "realtime",
         &[LINK_WEBSOCKET_SUBPROTOCOL],
     ));
@@ -456,7 +621,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         all_http_methods(),
         &["/backend/v3/api/control/{*path}"],
         RouteVisibility::Internal,
-        vec![SdkTarget::ControlPlaneSdk],
+        vec![SdkTarget::SdkworkImBackendSdk],
         "control",
     ));
     entries.extend(exact_routes(
@@ -464,7 +629,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Post],
         &["/im/v3/api/chat/conversations"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "conversations",
     ));
     entries.extend(prefix_routes(
@@ -475,7 +640,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
             "/im/v3/api/chat/messages/{*path}",
         ],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "conversations",
     ));
     entries.extend(exact_routes(
@@ -483,7 +648,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Get],
         &["/im/v3/api/chat/contacts", "/im/v3/api/chat/inbox"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "conversations",
     ));
     entries.extend(exact_routes(
@@ -491,7 +656,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Post],
         &["/im/v3/api/devices/register"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "devices",
     ));
     entries.extend(exact_routes(
@@ -499,7 +664,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Get],
         &["/im/v3/api/devices/{device_id}/sync_feed"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "devices",
     ));
     entries.extend(prefix_routes(
@@ -507,7 +672,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Get],
         &["/im/v3/api/chat/conversations/{*path}"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "conversations",
     ));
     entries.extend(exact_routes(
@@ -515,7 +680,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Post],
         &["/im/v3/api/streams"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "streams",
     ));
     entries.extend(prefix_routes(
@@ -523,7 +688,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Get, HttpMethod::Post],
         &["/im/v3/api/streams/{*path}"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "streams",
     ));
     entries.extend(prefix_routes(
@@ -531,7 +696,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Get, HttpMethod::Post],
         &["/im/v3/api/rtc/{*path}"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "rtc",
     ));
     entries.extend(prefix_routes(
@@ -539,31 +704,44 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Get, HttpMethod::Post],
         &["/im/v3/api/media/{*path}"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImSdk],
         "media",
+    ));
+    entries.extend(prefix_routes(
+        "sdkwork-appbase-app-api",
+        all_http_methods(),
+        &[
+            "/app/v3/api/auth/{*path}",
+            "/app/v3/api/iam/{*path}",
+            "/app/v3/api/open_platform/{*path}",
+            "/app/v3/api/system/iam/{*path}",
+        ],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkImAppSdk],
+        "iam",
     ));
     entries.extend(exact_routes(
         "notification-service",
         vec![HttpMethod::Get],
-        &["/im/v3/api/notifications"],
+        &["/app/v3/api/notifications"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImAppSdk],
         "notifications",
     ));
     entries.extend(prefix_routes(
         "notification-service",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/im/v3/api/notifications/{*path}"],
+        &["/app/v3/api/notifications/{*path}"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImAppSdk],
         "notifications",
     ));
     entries.extend(prefix_routes(
         "automation-service",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/im/v3/api/automation/{*path}"],
+        &["/app/v3/api/automation/{*path}"],
         RouteVisibility::Public,
-        vec![SdkTarget::CrawChatAppSdk],
+        vec![SdkTarget::SdkworkImAppSdk],
         "automation",
     ));
     entries.extend(prefix_routes(
@@ -571,7 +749,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Get, HttpMethod::Post],
         &["/backend/v3/api/audit/{*path}"],
         RouteVisibility::Internal,
-        vec![SdkTarget::None],
+        vec![SdkTarget::SdkworkImBackendSdk],
         "audit",
     ));
     entries.extend(prefix_routes(
@@ -579,7 +757,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![HttpMethod::Get],
         &["/backend/v3/api/ops/{*path}"],
         RouteVisibility::Internal,
-        vec![SdkTarget::None],
+        vec![SdkTarget::SdkworkImBackendSdk],
         "ops",
     ));
 
@@ -965,6 +1143,7 @@ fn service_schema_index_entries(
 
             ServiceSchemaIndexEntry {
                 service_id: upstream.service_id.clone(),
+                contract_kind: ContractKind::UpstreamOperational,
                 schema_url: format!("/openapi/services/{}.openapi.json", upstream.service_id),
                 docs_url: format!("/docs/services/{}", upstream.service_id),
                 visibility: service_visibility(service_routes.as_slice())
@@ -1090,8 +1269,12 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
         "GatewayOpenapiIndex".to_owned(),
         json!({
             "type": "object",
-            "required": ["services", "routes", "surfaceGroups"],
+            "required": ["sdkContracts", "services", "routes", "surfaceGroups"],
             "properties": {
+                "sdkContracts": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/GatewaySdkContractSummary" }
+                },
                 "services": {
                     "type": "array",
                     "items": { "$ref": "#/components/schemas/GatewayServiceSchemaIndexEntry" }
@@ -1119,6 +1302,7 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
                 "runtimeSummaryUrl",
                 "docsUrl",
                 "runtimeMode",
+                "sdkContracts",
                 "upstreams",
                 "serviceContracts",
                 "publicEndpoints",
@@ -1132,6 +1316,10 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
                 "runtimeSummaryUrl": { "type": "string", "format": "uri" },
                 "docsUrl": { "type": "string", "format": "uri" },
                 "runtimeMode": { "$ref": "#/components/schemas/GatewayRuntimeMode" },
+                "sdkContracts": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/GatewaySdkContractSummary" }
+                },
                 "upstreams": {
                     "type": "array",
                     "items": { "$ref": "#/components/schemas/GatewayUpstreamBinding" }
@@ -1157,6 +1345,7 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
             "type": "object",
             "required": [
                 "serviceId",
+                "contractKind",
                 "schemaUrl",
                 "docsUrl",
                 "visibility",
@@ -1167,6 +1356,7 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
             ],
             "properties": {
                 "serviceId": { "type": "string" },
+                "contractKind": { "$ref": "#/components/schemas/GatewayContractKind" },
                 "schemaUrl": { "type": "string" },
                 "docsUrl": { "type": "string" },
                 "visibility": { "$ref": "#/components/schemas/GatewayRouteVisibility" },
@@ -1260,11 +1450,26 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
         "GatewayServiceContractSummary".to_owned(),
         json!({
             "type": "object",
-            "required": ["serviceId", "schemaUrl", "docsUrl"],
+            "required": ["serviceId", "contractKind", "schemaUrl", "docsUrl"],
             "properties": {
                 "serviceId": { "type": "string" },
+                "contractKind": { "$ref": "#/components/schemas/GatewayContractKind" },
                 "schemaUrl": { "type": "string", "format": "uri" },
                 "docsUrl": { "type": "string", "format": "uri" }
+            }
+        }),
+    );
+    schemas.insert(
+        "GatewaySdkContractSummary".to_owned(),
+        json!({
+            "type": "object",
+            "required": ["groupId", "contractKind", "schemaUrl", "apiPrefix", "sdkTarget"],
+            "properties": {
+                "groupId": { "type": "string", "enum": ["im-open-api", "im-app-api", "im-backend-api"] },
+                "contractKind": { "$ref": "#/components/schemas/GatewayContractKind" },
+                "schemaUrl": { "type": "string" },
+                "apiPrefix": { "type": "string" },
+                "sdkTarget": { "$ref": "#/components/schemas/GatewaySdkTarget" }
             }
         }),
     );
@@ -1322,7 +1527,14 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
         "GatewaySdkTarget".to_owned(),
         json!({
             "type": "string",
-            "enum": ["crawChatAppSdk", "controlPlaneSdk", "none"]
+            "enum": ["sdkworkImSdk", "sdkworkImAppSdk", "sdkworkImBackendSdk", "none"]
+        }),
+    );
+    schemas.insert(
+        "GatewayContractKind".to_owned(),
+        json!({
+            "type": "string",
+            "enum": ["sdk", "upstreamOperational"]
         }),
     );
     schemas.insert(

@@ -1185,16 +1185,19 @@
 - Added payload/identifier size hardening on `media-service` ingress to close unbounded media metadata/object-storage request memory-pressure risk:
   - `create_upload` now enforces bounded identifiers and media-resource metadata:
     - `mediaAssetId <= 256 bytes`
-    - `resource.uuid <= 256 bytes`
+    - `resource.id <= 256 bytes`
     - `resource.url <= 2048 bytes`
-    - `resource.localFile <= 1024 bytes`
-    - `resource.bytes <= 256 KiB`
-    - `resource.base64 <= 256 KiB`
-    - `resource.mimeType <= 128 bytes`
-    - `resource.name <= 256 bytes`
-    - `resource.extension <= 32 bytes`
-    - `resource.prompt <= 8 KiB`
-    - `resource.tags total bytes <= 16 KiB`
+    - `resource.publicUrl <= 2048 bytes`
+    - `resource.uri <= 1024 bytes`
+    - `resource.objectBlobId <= 256 bytes`
+    - `resource.bucketId <= 256 bytes`
+    - `resource.objectKey <= 2048 bytes`
+    - `resource.objectVersion <= 256 bytes`
+    - `resource.mimeType <= 256 bytes`
+    - `resource.fileName <= 512 bytes`
+    - `resource.sizeBytes <= 32 bytes`
+    - `resource.altText <= 512 bytes`
+    - `resource.title <= 255 bytes`
     - `resource.metadata total bytes <= 64 KiB`
   - `complete_upload` and media path access now enforce bounded object-storage envelope fields:
     - `mediaAssetId <= 256 bytes`

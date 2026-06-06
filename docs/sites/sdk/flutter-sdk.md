@@ -71,7 +71,7 @@ The checked-in generated Flutter client currently exports these route groups thr
 `ImTransportClient`:
 
 - `portal`
-- `deviceSessions`
+- `device.sessions`
 - `presence`
 - `realtime`
 - `device`
@@ -131,60 +131,67 @@ The composed Flutter client currently exposes:
 
 - `authToken`
 - `sdk.portal`
-- `sdk.deviceSessions`
+- `sdk.device.sessions`
 - `sdk.presence`
 - `sdk.realtime`
 - `sdk.devices`
 - `sdk.inbox`
 - `sdk.conversations`
 - `sdk.messages`
-- `sdk.media`
 - `sdk.streams`
 - `sdk.rtc`
 - `sdk.transportClient` for direct generated fallback access
 
-## Media Upload Flow
+## Drive-Backed Media Messages
 
-For a presigned upload session, use `sdk.media.upload(...)`. The helper performs the create-upload
-call, pushes bytes to the presigned URL, and completes the upload handshake. It returns
-`MediaUploadMutationResponse`, whose `upload` field exposes the underlying `MediaUploadSession`
-metadata when you need the exact generated transport view.
+Use `sdkwork-drive` for file lifecycle work. After Drive returns a node reference, send the IM
+message with `ContentPart.drive` as the `DriveReference` and `ContentPart.resource` as the
+standardized `MediaResource` usage snapshot. The canonical Drive URI shape is
+`drive://spaces/{spaceId}/nodes/{nodeId}`.
 
 ```dart
-final uploadResult = await sdk.media.upload(
-  CreateUploadRequest(
-    mediaAssetId: 'asset-image-1',
-    bucket: 'tenant-media',
-    objectKey: 'conversation-1/storefront.png',
-    resource: MediaResource(
-      type: MediaResourceType.image,
-      name: 'storefront.png',
-      mimeType: 'image/png',
-      size: fileBytes.length,
-    ),
-  ),
-  fileBytes,
+final drive = DriveReference(
+  driveUri: 'drive://spaces/space_app_upload_demo/nodes/node_storefront_png',
+  spaceId: 'space_app_upload_demo',
+  nodeId: 'node_storefront_png',
+  nodeVersion: '1',
 );
 
-await sdk.media.attachText(
-  uploadResult?.mediaAssetId ?? 'asset-image-1',
-  const ImAttachTextMediaOptions(
-    conversationId: 'conversation-1',
-    text: 'Uploaded storefront image',
-    summary: 'Storefront image',
-  ),
+final body = PostMessageRequest(
+  text: 'Latest storefront concept',
+  summary: 'Storefront concept',
+  parts: <ContentPart>[
+    ContentPart(
+      kind: 'media',
+      mediaRole: 'attachment',
+      drive: drive,
+      resource: MediaResource(
+        id: drive.nodeId,
+        kind: MediaKind.image,
+        source: MediaSource.providerAsset,
+        uri: drive.driveUri,
+        fileName: 'storefront.png',
+        mimeType: 'image/png',
+        sizeBytes: fileBytes.length.toString(),
+      ),
+    ),
+  ],
 );
+
+await sdk.conversations.postMessage('conversation-1', body);
 ```
 
-That is the standard presigned upload session flow documented in [Media](/api-reference/im/media).
+The TypeScript composed SDK names the same high-level flow `createImageMessage(...)`; Flutter keeps
+the same `DriveReference` and `MediaResource` contract while its message-first helpers continue to
+catch up.
 
 ## Current Surface Reality
 
 The checked-in Dart surface is intentionally narrower than the TypeScript SDK:
 
 - `im_sdk` re-exports `im_sdk_generated`, the generated package root exports `PortalApi`,
-  `ImTransportClient` mounts `client.portal` and `client.deviceSessions`, and `ImSdkClient`
-  exposes `sdk.portal`, `sdk.deviceSessions`, and `sdk.setAuthToken(...)`.
+  `ImTransportClient` mounts `client.portal` and `client.device.sessions`, and `ImSdkClient`
+  exposes `sdk.portal`, `sdk.device.sessions`, and `sdk.setAuthToken(...)`.
 - Tokens are issued by `sdkwork-appbase`; Flutter consumers pass them through `authToken` at
   construction time or update them with `sdk.setAuthToken(...)`.
 - The Flutter runtime is WebSocket-first for interactive realtime delivery through
@@ -196,8 +203,7 @@ The checked-in Dart surface is intentionally narrower than the TypeScript SDK:
 - The Flutter package does not yet ship `sdk.createXxxMessage()`, `sdk.send()`, or
   `sdk.decodeMessage()`.
 - Text posting shortcuts currently live on `sdk.conversations.postText(...)`,
-  `sdk.conversations.publishSystemText(...)`, `sdk.media.attachText(...)`, and
-  `ImBuilders.*`.
+  `sdk.conversations.publishSystemText(...)`, and `ImBuilders.*`.
 - `sdk.messages` currently covers message mutation only: `edit(...)`, `editText(...)`, and
   `recall(...)`.
 
@@ -250,12 +256,12 @@ transport package.
 | SDKWork credential pass-through | `client.setAuthToken(...)` | `sdk.setAuthToken(...)` | [Portal Access](/api-reference/app/portal-access) |
 | Portal access | `client.portal` | `sdk.portal` | [Portal Access](/api-reference/app/portal-access) |
 | Portal snapshots | `client.portal` | `sdk.portal` | [Portal Access](/api-reference/app/portal-access) |
-| Device Sessions, presence, realtime | `client.deviceSessions`, `client.presence`, `client.realtime` | `sdk.deviceSessions`, `sdk.presence`, `sdk.realtime` | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
+| Device Sessions, presence, realtime | `client.device.sessions`, `client.presence`, `client.realtime` | `sdk.device.sessions`, `sdk.presence`, `sdk.realtime` | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
 | Device sync | `client.device` | `sdk.devices` | [Device Sync](/api-reference/im/device-sync) |
 | Inbox and conversations | `client.inbox`, `client.conversation` | `sdk.inbox`, `sdk.conversations` | [Conversations and Handoff](/api-reference/im/conversations) |
 | Membership and read state | `client.conversation` | `sdk.conversations` | [Membership and Read State](/api-reference/im/membership-and-read-state) |
 | Messages | `client.message` | `sdk.messages`, `sdk.conversations` helpers | [Messages](/api-reference/im/messages) |
-| Media | `client.media` | `sdk.media` | [Media](/api-reference/im/media) |
+| Media usage references | Drive transport plus generated message models | `sdk.conversations` with `ContentPart.drive` | [Media](/api-reference/im/media) |
 | Streams | `client.stream` | `sdk.streams` | [Streams](/api-reference/im/streams) |
 | RTC | `client.rtc` | `sdk.rtc` | [RTC](/api-reference/im/rtc) |
 

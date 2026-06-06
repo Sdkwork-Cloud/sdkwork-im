@@ -99,7 +99,7 @@ fn registry_preserves_visibility_and_sdk_targets() {
         methods: vec![HttpMethod::Post],
         path_pattern: "/im/v3/api/device/sessions/resume".to_owned(),
         visibility: RouteVisibility::Public,
-        sdk_targets: vec![SdkTarget::CrawChatAppSdk],
+        sdk_targets: vec![SdkTarget::SdkworkImSdk],
         operation_group: "session".to_owned(),
         protocol: RouteProtocol::Http,
         websocket_subprotocols: Vec::new(),
@@ -110,7 +110,7 @@ fn registry_preserves_visibility_and_sdk_targets() {
         .resolve(HttpMethod::Post, "/im/v3/api/device/sessions/resume")
         .expect("session route should exist");
     assert_eq!(route.visibility, RouteVisibility::Public);
-    assert_eq!(route.sdk_targets, vec![SdkTarget::CrawChatAppSdk]);
+    assert_eq!(route.sdk_targets, vec![SdkTarget::SdkworkImSdk]);
     assert_eq!(route.operation_group, "session");
 }
 
@@ -121,7 +121,7 @@ fn registry_keeps_websocket_protocol_metadata() {
         methods: vec![HttpMethod::Get],
         path_pattern: "/im/v3/api/realtime/ws".to_owned(),
         visibility: RouteVisibility::Public,
-        sdk_targets: vec![SdkTarget::CrawChatAppSdk],
+        sdk_targets: vec![SdkTarget::SdkworkImSdk],
         operation_group: "realtime".to_owned(),
         protocol: RouteProtocol::Websocket,
         websocket_subprotocols: vec!["ccp.v1".to_owned()],
@@ -142,7 +142,7 @@ fn registry_rejects_websocket_route_without_subprotocol_metadata() {
         methods: vec![HttpMethod::Get],
         path_pattern: "/im/v3/api/realtime/ws".to_owned(),
         visibility: RouteVisibility::Public,
-        sdk_targets: vec![SdkTarget::CrawChatAppSdk],
+        sdk_targets: vec![SdkTarget::SdkworkImSdk],
         operation_group: "realtime".to_owned(),
         protocol: RouteProtocol::Websocket,
         websocket_subprotocols: Vec::new(),

@@ -1,7 +1,7 @@
 import type { StringMap } from './string-map';
 
 export interface AppendAgentResponseDeltaRequest {
-  frameSeq: number;
+  frameSeq: string;
   frameType: string;
   schemaRef?: string;
   encoding: string;

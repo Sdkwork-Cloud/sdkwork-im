@@ -38,17 +38,6 @@ pub(super) fn ensure_ops_read_access(auth: &AppContext) -> Result<(), ApiError> 
     ))
 }
 
-pub(super) fn ensure_portal_access(auth: &AppContext) -> Result<(), ApiError> {
-    if auth.has_permission("portal.access") {
-        return Ok(());
-    }
-
-    Err(ApiError::forbidden(
-        "permission_denied",
-        "missing required permission: portal.access",
-    ))
-}
-
 pub(super) fn ensure_registered_device(
     state: &AppState,
     auth: &AppContext,
@@ -140,9 +129,10 @@ pub(super) fn resolve_requested_device_id(
 
 pub(super) fn resolve_active_auth_context(
     state: &AppState,
+    auth: Option<Extension<AppContext>>,
     headers: &HeaderMap,
 ) -> Result<AppContext, ApiError> {
-    let auth = resolve_app_context(headers)?;
+    let auth = resolve_request_app_context(auth, headers)?;
     ensure_active_auth_principal(state, &auth)?;
     Ok(auth)
 }
@@ -355,101 +345,6 @@ pub(super) fn ensure_stream_session_write_access(
     }
 
     Ok(())
-}
-
-pub(super) fn ensure_iot_protocol_uplink_access(
-    state: &AppState,
-    auth: &AppContext,
-    device_id: &str,
-) -> Result<(), ApiError> {
-    ensure_device_stream_registration(state, auth, device_id)?;
-    ensure_bound_device_actor(auth, device_id)
-}
-
-pub(super) fn ensure_iot_protocol_downlink_access(
-    state: &AppState,
-    auth: &AppContext,
-    device_id: &str,
-) -> Result<(), ApiError> {
-    ensure_device_stream_registration(state, auth, device_id)?;
-    if auth.has_permission("device.command.send") {
-        return Ok(());
-    }
-
-    Err(ApiError::forbidden(
-        "device_permission_denied",
-        "missing required permission: device.command.send",
-    ))
-}
-
-pub(super) fn ensure_iot_protocol_uplink_actor_preflight(
-    auth: &AppContext,
-) -> Result<(), ApiError> {
-    if auth.actor_kind != "device" {
-        return Err(ApiError::forbidden(
-            "device_permission_denied",
-            "device telemetry writes must come from a bound device actor",
-        ));
-    }
-
-    if auth.device_id.is_none() {
-        return Err(ApiError::bad_request(
-            "device_id_missing",
-            "device stream access requires an auth context device id",
-        ));
-    }
-
-    Ok(())
-}
-
-pub(super) fn ensure_iot_protocol_uplink_decoded_device_matches_preflight(
-    expected_device_id: &str,
-    decoded_device_id: &str,
-) -> Result<(), ApiError> {
-    validate_device_id(expected_device_id)?;
-    validate_device_id(decoded_device_id)?;
-    if expected_device_id == decoded_device_id {
-        return Ok(());
-    }
-
-    Err(ApiError::bad_request(
-        "device_id_mismatch",
-        format!("device id does not match auth context: {decoded_device_id}"),
-    ))
-}
-
-pub(super) fn ensure_device_twin_read_access(
-    state: &AppState,
-    auth: &AppContext,
-    device_id: &str,
-) -> Result<(), ApiError> {
-    ensure_device_stream_registration(state, auth, device_id)
-}
-
-pub(super) fn ensure_device_twin_desired_write_access(
-    state: &AppState,
-    auth: &AppContext,
-    device_id: &str,
-) -> Result<(), ApiError> {
-    ensure_device_stream_registration(state, auth, device_id)?;
-
-    if auth.actor_kind == "device" {
-        return Err(ApiError::forbidden(
-            "device_permission_denied",
-            "device actor cannot write desired twin state",
-        ));
-    }
-
-    Ok(())
-}
-
-pub(super) fn ensure_device_twin_reported_write_access(
-    state: &AppState,
-    auth: &AppContext,
-    device_id: &str,
-) -> Result<(), ApiError> {
-    ensure_device_stream_registration(state, auth, device_id)?;
-    ensure_bound_device_actor(auth, device_id)
 }
 
 fn ensure_device_stream_shape(request: &OpenStreamRequest) -> Result<(), ApiError> {

@@ -10,22 +10,32 @@ EOF
 }
 
 instance_name="default"
-install_root="/opt/craw-chat"
-config_dir="/etc/craw-chat/default"
-data_dir="/var/lib/craw-chat/default"
-log_dir="/var/log/craw-chat/default"
-run_dir="/var/run/craw-chat/default"
+install_root="/opt/sdkwork/chat"
+config_dir="/etc/sdkwork/chat"
+data_dir="/var/lib/sdkwork/chat"
+log_dir="/var/log/sdkwork/chat"
+run_dir="/run/sdkwork/chat"
 non_interactive=0
 force_copy=0
+
+server_path_for_instance() {
+  local root="$1"
+  local name="$2"
+  if [[ "$name" == "default" ]]; then
+    printf '%s\n' "$root"
+  else
+    printf '%s/instances/%s\n' "$root" "$name"
+  fi
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="/etc/craw-chat/${instance_name}"
-      data_dir="/var/lib/craw-chat/${instance_name}"
-      log_dir="/var/log/craw-chat/${instance_name}"
-      run_dir="/var/run/craw-chat/${instance_name}"
+      config_dir="$(server_path_for_instance "/etc/sdkwork/chat" "$instance_name")"
+      data_dir="$(server_path_for_instance "/var/lib/sdkwork/chat" "$instance_name")"
+      log_dir="$(server_path_for_instance "/var/log/sdkwork/chat" "$instance_name")"
+      run_dir="$(server_path_for_instance "/run/sdkwork/chat" "$instance_name")"
       shift 2
       ;;
     --install-root)
@@ -69,12 +79,31 @@ while [[ $# -gt 0 ]]; do
 done
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-template_root="${ROOT_DIR}/deployments/templates"
-storage_dir="${config_dir}/storage"
-secrets_dir="${config_dir}/secrets"
 install_json="${config_dir}/install.json"
 
-mkdir -p "$install_root" "$config_dir" "$data_dir" "$log_dir" "$run_dir" "$storage_dir" "$secrets_dir"
+resolve_template_path() {
+  local packaged_relative_paths="$1"
+  local source_relative_path="$2"
+  local source_path="${ROOT_DIR}/${source_relative_path}"
+
+  IFS='|' read -r -a candidates <<<"$packaged_relative_paths"
+  for relative_path in "${candidates[@]}"; do
+    local packaged_path="${ROOT_DIR}/${relative_path}"
+    if [[ -f "$packaged_path" ]]; then
+      printf '%s\n' "$packaged_path"
+      return 0
+    fi
+  done
+  if [[ -f "$source_path" ]]; then
+    printf '%s\n' "$source_path"
+    return 0
+  fi
+
+  echo "Missing craw-chat-server template. Expected packaged path '${packaged_relative_paths}' or source path '${source_path}'." >&2
+  return 1
+}
+
+mkdir -p "$install_root" "$config_dir" "$data_dir" "$log_dir" "$run_dir"
 
 copy_if_needed() {
   local source_path="$1"
@@ -84,13 +113,14 @@ copy_if_needed() {
   fi
 }
 
-copy_if_needed "${template_root}/server.yaml.example" "${config_dir}/server.yaml.example"
-copy_if_needed "${template_root}/server.env.example" "${config_dir}/server.env.example"
-copy_if_needed "${template_root}/postgresql.yaml.example" "${storage_dir}/postgresql.yaml.example"
+copy_if_needed "$(resolve_template_path "config/chat.toml.example|config/server.yaml.example" "deployments/templates/chat.toml.example")" "${config_dir}/chat.toml.example"
+copy_if_needed "$(resolve_template_path "config/server.env.example" "deployments/templates/server.env.example")" "${config_dir}/server.env.example"
+copy_if_needed "$(resolve_template_path "config/postgresql.yaml.example|config/storage/postgresql.yaml.example" "deployments/templates/postgresql.yaml.example")" "${config_dir}/postgresql.yaml.example"
 
 cat >"$install_json" <<EOF
 {
-  "product": "craw-chat-server",
+  "product": "chat",
+  "appCode": "chat",
   "instance": "${instance_name}",
   "installRoot": "${install_root}",
   "configDir": "${config_dir}",

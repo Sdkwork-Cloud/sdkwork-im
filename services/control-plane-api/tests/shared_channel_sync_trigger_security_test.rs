@@ -509,7 +509,9 @@ fn clear_shared_channel_sync_dispatch_overrides() {
 fn test_app_context_header_shared_channel_sync_trigger_accepts_https_target() {
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger("https://sync.example.com");
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+        "https://sync.example.com",
+    );
     assert!(
         trigger.is_ok(),
         "https target should be accepted for shared-channel sync trigger"
@@ -520,7 +522,9 @@ fn test_app_context_header_shared_channel_sync_trigger_accepts_https_target() {
 fn test_app_context_header_shared_channel_sync_trigger_accepts_localhost_http_target() {
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger("http://127.0.0.1:19080");
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+        "http://127.0.0.1:19080",
+    );
     assert!(
         trigger.is_ok(),
         "localhost http target should remain available for local testing"
@@ -531,7 +535,9 @@ fn test_app_context_header_shared_channel_sync_trigger_accepts_localhost_http_ta
 fn test_app_context_header_shared_channel_sync_trigger_rejects_remote_http_target() {
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
-    let error = match control_plane_api::build_app_context_header_shared_channel_sync_trigger("http://sync.example.com") {
+    let error = match control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+        "http://sync.example.com",
+    ) {
         Ok(_) => panic!("remote http target must be rejected"),
         Err(error) => error,
     };
@@ -542,7 +548,8 @@ fn test_app_context_header_shared_channel_sync_trigger_rejects_remote_http_targe
 }
 
 #[test]
-fn test_app_context_header_shared_channel_sync_trigger_allows_remote_http_when_explicitly_enabled() {
+fn test_app_context_header_shared_channel_sync_trigger_allows_remote_http_when_explicitly_enabled()
+{
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
     clear_runtime_profile_override();
@@ -558,7 +565,9 @@ fn test_app_context_header_shared_channel_sync_trigger_allows_remote_http_when_e
             "true",
         );
     }
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger("http://sync.example.com");
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+        "http://sync.example.com",
+    );
     clear_insecure_http_override();
     clear_runtime_profile_override();
     assert!(
@@ -579,7 +588,9 @@ fn test_app_context_header_shared_channel_sync_trigger_rejects_remote_http_overr
             "true",
         );
     }
-    let error = match control_plane_api::build_app_context_header_shared_channel_sync_trigger("http://sync.example.com") {
+    let error = match control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+        "http://sync.example.com",
+    ) {
         Ok(_) => panic!(
             "remote http override should be rejected unless runtime profile is explicitly local"
         ),
@@ -594,7 +605,8 @@ fn test_app_context_header_shared_channel_sync_trigger_rejects_remote_http_overr
 }
 
 #[test]
-fn test_app_context_header_shared_channel_sync_trigger_rejects_remote_http_override_for_production_profile() {
+fn test_app_context_header_shared_channel_sync_trigger_rejects_remote_http_override_for_production_profile()
+ {
     let _guard = insecure_http_guard();
     clear_insecure_http_override();
     clear_runtime_profile_override();
@@ -608,7 +620,9 @@ fn test_app_context_header_shared_channel_sync_trigger_rejects_remote_http_overr
             "true",
         );
     }
-    let error = match control_plane_api::build_app_context_header_shared_channel_sync_trigger("http://sync.example.com") {
+    let error = match control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+        "http://sync.example.com",
+    ) {
         Ok(_) => panic!("production profile must reject remote insecure shared-channel sync http"),
         Err(error) => error,
     };
@@ -621,7 +635,8 @@ fn test_app_context_header_shared_channel_sync_trigger_rejects_remote_http_overr
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_app_context_header_shared_channel_sync_trigger_projects_app_context_permission_scope() {
+async fn test_app_context_header_shared_channel_sync_trigger_projects_app_context_permission_scope()
+{
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -643,7 +658,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_projects_app_contex
             .expect("shared-channel sync test server should run");
     });
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!(
+        "http://{local_addr}"
+    ))
     .expect("shared-channel sync trigger should build against local http target");
     trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -659,7 +676,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_projects_app_contex
 
     let headers = captured_app_context_headers(&captured);
     assert_eq!(
-        headers.get("x-sdkwork-permission-scope").map(String::as_str),
+        headers
+            .get("x-sdkwork-permission-scope")
+            .map(String::as_str),
         Some("conversation.shared_channel.sync"),
         "shared-channel sync must project dedicated AppContext permission scope"
     );
@@ -669,8 +688,7 @@ async fn test_app_context_header_shared_channel_sync_trigger_projects_app_contex
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_app_context_header_shared_channel_sync_trigger_projects_system_app_context_headers()
- {
+async fn test_app_context_header_shared_channel_sync_trigger_projects_system_app_context_headers() {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -692,7 +710,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_projects_system_app
             .expect("shared-channel sync test server should run");
     });
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!(
+        "http://{local_addr}"
+    ))
     .expect("shared-channel sync trigger should build against local http target");
     trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -729,7 +749,8 @@ async fn test_app_context_header_shared_channel_sync_trigger_projects_system_app
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_app_context_header_shared_channel_sync_trigger_fails_fast_when_http_timeout_is_exceeded() {
+async fn test_app_context_header_shared_channel_sync_trigger_fails_fast_when_http_timeout_is_exceeded()
+ {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let _timeout_override = ScopedEnvVar::set(
@@ -755,7 +776,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_fails_fast_when_htt
             .expect("shared-channel sync timeout test server should run");
     });
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!(
+        "http://{local_addr}"
+    ))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -801,7 +824,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_rejects_oversized_r
             .expect("shared-channel sync oversized body test server should run");
     });
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!(
+        "http://{local_addr}"
+    ))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -857,7 +882,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_returns_backpressur
             .expect("shared-channel sync queue backpressure test server should run");
     });
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!(
+        "http://{local_addr}"
+    ))
     .expect("shared-channel sync trigger should build against local http target");
 
     let concurrent_calls = 8usize;
@@ -933,7 +960,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_rejects_invalid_ack
             .expect("shared-channel sync invalid ack test server should run");
     });
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!(
+        "http://{local_addr}"
+    ))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -958,7 +987,8 @@ async fn test_app_context_header_shared_channel_sync_trigger_rejects_invalid_ack
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_app_context_header_shared_channel_sync_trigger_rejects_ack_with_mismatched_member_truth() {
+async fn test_app_context_header_shared_channel_sync_trigger_rejects_ack_with_mismatched_member_truth()
+ {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -980,7 +1010,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_rejects_ack_with_mi
             .expect("shared-channel sync mismatched ack test server should run");
     });
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!(
+        "http://{local_addr}"
+    ))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -1026,7 +1058,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_maps_replayed_ack_s
             .expect("shared-channel sync replayed ack test server should run");
     });
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!(
+        "http://{local_addr}"
+    ))
     .expect("shared-channel sync trigger should build against local http target");
     let proof = trigger
         .trigger_with_delivery_proof(SharedChannelLinkedMemberSyncRequest {
@@ -1047,7 +1081,8 @@ async fn test_app_context_header_shared_channel_sync_trigger_maps_replayed_ack_s
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_app_context_header_shared_channel_sync_trigger_rejects_ack_without_request_key_commit_fence() {
+async fn test_app_context_header_shared_channel_sync_trigger_rejects_ack_without_request_key_commit_fence()
+ {
     let _env_guard = shared_channel_sync_env_guard_async().await;
     clear_shared_channel_sync_timeout_override();
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -1069,7 +1104,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_rejects_ack_without
             .expect("shared-channel sync commit-fence ack test server should run");
     });
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!(
+        "http://{local_addr}"
+    ))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -1115,7 +1152,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_rejects_already_lin
             .expect("shared-channel sync already-linked commit-fence ack test server should run");
     });
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!(
+        "http://{local_addr}"
+    ))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {
@@ -1163,7 +1202,9 @@ async fn test_app_context_header_shared_channel_sync_trigger_rejects_already_lin
         );
     });
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!("http://{local_addr}"))
+    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(format!(
+        "http://{local_addr}"
+    ))
     .expect("shared-channel sync trigger should build against local http target");
     let error = trigger
         .trigger(SharedChannelLinkedMemberSyncRequest {

@@ -5,7 +5,7 @@
 在 `08-I` 已打通 `decode_uplink -> device.telemetry` 的前提下，补齐一个最小但真实的安全/成本边界：
 
 - `local-minimal-node`
-- 当 `/backend/v3/api/iot/protocol/uplink` 的目标 `deviceId` 已知时
+- 当 `/app/v3/api/iot/protocol/uplink` 的目标 `deviceId` 已知时
 - 先做 access preflight
 - 再调用 `IotProtocolAdapter::decode_uplink()`
 
@@ -28,7 +28,7 @@
 
 ## 本轮决策
 
-- 对 `local-minimal-node` 的 `/backend/v3/api/iot/protocol/uplink` 增加一个最小 preflight 规则：
+- 对 `local-minimal-node` 的 `/app/v3/api/iot/protocol/uplink` 增加一个最小 preflight 规则：
   - `request.device_id.clone().or_else(|| auth.device_id.clone())`
 - 如果上式得到 `deviceId`，则：
   - 先调用 access guard
@@ -44,7 +44,7 @@
 ## 关键词冻结
 
 - `local-minimal-node`
-- `/backend/v3/api/iot/protocol/uplink`
+- `/app/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `request.device_id.clone().or_else(|| auth.device_id.clone())`
@@ -69,7 +69,7 @@
 
 ## 结果
 
-- `/backend/v3/api/iot/protocol/uplink` 在已知 `deviceId` 时已具备：
+- `/app/v3/api/iot/protocol/uplink` 在已知 `deviceId` 时已具备：
   - 先鉴权
   - 后 decode
 - 注入式 adapter 测试已证明：

@@ -11,11 +11,12 @@ fn device_sync_state_snapshot(
 }
 
 pub(crate) async fn resume_device_session(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<ResumeDeviceSessionRequest>,
 ) -> Result<Json<im_domain_core::device_session::DeviceSessionResumeView>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
     state.register_device(&auth, device_id.as_str(), "http", true)?;
     let sync_state = device_sync_state_snapshot(&state, &auth, Some(device_id.as_str()))?;
@@ -30,10 +31,11 @@ pub(crate) async fn resume_device_session(
 }
 
 pub(crate) async fn get_presence_me(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<im_domain_core::device_session::PresenceSnapshotView>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let sync_state = device_sync_state_snapshot(&state, &auth, auth.device_id.as_deref())?;
 
     Ok(Json(state.presence_runtime.presence_snapshot(
@@ -44,11 +46,12 @@ pub(crate) async fn get_presence_me(
 }
 
 pub(crate) async fn heartbeat_presence(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<DevicePresenceRequest>,
 ) -> Result<Json<im_domain_core::device_session::PresenceSnapshotView>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
     state.prepare_active_device_route(&auth, device_id.as_str(), "http", false)?;
     let sync_state = device_sync_state_snapshot(&state, &auth, Some(device_id.as_str()))?;
@@ -62,11 +65,12 @@ pub(crate) async fn heartbeat_presence(
 }
 
 pub(crate) async fn disconnect_device_session(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<DevicePresenceRequest>,
 ) -> Result<Json<im_domain_core::device_session::PresenceSnapshotView>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
     let outcome = state.disconnect_active_device_route(&auth, device_id.as_str(), "http")?;
     let sync_state = device_sync_state_snapshot(&state, &auth, Some(device_id.as_str()))?;

@@ -8,7 +8,7 @@ use im_domain_core::conversation::{
 use im_domain_core::device_session::{
     DevicePresenceStatus, DevicePresenceView, DeviceSessionResumeView, PresenceSnapshotView,
 };
-use im_domain_core::media::{MediaResource, MediaResourceType};
+use im_domain_core::media::{DriveReference, MediaKind, MediaResource, MediaSource};
 use im_domain_core::message::{
     CRAW_CHAT_CUSTOM_MESSAGE_SCHEMA_PREFIX, CRAW_CHAT_MESSAGE_SCHEMA_AGENT,
     CRAW_CHAT_MESSAGE_SCHEMA_AI_IMAGE, CRAW_CHAT_MESSAGE_SCHEMA_AI_VIDEO,
@@ -53,26 +53,44 @@ fn test_message_body_serializes_content_parts_with_expected_shape() {
             parts: vec![
                 ContentPart::text("hello"),
                 ContentPart::media(MediaPart {
-                    media_asset_id: "asset_demo".into(),
-                    resource: Some(MediaResource {
-                        id: Some(1),
-                        uuid: Some("media_demo".into()),
-                        url: Some("https://example.com/demo.png".into()),
-                        bytes: None,
-                        local_file: None,
-                        base64: None,
-                        resource_type: Some(MediaResourceType::Image),
+                    drive: DriveReference {
+                        drive_uri: "drive://spaces/space_app_upload_demo/nodes/node_image_demo"
+                            .into(),
+                        space_id: "space_app_upload_demo".into(),
+                        node_id: "node_image_demo".into(),
+                        node_version: Some("1".into()),
+                    },
+                    media_role: Some("attachment".into()),
+                    resource: MediaResource {
+                        id: Some("node_image_demo".into()),
+                        kind: MediaKind::Image,
+                        source: MediaSource::Drive,
+                        url: None,
+                        public_url: None,
+                        uri: Some(
+                            "drive://spaces/space_app_upload_demo/nodes/node_image_demo".into(),
+                        ),
+                        object_blob_id: None,
+                        file_name: Some("demo.png".into()),
                         mime_type: Some("image/png".into()),
-                        size: Some(42),
-                        name: Some("demo.png".into()),
-                        extension: Some("png".into()),
-                        tags: None,
+                        size_bytes: Some("42".into()),
+                        checksum: None,
+                        width: None,
+                        height: None,
+                        duration_seconds: None,
+                        alt_text: None,
+                        title: Some("poster".into()),
+                        poster: None,
+                        thumbnails: None,
+                        variants: None,
+                        access: None,
+                        ai: None,
                         metadata: Some(BTreeMap::from([("origin".into(), "test".into())])),
-                        prompt: Some("poster".into()),
-                    }),
+                    },
                 }),
             ],
             render_hints: BTreeMap::new(),
+            reply_to: None,
         },
         attributes: BTreeMap::new(),
         metadata: BTreeMap::new(),
@@ -99,16 +117,197 @@ fn test_message_body_serializes_content_parts_with_expected_shape() {
         Value::String("media".into())
     );
     assert_eq!(
-        value["body"]["parts"][1]["resource"]["type"],
+        value["body"]["parts"][1]["resource"]["kind"],
         Value::String("image".into())
+    );
+    assert_eq!(
+        value["body"]["parts"][1]["resource"]["source"],
+        Value::String("drive".into())
+    );
+    assert_eq!(
+        value["body"]["parts"][1]["drive"]["driveUri"],
+        Value::String("drive://spaces/space_app_upload_demo/nodes/node_image_demo".into())
+    );
+    assert_eq!(
+        value["body"]["parts"][1]["drive"]["spaceId"],
+        Value::String("space_app_upload_demo".into())
+    );
+    assert_eq!(
+        value["body"]["parts"][1]["drive"]["nodeId"],
+        Value::String("node_image_demo".into())
+    );
+    assert!(
+        value["body"]["parts"][1].get("mediaAssetId").is_none(),
+        "message media parts must reference Drive, not legacy mediaAssetId"
     );
     assert_eq!(
         value["body"]["parts"][1]["resource"]["mimeType"],
         Value::String("image/png".into())
     );
     assert_eq!(
+        value["body"]["parts"][1]["resource"]["fileName"],
+        Value::String("demo.png".into())
+    );
+    assert_eq!(
+        value["body"]["parts"][1]["resource"]["sizeBytes"],
+        Value::String("42".into())
+    );
+    assert_eq!(
         value["body"]["parts"][1]["resource"]["metadata"]["origin"],
         json!("test")
+    );
+}
+
+#[test]
+fn test_media_content_part_requires_drive_reference_at_domain_boundary() {
+    let body = json!({
+        "summary": null,
+        "renderHints": {},
+        "parts": [
+            {
+                "kind": "media",
+                "resource": {
+                    "id": "node_image_demo",
+                    "kind": "image",
+                    "source": "drive",
+                    "uri": "drive://spaces/space_app_upload_demo/nodes/node_image_demo"
+                }
+            }
+        ]
+    });
+
+    let error = serde_json::from_value::<MessageBody>(body)
+        .expect_err("media content parts must require DriveReference");
+    assert!(
+        error.to_string().contains("drive"),
+        "missing drive error should identify the DriveReference field: {error}"
+    );
+}
+
+#[test]
+fn test_media_resource_serializes_drive_backed_profile_without_storage_internals() {
+    let resource = MediaResource {
+        id: Some("node_01HR6P7ZJQ4A7M2CKA9F0P6R7S".into()),
+        kind: MediaKind::Image,
+        source: MediaSource::Drive,
+        url: None,
+        public_url: None,
+        uri: Some(
+            "drive://spaces/space_app_upload_01/nodes/node_01HR6P7ZJQ4A7M2CKA9F0P6R7S".into(),
+        ),
+        object_blob_id: Some("objv_01HR6P7ZJQ4A7M2CKA9F0P6R7S_1".into()),
+        file_name: Some("demo.png".into()),
+        mime_type: Some("image/png".into()),
+        size_bytes: Some("424242".into()),
+        checksum: None,
+        width: Some(1280),
+        height: Some(720),
+        duration_seconds: None,
+        alt_text: Some("demo image".into()),
+        title: Some("demo".into()),
+        poster: None,
+        thumbnails: None,
+        variants: None,
+        access: None,
+        ai: None,
+        metadata: Some(BTreeMap::from([(
+            "drive".into(),
+            json!({
+                "spaceId": "space_app_upload_01",
+                "nodeId": "node_01HR6P7ZJQ4A7M2CKA9F0P6R7S",
+                "spaceType": "app_upload",
+                "nodeVersion": "1"
+            }),
+        )])),
+    };
+
+    let value = serde_json::to_value(resource).expect("MediaResource should serialize");
+
+    assert_eq!(
+        value["uri"],
+        Value::String(
+            "drive://spaces/space_app_upload_01/nodes/node_01HR6P7ZJQ4A7M2CKA9F0P6R7S".into()
+        )
+    );
+    assert_eq!(
+        value["metadata"]["drive"]["spaceId"],
+        Value::String("space_app_upload_01".into())
+    );
+    for forbidden in ["bucketId", "objectKey", "objectVersion"] {
+        assert!(
+            value.get(forbidden).is_none(),
+            "MediaResource must not serialize storage-internal field {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn test_media_resource_rejects_storage_internal_identity_fields() {
+    let legacy = json!({
+        "id": "node_legacy",
+        "kind": "image",
+        "source": "drive",
+        "uri": "drive://spaces/space_app_upload_01/nodes/node_legacy",
+        "bucketId": "media-assets",
+        "objectKey": "tenant/t_demo/node_legacy/demo.png",
+        "objectVersion": "1"
+    });
+
+    assert!(
+        serde_json::from_value::<MediaResource>(legacy).is_err(),
+        "MediaResource must reject bucketId/objectKey/objectVersion because Drive owns storage facts"
+    );
+}
+
+#[test]
+fn test_media_resource_rejects_object_storage_source_vocabulary() {
+    let legacy = json!({
+        "id": "node_legacy",
+        "kind": "image",
+        "source": "object_storage",
+        "uri": "drive://spaces/space_app_upload_01/nodes/node_legacy"
+    });
+
+    assert!(
+        serde_json::from_value::<MediaResource>(legacy).is_err(),
+        "MediaResource.source must use Drive vocabulary instead of storage implementation names"
+    );
+}
+
+#[test]
+fn test_media_part_rejects_legacy_media_asset_id() {
+    let legacy = json!({
+        "resource": {
+            "id": "node_legacy",
+            "kind": "image",
+            "source": "drive",
+            "uri": "drive://spaces/space_app_upload_01/nodes/node_legacy"
+        },
+        "mediaAssetId": "ma_legacy",
+        "mediaRole": "attachment"
+    });
+
+    assert!(
+        serde_json::from_value::<MediaPart>(legacy).is_err(),
+        "MediaPart must reject legacy mediaAssetId and use drive references"
+    );
+}
+
+#[test]
+fn test_media_resource_rejects_legacy_field_aliases() {
+    let legacy = json!({
+        "uuid": "res_legacy",
+        "type": "image",
+        "mimeType": "image/png",
+        "size": 42,
+        "name": "legacy.png",
+        "extension": "png",
+        "prompt": "legacy prompt"
+    });
+
+    assert!(
+        serde_json::from_value::<MediaResource>(legacy).is_err(),
+        "MediaResource must not accept legacy uuid/type/size/name/extension/prompt aliases"
     );
 }
 
@@ -609,6 +808,7 @@ fn test_message_mutation_payloads_serialize_stable_shape() {
             summary: Some("edited".into()),
             parts: vec![ContentPart::text("edited")],
             render_hints: BTreeMap::new(),
+            reply_to: None,
         },
         editor: Sender {
             id: "u_demo".into(),
@@ -752,6 +952,7 @@ fn test_message_body_derives_summary_for_rich_structured_message_schemas() {
                 payload: payload.to_string(),
             })],
             render_hints: BTreeMap::new(),
+            reply_to: None,
         };
 
         assert_eq!(body.derived_summary().as_deref(), Some(expected));
@@ -768,6 +969,7 @@ fn test_message_body_derives_summary_for_rich_structured_message_schemas() {
             .to_string(),
         })],
         render_hints: BTreeMap::new(),
+        reply_to: None,
     };
 
     assert_eq!(
@@ -794,6 +996,7 @@ fn test_message_body_prefers_structured_semantics_and_media_signal_fallbacks() {
             }),
         ],
         render_hints: BTreeMap::new(),
+        reply_to: None,
     };
     assert_eq!(
         rich_body.derived_summary().as_deref(),
@@ -803,25 +1006,40 @@ fn test_message_body_prefers_structured_semantics_and_media_signal_fallbacks() {
     let media_body = MessageBody {
         summary: None,
         parts: vec![ContentPart::media(MediaPart {
-            media_asset_id: "asset_image_demo".into(),
-            resource: Some(MediaResource {
-                id: None,
-                uuid: Some("media_image_demo".into()),
-                url: Some("https://example.com/demo.png".into()),
-                bytes: None,
-                local_file: None,
-                base64: None,
-                resource_type: Some(MediaResourceType::Image),
+            drive: DriveReference {
+                drive_uri: "drive://spaces/space_app_upload_demo/nodes/node_image_demo".into(),
+                space_id: "space_app_upload_demo".into(),
+                node_id: "node_image_demo".into(),
+                node_version: None,
+            },
+            media_role: Some("attachment".into()),
+            resource: MediaResource {
+                id: Some("node_image_demo".into()),
+                kind: MediaKind::Image,
+                source: MediaSource::Drive,
+                url: None,
+                public_url: None,
+                uri: Some("drive://spaces/space_app_upload_demo/nodes/node_image_demo".into()),
+                object_blob_id: None,
+                file_name: Some("demo.png".into()),
                 mime_type: Some("image/png".into()),
-                size: None,
-                name: Some("demo.png".into()),
-                extension: Some("png".into()),
-                tags: None,
+                size_bytes: None,
+                checksum: None,
+                width: None,
+                height: None,
+                duration_seconds: None,
+                alt_text: None,
+                title: None,
+                poster: None,
+                thumbnails: None,
+                variants: None,
+                access: None,
+                ai: None,
                 metadata: None,
-                prompt: None,
-            }),
+            },
         })],
         render_hints: BTreeMap::new(),
+        reply_to: None,
     };
     assert_eq!(media_body.derived_summary().as_deref(), Some("Image"));
 
@@ -836,6 +1054,7 @@ fn test_message_body_prefers_structured_semantics_and_media_signal_fallbacks() {
             .to_string(),
         })],
         render_hints: BTreeMap::new(),
+        reply_to: None,
     };
     assert_eq!(signal_body.derived_summary().as_deref(), Some("rtc.offer"));
 }
@@ -853,6 +1072,7 @@ fn test_message_body_with_derived_summary_preserves_explicit_summary_and_normali
             .to_string(),
         })],
         render_hints: BTreeMap::new(),
+        reply_to: None,
     }
     .with_derived_summary();
     assert_eq!(explicit.summary.as_deref(), Some("Pinned place"));
@@ -868,6 +1088,7 @@ fn test_message_body_with_derived_summary_preserves_explicit_summary_and_normali
             .to_string(),
         })],
         render_hints: BTreeMap::new(),
+        reply_to: None,
     }
     .with_derived_summary();
     assert_eq!(

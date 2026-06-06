@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use std::collections::BTreeMap;
 
-use axum::extract::{Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Extension, Path, Query, State};
 use axum::http::HeaderMap;
 use axum::http::Request;
 use axum::middleware::{self, Next};
@@ -19,9 +19,7 @@ use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_app_context::{
-    AppContext, AppContextError, resolve_app_context,
-};
+use im_app_context::{AppContext, AppContextError, resolve_app_context};
 use im_domain_core::message::Sender;
 use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
@@ -29,6 +27,7 @@ use im_domain_core::stream::{
 use im_platform_contracts::DeviceSubject;
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Semaphore;
 
 const DEVICE_SCOPE_KIND: &str = "device";
 const DEVICE_TELEMETRY_STREAM_TYPE: &str = "device.telemetry";
@@ -47,10 +46,24 @@ const STREAM_MAX_FRAME_ATTRIBUTES_BYTES: usize = 64 * 1024;
 const STREAM_MAX_RESULT_MESSAGE_ID_BYTES: usize = 256;
 const STREAM_MAX_ABORT_REASON_BYTES: usize = 8 * 1024;
 const STREAM_FRAME_LIST_MAX_LIMIT: usize = 1000;
+const STREAMING_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "CRAW_CHAT_STREAMING_MAX_IN_FLIGHT_REQUESTS";
+const STREAMING_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
+const STREAMING_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
+const STREAMING_MAX_REQUEST_BODY_BYTES_ENV: &str = "CRAW_CHAT_STREAMING_MAX_REQUEST_BODY_BYTES";
+const STREAMING_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
+const STREAMING_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
+const STREAMING_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
+    "CRAW_CHAT_STREAMING_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
 struct AppState {
     runtime: Arc<StreamingRuntime>,
+}
+
+#[derive(Clone)]
+struct PublicAppGuardrails {
+    request_gate: Arc<Semaphore>,
+    require_dual_token_headers: bool,
 }
 
 pub struct StreamingRuntime {
@@ -881,7 +894,16 @@ pub fn build_default_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_default_app().layer(middleware::from_fn(require_app_context))
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+        require_dual_token_headers: resolve_require_dual_token_headers(),
+    };
+    build_default_app()
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            require_app_context,
+        ))
 }
 
 pub fn build_app(runtime: Arc<StreamingRuntime>) -> Router {
@@ -907,13 +929,41 @@ pub fn build_app(runtime: Arc<StreamingRuntime>) -> Router {
         .with_state(AppState { runtime })
 }
 
-async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(
+    State(guardrails): State<PublicAppGuardrails>,
+    mut request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
     match request.uri().path() {
         "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => match resolve_app_context(request.headers()) {
-            Ok(_) => next.run(request).await,
-            Err(error) => StreamingError::from(error).into_response(),
-        },
+        _ => {
+            let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+                Ok(permit) => permit,
+                Err(_) => {
+                    return StreamingError {
+                        status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                        code: "http_overloaded",
+                        message:
+                            "server is at maximum in-flight request capacity, please retry later"
+                                .to_owned(),
+                    }
+                    .into_response();
+                }
+            };
+            if guardrails.require_dual_token_headers
+                && let Err(error) = require_dual_token_headers(request.headers())
+            {
+                return error.into_response();
+            }
+            let auth = match resolve_app_context(request.headers()) {
+                Ok(auth) => auth,
+                Err(error) => return StreamingError::from(error).into_response(),
+            };
+            request.extensions_mut().insert(auth);
+            let response = next.run(request).await;
+            drop(permit);
+            response
+        }
     }
 }
 
@@ -1004,11 +1054,12 @@ fn streaming_service_method_display(method: HttpMethod) -> &'static str {
 }
 
 async fn open_stream(
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<OpenStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_stream_open_allowed(&request)?;
     let request_key = stream_open_request_key(&auth, request.stream_id.as_str());
     Ok(Json(StreamSessionMutationResponse::from_outcome(
@@ -1019,11 +1070,12 @@ async fn open_stream(
 
 async fn checkpoint_stream(
     Path(stream_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CheckpointStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
     let request_key = stream_checkpoint_request_key(&auth, stream_id.as_str(), request.frame_seq);
     Ok(Json(StreamSessionMutationResponse::from_outcome(
@@ -1036,11 +1088,12 @@ async fn checkpoint_stream(
 
 async fn append_stream_frame(
     Path(stream_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<AppendStreamFrameRequest>,
 ) -> Result<Json<StreamFrameMutationResponse>, StreamingError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
     let request_key = stream_append_request_key(&auth, stream_id.as_str(), request.frame_seq);
     Ok(Json(StreamFrameMutationResponse::from_outcome(
@@ -1054,10 +1107,11 @@ async fn append_stream_frame(
 async fn list_stream_frames(
     Path(stream_id): Path<String>,
     Query(query): Query<ListStreamFramesQuery>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<StreamFrameWindow>, StreamingError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
     Ok(Json(state.runtime.list_frames(
         &auth,
@@ -1068,11 +1122,12 @@ async fn list_stream_frames(
 
 async fn complete_stream(
     Path(stream_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<CompleteStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
     let request_key = stream_complete_request_key(&auth, stream_id.as_str());
     Ok(Json(StreamSessionMutationResponse::from_outcome(
@@ -1085,11 +1140,12 @@ async fn complete_stream(
 
 async fn abort_stream(
     Path(stream_id): Path<String>,
+    auth: Option<Extension<AppContext>>,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<AbortStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, StreamingError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_standalone_stream_session_allowed(&state.runtime, &auth, stream_id.as_str())?;
     let request_key = stream_abort_request_key(&auth, stream_id.as_str());
     Ok(Json(StreamSessionMutationResponse::from_outcome(
@@ -1114,6 +1170,91 @@ fn validate_payload_size(
         ));
     }
     Ok(())
+}
+
+fn resolve_request_app_context(
+    auth: Option<Extension<AppContext>>,
+    headers: &HeaderMap,
+) -> Result<AppContext, StreamingError> {
+    match auth {
+        Some(Extension(auth)) => Ok(auth),
+        None => resolve_app_context(headers).map_err(StreamingError::from),
+    }
+}
+
+fn require_dual_token_headers(headers: &HeaderMap) -> Result<(), StreamingError> {
+    if !has_bearer_auth_token(headers) {
+        return Err(StreamingError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "auth_token_missing",
+            message: "authorization header must provide a bearer token".to_owned(),
+        });
+    }
+    if !has_access_token_header(headers) {
+        return Err(StreamingError {
+            status: axum::http::StatusCode::UNAUTHORIZED,
+            code: "access_token_missing",
+            message: "access-token header is required".to_owned(),
+        });
+    }
+    Ok(())
+}
+
+fn has_bearer_auth_token(headers: &HeaderMap) -> bool {
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .and_then(|value| {
+            let (scheme, token) = value.split_once(' ')?;
+            if scheme.eq_ignore_ascii_case("bearer") && !token.trim().is_empty() {
+                return Some(());
+            }
+            None
+        })
+        .is_some()
+}
+
+fn has_access_token_header(headers: &HeaderMap) -> bool {
+    headers
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty())
+}
+
+fn resolve_max_in_flight_requests() -> usize {
+    std::env::var(STREAMING_MAX_IN_FLIGHT_REQUESTS_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(STREAMING_MAX_IN_FLIGHT_REQUESTS_DEFAULT)
+        .min(STREAMING_MAX_IN_FLIGHT_REQUESTS_MAX)
+}
+
+fn resolve_max_http_request_body_bytes() -> usize {
+    std::env::var(STREAMING_MAX_REQUEST_BODY_BYTES_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(STREAMING_MAX_REQUEST_BODY_BYTES_DEFAULT)
+        .min(STREAMING_MAX_REQUEST_BODY_BYTES_MAX)
+}
+
+fn resolve_require_dual_token_headers() -> bool {
+    std::env::var(STREAMING_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
+        .ok()
+        .map(|value| parse_truthy_env_flag(Some(value)))
+        .unwrap_or(true)
+}
+
+fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+    raw.as_deref().map(str::trim).is_some_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
 }
 
 fn validate_stream_id(stream_id: &str) -> Result<(), StreamingError> {
@@ -1262,11 +1403,7 @@ pub fn stream_complete_request_key(auth: &AppContext, stream_id: &str) -> String
     ])
 }
 
-pub fn stream_checkpoint_request_key(
-    auth: &AppContext,
-    stream_id: &str,
-    frame_seq: u64,
-) -> String {
+pub fn stream_checkpoint_request_key(auth: &AppContext, stream_id: &str, frame_seq: u64) -> String {
     let frame_seq = frame_seq.to_string();
     encode_stream_key_segments([
         auth.tenant_id.as_str(),
@@ -1440,6 +1577,8 @@ fn resolve_stream_frame_sender(auth: &AppContext, session: &StreamSession) -> Se
 
 #[cfg(test)]
 mod tests {
+    use axum::http::{HeaderMap, HeaderValue};
+
     use super::*;
 
     #[test]
@@ -1552,19 +1691,33 @@ mod tests {
     fn test_stream_request_keys_are_segment_safe() {
         let first = AppContext {
             tenant_id: "tenant:a".into(),
+            organization_id: None,
+            user_id: "b".into(),
+            session_id: None,
+            app_id: None,
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: Default::default(),
+            permission_scope: Default::default(),
             actor_id: "b".into(),
             actor_kind: "user".into(),
-            session_id: None,
             device_id: None,
-            permissions: Default::default(),
         };
         let second = AppContext {
             tenant_id: "tenant".into(),
+            organization_id: None,
+            user_id: "b".into(),
+            session_id: None,
+            app_id: None,
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: Default::default(),
+            permission_scope: Default::default(),
             actor_id: "b".into(),
             actor_kind: "a:user".into(),
-            session_id: None,
             device_id: None,
-            permissions: Default::default(),
         };
 
         assert_ne!(
@@ -1575,6 +1728,32 @@ mod tests {
             stream_append_request_key(&first, "stream", 7),
             stream_append_request_key(&second, "stream", 7)
         );
+    }
+
+    #[test]
+    fn parse_truthy_env_flag_accepts_common_truthy_values() {
+        for value in ["1", "true", "TRUE", " yes ", "On"] {
+            assert!(parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        for value in ["0", "false", "off", "no", "", "  "] {
+            assert!(!parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        assert!(!parse_truthy_env_flag(None));
+    }
+
+    #[test]
+    fn dual_token_header_helpers_validate_auth_and_access_headers() {
+        let mut headers = HeaderMap::new();
+        assert!(!has_bearer_auth_token(&headers));
+        assert!(!has_access_token_header(&headers));
+
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer auth_token"),
+        );
+        headers.insert("access-token", HeaderValue::from_static("access_token"));
+        assert!(has_bearer_auth_token(&headers));
+        assert!(has_access_token_header(&headers));
     }
 
     fn test_stream_state_record(

@@ -171,7 +171,6 @@ fn write_valid_backup_snapshot(root: &Path, owner_node_id: &str) {
     for file_name in [
         "realtime-checkpoints.json",
         "realtime-subscriptions.json",
-        "device-twin-state.json",
         "stream-state.json",
         "rtc-state.json",
         "automation-executions.json",
@@ -247,7 +246,7 @@ fn test_step11_local_drill_baseline_config_and_operator_doc_are_frozen() {
     let doc_path = workspace_root()
         .join("docs")
         .join("部署")
-        .join("性能与灾备演练场�?md");
+        .join("性能与灾备演练场景.md");
     let doc = fs::read_to_string(&doc_path)
         .unwrap_or_else(|_| panic!("missing Step 11 operator doc: {}", doc_path.display()));
     assert!(doc.contains("tools/perf/step-11-cp11-3-local-drill-baseline.json"));

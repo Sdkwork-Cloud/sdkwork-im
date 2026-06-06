@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use audit_service::{AuditRuntime, RecordAuditAnchor};
-use axum::extract::{Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Extension, Path, Query, State};
 use axum::http::{HeaderMap, Request, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
@@ -69,6 +69,24 @@ use session_gateway::{
     RealtimeRouteMigrationResult,
 };
 use sha2::{Digest, Sha256};
+use tokio::sync::Semaphore;
+
+const CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS_ENV: &str =
+    "CRAW_CHAT_CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS";
+const CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
+const CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 50_000;
+const CONTROL_PLANE_MAX_REQUEST_BODY_BYTES_ENV: &str =
+    "CRAW_CHAT_CONTROL_PLANE_MAX_REQUEST_BODY_BYTES";
+const CONTROL_PLANE_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
+const CONTROL_PLANE_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
+const CONTROL_PLANE_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
+    "CRAW_CHAT_CONTROL_PLANE_REQUIRE_DUAL_TOKEN_HEADERS";
+
+#[derive(Clone)]
+struct PublicAppGuardrails {
+    request_gate: Arc<Semaphore>,
+    require_dual_token_headers: bool,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -407,7 +425,8 @@ impl AppContextHeaderSharedChannelLinkedMemberSyncTrigger {
                             break;
                         };
                         let result = if let Some(runtime) = runtime.as_ref() {
-                            runtime.block_on(Self::dispatch_request(base_url.as_str(), task.request))
+                            runtime
+                                .block_on(Self::dispatch_request(base_url.as_str(), task.request))
                         } else {
                             Err("shared-channel sync worker runtime unavailable".to_owned())
                         };
@@ -1475,6 +1494,11 @@ fn current_unix_epoch_millis() -> u128 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis()
+}
+
+#[cfg(test)]
+fn unix_epoch_seconds(at: SystemTime) -> u64 {
+    at.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
 }
 
 fn is_canonical_rfc3339_millis_utc(timestamp: &str) -> bool {
@@ -4913,6 +4937,17 @@ fn openapi_json_response(description: &str, schema_name: &str) -> JsonValue {
     })
 }
 
+fn openapi_problem_response(description: &str, schema_name: &str) -> JsonValue {
+    serde_json::json!({
+        "description": description,
+        "content": {
+            "application/problem+json": {
+                "schema": openapi_component_ref(schema_name)
+            }
+        }
+    })
+}
+
 fn openapi_standard_responses(success_schema_name: &str) -> JsonValue {
     let mut responses = JsonMap::new();
     responses.insert(
@@ -4930,7 +4965,7 @@ fn openapi_standard_responses(success_schema_name: &str) -> JsonValue {
     ] {
         responses.insert(
             status.to_owned(),
-            openapi_json_response(description, "ControlPlaneErrorResponse"),
+            openapi_problem_response(description, "ControlPlaneErrorResponse"),
         );
     }
 
@@ -5031,11 +5066,29 @@ fn control_plane_openapi_components() -> JsonValue {
         &mut schemas,
         "ControlPlaneErrorResponse",
         openapi_object_schema(
-            &["status", "code", "message"],
+            &["type", "title", "status"],
             vec![
-                ("status", openapi_string_schema()),
+                (
+                    "type",
+                    serde_json::json!({
+                        "type": "string",
+                        "format": "uri-reference"
+                    }),
+                ),
+                ("title", openapi_string_schema()),
+                (
+                    "status",
+                    serde_json::json!({
+                        "type": "integer",
+                        "minimum": 100,
+                        "maximum": 599
+                    }),
+                ),
+                ("detail", openapi_string_schema()),
+                ("instance", openapi_string_schema()),
                 ("code", openapi_string_schema()),
                 ("message", openapi_string_schema()),
+                ("errorStatus", openapi_string_schema()),
                 (
                     "details",
                     serde_json::json!({
@@ -5045,7 +5098,7 @@ fn control_plane_openapi_components() -> JsonValue {
                     }),
                 ),
             ],
-            false,
+            true,
         ),
     );
     insert_openapi_schema(
@@ -6110,14 +6163,7 @@ fn control_plane_openapi_paths() -> JsonValue {
         );
     }
 
-    for (
-        path,
-        param_name,
-        summary,
-        operation_id,
-        request_schema,
-        response_schema,
-    ) in [
+    for (path, param_name, summary, operation_id, request_schema, response_schema) in [
         (
             "/backend/v3/api/control/social/friend_requests/{request_id}/accept",
             "request_id",
@@ -6355,7 +6401,7 @@ fn control_plane_openapi_paths() -> JsonValue {
 
 fn control_plane_openapi_document() -> JsonValue {
     serde_json::json!({
-        "openapi": "3.0.3",
+        "openapi": "3.1.2",
         "info": {
             "title": "Control Plane API",
             "version": env!("CARGO_PKG_VERSION"),
@@ -8853,16 +8899,29 @@ impl ControlPlaneError {
 
 impl axum::response::IntoResponse for ControlPlaneError {
     fn into_response(self) -> axum::response::Response {
-        let response_status = Self::response_status(self.status);
+        let status = self.status;
+        let response_status = Self::response_status(status);
+        let detail = self.message;
+        let message = detail.clone();
+        let title = status.canonical_reason().unwrap_or("Unknown Error");
         let mut body = serde_json::json!({
-            "status": response_status,
+            "type": "about:blank",
+            "title": title,
+            "status": status.as_u16(),
+            "detail": detail,
             "code": self.code,
-            "message": self.message
+            "message": message,
+            "errorStatus": response_status
         });
         if let Some(details) = self.details {
             body["details"] = details;
         }
-        (self.status, Json(body)).into_response()
+        (
+            status,
+            [(CONTENT_TYPE, "application/problem+json; charset=utf-8")],
+            Json(body),
+        )
+            .into_response()
     }
 }
 
@@ -11401,7 +11460,16 @@ pub fn build_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    build_app().layer(middleware::from_fn(require_app_context))
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+        require_dual_token_headers: resolve_require_dual_token_headers(),
+    };
+    build_app()
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            require_app_context,
+        ))
 }
 
 pub fn export_openapi_document() -> Result<serde_json::Value, String> {
@@ -11424,8 +11492,16 @@ pub fn build_app_with_shared_channel_sync_trigger(
 pub fn build_public_app_with_shared_channel_sync_trigger(
     shared_channel_sync_trigger: Arc<dyn SharedChannelLinkedMemberSyncTrigger>,
 ) -> Router {
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+        require_dual_token_headers: resolve_require_dual_token_headers(),
+    };
     build_app_with_shared_channel_sync_trigger(shared_channel_sync_trigger)
-        .layer(middleware::from_fn(require_app_context))
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            require_app_context,
+        ))
 }
 
 pub fn build_app_with_cluster(realtime_cluster: Arc<RealtimeClusterBridge>) -> Router {
@@ -11911,15 +11987,40 @@ fn build_control_surface_with_state_and_scheduler_config(
         .with_state(state)
 }
 
-async fn require_app_context(request: Request<axum::body::Body>, next: Next) -> Response {
+async fn require_app_context(
+    State(guardrails): State<PublicAppGuardrails>,
+    mut request: Request<axum::body::Body>,
+    next: Next,
+) -> Response {
     match request.uri().path() {
         "/healthz" | "/openapi.json" | "/backend/v3/api/control/openapi.json" | "/docs" => {
             next.run(request).await
         }
-        _ => match resolve_app_context(request.headers()) {
-            Ok(_) => next.run(request).await,
-            Err(error) => ControlPlaneError::from(error).into_response(),
-        },
+        _ => {
+            let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+                Ok(permit) => permit,
+                Err(_) => {
+                    return ControlPlaneError::service_unavailable(
+                        "http_overloaded",
+                        "server is at maximum in-flight request capacity, please retry later",
+                    )
+                    .into_response();
+                }
+            };
+            if guardrails.require_dual_token_headers
+                && let Err(error) = require_dual_token_headers(request.headers())
+            {
+                return error.into_response();
+            }
+            let auth = match resolve_request_app_context(None, request.headers()) {
+                Ok(auth) => auth,
+                Err(error) => return error.into_response(),
+            };
+            request.extensions_mut().insert(auth);
+            let response = next.run(request).await;
+            drop(permit);
+            response
+        }
     }
 }
 
@@ -11950,9 +12051,10 @@ fn control_plane_openapi_spec() -> OpenApiServiceSpec<'static> {
 
 async fn protocol_registry_snapshot(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<ProtocolRegistryResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
 
     Ok(Json(ProtocolRegistryResponse {
@@ -11976,9 +12078,10 @@ async fn protocol_registry_snapshot(
 
 async fn protocol_governance_snapshot(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<ProtocolGovernanceResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
 
     let governance = state
@@ -11999,9 +12102,10 @@ async fn protocol_governance_snapshot(
 
 async fn provider_registry_snapshot(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderRegistrySnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
     Ok(Json(provider_registry_snapshot_response(
         state.provider_registry.snapshot(),
@@ -12010,10 +12114,11 @@ async fn provider_registry_snapshot(
 
 async fn provider_bindings_snapshot(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Query(query): Query<ProviderBindingsQuery>,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderBindingsResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
     let tenant_id = validate_optional_tenant_id(query.tenant_id)?;
 
@@ -12025,10 +12130,11 @@ async fn provider_bindings_snapshot(
 
 async fn upsert_provider_binding_policy(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<UpsertProviderBindingPolicyRequest>,
 ) -> Result<Json<ProviderBindingCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
     let tenant_id = validate_optional_tenant_id(request.tenant_id.clone())?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
@@ -12097,9 +12203,10 @@ async fn upsert_provider_binding_policy(
 
 async fn provider_policy_history(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderPolicyHistoryResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
         ControlPlaneError::service_unavailable(
@@ -12116,10 +12223,11 @@ async fn provider_policy_history(
 
 async fn provider_policy_diff(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Query(query): Query<ProviderPolicyDiffQuery>,
     State(state): State<AppState>,
 ) -> Result<Json<ProviderPolicyDiffResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
         ControlPlaneError::service_unavailable(
@@ -12136,10 +12244,11 @@ async fn provider_policy_diff(
 
 async fn provider_policy_preview(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<UpsertProviderBindingPolicyRequest>,
 ) -> Result<Json<ProviderPolicyPreview>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
     let tenant_id = validate_optional_tenant_id(request.tenant_id.clone())?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
@@ -12158,10 +12267,11 @@ async fn provider_policy_preview(
 
 async fn rollback_provider_policy(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<ProviderPolicyRollbackRequest>,
 ) -> Result<Json<ProviderPolicyHistoryResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
     let provider_registry = state.provider_registry_runtime.as_ref().ok_or_else(|| {
         ControlPlaneError::service_unavailable(
@@ -12315,8 +12425,8 @@ fn encode_signed_cursor_payload(
         )
     })?;
     mac.update(signing_input.as_bytes());
-    let signature_segment = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .encode(mac.finalize().into_bytes());
+    let signature_segment =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes());
     Ok(format!("{signing_input}.{signature_segment}"))
 }
 
@@ -13413,9 +13523,10 @@ fn archive_active_direct_chats_for_pair(
 async fn list_friend_requests(
     Query(query): Query<FriendRequestInventoryQuery>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendRequestInventoryResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
     validate_payload_size("userId", query.user_id.as_str(), CONTROL_PLANE_MAX_ID_BYTES)?;
     validate_required_with_code(
@@ -13465,10 +13576,11 @@ async fn list_friend_requests(
 
 async fn submit_friend_request(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<SubmitFriendRequestRequest>,
 ) -> Result<Json<SocialFriendRequestCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let submitted =
@@ -13504,10 +13616,11 @@ async fn submit_friend_request(
 async fn accept_friend_request(
     Path(request_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<AcceptFriendRequestRequest>,
 ) -> Result<Json<SocialFriendRequestCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let accepted = state.social_runtime.accept_friend_request(
@@ -13582,10 +13695,11 @@ async fn accept_friend_request(
 async fn decline_friend_request(
     Path(request_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<DeclineFriendRequestRequest>,
 ) -> Result<Json<SocialFriendRequestCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let declined = state.social_runtime.decline_friend_request(
@@ -13623,10 +13737,11 @@ async fn decline_friend_request(
 async fn cancel_friend_request(
     Path(request_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<CancelFriendRequestRequest>,
 ) -> Result<Json<SocialFriendRequestCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let canceled = state.social_runtime.cancel_friend_request(
@@ -13664,9 +13779,10 @@ async fn cancel_friend_request(
 async fn friend_request_snapshot(
     Path(request_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendRequestSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -13692,10 +13808,11 @@ async fn friend_request_snapshot(
 
 async fn activate_friendship(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<ActivateFriendshipRequest>,
 ) -> Result<Json<SocialFriendshipCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let activated =
@@ -13728,10 +13845,11 @@ async fn activate_friendship(
 async fn remove_friendship(
     Path(friendship_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<RemoveFriendshipRequest>,
 ) -> Result<Json<SocialFriendshipCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let removed = state.social_runtime.remove_friendship(
@@ -13766,9 +13884,10 @@ async fn remove_friendship(
 async fn friendship_snapshot(
     Path(friendship_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendshipSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -13794,10 +13913,11 @@ async fn friendship_snapshot(
 
 async fn block_user(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<BlockUserRequest>,
 ) -> Result<Json<SocialUserBlockCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let blocked = state
@@ -13830,9 +13950,10 @@ async fn block_user(
 async fn user_block_snapshot(
     Path(block_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialUserBlockSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -13858,10 +13979,11 @@ async fn user_block_snapshot(
 
 async fn bind_direct_chat(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<BindDirectChatRequest>,
 ) -> Result<Json<SocialDirectChatCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let bound = state
@@ -13894,9 +14016,10 @@ async fn bind_direct_chat(
 async fn direct_chat_snapshot(
     Path(direct_chat_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialDirectChatSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -13922,10 +14045,11 @@ async fn direct_chat_snapshot(
 
 async fn establish_external_connection(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<EstablishExternalConnectionRequest>,
 ) -> Result<Json<SocialExternalConnectionCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let established = state.social_runtime.establish_external_connection(
@@ -13958,9 +14082,10 @@ async fn establish_external_connection(
 async fn external_connection_snapshot(
     Path(connection_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialExternalConnectionSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -13986,10 +14111,11 @@ async fn external_connection_snapshot(
 
 async fn bind_external_member_link(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<BindExternalMemberLinkRequest>,
 ) -> Result<Json<SocialExternalMemberLinkCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let bound =
@@ -14024,9 +14150,10 @@ async fn bind_external_member_link(
 async fn external_member_link_snapshot(
     Path(link_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialExternalMemberLinkSnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -14052,10 +14179,11 @@ async fn external_member_link_snapshot(
 
 async fn apply_shared_channel_policy(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<ApplySharedChannelPolicyRequest>,
 ) -> Result<Json<SocialSharedChannelPolicyCommitResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let applied = state.social_runtime.apply_shared_channel_policy(
@@ -14091,9 +14219,10 @@ async fn apply_shared_channel_policy(
 async fn shared_channel_policy_snapshot(
     Path(policy_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelPolicySnapshotResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
@@ -14119,9 +14248,10 @@ async fn shared_channel_policy_snapshot(
 
 async fn repair_social_runtime_snapshot(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialRuntimeRepairResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let repair = state.social_runtime.repair_derived_snapshot()?;
@@ -14145,9 +14275,10 @@ async fn repair_social_runtime_snapshot(
 async fn dead_letter_social_runtime_shared_channel_sync(
     Query(query): Query<SharedChannelSyncInventoryQuery>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncDeadLetterInventoryResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
     let can_takeover = auth.has_permission("control.write");
     let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
@@ -14167,9 +14298,10 @@ async fn dead_letter_social_runtime_shared_channel_sync(
 async fn pending_social_runtime_shared_channel_sync(
     Query(query): Query<SharedChannelSyncInventoryQuery>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncPendingInventoryResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
     let can_takeover = auth.has_permission("control.write");
     let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
@@ -14187,9 +14319,10 @@ async fn pending_social_runtime_shared_channel_sync(
 async fn delivered_social_runtime_shared_channel_sync(
     Query(query): Query<SharedChannelSyncInventoryQuery>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncDeliveredInventoryResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
     let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
 
@@ -14203,9 +14336,10 @@ async fn delivered_social_runtime_shared_channel_sync(
 async fn delivery_state_social_runtime_shared_channel_sync(
     Query(query): Query<SharedChannelSyncInventoryQuery>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncDeliveryStateInventoryResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_read_access(&auth)?;
     let page = parse_shared_channel_sync_inventory_page_spec(&query)?;
 
@@ -14218,9 +14352,10 @@ async fn delivery_state_social_runtime_shared_channel_sync(
 
 async fn reclaim_stale_pending_social_runtime_shared_channel_sync(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncPendingStaleReclaimResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let reclaim = state
@@ -14245,9 +14380,10 @@ async fn reclaim_stale_pending_social_runtime_shared_channel_sync(
 
 async fn repair_social_runtime_shared_channel_sync(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncRepairResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let repair = state.social_runtime.repair_shared_channel_sync(
@@ -14281,9 +14417,10 @@ async fn repair_social_runtime_shared_channel_sync(
 
 async fn requeue_dead_letter_social_runtime_shared_channel_sync(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialSharedChannelSyncDeadLetterRequeueResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let requeue = state
@@ -14310,10 +14447,11 @@ async fn requeue_dead_letter_social_runtime_shared_channel_sync(
 
 async fn requeue_dead_letter_social_runtime_shared_channel_sync_targeted(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<SocialSharedChannelSyncDeadLetterTargetedRequeueRequest>,
 ) -> Result<Json<SocialSharedChannelSyncDeadLetterTargetedRequeueResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let requeue = state
@@ -14342,10 +14480,11 @@ async fn requeue_dead_letter_social_runtime_shared_channel_sync_targeted(
 
 async fn claim_pending_social_runtime_shared_channel_sync_targeted(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<SocialSharedChannelSyncPendingTargetedClaimRequest>,
 ) -> Result<Json<SocialSharedChannelSyncPendingClaimResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let claim = state
@@ -14378,10 +14517,11 @@ async fn claim_pending_social_runtime_shared_channel_sync_targeted(
 
 async fn release_pending_social_runtime_shared_channel_sync_targeted(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<SocialSharedChannelSyncPendingTargetedReleaseRequest>,
 ) -> Result<Json<SocialSharedChannelSyncPendingReleaseResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let release = state
@@ -14413,10 +14553,11 @@ async fn release_pending_social_runtime_shared_channel_sync_targeted(
 
 async fn takeover_pending_social_runtime_shared_channel_sync_targeted(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<SocialSharedChannelSyncPendingTargetedTakeoverRequest>,
 ) -> Result<Json<SocialSharedChannelSyncPendingTakeoverResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let takeover = state
@@ -14450,10 +14591,11 @@ async fn takeover_pending_social_runtime_shared_channel_sync_targeted(
 
 async fn republish_pending_social_runtime_shared_channel_sync_targeted(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<SocialSharedChannelSyncTargetedRepublishRequest>,
 ) -> Result<Json<SocialSharedChannelSyncTargetedRepublishResponse>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
 
     let republish = state
@@ -14494,9 +14636,10 @@ async fn republish_pending_social_runtime_shared_channel_sync_targeted(
 async fn drain_node(
     Path(node_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<RealtimeNodeLifecycleView>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
     let lifecycle = state
         .realtime_cluster
@@ -14521,9 +14664,10 @@ async fn drain_node(
 async fn activate_node(
     Path(node_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<RealtimeNodeLifecycleView>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
     let lifecycle = state.realtime_cluster.activate_node(node_id.as_str())?;
     mirror_node_into_ops_runtime(&state, node_id.as_str());
@@ -14546,10 +14690,11 @@ async fn activate_node(
 async fn migrate_node_routes(
     Path(node_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<MigrateRoutesRequest>,
 ) -> Result<Json<RealtimeRouteMigrationResult>, ControlPlaneError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_control_write_access(&auth)?;
     let migration = state
         .realtime_cluster
@@ -14861,6 +15006,93 @@ fn ensure_control_read_access(auth: &AppContext) -> Result<(), ControlPlaneError
     Err(ControlPlaneError::forbidden("control.read"))
 }
 
+fn resolve_request_app_context(
+    auth: Option<Extension<AppContext>>,
+    headers: &HeaderMap,
+) -> Result<AppContext, ControlPlaneError> {
+    match auth {
+        Some(Extension(auth)) => Ok(auth),
+        None => resolve_app_context(headers).map_err(ControlPlaneError::from),
+    }
+}
+
+fn require_dual_token_headers(headers: &HeaderMap) -> Result<(), ControlPlaneError> {
+    if !has_bearer_auth_token(headers) {
+        return Err(ControlPlaneError {
+            status: StatusCode::UNAUTHORIZED,
+            code: "auth_token_missing",
+            message: "authorization header must provide a bearer token".to_owned(),
+            details: None,
+        });
+    }
+    if !has_access_token_header(headers) {
+        return Err(ControlPlaneError {
+            status: StatusCode::UNAUTHORIZED,
+            code: "access_token_missing",
+            message: "access-token header is required".to_owned(),
+            details: None,
+        });
+    }
+    Ok(())
+}
+
+fn has_bearer_auth_token(headers: &HeaderMap) -> bool {
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .and_then(|value| {
+            let (scheme, token) = value.split_once(' ')?;
+            if scheme.eq_ignore_ascii_case("bearer") && !token.trim().is_empty() {
+                return Some(());
+            }
+            None
+        })
+        .is_some()
+}
+
+fn has_access_token_header(headers: &HeaderMap) -> bool {
+    headers
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .is_some_and(|value| !value.is_empty())
+}
+
+fn resolve_max_in_flight_requests() -> usize {
+    std::env::var(CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS_DEFAULT)
+        .min(CONTROL_PLANE_MAX_IN_FLIGHT_REQUESTS_MAX)
+}
+
+fn resolve_max_http_request_body_bytes() -> usize {
+    std::env::var(CONTROL_PLANE_MAX_REQUEST_BODY_BYTES_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|&parsed| parsed > 0)
+        .unwrap_or(CONTROL_PLANE_MAX_REQUEST_BODY_BYTES_DEFAULT)
+        .min(CONTROL_PLANE_MAX_REQUEST_BODY_BYTES_MAX)
+}
+
+fn resolve_require_dual_token_headers() -> bool {
+    std::env::var(CONTROL_PLANE_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
+        .ok()
+        .map(|value| parse_truthy_env_flag(Some(value)))
+        .unwrap_or(true)
+}
+
+fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+    raw.as_deref().map(str::trim).is_some_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
+}
+
 fn schema_response(schema: &SchemaDescriptor) -> ProtocolSchemaResponse {
     ProtocolSchemaResponse {
         schema: schema.schema.clone(),
@@ -15092,6 +15324,8 @@ fn validate_required_with_code(
 
 #[cfg(test)]
 mod tests {
+    use axum::http::{HeaderMap, HeaderValue};
+
     use super::*;
     use std::sync::{Mutex, OnceLock};
 
@@ -15174,6 +15408,39 @@ mod tests {
             config.jitter_millis,
             SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_DEFAULT_JITTER_MILLIS
         );
+    }
+
+    #[test]
+    fn parse_truthy_env_flag_accepts_common_truthy_values() {
+        for value in ["1", "true", "TRUE", " yes ", "On"] {
+            assert!(parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        for value in ["0", "false", "off", "no", "", "  "] {
+            assert!(!parse_truthy_env_flag(Some(value.to_owned())));
+        }
+        assert!(!parse_truthy_env_flag(None));
+    }
+
+    #[test]
+    fn dual_token_header_helpers_validate_auth_and_access_headers() {
+        let mut headers = HeaderMap::new();
+        assert!(!has_bearer_auth_token(&headers));
+        assert!(!has_access_token_header(&headers));
+
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer token"),
+        );
+        assert!(has_bearer_auth_token(&headers));
+        assert!(!has_access_token_header(&headers));
+        let error =
+            require_dual_token_headers(&headers).expect_err("access-token should be required");
+        assert_eq!(error.status, StatusCode::UNAUTHORIZED);
+        assert_eq!(error.code, "access_token_missing");
+
+        headers.insert("access-token", HeaderValue::from_static("access"));
+        assert!(has_access_token_header(&headers));
+        require_dual_token_headers(&headers).expect("dual token headers should pass");
     }
 
     #[test]

@@ -8,7 +8,7 @@ import { AutomationApi, createAutomationApi } from './api/automation';
 import { ControlApi, createControlApi } from './api/control';
 import { AdminApi, createAdminApi } from './api/admin';
 
-export class SdkworkBackendClient {
+export class SdkworkImBackendClient {
   private httpClient: HttpClient;
 
   public readonly ops: OpsApi;
@@ -51,8 +51,10 @@ export class SdkworkBackendClient {
   }
 }
 
-export function createClient(config: SdkworkBackendConfig): SdkworkBackendClient {
-  return new SdkworkBackendClient(config);
+export function createClient(config: SdkworkBackendConfig): SdkworkImBackendClient {
+  return new SdkworkImBackendClient(config);
 }
 
-export default SdkworkBackendClient;
+export { SdkworkImBackendClient as SdkworkBackendClient };
+
+export default SdkworkImBackendClient;

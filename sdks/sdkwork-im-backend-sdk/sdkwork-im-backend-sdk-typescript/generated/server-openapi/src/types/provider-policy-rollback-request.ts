@@ -1,3 +1,3 @@
 export interface ProviderPolicyRollbackRequest {
-  targetVersion: number;
+  targetVersion: string;
 }

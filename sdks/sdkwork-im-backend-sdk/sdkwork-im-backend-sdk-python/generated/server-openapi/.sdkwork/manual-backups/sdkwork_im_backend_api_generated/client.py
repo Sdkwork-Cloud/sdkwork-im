@@ -1,10 +1,9 @@
 from .http_client import HttpClient, SdkConfig
 from .api.ops import OpsApi
 from .api.audit import AuditApi
-from .api.provider import ProviderApi
-from .api.iot import IotApi
-from .api.rtc import RtcApi
 from .api.automation import AutomationApi
+from .api.control import ControlApi
+from .api.admin import AdminApi
 
 
 class SdkworkBackendClient:
@@ -14,18 +13,16 @@ class SdkworkBackendClient:
         self._client = HttpClient(config)
         self.ops: OpsApi
         self.audit: AuditApi
-        self.provider: ProviderApi
-        self.iot: IotApi
-        self.rtc: RtcApi
         self.automation: AutomationApi
+        self.control: ControlApi
+        self.admin: AdminApi
 
         # Initialize API modules
         self.ops = OpsApi(self._client)
         self.audit = AuditApi(self._client)
-        self.provider = ProviderApi(self._client)
-        self.iot = IotApi(self._client)
-        self.rtc = RtcApi(self._client)
         self.automation = AutomationApi(self._client)
+        self.control = ControlApi(self._client)
+        self.admin = AdminApi(self._client)
 
 
     def set_auth_token(self, token: str) -> 'SdkworkBackendClient':

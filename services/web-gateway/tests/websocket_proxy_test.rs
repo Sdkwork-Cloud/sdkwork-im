@@ -131,7 +131,7 @@ async fn gateway_proxies_registry_owned_websocket_routes_beyond_realtime_path() 
         methods: vec![HttpMethod::Get],
         path_pattern: "/ws/custom/{*path}".to_owned(),
         visibility: RouteVisibility::Public,
-        sdk_targets: vec![SdkTarget::CrawChatAppSdk],
+        sdk_targets: vec![SdkTarget::SdkworkImSdk],
         operation_group: "realtime".to_owned(),
         protocol: RouteProtocol::Websocket,
         websocket_subprotocols: vec![LINK_WEBSOCKET_SUBPROTOCOL.to_owned()],

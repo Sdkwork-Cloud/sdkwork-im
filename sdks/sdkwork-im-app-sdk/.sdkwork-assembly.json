@@ -2,7 +2,7 @@
   "workspace": "sdkwork-im-app-sdk",
   "title": "SDKWork IM App API SDK",
   "apiVersion": "0.1.0",
-  "openapiVersion": "3.0.3",
+  "openapiVersion": "3.1.2",
   "authoritySpec": "openapi/craw-chat-app-api.openapi.yaml",
   "generationInputSpec": "openapi/craw-chat-app-api.sdkgen.yaml",
   "derivedSpecs": {
@@ -18,6 +18,65 @@
     ],
     "manualTransports": []
   },
+  "sdkDependencies": [
+    {
+      "workspace": "sdkwork-appbase-app-sdk",
+      "role": "appbase-identity-and-session-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/appbase-app-sdk",
+        "flutter": "sdkwork_appbase_app_sdk",
+        "rust": "sdkwork-appbase-app-sdk",
+        "java": "com.sdkwork:sdkwork-appbase-app-sdk",
+        "csharp": "SDKWork.Appbase.AppSdk",
+        "swift": "sdkwork-appbase-app-sdk",
+        "kotlin": "com.sdkwork:sdkwork-appbase-app-sdk",
+        "go": "github.com/sdkwork/sdkwork-appbase-app-sdk",
+        "python": "sdkwork-appbase-app-sdk"
+      }
+    },
+    {
+      "workspace": "sdkwork-im-sdk",
+      "role": "standardized-im-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/im/v3/api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/im-sdk",
+        "flutter": "im_sdk",
+        "rust": "im-sdk",
+        "java": "com.sdkwork:im-sdk",
+        "csharp": "Sdkwork.Im.Sdk",
+        "swift": "ImSdk",
+        "kotlin": "com.sdkwork:im-sdk",
+        "go": "github.com/sdkwork/im-sdk",
+        "python": "sdkwork-im-sdk"
+      }
+    },
+    {
+      "workspace": "sdkwork-rtc-sdk",
+      "role": "provider-standard-rtc-runtime",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": null,
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/rtc-sdk",
+        "flutter": "rtc_sdk",
+        "rust": "rtc_sdk",
+        "java": "com.sdkwork:rtc-sdk",
+        "csharp": "Sdkwork.Rtc.Sdk",
+        "swift": "RtcSdk",
+        "kotlin": "com.sdkwork:rtc-sdk",
+        "go": "github.com/sdkwork/rtc-sdk",
+        "python": "sdkwork-rtc-sdk"
+      }
+    }
+  ],
   "languages": [
     {
       "language": "typescript",
@@ -30,7 +89,8 @@
       "version": "0.1.0",
       "description": "Generator-owned TypeScript transport SDK for the Craw Chat app-development API.",
       "consumerSurface": {
-        "primaryClient": "SdkworkAppClient",
+        "primaryClient": "SdkworkImAppClient",
+        "legacyClient": "SdkworkAppClient",
         "apiPrefix": "/app/v3/api"
       }
     },
@@ -122,5 +182,7 @@
       "version": "0.1.0",
       "description": "Generator-owned Python transport SDK for the Craw Chat app-development API."
     }
-  ]
+  ],
+  "sdkOwner": "craw-chat",
+  "apiAuthority": "craw-chat.app"
 }

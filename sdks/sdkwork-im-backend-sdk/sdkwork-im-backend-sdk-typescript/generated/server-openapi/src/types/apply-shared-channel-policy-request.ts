@@ -6,5 +6,5 @@ export interface ApplySharedChannelPolicyRequest {
   eventId: string;
   historyVisibility: string;
   policyId: string;
-  policyVersion: number;
+  policyVersion: string;
 }

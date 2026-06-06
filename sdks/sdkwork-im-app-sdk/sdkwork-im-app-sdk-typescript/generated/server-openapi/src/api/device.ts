@@ -6,28 +6,28 @@ import type { DeviceTwinView, UpdateDeviceTwinDesiredRequest, UpdateDeviceTwinRe
 
 export class DeviceTwinReportedApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
 /** Update the reported state for a device twin */
-  async create(deviceId: string, body: UpdateDeviceTwinReportedRequest): Promise<DeviceTwinView> {
+  async update(deviceId: string, body: UpdateDeviceTwinReportedRequest): Promise<DeviceTwinView> {
     return this.client.post<DeviceTwinView>(appApiPath(`/devices/${serializePathParameter(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin/reported`), body, undefined, undefined, 'application/json');
   }
 }
 
 export class DeviceTwinDesiredApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
 /** Update the desired state for a device twin */
-  async create(deviceId: string, body: UpdateDeviceTwinDesiredRequest): Promise<DeviceTwinView> {
+  async update(deviceId: string, body: UpdateDeviceTwinDesiredRequest): Promise<DeviceTwinView> {
     return this.client.post<DeviceTwinView>(appApiPath(`/devices/${serializePathParameter(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin/desired`), body, undefined, undefined, 'application/json');
   }
 }
@@ -36,16 +36,16 @@ export class DeviceTwinApi {
   private client: HttpClient;
   public readonly desired: DeviceTwinDesiredApi;
   public readonly reported: DeviceTwinReportedApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.desired = new DeviceTwinDesiredApi(client);
-    this.reported = new DeviceTwinReportedApi(client); 
+    this.reported = new DeviceTwinReportedApi(client);
   }
 
 
 /** Get the device twin */
-  async list(deviceId: string): Promise<DeviceTwinView> {
+  async retrieve(deviceId: string): Promise<DeviceTwinView> {
     return this.client.get<DeviceTwinView>(appApiPath(`/devices/${serializePathParameter(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin`));
   }
 }
@@ -53,10 +53,10 @@ export class DeviceTwinApi {
 export class DeviceApi {
   private client: HttpClient;
   public readonly twin: DeviceTwinApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
-    this.twin = new DeviceTwinApi(client); 
+    this.twin = new DeviceTwinApi(client);
   }
 
 }

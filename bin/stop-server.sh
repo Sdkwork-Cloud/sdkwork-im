@@ -10,15 +10,25 @@ EOF
 }
 
 instance_name="default"
-config_dir="/etc/craw-chat/default"
-run_dir="/var/run/craw-chat/default"
+config_dir="/etc/sdkwork/chat"
+run_dir="/run/sdkwork/chat"
+
+server_path_for_instance() {
+  local root="$1"
+  local name="$2"
+  if [[ "$name" == "default" ]]; then
+    printf '%s\n' "$root"
+  else
+    printf '%s/instances/%s\n' "$root" "$name"
+  fi
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="/etc/craw-chat/${instance_name}"
-      run_dir="/var/run/craw-chat/${instance_name}"
+      config_dir="$(server_path_for_instance "/etc/sdkwork/chat" "$instance_name")"
+      run_dir="$(server_path_for_instance "/run/sdkwork/chat" "$instance_name")"
       shift 2
       ;;
     --config-dir)

@@ -764,7 +764,7 @@ async fn test_get_rtc_provider_health_over_http() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/rtc/provider_health")
+                .uri("/app/v3/api/rtc/provider_health")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -824,7 +824,7 @@ async fn test_map_rtc_provider_callback_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/rtc/provider_callbacks")
+                .uri("/app/v3/api/rtc/provider_callbacks")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -893,7 +893,7 @@ async fn test_map_rtc_provider_callback_rejects_oversized_payload_json_over_http
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/backend/v3/api/rtc/provider_callbacks")
+                .uri("/app/v3/api/rtc/provider_callbacks")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -974,19 +974,23 @@ async fn test_get_rtc_recording_artifact_over_http() {
 
     assert_eq!(artifact_json["tenantId"], "t_demo");
     assert_eq!(artifact_json["rtcSessionId"], "rtc_recording_http");
-    assert_eq!(artifact_json["bucket"], "rtc-artifacts");
     assert_eq!(
-        artifact_json["objectKey"],
-        "recordings/t_demo/rtc_recording_http.mp4"
+        artifact_json["drive"]["driveUri"],
+        "drive://spaces/space_rtc_recordings/nodes/node_rtc_recording_http"
     );
     assert_eq!(
-        artifact_json["storageProvider"],
-        "object-storage-volcengine"
+        artifact_json["resource"]["uri"],
+        "drive://spaces/space_rtc_recordings/nodes/node_rtc_recording_http"
     );
-    assert_eq!(
-        artifact_json["playbackUrl"],
-        "https://tos.volcengine.local/rtc-artifacts/recordings/t_demo/rtc_recording_http.mp4?provider=object-storage-volcengine&expires=3600"
-    );
+    assert_eq!(artifact_json["resource"]["kind"], "video");
+    assert_eq!(artifact_json["resource"]["source"], "provider_asset");
+    assert_eq!(artifact_json["mediaRole"], "rtc_recording");
+    for forbidden in ["bucket", "objectKey", "storageProvider", "playbackUrl"] {
+        assert!(
+            artifact_json.get(forbidden).is_none(),
+            "RTC recording artifact response must not expose object-storage field {forbidden}"
+        );
+    }
 }
 
 #[tokio::test]

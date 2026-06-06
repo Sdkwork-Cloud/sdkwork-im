@@ -97,6 +97,41 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 }
 
 #[tokio::test]
+async fn test_public_app_rejects_missing_access_token_header_over_http() {
+    let app = session_gateway::build_public_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/device/sessions/resume")
+                .header("authorization", "Bearer auth_demo")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "s_demo")
+                .header("x-sdkwork-device-id", "d_demo")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"deviceId":"d_demo","lastSeenSyncSeq":0}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("request should return response");
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("body should collect")
+        .to_bytes();
+    let value: serde_json::Value =
+        serde_json::from_slice(&body).expect("body should be valid json");
+
+    assert_eq!(value["code"], "access_token_missing");
+}
+
+#[tokio::test]
 async fn test_device_session_resume_returns_presence_snapshot_for_current_device() {
     let app = session_gateway::build_app();
 

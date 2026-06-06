@@ -32,9 +32,27 @@ pub enum RouteVisibility {
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SdkTarget {
-    CrawChatAppSdk,
-    ControlPlaneSdk,
+    SdkworkImSdk,
+    SdkworkImAppSdk,
+    SdkworkImBackendSdk,
     None,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ContractKind {
+    Sdk,
+    UpstreamOperational,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SdkContractSummary {
+    pub group_id: String,
+    pub contract_kind: ContractKind,
+    pub schema_url: String,
+    pub api_prefix: String,
+    pub sdk_target: SdkTarget,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -64,6 +82,7 @@ pub struct RouteDescriptor {
 #[serde(rename_all = "camelCase")]
 pub struct ServiceSchemaIndexEntry {
     pub service_id: String,
+    pub contract_kind: ContractKind,
     pub schema_url: String,
     pub docs_url: String,
     pub visibility: RouteVisibility,
@@ -141,6 +160,45 @@ pub fn build_registry(entries: Vec<RouteDescriptor>) -> Result<RouteRegistry, Re
     }
 
     Ok(RouteRegistry { entries })
+}
+
+pub fn sdk_contract_summaries(base_url: &str) -> Vec<SdkContractSummary> {
+    let base_url = base_url.trim_end_matches('/');
+    [
+        (
+            "im-open-api",
+            "/im/v3/openapi.json",
+            "/im/v3/api",
+            SdkTarget::SdkworkImSdk,
+        ),
+        (
+            "im-app-api",
+            "/app/v3/openapi.json",
+            "/app/v3/api",
+            SdkTarget::SdkworkImAppSdk,
+        ),
+        (
+            "im-backend-api",
+            "/backend/v3/openapi.json",
+            "/backend/v3/api",
+            SdkTarget::SdkworkImBackendSdk,
+        ),
+    ]
+    .into_iter()
+    .map(
+        |(group_id, schema_path, api_prefix, sdk_target)| SdkContractSummary {
+            group_id: group_id.to_owned(),
+            contract_kind: ContractKind::Sdk,
+            schema_url: if base_url.is_empty() {
+                schema_path.to_owned()
+            } else {
+                format!("{base_url}{schema_path}")
+            },
+            api_prefix: api_prefix.to_owned(),
+            sdk_target,
+        },
+    )
+    .collect()
 }
 
 fn route_match_score(pattern: &str, path: &str) -> Option<usize> {

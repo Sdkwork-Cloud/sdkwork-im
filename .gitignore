@@ -6,6 +6,9 @@
 /.runtime/
 /tmp/
 /.worktrees/
+.env
+.env.*
+!.env.*.example
 
 # Local helper output
 /.codex-submit-probe/
@@ -27,7 +30,16 @@ Thumbs.db
 
 # Frontend dependency caches and build output
 **/node_modules/
+**/node_modules.codex-filter/
+**/node_modules.codex-fresh/
 **/.pnpm-store/
+**/.dart_tool/
+**/.sdkwork/manual-backups/
+**/.sdkwork/sdkwork-generator-changes.json
+**/.sdkwork/sdkwork-generator-manifest.json
+**/.sdkwork/sdkwork-generator-report.json
+**/dist/
+**/build/
 apps/control-plane/node_modules.__stale__donor/
 apps/control-plane/dist/
 apps/control-plane/dist-portal/

@@ -2,7 +2,7 @@
 
 ## 目标
 
-让 `/backend/v3/api/iot/protocol/uplink` 在 request body `deviceId` 与 `auth.device_id` 不一致时，于 `decode_uplink()` 前返回 `device_id_mismatch`。
+让 `/app/v3/api/iot/protocol/uplink` 在 request body `deviceId` 与 `auth.device_id` 不一致时，于 `decode_uplink()` 前返回 `device_id_mismatch`。
 
 ## 输入
 
@@ -17,7 +17,7 @@
 
 本轮包含：
 
-- `/backend/v3/api/iot/protocol/uplink`
+- `/app/v3/api/iot/protocol/uplink`
 - `resolve_requested_device_id`
 - `request.device_id`
 - `auth.device_id`
@@ -62,7 +62,7 @@
 ## 关键词冻结
 
 - `local-minimal-node`
-- `/backend/v3/api/iot/protocol/uplink`
+- `/app/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `resolve_requested_device_id`

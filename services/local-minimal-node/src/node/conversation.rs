@@ -2,10 +2,11 @@ use super::*;
 
 pub(super) async fn create_conversation(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<CreateConversationRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let (_, creator_attributes) = principal_profile::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
@@ -26,10 +27,12 @@ pub(super) async fn create_conversation(
 
 pub(super) async fn create_agent_dialog(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<CreateAgentDialogRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    require_standard_agent_id(request.agent_id.as_str())?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     let (_, requester_attributes) = principal_profile::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
@@ -48,12 +51,57 @@ pub(super) async fn create_agent_dialog(
     ))
 }
 
+fn require_standard_agent_id(agent_id: &str) -> Result<(), ApiError> {
+    if agent_id.trim().is_empty() {
+        return Err(ApiError::bad_request(
+            "agent_id_invalid",
+            "agentId is required",
+        ));
+    }
+    if agent_id.trim() != agent_id {
+        return Err(ApiError::bad_request(
+            "agent_id_invalid",
+            "agentId must not contain leading or trailing whitespace",
+        ));
+    }
+    if agent_id.chars().count() > 128 {
+        return Err(ApiError::bad_request(
+            "agent_id_invalid",
+            "agentId must be at most 128 characters",
+        ));
+    }
+    if !agent_id.chars().all(is_standard_agent_id_character) {
+        return Err(ApiError::bad_request(
+            "agent_id_invalid",
+            "agentId must use lowercase standard id characters",
+        ));
+    }
+    if !agent_id.split('.').all(|segment| !segment.is_empty()) {
+        return Err(ApiError::bad_request(
+            "agent_id_invalid",
+            "agentId must use non-empty dot-delimited segments",
+        ));
+    }
+    if !agent_id.starts_with("agent.") {
+        return Err(ApiError::bad_request(
+            "agent_id_invalid",
+            "agentId must start with agent.",
+        ));
+    }
+    Ok(())
+}
+
+fn is_standard_agent_id_character(ch: char) -> bool {
+    ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '.' | '_' | '-')
+}
+
 pub(super) async fn create_agent_handoff(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<CreateAgentHandoffRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let (target_kind, target_attributes) = principal_profile::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
@@ -77,10 +125,11 @@ pub(super) async fn create_agent_handoff(
 
 pub(super) async fn create_system_channel(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<CreateSystemChannelRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let (_, subscriber_attributes) = principal_profile::resolve_member_principal(
         &state,
         auth.tenant_id.as_str(),
@@ -101,10 +150,11 @@ pub(super) async fn create_system_channel(
 
 pub(super) async fn create_thread_conversation(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<CreateThreadConversationRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     Ok(Json(
         state
             .conversation_runtime
@@ -119,10 +169,11 @@ pub(super) async fn create_thread_conversation(
 
 pub(super) async fn bind_direct_chat_conversation(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<BindDirectChatConversationRequest>,
 ) -> Result<Json<CreateConversationResult>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     principal_profile::ensure_active_principal(
         &state,
         auth.tenant_id.as_str(),

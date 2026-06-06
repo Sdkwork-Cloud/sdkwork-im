@@ -1,0 +1,54 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, '..', '..');
+const source = fs.readFileSync(
+  path.join(repoRoot, 'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/AddFriendModal.tsx'),
+  'utf8',
+);
+
+assert.match(
+  source,
+  /const\s+\[searchNotice,\s*setSearchNotice\]\s*=\s*useState<[^>]*>\(null\)/u,
+  'add friend modal must keep inline search feedback state below the search box',
+);
+assert.match(
+  source,
+  /setSearchNotice\(\{\s*type:\s*['"]loading['"],\s*message:\s*['"]正在搜索联系人/u,
+  'add friend modal must show an in-modal loading notice while the SDK search request is in flight',
+);
+assert.match(
+  source,
+  /setSearchNotice\(\{\s*type:\s*['"]empty['"],\s*message:\s*`未找到与\s*\$\{normalizedQuery\}\s*匹配的联系人/u,
+  'add friend modal must show no-result feedback inline under the search box',
+);
+assert.doesNotMatch(
+  source,
+  /toast\(['"]未找到该用户['"],\s*['"]error['"]\)/u,
+  'add friend modal must not use a top-level error toast for normal empty search results',
+);
+assert.match(
+  source,
+  /aria-live=["']polite["']/u,
+  'add friend modal inline search feedback must be announced politely for assistive technology',
+);
+assert.match(
+  source,
+  /animate-spin/u,
+  'add friend modal must provide a visible search-in-progress indicator inside the modal',
+);
+assert.match(
+  source,
+  /onChange=\{e\s*=>\s*\{[\s\S]*?setSearchNotice\(null\)/u,
+  'editing the search query must clear stale inline search feedback',
+);
+assert.match(
+  source,
+  /React\.useEffect\(\(\)\s*=>\s*\{[\s\S]*?setSearchNotice\(null\)/u,
+  'closing the add friend modal must reset inline search feedback',
+);
+
+console.log('sdkwork-chat-pc add friend modal UX contract passed');

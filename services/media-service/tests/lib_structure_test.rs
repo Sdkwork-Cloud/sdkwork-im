@@ -1,27 +1,22 @@
 #[test]
-fn test_media_runtime_keys_use_segment_safe_encoding() {
+fn test_media_service_is_not_an_app_local_storage_lifecycle_owner() {
     let source = include_str!("../src/lib.rs").replace("\r\n", "\n");
 
-    assert!(
-        source.contains("fn encode_media_key_segments"),
-        "media runtime keys need a single segment-safe encoder for assets and idempotency"
-    );
-    assert!(
-        source.contains("encode_media_key_segments([tenant_id, media_asset_id])"),
-        "media asset scope keys must use segment-safe length-prefixed encoding"
-    );
-    assert!(
-        source.contains("encode_media_key_segments([\n        auth.tenant_id.as_str(),"),
-        "media upload idempotency keys must use the segment-safe media key encoder"
-    );
-    assert!(
-        !source.contains("format!(\"{tenant_id}:{media_asset_id}\")"),
-        "media asset scope keys must not use delimiter-composed tenant/asset ids"
-    );
-    for forbidden in ["{}:{}:{}:create:{}", "{}:{}:{}:complete:{}"] {
+    for forbidden in [
+        "HashMap<String, MediaAsset>",
+        "CreateUploadRequest",
+        "CompleteUploadRequest",
+        "MediaUploadMutationResponse",
+        "media_create_upload_request_key",
+        "media_complete_upload_request_key",
+        "encode_media_key_segments",
+        "media_asset_id",
+        "with_journal",
+        "CommitJournal",
+    ] {
         assert!(
             !source.contains(forbidden),
-            "media upload idempotency keys must not use delimiter-composed format string: {forbidden}"
+            "media-service must not own app-local storage lifecycle construct `{forbidden}`"
         );
     }
 }

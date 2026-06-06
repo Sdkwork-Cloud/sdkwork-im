@@ -4,7 +4,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use http_body_util::BodyExt;
 use tower::ServiceExt;
 
 fn unique_runtime_dir() -> PathBuf {
@@ -16,145 +15,100 @@ fn unique_runtime_dir() -> PathBuf {
 }
 
 #[tokio::test]
-async fn test_default_local_minimal_profile_restores_task_runtime_projections_after_rebuild() {
+async fn test_default_local_minimal_profile_initializes_task_runtime_state_without_local_appbase_routes()
+ {
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
-    let app_before = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+    let app = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
 
-    let notification_response = app_before
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "notificationId":"ntf_restart_demo",
-                        "sourceEventId":"evt_restart_demo",
-                        "sourceEventType":"message.posted",
-                        "category":"message.new",
-                        "channel":"inapp",
-                        "recipientId":"u_demo",
-                        "recipientKind":"user",
-                        "title":"hello",
-                        "body":"world",
-                        "payload":"{\"conversationId\":\"c_demo\"}"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("notification request should return response");
-    assert_eq!(notification_response.status(), StatusCode::OK);
+    for state_file in ["notification-tasks.json", "automation-executions.json"] {
+        assert!(
+            runtime_dir.join("state").join(state_file).exists(),
+            "managed local-minimal runtime should still initialize task state file {state_file}"
+        );
+    }
 
-    let automation_response = app_before
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/automation/executions")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "automation.execute automation.read")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "executionId":"ae_restart_demo",
-                        "triggerType":"webhook.manual",
-                        "targetKind":"workflow",
-                        "targetRef":"wf_restart_demo",
-                        "inputPayload":"{\"conversationId\":\"c_demo\"}"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("automation request should return response");
-    assert_eq!(automation_response.status(), StatusCode::OK);
+    for (method, path, body) in [
+        (
+            "POST",
+            "/app/v3/api/notifications/requests",
+            Body::from(
+                r#"{
+                    "notificationId":"ntf_restart_demo",
+                    "sourceEventId":"evt_restart_demo",
+                    "sourceEventType":"message.posted",
+                    "category":"message.new",
+                    "channel":"inapp",
+                    "recipientId":"u_demo",
+                    "recipientKind":"user",
+                    "title":"hello",
+                    "body":"world",
+                    "payload":"{\"conversationId\":\"c_demo\"}"
+                }"#,
+            ),
+        ),
+        ("GET", "/app/v3/api/notifications", Body::empty()),
+        (
+            "POST",
+            "/app/v3/api/automation/executions",
+            Body::from(
+                r#"{
+                    "executionId":"ae_restart_demo",
+                    "triggerType":"webhook.manual",
+                    "targetKind":"workflow",
+                    "targetRef":"wf_restart_demo",
+                    "inputPayload":"{\"conversationId\":\"c_demo\"}"
+                }"#,
+            ),
+        ),
+        (
+            "GET",
+            "/app/v3/api/automation/executions/ae_restart_demo",
+            Body::empty(),
+        ),
+    ] {
+        let mut builder = Request::builder()
+            .method(method)
+            .uri(path)
+            .header("x-sdkwork-tenant-id", "t_demo")
+            .header("x-sdkwork-user-id", "u_demo")
+            .header("x-sdkwork-actor-kind", "user")
+            .header(
+                "x-sdkwork-permission-scope",
+                "notification.write automation.execute automation.read",
+            );
+        if method == "POST" {
+            builder = builder.header("content-type", "application/json");
+        }
 
-    assert!(
-        runtime_dir
-            .join("state")
-            .join("notification-tasks.json")
-            .exists(),
-        "managed local-minimal should persist notification task projections"
-    );
-    assert!(
-        runtime_dir
-            .join("state")
-            .join("automation-executions.json")
-            .exists(),
-        "managed local-minimal should persist automation execution projections"
-    );
+        let response = app
+            .clone()
+            .oneshot(builder.body(body).unwrap())
+            .await
+            .expect("appbase-owned local app route should return response");
+        assert_eq!(
+            response.status(),
+            StatusCode::NOT_FOUND,
+            "{method} {path} must not be mounted by local-minimal-node"
+        );
+    }
 
     let app_after = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
-
-    let notifications_after_restart = app_after
-        .clone()
+    let diagnostics = app_after
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/notifications")
+                .uri("/backend/v3/api/ops/diagnostics")
                 .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-user-id", "u_ops")
                 .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-permission-scope", "ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
-        .expect("notifications query after restart should return response");
-    assert_eq!(notifications_after_restart.status(), StatusCode::OK);
-    let notifications_body = notifications_after_restart
-        .into_body()
-        .collect()
-        .await
-        .expect("notifications body should collect")
-        .to_bytes();
-    let notifications_json: serde_json::Value = serde_json::from_slice(&notifications_body)
-        .expect("notifications body should be valid json");
-    let items = notifications_json["items"]
-        .as_array()
-        .expect("items should be array");
-    assert!(
-        items
-            .iter()
-            .any(|item| item["notificationId"] == "ntf_restart_demo")
-    );
-    assert!(
-        items
-            .iter()
-            .any(|item| item["notificationId"] == "ntf_automation_user_ae_restart_demo")
-    );
-
-    let automation_after_restart = app_after
-        .oneshot(
-            Request::builder()
-                .uri("/im/v3/api/automation/executions/ae_restart_demo")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "automation.read")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("automation query after restart should return response");
-    assert_eq!(automation_after_restart.status(), StatusCode::OK);
-    let automation_body = automation_after_restart
-        .into_body()
-        .collect()
-        .await
-        .expect("automation body should collect")
-        .to_bytes();
-    let automation_json: serde_json::Value =
-        serde_json::from_slice(&automation_body).expect("automation body should be valid json");
-    assert_eq!(automation_json["executionId"], "ae_restart_demo");
-    assert_eq!(automation_json["state"], "succeeded");
+        .expect("backend diagnostics should return response after rebuild");
+    assert_eq!(diagnostics.status(), StatusCode::OK);
 
     let _ = fs::remove_dir_all(runtime_dir);
 }

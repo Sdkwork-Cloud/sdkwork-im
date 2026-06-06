@@ -10,7 +10,7 @@ import { ProviderApi, createProviderApi } from './api/provider';
 import { IotApi, createIotApi } from './api/iot';
 import { RtcApi, createRtcApi } from './api/rtc';
 
-export class SdkworkAppClient {
+export class SdkworkImAppClient {
   private httpClient: HttpClient;
 
   public readonly automation: AutomationApi;
@@ -59,8 +59,10 @@ export class SdkworkAppClient {
   }
 }
 
-export function createClient(config: SdkworkAppConfig): SdkworkAppClient {
-  return new SdkworkAppClient(config);
+export function createClient(config: SdkworkAppConfig): SdkworkImAppClient {
+  return new SdkworkImAppClient(config);
 }
 
-export default SdkworkAppClient;
+export { SdkworkImAppClient as SdkworkAppClient };
+
+export default SdkworkImAppClient;

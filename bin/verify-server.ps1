@@ -1,6 +1,6 @@
 param(
     [string]$InstanceName = "default",
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "config")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
     [string]$ReleaseGatePath = "",
     [ValidateSet("text", "json")]
     [string]$OutputFormat = "text",
@@ -9,8 +9,18 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Get-ServerConfigDirForInstance {
+    param([string]$Name)
+
+    $root = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
+    if ($Name -eq "default") {
+        return $root
+    }
+    return [System.IO.Path]::Combine($root, "instances", $Name)
+}
+
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("ConfigDir")) {
-    $ConfigDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "config")
+    $ConfigDir = Get-ServerConfigDirForInstance $InstanceName
 }
 
 if ($Help) {
@@ -34,19 +44,19 @@ function Get-ReleaseContractReport {
     return $json | ConvertFrom-Json
 }
 
-$serverYamlPath = Join-Path $ConfigDir "server.yaml"
-$postgresqlPath = Join-Path $ConfigDir "storage\postgresql.yaml"
-$passwordFilePath = Join-Path $ConfigDir "secrets\postgresql.password"
+$serverYamlPath = Join-Path $ConfigDir "chat.toml"
+$postgresqlPath = Join-Path $ConfigDir "postgresql.yaml"
+$passwordFilePath = Join-Path $ConfigDir "database.secret"
 $missing = New-Object System.Collections.Generic.List[string]
 
-if (-not (Test-Path $serverYamlPath)) { $missing.Add("server.yaml") }
-if (-not (Test-Path $postgresqlPath)) { $missing.Add("storage/postgresql.yaml") }
-if (-not (Test-Path $passwordFilePath)) { $missing.Add("secrets/postgresql.password") }
+if (-not (Test-Path $serverYamlPath)) { $missing.Add("chat.toml") }
+if (-not (Test-Path $postgresqlPath)) { $missing.Add("postgresql.yaml") }
+if (-not (Test-Path $passwordFilePath)) { $missing.Add("database.secret") }
 
 $serverContent = if (Test-Path $serverYamlPath) { Get-Content -Path $serverYamlPath -Raw } else { "" }
 $storageContent = if (Test-Path $postgresqlPath) { Get-Content -Path $postgresqlPath -Raw } else { "" }
 
-foreach ($contract in @("instance:", "network:", "publicEndpoints:", "runtime:")) {
+foreach ($contract in @("[runtime]", "deployment_mode = ""server""", "app_code = ""chat""", "[server]", "bind_address =")) {
     if (-not $serverContent.Contains($contract)) { $missing.Add($contract) }
 }
 foreach ($contract in @("provider: postgresql", "passwordFile:", "migrationMode:")) {

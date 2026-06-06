@@ -6,9 +6,9 @@ import type { MediaHealthRetrieveResponse, PrincipalProfileHealthRetrieveRespons
 
 export class ProviderPrincipalProfileHealthApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -20,9 +20,9 @@ export class ProviderPrincipalProfileHealthApi {
 
 export class ProviderMediaHealthApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -36,11 +36,11 @@ export class ProviderApi {
   private client: HttpClient;
   public readonly mediaHealth: ProviderMediaHealthApi;
   public readonly principalProfileHealth: ProviderPrincipalProfileHealthApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.mediaHealth = new ProviderMediaHealthApi(client);
-    this.principalProfileHealth = new ProviderPrincipalProfileHealthApi(client); 
+    this.principalProfileHealth = new ProviderPrincipalProfileHealthApi(client);
   }
 
 }

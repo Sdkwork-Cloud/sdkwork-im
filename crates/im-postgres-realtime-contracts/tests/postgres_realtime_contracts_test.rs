@@ -16,7 +16,7 @@ fn test_postgres_realtime_contract_crate_exports_complete_executable_contract_se
     assert_eq!(REALTIME_POSTGRES_ADAPTER_PLAN.method_plans.len(), 21);
     assert_eq!(
         REALTIME_POSTGRES_ADAPTER_PLAN.runtime_status,
-        "contract_only"
+        "store_adapter_implemented"
     );
     assert!(
         REALTIME_POSTGRES_SQL_CONTRACT_SPECS

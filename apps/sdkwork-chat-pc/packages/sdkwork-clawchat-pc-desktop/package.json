@@ -1,0 +1,19 @@
+{
+  "name": "@sdkwork/clawchat-pc-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev:tauri": "pnpm --dir ../.. dev:tauri",
+    "build": "pnpm --dir ../.. build",
+    "desktop:dev:local": "node ../../../../scripts/run-tauri-cli.mjs dev",
+    "desktop:build:local": "node ../../../../scripts/run-tauri-cli.mjs build",
+    "cargo:check": "cargo check --manifest-path src-tauri/Cargo.toml"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "catalog:"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "catalog:"
+  }
+}

@@ -1923,18 +1923,24 @@ mod tests {
     use craw_chat_ccp_core::{CapabilitySet, ProtocolVersion, TransportBinding};
     use craw_chat_runtime_link::{LinkConnectionState, OutboundQueuePolicy, ResumeWindow};
     use im_app_context::AppContext;
-    use std::collections::BTreeSet;
 
     use super::*;
 
     fn demo_auth_context() -> AppContext {
         AppContext {
             tenant_id: "t_demo".into(),
+            organization_id: None,
+            user_id: "u_demo".into(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),
-            device_id: Some("d_pad".into()),
             session_id: Some("s_demo".into()),
-            permissions: BTreeSet::new(),
+            app_id: None,
+            environment: None,
+            deployment_mode: None,
+            auth_level: None,
+            data_scope: Default::default(),
+            permission_scope: Default::default(),
+            device_id: Some("d_pad".into()),
         }
     }
 

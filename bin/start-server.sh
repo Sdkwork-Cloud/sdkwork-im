@@ -10,10 +10,10 @@ EOF
 }
 
 instance_name="default"
-install_root="/opt/craw-chat"
-config_dir="/etc/craw-chat/default"
-log_dir="/var/log/craw-chat/default"
-run_dir="/var/run/craw-chat/default"
+install_root="/opt/sdkwork/chat"
+config_dir="/etc/sdkwork/chat"
+log_dir="/var/log/sdkwork/chat"
+run_dir="/run/sdkwork/chat"
 env_file=""
 binary_path=""
 release_mode=0
@@ -21,13 +21,23 @@ foreground=0
 health_url=""
 skip_health_check=0
 
+server_path_for_instance() {
+  local root="$1"
+  local name="$2"
+  if [[ "$name" == "default" ]]; then
+    printf '%s\n' "$root"
+  else
+    printf '%s/instances/%s\n' "$root" "$name"
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance)
       instance_name="$2"
-      config_dir="/etc/craw-chat/${instance_name}"
-      log_dir="/var/log/craw-chat/${instance_name}"
-      run_dir="/var/run/craw-chat/${instance_name}"
+      config_dir="$(server_path_for_instance "/etc/sdkwork/chat" "$instance_name")"
+      log_dir="$(server_path_for_instance "/var/log/sdkwork/chat" "$instance_name")"
+      run_dir="$(server_path_for_instance "/run/sdkwork/chat" "$instance_name")"
       shift 2
       ;;
     --install-root)
@@ -86,13 +96,21 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if [[ -z "$env_file" ]]; then
   env_file="${config_dir}/server.env"
 fi
-server_yaml="${config_dir}/server.yaml"
-[[ -f "$server_yaml" ]] || { echo "Missing server config. Run init-config-server first: ${server_yaml}" >&2; exit 1; }
+server_yaml="${config_dir}/chat.toml"
 
 read_yaml_value() {
   local file="$1"
   local key="$2"
-  awk -F': ' -v key="$key" '$1 ~ key"$" {gsub(/"/, "", $2); print $2; exit}' "$file"
+  awk -F'[:=]' -v key="$key" '
+    $1 ~ key"$" {
+      value = $2
+      gsub(/"/, "", value)
+      gsub(/\047/, "", value)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      print value
+      exit
+    }
+  ' "$file"
 }
 
 load_env_file() {
@@ -191,7 +209,20 @@ resolve_health_url() {
 
 load_env_file "$env_file"
 
-bind_address="$(read_yaml_value "$server_yaml" "bindAddress")"
+if [[ -n "${SDKWORK_CHAT_CONFIG_FILE:-}" ]]; then
+  server_yaml="${SDKWORK_CHAT_CONFIG_FILE}"
+elif [[ ! -f "$server_yaml" && -f "${config_dir}/server.yaml" ]]; then
+  server_yaml="${config_dir}/server.yaml"
+fi
+[[ -f "$server_yaml" ]] || { echo "Missing server config. Run init-config-server first: ${server_yaml}" >&2; exit 1; }
+
+bind_address="${SDKWORK_CHAT_SERVER_BIND:-${CRAW_CHAT_SERVER_BIND_ADDRESS:-}}"
+if [[ -z "$bind_address" ]]; then
+  bind_address="$(read_yaml_value "$server_yaml" "bind_address")"
+fi
+if [[ -z "$bind_address" ]]; then
+  bind_address="$(read_yaml_value "$server_yaml" "bindAddress")"
+fi
 [[ -n "$bind_address" ]] || bind_address="127.0.0.1:18079"
 resolved_binary="$(resolve_binary_path "$binary_path" "$release_mode" || true)"
 [[ -n "$resolved_binary" ]] || { echo "Unable to resolve craw-chat-server binary. Set --binary-path, install a packaged binary, or build web-gateway." >&2; exit 1; }
@@ -215,7 +246,17 @@ if [[ -f "$pid_file" ]]; then
   fi
 fi
 
+export SDKWORK_CHAT_SERVER_BIND="$bind_address"
 export CRAW_CHAT_WEB_GATEWAY_BIND="$bind_address"
+if [[ -n "${SDKWORK_CHAT_SERVER_API_BASE_URL:-}" && -z "${CRAW_CHAT_SERVER_API_BASE_URL:-}" ]]; then
+  export CRAW_CHAT_SERVER_API_BASE_URL="$SDKWORK_CHAT_SERVER_API_BASE_URL"
+fi
+if [[ -n "${SDKWORK_CHAT_SERVER_BASE_URL:-}" && -z "${CRAW_CHAT_SERVER_BASE_URL:-}" ]]; then
+  export CRAW_CHAT_SERVER_BASE_URL="$SDKWORK_CHAT_SERVER_BASE_URL"
+fi
+if [[ -n "${SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL:-}" && -z "${CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL:-}" ]]; then
+  export CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL="$SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL"
+fi
 server_args=(--config "$server_yaml")
 
 if [[ "$foreground" -eq 1 ]]; then

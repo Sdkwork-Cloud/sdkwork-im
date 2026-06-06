@@ -11,20 +11,18 @@ namespace Sdkwork.Im.BackendApi.Generated
 
         public OpsApi Ops { get; }
         public AuditApi Audit { get; }
-        public ProviderApi Provider { get; }
-        public IotApi Iot { get; }
-        public RtcApi Rtc { get; }
         public AutomationApi Automation { get; }
+        public ControlApi Control { get; }
+        public AdminApi Admin { get; }
 
         public SdkworkBackendClient(string baseUrl)
         {
             _httpClient = new SdkHttpClient(baseUrl);
             Ops = new OpsApi(_httpClient);
             Audit = new AuditApi(_httpClient);
-            Provider = new ProviderApi(_httpClient);
-            Iot = new IotApi(_httpClient);
-            Rtc = new RtcApi(_httpClient);
             Automation = new AutomationApi(_httpClient);
+            Control = new ControlApi(_httpClient);
+            Admin = new AdminApi(_httpClient);
         }
 
         public SdkworkBackendClient(SdkConfig config)
@@ -32,10 +30,9 @@ namespace Sdkwork.Im.BackendApi.Generated
             _httpClient = new SdkHttpClient(config);
             Ops = new OpsApi(_httpClient);
             Audit = new AuditApi(_httpClient);
-            Provider = new ProviderApi(_httpClient);
-            Iot = new IotApi(_httpClient);
-            Rtc = new RtcApi(_httpClient);
             Automation = new AutomationApi(_httpClient);
+            Control = new ControlApi(_httpClient);
+            Admin = new AdminApi(_httpClient);
         }
 
 

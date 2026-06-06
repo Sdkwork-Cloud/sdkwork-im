@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadGeneratorYaml, resolveGeneratorRoot } from './workspace-sdk-generator-root-shared.mjs';
-import { loadOpenApiDocument } from './workspace-openapi-source-shared.mjs';
+import { loadOpenApiDocument, primitiveComponentSchemaNames } from './workspace-openapi-source-shared.mjs';
 
 export const officialLanguages = [
   'typescript',
@@ -221,6 +221,21 @@ function writeJsonIfChanged(filePath, value) {
   writeTextIfChanged(filePath, JSON.stringify(value, null, 2));
 }
 
+function stripTrailingWhitespace(source) {
+  return source.replace(/[ \t]+$/gm, '');
+}
+
+function normalizeGeneratedWhitespace(root, config, language) {
+  const outputDir = languageOutputDir(root, config, language);
+  if (!existsSync(outputDir)) {
+    return;
+  }
+
+  for (const filePath of walkFiles(outputDir)) {
+    writeTextIfChanged(filePath, stripTrailingWhitespace(readText(filePath)));
+  }
+}
+
 function relativePath(root, filePath) {
   return path.relative(root, filePath).replace(/\\/g, '/');
 }
@@ -232,22 +247,77 @@ function generatedDescriptionFor(config, language) {
   return `Generator-owned ${languageDisplayName[language] || language} transport SDK for the ${config.generatedApiLabel}.`;
 }
 
-function normalizeAssemblyDescriptions(root, config) {
-  if (!config.generatedApiLabel) {
-    return;
+function generatedIdentityLifecycleIntro(config) {
+  if (config.ownsIdentityLifecycle === true) {
+    return `This package is generated transport. It targets \`${config.apiPrefix}\` and owns the app-facing
+identity lifecycle surface for login, registration, refresh, current-session, current-user,
+IAM runtime metadata, verification policy, and app login handoff transports. UI and orchestration
+still belong in appbase wrappers; transport methods stay generator-owned here.`;
   }
+
+  return `This package is generated transport. It targets \`${config.apiPrefix}\` and is not a login,
+user, tenant, organization, or account-session SDK. Those identity and token lifecycles are
+owned by \`sdkwork-appbase\`; this SDK only forwards the already validated dual-token context.`;
+}
+
+function generatedTokenBoundary(config) {
+  if (config.ownsIdentityLifecycle === true) {
+    return `- Public auth operations create or refresh the common IAM session tokens.
+- \`Authorization: Bearer <authToken>\` carries the upstream authenticated principal context.
+- \`Access-Token: <accessToken>\` carries the upstream access token context.
+- IM SDK clients consume the same token pair and AppContext projection after app login.
+- Hand-written application wrappers must compose these generated methods instead of adding raw HTTP fallbacks.`;
+  }
+
+  return `- \`Authorization: Bearer <authToken>\` carries the upstream authenticated principal context.
+- \`Access-Token: <accessToken>\` carries the upstream access token context.
+- Login, refresh, current-user, tenant, organization, and account-session APIs stay outside this package.`;
+}
+
+function generatedIdentityLifecycleSurface(config) {
+  if (config.ownsIdentityLifecycle !== true) {
+    return '';
+  }
+
+  return `
+## Identity Surface
+
+- \`auth.sessions.create\`
+- \`auth.registrations.create\`
+- \`auth.sessions.current.retrieve\`
+- \`iam.users.current.retrieve\`
+- \`system.iam.runtime.retrieve\`
+- \`openPlatform.qrAuth.sessions.create\`
+`;
+}
+
+function normalizeAssemblyDescriptions(root, config) {
   const assemblyPath = path.join(root, '.sdkwork-assembly.json');
   if (!existsSync(assemblyPath)) {
     return;
   }
   const assembly = readJson(assemblyPath);
   let changed = false;
-  for (const entry of assembly.languages ?? []) {
-    const expected = generatedDescriptionFor(config, entry.language);
-    if (expected && entry.description !== expected) {
-      entry.description = expected;
-      changed = true;
+  if (config.sdkOwner && assembly.sdkOwner !== config.sdkOwner) {
+    assembly.sdkOwner = config.sdkOwner;
+    changed = true;
+  }
+  if (config.apiAuthority && assembly.apiAuthority !== config.apiAuthority) {
+    assembly.apiAuthority = config.apiAuthority;
+    changed = true;
+  }
+  if (config.generatedApiLabel) {
+    for (const entry of assembly.languages ?? []) {
+      const expected = generatedDescriptionFor(config, entry.language);
+      if (expected && entry.description !== expected) {
+        entry.description = expected;
+        changed = true;
+      }
     }
+  }
+  if (Array.isArray(config.sdkDependencies) && !deepEqualJson(assembly.sdkDependencies, config.sdkDependencies)) {
+    assembly.sdkDependencies = config.sdkDependencies;
+    changed = true;
   }
   if (changed) {
     writeFileSync(assemblyPath, `${JSON.stringify(assembly, null, 2)}\n`, 'utf8');
@@ -261,9 +331,7 @@ function renderGeneratedTypeScriptReadme(config) {
 
 ${description}
 
-This package is generated transport. It targets \`${config.apiPrefix}\` and is not a login,
-user, tenant, organization, or account-session SDK. Those identity and token lifecycles are
-owned by \`sdkwork-appbase\`; this SDK only forwards the already validated dual-token context.
+${generatedIdentityLifecycleIntro(config)}
 
 ## Install
 
@@ -288,9 +356,8 @@ client.setAccessToken(appbaseAccessToken);
 
 ## Token Boundary
 
-- \`Authorization: Bearer <authToken>\` carries the upstream authenticated principal context.
-- \`Access-Token: <accessToken>\` carries the upstream access token context.
-- Login, refresh, current-user, tenant, organization, and account-session APIs stay outside this package.
+${generatedTokenBoundary(config)}
+${generatedIdentityLifecycleSurface(config)}
 
 ## Regeneration Contract
 
@@ -307,15 +374,12 @@ function renderGeneratedReadme(config, language) {
 
 ${description}
 
-This package is generated transport. It targets \`${config.apiPrefix}\` and is not a login,
-user, tenant, organization, or account-session SDK. Those identity and token lifecycles are
-owned by \`sdkwork-appbase\`; this SDK only forwards the already validated dual-token context.
+${generatedIdentityLifecycleIntro(config)}
 
 ## Token Boundary
 
-- \`Authorization: Bearer <authToken>\` carries the upstream authenticated principal context.
-- \`Access-Token: <accessToken>\` carries the upstream access token context.
-- Login, refresh, current-user, tenant, organization, and account-session APIs stay outside this package.
+${generatedTokenBoundary(config)}
+${generatedIdentityLifecycleSurface(config)}
 
 ## Regeneration Contract
 
@@ -355,6 +419,122 @@ function updateTextFileIfExists(filePath, updater) {
     return;
   }
   writeTextIfChanged(filePath, updater(readText(filePath)));
+}
+
+function configuredLegacyClient(config) {
+  return config.legacyClient && config.legacyClient !== config.primaryClient
+    ? config.legacyClient
+    : '';
+}
+
+function configuredClientClassNames(config) {
+  return [
+    config.primaryClient,
+    configuredLegacyClient(config),
+  ].filter(Boolean);
+}
+
+function normalizeTextClientName(source, config, language) {
+  const legacyClient = configuredLegacyClient(config);
+  if (!legacyClient) {
+    return source;
+  }
+  if (language === 'typescript') {
+    const aliasPlaceholder = '__SDKWORK_LEGACY_CLIENT_ALIAS__';
+    return source
+      .replaceAll(
+        `${config.primaryClient} as ${legacyClient}`,
+        `${config.primaryClient} as ${aliasPlaceholder}`,
+      )
+      .replaceAll(
+        `${config.primaryClient}, ${legacyClient}, createClient`,
+        `${config.primaryClient}, ${aliasPlaceholder}, createClient`,
+      )
+      .replaceAll(legacyClient, config.primaryClient)
+      .replaceAll(aliasPlaceholder, legacyClient);
+  }
+  if (language === 'rust') {
+    return source.replaceAll(legacyClient, config.primaryClient);
+  }
+  return source;
+}
+
+function normalizeGeneratedPrimaryClientName(root, config, language) {
+  const legacyClient = configuredLegacyClient(config);
+  if (!legacyClient) {
+    return;
+  }
+  const outputDir = languageOutputDir(root, config, language);
+  if (!existsSync(outputDir)) {
+    return;
+  }
+  if (language === 'typescript') {
+    for (const relativePath of ['src/sdk.ts', 'src/index.ts', 'dist/sdk.d.ts', 'dist/index.d.ts']) {
+      updateTextFileIfExists(path.join(outputDir, relativePath), (source) => normalizeTextClientName(source, config, language));
+    }
+    updateTextFileIfExists(path.join(outputDir, 'src', 'sdk.ts'), (source) => {
+      source = source.replace(
+        new RegExp(`\\nexport \\{ ${escapeRegExp(config.primaryClient)} as ${escapeRegExp(config.primaryClient)} \\};\\r?\\n`, 'g'),
+        '\n',
+      );
+      if (source.includes(`export { ${config.primaryClient} as ${legacyClient} };`)) {
+        return source;
+      }
+      return source.replace(
+        new RegExp(`(export default ${escapeRegExp(config.primaryClient)};\\s*)$`, 'u'),
+        `export { ${config.primaryClient} as ${legacyClient} };\n\n$1`,
+      );
+    });
+    updateTextFileIfExists(path.join(outputDir, 'src', 'index.ts'), (source) => {
+      source = source.replace(
+        new RegExp(`export \\{ ${escapeRegExp(config.primaryClient)}, ${escapeRegExp(config.primaryClient)}, createClient \\} from './sdk';`, 'g'),
+        `export { ${config.primaryClient}, ${legacyClient}, createClient } from './sdk';`,
+      );
+      if (source.includes(legacyClient)) {
+        return source;
+      }
+      return source.replace(
+        new RegExp(`export \\{ ${escapeRegExp(config.primaryClient)}, createClient \\} from './sdk';`, 'u'),
+        `export { ${config.primaryClient}, ${legacyClient}, createClient } from './sdk';`,
+      );
+    });
+    return;
+  }
+  if (language === 'rust') {
+    for (const relativePath of ['src/client.rs', 'src/lib.rs']) {
+      updateTextFileIfExists(path.join(outputDir, relativePath), (source) => normalizeTextClientName(source, config, language));
+    }
+    updateTextFileIfExists(path.join(outputDir, 'src', 'client.rs'), (source) => {
+      source = source.replace(
+        new RegExp(`\\n?pub type ${escapeRegExp(config.primaryClient)}\\s*=\\s*${escapeRegExp(config.primaryClient)};\\r?\\n`, 'g'),
+        '\n',
+      );
+      if (new RegExp(`pub type ${escapeRegExp(legacyClient)}\\s*=\\s*${escapeRegExp(config.primaryClient)};`, 'u').test(source)) {
+        return source;
+      }
+      return `${source.trimEnd()}\n\npub type ${legacyClient} = ${config.primaryClient};\n`;
+    });
+    updateTextFileIfExists(path.join(outputDir, 'src', 'lib.rs'), (source) => {
+      const groupedPrimarySelfExportPattern = new RegExp(
+        `pub use client::\\{\\s*${escapeRegExp(config.primaryClient)}\\s*,\\s*${escapeRegExp(config.primaryClient)}\\s*\\};`,
+        'g',
+      );
+      source = source.replace(groupedPrimarySelfExportPattern, `pub use client::{${legacyClient}, ${config.primaryClient}};`);
+
+      const groupedAliasExportPattern = new RegExp(
+        `pub use client::\\{[^}]*\\b${escapeRegExp(legacyClient)}\\b[^}]*\\b${escapeRegExp(config.primaryClient)}\\b[^}]*\\};|pub use client::\\{[^}]*\\b${escapeRegExp(config.primaryClient)}\\b[^}]*\\b${escapeRegExp(legacyClient)}\\b[^}]*\\};`,
+        'u',
+      );
+      if (groupedAliasExportPattern.test(source)) {
+        return source;
+      }
+
+      return source.replace(
+        new RegExp(`pub use client::${escapeRegExp(config.primaryClient)};`, 'u'),
+        `pub use client::{${legacyClient}, ${config.primaryClient}};`,
+      );
+    });
+  }
 }
 
 function normalizeGeneratedManifestDescription(root, config, language) {
@@ -493,6 +673,19 @@ function normalizeGeneratedTypeScriptAuthSurface(root, config) {
     return;
   }
 
+  const authSourceDir = path.join(outputDir, 'src', 'auth');
+  if (existsSync(authSourceDir)) {
+    rmSync(authSourceDir, { recursive: true, force: true });
+  }
+
+  const indexSourcePath = path.join(outputDir, 'src', 'index.ts');
+  if (existsSync(indexSourcePath)) {
+    const source = readText(indexSourcePath)
+      .replace(/\nexport \* from ['"]\.\/auth['"];\r?\n?/g, '\n')
+      .replace(/\n{3,}/g, '\n\n');
+    writeTextIfChanged(indexSourcePath, source);
+  }
+
   const sdkSourcePath = path.join(outputDir, 'src', 'sdk.ts');
   if (existsSync(sdkSourcePath)) {
     const source = readText(sdkSourcePath).replace(
@@ -533,14 +726,17 @@ function normalizeJavaAuthSurface(root, config) {
   if (!existsSync(outputDir)) {
     return;
   }
+  const clientClassNames = configuredClientClassNames(config);
   for (const filePath of walkFiles(outputDir)) {
-    if (path.basename(filePath) === `${config.primaryClient}.java`) {
-      const source = readText(filePath).replace(
-        new RegExp(`\\n    public ${escapeRegExp(config.primaryClient)} setApiKey\\(String apiKey\\) \\{\\r?\\n        httpClient\\.setApiKey\\(apiKey\\);\\r?\\n        return this;\\r?\\n    \\}\\r?\\n`, 'g'),
-        '\n',
-      );
-      writeTextIfChanged(filePath, source);
-      continue;
+    for (const clientClassName of clientClassNames) {
+      if (path.basename(filePath) === `${clientClassName}.java`) {
+        const source = readText(filePath).replace(
+          new RegExp(`\\n    public ${escapeRegExp(clientClassName)} setApiKey\\(String apiKey\\) \\{\\r?\\n        httpClient\\.setApiKey\\(apiKey\\);\\r?\\n        return this;\\r?\\n    \\}\\r?\\n`, 'g'),
+          '\n',
+        );
+        writeTextIfChanged(filePath, source);
+        continue;
+      }
     }
     if (path.basename(filePath) === 'HttpClient.java') {
       let source = readText(filePath).replace(
@@ -565,14 +761,17 @@ function normalizeKotlinAuthSurface(root, config) {
   if (!existsSync(outputDir)) {
     return;
   }
+  const clientClassNames = configuredClientClassNames(config);
   for (const filePath of walkFiles(outputDir)) {
-    if (path.basename(filePath) === `${config.primaryClient}.kt`) {
-      const source = readText(filePath).replace(
-        new RegExp(`\\n    fun setApiKey\\(apiKey: String\\): ${escapeRegExp(config.primaryClient)} \\{\\r?\\n        httpClient\\.setApiKey\\(apiKey\\)\\r?\\n        return this\\r?\\n    \\}\\r?\\n`, 'g'),
-        '\n',
-      );
-      writeTextIfChanged(filePath, source);
-      continue;
+    for (const clientClassName of clientClassNames) {
+      if (path.basename(filePath) === `${clientClassName}.kt`) {
+        const source = readText(filePath).replace(
+          new RegExp(`\\n    fun setApiKey\\(apiKey: String\\): ${escapeRegExp(clientClassName)} \\{\\r?\\n        httpClient\\.setApiKey\\(apiKey\\)\\r?\\n        return this\\r?\\n    \\}\\r?\\n`, 'g'),
+          '\n',
+        );
+        writeTextIfChanged(filePath, source);
+        continue;
+      }
     }
     if (path.basename(filePath) === 'HttpClient.kt') {
       let source = readText(filePath).replace(
@@ -628,12 +827,16 @@ function normalizeGoAuthSurface(root, config) {
   if (!existsSync(outputDir)) {
     return;
   }
+  const clientClassNames = configuredClientClassNames(config);
   const sdkPath = path.join(outputDir, 'sdk.go');
   if (existsSync(sdkPath)) {
-    const source = readText(sdkPath).replace(
-      new RegExp(`\\nfunc \\(c \\*${escapeRegExp(config.primaryClient)}\\) SetApiKey\\(apiKey string\\) \\*${escapeRegExp(config.primaryClient)} \\{\\r?\\n    c\\.http\\.SetApiKey\\(apiKey\\)\\r?\\n    return c\\r?\\n\\}\\r?\\n`, 'g'),
-      '\n',
-    );
+    let source = readText(sdkPath);
+    for (const clientClassName of clientClassNames) {
+      source = source.replace(
+        new RegExp(`\\nfunc \\(c \\*${escapeRegExp(clientClassName)}\\) SetApiKey\\(apiKey string\\) \\*${escapeRegExp(clientClassName)} \\{\\r?\\n    c\\.http\\.SetApiKey\\(apiKey\\)\\r?\\n    return c\\r?\\n\\}\\r?\\n`, 'g'),
+        '\n',
+      );
+    }
     writeTextIfChanged(sdkPath, source);
   }
   const httpClientPath = path.join(outputDir, 'http', 'client.go');
@@ -708,11 +911,29 @@ function normalizeFlutterAuthSurface(root, config) {
   if (!existsSync(outputDir)) {
     return;
   }
+  const legacyClient = configuredLegacyClient(config);
   for (const filePath of walkFiles(outputDir)) {
-    if (!readText(filePath).includes(`class ${config.primaryClient}`)) {
+    let source = readText(filePath);
+    const containsPrimaryClient = source.includes(`class ${config.primaryClient}`);
+    const containsLegacyClient = legacyClient && source.includes(`class ${legacyClient}`);
+    if (!containsPrimaryClient && !containsLegacyClient) {
       continue;
     }
-    let source = readText(filePath)
+
+    if (legacyClient) {
+      source = source
+        .replaceAll(legacyClient, config.primaryClient)
+        .replace(
+          new RegExp(`\\ntypedef ${escapeRegExp(config.primaryClient)} = ${escapeRegExp(config.primaryClient)};\\r?\\n`, 'g'),
+          '\n',
+        );
+      const alias = `typedef ${legacyClient} = ${config.primaryClient};`;
+      if (!source.includes(alias)) {
+        source = `${source.trimEnd()}\n\n${alias}\n`;
+      }
+    }
+
+    source = source
       .replace(/\n    String\? apiKey,\r?\n/g, '\n')
       .replace(/\n    String apiKeyHeader = 'Access-Token',\r?\n/g, '\n')
       .replace(/\n    bool apiKeyAsBearer = false,\r?\n/g, '\n')
@@ -730,13 +951,15 @@ function normalizeSwiftAuthSurface(root, config) {
   if (!existsSync(outputDir)) {
     return;
   }
-  const clientPath = path.join(outputDir, 'Sources', `${config.primaryClient}.swift`);
-  if (existsSync(clientPath)) {
-    const source = readText(clientPath).replace(
-      new RegExp(`\\n    public func setApiKey\\(_ apiKey: String\\) -> ${escapeRegExp(config.primaryClient)} \\{\\r?\\n        httpClient\\.setApiKey\\(apiKey\\)\\r?\\n        return self\\r?\\n    \\}\\r?\\n`, 'g'),
-      '\n',
-    );
-    writeTextIfChanged(clientPath, source);
+  for (const clientClassName of configuredClientClassNames(config)) {
+    const clientPath = path.join(outputDir, 'Sources', `${clientClassName}.swift`);
+    if (existsSync(clientPath)) {
+      const source = readText(clientPath).replace(
+        new RegExp(`\\n    public func setApiKey\\(_ apiKey: String\\) -> ${escapeRegExp(clientClassName)} \\{\\r?\\n        httpClient\\.setApiKey\\(apiKey\\)\\r?\\n        return self\\r?\\n    \\}\\r?\\n`, 'g'),
+        '\n',
+      );
+      writeTextIfChanged(clientPath, source);
+    }
   }
   const httpClientPath = path.join(outputDir, 'Sources', 'HTTP', 'HttpClient.swift');
   if (existsSync(httpClientPath)) {
@@ -761,13 +984,15 @@ function normalizeCsharpAuthSurface(root, config) {
   if (!existsSync(outputDir)) {
     return;
   }
-  const clientPath = path.join(outputDir, `${config.primaryClient}.cs`);
-  if (existsSync(clientPath)) {
-    const source = readText(clientPath).replace(
-      new RegExp(`\\n        public ${escapeRegExp(config.primaryClient)} SetApiKey\\(string apiKey\\)\\r?\\n        \\{\\r?\\n            _httpClient\\.SetApiKey\\(apiKey\\);\\r?\\n            return this;\\r?\\n        \\}\\r?\\n`, 'g'),
-      '\n',
-    );
-    writeTextIfChanged(clientPath, source);
+  for (const clientClassName of configuredClientClassNames(config)) {
+    const clientPath = path.join(outputDir, `${clientClassName}.cs`);
+    if (existsSync(clientPath)) {
+      const source = readText(clientPath).replace(
+        new RegExp(`\\n        public ${escapeRegExp(clientClassName)} SetApiKey\\(string apiKey\\)\\r?\\n        \\{\\r?\\n            _httpClient\\.SetApiKey\\(apiKey\\);\\r?\\n            return this;\\r?\\n        \\}\\r?\\n`, 'g'),
+        '\n',
+      );
+      writeTextIfChanged(clientPath, source);
+    }
   }
   const httpClientPath = path.join(outputDir, 'Http', 'HttpClient.cs');
   if (existsSync(httpClientPath)) {
@@ -789,14 +1014,17 @@ function normalizeCsharpAuthSurface(root, config) {
 
 function normalizeGeneratedLanguage(root, config, language) {
   normalizeGeneratedPackageMetadata(root, config, language);
+  normalizeGeneratedPrimaryClientName(root, config, language);
   if (language === 'typescript') {
     normalizeGeneratedTypeScriptAuthSurface(root, config);
+    normalizeGeneratedPrimaryClientName(root, config, language);
   }
   if (language === 'flutter') {
     normalizeFlutterAuthSurface(root, config);
   }
   if (language === 'rust') {
     normalizeRustAuthSurface(root, config);
+    normalizeGeneratedPrimaryClientName(root, config, language);
   }
   if (language === 'java') {
     normalizeJavaAuthSurface(root, config);
@@ -816,6 +1044,7 @@ function normalizeGeneratedLanguage(root, config, language) {
   if (language === 'python') {
     normalizePythonAuthSurface(root, config);
   }
+  normalizeGeneratedWhitespace(root, config, language);
 }
 
 function buildGeneratedLanguage(root, config, language) {
@@ -859,6 +1088,24 @@ function manifestNameFor(config, language) {
 
 function languagePackageName(config, language) {
   return config.packages[language];
+}
+
+function stableJson(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => stableJson(entry));
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, stableJson(value[key])]),
+  );
+}
+
+function deepEqualJson(left, right) {
+  return JSON.stringify(stableJson(left)) === JSON.stringify(stableJson(right));
 }
 
 function inputForLanguage(root, config, language) {
@@ -983,6 +1230,125 @@ function verifyOpenApiDocument(config, document, sourceLabel, failures) {
   }
 }
 
+function dependencyPackageValues(dependency) {
+  return Object.values(dependency?.packageByLanguage ?? {})
+    .filter((value) => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim());
+}
+
+function forbiddenGeneratedDependencyPackages(config) {
+  const packages = new Set();
+  for (const dependency of config.sdkDependencies ?? []) {
+    if (dependency?.generatedTransportImportPolicy !== 'forbidden') {
+      continue;
+    }
+    for (const packageName of dependencyPackageValues(dependency)) {
+      packages.add(packageName);
+    }
+  }
+  return [...packages].sort((left, right) => right.length - left.length || left.localeCompare(right));
+}
+
+function verifySdkDependencyShape(dependency, index, failures) {
+  const label = `sdkDependencies[${index}]`;
+  if (!dependency || typeof dependency !== 'object' || Array.isArray(dependency)) {
+    failures.push(`${label} must be an object`);
+    return;
+  }
+  if (!dependency.workspace || typeof dependency.workspace !== 'string') {
+    failures.push(`${label}.workspace is required`);
+  }
+  if (!dependency.role || typeof dependency.role !== 'string') {
+    failures.push(`${label}.role is required`);
+  }
+  if (dependency.required !== true) {
+    failures.push(`${label}.required must be true`);
+  }
+  if (dependency.dependencyMode !== 'consumer-sdk') {
+    failures.push(`${label}.dependencyMode must be consumer-sdk`);
+  }
+  if (dependency.generatedTransportImportPolicy !== 'forbidden') {
+    failures.push(`${label}.generatedTransportImportPolicy must be forbidden`);
+  }
+  if (
+    dependency.apiPrefix !== null
+    && (typeof dependency.apiPrefix !== 'string' || !dependency.apiPrefix.startsWith('/'))
+  ) {
+    failures.push(`${label}.apiPrefix must be an absolute API prefix or null`);
+  }
+  if (!dependency.packageByLanguage || typeof dependency.packageByLanguage !== 'object') {
+    failures.push(`${label}.packageByLanguage is required`);
+    return;
+  }
+  for (const language of officialLanguages) {
+    if (!dependency.packageByLanguage[language]) {
+      failures.push(`${label}.packageByLanguage must declare ${language}`);
+    }
+  }
+}
+
+function verifySdkDependencies(root, config, failures) {
+  const assemblyPath = path.join(root, '.sdkwork-assembly.json');
+  const componentSpecPath = path.join(root, 'specs/component.spec.json');
+  const readmePath = path.join(root, 'README.md');
+  const assembly = existsSync(assemblyPath) ? readJson(assemblyPath) : {};
+  const componentSpec = existsSync(componentSpecPath) ? readJson(componentSpecPath) : {};
+  const readmeSource = existsSync(readmePath) ? readText(readmePath) : '';
+  const configuredDependencies = config.sdkDependencies;
+
+  if (configuredDependencies == null) {
+    if (Array.isArray(assembly.sdkDependencies) && assembly.sdkDependencies.length > 0) {
+      failures.push('.sdkwork-assembly.json must not declare sdkDependencies without sdk-family-config.mjs');
+    }
+    if (Array.isArray(componentSpec.contracts?.sdkDependencies) && componentSpec.contracts.sdkDependencies.length > 0) {
+      failures.push('specs/component.spec.json must not declare contracts.sdkDependencies without sdk-family-config.mjs');
+    }
+    return;
+  }
+  if (!Array.isArray(configuredDependencies)) {
+    failures.push('sdk-family-config.mjs sdkDependencies must be an array');
+    return;
+  }
+  if (!Array.isArray(assembly.sdkDependencies)) {
+    failures.push('.sdkwork-assembly.json must declare sdkDependencies');
+  } else if (!deepEqualJson(assembly.sdkDependencies, configuredDependencies)) {
+    failures.push('.sdkwork-assembly.json sdkDependencies must match sdk-family-config.mjs sdkDependencies');
+  }
+  if (!existsSync(componentSpecPath)) {
+    failures.push('specs/component.spec.json is required when sdkDependencies are declared');
+  } else if (!Array.isArray(componentSpec.contracts?.sdkDependencies)) {
+    failures.push('specs/component.spec.json must declare contracts.sdkDependencies');
+  } else if (!deepEqualJson(componentSpec.contracts?.sdkDependencies, configuredDependencies)) {
+    failures.push('specs/component.spec.json contracts.sdkDependencies must match sdk-family-config.mjs sdkDependencies');
+  }
+
+  const seenWorkspaces = new Set();
+  for (const [index, dependency] of configuredDependencies.entries()) {
+    verifySdkDependencyShape(dependency, index, failures);
+    if (!dependency || typeof dependency !== 'object') {
+      continue;
+    }
+    if (seenWorkspaces.has(dependency.workspace)) {
+      failures.push(`sdkDependencies must not duplicate workspace ${dependency.workspace}`);
+    }
+    seenWorkspaces.add(dependency.workspace);
+
+    const requiredReadmeMarkers = [
+      dependency.workspace,
+      dependency.role,
+      dependency.dependencyMode,
+      dependency.generatedTransportImportPolicy,
+      ...(dependency.apiPrefix ? [dependency.apiPrefix] : []),
+      ...dependencyPackageValues(dependency),
+    ];
+    for (const marker of requiredReadmeMarkers) {
+      if (!readmeSource.includes(marker)) {
+        failures.push(`README.md must mention SDK dependency marker ${marker}`);
+      }
+    }
+  }
+}
+
 function verifyReadme(root, config, failures) {
   const readmePath = path.join(root, 'README.md');
   if (!existsSync(readmePath)) {
@@ -1006,6 +1372,12 @@ function verifyAssembly(root, config, languages, failures) {
   const assembly = readJson(assemblyPath);
   if (assembly.workspace !== config.sdkName) {
     failures.push('.sdkwork-assembly.json workspace must match SDK name');
+  }
+  if (config.sdkOwner && assembly.sdkOwner !== config.sdkOwner) {
+    failures.push(`.sdkwork-assembly.json sdkOwner must be ${config.sdkOwner}`);
+  }
+  if (config.apiAuthority && assembly.apiAuthority !== config.apiAuthority) {
+    failures.push(`.sdkwork-assembly.json apiAuthority must be ${config.apiAuthority}`);
   }
   if (assembly.discoverySurface?.apiPrefix !== config.apiPrefix) {
     failures.push('.sdkwork-assembly.json discoverySurface.apiPrefix must match API prefix');
@@ -1130,6 +1502,11 @@ function verifyGeneratedLanguage(root, config, language, failures) {
         failures.push(`${relative} must not expose API-key auth debt: ${forbidden}`);
       }
     }
+    for (const forbidden of forbiddenGeneratedDependencyPackages(config)) {
+      if (source.includes(forbidden)) {
+        failures.push(`${relative} must not import or declare forbidden SDK dependency package ${forbidden}`);
+      }
+    }
     for (const forbidden of config.forbiddenGeneratedText) {
       if (source.includes(forbidden)) {
         failures.push(`${relative} must not contain ${forbidden}`);
@@ -1242,9 +1619,16 @@ export async function runVerifySdkFamily(config, argv) {
     if (Object.keys(flutterDerived.paths ?? {}).some((pathKey) => pathKey.endsWith('/realtime/ws'))) {
       failures.push(`${config.flutterDerivedSpec} must not expose websocket transport to generated Flutter HTTP SDK`);
     }
+    const primitiveSchemas = primitiveComponentSchemaNames(flutterDerived);
+    if (primitiveSchemas.length > 0) {
+      failures.push(
+        `${config.flutterDerivedSpec} must inline primitive component refs before Flutter sdkgen; found ${primitiveSchemas.join(', ')}`,
+      );
+    }
   }
   verifyReadme(root, config, failures);
   verifyAssembly(root, config, languages, failures);
+  verifySdkDependencies(root, config, failures);
   for (const language of languages) {
     verifyGeneratedLanguage(root, config, language, failures);
   }

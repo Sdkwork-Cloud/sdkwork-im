@@ -2,7 +2,7 @@
 
 ## 目标
 
-让 `/backend/v3/api/iot/protocol/uplink` 在 decode 后发现 `envelope.device_id` 与 `preflight_device_id` 不一致时，返回 `400 device_id_mismatch`。
+让 `/app/v3/api/iot/protocol/uplink` 在 decode 后发现 `envelope.device_id` 与 `preflight_device_id` 不一致时，返回 `400 device_id_mismatch`。
 
 ## 输入
 
@@ -17,7 +17,7 @@
 
 本轮包含：
 
-- `/backend/v3/api/iot/protocol/uplink`
+- `/app/v3/api/iot/protocol/uplink`
 - `ensure_iot_protocol_uplink_decoded_device_matches_preflight`
 - `preflight_device_id`
 - `envelope.device_id`
@@ -59,7 +59,7 @@
 ## 关键词冻结
 
 - `local-minimal-node`
-- `/backend/v3/api/iot/protocol/uplink`
+- `/app/v3/api/iot/protocol/uplink`
 - `IotProtocolAdapter`
 - `decode_uplink`
 - `ensure_iot_protocol_uplink_decoded_device_matches_preflight`

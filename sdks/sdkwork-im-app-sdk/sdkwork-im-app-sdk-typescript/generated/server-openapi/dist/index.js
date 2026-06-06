@@ -1,5 +1,5 @@
 import { BaseHttpClient, withRetry } from '@sdkwork/sdk-common';
-export { DEFAULT_TIMEOUT, DefaultAuthTokenManager, SUCCESS_CODES, createTokenManager } from '@sdkwork/sdk-common';
+export { DEFAULT_TIMEOUT, SUCCESS_CODES } from '@sdkwork/sdk-common';
 
 class HttpClient extends BaseHttpClient {
     constructor(config) {
@@ -379,7 +379,7 @@ class DeviceTwinReportedApi {
         this.client = client;
     }
     /** Update the reported state for a device twin */
-    async create(deviceId, body) {
+    async update(deviceId, body) {
         return this.client.post(appApiPath(`/devices/${serializePathParameter$1(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin/reported`), body, undefined, undefined, 'application/json');
     }
 }
@@ -388,7 +388,7 @@ class DeviceTwinDesiredApi {
         this.client = client;
     }
     /** Update the desired state for a device twin */
-    async create(deviceId, body) {
+    async update(deviceId, body) {
         return this.client.post(appApiPath(`/devices/${serializePathParameter$1(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin/desired`), body, undefined, undefined, 'application/json');
     }
 }
@@ -399,7 +399,7 @@ class DeviceTwinApi {
         this.reported = new DeviceTwinReportedApi(client);
     }
     /** Get the device twin */
-    async list(deviceId) {
+    async retrieve(deviceId) {
         return this.client.get(appApiPath(`/devices/${serializePathParameter$1(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin`));
     }
 }
@@ -757,7 +757,7 @@ function createRtcApi(client) {
     return new RtcApi(client);
 }
 
-class SdkworkAppClient {
+class SdkworkImAppClient {
     constructor(config) {
         this.httpClient = createHttpClient(config);
         this.automation = createAutomationApi(this.httpClient);
@@ -785,7 +785,7 @@ class SdkworkAppClient {
     }
 }
 function createClient(config) {
-    return new SdkworkAppClient(config);
+    return new SdkworkImAppClient(config);
 }
 
 class BaseApi {
@@ -813,4 +813,4 @@ class BaseApi {
     }
 }
 
-export { AutomationApi, BaseApi, DeviceApi, HttpClient, IotApi, NotificationApi, PortalApi, ProviderApi, RtcApi, SdkworkAppClient, appApiPath, createAutomationApi, createClient, createDeviceApi, createHttpClient, createIotApi, createNotificationApi, createPortalApi, createProviderApi, createRtcApi };
+export { AutomationApi, BaseApi, DeviceApi, HttpClient, IotApi, NotificationApi, PortalApi, ProviderApi, RtcApi, SdkworkImAppClient as SdkworkAppClient, SdkworkImAppClient, appApiPath, createAutomationApi, createClient, createDeviceApi, createHttpClient, createIotApi, createNotificationApi, createPortalApi, createProviderApi, createRtcApi };

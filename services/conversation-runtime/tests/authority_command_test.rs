@@ -15,11 +15,18 @@ use im_domain_core::message::{ContentPart, MessageBody, MessageType};
 fn demo_auth() -> AppContext {
     AppContext {
         tenant_id: "t_demo".into(),
+        organization_id: None,
+        user_id: "svc_ops".into(),
+        session_id: Some("s_system".into()),
+        app_id: None,
+        environment: None,
+        deployment_mode: None,
+        auth_level: None,
+        data_scope: BTreeSet::new(),
+        permission_scope: BTreeSet::new(),
         actor_id: "svc_ops".into(),
         actor_kind: "system".into(),
-        session_id: Some("s_system".into()),
         device_id: Some("d_system".into()),
-        permissions: BTreeSet::new(),
     }
 }
 
@@ -28,6 +35,7 @@ fn demo_body(summary: &str, text: &str) -> MessageBody {
         summary: Some(summary.into()),
         parts: vec![ContentPart::text(text)],
         render_hints: Default::default(),
+        reply_to: None,
     }
 }
 

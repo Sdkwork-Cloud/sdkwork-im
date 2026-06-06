@@ -1,0 +1,368 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "module": "ESNext",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@sdkwork-internal/im-app-api-generated": [
+        "../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork-internal/im-backend-api-generated": [
+        "../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/agent-app-sdk": [
+        "../../../../../../../sdkwork-opensource/sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/im-sdk": [
+        "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/rtc-sdk": [
+        "../../sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/appbase-pc-react": [
+        "../../../../apps/sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts"
+      ],
+      "@sdkwork/auth-pc-react": [
+        "../../../../apps/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts"
+      ],
+      "@sdkwork/auth-pc-react/auth": [
+        "../../../../apps/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts"
+      ],
+      "@sdkwork/iam-contracts": [
+        "../../../../apps/sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts/src/index.ts"
+      ],
+      "@sdkwork/iam-sdk-adapter": [
+        "../../../../apps/sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-adapter/src/index.ts"
+      ],
+      "@sdkwork/iam-sdk-ports": [
+        "../../../../apps/sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts"
+      ],
+      "@sdkwork/i18n-pc-react": [
+        "../../../../apps/sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react/src/index.ts"
+      ],
+      "@sdkwork/core-pc-react": [
+        "../../../../apps/sdkwork-core/sdkwork-core-pc-react/src/index.ts"
+      ],
+      "@sdkwork/core-pc-react/*": [
+        "../../../../apps/sdkwork-core/sdkwork-core-pc-react/src/*/index.ts"
+      ],
+      "@sdkwork/ui-pc-react/styles.css": [
+        "../../../../apps/sdkwork-ui/sdkwork-ui-pc-react/src/styles/sdkwork-ui.css"
+      ],
+      "@sdkwork/ui-pc-react": [
+        "../../../../apps/sdkwork-ui/sdkwork-ui-pc-react/src/index.ts"
+      ],
+      "@sdkwork/ui-pc-react/*": [
+        "../../../../apps/sdkwork-ui/sdkwork-ui-pc-react/src/*"
+      ],
+      "@sdkwork/sdk-common": [
+        "../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"
+      ],
+      "@sdkwork/sdk-common/core": [
+        "../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/core/index.ts"
+      ],
+      "@sdkwork/sdk-common/auth": [
+        "../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/auth/index.ts"
+      ],
+      "@sdkwork/sdk-common/http": [
+        "../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/http/index.ts"
+      ],
+      "@sdkwork/sdk-common/errors": [
+        "../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/errors/index.ts"
+      ],
+      "@sdkwork/sdk-common/utils": [
+        "../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/utils/index.ts"
+      ],
+      "@sdkwork/clawchat-pc-types/*": [
+        "./packages/sdkwork-clawchat-pc-types/src/*"
+      ],
+      "@sdkwork/clawchat-pc-types": [
+        "./packages/sdkwork-clawchat-pc-types/src/index.ts"
+      ],
+      "@sdkwork/clawchat-pc-commons/*": [
+        "./packages/sdkwork-clawchat-pc-commons/src/*"
+      ],
+      "@sdkwork/clawchat-pc-commons": [
+        "./packages/sdkwork-clawchat-pc-commons/src/index.ts"
+      ],
+      "@sdkwork/clawchat-pc-core/*": [
+        "./packages/sdkwork-clawchat-pc-core/src/*"
+      ],
+      "@sdkwork/clawchat-pc-core": [
+        "./packages/sdkwork-clawchat-pc-core/src/index.ts"
+      ],
+      "@sdkwork/clawchat-pc-chat/*": [
+        "./packages/sdkwork-clawchat-pc-chat/src/*"
+      ],
+      "@sdkwork/clawchat-pc-chat": [
+        "./packages/sdkwork-clawchat-pc-chat/src/index.ts"
+      ],
+      "@sdkwork/clawchat-pc-agent/*": [
+        "./packages/sdkwork-clawchat-pc-agent/src/*"
+      ],
+      "@sdkwork/clawchat-pc-agent": [
+        "./packages/sdkwork-clawchat-pc-agent/src/index.ts"
+      ],
+      "@sdkwork/clawchat-pc-voice/*": [
+        "./packages/sdkwork-clawchat-pc-voice/src/*"
+      ],
+      "@sdkwork/clawchat-pc-voice": [
+        "./packages/sdkwork-clawchat-pc-voice/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-workspace/*": [
+        "./packages/sdkwork-clawchat-pc-workspace/src/*"
+      ],
+      "@sdkwork/clawchat-pc-workspace": [
+        "./packages/sdkwork-clawchat-pc-workspace/src/index.ts"
+      ],
+      "@sdkwork/clawchat-pc-orders/*": [
+        "./packages/sdkwork-clawchat-pc-orders/src/*"
+      ],
+      "@sdkwork/clawchat-pc-orders": [
+        "./packages/sdkwork-clawchat-pc-orders/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-notary/*": [
+        "./packages/sdkwork-clawchat-pc-notary/src/*"
+      ],
+      "@sdkwork/clawchat-pc-notary": [
+        "./packages/sdkwork-clawchat-pc-notary/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-mail/*": [
+        "./packages/sdkwork-clawchat-pc-mail/src/*"
+      ],
+      "@sdkwork/clawchat-pc-mail": [
+        "./packages/sdkwork-clawchat-pc-mail/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-drive/*": [
+        "./packages/sdkwork-clawchat-pc-drive/src/*"
+      ],
+      "@sdkwork/clawchat-pc-drive": [
+        "./packages/sdkwork-clawchat-pc-drive/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-contacts/*": [
+        "./packages/sdkwork-clawchat-pc-contacts/src/*"
+      ],
+      "@sdkwork/clawchat-pc-contacts": [
+        "./packages/sdkwork-clawchat-pc-contacts/src/index.ts"
+      ],
+      "@sdkwork/clawchat-pc-calendar/*": [
+        "./packages/sdkwork-clawchat-pc-calendar/src/*"
+      ],
+      "@sdkwork/clawchat-pc-calendar": [
+        "./packages/sdkwork-clawchat-pc-calendar/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-shop/*": [
+        "./packages/sdkwork-clawchat-pc-shop/src/*"
+      ],
+      "@sdkwork/clawchat-pc-shop": [
+        "./packages/sdkwork-clawchat-pc-shop/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-approvals/*": [
+        "./packages/sdkwork-clawchat-pc-approvals/src/*"
+      ],
+      "@sdkwork/clawchat-pc-approvals": [
+        "./packages/sdkwork-clawchat-pc-approvals/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-core/*": [
+        "./packages/sdkwork-clawchat-console-core/src/*"
+      ],
+      "@sdkwork/clawchat-console-core": [
+        "./packages/sdkwork-clawchat-console-core/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-admin-core/*": [
+        "./packages/sdkwork-clawchat-admin-core/src/*"
+      ],
+      "@sdkwork/clawchat-admin-core": [
+        "./packages/sdkwork-clawchat-admin-core/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-reports/*": [
+        "./packages/sdkwork-clawchat-pc-reports/src/*"
+      ],
+      "@sdkwork/clawchat-pc-reports": [
+        "./packages/sdkwork-clawchat-pc-reports/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-attendance/*": [
+        "./packages/sdkwork-clawchat-pc-attendance/src/*"
+      ],
+      "@sdkwork/clawchat-pc-attendance": [
+        "./packages/sdkwork-clawchat-pc-attendance/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-knowledge/*": [
+        "./packages/sdkwork-clawchat-pc-knowledge/src/*"
+      ],
+      "@sdkwork/clawchat-pc-knowledge": [
+        "./packages/sdkwork-clawchat-pc-knowledge/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-devices/*": [
+        "./packages/sdkwork-clawchat-pc-devices/src/*"
+      ],
+      "@sdkwork/clawchat-pc-devices": [
+        "./packages/sdkwork-clawchat-pc-devices/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-community/*": [
+        "./packages/sdkwork-clawchat-pc-community/src/*"
+      ],
+      "@sdkwork/clawchat-pc-community": [
+        "./packages/sdkwork-clawchat-pc-community/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-course/*": [
+        "./packages/sdkwork-clawchat-pc-course/src/*"
+      ],
+      "@sdkwork/clawchat-pc-course": [
+        "./packages/sdkwork-clawchat-pc-course/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-enterprise/*": [
+        "./packages/sdkwork-clawchat-pc-enterprise/src/*"
+      ],
+      "@sdkwork/clawchat-pc-enterprise": [
+        "./packages/sdkwork-clawchat-pc-enterprise/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-identity/*": [
+        "./packages/sdkwork-clawchat-console-identity/src/*"
+      ],
+      "@sdkwork/clawchat-console-identity": [
+        "./packages/sdkwork-clawchat-console-identity/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-comms/*": [
+        "./packages/sdkwork-clawchat-console-comms/src/*"
+      ],
+      "@sdkwork/clawchat-console-comms": [
+        "./packages/sdkwork-clawchat-console-comms/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-ext/*": [
+        "./packages/sdkwork-clawchat-console-ext/src/*"
+      ],
+      "@sdkwork/clawchat-console-ext": [
+        "./packages/sdkwork-clawchat-console-ext/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-sec/*": [
+        "./packages/sdkwork-clawchat-console-sec/src/*"
+      ],
+      "@sdkwork/clawchat-console-sec": [
+        "./packages/sdkwork-clawchat-console-sec/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-sys/*": [
+        "./packages/sdkwork-clawchat-console-sys/src/*"
+      ],
+      "@sdkwork/clawchat-console-sys": [
+        "./packages/sdkwork-clawchat-console-sys/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-admin-tenants/*": [
+        "./packages/sdkwork-clawchat-admin-tenants/src/*"
+      ],
+      "@sdkwork/clawchat-admin-tenants": [
+        "./packages/sdkwork-clawchat-admin-tenants/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-users": [
+        "./packages/sdkwork-clawchat-console-users/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-roles": [
+        "./packages/sdkwork-clawchat-console-roles/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-communications": [
+        "./packages/sdkwork-clawchat-console-communications/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-integrations": [
+        "./packages/sdkwork-clawchat-console-integrations/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-security": [
+        "./packages/sdkwork-clawchat-console-security/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-settings": [
+        "./packages/sdkwork-clawchat-console-settings/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-shop": [
+        "./packages/sdkwork-clawchat-console-shop/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-product": [
+        "./packages/sdkwork-clawchat-console-product/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-admin-infrastructure": [
+        "./packages/sdkwork-clawchat-admin-infrastructure/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-admin-operations": [
+        "./packages/sdkwork-clawchat-admin-operations/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-admin-infra/*": [
+        "./packages/sdkwork-clawchat-admin-infra/src/*"
+      ],
+      "@sdkwork/clawchat-admin-infra": [
+        "./packages/sdkwork-clawchat-admin-infra/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-admin-ops/*": [
+        "./packages/sdkwork-clawchat-admin-ops/src/*"
+      ],
+      "@sdkwork/clawchat-admin-ops": [
+        "./packages/sdkwork-clawchat-admin-ops/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-console-dashboard/*": [
+        "./packages/sdkwork-clawchat-console-dashboard/src/*"
+      ],
+      "@sdkwork/clawchat-console-dashboard": [
+        "./packages/sdkwork-clawchat-console-dashboard/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-admin-dashboard/*": [
+        "./packages/sdkwork-clawchat-admin-dashboard/src/*"
+      ],
+      "@sdkwork/clawchat-admin-dashboard": [
+        "./packages/sdkwork-clawchat-admin-dashboard/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-video-gen/*": [
+        "./packages/sdkwork-clawchat-pc-video-gen/src/*"
+      ],
+      "@sdkwork/clawchat-pc-video-gen": [
+        "./packages/sdkwork-clawchat-pc-video-gen/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-image-gen/*": [
+        "./packages/sdkwork-clawchat-pc-image-gen/src/*"
+      ],
+      "@sdkwork/clawchat-pc-image-gen": [
+        "./packages/sdkwork-clawchat-pc-image-gen/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-voice-gen/*": [
+        "./packages/sdkwork-clawchat-pc-voice-gen/src/*"
+      ],
+      "@sdkwork/clawchat-pc-voice-gen": [
+        "./packages/sdkwork-clawchat-pc-voice-gen/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-music-gen/*": [
+        "./packages/sdkwork-clawchat-pc-music-gen/src/*"
+      ],
+      "@sdkwork/clawchat-pc-music-gen": [
+        "./packages/sdkwork-clawchat-pc-music-gen/src/index.tsx"
+      ],
+      "@sdkwork/clawchat-pc-writing/*": [
+        "./packages/sdkwork-clawchat-pc-writing/src/*"
+      ],
+      "@sdkwork/clawchat-pc-writing": [
+        "./packages/sdkwork-clawchat-pc-writing/src/index.tsx"
+      ]
+    },
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "exclude": [
+    "dist",
+    "node_modules",
+    "node_modules.*",
+    ".runtime",
+    ".vite",
+    "tmp",
+    "target"
+  ]
+}

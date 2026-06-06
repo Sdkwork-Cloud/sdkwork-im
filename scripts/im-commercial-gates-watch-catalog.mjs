@@ -21,6 +21,10 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_WATCH_REQUIREMENTS = [
     'im commercial gates workflow must watch the Rust dependency lockfile',
   ),
   createWatchRequirement(
+    'config/shared-sdk-release-sources.json',
+    'im commercial gates workflow must watch shared SDK release source pins',
+  ),
+  createWatchRequirement(
     'package.json',
     'im commercial gates workflow must watch the root workspace package because it owns the repository governance entrypoints',
   ),
@@ -35,6 +39,10 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_WATCH_REQUIREMENTS = [
   createWatchRequirement(
     'apps/craw-chat-portal/**',
     'im commercial gates workflow must watch the portal workspace',
+  ),
+  createWatchRequirement(
+    'apps/sdkwork-chat-pc/**',
+    'im commercial gates workflow must watch the SDKWork Chat PC Vite workspace',
   ),
   createWatchRequirement(
     'crates/**',

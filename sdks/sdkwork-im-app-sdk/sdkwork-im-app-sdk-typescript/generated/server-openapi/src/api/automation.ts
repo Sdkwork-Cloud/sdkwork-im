@@ -6,9 +6,9 @@ import type { AgentToolCall, AppendAgentResponseDeltaRequest, AutomationExecutio
 
 export class AutomationExecutionsApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -25,9 +25,9 @@ export class AutomationExecutionsApi {
 
 export class AutomationAgentToolCallsApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -44,9 +44,9 @@ export class AutomationAgentToolCallsApi {
 
 export class AutomationAgentResponsesFramesApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -59,10 +59,10 @@ export class AutomationAgentResponsesFramesApi {
 export class AutomationAgentResponsesApi {
   private client: HttpClient;
   public readonly frames: AutomationAgentResponsesFramesApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
-    this.frames = new AutomationAgentResponsesFramesApi(client); 
+    this.frames = new AutomationAgentResponsesFramesApi(client);
   }
 
 
@@ -82,12 +82,12 @@ export class AutomationApi {
   public readonly agentResponses: AutomationAgentResponsesApi;
   public readonly agentToolCalls: AutomationAgentToolCallsApi;
   public readonly executions: AutomationExecutionsApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.agentResponses = new AutomationAgentResponsesApi(client);
     this.agentToolCalls = new AutomationAgentToolCallsApi(client);
-    this.executions = new AutomationExecutionsApi(client); 
+    this.executions = new AutomationExecutionsApi(client);
   }
 
 }

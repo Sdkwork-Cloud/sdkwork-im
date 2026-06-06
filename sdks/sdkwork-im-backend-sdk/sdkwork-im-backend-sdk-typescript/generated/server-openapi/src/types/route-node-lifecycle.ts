@@ -1,6 +1,6 @@
 export interface RouteNodeLifecycle {
   drainStatus: string;
   nodeId: string;
-  ownedRouteCount: number;
+  ownedRouteCount: string;
   rebalanceState: string;
 }

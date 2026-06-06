@@ -29,8 +29,21 @@ async fn test_public_app_exports_live_openapi_json() {
         serde_json::from_slice(&body).expect("body should be valid json");
 
     assert_eq!(value["openapi"], "3.1.0");
-    assert_eq!(value["info"]["title"], "Craw Chat Media Service API");
-    assert!(value["paths"]["/im/v3/api/media/uploads"].is_object());
+    assert_eq!(value["info"]["title"], "Craw Chat Media Reference API");
+    let paths = value["paths"]
+        .as_object()
+        .expect("openapi paths should be an object");
+    for forbidden in [
+        "/im/v3/api/media/uploads",
+        "/im/v3/api/media/uploads/{mediaReferenceId}/complete",
+        "/im/v3/api/media/{mediaReferenceId}",
+        "/im/v3/api/media/{mediaReferenceId}/download_url",
+    ] {
+        assert!(
+            !paths.contains_key(forbidden),
+            "media-service OpenAPI must not expose app-local storage lifecycle path {forbidden}"
+        );
+    }
 }
 
 #[tokio::test]
@@ -53,6 +66,6 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
     let html = String::from_utf8(body.to_vec()).expect("docs should be valid utf-8");
 
     assert!(html.contains("OpenAPI 3.1"));
-    assert!(html.contains("Craw Chat Media Service API"));
+    assert!(html.contains("Craw Chat Media Reference API"));
     assert!(html.contains("/openapi.json"));
 }

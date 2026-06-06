@@ -20,7 +20,8 @@ Use the semantic message layer in this order:
    `createCustomMessage(...)`, `createAiTextMessage(...)`, `createAgentHandoffMessage(...)`, and
    the other `createXxxMessage(...)` helpers
 2. deliver it with `sdk.send(message)`
-3. use `sdk.uploadAndSendMessage(...)` for upload-complete-send flows
+3. use `sdkwork-drive` for file lifecycle work, then place the returned `DriveReference` on
+   `ContentPart.drive`
 4. use `sdk.editMessage(...)`, `sdk.editTextMessage(...)`, and `sdk.recallMessage(...)` for
    mutations
 5. use `sdk.decodeMessage(...)` when you need to normalize stored or inbound message bodies
@@ -40,33 +41,39 @@ const message = sdk.createTextMessage({
 await sdk.send(message);
 ```
 
-Upload-and-send shortcut:
+Drive-backed media send:
 
 ```ts
-const uploaded = await sdk.uploadAndSendMessage({
-  upload: {
-    mediaAssetId: 'asset-image-1',
-    bucket: 'tenant-media',
-    objectKey: 'conversation-1/storefront.png',
-    resource: {
-      type: 'image',
-      name: 'storefront.png',
-      mimeType: 'image/png',
-      size: file.size,
-    },
-    body: file,
+const drive = {
+  driveUri: 'drive://spaces/space_app_upload_demo/nodes/node_storefront_png',
+  spaceId: 'space_app_upload_demo',
+  nodeId: 'node_storefront_png',
+  nodeVersion: '1',
+};
+
+const image = sdk.createImageMessage({
+  conversationId: 'conversation-1',
+  drive,
+  resource: {
+    id: drive.nodeId,
+    kind: 'image',
+    source: 'provider_asset',
+    uri: drive.driveUri,
+    fileName: 'storefront.png',
+    mimeType: 'image/png',
+    sizeBytes: String(file.size),
   },
-  createMessage: (preparedUpload) =>
-    sdk.createImageMessage({
-      conversationId: 'conversation-1',
-      mediaAssetId: preparedUpload.mediaAssetId,
-      text: 'Uploaded storefront concept',
-      summary: 'Storefront concept',
-    }),
+  mediaRole: 'attachment',
+  text: 'Latest storefront concept',
+  summary: 'Storefront concept',
 });
 
-console.log(uploaded.delivery.messageId, uploaded.url);
+await sdk.send(image);
 ```
+
+The same message body carries `ContentPart.drive` as the `DriveReference` and `ContentPart.resource`
+as the standardized `MediaResource` snapshot. `drive://spaces/{spaceId}/nodes/{nodeId}` is the
+canonical Drive URI shape.
 
 Standard rich builders include `createLocationMessage(...)`, `createLinkMessage(...)`,
 `createCardMessage(...)`, `createMusicMessage(...)`, `createContactMessage(...)`,

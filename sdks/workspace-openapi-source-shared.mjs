@@ -116,6 +116,89 @@ export function cloneOpenApiJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+export function isPrimitiveComponentSchema(schema) {
+  return Boolean(
+    schema
+      && typeof schema === 'object'
+      && !Array.isArray(schema)
+      && (['string', 'integer', 'number', 'boolean'].includes(schema.type)
+        || (schema.type === 'object' && schema.additionalProperties && !schema.properties)),
+  );
+}
+
+export function primitiveComponentSchemaNames(document) {
+  return Object.entries(document?.components?.schemas ?? {})
+    .filter(([, schema]) => isPrimitiveComponentSchema(schema))
+    .map(([schemaName]) => schemaName)
+    .sort();
+}
+
+function inlinePrimitiveComponentRefs(node, primitiveRefMap) {
+  if (Array.isArray(node)) {
+    for (let index = 0; index < node.length; index += 1) {
+      node[index] = inlinePrimitiveComponentRefs(node[index], primitiveRefMap);
+    }
+    return node;
+  }
+
+  if (!node || typeof node !== 'object') {
+    return node;
+  }
+
+  if (typeof node.$ref === 'string' && primitiveRefMap.has(node.$ref)) {
+    const replacement = cloneOpenApiJson(primitiveRefMap.get(node.$ref));
+    for (const [key, value] of Object.entries(node)) {
+      if (key === '$ref') {
+        continue;
+      }
+      replacement[key] = inlinePrimitiveComponentRefs(value, primitiveRefMap);
+    }
+    return inlinePrimitiveComponentRefs(replacement, primitiveRefMap);
+  }
+
+  for (const [key, value] of Object.entries(node)) {
+    node[key] = inlinePrimitiveComponentRefs(value, primitiveRefMap);
+  }
+
+  return node;
+}
+
+export function applyFlutterCompatibilityTransforms(
+  document,
+  { describePrimitiveRefExpansion = false } = {},
+) {
+  const schemas = document?.components?.schemas;
+  if (!schemas || typeof schemas !== 'object') {
+    return;
+  }
+
+  const primitiveSchemaEntries = Object.entries(schemas).filter(([, schema]) =>
+    isPrimitiveComponentSchema(schema),
+  );
+  if (primitiveSchemaEntries.length === 0) {
+    return;
+  }
+
+  const primitiveRefMap = new Map(
+    primitiveSchemaEntries.map(([name, schema]) => [`#/components/schemas/${name}`, cloneOpenApiJson(schema)]),
+  );
+
+  inlinePrimitiveComponentRefs(document, primitiveRefMap);
+
+  for (const [name] of primitiveSchemaEntries) {
+    delete schemas[name];
+  }
+
+  if (describePrimitiveRefExpansion && document.info && typeof document.info === 'object') {
+    const description = typeof document.info.description === 'string'
+      ? document.info.description.trim()
+      : '';
+    const suffix =
+      'Flutter-compatible derived sdkgen input expands primitive component refs so the generated Dart models stay strongly typed.';
+    document.info.description = description ? `${description}\n${suffix}` : suffix;
+  }
+}
+
 export async function fetchOpenApiDocument(url, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

@@ -55,7 +55,7 @@ $messageBody = @{
 
 $null = Invoke-RestMethod -Method Post -Uri "$BaseUrl/im/v3/api/chat/conversations/$conversationId/messages" -Headers $headers -Body $messageBody
 
-$notifications = Invoke-RestMethod -Method Get -Uri "$BaseUrl/im/v3/api/notifications" -Headers $headers
+$notifications = Invoke-RestMethod -Method Get -Uri "$BaseUrl/app/v3/api/notifications" -Headers $headers
 if ($notifications.items.Count -lt 1) {
     throw "Expected at least one notification"
 }
@@ -71,7 +71,7 @@ $automationBody = @{
     inputPayload = "{""conversationId"":""$conversationId""}"
 } | ConvertTo-Json -Depth 6
 
-$automation = Invoke-RestMethod -Method Post -Uri "$BaseUrl/im/v3/api/automation/executions" -Headers $headers -Body $automationBody
+$automation = Invoke-RestMethod -Method Post -Uri "$BaseUrl/app/v3/api/automation/executions" -Headers $headers -Body $automationBody
 if ($automation.state -ne "succeeded") {
     throw "Unexpected automation execution state"
 }

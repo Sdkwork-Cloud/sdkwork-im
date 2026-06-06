@@ -1081,7 +1081,7 @@ pub async fn handle_admin_sandbox_request(
             ["api_key_groups"] => return list_response(&guard.store, "apiKeyGroups"),
             ["routing", "profiles"] => return list_response(&guard.store, "routingProfiles"),
             ["routing", "snapshots"] => {
-                return list_response(&guard.store, "compiledRoutingSnapshots")
+                return list_response(&guard.store, "compiledRoutingSnapshots");
             }
             ["channels"] => return list_response(&guard.store, "channels"),
             ["providers"] => return list_response(&guard.store, "providers"),
@@ -1091,43 +1091,43 @@ pub async fn handle_admin_sandbox_request(
             ["model_prices"] => return list_response(&guard.store, "modelPrices"),
             ["usage", "records"] => return list_response(&guard.store, "usageRecords"),
             ["usage", "summary"] => {
-                return object_response(store_value(&guard.store, "usageSummary").clone())
+                return object_response(store_value(&guard.store, "usageSummary").clone());
             }
             ["billing", "summary"] => {
-                return object_response(store_value(&guard.store, "billingSummary").clone())
+                return object_response(store_value(&guard.store, "billingSummary").clone());
             }
             ["billing", "events"] => return list_response(&guard.store, "billingEvents"),
             ["billing", "events", "summary"] => {
-                return object_response(store_value(&guard.store, "billingEventSummary").clone())
+                return object_response(store_value(&guard.store, "billingEventSummary").clone());
             }
             ["routing", "decision_logs"] => return list_response(&guard.store, "routingLogs"),
             ["gateway", "rate_limit_policies"] => {
-                return list_response(&guard.store, "rateLimitPolicies")
+                return list_response(&guard.store, "rateLimitPolicies");
             }
             ["gateway", "rate_limit_windows"] => {
-                return list_response(&guard.store, "rateLimitWindows")
+                return list_response(&guard.store, "rateLimitWindows");
             }
             ["routing", "health_snapshots"] => {
-                return list_response(&guard.store, "providerHealth")
+                return list_response(&guard.store, "providerHealth");
             }
             ["extensions", "runtime_statuses"] => {
-                return list_response(&guard.store, "runtimeStatuses")
+                return list_response(&guard.store, "runtimeStatuses");
             }
             ["storage", "providers"] => {
                 return object_response(value_to_json(
                     &guard.storage_runtime.catalog().provider_schemas,
-                ))
+                ));
             }
             ["storage", "config"] => {
-                return object_response(value_to_json(&guard.storage_runtime.global_snapshot()))
+                return object_response(value_to_json(&guard.storage_runtime.global_snapshot()));
             }
             ["storage", "audit"] => {
-                return object_response(value_to_json(guard.storage_runtime.audit_trail()))
+                return object_response(value_to_json(guard.storage_runtime.audit_trail()));
             }
             ["storage", "config", "tenants", tenant_id] => {
                 return object_response(value_to_json(
                     &guard.storage_runtime.tenant_snapshot(tenant_id),
-                ))
+                ));
             }
             ["storage", "effective", "tenants", tenant_id] => {
                 let Some(effective) = guard.storage_runtime.effective_for_tenant(tenant_id) else {
@@ -1150,13 +1150,13 @@ pub async fn handle_admin_sandbox_request(
     if method == Method::POST {
         match segment_refs.as_slice() {
             ["marketing", "campaigns"] => {
-                return object_response(save_marketing_campaign(&mut guard, &input))
+                return object_response(save_marketing_campaign(&mut guard, &input));
             }
             ["api_key_groups"] => {
-                return object_response(save_api_key_group(&mut guard, &input, None))
+                return object_response(save_api_key_group(&mut guard, &input, None));
             }
             ["routing", "profiles"] => {
-                return object_response(save_routing_profile(&mut guard, &input))
+                return object_response(save_routing_profile(&mut guard, &input));
             }
             ["api_keys"] => return object_response(create_api_key_record(&mut guard, &input)),
             ["channels"] => return object_response(save_channel(&mut guard, &input)),
@@ -1166,10 +1166,10 @@ pub async fn handle_admin_sandbox_request(
             ["channel_models"] => return object_response(save_channel_model(&mut guard, &input)),
             ["model_prices"] => return object_response(save_model_price(&mut guard, &input)),
             ["gateway", "rate_limit_policies"] => {
-                return object_response(save_rate_limit_policy(&mut guard, &input))
+                return object_response(save_rate_limit_policy(&mut guard, &input));
             }
             ["extensions", "runtime_reloads"] => {
-                return object_response(save_runtime_reload(&mut guard, &input))
+                return object_response(save_runtime_reload(&mut guard, &input));
             }
             ["storage", "config"] => {
                 match serde_json::from_value::<StorageConfigUpsertInput>(input.clone()) {
@@ -1180,32 +1180,32 @@ pub async fn handle_admin_sandbox_request(
                         Ok(storage_upsert) => {
                             match guard.storage_runtime.save_global(storage_upsert) {
                                 Ok(saved_snapshot) => {
-                                    return object_response(value_to_json(&saved_snapshot))
+                                    return object_response(value_to_json(&saved_snapshot));
                                 }
                                 Err(error) => {
                                     return json_error_response(
                                         StatusCode::INTERNAL_SERVER_ERROR,
                                         &format!(
-                                    "Failed to persist admin sandbox storage snapshot: {error:?}"
-                                ),
-                                    )
+                                            "Failed to persist admin sandbox storage snapshot: {error:?}"
+                                        ),
+                                    );
                                 }
                             }
                         }
                         Err(message) => {
-                            return json_error_response(StatusCode::BAD_REQUEST, &message)
+                            return json_error_response(StatusCode::BAD_REQUEST, &message);
                         }
                     },
                     Err(_) => {
                         return json_error_response(
                             StatusCode::BAD_REQUEST,
                             "Storage config payload must be valid JSON.",
-                        )
+                        );
                     }
                 }
             }
             ["storage", "validate"] => {
-                return object_response(value_to_json(&guard.storage_runtime.validate_global()))
+                return object_response(value_to_json(&guard.storage_runtime.validate_global()));
             }
             ["storage", "config", "tenants", tenant_id] => {
                 match serde_json::from_value::<StorageConfigUpsertInput>(input.clone()) {
@@ -1214,9 +1214,12 @@ pub async fn handle_admin_sandbox_request(
                         &storage_input,
                     ) {
                         Ok(storage_upsert) => {
-                            match guard.storage_runtime.save_tenant(*tenant_id, storage_upsert) {
+                            match guard
+                                .storage_runtime
+                                .save_tenant(*tenant_id, storage_upsert)
+                            {
                                 Ok(saved_snapshot) => {
-                                    return object_response(value_to_json(&saved_snapshot))
+                                    return object_response(value_to_json(&saved_snapshot));
                                 }
                                 Err(error) => {
                                     return json_error_response(
@@ -1224,26 +1227,26 @@ pub async fn handle_admin_sandbox_request(
                                         &format!(
                                             "Failed to persist admin sandbox storage snapshot: {error:?}"
                                         ),
-                                    )
+                                    );
                                 }
                             }
                         }
                         Err(message) => {
-                            return json_error_response(StatusCode::BAD_REQUEST, &message)
+                            return json_error_response(StatusCode::BAD_REQUEST, &message);
                         }
                     },
                     Err(_) => {
                         return json_error_response(
                             StatusCode::BAD_REQUEST,
                             "Storage config payload must be valid JSON.",
-                        )
+                        );
                     }
                 }
             }
             ["storage", "validate", "tenants", tenant_id] => {
                 return object_response(value_to_json(
                     &guard.storage_runtime.validate_tenant(tenant_id),
-                ))
+                ));
             }
             _ => {}
         }
@@ -1254,21 +1257,21 @@ pub async fn handle_admin_sandbox_request(
                     &mut guard,
                     campaign_id,
                     string_field(&input, "status").unwrap_or_default(),
-                )
+                );
             }
             ["api_key_groups", group_id, "status"] => {
                 return update_api_key_group_status(
                     &mut guard,
                     group_id,
                     bool_or_default(&input, "active", false),
-                )
+                );
             }
             ["api_keys", hashed_key, "status"] => {
                 return update_api_key_status(
                     &mut guard,
                     hashed_key,
                     bool_or_default(&input, "active", false),
-                )
+                );
             }
             _ => {}
         }

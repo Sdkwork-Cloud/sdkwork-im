@@ -10,6 +10,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tower::ServiceExt;
 
 const LOCAL_SOCIAL_SYSTEM_ACTOR_ID: &str = "svc_local_social";
+const SOCIAL_USER_SEARCH_DEFAULT_LIMIT: usize = 20;
+const SOCIAL_USER_SEARCH_MAX_LIMIT: usize = 50;
 const SOCIAL_FRIEND_REQUEST_LIST_DEFAULT_LIMIT: usize = 100;
 const SOCIAL_FRIEND_REQUEST_LIST_MAX_LIMIT: usize = 200;
 const SOCIAL_ACCEPT_REPAIR_FILE_NAME: &str = "social-friend-request-accept-repairs.json";
@@ -34,12 +36,98 @@ impl Drop for PendingFriendRequestAcceptRepairLockGuard {
     }
 }
 
+pub(super) async fn list_social_users(
+    Query(query): Query<SocialUserSearchQuery>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
+    State(state): State<AppState>,
+) -> Result<Json<SocialUserSearchResponse>, ApiError> {
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
+    ensure_social_user_actor(&auth)?;
+    maybe_repair_pending_friend_request_acceptances(&state).await?;
+
+    let q = query.q.as_deref().map(str::trim).unwrap_or_default();
+    let limit = query.limit.unwrap_or(SOCIAL_USER_SEARCH_DEFAULT_LIMIT);
+    if limit == 0 || limit > SOCIAL_USER_SEARCH_MAX_LIMIT {
+        return Err(ApiError::bad_request(
+            "limit_invalid",
+            format!("limit must be between 1 and {SOCIAL_USER_SEARCH_MAX_LIMIT}"),
+        ));
+    }
+    let cursor_offset = parse_social_offset_cursor(query.cursor.as_deref())?;
+    if q.is_empty() {
+        return Ok(Json(SocialUserSearchResponse {
+            items: Vec::new(),
+            next_cursor: None,
+            has_more: false,
+        }));
+    }
+
+    let mut by_user_id = BTreeMap::new();
+    for profile in state
+        .principal_profile_provider
+        .search_profiles(auth.tenant_id.as_str(), "user", q)?
+        .into_iter()
+        .filter(|profile| !profile.inactive && profile.principal_id != auth.actor_id)
+    {
+        by_user_id.insert(
+            profile.principal_id.clone(),
+            social_user_search_result_from_profile(&state, &auth, profile),
+        );
+    }
+
+    for contact in state
+        .projection_service
+        .contacts(auth.tenant_id.as_str(), auth.actor_id.as_str())
+        .into_iter()
+        .filter(|contact| contact_matches_social_user_query(contact.target_user_id.as_str(), q))
+    {
+        if contact.target_user_id == auth.actor_id {
+            continue;
+        }
+        let profile = principal_profile::ensure_active_user(
+            &state,
+            auth.tenant_id.as_str(),
+            contact.target_user_id.as_str(),
+        )?;
+        by_user_id.insert(
+            contact.target_user_id.clone(),
+            social_user_search_result_from_profile(&state, &auth, profile),
+        );
+    }
+
+    let mut items = by_user_id.into_values().collect::<Vec<_>>();
+    items.sort_by(|left, right| {
+        left.display_name
+            .cmp(&right.display_name)
+            .then_with(|| left.user_id.cmp(&right.user_id))
+    });
+    let has_more = cursor_offset.saturating_add(limit) < items.len();
+    let page_items = items
+        .into_iter()
+        .skip(cursor_offset)
+        .take(limit)
+        .collect::<Vec<_>>();
+    let next_cursor = if has_more {
+        Some((cursor_offset + page_items.len()).to_string())
+    } else {
+        None
+    };
+
+    Ok(Json(SocialUserSearchResponse {
+        items: page_items,
+        next_cursor,
+        has_more,
+    }))
+}
+
 pub(super) async fn list_friend_requests(
     Query(query): Query<ListFriendRequestsAppQuery>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendRequestListResponse>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     ensure_social_user_actor(&auth)?;
     maybe_repair_pending_friend_request_acceptances(&state).await?;
     let limit = query
@@ -76,10 +164,11 @@ pub(super) async fn list_friend_requests(
 
 pub(super) async fn submit_friend_request(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<SubmitFriendRequestAppRequest>,
 ) -> Result<Json<SocialFriendRequestMutationResponse>, ApiError> {
-    let auth = resolve_app_context(&headers)?;
+    let auth = resolve_request_app_context(auth, &headers)?;
     ensure_social_user_actor(&auth)?;
     maybe_repair_pending_friend_request_acceptances(&state).await?;
     ensure_social_friend_request_users_active(
@@ -120,7 +209,7 @@ pub(super) async fn submit_friend_request(
         &state,
         &auth,
         "POST",
-        "/backend/v3/api/control/social/friend-requests".into(),
+        "/backend/v3/api/control/social/friend_requests".into(),
         "control.write",
         Some(serde_json::json!({
             "requestId": request_id,
@@ -144,7 +233,7 @@ pub(super) async fn submit_friend_request(
             &state,
             &auth,
             "GET",
-            format!("/backend/v3/api/control/social/friend-requests/{existing_request_id}"),
+            format!("/backend/v3/api/control/social/friend_requests/{existing_request_id}"),
             "control.read",
             None,
         )
@@ -174,9 +263,10 @@ pub(super) async fn submit_friend_request(
 pub(super) async fn accept_friend_request(
     Path(request_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendRequestAcceptanceResponse>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     ensure_social_user_actor(&auth)?;
     maybe_repair_pending_friend_request_acceptances(&state).await?;
 
@@ -184,7 +274,7 @@ pub(super) async fn accept_friend_request(
         &state,
         &auth,
         "GET",
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}"),
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}"),
         "control.read",
         None,
     )
@@ -239,7 +329,7 @@ pub(super) async fn accept_friend_request(
             &state,
             &auth,
             "POST",
-            format!("/backend/v3/api/control/social/friend-requests/{request_id}/accept"),
+            format!("/backend/v3/api/control/social/friend_requests/{request_id}/accept"),
             "control.write",
             Some(serde_json::json!({
                 "eventId": deterministic_social_id("evt_fr_accept_", request_id.as_str()),
@@ -377,9 +467,10 @@ pub(super) async fn accept_friend_request(
 pub(super) async fn decline_friend_request(
     Path(request_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendRequestMutationResponse>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     ensure_social_user_actor(&auth)?;
     maybe_repair_pending_friend_request_acceptances(&state).await?;
 
@@ -387,7 +478,7 @@ pub(super) async fn decline_friend_request(
         &state,
         &auth,
         "GET",
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}"),
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}"),
         "control.read",
         None,
     )
@@ -420,7 +511,7 @@ pub(super) async fn decline_friend_request(
         &state,
         &auth,
         "POST",
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}/decline"),
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}/decline"),
         "control.write",
         Some(serde_json::json!({
             "eventId": deterministic_social_id("evt_fr_decline_", request_id.as_str()),
@@ -458,9 +549,10 @@ pub(super) async fn decline_friend_request(
 pub(super) async fn cancel_friend_request(
     Path(request_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendRequestMutationResponse>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     ensure_social_user_actor(&auth)?;
     maybe_repair_pending_friend_request_acceptances(&state).await?;
 
@@ -468,7 +560,7 @@ pub(super) async fn cancel_friend_request(
         &state,
         &auth,
         "GET",
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}"),
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}"),
         "control.read",
         None,
     )
@@ -501,7 +593,7 @@ pub(super) async fn cancel_friend_request(
         &state,
         &auth,
         "POST",
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}/cancel"),
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}/cancel"),
         "control.write",
         Some(serde_json::json!({
             "eventId": deterministic_social_id("evt_fr_cancel_", request_id.as_str()),
@@ -539,9 +631,10 @@ pub(super) async fn cancel_friend_request(
 pub(super) async fn remove_friendship(
     Path(friendship_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendshipMutationResponse>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     ensure_social_user_actor(&auth)?;
     maybe_repair_pending_friend_request_acceptances(&state).await?;
 
@@ -1314,7 +1407,7 @@ async fn repair_pending_friend_request_acceptance(
         &auth,
         "GET",
         format!(
-            "/backend/v3/api/control/social/friend-requests/{}",
+            "/backend/v3/api/control/social/friend_requests/{}",
             repair.request_id
         ),
         "control.read",
@@ -1355,7 +1448,7 @@ async fn repair_pending_friend_request_acceptance(
                 &auth,
                 "POST",
                 format!(
-                    "/backend/v3/api/control/social/friend-requests/{}/accept",
+                    "/backend/v3/api/control/social/friend_requests/{}/accept",
                     repair.request_id
                 ),
                 "control.write",
@@ -1527,7 +1620,7 @@ async fn load_latest_friend_request_for_acceptance(
         state,
         auth,
         "GET",
-        format!("/backend/v3/api/control/social/friend-requests/{request_id}"),
+        format!("/backend/v3/api/control/social/friend_requests/{request_id}"),
         "control.read",
         None,
     )
@@ -2070,7 +2163,7 @@ fn build_friend_request_inventory_control_plane_uri(
     cursor: Option<&str>,
 ) -> String {
     let mut uri = format!(
-        "/backend/v3/api/control/social/friend-requests?userId={}&direction={}&status={}&limit={}",
+        "/backend/v3/api/control/social/friend_requests?userId={}&direction={}&status={}&limit={}",
         encode_query_component(user_id),
         encode_query_component(social_friend_request_direction_wire(direction)),
         encode_query_component(social_friend_request_status_wire(status)),
@@ -2081,6 +2174,64 @@ fn build_friend_request_inventory_control_plane_uri(
         uri.push_str(encode_query_component(cursor).as_str());
     }
     uri
+}
+
+fn parse_social_offset_cursor(cursor: Option<&str>) -> Result<usize, ApiError> {
+    match cursor {
+        Some(cursor) if cursor.trim().is_empty() => Err(ApiError::bad_request(
+            "cursor_invalid",
+            "cursor must be a non-negative item offset",
+        )),
+        Some(cursor) => cursor.parse::<usize>().map_err(|_| {
+            ApiError::bad_request(
+                "cursor_invalid",
+                "cursor must be a non-negative item offset",
+            )
+        }),
+        None => Ok(0),
+    }
+}
+
+fn contact_matches_social_user_query(target_user_id: &str, q: &str) -> bool {
+    target_user_id
+        .to_ascii_lowercase()
+        .contains(q.to_ascii_lowercase().as_str())
+}
+
+fn social_user_search_result_from_profile(
+    state: &AppState,
+    auth: &AppContext,
+    profile: im_platform_contracts::PrincipalProfile,
+) -> SocialUserSearchResult {
+    let relationship_state = state
+        .projection_service
+        .contacts(auth.tenant_id.as_str(), auth.actor_id.as_str())
+        .into_iter()
+        .find(|contact| contact.target_user_id == profile.principal_id)
+        .map(|contact| contact.relationship_state)
+        .unwrap_or_else(|| "none".into());
+    let avatar_url = profile
+        .attributes
+        .get("avatarUrl")
+        .or_else(|| profile.attributes.get("avatar"))
+        .cloned();
+    let email = profile.attributes.get("email").cloned();
+    let phone = profile
+        .attributes
+        .get("phone")
+        .or_else(|| profile.attributes.get("phoneNumber"))
+        .cloned();
+
+    SocialUserSearchResult {
+        tenant_id: profile.tenant_id,
+        user_id: profile.principal_id,
+        display_name: profile.display_name,
+        relationship_state,
+        avatar_url,
+        email,
+        phone,
+        metadata: profile.attributes,
+    }
 }
 
 fn encode_query_component(value: &str) -> String {
@@ -2301,7 +2452,6 @@ fn aggregate_type_from_wire(value: &str) -> Result<AggregateType, ApiError> {
         "rtc_session" => Ok(AggregateType::RtcSession),
         "tenant_policy" => Ok(AggregateType::TenantPolicy),
         "direct_chat" => Ok(AggregateType::DirectChat),
-        "media_asset" => Ok(AggregateType::MediaAsset),
         "notification" => Ok(AggregateType::Notification),
         "automation_execution" => Ok(AggregateType::AutomationExecution),
         "user_block" => Ok(AggregateType::UserBlock),

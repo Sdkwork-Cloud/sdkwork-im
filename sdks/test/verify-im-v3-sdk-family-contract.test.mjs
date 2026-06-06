@@ -193,6 +193,7 @@ function assertNoActiveAppBusinessSdkSurfaceInImFamily() {
 
 const sharedFamilySource = read('workspace-im-v3-sdk-family.mjs');
 const sharedOpenApiStandardSource = read('workspace-openapi-v3-standard.mjs');
+const sharedOpenApiSource = read('workspace-openapi-source-shared.mjs');
 const appConfigSource = read('sdkwork-im-app-sdk/bin/sdk-family-config.mjs');
 const backendConfigSource = read('sdkwork-im-backend-sdk/bin/sdk-family-config.mjs');
 const imConfigSource = read('sdkwork-im-sdk/bin/sdk-family-config.mjs');
@@ -211,6 +212,28 @@ const imRefreshSource = read('sdkwork-im-sdk/bin/refresh-live-openapi-source.mjs
 const imGeneratePowerShellSource = read('sdkwork-im-sdk/bin/generate-sdk.ps1');
 const imGenerateShellSource = read('sdkwork-im-sdk/bin/generate-sdk.sh');
 const sdkWorkspaceIndexSource = read('README.md');
+const appReadmeSource = read('sdkwork-im-app-sdk/README.md');
+const appTypeScriptSrcSdkSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/src/sdk.ts');
+const appTypeScriptSrcIndexSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/src/index.ts');
+const appTypeScriptDistSdkSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/dist/sdk.d.ts');
+const appTypeScriptDistIndexSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/dist/index.d.ts');
+const appTypeScriptDistRuntimeSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/dist/index.js');
+const appFlutterClientSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-flutter/generated/server-openapi/lib/app_client.dart');
+const appRustClientSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-rust/generated/server-openapi/src/client.rs');
+const appRustLibSource = read('sdkwork-im-app-sdk/sdkwork-im-app-sdk-rust/generated/server-openapi/src/lib.rs');
+const appAssembly = JSON.parse(read('sdkwork-im-app-sdk/.sdkwork-assembly.json'));
+const appComponentSpec = JSON.parse(read('sdkwork-im-app-sdk/specs/component.spec.json'));
+const appComponentSpecSource = read('sdkwork-im-app-sdk/specs/README.md');
+const backendAssembly = JSON.parse(read('sdkwork-im-backend-sdk/.sdkwork-assembly.json'));
+const backendComponentSpec = JSON.parse(read('sdkwork-im-backend-sdk/specs/component.spec.json'));
+const backendComponentSpecSource = read('sdkwork-im-backend-sdk/specs/README.md');
+const backendReadmeSource = read('sdkwork-im-backend-sdk/README.md');
+const backendTypeScriptSrcSdkSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/src/sdk.ts');
+const backendTypeScriptSrcIndexSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/src/index.ts');
+const backendTypeScriptDistSdkSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/dist/sdk.d.ts');
+const backendTypeScriptDistIndexSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/dist/index.d.ts');
+const backendTypeScriptDistRuntimeSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/dist/index.js');
+const backendFlutterClientSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-flutter/generated/server-openapi/lib/backend_client.dart');
 const rtcReadmeSource = read('sdkwork-rtc-sdk/README.md');
 const boundaryMaterializerSource = read('materialize-im-v3-openapi-boundaries.mjs');
 const yaml = await loadGeneratorYaml(sdkRoot);
@@ -247,6 +270,20 @@ const appFlutterDerived = loadOpenApiDocument({
 const backendAuthority = loadOpenApiDocument({
   prefix: 'sdkwork-im-backend-sdk',
   filePath: path.join(sdkRoot, 'sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml'),
+  yaml,
+});
+const appbaseBackendAuthority = loadOpenApiDocument({
+  prefix: 'sdkwork-appbase-backend-sdk',
+  filePath: path.resolve(
+    sdkRoot,
+    '..',
+    '..',
+    'sdkwork-appbase',
+    'sdks',
+    'sdkwork-appbase-backend-sdk',
+    'openapi',
+    'sdkwork-appbase-backend-api.openapi.yaml',
+  ),
   yaml,
 });
 
@@ -319,6 +356,45 @@ function assertDocumentHasNoImStandardRoutes(label, document, prefix) {
   }
 }
 
+const appbaseOwnedAppRoutes = [
+  'auth/oauth_authorization_urls',
+  'auth/oauth_sessions',
+  'auth/password_reset_requests',
+  'auth/password_resets',
+  'auth/registrations',
+  'auth/sessions',
+  'auth/sessions/refresh',
+  'auth/sessions/current',
+  'auth/verification_codes',
+  'auth/verification_codes/verify',
+  'iam/users/current',
+  'iam/organizations',
+  'iam/organizations/tree',
+  'iam/organization_memberships',
+  'iam/departments',
+  'iam/departments/tree',
+  'iam/department_assignments',
+  'iam/positions',
+  'iam/position_assignments',
+  'iam/role_bindings',
+  'system/iam/runtime',
+  'system/iam/verification_policy',
+  'open_platform/qr_auth/sessions',
+  'open_platform/qr_auth/sessions/{}',
+  'open_platform/qr_auth/sessions/{}/scans',
+  'open_platform/qr_auth/sessions/{}/passwords',
+];
+
+function assertDocumentHasNoAppbaseOwnedAppRoutes(label, document, prefix) {
+  const routes = new Set(pathKeys(document).map((pathKey) => routeWithoutPrefix(pathKey, prefix)));
+  const overlaps = appbaseOwnedAppRoutes.filter((route) => routes.has(route));
+  assert.deepEqual(
+    overlaps,
+    [],
+    `${label} must not regenerate sdkwork-appbase-owned app-api routes; consume sdkwork-appbase-app-sdk instead.`,
+  );
+}
+
 function assertNoSemanticOverlap(leftLabel, leftDocument, leftPrefix, rightLabel, rightDocument, rightPrefix) {
   const leftRoutes = new Set(pathKeys(leftDocument).map((pathKey) => routeWithoutPrefix(pathKey, leftPrefix)));
   const overlaps = pathKeys(rightDocument)
@@ -384,6 +460,50 @@ function assertSchemasArePathReachable(label, document) {
     .filter((schemaName) => schemaName !== 'ProblemDetail' && !reachable.has(schemaName))
     .sort();
   assert.deepEqual(unreachable, [], `${label} must prune unreachable component schemas.`);
+}
+
+function assertGeneratedTransportDoesNotImportSdkDependencies(label, workspace, dependencyPackages) {
+  const packageMarkers = [...new Set(dependencyPackages)].sort();
+  const generatedRoots = readdirSync(path.join(sdkRoot, workspace), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith(`${workspace}-`))
+    .map((entry) => path.join(sdkRoot, workspace, entry.name, 'generated', 'server-openapi'))
+    .filter((entryPath) => existsSync(entryPath));
+  assert.notEqual(generatedRoots.length, 0, `${label} must have generated transport outputs to scan.`);
+
+  const violations = [];
+  for (const generatedRoot of generatedRoots) {
+    for (const filePath of collectTextFiles(generatedRoot)) {
+      const source = readFileSync(filePath, 'utf8');
+      for (const dependencyPackage of packageMarkers) {
+        if (source.includes(dependencyPackage)) {
+          violations.push(`${toPosixPath(path.relative(sdkRoot, filePath))}: generated transport must not import or declare ${dependencyPackage}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(violations, [], `${label} generated transport must not import or declare SDK family dependencies.`);
+}
+
+function isPrimitiveComponentSchema(schema) {
+  return Boolean(
+    schema
+      && typeof schema === 'object'
+      && !Array.isArray(schema)
+      && (['string', 'integer', 'number', 'boolean'].includes(schema.type)
+        || (schema.type === 'object' && schema.additionalProperties && !schema.properties)),
+  );
+}
+
+function assertFlutterDerivedExpandsPrimitiveComponentRefs(label, document) {
+  const primitiveSchemas = Object.entries(document.components?.schemas ?? {})
+    .filter(([, schema]) => isPrimitiveComponentSchema(schema))
+    .map(([schemaName]) => schemaName)
+    .sort();
+  assert.deepEqual(
+    primitiveSchemas,
+    [],
+    `${label} must inline primitive component refs before Flutter sdkgen instead of generating empty primitive wrapper models.`,
+  );
 }
 
 const retiredSdkMarkers = [
@@ -460,6 +580,8 @@ for (const marker of [
   'config.primaryClient',
   'normalizeGeneratedTypeScriptAuthSurface',
   'renderGeneratedTypeScriptReadme',
+  'src\', \'auth',
+  "export \\* from ['\"]\\.\\/auth",
   'custom/build-runtime.mjs',
   'dist/index.js',
   "'.java'",
@@ -474,6 +596,12 @@ for (const marker of [
   'ProblemDetail',
   'forbiddenPathParts',
   'forbiddenGeneratedText',
+  'sdkDependencies',
+  'generatedTransportImportPolicy',
+  'verifySdkDependencies',
+  'forbiddenGeneratedDependencyPackages',
+  'specs/component.spec.json',
+  'componentSpec.contracts?.sdkDependencies',
 ]) {
   assert.match(
     sharedFamilySource,
@@ -506,6 +634,49 @@ for (const marker of [
   );
 }
 
+for (const marker of [
+  'applyFlutterCompatibilityTransforms',
+  'primitiveComponentSchemaNames',
+  'isPrimitiveComponentSchema',
+  'inlinePrimitiveComponentRefs',
+  'describePrimitiveRefExpansion',
+]) {
+  assert.match(
+    sharedOpenApiSource,
+    new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `shared OpenAPI source helpers must own Flutter primitive-ref compatibility marker ${marker}.`,
+  );
+}
+
+for (const [label, source] of [
+  ['IM prepare-openapi-source', imPrepareSource],
+  ['app prepare-openapi-source', appPrepareSource],
+  ['boundary materializer', boundaryMaterializerSource],
+]) {
+  assert.match(
+    source,
+    /applyFlutterCompatibilityTransforms/,
+    `${label} must reuse the shared Flutter primitive-ref compatibility transform.`,
+  );
+}
+
+for (const marker of [
+  'appbaseAppAuthorityPath',
+  'appbaseBackendAuthorityPath',
+  'sdkwork-appbase-app-sdk',
+  'sdkwork-appbase-backend-sdk',
+  'appbaseAppRouteSet',
+  'appbaseBackendRouteSet',
+  'dependencyAppRouteSet',
+  'dependencyBackendRouteSet',
+]) {
+  assert.match(
+    boundaryMaterializerSource,
+    new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `boundary materializer must include dependency authority exclusion marker ${marker}.`,
+  );
+}
+
 for (const [label, document, prefix] of [
   ['IM authority', imAuthority, '/im/v3/api'],
   ['IM derived', imDerived, '/im/v3/api'],
@@ -525,10 +696,31 @@ for (const [label, document, prefix] of [
   ['app derived', appDerived, '/app/v3/api'],
   ['app Flutter derived', appFlutterDerived, '/app/v3/api'],
 ]) {
+  const description = String(document.info?.description ?? '');
+  assert.match(
+    description,
+    /Craw Chat-owned/i,
+    `${label} info.description must state that the generated input is Craw Chat-owned.`,
+  );
+  assert.match(
+    description,
+    /owner-only/i,
+    `${label} info.description must state that the generated input is owner-only.`,
+  );
+  assert.match(
+    description,
+    /sdkDependencies/i,
+    `${label} info.description must state that dependency capabilities are consumed through sdkDependencies.`,
+  );
+  assert.ok(
+    !/appbase API/i.test(description),
+    `${label} info.description must not describe appbase APIs as part of the craw-chat SDK input.`,
+  );
   assertAllPathsUsePrefix(label, document, prefix);
   assertNoPathsUsePrefix(label, document, '/im/v3/api');
   assertNoPathsUsePrefix(label, document, '/backend/v3/api');
   assertDocumentHasNoImStandardRoutes(label, document, prefix);
+  assertDocumentHasNoAppbaseOwnedAppRoutes(label, document, prefix);
   for (const pathKey of pathKeys(document)) {
     assert.ok(
       !new Set(['admin', 'audit', 'control', 'ops']).has(firstRouteGroup(pathKey, prefix)),
@@ -555,6 +747,14 @@ assertAllPathsUsePrefix('backend authority', backendAuthority, '/backend/v3/api'
 assertNoPathsUsePrefix('backend authority', backendAuthority, '/im/v3/api');
 assertNoPathsUsePrefix('backend authority', backendAuthority, '/app/v3/api');
 assertSchemasArePathReachable('backend authority', backendAuthority);
+assertNoSemanticOverlap(
+  'appbase backend authority',
+  appbaseBackendAuthority,
+  '/backend/v3/api',
+  'backend authority',
+  backendAuthority,
+  '/backend/v3/api',
+);
 for (const pathKey of pathKeys(backendAuthority)) {
   const group = firstRouteGroup(pathKey, '/backend/v3/api');
   assert.ok(
@@ -581,7 +781,8 @@ for (const [label, document] of [
 
 assert.match(appConfigSource, /sdkType:\s*'app'/, 'app SDK family config must use app sdkType.');
 assert.match(appConfigSource, /sdkTarget:\s*'app'/, 'app SDK family config must use app sdkTarget.');
-assert.match(appConfigSource, /primaryClient:\s*'SdkworkAppClient'/, 'app SDK family must verify SdkworkAppClient.');
+assert.match(appConfigSource, /legacyClient:\s*'SdkworkAppClient'/, 'app SDK family must keep SdkworkAppClient only as a compatibility alias.');
+assert.match(appConfigSource, /primaryClient:\s*'SdkworkImAppClient'/, 'app SDK family must verify product-scoped SdkworkImAppClient.');
 assert.match(
   appConfigSource,
   /generatedApiLabel:\s*'Craw Chat app-development API'/,
@@ -589,6 +790,80 @@ assert.match(
 );
 assert.match(appConfigSource, /apiPrefix:\s*'\/app\/v3\/api'/, 'app SDK family must target /app/v3/api.');
 assert.match(appConfigSource, /schemaUrl:\s*'\/app\/v3\/openapi\.json'/, 'app SDK family must target /app/v3/openapi.json.');
+for (const marker of [
+  'sdkDependencies',
+  'sdkwork-appbase-app-sdk',
+  'appbase-identity-and-session-capability',
+  'sdkwork-im-sdk',
+  'standardized-im-capability',
+  'sdkwork-rtc-sdk',
+  'provider-standard-rtc-runtime',
+  'consumer-sdk',
+  'generatedTransportImportPolicy',
+  'forbidden',
+  '@sdkwork/appbase-app-sdk',
+  '@sdkwork/im-sdk',
+  '@sdkwork/rtc-sdk',
+  'sdkwork-appbase-app-sdk',
+  'im_sdk',
+  'rtc_sdk',
+]) {
+  assert.match(
+    appConfigSource,
+    new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `app SDK config must declare dependency contract marker ${marker}.`,
+  );
+  assert.match(
+    appReadmeSource,
+    new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `app SDK README must document dependency contract marker ${marker}.`,
+  );
+}
+assert.deepEqual(
+  appAssembly.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
+  ['sdkwork-appbase-app-sdk', 'sdkwork-im-sdk', 'sdkwork-rtc-sdk'],
+  'app SDK assembly must declare appbase, IM, and RTC SDK dependencies.',
+);
+assert.deepEqual(
+  appComponentSpec.contracts?.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
+  ['sdkwork-appbase-app-sdk', 'sdkwork-im-sdk', 'sdkwork-rtc-sdk'],
+  'app SDK component spec must declare appbase, IM, and RTC SDK dependencies.',
+);
+for (const dependency of appAssembly.sdkDependencies ?? []) {
+  assert.equal(dependency.required, true, `${dependency.workspace} dependency must be required.`);
+  assert.equal(dependency.dependencyMode, 'consumer-sdk', `${dependency.workspace} dependency must use consumer-sdk mode.`);
+  assert.equal(
+    dependency.generatedTransportImportPolicy,
+    'forbidden',
+    `${dependency.workspace} dependency must be forbidden in generated app transport.`,
+  );
+}
+assert.deepEqual(
+  appComponentSpec.contracts?.sdkDependencies,
+  appAssembly.sdkDependencies,
+  'app SDK component spec sdkDependencies must match .sdkwork-assembly.json.',
+);
+for (const marker of [
+  'sdkDependencies',
+  'sdkwork-appbase-app-sdk',
+  'sdkwork-im-sdk',
+  'sdkwork-rtc-sdk',
+  'consumer-sdk',
+  'generatedTransportImportPolicy',
+  'forbidden',
+]) {
+  assert.match(
+    appComponentSpecSource,
+    new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `app SDK component specs README must document dependency contract marker ${marker}.`,
+  );
+}
+assertGeneratedTransportDoesNotImportSdkDependencies(
+  'app SDK',
+  'sdkwork-im-app-sdk',
+  appAssembly.sdkDependencies.flatMap((dependency) => Object.values(dependency.packageByLanguage ?? {})),
+);
+assertFlutterDerivedExpandsPrimitiveComponentRefs('app SDK Flutter derived OpenAPI', appFlutterDerived);
 for (const appRequiredPath of [
   '/app/v3/api/portal/access',
   '/app/v3/api/devices/{deviceId}/twin',
@@ -621,6 +896,13 @@ for (const imStandardPath of [
     `app SDK config must not require IM standard API path ${imStandardPath}.`,
   );
 }
+for (const appbaseOwnedPath of appbaseOwnedAppRoutes.map((route) => `/app/v3/api/${route.replaceAll('{}', '[^/]+')}`)) {
+  assert.doesNotMatch(
+    appConfigSource,
+    new RegExp(appbaseOwnedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replaceAll('\\[\\^/\\]\\+', '[^/]+')),
+    `app SDK config must not require sdkwork-appbase-owned API path ${appbaseOwnedPath}.`,
+  );
+}
 assert.doesNotMatch(
   appConfigSource,
   forbiddenPattern(
@@ -634,10 +916,104 @@ assert.doesNotMatch(
   'app SDK config must not keep legacy path debt.',
 );
 assert.doesNotMatch(appConfigSource, /SdkworkBackendClient/, 'app SDK config must reject backend client bleed-through.');
+for (const [label, source] of [
+  ['app TypeScript source sdk', appTypeScriptSrcSdkSource],
+  ['app TypeScript source index', appTypeScriptSrcIndexSource],
+  ['app TypeScript dist sdk declarations', appTypeScriptDistSdkSource],
+  ['app TypeScript dist index declarations', appTypeScriptDistIndexSource],
+  ['app TypeScript dist runtime bundle', appTypeScriptDistRuntimeSource],
+  ['app Flutter generated client', appFlutterClientSource],
+  ['app Rust generated client', appRustClientSource],
+  ['app Rust crate root', appRustLibSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /oauthAuthorization|OAuthAuthorization|passwordReset|PasswordReset|verificationCode|VerificationCode|qrAuth|QrAuth|IamUser|IamOrganization|IamDepartment|IamPosition|IamRoleBinding|AuthSession|CreateAuthSession|RefreshAuthSession|UpdateCurrentSession/,
+    `${label} must not regenerate sdkwork-appbase-owned auth, IAM, session, verification, or QR auth surface.`,
+  );
+}
+for (const [label, source] of [
+  ['app TypeScript source sdk', appTypeScriptSrcSdkSource],
+  ['app TypeScript source index', appTypeScriptSrcIndexSource],
+  ['app TypeScript dist sdk declarations', appTypeScriptDistSdkSource],
+  ['app TypeScript dist index declarations', appTypeScriptDistIndexSource],
+  ['app TypeScript dist runtime bundle', appTypeScriptDistRuntimeSource],
+]) {
+  assert.match(source, /SdkworkImAppClient/, `${label} must publish the product-scoped SdkworkImAppClient.`);
+  assert.match(source, /SdkworkAppClient/, `${label} may publish SdkworkAppClient only as a compatibility alias.`);
+}
+for (const [label, source] of [
+  ['app TypeScript source sdk', appTypeScriptSrcSdkSource],
+  ['app TypeScript source index', appTypeScriptSrcIndexSource],
+  ['app TypeScript dist sdk declarations', appTypeScriptDistSdkSource],
+  ['app TypeScript dist index declarations', appTypeScriptDistIndexSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /SdkworkImAppClient\s+as\s+SdkworkImAppClient|SdkworkImAppClient,\s*SdkworkImAppClient/,
+    `${label} must not publish a self-alias or duplicate product client export.`,
+  );
+}
+assert.match(
+  appTypeScriptSrcSdkSource,
+  /export \{ SdkworkImAppClient as SdkworkAppClient \};/,
+  'app TypeScript source SDK must publish SdkworkAppClient as a compatibility alias.',
+);
+assert.match(
+  appTypeScriptSrcIndexSource,
+  /export \{ SdkworkImAppClient, SdkworkAppClient, createClient \} from '\.\/sdk';/,
+  'app TypeScript source index must re-export the primary app client and compatibility alias once.',
+);
+assert.doesNotMatch(
+  appTypeScriptDistSdkSource,
+  /export declare class SdkworkAppClient/,
+  'app TypeScript dist declarations must not publish SdkworkAppClient as the primary class.',
+);
+assert.doesNotMatch(
+  appTypeScriptDistRuntimeSource,
+  /class SdkworkAppClient\b/,
+  'app TypeScript dist runtime must not publish SdkworkAppClient as the primary runtime class.',
+);
+assert.match(
+  appFlutterClientSource,
+  /class SdkworkImAppClient\b/,
+  'app Flutter generated client must publish the product-scoped SdkworkImAppClient.',
+);
+assert.match(
+  appFlutterClientSource,
+  /typedef SdkworkAppClient = SdkworkImAppClient;/,
+  'app Flutter generated client must keep SdkworkAppClient only as a compatibility alias.',
+);
+assert.doesNotMatch(
+  appFlutterClientSource,
+  /class SdkworkAppClient\b|setApiKey|apiKeyHeader|apiKeyAsBearer/,
+  'app Flutter generated client must not expose the legacy class or API-key auth surface.',
+);
+assert.match(
+  appRustClientSource,
+  /pub struct SdkworkImAppClient\b/,
+  'app Rust generated client must publish the product-scoped SdkworkImAppClient.',
+);
+assert.match(
+  appRustClientSource,
+  /pub type SdkworkAppClient\s*=\s*SdkworkImAppClient;/,
+  'app Rust generated client must keep SdkworkAppClient only as a compatibility alias.',
+);
+assert.doesNotMatch(
+  appRustClientSource,
+  /pub type SdkworkImAppClient\s*=\s*SdkworkImAppClient;/,
+  'app Rust generated client must not publish a recursive primary client alias.',
+);
+assert.match(
+  appRustLibSource,
+  /pub use client::\{\s*SdkworkAppClient,\s*SdkworkImAppClient\s*\};|pub use client::\{\s*SdkworkImAppClient,\s*SdkworkAppClient\s*\};/,
+  'app Rust generated crate root must re-export both the primary client and compatibility alias.',
+);
 
 assert.match(backendConfigSource, /sdkType:\s*'backend'/, 'backend SDK family config must use backend sdkType.');
 assert.match(backendConfigSource, /sdkTarget:\s*'backend'/, 'backend SDK family config must use backend sdkTarget.');
-assert.match(backendConfigSource, /primaryClient:\s*'SdkworkBackendClient'/, 'backend SDK family must verify SdkworkBackendClient.');
+assert.match(backendConfigSource, /legacyClient:\s*'SdkworkBackendClient'/, 'backend SDK family must keep SdkworkBackendClient only as a compatibility alias.');
+assert.match(backendConfigSource, /primaryClient:\s*'SdkworkImBackendClient'/, 'backend SDK family must verify product-scoped SdkworkImBackendClient.');
 assert.match(
   backendConfigSource,
   /generatedApiLabel:\s*'Craw Chat backend\/operator API'/,
@@ -645,6 +1021,70 @@ assert.match(
 );
 assert.match(backendConfigSource, /apiPrefix:\s*'\/backend\/v3\/api'/, 'backend SDK family must target /backend/v3/api.');
 assert.match(backendConfigSource, /schemaUrl:\s*'\/backend\/v3\/openapi\.json'/, 'backend SDK family must target /backend/v3/openapi.json.');
+for (const marker of [
+  'sdkDependencies',
+  'sdkwork-appbase-backend-sdk',
+  'appbase-backend-management-capability',
+  'consumer-sdk',
+  'generatedTransportImportPolicy',
+  'forbidden',
+  '@sdkwork/appbase-backend-sdk',
+  'sdkwork_appbase_backend_sdk',
+  'SDKWork.Appbase.BackendSdk',
+]) {
+  assert.match(
+    backendConfigSource,
+    new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `backend SDK config must declare dependency contract marker ${marker}.`,
+  );
+  assert.match(
+    backendReadmeSource,
+    new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `backend SDK README must document dependency contract marker ${marker}.`,
+  );
+}
+assert.deepEqual(
+  backendAssembly.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
+  ['sdkwork-appbase-backend-sdk'],
+  'backend SDK assembly must declare appbase backend SDK dependency.',
+);
+assert.deepEqual(
+  backendComponentSpec.contracts?.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
+  ['sdkwork-appbase-backend-sdk'],
+  'backend SDK component spec must declare appbase backend SDK dependency.',
+);
+for (const dependency of backendAssembly.sdkDependencies ?? []) {
+  assert.equal(dependency.required, true, `${dependency.workspace} dependency must be required.`);
+  assert.equal(dependency.dependencyMode, 'consumer-sdk', `${dependency.workspace} dependency must use consumer-sdk mode.`);
+  assert.equal(
+    dependency.generatedTransportImportPolicy,
+    'forbidden',
+    `${dependency.workspace} dependency must be forbidden in generated backend transport.`,
+  );
+}
+assert.deepEqual(
+  backendComponentSpec.contracts?.sdkDependencies,
+  backendAssembly.sdkDependencies,
+  'backend SDK component spec sdkDependencies must match .sdkwork-assembly.json.',
+);
+for (const marker of [
+  'sdkDependencies',
+  'sdkwork-appbase-backend-sdk',
+  'consumer-sdk',
+  'generatedTransportImportPolicy',
+  'forbidden',
+]) {
+  assert.match(
+    backendComponentSpecSource,
+    new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    `backend SDK component specs README must document dependency contract marker ${marker}.`,
+  );
+}
+assertGeneratedTransportDoesNotImportSdkDependencies(
+  'backend SDK',
+  'sdkwork-im-backend-sdk',
+  backendAssembly.sdkDependencies.flatMap((dependency) => Object.values(dependency.packageByLanguage ?? {})),
+);
 for (const backendRequiredPath of [
   '/backend/v3/api/ops/health',
   '/backend/v3/api/audit/records',
@@ -676,6 +1116,63 @@ assert.doesNotMatch(
   'backend SDK config must not keep legacy path debt.',
 );
 assert.doesNotMatch(backendConfigSource, /SdkworkAppClient/, 'backend SDK config must reject app client bleed-through.');
+for (const [label, source] of [
+  ['backend TypeScript source sdk', backendTypeScriptSrcSdkSource],
+  ['backend TypeScript source index', backendTypeScriptSrcIndexSource],
+  ['backend TypeScript dist sdk declarations', backendTypeScriptDistSdkSource],
+  ['backend TypeScript dist index declarations', backendTypeScriptDistIndexSource],
+  ['backend TypeScript dist runtime bundle', backendTypeScriptDistRuntimeSource],
+]) {
+  assert.match(source, /SdkworkImBackendClient/, `${label} must publish the product-scoped SdkworkImBackendClient.`);
+  assert.match(source, /SdkworkBackendClient/, `${label} may publish SdkworkBackendClient only as a compatibility alias.`);
+}
+for (const [label, source] of [
+  ['backend TypeScript source sdk', backendTypeScriptSrcSdkSource],
+  ['backend TypeScript source index', backendTypeScriptSrcIndexSource],
+  ['backend TypeScript dist sdk declarations', backendTypeScriptDistSdkSource],
+  ['backend TypeScript dist index declarations', backendTypeScriptDistIndexSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /SdkworkImBackendClient\s+as\s+SdkworkImBackendClient|SdkworkImBackendClient,\s*SdkworkImBackendClient/,
+    `${label} must not publish a self-alias or duplicate product client export.`,
+  );
+}
+assert.match(
+  backendTypeScriptSrcSdkSource,
+  /export \{ SdkworkImBackendClient as SdkworkBackendClient \};/,
+  'backend TypeScript source SDK must publish SdkworkBackendClient as a compatibility alias.',
+);
+assert.match(
+  backendTypeScriptSrcIndexSource,
+  /export \{ SdkworkImBackendClient, SdkworkBackendClient, createClient \} from '\.\/sdk';/,
+  'backend TypeScript source index must re-export the primary backend client and compatibility alias once.',
+);
+assert.doesNotMatch(
+  backendTypeScriptDistSdkSource,
+  /export declare class SdkworkBackendClient/,
+  'backend TypeScript dist declarations must not publish SdkworkBackendClient as the primary class.',
+);
+assert.doesNotMatch(
+  backendTypeScriptDistRuntimeSource,
+  /class SdkworkBackendClient\b/,
+  'backend TypeScript dist runtime must not publish SdkworkBackendClient as the primary runtime class.',
+);
+assert.match(
+  backendFlutterClientSource,
+  /class SdkworkImBackendClient\b/,
+  'backend Flutter generated client must publish the product-scoped SdkworkImBackendClient.',
+);
+assert.match(
+  backendFlutterClientSource,
+  /typedef SdkworkBackendClient = SdkworkImBackendClient;/,
+  'backend Flutter generated client must keep SdkworkBackendClient only as a compatibility alias.',
+);
+assert.doesNotMatch(
+  backendFlutterClientSource,
+  /class SdkworkBackendClient\b|setApiKey|apiKeyHeader|apiKeyAsBearer/,
+  'backend Flutter generated client must not expose the legacy class or API-key auth surface.',
+);
 for (const nonManagementBackendPath of [
   '/backend/v3/api/media/provider_health',
   '/backend/v3/api/iot/protocol/uplink',
@@ -706,7 +1203,6 @@ for (const imRequiredPath of [
   '/im/v3/api/chat/conversations',
   '/im/v3/api/chat/messages/{messageId}/edit',
   '/im/v3/api/social/friend_requests',
-  '/im/v3/api/media/uploads',
   '/im/v3/api/rtc/sessions',
   '/im/v3/api/streams',
 ]) {
@@ -716,12 +1212,15 @@ for (const imRequiredPath of [
     `IM SDK config must require standardized API path ${imRequiredPath}.`,
   );
 }
+assertFlutterDerivedExpandsPrimitiveComponentRefs('IM SDK Flutter derived OpenAPI', imFlutterDerived);
 for (const nonImPath of [
   '/im/v3/api/portal/access',
   '/im/v3/api/devices/{deviceId}/twin',
   '/im/v3/api/notifications/requests',
   '/im/v3/api/automation/executions',
   '/im/v3/api/media/provider_health',
+  '/im/v3/api/media/uploads',
+  '/im/v3/api/media/{mediaAssetId}',
   '/im/v3/api/principal/profiles/provider_health',
   '/im/v3/api/iot/protocol/uplink',
 ]) {
@@ -767,6 +1266,21 @@ assert.match(
   imGenerateSource,
   /assemble-sdk\.mjs/,
   'IM generate entrypoint must assemble layered TypeScript/Flutter workspaces after generator output is verified.',
+);
+assert.match(
+  imGenerateSource,
+  /assemble-single-package\.mjs/,
+  'IM generate entrypoint must assemble the TypeScript root single-package after TypeScript generator output changes.',
+);
+assert.match(
+  imGenerateSource,
+  /shouldAssembleTypeScriptRoot/,
+  'IM generate entrypoint must only run TypeScript root single-package assembly when TypeScript is selected or all languages are generated.',
+);
+assert.match(
+  imGenerateSource,
+  /normalize-typescript-generated-package-manifest\.mjs/,
+  'IM generate entrypoint must normalize the TypeScript generated package manifest after generator output changes.',
 );
 assert.doesNotMatch(
   imGenerateSource,
@@ -814,6 +1328,7 @@ for (const marker of [
   '/im/v3/api',
   '/app/v3/api',
   '/backend/v3/api',
+  'depends on',
 ]) {
   assert.match(
     sdkWorkspaceIndexSource,

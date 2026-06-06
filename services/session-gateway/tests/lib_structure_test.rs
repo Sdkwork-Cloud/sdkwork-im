@@ -497,7 +497,7 @@ fn test_session_gateway_websocket_upgrade_module_stays_pure_axum_adapter() {
     for required_symbol in [
         "pub(crate) struct RealtimeWebsocketRouteContext",
         "pub(crate) fn prepare_realtime_websocket_route(",
-        "resolve_app_context(",
+        "resolve_request_app_context(",
         "resolve_requested_device_id(&auth, None)?",
         "state.prepare_active_device_route(",
     ] {
@@ -520,8 +520,7 @@ fn test_session_gateway_websocket_upgrade_module_stays_pure_axum_adapter() {
         "services/session-gateway/src/websocket_upgrade.rs should still host the Axum route entrypoint"
     );
     assert!(
-        upgrade_source
-            .contains("websocket_route::prepare_realtime_websocket_route(&headers, &state)?"),
+        upgrade_source.contains("websocket_route::prepare_realtime_websocket_route("),
         "services/session-gateway/src/websocket_upgrade.rs should delegate route preflight into websocket_route"
     );
     assert!(

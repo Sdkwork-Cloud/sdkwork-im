@@ -45,6 +45,11 @@
       "purpose": "Runtime configuration, environment, SDK bootstrap, and feature flag rules."
     },
     {
+      "file": "DATABASE_SPEC.md",
+      "path": "../../../specs/DATABASE_SPEC.md",
+      "purpose": "Database table naming, table profiles, schema registry, and prefix governance."
+    },
+    {
       "file": "DEPLOYMENT_SPEC.md",
       "path": "../../../specs/DEPLOYMENT_SPEC.md",
       "purpose": "SaaS/private/local runtime parity and deployment rules."
@@ -95,6 +100,23 @@
       "purpose": "Contract, frontend, SDK, security, parity, and documentation verification rules."
     }
   ],
+  "localExtensionSpecs": [
+    {
+      "file": "im-app-api-sdk-integration.spec.md",
+      "path": "./im-app-api-sdk-integration.spec.md",
+      "purpose": "Craw Chat IM API, IM app API, IM backend API, product SDK ownership, IAM login integration, shared database, local source-link development, and git-backed release dependency rules."
+    },
+    {
+      "file": "database-prefix-registry.json",
+      "path": "./database-prefix-registry.json",
+      "purpose": "Registers im as the controlled prefix for instant-messaging tables in the chat app."
+    },
+    {
+      "file": "database-table-registry.json",
+      "path": "./database-table-registry.json",
+      "purpose": "Lists checked-in IM table contracts, table profiles, write owners, and migration source."
+    }
+  ],
   "contracts": {
     "publicExports": [],
     "runtimeEntrypoints": [
@@ -105,6 +127,12 @@
     "events": [],
     "configKeys": [
       "sdkwork.app.config.json"
+    ],
+    "databasePrefixRegistries": [
+      "specs/database-prefix-registry.json"
+    ],
+    "databaseTableRegistries": [
+      "specs/database-table-registry.json"
     ]
   },
   "integration": {
@@ -115,7 +143,8 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/Cargo.toml"
+      "cargo test --manifest-path apps/craw-chat/Cargo.toml",
+      "node scripts/dev/sdkwork-chat-database-naming-standard.test.mjs"
     ]
   },
   "metadata": {

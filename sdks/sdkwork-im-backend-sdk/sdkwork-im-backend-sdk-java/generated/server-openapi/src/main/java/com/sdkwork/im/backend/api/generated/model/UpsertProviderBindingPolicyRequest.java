@@ -10,7 +10,7 @@ public class UpsertProviderBindingPolicyRequest {
     public String getDomain() {
         return this.domain;
     }
-    
+
     public void setDomain(String domain) {
         this.domain = domain;
     }
@@ -18,7 +18,7 @@ public class UpsertProviderBindingPolicyRequest {
     public Integer getExpectedBaseVersion() {
         return this.expectedBaseVersion;
     }
-    
+
     public void setExpectedBaseVersion(Integer expectedBaseVersion) {
         this.expectedBaseVersion = expectedBaseVersion;
     }
@@ -26,7 +26,7 @@ public class UpsertProviderBindingPolicyRequest {
     public String getPluginId() {
         return this.pluginId;
     }
-    
+
     public void setPluginId(String pluginId) {
         this.pluginId = pluginId;
     }
@@ -34,7 +34,7 @@ public class UpsertProviderBindingPolicyRequest {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }

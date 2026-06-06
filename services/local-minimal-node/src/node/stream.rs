@@ -2,10 +2,11 @@ use super::*;
 
 pub(super) async fn open_stream(
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<OpenStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     access::ensure_stream_open_access(&state, &auth, &request)?;
     let request_key = stream_open_request_key(&auth, request.stream_id.as_str());
     Ok(Json(StreamSessionMutationResponse::from_outcome(
@@ -19,10 +20,11 @@ pub(super) async fn open_stream(
 pub(super) async fn checkpoint_stream(
     Path(stream_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<CheckpointStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     access::ensure_stream_session_write_access(
         &state,
         &auth,
@@ -43,10 +45,11 @@ pub(super) async fn checkpoint_stream(
 pub(super) async fn append_stream_frame(
     Path(stream_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<AppendStreamFrameRequest>,
 ) -> Result<Json<StreamFrameMutationResponse>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     access::ensure_stream_session_write_access(&state, &auth, stream_id.as_str(), "stream.append")?;
     let request_key = stream_append_request_key(&auth, stream_id.as_str(), request.frame_seq);
     let outcome =
@@ -66,9 +69,10 @@ pub(super) async fn list_stream_frames(
     Path(stream_id): Path<String>,
     Query(query): Query<ListStreamFramesQuery>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
 ) -> Result<Json<StreamFrameWindow>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     access::ensure_stream_session_conversation_member(&state, &auth, stream_id.as_str())?;
     Ok(Json(state.streaming_runtime.list_frames(
         &auth,
@@ -80,10 +84,11 @@ pub(super) async fn list_stream_frames(
 pub(super) async fn complete_stream(
     Path(stream_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<CompleteStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     access::ensure_stream_session_write_access(
         &state,
         &auth,
@@ -113,10 +118,11 @@ pub(super) async fn complete_stream(
 pub(super) async fn abort_stream(
     Path(stream_id): Path<String>,
     headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<AbortStreamRequest>,
 ) -> Result<Json<StreamSessionMutationResponse>, ApiError> {
-    let auth = access::resolve_active_auth_context(&state, &headers)?;
+    let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     access::ensure_stream_session_write_access(&state, &auth, stream_id.as_str(), "stream.abort")?;
     let request_key = stream_abort_request_key(&auth, stream_id.as_str());
     let outcome =

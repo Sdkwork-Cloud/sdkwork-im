@@ -1,4 +1,4 @@
 export interface ProviderPolicyRollbackRequest {
-    targetVersion: number;
+    targetVersion: string;
 }
 //# sourceMappingURL=provider-policy-rollback-request.d.ts.map

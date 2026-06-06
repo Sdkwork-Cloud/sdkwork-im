@@ -28,8 +28,8 @@ fn test_provider_docs_use_principal_profile_provider_names_and_paths() {
         "docs/sites/architecture/runtime-topology.md",
         "docs/sites/architecture/overview.md",
         "docs/sites/api-reference/platform-api.md",
-        "docs/sites/api-reference/platform/provider-health.md",
-        "docs/sites/api-reference/operations/platform/provider-health/get-principal-profile-provider-health.md",
+        "docs/sites/api-reference/app/provider-health.md",
+        "docs/sites/api-reference/operations/app/provider-health/get-principal-profile-provider-health.md",
         "docs/sites/deployment/profiles-and-env.md",
     ];
 
@@ -51,10 +51,10 @@ fn test_provider_docs_use_principal_profile_provider_names_and_paths() {
         }
     }
 
-    let provider_health = read_repo_file("docs/sites/api-reference/platform/provider-health.md");
+    let provider_health = read_repo_file("docs/sites/api-reference/app/provider-health.md");
     assert!(
-        provider_health.contains("/backend/v3/api/principal/profiles/provider_health"),
-        "provider health docs must expose the principal-profile backend route"
+        provider_health.contains("/app/v3/api/principal/profiles/provider_health"),
+        "provider health docs must expose the principal-profile app route"
     );
     assert!(
         provider_health.contains("getPrincipalProfileProviderHealth")

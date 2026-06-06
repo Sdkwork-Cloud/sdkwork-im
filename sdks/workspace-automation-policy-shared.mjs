@@ -10,7 +10,7 @@ export function appendVerificationFlowDocumentationFailures({
   requireAutomationMetaTest = false,
   requireAssemblyRegression = false,
   requireUsageSurface = false,
-  requireMediaUploadSurface = false,
+  requireDriveMediaSurface = false,
   requirePackageMetadata = false,
 }) {
   if (requireAutomationMetaTest) {
@@ -40,11 +40,11 @@ export function appendVerificationFlowDocumentationFailures({
     });
   }
 
-  if (requireMediaUploadSurface) {
+  if (requireDriveMediaSurface) {
     requireMatch({
       source,
-      pattern: /media-upload surface|media upload surface/i,
-      message: `${label} must document media-upload surface verification terminology.`,
+      pattern: /Drive media surface/i,
+      message: `${label} must document Drive media surface verification terminology.`,
       failures,
     });
   }

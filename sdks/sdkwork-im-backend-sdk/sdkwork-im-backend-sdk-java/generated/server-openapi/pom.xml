@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>sdkwork-im-backend-sdk</name>
-    <description>sdkwork-im-backend-sdk SDK</description>
+    <description>Generator-owned Java transport SDK for the Craw Chat backend/operator API.</description>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>

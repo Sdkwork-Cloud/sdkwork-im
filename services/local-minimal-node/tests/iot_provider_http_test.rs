@@ -10,7 +10,7 @@ async fn test_local_minimal_profile_gets_iot_access_provider_health_over_http() 
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/iot/access/provider_health")
+                .uri("/app/v3/api/iot/access/provider_health")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -43,7 +43,7 @@ async fn test_local_minimal_profile_gets_iot_protocol_provider_health_over_http(
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/iot/protocol/provider_health")
+                .uri("/app/v3/api/iot/protocol/provider_health")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")

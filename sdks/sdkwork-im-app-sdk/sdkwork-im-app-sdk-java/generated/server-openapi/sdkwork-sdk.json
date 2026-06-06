@@ -26,5 +26,6 @@
     "stateRoots": [
       ".sdkwork/"
     ]
-  }
+  },
+  "description": "Generator-owned Java transport SDK for the Craw Chat app-development API."
 }

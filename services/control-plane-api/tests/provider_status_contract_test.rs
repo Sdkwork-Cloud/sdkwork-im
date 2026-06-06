@@ -17,10 +17,13 @@ struct StatusExpectation<'a> {
     permission: Option<&'a str>,
     body: Option<&'a str>,
     expected_http: StatusCode,
-    expected_status: &'a str,
+    expected_business_status: &'a str,
 }
 
-async fn request_status(app: Router, expectation: &StatusExpectation<'_>) -> (StatusCode, String) {
+async fn request_status(
+    app: Router,
+    expectation: &StatusExpectation<'_>,
+) -> (StatusCode, Option<String>, Option<String>) {
     let mut request = Request::builder()
         .method(expectation.method)
         .uri(expectation.uri);
@@ -60,27 +63,40 @@ async fn request_status(app: Router, expectation: &StatusExpectation<'_>) -> (St
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("provider control-plane body should be valid json");
-    let status = json["status"]
-        .as_str()
-        .expect("provider control-plane response should expose top-level status")
-        .to_owned();
+    let status = if status_code.is_success() {
+        json["status"].as_str().map(str::to_owned)
+    } else {
+        None
+    };
+    let error_status = json["errorStatus"].as_str().map(str::to_owned);
 
-    (status_code, status)
+    (status_code, status, error_status)
 }
 
 async fn assert_status(app: Router, expectation: StatusExpectation<'_>) -> String {
-    let (status_code, status) = request_status(app, &expectation).await;
+    let (status_code, status, error_status) = request_status(app, &expectation).await;
     assert_eq!(
         status_code, expectation.expected_http,
         "{} {} should return the expected HTTP status",
         expectation.method, expectation.uri
     );
-    assert_eq!(
-        status, expectation.expected_status,
-        "{} {} should return the expected top-level provider status",
-        expectation.method, expectation.uri
-    );
-    status
+    if expectation.expected_http.is_success() {
+        let business_status = status.expect("success response should expose top-level status");
+        assert_eq!(
+            business_status, expectation.expected_business_status,
+            "{} {} should return the expected top-level provider status",
+            expectation.method, expectation.uri
+        );
+        business_status
+    } else {
+        let legacy_error_status = error_status.expect("error response should expose errorStatus");
+        assert_eq!(
+            legacy_error_status, expectation.expected_business_status,
+            "{} {} should return the expected error status mapping",
+            expectation.method, expectation.uri
+        );
+        legacy_error_status
+    }
 }
 
 #[tokio::test]
@@ -107,7 +123,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: Some("control.read"),
                 body: None,
                 expected_http: StatusCode::OK,
-                expected_status: "registry",
+                expected_business_status: "registry",
             },
         )
         .await,
@@ -123,7 +139,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: Some("control.read"),
                 body: None,
                 expected_http: StatusCode::OK,
-                expected_status: "bindings",
+                expected_business_status: "bindings",
             },
         )
         .await,
@@ -139,7 +155,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: Some("control.write"),
                 body: Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
                 expected_http: StatusCode::OK,
-                expected_status: "preview",
+                expected_business_status: "preview",
             },
         )
         .await,
@@ -155,7 +171,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: Some("control.write"),
                 body: Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
                 expected_http: StatusCode::OK,
-                expected_status: "applied",
+                expected_business_status: "applied",
             },
         )
         .await,
@@ -173,7 +189,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                     r#"{"domain":"object-storage","pluginId":"object-storage-volcengine","expectedBaseVersion":2}"#,
                 ),
                 expected_http: StatusCode::OK,
-                expected_status: "noop",
+                expected_business_status: "noop",
             },
         )
         .await,
@@ -189,7 +205,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: Some("control.read"),
                 body: None,
                 expected_http: StatusCode::OK,
-                expected_status: "history",
+                expected_business_status: "history",
             },
         )
         .await,
@@ -205,7 +221,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: Some("control.read"),
                 body: None,
                 expected_http: StatusCode::OK,
-                expected_status: "diff",
+                expected_business_status: "diff",
             },
         )
         .await,
@@ -221,7 +237,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: Some("control.write"),
                 body: Some(r#"{"targetVersion":1}"#),
                 expected_http: StatusCode::OK,
-                expected_status: "rolled_back",
+                expected_business_status: "rolled_back",
             },
         )
         .await,
@@ -237,7 +253,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: Some("control.write"),
                 body: Some(r#"{"domain":"rtc","pluginId":"object-storage-aws"}"#),
                 expected_http: StatusCode::BAD_REQUEST,
-                expected_status: "invalid",
+                expected_business_status: "invalid",
             },
         )
         .await,
@@ -253,7 +269,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: Some("control.read"),
                 body: None,
                 expected_http: StatusCode::CONFLICT,
-                expected_status: "conflict",
+                expected_business_status: "conflict",
             },
         )
         .await,
@@ -269,7 +285,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: Some("control.write"),
                 body: Some(r#"{"domain":"object-storage","pluginId":"object-storage-volcengine"}"#),
                 expected_http: StatusCode::SERVICE_UNAVAILABLE,
-                expected_status: "unavailable",
+                expected_business_status: "unavailable",
             },
         )
         .await,
@@ -285,7 +301,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: None,
                 body: None,
                 expected_http: StatusCode::FORBIDDEN,
-                expected_status: "forbidden",
+                expected_business_status: "forbidden",
             },
         )
         .await,
@@ -301,7 +317,7 @@ async fn test_provider_control_plane_status_contract_covers_read_write_and_error
                 permission: None,
                 body: None,
                 expected_http: StatusCode::UNAUTHORIZED,
-                expected_status: "unauthorized",
+                expected_business_status: "unauthorized",
             },
         )
         .await,

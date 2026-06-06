@@ -107,6 +107,11 @@ async fn gateway_exposes_aggregate_openapi_json() {
         "#/components/schemas/GatewayServiceSchemaIndexEntry"
     );
     assert_eq!(
+        value["components"]["schemas"]["GatewayOpenapiIndex"]["properties"]["sdkContracts"]["items"]
+            ["$ref"],
+        "#/components/schemas/GatewaySdkContractSummary"
+    );
+    assert_eq!(
         value["components"]["schemas"]["GatewayOpenapiIndex"]["properties"]["routes"]["items"]["$ref"],
         "#/components/schemas/GatewayRouteSummary"
     );
@@ -119,6 +124,19 @@ async fn gateway_exposes_aggregate_openapi_json() {
         value["components"]["schemas"]["GatewayRuntimeSummary"]["properties"]["surfaceGroups"]["items"]
             ["$ref"],
         "#/components/schemas/GatewaySurfaceGroupSummary"
+    );
+    assert_eq!(
+        value["components"]["schemas"]["GatewayRuntimeSummary"]["properties"]["sdkContracts"]["items"]
+            ["$ref"],
+        "#/components/schemas/GatewaySdkContractSummary"
+    );
+    assert!(
+        value["components"]["schemas"]["GatewayServiceSchemaIndexEntry"]["properties"]["contractKind"]
+            .is_object()
+    );
+    assert!(
+        value["components"]["schemas"]["GatewayServiceContractSummary"]["properties"]["contractKind"]
+            .is_object()
     );
     assert!(value["paths"]["/backend/v3/api/control/protocol-registry"]["get"].is_object());
     assert!(
@@ -171,7 +189,41 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
             .to_bytes(),
     )
     .expect("openapi index should be valid json");
+    assert_eq!(index_value["sdkContracts"][0]["groupId"], "im-open-api");
+    assert_eq!(
+        index_value["sdkContracts"][0]["schemaUrl"],
+        "/im/v3/openapi.json"
+    );
+    assert_eq!(index_value["sdkContracts"][0]["apiPrefix"], "/im/v3/api");
+    assert_eq!(index_value["sdkContracts"][0]["sdkTarget"], "sdkworkImSdk");
+    assert_eq!(index_value["sdkContracts"][1]["groupId"], "im-app-api");
+    assert_eq!(
+        index_value["sdkContracts"][1]["schemaUrl"],
+        "/app/v3/openapi.json"
+    );
+    assert_eq!(index_value["sdkContracts"][1]["apiPrefix"], "/app/v3/api");
+    assert_eq!(
+        index_value["sdkContracts"][1]["sdkTarget"],
+        "sdkworkImAppSdk"
+    );
+    assert_eq!(index_value["sdkContracts"][2]["groupId"], "im-backend-api");
+    assert_eq!(
+        index_value["sdkContracts"][2]["schemaUrl"],
+        "/backend/v3/openapi.json"
+    );
+    assert_eq!(
+        index_value["sdkContracts"][2]["apiPrefix"],
+        "/backend/v3/api"
+    );
+    assert_eq!(
+        index_value["sdkContracts"][2]["sdkTarget"],
+        "sdkworkImBackendSdk"
+    );
     assert_eq!(index_value["services"][0]["serviceId"], "control-plane-api");
+    assert_eq!(
+        index_value["services"][0]["contractKind"],
+        "upstreamOperational"
+    );
     assert_eq!(
         index_value["services"][0]["schemaUrl"],
         "/openapi/services/control-plane-api.openapi.json"
@@ -188,7 +240,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
     );
     assert_eq!(
         index_value["services"][0]["sdkTargets"],
-        json!(["controlPlaneSdk"])
+        json!(["sdkworkImBackendSdk"])
     );
     assert_eq!(index_value["services"][0]["protocols"], json!(["http"]));
     assert!(
@@ -203,7 +255,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
                     && route["methods"]
                         == json!(["delete", "get", "head", "options", "patch", "post", "put"])
                     && route["protocol"] == "http"
-                    && route["sdkTargets"] == json!(["controlPlaneSdk"])
+                    && route["sdkTargets"] == json!(["sdkworkImBackendSdk"])
             })
     );
     assert!(
@@ -216,7 +268,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
                     && group["operationGroup"] == "control"
                     && group["visibility"] == "internal"
                     && group["routeCount"] == 1
-                    && group["sdkTargets"] == json!(["controlPlaneSdk"])
+                    && group["sdkTargets"] == json!(["sdkworkImBackendSdk"])
                     && group["protocols"] == json!(["http"])
             })
     );
@@ -303,7 +355,7 @@ async fn gateway_service_index_surfaces_session_websocket_metadata() {
     );
     assert_eq!(
         index_value["services"][0]["sdkTargets"],
-        json!(["crawChatAppSdk"])
+        json!(["sdkworkImSdk"])
     );
     assert_eq!(
         index_value["services"][0]["protocols"],
@@ -405,7 +457,7 @@ async fn gateway_service_index_surfaces_projection_device_metadata() {
     );
     assert_eq!(
         index_value["services"][0]["sdkTargets"],
-        json!(["crawChatAppSdk"])
+        json!(["sdkworkImSdk"])
     );
     assert_eq!(index_value["services"][0]["protocols"], json!(["http"]));
     assert!(
@@ -419,7 +471,7 @@ async fn gateway_service_index_surfaces_projection_device_metadata() {
                     && route["pathPattern"] == "/im/v3/api/devices/register"
                     && route["methods"] == json!(["post"])
                     && route["protocol"] == "http"
-                    && route["sdkTargets"] == json!(["crawChatAppSdk"])
+                    && route["sdkTargets"] == json!(["sdkworkImSdk"])
             })
     );
     assert!(
@@ -433,7 +485,7 @@ async fn gateway_service_index_surfaces_projection_device_metadata() {
                     && route["pathPattern"] == "/im/v3/api/devices/{device_id}/sync_feed"
                     && route["methods"] == json!(["get"])
                     && route["protocol"] == "http"
-                    && route["sdkTargets"] == json!(["crawChatAppSdk"])
+                    && route["sdkTargets"] == json!(["sdkworkImSdk"])
             })
     );
     assert!(
@@ -446,7 +498,7 @@ async fn gateway_service_index_surfaces_projection_device_metadata() {
                     && group["operationGroup"] == "devices"
                     && group["routeCount"] == 2
                     && group["protocols"] == json!(["http"])
-                    && group["sdkTargets"] == json!(["crawChatAppSdk"])
+                    && group["sdkTargets"] == json!(["sdkworkImSdk"])
             })
     );
 }
@@ -517,6 +569,21 @@ async fn gateway_exposes_runtime_summary_json() {
     .expect("runtime summary should be valid json");
 
     assert_eq!(value["baseUrl"], "http://gateway.example:18079");
+    assert_eq!(value["sdkContracts"][0]["groupId"], "im-open-api");
+    assert_eq!(
+        value["sdkContracts"][0]["schemaUrl"],
+        "http://gateway.example:18079/im/v3/openapi.json"
+    );
+    assert_eq!(value["sdkContracts"][1]["groupId"], "im-app-api");
+    assert_eq!(
+        value["sdkContracts"][1]["schemaUrl"],
+        "http://gateway.example:18079/app/v3/openapi.json"
+    );
+    assert_eq!(value["sdkContracts"][2]["groupId"], "im-backend-api");
+    assert_eq!(
+        value["sdkContracts"][2]["schemaUrl"],
+        "http://gateway.example:18079/backend/v3/openapi.json"
+    );
     assert_eq!(
         value["aggregateOpenapiUrl"],
         "http://gateway.example:18079/openapi.json"
@@ -532,6 +599,10 @@ async fn gateway_exposes_runtime_summary_json() {
     assert_eq!(
         value["serviceContracts"][0]["schemaUrl"],
         "http://gateway.example:18079/openapi/services/control-plane-api.openapi.json"
+    );
+    assert_eq!(
+        value["serviceContracts"][0]["contractKind"],
+        "upstreamOperational"
     );
     assert!(
         value["publicEndpoints"]
@@ -580,6 +651,28 @@ fn startup_summary_lists_gateway_openapi_endpoints() {
     let text = format_startup_summary(&summary);
 
     assert!(text.contains("OpenAPI 3.1 Schemas"));
+    assert!(text.contains("SDK Contracts"));
+    let sdk_contracts_index = text
+        .lines()
+        .position(|line| line == "SDK Contracts")
+        .expect("startup summary should include SDK Contracts section");
+    let upstream_status_index = text
+        .lines()
+        .position(|line| line == "Upstream Status")
+        .expect("startup summary should include Upstream Status section");
+    assert!(
+        sdk_contracts_index < upstream_status_index,
+        "SDK contracts should be listed before upstream status"
+    );
+    assert!(
+        text.contains("im-open-api schema: http://127.0.0.1:18079/im/v3/openapi.json [sdk:sdkworkImSdk] [prefix:/im/v3/api]")
+    );
+    assert!(
+        text.contains("im-app-api schema: http://127.0.0.1:18079/app/v3/openapi.json [sdk:sdkworkImAppSdk] [prefix:/app/v3/api]")
+    );
+    assert!(
+        text.contains("im-backend-api schema: http://127.0.0.1:18079/backend/v3/openapi.json [sdk:sdkworkImBackendSdk] [prefix:/backend/v3/api]")
+    );
     assert!(text.contains("http://127.0.0.1:18079/openapi.json"));
     assert!(text.contains("http://127.0.0.1:18079/openapi/index.json"));
     assert!(text.contains("http://127.0.0.1:18079/openapi/runtime-summary.json"));
@@ -589,15 +682,15 @@ fn startup_summary_lists_gateway_openapi_endpoints() {
     assert!(text.contains("/im/v3/api/realtime/ws"));
     assert!(text.contains("Gateway Surface Groups"));
     assert!(text.contains(
-        "public session-gateway realtime [sdk:crawChatAppSdk] [protocols:http,websocket]: 2 routes"
+        "public session-gateway realtime [sdk:sdkworkImSdk] [protocols:http,websocket]: 2 routes"
     ));
     assert!(text.contains(
-        "internal control-plane-api control [sdk:controlPlaneSdk] [protocols:http]: 1 routes"
+        "internal control-plane-api control [sdk:sdkworkImBackendSdk] [protocols:http]: 1 routes"
     ));
 }
 
 #[test]
-fn startup_summary_lists_per_service_schema_and_docs_endpoints() {
+fn startup_summary_hides_per_service_schema_and_docs_endpoints() {
     let registry =
         web_gateway::build_gateway_registry().expect("gateway route registry should build");
     let config = test_gateway_config(vec![
@@ -607,19 +700,14 @@ fn startup_summary_lists_per_service_schema_and_docs_endpoints() {
     let summary = build_startup_summary_with_registry(&config, &registry, "http://127.0.0.1:18079");
     let text = format_startup_summary(&summary);
 
-    assert!(text.contains("Service Contracts"));
-    assert!(text.contains(
-        "control-plane-api schema: http://127.0.0.1:18079/openapi/services/control-plane-api.openapi.json"
-    ));
-    assert!(text.contains(
-        "control-plane-api docs: http://127.0.0.1:18079/docs/services/control-plane-api"
-    ));
-    assert!(text.contains(
-        "conversation-runtime schema: http://127.0.0.1:18079/openapi/services/conversation-runtime.openapi.json"
-    ));
-    assert!(text.contains(
-        "conversation-runtime docs: http://127.0.0.1:18079/docs/services/conversation-runtime"
-    ));
+    assert!(!text.lines().any(|line| line == "Service Contracts"));
+    assert!(!text.contains("Upstream Operational Service Contracts"));
+    assert!(!text.contains("upstream schema:"));
+    assert!(!text.contains("upstream docs:"));
+    assert!(!text.contains("/openapi/services/control-plane-api.openapi.json"));
+    assert!(!text.contains("/docs/services/control-plane-api"));
+    assert!(!text.contains("/openapi/services/conversation-runtime.openapi.json"));
+    assert!(!text.contains("/docs/services/conversation-runtime"));
 }
 
 fn test_gateway_config(

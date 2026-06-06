@@ -93,8 +93,8 @@ fn replace_friend_request_cursor_payload(cursor: &str, payload: &serde_json::Val
 }
 
 fn sign_friend_request_cursor_for_test(payload: &serde_json::Value) -> String {
-    let header_segment = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .encode(br#"{"alg":"HS256","typ":"JWT"}"#);
+    let header_segment =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(br#"{"alg":"HS256","typ":"JWT"}"#);
     let payload_segment = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
         serde_json::to_vec(payload).expect("friend request cursor payload should serialize"),
     );
@@ -964,7 +964,8 @@ async fn test_control_plane_social_friend_request_rejects_identical_user_pair() 
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("invalid body should be valid json");
-    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["status"], 400);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "invalid_friend_request");
 }
 
@@ -1032,7 +1033,8 @@ async fn test_control_plane_social_friend_request_rejects_duplicate_open_pair_an
         .to_bytes();
     let duplicate_json: serde_json::Value = serde_json::from_slice(&duplicate_body)
         .expect("duplicate pair-guard body should be valid json");
-    assert_eq!(duplicate_json["status"], "conflict");
+    assert_eq!(duplicate_json["status"], 409);
+    assert_eq!(duplicate_json["errorStatus"], "conflict");
     assert_eq!(duplicate_json["code"], "friend_request_pair_conflict");
     assert_eq!(
         duplicate_json["details"]["existingRequestId"],
@@ -1578,7 +1580,8 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_active_frie
         .to_bytes();
     let submit_json: serde_json::Value =
         serde_json::from_slice(&submit_body).expect("submit guard body should be valid json");
-    assert_eq!(submit_json["status"], "conflict");
+    assert_eq!(submit_json["status"], 409);
+    assert_eq!(submit_json["errorStatus"], "conflict");
     assert_eq!(submit_json["code"], "friendship_pair_conflict");
     assert_eq!(
         submit_json["details"]["existingFriendshipId"],
@@ -1676,7 +1679,8 @@ async fn test_control_plane_social_friend_request_rejects_submit_for_pair_with_a
         .to_bytes();
     let duplicate_json: serde_json::Value = serde_json::from_slice(&duplicate_body)
         .expect("duplicate submit against accepted pair body should be valid json");
-    assert_eq!(duplicate_json["status"], "conflict");
+    assert_eq!(duplicate_json["status"], 409);
+    assert_eq!(duplicate_json["errorStatus"], "conflict");
     assert_eq!(duplicate_json["code"], "friendship_pair_conflict");
     assert!(
         duplicate_json["details"]["existingFriendshipId"]
@@ -2882,7 +2886,8 @@ async fn test_control_plane_social_friend_request_submit_rejects_active_friendsh
         .to_bytes();
     let submit_json: serde_json::Value = serde_json::from_slice(&submit_body)
         .expect("blocked friend request submit body should be valid json");
-    assert_eq!(submit_json["status"], "conflict");
+    assert_eq!(submit_json["status"], 409);
+    assert_eq!(submit_json["errorStatus"], "conflict");
     assert_eq!(submit_json["code"], "friend_request_blocked");
     assert_eq!(
         submit_json["details"]["blockId"],
@@ -2980,7 +2985,8 @@ async fn test_control_plane_social_friend_request_accept_rejects_active_friendsh
         .to_bytes();
     let accept_json: serde_json::Value = serde_json::from_slice(&accept_body)
         .expect("blocked friend request accept body should be valid json");
-    assert_eq!(accept_json["status"], "conflict");
+    assert_eq!(accept_json["status"], 409);
+    assert_eq!(accept_json["errorStatus"], "conflict");
     assert_eq!(accept_json["code"], "friend_request_blocked");
     assert_eq!(
         accept_json["details"]["blockId"],
@@ -3520,7 +3526,8 @@ async fn test_control_plane_social_friendship_activation_rejects_active_friendsh
         .to_bytes();
     let activate_json: serde_json::Value = serde_json::from_slice(&activate_body)
         .expect("blocked friendship activation body should be valid json");
-    assert_eq!(activate_json["status"], "conflict");
+    assert_eq!(activate_json["status"], 409);
+    assert_eq!(activate_json["errorStatus"], "conflict");
     assert_eq!(activate_json["code"], "friendship_blocked");
     assert_eq!(
         activate_json["details"]["blockId"],
@@ -4396,7 +4403,8 @@ async fn test_control_plane_social_friendship_rejects_duplicate_active_pair() {
         .to_bytes();
     let duplicate_json: serde_json::Value =
         serde_json::from_slice(&duplicate_body).expect("duplicate body should be valid json");
-    assert_eq!(duplicate_json["status"], "conflict");
+    assert_eq!(duplicate_json["status"], 409);
+    assert_eq!(duplicate_json["errorStatus"], "conflict");
     assert_eq!(duplicate_json["code"], "friendship_pair_conflict");
 }
 
@@ -4600,7 +4608,8 @@ async fn test_control_plane_social_direct_chat_rejects_duplicate_active_pair() {
         .to_bytes();
     let duplicate_json: serde_json::Value =
         serde_json::from_slice(&duplicate_body).expect("duplicate body should be valid json");
-    assert_eq!(duplicate_json["status"], "conflict");
+    assert_eq!(duplicate_json["status"], 409);
+    assert_eq!(duplicate_json["errorStatus"], "conflict");
     assert_eq!(duplicate_json["code"], "direct_chat_pair_conflict");
 }
 
@@ -4838,7 +4847,8 @@ async fn test_control_plane_social_user_block_rejects_duplicate_active_scope() {
         .to_bytes();
     let duplicate_json: serde_json::Value = serde_json::from_slice(&duplicate_body)
         .expect("duplicate user block body should be valid json");
-    assert_eq!(duplicate_json["status"], "conflict");
+    assert_eq!(duplicate_json["status"], 409);
+    assert_eq!(duplicate_json["errorStatus"], "conflict");
     assert_eq!(duplicate_json["code"], "user_block_scope_conflict");
 }
 
@@ -4881,7 +4891,8 @@ async fn test_control_plane_social_user_block_rejects_direct_chat_scope_for_unkn
         .to_bytes();
     let block_json: serde_json::Value = serde_json::from_slice(&block_body)
         .expect("unknown direct-chat scoped block body should be valid json");
-    assert_eq!(block_json["status"], "invalid");
+    assert_eq!(block_json["status"], 400);
+    assert_eq!(block_json["errorStatus"], "invalid");
     assert_eq!(block_json["code"], "invalid_user_block");
 }
 

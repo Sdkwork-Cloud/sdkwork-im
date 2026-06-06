@@ -5,7 +5,7 @@
 在 `08-I` 已把 `decode_uplink()` 接入 `device.telemetry` 主链路的前提下，补齐对称的下行最小闭环：
 
 - `local-minimal-node`
-- `POST /backend/v3/api/iot/protocol/downlink`
+- `POST /app/v3/api/iot/protocol/downlink`
 - `IotProtocolAdapter::encode_downlink()`
 - 写入统一 `device.command` stream mainline
 
@@ -31,7 +31,7 @@
 ## 本轮决策
 
 - 最小 route 固定为：
-  - `POST /backend/v3/api/iot/protocol/downlink`
+  - `POST /app/v3/api/iot/protocol/downlink`
 - 请求体固定包含：
   - `deviceId`
   - `channel`
@@ -61,13 +61,13 @@
 - 新增 downlink access guard：
   - `services/local-minimal-node/src/node/access.rs`
 - 在 `build.rs` 装配 route：
-  - `POST /backend/v3/api/iot/protocol/downlink`
+  - `POST /app/v3/api/iot/protocol/downlink`
 
 ## 验证
 
 - 红灯：
   - `cargo test -p local-minimal-node --offline --test iot_protocol_adapter_mainline_test -- --nocapture`
-  - 初始失败点：`POST /backend/v3/api/iot/protocol/downlink` 返回 `404`
+  - 初始失败点：`POST /app/v3/api/iot/protocol/downlink` 返回 `404`
 - 绿灯：
   - `cargo test -p local-minimal-node --offline --test iot_protocol_adapter_mainline_test -- --nocapture`
 

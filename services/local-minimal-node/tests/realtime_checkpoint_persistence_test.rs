@@ -22,7 +22,7 @@ async fn test_ops_commercial_readiness_reports_current_blockers_without_exposing
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/ops/commercial-readiness")
+                .uri("/backend/v3/api/ops/commercial_readiness")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_ops")
                 .header("x-sdkwork-actor-kind", "user")
@@ -72,7 +72,7 @@ async fn test_ops_commercial_readiness_requires_ops_read_permission() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/backend/v3/api/ops/commercial-readiness")
+                .uri("/backend/v3/api/ops/commercial_readiness")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_viewer")
                 .header("x-sdkwork-actor-kind", "user")

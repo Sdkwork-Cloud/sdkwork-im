@@ -131,7 +131,10 @@ fn app_context_projection(
         tenant_id: tenant_id.to_owned(),
         user_id: actor_id.to_owned(),
         actor_kind: actor_kind.to_owned(),
-        permission_scope: permissions.iter().map(|permission| (*permission).to_owned()).collect(),
+        permission_scope: permissions
+            .iter()
+            .map(|permission| (*permission).to_owned())
+            .collect(),
     }
 }
 
@@ -475,7 +478,8 @@ async fn test_control_plane_social_external_connection_rejects_same_tenant_targe
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("invalid body should be valid json");
-    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["status"], 400);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "invalid_external_connection");
 }
 
@@ -697,7 +701,8 @@ async fn test_control_plane_social_external_member_link_requires_active_external
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("missing connection body should be valid json");
-    assert_eq!(json["status"], "not_found");
+    assert_eq!(json["status"], 404);
+    assert_eq!(json["errorStatus"], "not_found");
     assert_eq!(json["code"], "external_connection_not_found");
 }
 
@@ -941,7 +946,8 @@ async fn test_control_plane_social_shared_channel_policy_rejects_non_shared_hist
         .to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body)
         .expect("invalid shared channel policy body should be valid json");
-    assert_eq!(json["status"], "invalid");
+    assert_eq!(json["status"], 400);
+    assert_eq!(json["errorStatus"], "invalid");
     assert_eq!(json["code"], "invalid_shared_channel_policy");
 }
 
@@ -1711,17 +1717,17 @@ async fn test_control_plane_social_shared_channel_http_trigger_materializes_remo
                     .uri("/backend/v3/api/control/social/external_connections"),
                 &control_context,
             )
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{
                         "connectionId":"ec_remote_001",
                         "eventId":"evt_ec_remote_001",
                         "externalTenantId":"t_partner",
                         "connectionKind":"shared_channel",
                         "establishedAt":"2026-04-11T01:00:00Z"
                     }"#,
-                ))
-                .unwrap(),
+            ))
+            .unwrap(),
         )
         .await
         .expect("external connection write should return response");
@@ -1736,9 +1742,9 @@ async fn test_control_plane_social_shared_channel_http_trigger_materializes_remo
                     .uri("/backend/v3/api/control/social/shared_channel_policies"),
                 &control_context,
             )
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{
                         "policyId":"scp_remote_001",
                         "eventId":"evt_scp_remote_001",
                         "connectionId":"ec_remote_001",
@@ -1748,8 +1754,8 @@ async fn test_control_plane_social_shared_channel_http_trigger_materializes_remo
                         "historyVisibility":"shared",
                         "appliedAt":"2026-04-11T01:01:00Z"
                     }"#,
-                ))
-                .unwrap(),
+            ))
+            .unwrap(),
         )
         .await
         .expect("shared channel policy write should return response");
@@ -1764,9 +1770,9 @@ async fn test_control_plane_social_shared_channel_http_trigger_materializes_remo
                     .uri("/backend/v3/api/control/social/external_member_links"),
                 &control_context,
             )
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
+            .header("content-type", "application/json")
+            .body(Body::from(
+                r#"{
                         "linkId":"eml_remote_001",
                         "eventId":"evt_eml_remote_001",
                         "connectionId":"ec_remote_001",
@@ -1775,8 +1781,8 @@ async fn test_control_plane_social_shared_channel_http_trigger_materializes_remo
                         "externalMemberId":"partner::alice",
                         "linkedAt":"2026-04-11T01:02:00Z"
                     }"#,
-                ))
-                .unwrap(),
+            ))
+            .unwrap(),
         )
         .await
         .expect("external member link write should return response");

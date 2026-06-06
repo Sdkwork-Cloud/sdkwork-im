@@ -54,10 +54,15 @@ fn test_aliyun_rtc_provider_implements_contract_surface() {
         .export_recording_artifact("t_demo", "rtc_demo")
         .expect("aliyun rtc artifact export should succeed")
         .expect("aliyun rtc artifact should exist");
-    assert_eq!(artifact.bucket, "rtc-artifacts");
-    assert_eq!(artifact.object_key, "recordings/t_demo/rtc_demo.mp4");
-    assert_eq!(artifact.storage_provider, None);
-    assert_eq!(artifact.playback_url, None);
+    assert_eq!(
+        artifact.drive.drive_uri,
+        "drive://spaces/space_rtc_recordings/nodes/node_rtc_demo"
+    );
+    assert_eq!(
+        artifact.resource.uri.as_deref(),
+        Some("drive://spaces/space_rtc_recordings/nodes/node_rtc_demo")
+    );
+    assert_eq!(artifact.media_role, "rtc_recording");
 
     let health = provider.provider_health_snapshot();
     assert_eq!(health.plugin_id, ALIYUN_RTC_PLUGIN_ID);

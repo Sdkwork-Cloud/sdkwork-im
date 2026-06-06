@@ -1,13 +1,14 @@
 param(
     [string]$InstanceName = "default",
-    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "config")),
-    [string]$DataDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "data")),
-    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "logs")),
-    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", "default", "run")),
+    [string]$ConfigDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")),
+    [string]$DataDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Data")),
+    [string]$LogDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Logs")),
+    [string]$RunDir = ([System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat", "Run")),
     [string]$BindAddress = "0.0.0.0:18080",
     [string]$BaseUrl = "http://127.0.0.1:18080",
     [string]$ApiBaseUrl = "http://127.0.0.1:18080",
-    [string]$WebsocketBaseUrl = "ws://127.0.0.1:18080/im/v3/api/realtime/ws",
+    [string]$WebsocketBaseUrl = "ws://127.0.0.1:18080",
+    [string]$BrowserOrigins = "http://127.0.0.1:18080,http://localhost:18080",
     [switch]$NonInteractive,
     [switch]$Force,
     [switch]$Help
@@ -15,75 +16,136 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Get-ServerPathForInstance {
+    param([string]$Root, [string]$Name, [string]$Leaf)
+
+    if ($Name -eq "default") {
+        if ([string]::IsNullOrWhiteSpace($Leaf)) {
+            return $Root
+        }
+        return [System.IO.Path]::Combine($Root, $Leaf)
+    }
+    if ([string]::IsNullOrWhiteSpace($Leaf)) {
+        return [System.IO.Path]::Combine($Root, "instances", $Name)
+    }
+    return [System.IO.Path]::Combine($Root, "instances", $Name, $Leaf)
+}
+
+$programDataRoot = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "sdkwork", "chat")
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("ConfigDir")) {
-    $ConfigDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "config")
+    $ConfigDir = Get-ServerPathForInstance $programDataRoot $InstanceName ""
 }
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("DataDir")) {
-    $DataDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "data")
+    $DataDir = Get-ServerPathForInstance $programDataRoot $InstanceName "Data"
 }
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("LogDir")) {
-    $LogDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "logs")
+    $LogDir = Get-ServerPathForInstance $programDataRoot $InstanceName "Logs"
 }
 if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.ContainsKey("RunDir")) {
-    $RunDir = [System.IO.Path]::Combine([Environment]::GetFolderPath("CommonApplicationData"), "CrawChat", $InstanceName, "run")
+    $RunDir = Get-ServerPathForInstance $programDataRoot $InstanceName "Run"
 }
 
 if ($Help) {
-    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/init-config-server.ps1 [-InstanceName <name>] [-ConfigDir <path>] [-DataDir <path>] [-LogDir <path>] [-RunDir <path>] [-BindAddress <host:port>] [-BaseUrl <url>] [-ApiBaseUrl <url>] [-WebsocketBaseUrl <url>] [-NonInteractive] [-Force]"
-    Write-Host "Usage: cmd /c .\bin\init-config-server.cmd [--instance <name>] [--config-dir <path>] [--data-dir <path>] [--log-dir <path>] [--run-dir <path>] [--bind-address <host:port>] [--base-url <url>] [--api-base-url <url>] [--websocket-base-url <url>] [--non-interactive] [--force]"
+    Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/init-config-server.ps1 [-InstanceName <name>] [-ConfigDir <path>] [-DataDir <path>] [-LogDir <path>] [-RunDir <path>] [-BindAddress <host:port>] [-BaseUrl <url>] [-ApiBaseUrl <url>] [-WebsocketBaseUrl <url>] [-BrowserOrigins <csv>] [-NonInteractive] [-Force]"
+    Write-Host "Usage: cmd /c .\bin\init-config-server.cmd [--instance <name>] [--config-dir <path>] [--data-dir <path>] [--log-dir <path>] [--run-dir <path>] [--bind-address <host:port>] [--base-url <url>] [--api-base-url <url>] [--websocket-base-url <url>] [--browser-origins <csv>] [--non-interactive] [--force]"
     Write-Host "Render craw-chat-server configuration files for the selected instance and preserve file-based PostgreSQL settings."
     exit 0
 }
 
-$storageDir = Join-Path $ConfigDir "storage"
-$secretsDir = Join-Path $ConfigDir "secrets"
-foreach ($path in @($ConfigDir, $DataDir, $LogDir, $RunDir, $storageDir, $secretsDir)) {
+function ConvertTo-TomlPath {
+    param([string]$PathValue)
+    return $PathValue.Replace('\', '/')
+}
+
+foreach ($path in @($ConfigDir, $DataDir, $LogDir, $RunDir)) {
     if (-not (Test-Path $path)) {
         New-Item -ItemType Directory -Path $path -Force | Out-Null
     }
 }
 
-$serverYamlPath = Join-Path $ConfigDir "server.yaml"
+$chatTomlPath = Join-Path $ConfigDir "chat.toml"
 $serverEnvPath = Join-Path $ConfigDir "server.env"
-$postgresqlPath = Join-Path $storageDir "postgresql.yaml"
-$passwordFilePath = Join-Path $secretsDir "postgresql.password"
+$postgresqlPath = Join-Path $ConfigDir "postgresql.yaml"
+$passwordFilePath = Join-Path $ConfigDir "database.secret"
+$redisSecretPath = Join-Path $ConfigDir "redis.secret"
 
-if ((-not (Test-Path $serverYamlPath)) -or $Force) {
+$tomlConfigDir = ConvertTo-TomlPath $ConfigDir
+$tomlChatConfigFile = ConvertTo-TomlPath $chatTomlPath
+$tomlDataDir = ConvertTo-TomlPath $DataDir
+$tomlLogDir = ConvertTo-TomlPath $LogDir
+$tomlRunDir = ConvertTo-TomlPath $RunDir
+$tomlPasswordFilePath = ConvertTo-TomlPath $passwordFilePath
+$tomlRedisSecretPath = ConvertTo-TomlPath $redisSecretPath
+
+if ((-not (Test-Path $chatTomlPath)) -or $Force) {
     @"
-instance:
-  name: "$InstanceName"
+[runtime]
+environment = "production"
+deployment_mode = "server"
+app_code = "chat"
 
-network:
-  bindAddress: "$BindAddress"
+[server]
+bind_address = "$BindAddress"
+trust_forwarded_headers = true
 
-publicEndpoints:
-  baseUrl: "$BaseUrl"
-  apiBaseUrl: "$ApiBaseUrl"
-  websocketBaseUrl: "$WebsocketBaseUrl"
-  docsBaseUrl: "$BaseUrl/docs"
+[public_endpoints]
+base_url = "$BaseUrl"
+api_base_url = "$ApiBaseUrl"
+websocket_base_url = "$WebsocketBaseUrl"
+docs_base_url = "$BaseUrl/docs"
 
-runtime:
-  configDir: "$ConfigDir"
-  dataDir: "$DataDir"
-  logDir: "$LogDir"
-  runDir: "$RunDir"
+[paths]
+config_directory = "$tomlConfigDir"
+config_file = "$tomlChatConfigFile"
+data_directory = "$tomlDataDir"
+log_directory = "$tomlLogDir"
+cache_directory = "$tomlDataDir/cache"
+runtime_directory = "$tomlRunDir"
 
-storage:
-  postgresqlConfig: "$postgresqlPath"
-"@ | Set-Content -Path $serverYamlPath -Encoding utf8
+[database]
+engine = "postgresql"
+host = "127.0.0.1"
+port = 5432
+database = "sdkwork_chat_prod"
+schema = "sdkwork_chat_prod"
+username = "sdkwork_chat_prod"
+password_file = "$tomlPasswordFilePath"
+ssl_mode = "require"
+max_connections = 20
+
+[redis]
+enabled = true
+host = "redis.example.com"
+port = 6379
+database = 0
+password_file = "$tomlRedisSecretPath"
+key_prefix = "chat"
+tls = false
+max_connections = 16
+"@ | Set-Content -Path $chatTomlPath -Encoding utf8
 }
 
 if ((-not (Test-Path $serverEnvPath)) -or $Force) {
     @"
-CRAW_CHAT_SERVER_INSTANCE=$InstanceName
-CRAW_CHAT_SERVER_CONFIG_DIR=$ConfigDir
-CRAW_CHAT_SERVER_DATA_DIR=$DataDir
-CRAW_CHAT_SERVER_LOG_DIR=$LogDir
-CRAW_CHAT_SERVER_RUN_DIR=$RunDir
-CRAW_CHAT_SERVER_BIND_ADDRESS=$BindAddress
-CRAW_CHAT_SERVER_BASE_URL=$BaseUrl
-CRAW_CHAT_SERVER_API_BASE_URL=$ApiBaseUrl
-CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=$WebsocketBaseUrl
+SDKWORK_CHAT_DEPLOYMENT_MODE=server
+SDKWORK_CHAT_CONFIG_FILE=$chatTomlPath
+SDKWORK_CHAT_DATA_DIR=$DataDir
+SDKWORK_CHAT_LOG_DIR=$LogDir
+SDKWORK_CHAT_RUN_DIR=$RunDir
+SDKWORK_CHAT_SERVER_BIND=$BindAddress
+SDKWORK_CHAT_SERVER_BASE_URL=$BaseUrl
+SDKWORK_CHAT_SERVER_API_BASE_URL=$ApiBaseUrl
+SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL=$WebsocketBaseUrl
+SDKWORK_CHAT_DATABASE_ENGINE=postgresql
+SDKWORK_CHAT_DATABASE_HOST=127.0.0.1
+SDKWORK_CHAT_DATABASE_PORT=5432
+SDKWORK_CHAT_DATABASE_NAME=sdkwork_chat_prod
+SDKWORK_CHAT_DATABASE_SCHEMA=sdkwork_chat_prod
+SDKWORK_CHAT_DATABASE_USERNAME=sdkwork_chat_prod
+SDKWORK_CHAT_DATABASE_PASSWORD_FILE=$passwordFilePath
+SDKWORK_CHAT_DATABASE_SSL_MODE=require
+SDKWORK_CHAT_DATABASE_MAX_CONNECTIONS=20
+CRAW_CHAT_BROWSER_ORIGINS=$BrowserOrigins
 "@ | Set-Content -Path $serverEnvPath -Encoding utf8
 }
 
@@ -94,15 +156,15 @@ provider: postgresql
 connection:
   host: 127.0.0.1
   port: 5432
-  database: craw_chat
-  username: craw_chat_app
+  database: sdkwork_chat_prod
+  username: sdkwork_chat_prod
   passwordFile: "$passwordFilePath"
-  sslmode: prefer
-  applicationName: craw-chat-server
+  sslmode: require
+  applicationName: sdkwork-chat-server
   connectTimeoutSeconds: 10
 
 schema:
-  name: craw_chat
+  name: sdkwork_chat_prod
   provisioningMode: none
   migrationMode: apply
   expectedVersion: latest
@@ -125,6 +187,6 @@ if ((-not (Test-Path $passwordFilePath)) -or $Force) {
 }
 
 Write-Host "Rendered craw-chat-server configuration for instance '$InstanceName'."
-Write-Host "server.yaml: $serverYamlPath"
+Write-Host "chat.toml: $chatTomlPath"
 Write-Host "server.env: $serverEnvPath"
-Write-Host "storage/postgresql.yaml: $postgresqlPath"
+Write-Host "postgresql.yaml: $postgresqlPath"

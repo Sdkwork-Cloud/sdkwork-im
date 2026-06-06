@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class AutomationApi {
     private final HttpClient client;
-    
+
     public AutomationApi(HttpClient client) {
         this.client = client;
     }

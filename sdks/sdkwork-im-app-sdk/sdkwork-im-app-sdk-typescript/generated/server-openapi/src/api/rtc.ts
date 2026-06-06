@@ -6,9 +6,9 @@ import type { ProviderCallbacksCreateResponse, ProviderHealthRetrieveResponse } 
 
 export class RtcProviderHealthApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -20,9 +20,9 @@ export class RtcProviderHealthApi {
 
 export class RtcProviderCallbacksApi {
   private client: HttpClient;
-  
-  constructor(client: HttpClient) { 
-    this.client = client; 
+
+  constructor(client: HttpClient) {
+    this.client = client;
   }
 
 
@@ -36,11 +36,11 @@ export class RtcApi {
   private client: HttpClient;
   public readonly providerCallbacks: RtcProviderCallbacksApi;
   public readonly providerHealth: RtcProviderHealthApi;
-  
-  constructor(client: HttpClient) { 
+
+  constructor(client: HttpClient) {
     this.client = client;
     this.providerCallbacks = new RtcProviderCallbacksApi(client);
-    this.providerHealth = new RtcProviderHealthApi(client); 
+    this.providerHealth = new RtcProviderHealthApi(client);
   }
 
 }

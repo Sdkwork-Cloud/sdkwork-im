@@ -66,7 +66,6 @@ fn write_full_backup_snapshot(root: &Path, owner_node_id: &str) {
         "realtime-checkpoints.json",
         "realtime-event-windows.json",
         "realtime-subscriptions.json",
-        "device-twin-state.json",
         "stream-state.json",
         "rtc-state.json",
         "automation-executions.json",
@@ -515,10 +514,10 @@ fn test_preview_restore_runtime_dir_reports_ready_without_mutation_for_full_snap
 
     assert_eq!(preview.status, "ready");
     assert_eq!(preview.source_snapshot_quality, "full_snapshot");
-    assert_eq!(preview.source_managed_file_count, 13);
+    assert_eq!(preview.source_managed_file_count, 12);
     assert_eq!(preview.source_missing_file_count, 0);
     assert_eq!(preview.would_restore_file_count, 1);
-    assert_eq!(preview.unchanged_file_count, 12);
+    assert_eq!(preview.unchanged_file_count, 11);
     assert_eq!(preview.skipped_file_count, 0);
     assert_eq!(preview.before.status, "ok");
     assert_eq!(preview.source_report_type, None);
@@ -602,10 +601,10 @@ fn test_preview_restore_runtime_dir_reports_partial_for_sparse_snapshot() {
     assert_eq!(preview.status, "partial");
     assert_eq!(preview.source_snapshot_quality, "partial_snapshot");
     assert_eq!(preview.source_managed_file_count, 2);
-    assert_eq!(preview.source_missing_file_count, 11);
+    assert_eq!(preview.source_missing_file_count, 10);
     assert_eq!(preview.would_restore_file_count, 1);
     assert_eq!(preview.unchanged_file_count, 1);
-    assert_eq!(preview.skipped_file_count, 11);
+    assert_eq!(preview.skipped_file_count, 10);
     assert_eq!(preview.before.status, "degraded");
     assert_eq!(preview.source_report_type.as_deref(), Some("restore"));
     assert_eq!(preview.source_report_status.as_deref(), Some("partial"));
@@ -691,10 +690,10 @@ fn test_preview_restore_runtime_dir_tracks_projection_snapshot_files() {
     .expect("restore preview should succeed");
 
     assert_eq!(preview.status, "ready");
-    assert_eq!(preview.source_managed_file_count, 13);
+    assert_eq!(preview.source_managed_file_count, 12);
     assert_eq!(preview.source_missing_file_count, 0);
     assert_eq!(preview.would_restore_file_count, 2);
-    assert_eq!(preview.unchanged_file_count, 11);
+    assert_eq!(preview.unchanged_file_count, 10);
     assert_eq!(preview.skipped_file_count, 0);
 
     let metadata_action = preview

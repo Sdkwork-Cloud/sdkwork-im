@@ -477,13 +477,13 @@ MUST：
 - 使用小写下划线：`commerce_payment`、`iam_role_permission`。
 - 使用明确业务名，不使用纯技术名。
 - 在多业务域系统中 SHOULD 使用域前缀：`iam_`、`commerce_`、`content_`、`notification_`。
-- 关联表 SHOULD 使用两端实体名并保留业务模块前缀：`iam_user_role`、`commerce_order_item`。
+- 关联表 SHOULD 使用两端实体名并保留业务模块前缀：`iam_role_permission`、`commerce_order_item`。
 - 新建业务表的第一段 MUST 是业务模块前缀，格式为 `<module_prefix>_<entity_name>`。
 - 实体名称 SHOULD 使用单数名词。集合、历史、事件、快照、明细等语义通过 `item`、`history`、`event`、`snapshot`、`detail` 等后缀表达，而不是简单使用复数。
 
 SHOULD NOT：
 
-- 大小写混用：`UserRole`、`T_UserInfo`。
+- 大小写混用：`OrderItem`、`T_UserInfo`。
 - 随意缩写：`usr`、`ord_itm`。
 - 使用数据库保留字。若业务名是 `order`，落地时使用 `commerce_order`、`sales_order` 或 `commerce_order_record`。
 - 把存储实现写进业务表名，例如 `redis_user_cache`。确实是适配表或缓存表时可例外。
@@ -519,7 +519,7 @@ SHOULD NOT：
 - 产品、公司、部署环境前缀 SHOULD 放在 database/schema/catalog 层，例如 `plus_business.commerce_order`，不要放在物理表名第一段。
 - 模块前缀 MUST 稳定，不随编程语言、框架、前端应用、部署环境、租户或产品线变化。
 - 同一模块内表名不得只靠通用名区分，例如 `content_data`、`content_info` 不合格。
-- 跨模块共享表必须选择事实来源模块前缀。例如用户角色属于 `iam_`，不应命名为 `user_role` 或 `plus_user_role`。
+- 跨模块共享表必须选择事实来源模块前缀。例如角色授权属于 `iam_`，应使用 `iam_role_binding`，不应命名为业务模块私有表。
 - 模块拆分时，旧模块前缀不能被新模块复用为不同含义。
 
 模块前缀注册表示例：
@@ -580,7 +580,7 @@ SHOULD NOT：
 | `app_order` | `app` 是应用层，不是业务域 | `commerce_order` |
 | `sys_config` | `sys` 语义过泛 | `ops_config` 或具体模块配置表 |
 | `common_dict` | `common` 无 owner | `iam_dictionary` 或 `ops_dictionary` |
-| `user_role` | 缺少模块前缀 | `iam_user_role` |
+| `role_binding` | 缺少模块前缀 | `iam_role_binding` |
 | `payment` | 缺少模块前缀 | `commerce_payment` |
 
 ### 7.1.3 模块前缀注册治理
@@ -626,7 +626,7 @@ SHOULD NOT：
 | --- | --- | --- | --- |
 | 主实体 | `<module>_<entity>` | `iam_user`、`commerce_order` | 领域内核心事实对象 |
 | 子实体 | `<module>_<parent>_<child>` | `commerce_order_item` | 生命周期依赖父实体 |
-| 关系表 | `<module>_<left>_<right>` | `iam_user_role` | 关系事实属于该模块 |
+| 关系表 | `<module>_<left>_<right>` | `iam_role_permission` | 关系事实属于该模块 |
 | 历史表 | `<module>_<entity>_history` | `commerce_account_history` | 可变对象的历史轨迹 |
 | 账本表 | `<module>_<entity>_ledger` | `commerce_account_ledger` | 不可变资金或额度流水 |
 | 事件表 | `<module>_<entity>_event` | `commerce_payment_event` | 领域事件或业务事件 |
