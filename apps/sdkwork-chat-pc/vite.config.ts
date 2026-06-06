@@ -22,7 +22,7 @@ const generatedImSdkEntry = path.resolve(
 );
 const generatedRtcSdkEntry = path.resolve(
   __dirname,
-  '../../sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts',
+  '../../../../../../../sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts',
 );
 const appbasePcReactEntry = path.resolve(
   __dirname,

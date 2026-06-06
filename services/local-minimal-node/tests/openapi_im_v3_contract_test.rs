@@ -6,6 +6,8 @@ use serde_json::Value;
 const IM_OPENAPI_SCHEMA: &str = "../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml";
 const APP_OPENAPI_SCHEMA: &str =
     "../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml";
+const RTC_APP_OPENAPI_SCHEMA: &str =
+    "D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-app-sdk/openapi/sdkwork-rtc-app-api.openapi.json";
 const BACKEND_OPENAPI_SCHEMA: &str =
     "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml";
 const API_STANDARD_SPEC: &str = "../../../../specs/API_SPEC.md";
@@ -152,6 +154,30 @@ fn assert_openapi_paths_match_runtime_routes(
         missing.is_empty() && extra.is_empty(),
         "{label} OpenAPI paths must match runtime route table exactly; missing={missing:?}, extra={extra:?}"
     );
+}
+
+fn assert_openapi_paths_include_runtime_routes(
+    label: &str,
+    schema: &Value,
+    api_prefix: &str,
+    runtime_routes: &BTreeSet<String>,
+) {
+    let openapi_paths = path_map(schema)
+        .keys()
+        .filter(|path| path.starts_with(api_prefix))
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    for route in runtime_routes {
+        let expected_path = if route.starts_with(api_prefix) {
+            route.to_owned()
+        } else {
+            format!("{api_prefix}{route}")
+        };
+        assert!(
+            openapi_paths.contains(expected_path.as_str()),
+            "{label} OpenAPI schema must include local runtime route {expected_path}"
+        );
+    }
 }
 
 fn assert_sdkwork_v3_security_and_problem_details(schema: &Value, label: &str) {
@@ -1842,8 +1868,12 @@ fn test_app_api_openapi_uses_sdkwork_im_app_sdk_contract_with_appbase_iam_paths(
 fn test_openapi_paths_match_local_minimal_node_runtime_route_tables() {
     let build_source = load_local_minimal_node_source(LOCAL_MINIMAL_NODE_BUILD_RS);
     assert!(
-        !build_source.contains(".nest(\"/app/v3/api\""),
-        "local-minimal-node must not mount local /app/v3/api routes; im-app-api IAM is provided by sdkwork-appbase through sdkwork-im-app-sdk"
+        !build_source.contains(".nest(\"/app/v3/api\","),
+        "local-minimal-node must not mount the generic /app/v3/api route table; RTC is mounted as a dedicated /app/v3/api/rtc authority"
+    );
+    assert!(
+        build_source.contains(".nest(\"/app/v3/api/rtc\", rtc_app_api_routes())"),
+        "local-minimal-node RTC routes must move out of /im/v3/api and mount under /app/v3/api/rtc"
     );
     assert!(
         !build_source.contains("fn app_business_api_routes()"),
@@ -1852,8 +1882,14 @@ fn test_openapi_paths_match_local_minimal_node_runtime_route_tables() {
     let im_routes = extract_runtime_route_paths(extract_source_section(
         &build_source,
         "fn im_standard_api_routes()",
-        "fn backend_api_routes()",
+        "fn rtc_app_api_routes()",
         "IM standard route table",
+    ));
+    let rtc_routes = extract_runtime_route_paths(extract_source_section(
+        &build_source,
+        "fn rtc_app_api_routes()",
+        "fn backend_api_routes()",
+        "RTC app route table",
     ));
     let backend_routes = extract_runtime_route_paths(extract_source_section(
         &build_source,
@@ -1887,6 +1923,12 @@ fn test_openapi_paths_match_local_minimal_node_runtime_route_tables() {
         &load_schema(BACKEND_OPENAPI_SCHEMA),
         "/backend/v3/api",
         &backend_routes,
+    );
+    assert_openapi_paths_include_runtime_routes(
+        "rtc app",
+        &load_schema(RTC_APP_OPENAPI_SCHEMA),
+        "/app/v3/api/rtc",
+        &rtc_routes,
     );
 }
 

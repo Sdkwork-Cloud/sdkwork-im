@@ -165,10 +165,10 @@ assert.match(
   'TypeScript must resolve generated IM SDK from source for live development',
 );
 assert.match(viteConfig, /@sdkwork\/rtc-sdk/u, 'Vite must alias generated RTC SDK source');
-assert.match(viteConfig, /sdks[\\\/]sdkwork-rtc-sdk[\\\/]sdkwork-rtc-sdk-typescript[\\\/]src[\\\/]index\.ts/u);
+assert.match(viteConfig, /sdkwork-rtc[\\\/]sdks[\\\/]sdkwork-rtc-sdk[\\\/]sdkwork-rtc-sdk-typescript[\\\/]src[\\\/]index\.ts/u);
 assert.match(
   tsconfig,
-  /sdks[\\\/]sdkwork-rtc-sdk[\\\/]sdkwork-rtc-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  /sdkwork-rtc[\\\/]sdks[\\\/]sdkwork-rtc-sdk[\\\/]sdkwork-rtc-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
   'TypeScript must resolve generated RTC SDK from source for live development',
 );
 assert.match(viteConfig, /@sdkwork\/appbase-pc-react/u, 'Vite must alias appbase PC package source');

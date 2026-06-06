@@ -12,7 +12,6 @@ profile.
 - `MemoryRealtimeDisconnectFenceStore`
 - `MemoryRealtimeSubscriptionStore`
 - `MemoryStreamStateStore`
-- `MemoryRtcStateStore`
 - `MemoryNotificationTaskStore`
 - `MemoryAutomationExecutionStore`
 - `MemoryPresenceStateStore`

@@ -27,13 +27,16 @@ media-service = { path = "../media-service" }
 notification-service = { path = "../notification-service" }
 ops-service = { path = "../ops-service" }
 projection-service = { path = "../projection-service" }
-rtc-signaling-service = { path = "../rtc-signaling-service" }
 session-gateway = { path = "../session-gateway" }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml = "0.9.34"
 sha2 = "0.10"
 sdkwork-agent-business = { path = "../../../../../../../sdkwork-opensource/sdkwork-kernel/sdkwork-agent-business", features = ["http-axum"] }
+sdkwork-rtc-core = { path = "D:/sdkwork-opensource/sdkwork-rtc/crates/sdkwork-rtc-core" }
+sdkwork-rtc-app-context = { path = "D:/sdkwork-opensource/sdkwork-rtc/crates/sdkwork-rtc-app-context" }
+sdkwork-rtc-signaling-service = { path = "D:/sdkwork-opensource/sdkwork-rtc/services/sdkwork-rtc-signaling-service" }
+sdkwork-rtc-state-store = { path = "D:/sdkwork-opensource/sdkwork-rtc/crates/sdkwork-rtc-state-store" }
 streaming-service = { path = "../streaming-service" }
 tokio.workspace = true
 tower.workspace = true

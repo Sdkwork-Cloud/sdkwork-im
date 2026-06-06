@@ -15,7 +15,7 @@
         "session-gateway",
         "conversation-runtime",
         "projection-service",
-        "rtc-signaling-service",
+        "sdkwork-rtc-signaling-service",
         "notification-service",
         "automation-service",
         "streaming-service",

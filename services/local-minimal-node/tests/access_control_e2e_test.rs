@@ -353,7 +353,7 @@ async fn test_non_member_cannot_create_conversation_bound_rtc_session() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .intruder_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -408,7 +408,7 @@ async fn test_non_member_cannot_mutate_conversation_bound_rtc_signal_state() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -429,7 +429,7 @@ async fn test_non_member_cannot_mutate_conversation_bound_rtc_signal_state() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_private_signal/signals")
+                .uri("/app/v3/api/rtc/sessions/rtc_private_signal/signals")
                 .intruder_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -463,7 +463,7 @@ async fn test_non_member_cannot_mutate_conversation_bound_rtc_signal_state() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_private_signal/signals")
+                .uri("/app/v3/api/rtc/sessions/rtc_private_signal/signals")
                 .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2808,7 +2808,7 @@ async fn test_conversation_bound_rtc_writes_reject_bearer_actor_kind_mismatch() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .owner_as_agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2841,7 +2841,7 @@ async fn test_conversation_bound_rtc_writes_reject_bearer_actor_kind_mismatch() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2862,7 +2862,7 @@ async fn test_conversation_bound_rtc_writes_reject_bearer_actor_kind_mismatch() 
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_actor_kind_guard_http/signals")
+                .uri("/app/v3/api/rtc/sessions/rtc_actor_kind_guard_http/signals")
                 .owner_as_agent_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4254,7 +4254,7 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4290,7 +4290,7 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_handoff_closed_local/signals")
+                .uri("/app/v3/api/rtc/sessions/rtc_handoff_closed_local/signals")
                 .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4320,7 +4320,7 @@ async fn test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4928,7 +4928,7 @@ async fn test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_l
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .system_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4949,7 +4949,7 @@ async fn test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_l
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_system_channel_local/signals")
+                .uri("/app/v3/api/rtc/sessions/rtc_system_channel_local/signals")
                 .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4978,7 +4978,7 @@ async fn test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_l
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .owner_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(

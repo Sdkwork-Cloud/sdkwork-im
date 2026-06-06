@@ -35,13 +35,13 @@ use conversation_runtime::{
 use im_adapters_local_disk::{
     FileAutomationExecutionStore, FileCommitJournal, FileMetadataStore, FileNotificationTaskStore,
     FilePresenceStateStore, FileRealtimeCheckpointStore, FileRealtimeDisconnectFenceStore,
-    FileRealtimeEventWindowStore, FileRealtimeSubscriptionStore, FileRtcStateStore,
-    FileStreamStateStore, FileTimelineProjectionStore, read_commit_journal_file,
+    FileRealtimeEventWindowStore, FileRealtimeSubscriptionStore, FileStreamStateStore,
+    FileTimelineProjectionStore, read_commit_journal_file,
     validate_automation_execution_store_file, validate_commit_journal_file,
     validate_notification_task_store_file, validate_presence_state_store_file,
     validate_realtime_checkpoint_store_file, validate_realtime_disconnect_fence_store_file,
     validate_realtime_event_window_store_file, validate_realtime_subscription_store_file,
-    validate_rtc_state_store_file, validate_stream_state_store_file,
+    validate_stream_state_store_file,
 };
 use im_adapters_local_memory::{MemoryCommitJournal, MemoryRealtimeCheckpointStore};
 use im_app_context::{AppContext, AppContextError};
@@ -58,7 +58,7 @@ use im_platform_contracts::{
     IotProtocolAdapter, MetadataStore, PROVIDER_REGISTRY_INTERFACE_VERSION,
     PrincipalProfileProvider, ProviderDomain, ProviderPluginDescriptor, ProviderRegistry,
     RealtimeCheckpointRecord, RealtimeDisconnectFenceRecord, RealtimeEventWindowRecord,
-    RealtimeSubscriptionRecord, RtcStateRecord, StaticProviderRegistry, StreamStateRecord,
+    RealtimeSubscriptionRecord, StaticProviderRegistry, StreamStateRecord,
 };
 use notification_service::NotificationRuntime;
 use ops_service::{
@@ -70,11 +70,14 @@ use projection_service::{
     ContactView, ConversationMemberDirectoryEntry, MessageInteractionSummaryView,
     NotificationRecipientView, ProjectionAccessError, TimelineProjectionService,
 };
-use rtc_signaling_service::{
+use sdkwork_rtc_core::{ProviderHealthSnapshot, RtcCallbackEvent, RtcCallbackRequest, RtcStateRecord};
+use sdkwork_rtc_app_context::AppContext as RtcAppContext;
+use sdkwork_rtc_signaling_service::{
     CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest,
     PostRtcSignalRequest, RtcRuntime, RtcSessionMutationResponse, UpdateRtcSessionRequest,
     rtc_create_request_key, rtc_session_action_request_key,
 };
+use sdkwork_rtc_state_store::{FileRtcStateStore, validate_rtc_state_store_file};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use session_gateway::{
@@ -114,6 +117,24 @@ mod social;
 mod stream;
 
 use self::device_registration::{DisconnectActiveDeviceRouteOutcome, LocalNodeDeviceRegistration};
+
+fn rtc_app_context_from_auth(auth: &AppContext) -> RtcAppContext {
+    RtcAppContext {
+        tenant_id: auth.tenant_id.clone(),
+        organization_id: auth.organization_id.clone(),
+        user_id: auth.user_id.clone(),
+        session_id: auth.session_id.clone(),
+        app_id: auth.app_id.clone(),
+        environment: auth.environment.clone(),
+        deployment_mode: auth.deployment_mode.clone(),
+        auth_level: auth.auth_level.clone(),
+        data_scope: auth.data_scope.clone(),
+        permission_scope: auth.permission_scope.clone(),
+        actor_id: auth.actor_id.clone(),
+        actor_kind: auth.actor_kind.clone(),
+        device_id: auth.device_id.clone(),
+    }
+}
 
 pub use build::{
     build_app_with_dependencies, build_app_with_dependencies_and_runtime,
@@ -350,7 +371,7 @@ impl AppState {
         }
 
         if let Ok(binding) = self.rtc_runtime.provider_binding(None) {
-            bindings.insert(ProviderDomain::Rtc, binding);
+            bindings.insert(ProviderDomain::Rtc, provider_binding_from_rtc(binding));
         }
         bindings.insert(
             ProviderDomain::PrincipalProfile,
@@ -407,6 +428,18 @@ fn binding_from_descriptor(
     };
     binding.tenant_override_allowed = descriptor.tenant_override_allowed;
     binding
+}
+
+fn provider_binding_from_rtc(
+    binding: sdkwork_rtc_core::EffectiveProviderBinding,
+) -> EffectiveProviderBinding {
+    EffectiveProviderBinding {
+        domain: ProviderDomain::Rtc,
+        default_plugin_id: binding.default_plugin_id,
+        selected_plugin_id: binding.selected_plugin_id,
+        selection_source: binding.selection_source,
+        tenant_override_allowed: binding.tenant_override_allowed,
+    }
 }
 
 fn provider_binding_item_view(binding: &EffectiveProviderBinding) -> ProviderBindingItemView {
@@ -1596,8 +1629,8 @@ impl From<streaming_service::StreamingError> for ApiError {
     }
 }
 
-impl From<rtc_signaling_service::RtcError> for ApiError {
-    fn from(value: rtc_signaling_service::RtcError) -> Self {
+impl From<sdkwork_rtc_signaling_service::RtcError> for ApiError {
+    fn from(value: sdkwork_rtc_signaling_service::RtcError) -> Self {
         Self {
             status: value.status(),
             code: value.code(),

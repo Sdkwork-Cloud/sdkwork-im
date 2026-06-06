@@ -229,7 +229,7 @@ for (const [dependencyName, expectedVersion] of Object.entries({
   '@sdkwork-internal/im-app-api-generated': 'link:../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi',
   '@sdkwork-internal/im-backend-api-generated': 'link:../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi',
   '@sdkwork/im-sdk': 'link:../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript',
-  '@sdkwork/rtc-sdk': 'link:../../sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript',
+  '@sdkwork/rtc-sdk': 'link:../../../../../../../sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript',
 })) {
   assert.equal(
     sharedSdkOverrides[dependencyName],

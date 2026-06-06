@@ -8,7 +8,6 @@ use im_domain_core::automation::{AutomationExecution, AutomationExecutionState};
 use im_domain_core::device_session::{DevicePresenceStatus, DevicePresenceView};
 use im_domain_core::notification::{NotificationStatus, NotificationTask};
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
-use im_domain_core::rtc::{RtcSession, RtcSessionState, RtcSignalEvent};
 use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
 };
@@ -18,61 +17,8 @@ use im_platform_contracts::{
     PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
     RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore, RealtimeEventWindowRecord,
     RealtimeEventWindowStore, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
-    RtcStateRecord, RtcStateStore, StreamStateRecord, StreamStateStore,
+    StreamStateRecord, StreamStateStore,
 };
-
-fn rtc_state_record(
-    state: RtcSessionState,
-    updated_at: &str,
-    signals: Vec<RtcSignalEvent>,
-) -> RtcStateRecord {
-    RtcStateRecord {
-        tenant_id: "t_demo".into(),
-        rtc_session_id: "rtc_demo".into(),
-        session: RtcSession {
-            tenant_id: "t_demo".into(),
-            rtc_session_id: "rtc_demo".into(),
-            conversation_id: Some("c_demo".into()),
-            rtc_mode: "voice".into(),
-            initiator_id: "u_demo".into(),
-            initiator_kind: "user".into(),
-            provider_plugin_id: Some("webrtc".into()),
-            provider_session_id: Some("ps_demo".into()),
-            access_endpoint: Some("wss://rtc.example.test/session/ps_demo".into()),
-            provider_region: Some("cn-shanghai".into()),
-            state,
-            signaling_stream_id: Some("st_demo".into()),
-            artifact_message_id: None,
-            started_at: "2026-05-06T00:00:00.000Z".into(),
-            ended_at: None,
-        },
-        signals,
-        updated_at: updated_at.into(),
-    }
-}
-
-fn rtc_signal_event(signal_seq: u64) -> RtcSignalEvent {
-    RtcSignalEvent {
-        tenant_id: "t_demo".into(),
-        rtc_session_id: "rtc_demo".into(),
-        signal_seq,
-        conversation_id: Some("c_demo".into()),
-        rtc_mode: "voice".into(),
-        signal_type: format!("rtc.signal.{signal_seq}"),
-        schema_ref: Some("webrtc.signal.v1".into()),
-        payload: format!("{{\"seq\":{signal_seq}}}"),
-        sender: im_domain_core::message::Sender {
-            id: "u_demo".into(),
-            kind: "user".into(),
-            member_id: None,
-            device_id: Some("d_demo".into()),
-            session_id: Some("s_demo".into()),
-            metadata: BTreeMap::new(),
-        },
-        signaling_stream_id: Some("st_demo".into()),
-        occurred_at: format!("2026-05-06T00:00:0{signal_seq}.000Z"),
-    }
-}
 
 fn realtime_disconnect_fence_record(
     principal_id: &str,
@@ -272,14 +218,6 @@ fn unique_stream_state_store_file() -> PathBuf {
         .expect("system time should be after epoch")
         .as_nanos();
     std::env::temp_dir().join(format!("craw_chat_stream_state_store_{unique}.json"))
-}
-
-fn unique_rtc_state_store_file() -> PathBuf {
-    let unique = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system time should be after epoch")
-        .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_rtc_state_store_{unique}.json"))
 }
 
 fn unique_notification_task_store_file() -> PathBuf {
@@ -1239,134 +1177,6 @@ fn test_file_subscription_store_compares_cutoff_by_rfc3339_instant() {
             .expect("subscription load should succeed")
             .is_some(),
         "fractional-second later subscription must not be deleted by whole-second cutoff"
-    );
-
-    let _ = fs::remove_file(file_path);
-}
-
-#[test]
-fn test_file_rtc_state_store_persists_across_reopen() {
-    let file_path = unique_rtc_state_store_file();
-    let store = FileRtcStateStore::new(&file_path);
-    store
-        .save_state(RtcStateRecord {
-            tenant_id: "t_demo".into(),
-            rtc_session_id: "rtc_demo".into(),
-            session: im_domain_core::rtc::RtcSession {
-                tenant_id: "t_demo".into(),
-                rtc_session_id: "rtc_demo".into(),
-                conversation_id: Some("c_demo".into()),
-                rtc_mode: "voice".into(),
-                initiator_id: "u_demo".into(),
-                initiator_kind: "user".into(),
-                provider_plugin_id: Some("webrtc".into()),
-                provider_session_id: Some("ps_demo".into()),
-                access_endpoint: Some("wss://rtc.example.test/session/ps_demo".into()),
-                provider_region: Some("cn-shanghai".into()),
-                state: im_domain_core::rtc::RtcSessionState::Accepted,
-                signaling_stream_id: Some("st_demo".into()),
-                artifact_message_id: Some("msg_accept".into()),
-                started_at: "2026-04-06T00:00:00.000Z".into(),
-                ended_at: None,
-            },
-            signals: vec![im_domain_core::rtc::RtcSignalEvent {
-                tenant_id: "t_demo".into(),
-                rtc_session_id: "rtc_demo".into(),
-                signal_seq: 1,
-                conversation_id: Some("c_demo".into()),
-                rtc_mode: "voice".into(),
-                signal_type: "rtc.offer".into(),
-                schema_ref: Some("webrtc.offer.v1".into()),
-                payload: "{\"sdp\":\"offer\"}".into(),
-                sender: im_domain_core::message::Sender {
-                    id: "u_demo".into(),
-                    kind: "user".into(),
-                    member_id: None,
-                    device_id: Some("d_demo".into()),
-                    session_id: Some("s_demo".into()),
-                    metadata: BTreeMap::new(),
-                },
-                signaling_stream_id: Some("st_demo".into()),
-                occurred_at: "2026-04-06T00:00:01.000Z".into(),
-            }],
-            updated_at: "2026-04-06T00:00:02.000Z".into(),
-        })
-        .expect("save should succeed");
-
-    let reopened = FileRtcStateStore::new(&file_path);
-    let restored = reopened
-        .load_state("t_demo", "rtc_demo")
-        .expect("load should succeed")
-        .expect("rtc state should exist");
-    assert_eq!(
-        restored.session.state,
-        im_domain_core::rtc::RtcSessionState::Accepted
-    );
-    assert_eq!(
-        restored.session.signaling_stream_id.as_deref(),
-        Some("st_demo")
-    );
-    assert_eq!(
-        restored.session.provider_plugin_id.as_deref(),
-        Some("webrtc")
-    );
-    assert_eq!(
-        restored.session.access_endpoint.as_deref(),
-        Some("wss://rtc.example.test/session/ps_demo")
-    );
-    assert_eq!(restored.signals.len(), 1);
-    assert_eq!(restored.signals[0].signal_seq, 1);
-    assert_eq!(restored.signals[0].signal_type, "rtc.offer");
-
-    assert!(
-        reopened
-            .clear_state("t_demo", "rtc_demo")
-            .expect("clear should succeed")
-    );
-
-    let reopened_after_clear = FileRtcStateStore::new(&file_path);
-    assert!(
-        reopened_after_clear
-            .load_state("t_demo", "rtc_demo")
-            .expect("load after clear should succeed")
-            .is_none()
-    );
-
-    let _ = fs::remove_file(file_path);
-}
-
-#[test]
-fn test_file_rtc_state_store_merges_signals_and_rejects_stale_session_regression() {
-    let file_path = unique_rtc_state_store_file();
-    let store = FileRtcStateStore::new(&file_path);
-    store
-        .save_state(rtc_state_record(
-            RtcSessionState::Accepted,
-            "2026-05-06T00:00:02.000Z",
-            vec![rtc_signal_event(1), rtc_signal_event(2)],
-        ))
-        .expect("new rtc state save should succeed");
-    store
-        .save_state(rtc_state_record(
-            RtcSessionState::Started,
-            "2026-05-06T00:00:01.000Z",
-            vec![rtc_signal_event(1)],
-        ))
-        .expect("stale rtc state save should not fail the caller");
-
-    let state = store
-        .load_state("t_demo", "rtc_demo")
-        .expect("rtc state load should succeed")
-        .expect("rtc state should be present");
-    assert_eq!(state.session.state, RtcSessionState::Accepted);
-    assert_eq!(state.updated_at, "2026-05-06T00:00:02.000Z");
-    assert_eq!(
-        state
-            .signals
-            .iter()
-            .map(|signal| signal.signal_seq)
-            .collect::<Vec<_>>(),
-        vec![1, 2]
     );
 
     let _ = fs::remove_file(file_path);

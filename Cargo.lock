@@ -526,16 +526,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "craw-chat-contract-rtc"
-version = "0.1.0"
-dependencies = [
- "craw-chat-contract-core",
- "im-domain-core",
- "im-time",
- "serde",
-]
-
-[[package]]
 name = "craw-chat-contract-stream"
 version = "0.1.0"
 dependencies = [
@@ -1158,33 +1148,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "im-adapter-rtc-aliyun"
-version = "0.1.0"
-dependencies = [
- "craw-chat-contract-core",
- "im-platform-contracts",
- "im-time",
-]
-
-[[package]]
-name = "im-adapter-rtc-tencent"
-version = "0.1.0"
-dependencies = [
- "craw-chat-contract-core",
- "im-platform-contracts",
- "im-time",
-]
-
-[[package]]
-name = "im-adapter-rtc-volcengine"
-version = "0.1.0"
-dependencies = [
- "craw-chat-contract-core",
- "im-platform-contracts",
- "im-time",
-]
-
-[[package]]
 name = "im-adapters-local-disk"
 version = "0.1.0"
 dependencies = [
@@ -1239,6 +1202,7 @@ dependencies = [
 name = "im-domain-core"
 version = "0.1.0"
 dependencies = [
+ "sdkwork-rtc-core",
  "serde",
  "serde_json",
 ]
@@ -1272,11 +1236,11 @@ dependencies = [
  "craw-chat-contract-iot",
  "craw-chat-contract-message",
  "craw-chat-contract-notification",
- "craw-chat-contract-rtc",
  "craw-chat-contract-stream",
  "im-domain-core",
  "im-domain-events",
  "im-time",
+ "sdkwork-rtc-core",
  "serde",
  "serde_json",
 ]
@@ -1431,8 +1395,11 @@ dependencies = [
  "ops-service",
  "projection-service",
  "regex",
- "rtc-signaling-service",
  "sdkwork-agent-business",
+ "sdkwork-rtc-app-context",
+ "sdkwork-rtc-core",
+ "sdkwork-rtc-signaling-service",
+ "sdkwork-rtc-state-store",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2066,32 +2033,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rtc-signaling-service"
-version = "0.1.0"
-dependencies = [
- "axum",
- "craw-chat-api-registry",
- "craw-chat-contract-core",
- "craw-chat-contract-rtc",
- "craw-chat-openapi",
- "http-body-util",
- "im-adapter-rtc-aliyun",
- "im-adapter-rtc-tencent",
- "im-adapter-rtc-volcengine",
- "im-adapters-local-memory",
- "im-app-context",
- "im-domain-core",
- "im-platform-contracts",
- "im-time",
- "serde",
- "serde_json",
- "tokio",
- "tower",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "rustc-hash"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2224,6 +2165,105 @@ name = "sdkwork-code-kernel"
 version = "0.1.0"
 dependencies = [
  "sdkwork-agent-kernel",
+]
+
+[[package]]
+name = "sdkwork-rtc-adapter-agora"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-rtc-core",
+]
+
+[[package]]
+name = "sdkwork-rtc-adapter-aliyun"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-rtc-core",
+]
+
+[[package]]
+name = "sdkwork-rtc-adapter-livekit"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-rtc-core",
+]
+
+[[package]]
+name = "sdkwork-rtc-adapter-tencent"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-rtc-core",
+]
+
+[[package]]
+name = "sdkwork-rtc-adapter-volcengine"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-rtc-core",
+]
+
+[[package]]
+name = "sdkwork-rtc-api-registry"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "sdkwork-rtc-app-context"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "base64",
+ "hmac 0.12.1",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "sdkwork-rtc-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-rtc-openapi"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-rtc-api-registry",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-rtc-signaling-service"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "sdkwork-rtc-adapter-agora",
+ "sdkwork-rtc-adapter-aliyun",
+ "sdkwork-rtc-adapter-livekit",
+ "sdkwork-rtc-adapter-tencent",
+ "sdkwork-rtc-adapter-volcengine",
+ "sdkwork-rtc-api-registry",
+ "sdkwork-rtc-app-context",
+ "sdkwork-rtc-core",
+ "sdkwork-rtc-openapi",
+ "sdkwork-rtc-state-store",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "sdkwork-rtc-state-store"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-rtc-core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

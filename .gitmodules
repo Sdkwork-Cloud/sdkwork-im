@@ -1,6 +1,3 @@
-[submodule "sdks/sdkwork-rtc-sdk"]
-	path = sdks/sdkwork-rtc-sdk
-	url = https://github.com/Sdkwork-Cloud/sdkwork-rtc-sdk.git
 [submodule "sdks/sdkwork-im-sdk"]
 	path = sdks/sdkwork-im-sdk
 	url = https://github.com/Sdkwork-Cloud/sdkwork-im-sdk.git

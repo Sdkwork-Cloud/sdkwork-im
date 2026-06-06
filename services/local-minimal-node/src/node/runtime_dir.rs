@@ -190,6 +190,20 @@ fn runtime_state_parse_failure(error: ContractError) -> RuntimeStateValidationFa
     }
 }
 
+fn runtime_rtc_state_parse_failure(
+    error: sdkwork_rtc_core::RtcContractError,
+) -> RuntimeStateValidationFailure {
+    let message = match error {
+        sdkwork_rtc_core::RtcContractError::UnsupportedCapability(message)
+        | sdkwork_rtc_core::RtcContractError::Conflict(message)
+        | sdkwork_rtc_core::RtcContractError::Unavailable(message) => message,
+    };
+    RuntimeStateValidationFailure {
+        parseable: false,
+        error: message,
+    }
+}
+
 pub(crate) fn apply_projection_journal_envelopes(
     recorded: &[CommitEnvelope],
     projection_service: &TimelineProjectionService,
@@ -261,7 +275,7 @@ fn validate_runtime_state_file(
             validate_stream_state_store_file(file_path).map_err(runtime_state_parse_failure)
         }
         "rtc-state.json" => {
-            validate_rtc_state_store_file(file_path).map_err(runtime_state_parse_failure)
+            validate_rtc_state_store_file(file_path).map_err(runtime_rtc_state_parse_failure)
         }
         "notification-tasks.json" => {
             validate_notification_task_store_file(file_path).map_err(runtime_state_parse_failure)

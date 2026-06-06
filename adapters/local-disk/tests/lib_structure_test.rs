@@ -14,16 +14,12 @@ fn test_local_disk_state_store_surface_moves_out_of_lib_impl() {
 
     for forbidden_symbol in [
         "pub struct FileStreamStateStore {",
-        "pub struct FileRtcStateStore {",
         "pub struct FilePresenceStateStore {",
         "impl StreamStateStore for FileStreamStateStore {",
-        "impl RtcStateStore for FileRtcStateStore {",
         "impl PresenceStateStore for FilePresenceStateStore {",
         "pub fn validate_stream_state_store_file(",
-        "pub fn validate_rtc_state_store_file(",
         "pub fn validate_presence_state_store_file(",
         "fn stream_scope_key(",
-        "fn rtc_scope_key(",
     ] {
         assert!(
             !lib_source.contains(forbidden_symbol),
@@ -49,6 +45,25 @@ fn test_local_disk_ops_store_surface_moves_out_of_lib_impl() {
         assert!(
             !lib_source.contains(forbidden_symbol),
             "adapters/local-disk/src/lib.rs should not keep ops-store symbol: {forbidden_symbol}"
+        );
+    }
+}
+
+#[test]
+fn test_local_disk_does_not_own_rtc_state_store_surface() {
+    let state_source = include_str!("../src/state.rs");
+    let lib_source = include_str!("../src/lib.rs");
+
+    for forbidden_symbol in [
+        "pub struct FileRtcStateStore",
+        "impl RtcStateStore for FileRtcStateStore",
+        "pub fn validate_rtc_state_store_file",
+        "RtcStateRecord",
+        "RtcStateStore",
+    ] {
+        assert!(
+            !state_source.contains(forbidden_symbol) && !lib_source.contains(forbidden_symbol),
+            "RTC state store must be owned by sdkwork-rtc, not local-disk: {forbidden_symbol}"
         );
     }
 }

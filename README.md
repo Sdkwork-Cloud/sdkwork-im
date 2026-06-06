@@ -38,7 +38,7 @@ craw-chat/
 - `conversation-runtime`
 - `session-gateway`
 - `streaming-service`
-- `rtc-signaling-service`
+- `sdkwork-rtc-signaling-service` (owned by `D:\sdkwork-opensource\sdkwork-rtc`)
 - `media-service`
 - `notification-service`
 - `automation-service`

@@ -568,7 +568,7 @@ fn test_continuous_optimization_docs_freeze_sdk_release_catalog_contract() {
             "rtc",
             "typescript",
             "@sdkwork/rtc-sdk",
-            "sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/README.md",
+            "D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/README.md",
         ),
     ] {
         assert!(

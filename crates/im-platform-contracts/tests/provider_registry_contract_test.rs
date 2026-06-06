@@ -12,6 +12,7 @@ use im_platform_contracts::{
     RtcCreateSessionRequest, RtcParticipantCredential, RtcProviderPort, RtcRecordingArtifact,
     RtcSessionHandle, RuntimeProviderRegistry, StaticProviderRegistry,
 };
+use sdkwork_rtc_core::RtcContractError;
 
 #[derive(Clone)]
 struct StubRtcProvider;
@@ -31,7 +32,7 @@ impl RtcProviderPort for StubRtcProvider {
     fn create_session(
         &self,
         request: RtcCreateSessionRequest,
-    ) -> Result<RtcSessionHandle, craw_chat_contract_core::ContractError> {
+    ) -> Result<RtcSessionHandle, RtcContractError> {
         Ok(RtcSessionHandle {
             tenant_id: request.tenant_id,
             rtc_session_id: request.rtc_session_id,
@@ -45,7 +46,7 @@ impl RtcProviderPort for StubRtcProvider {
         &self,
         _tenant_id: &str,
         _rtc_session_id: &str,
-    ) -> Result<bool, craw_chat_contract_core::ContractError> {
+    ) -> Result<bool, RtcContractError> {
         Ok(true)
     }
 
@@ -54,7 +55,7 @@ impl RtcProviderPort for StubRtcProvider {
         tenant_id: &str,
         rtc_session_id: &str,
         participant_id: &str,
-    ) -> Result<RtcParticipantCredential, craw_chat_contract_core::ContractError> {
+    ) -> Result<RtcParticipantCredential, RtcContractError> {
         Ok(RtcParticipantCredential {
             tenant_id: tenant_id.into(),
             rtc_session_id: rtc_session_id.into(),
@@ -69,14 +70,14 @@ impl RtcProviderPort for StubRtcProvider {
         tenant_id: &str,
         rtc_session_id: &str,
         participant_id: &str,
-    ) -> Result<RtcParticipantCredential, craw_chat_contract_core::ContractError> {
+    ) -> Result<RtcParticipantCredential, RtcContractError> {
         self.issue_participant_credential(tenant_id, rtc_session_id, participant_id)
     }
 
     fn map_provider_callback(
         &self,
         request: RtcCallbackRequest,
-    ) -> Result<RtcCallbackEvent, craw_chat_contract_core::ContractError> {
+    ) -> Result<RtcCallbackEvent, RtcContractError> {
         Ok(RtcCallbackEvent {
             rtc_session_id: request.rtc_session_id,
             event_type: request.callback_type,
@@ -89,7 +90,7 @@ impl RtcProviderPort for StubRtcProvider {
         &self,
         tenant_id: &str,
         rtc_session_id: &str,
-    ) -> Result<Option<RtcRecordingArtifact>, craw_chat_contract_core::ContractError> {
+    ) -> Result<Option<RtcRecordingArtifact>, RtcContractError> {
         Ok(Some(RtcRecordingArtifact::drive_backed_recording(
             tenant_id,
             rtc_session_id,

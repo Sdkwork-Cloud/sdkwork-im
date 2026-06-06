@@ -51,7 +51,7 @@ repo-local generation state:
 | `sdks/sdkwork-im-sdk` | `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml` | `node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs` |
 | `sdks/sdkwork-im-app-sdk` | `sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml` | `node ./sdks/sdkwork-im-app-sdk/bin/verify-sdk.mjs` |
 | `sdks/sdkwork-im-backend-sdk` | `sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml` | `node ./sdks/sdkwork-im-backend-sdk/bin/verify-sdk.mjs` |
-| `sdks/sdkwork-rtc-sdk` | `sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json` | `node ./sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs` |
+| `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk` | `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json` | `node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs` |
 
 The OpenAPI-generated families share the SDKWork dual-token standard and generate from OpenAPI 3.x.
 The RTC SDK is intentionally separate: it owns provider catalogs, provider package boundaries,

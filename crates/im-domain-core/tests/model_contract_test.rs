@@ -22,10 +22,10 @@ use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEvent, RealtimeEventWindow, RealtimeSubscription,
     RealtimeSubscriptionSnapshot,
 };
-use im_domain_core::rtc::{RtcSession, RtcSessionState, RtcSignalEvent};
 use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
 };
+use sdkwork_rtc_core::{RtcSession, RtcSessionState, RtcSignalEvent, RtcSignalSender};
 use serde_json::{Value, json};
 
 #[test]
@@ -35,7 +35,7 @@ fn test_message_body_serializes_content_parts_with_expected_shape() {
         conversation_id: "c_demo".into(),
         message_id: "m_demo".into(),
         message_seq: 1,
-        sender: Sender {
+        sender: RtcSignalSender {
             id: "u_demo".into(),
             kind: "user".into(),
             member_id: Some("cm_demo".into()),

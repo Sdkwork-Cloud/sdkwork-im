@@ -954,7 +954,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -975,7 +975,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_demo/invite")
+                .uri("/app/v3/api/rtc/sessions/rtc_demo/invite")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -994,7 +994,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_demo/signals")
+                .uri("/app/v3/api/rtc/sessions/rtc_demo/signals")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1015,7 +1015,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_demo/accept")
+                .uri("/app/v3/api/rtc/sessions/rtc_demo/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1034,7 +1034,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_demo/end")
+                .uri("/app/v3/api/rtc/sessions/rtc_demo/end")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2416,7 +2416,7 @@ async fn test_local_minimal_profile_projects_rtc_state_changes_into_signal_messa
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2437,7 +2437,7 @@ async fn test_local_minimal_profile_projects_rtc_state_changes_into_signal_messa
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_signal_demo/invite")
+                .uri("/app/v3/api/rtc/sessions/rtc_signal_demo/invite")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2456,7 +2456,7 @@ async fn test_local_minimal_profile_projects_rtc_state_changes_into_signal_messa
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_signal_demo/signals")
+                .uri("/app/v3/api/rtc/sessions/rtc_signal_demo/signals")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2477,7 +2477,7 @@ async fn test_local_minimal_profile_projects_rtc_state_changes_into_signal_messa
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_signal_demo/accept")
+                .uri("/app/v3/api/rtc/sessions/rtc_signal_demo/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2496,7 +2496,7 @@ async fn test_local_minimal_profile_projects_rtc_state_changes_into_signal_messa
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_signal_demo/end")
+                .uri("/app/v3/api/rtc/sessions/rtc_signal_demo/end")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2645,7 +2645,7 @@ async fn test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idemp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2685,7 +2685,7 @@ async fn test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idemp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_local_idempotent/accept")
+                .uri("/app/v3/api/rtc/sessions/rtc_local_idempotent/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2704,7 +2704,7 @@ async fn test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idemp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2743,7 +2743,7 @@ async fn test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idemp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2798,7 +2798,7 @@ async fn test_local_minimal_profile_retrieves_rtc_session_for_state_backfill() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2819,7 +2819,7 @@ async fn test_local_minimal_profile_retrieves_rtc_session_for_state_backfill() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_retrieve/accept")
+                .uri("/app/v3/api/rtc/sessions/rtc_retrieve/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2838,7 +2838,7 @@ async fn test_local_minimal_profile_retrieves_rtc_session_for_state_backfill() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/im/v3/api/rtc/sessions/rtc_retrieve")
+                .uri("/app/v3/api/rtc/sessions/rtc_retrieve")
                 .demo_app_context()
                 .body(Body::empty())
                 .unwrap(),
@@ -2867,7 +2867,7 @@ async fn test_local_minimal_profile_retrieves_rtc_session_for_state_backfill() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/im/v3/api/rtc/sessions/rtc_retrieve_missing")
+                .uri("/app/v3/api/rtc/sessions/rtc_retrieve_missing")
                 .demo_app_context()
                 .body(Body::empty())
                 .unwrap(),
@@ -2895,7 +2895,7 @@ async fn test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "shared_actor")
                 .header("x-sdkwork-actor-kind", "user")
@@ -2931,7 +2931,7 @@ async fn test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "shared_actor")
                 .header("x-sdkwork-actor-kind", "system")
@@ -2987,7 +2987,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3008,7 +3008,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_state_side_effects/accept")
+                .uri("/app/v3/api/rtc/sessions/rtc_state_side_effects/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3027,7 +3027,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_state_side_effects/accept")
+                .uri("/app/v3/api/rtc/sessions/rtc_state_side_effects/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3065,7 +3065,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_state_side_effects/end")
+                .uri("/app/v3/api/rtc/sessions/rtc_state_side_effects/end")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3084,7 +3084,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_state_side_effects/end")
+                .uri("/app/v3/api/rtc/sessions/rtc_state_side_effects/end")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3103,7 +3103,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_state_side_effects/reject")
+                .uri("/app/v3/api/rtc/sessions/rtc_state_side_effects/reject")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -10021,7 +10021,7 @@ async fn test_local_minimal_profile_rejects_conflicting_invite_after_accept_with
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -10042,7 +10042,7 @@ async fn test_local_minimal_profile_rejects_conflicting_invite_after_accept_with
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_invite_conflict/invite")
+                .uri("/app/v3/api/rtc/sessions/rtc_invite_conflict/invite")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -10061,7 +10061,7 @@ async fn test_local_minimal_profile_rejects_conflicting_invite_after_accept_with
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_invite_conflict/accept")
+                .uri("/app/v3/api/rtc/sessions/rtc_invite_conflict/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -10080,7 +10080,7 @@ async fn test_local_minimal_profile_rejects_conflicting_invite_after_accept_with
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_invite_conflict/invite")
+                .uri("/app/v3/api/rtc/sessions/rtc_invite_conflict/invite")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -10143,7 +10143,7 @@ async fn test_local_minimal_profile_issues_rtc_participant_credential_over_http(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -10164,7 +10164,7 @@ async fn test_local_minimal_profile_issues_rtc_participant_credential_over_http(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions/rtc_local_provider_http/credentials")
+                .uri("/app/v3/api/rtc/sessions/rtc_local_provider_http/credentials")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -10245,7 +10245,7 @@ async fn test_local_minimal_profile_maps_rtc_provider_callback_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -10308,7 +10308,7 @@ async fn test_local_minimal_profile_gets_rtc_recording_artifact_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -10328,7 +10328,7 @@ async fn test_local_minimal_profile_gets_rtc_recording_artifact_over_http() {
     let artifact_response = app
         .oneshot(
             Request::builder()
-                .uri("/im/v3/api/rtc/sessions/rtc_local_recording_http/artifacts/recording")
+                .uri("/app/v3/api/rtc/sessions/rtc_local_recording_http/artifacts/recording")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -16091,7 +16091,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_rtc_create_afte
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")
                 .header("x-sdkwork-actor-kind", "user")
@@ -16116,7 +16116,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_rtc_create_afte
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")
                 .header("x-sdkwork-actor-kind", "user")
@@ -16368,7 +16368,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/rtc/sessions")
+                .uri("/app/v3/api/rtc/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")
                 .header("x-sdkwork-actor-kind", "user")
@@ -16393,7 +16393,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/im/v3/api/rtc/sessions/{rtc_session_id}/credentials"
+                    "/app/v3/api/rtc/sessions/{rtc_session_id}/credentials"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")
@@ -16418,7 +16418,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/im/v3/api/rtc/sessions/{rtc_session_id}/credentials"
+                    "/app/v3/api/rtc/sessions/{rtc_session_id}/credentials"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")

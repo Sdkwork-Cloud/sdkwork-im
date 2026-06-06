@@ -9,9 +9,8 @@ use im_platform_contracts::{
     RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
     RealtimeDisconnectFenceStore, RealtimeEventWindowDiagnosticsSnapshot,
     RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeMatchingSubscriptionQuery,
-    RealtimeSubscriptionRecord, RealtimeSubscriptionStore, RtcStateRecord, RtcStateStore,
-    StreamStateRecord, StreamStateStore, TimelineProjectionBatch, TimelineProjectionRecord,
-    TimelineProjectionStore,
+    RealtimeSubscriptionRecord, RealtimeSubscriptionStore, StreamStateRecord, StreamStateStore,
+    TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionStore,
 };
 use im_storage_contracts::{StorageDomainSnapshot, StorageDomainSnapshotStore};
 use im_time::{rfc3339_cmp, rfc3339_le};
@@ -544,46 +543,6 @@ impl MemoryStreamStateStore {
     }
 }
 
-#[derive(Clone, Default)]
-pub struct MemoryRtcStateStore {
-    states: Arc<Mutex<HashMap<String, RtcStateRecord>>>,
-}
-
-impl MemoryRtcStateStore {
-    pub fn state(&self, tenant_id: &str, rtc_session_id: &str) -> Option<RtcStateRecord> {
-        lock_memory_mutex(&self.states, "rtc state store")
-            .get(rtc_scope_key(tenant_id, rtc_session_id).as_str())
-            .cloned()
-    }
-}
-
-impl RtcStateStore for MemoryRtcStateStore {
-    fn load_state(
-        &self,
-        tenant_id: &str,
-        rtc_session_id: &str,
-    ) -> Result<Option<RtcStateRecord>, ContractError> {
-        Ok(self.state(tenant_id, rtc_session_id))
-    }
-
-    fn save_state(&self, record: RtcStateRecord) -> Result<(), ContractError> {
-        let key = rtc_scope_key(record.tenant_id.as_str(), record.rtc_session_id.as_str());
-        let mut states = lock_memory_mutex(&self.states, "rtc state store");
-        let next = states
-            .remove(key.as_str())
-            .map(|previous| previous.merge_monotonic(record.clone()))
-            .unwrap_or(record);
-        states.insert(key, next);
-        Ok(())
-    }
-
-    fn clear_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<bool, ContractError> {
-        Ok(lock_memory_mutex(&self.states, "rtc state store")
-            .remove(rtc_scope_key(tenant_id, rtc_session_id).as_str())
-            .is_some())
-    }
-}
-
 impl StreamStateStore for MemoryStreamStateStore {
     fn load_state(
         &self,
@@ -1026,10 +985,6 @@ fn remove_presence_online_seen_at_index(
 
 fn stream_scope_key(tenant_id: &str, stream_id: &str) -> String {
     scope_key_parts(&[tenant_id, stream_id])
-}
-
-fn rtc_scope_key(tenant_id: &str, rtc_session_id: &str) -> String {
-    scope_key_parts(&[tenant_id, rtc_session_id])
 }
 
 fn notification_scope_key(tenant_id: &str, notification_id: &str) -> String {

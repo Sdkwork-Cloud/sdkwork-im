@@ -172,7 +172,6 @@ fn test_backend_openapi_security_helpers_are_named_for_app_context_not_bearer() 
         "services/notification-service/src/lib.rs",
         "services/ops-service/src/lib.rs",
         "services/projection-service/src/http.rs",
-        "services/rtc-signaling-service/src/lib.rs",
         "services/session-gateway/src/lib.rs",
         "services/streaming-service/src/lib.rs",
     ] {

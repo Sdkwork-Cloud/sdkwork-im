@@ -692,11 +692,11 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         "streams",
     ));
     entries.extend(prefix_routes(
-        "rtc-signaling-service",
+        "sdkwork-rtc-signaling-service",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/im/v3/api/rtc/{*path}"],
+        &["/app/v3/api/rtc/{*path}"],
         RouteVisibility::Public,
-        vec![SdkTarget::SdkworkImSdk],
+        vec![SdkTarget::SdkworkRtcAppSdk],
         "rtc",
     ));
     entries.extend(prefix_routes(
@@ -1527,7 +1527,7 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
         "GatewaySdkTarget".to_owned(),
         json!({
             "type": "string",
-            "enum": ["sdkworkImSdk", "sdkworkImAppSdk", "sdkworkImBackendSdk", "none"]
+            "enum": ["sdkworkImSdk", "sdkworkImAppSdk", "sdkworkImBackendSdk", "sdkworkRtcAppSdk", "none"]
         }),
     );
     schemas.insert(

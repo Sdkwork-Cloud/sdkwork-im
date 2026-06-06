@@ -12,11 +12,11 @@ craw-chat-contract-core = { path = "../craw-chat-contract-core" }
 craw-chat-contract-iot = { path = "../craw-chat-contract-iot" }
 craw-chat-contract-message = { path = "../craw-chat-contract-message" }
 craw-chat-contract-notification = { path = "../craw-chat-contract-notification" }
-craw-chat-contract-rtc = { path = "../craw-chat-contract-rtc" }
 craw-chat-contract-stream = { path = "../craw-chat-contract-stream" }
 im-domain-core = { path = "../im-domain-core" }
 im-domain-events = { path = "../im-domain-events" }
 im-time = { path = "../im-time" }
+sdkwork-rtc-core = { path = "D:/sdkwork-opensource/sdkwork-rtc/crates/sdkwork-rtc-core" }
 serde.workspace = true
 
 [dev-dependencies]

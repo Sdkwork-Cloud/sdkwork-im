@@ -13,8 +13,8 @@ use craw_chat_contract_core::{
 use craw_chat_contract_iot::{DeviceTwinRecord, DeviceTwinStore};
 use craw_chat_contract_message::{CommitJournal, CommitPosition, TimelineProjectionStore};
 use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
-use craw_chat_contract_rtc::{RtcStateRecord, RtcStateStore};
 use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
+use sdkwork_rtc_core::{RtcContractError, RtcStateRecord, RtcStateStore};
 
 struct NullAdminStore;
 struct NullMetadataStore;
@@ -268,15 +268,19 @@ impl RtcStateStore for NullRtcStore {
         &self,
         _tenant_id: &str,
         _rtc_session_id: &str,
-    ) -> Result<Option<RtcStateRecord>, ContractError> {
+    ) -> Result<Option<RtcStateRecord>, RtcContractError> {
         Ok(None)
     }
 
-    fn save_state(&self, _record: RtcStateRecord) -> Result<(), ContractError> {
+    fn save_state(&self, _record: RtcStateRecord) -> Result<(), RtcContractError> {
         Ok(())
     }
 
-    fn clear_state(&self, _tenant_id: &str, _rtc_session_id: &str) -> Result<bool, ContractError> {
+    fn clear_state(
+        &self,
+        _tenant_id: &str,
+        _rtc_session_id: &str,
+    ) -> Result<bool, RtcContractError> {
         Ok(false)
     }
 }

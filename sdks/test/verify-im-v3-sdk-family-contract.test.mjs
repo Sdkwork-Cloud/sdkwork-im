@@ -9,6 +9,7 @@ import { loadOpenApiDocument } from '../workspace-openapi-source-shared.mjs';
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const sdkRoot = path.resolve(testDir, '..');
 const repoRoot = path.resolve(sdkRoot, '..');
+const rtcSdkRoot = path.resolve('D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk');
 
 function read(relativePath) {
   return readFileSync(path.join(sdkRoot, relativePath), 'utf8');
@@ -16,6 +17,10 @@ function read(relativePath) {
 
 function readRepo(relativePath) {
   return readFileSync(path.join(repoRoot, relativePath), 'utf8');
+}
+
+function readRtcSdk(relativePath) {
+  return readFileSync(path.join(rtcSdkRoot, relativePath), 'utf8');
 }
 
 function marker(...parts) {
@@ -234,7 +239,7 @@ const backendTypeScriptDistSdkSource = read('sdkwork-im-backend-sdk/sdkwork-im-b
 const backendTypeScriptDistIndexSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/dist/index.d.ts');
 const backendTypeScriptDistRuntimeSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/dist/index.js');
 const backendFlutterClientSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-flutter/generated/server-openapi/lib/backend_client.dart');
-const rtcReadmeSource = read('sdkwork-rtc-sdk/README.md');
+const rtcReadmeSource = readRtcSdk('README.md');
 const boundaryMaterializerSource = read('materialize-im-v3-openapi-boundaries.mjs');
 const yaml = await loadGeneratorYaml(sdkRoot);
 const imAuthority = loadOpenApiDocument({

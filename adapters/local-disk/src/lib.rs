@@ -23,8 +23,7 @@ pub use realtime::{
     validate_realtime_subscription_store_file,
 };
 pub use state::{
-    FilePresenceStateStore, FileRtcStateStore, FileStreamStateStore,
-    validate_presence_state_store_file, validate_rtc_state_store_file,
+    FilePresenceStateStore, FileStreamStateStore, validate_presence_state_store_file,
     validate_stream_state_store_file,
 };
 pub use storage::{FileStorageDomainSnapshotStore, validate_storage_domain_snapshot_store_file};

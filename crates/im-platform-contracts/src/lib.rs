@@ -24,6 +24,10 @@ pub use craw_chat_contract_message::{
     TimelineProjectionRecord, TimelineProjectionStore,
 };
 pub use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
-pub use craw_chat_contract_rtc::{RtcStateRecord, RtcStateStore};
 pub use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
 pub use provider::*;
+pub use sdkwork_rtc_core::{
+    RtcCallbackEvent, RtcCallbackRequest, RtcContractError, RtcCreateSessionRequest,
+    RtcParticipantCredential, RtcProviderPort, RtcRecordingArtifact, RtcSessionHandle,
+    RtcStateRecord, RtcStateStore,
+};

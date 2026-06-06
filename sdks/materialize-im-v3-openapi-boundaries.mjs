@@ -99,10 +99,13 @@ function isImStandardPath(pathKey, prefix) {
     || route.startsWith('device/sessions/')
     || route.startsWith('presence/')
     || route.startsWith('realtime/')
-    || route.startsWith('rtc/sessions')
     || route.startsWith('social/')
     || route.startsWith('streams')
   );
+}
+
+function isRtcPath(pathKey, prefix) {
+  return pathWithoutPrefix(pathKey, prefix).startsWith('rtc/');
 }
 
 function isDriveOwnedMediaLifecyclePath(pathKey, prefix) {
@@ -465,7 +468,7 @@ function normalizeImAuthority(im) {
     title: 'Craw Chat IM Standardized Development API',
     version: im.info?.version || '0.1.0',
     description:
-      'IM standardized development OpenAPI contract for conversations, messages, realtime, media, streams, RTC signaling, and social IM flows.',
+      'IM standardized development OpenAPI contract for conversations, messages, realtime, media, streams, and social IM flows.',
   };
   next.paths = collectRebasedPaths({
     sources: [im],
@@ -533,6 +536,7 @@ function normalizeAppAuthority(app, im, dependencyAppRouteSet) {
     shouldInclude: (pathKey) =>
       !isAppManagementPath(pathKey)
       && !isImStandardPath(pathKey, appPrefix)
+      && !isRtcPath(pathKey, appPrefix)
       && !isDriveOwnedMediaLifecyclePath(pathKey, appPrefix)
       && !dependencyAppRouteSet.has(pathWithoutPrefix(pathKey, appPrefix)),
   });
@@ -542,6 +546,7 @@ function normalizeAppAuthority(app, im, dependencyAppRouteSet) {
     toPrefix: appPrefix,
     shouldInclude: (pathKey) =>
       !isImStandardPath(pathKey, imPrefix)
+      && !isRtcPath(pathKey, imPrefix)
       && !isDriveOwnedMediaLifecyclePath(pathKey, imPrefix)
       && !dependencyAppRouteSet.has(pathWithoutPrefix(pathKey, imPrefix)),
   });
@@ -671,8 +676,10 @@ if (!consolidatedApp.paths['/app/v3/api/iot/protocol/uplink']) {
 if (!consolidatedApp.paths['/app/v3/api/automation/executions']) {
   fail('App authority is missing /app/v3/api/automation/executions.');
 }
-if (!consolidatedApp.paths['/app/v3/api/rtc/provider_health']) {
-  fail('App authority is missing /app/v3/api/rtc/provider_health.');
+for (const appPath of Object.keys(consolidatedApp.paths)) {
+  if (appPath.startsWith('/app/v3/api/rtc/')) {
+    fail(`App authority must not contain RTC route now owned by sdkwork-rtc: ${appPath}`);
+  }
 }
 if (consolidatedApp.paths['/app/v3/api/chat/conversations']) {
   fail('App authority must not contain /app/v3/api/chat/conversations.');

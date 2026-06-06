@@ -3,13 +3,12 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use im_platform_contracts::{
-    ContractError, PresenceStateRecord, PresenceStateStore, RtcStateRecord, RtcStateStore,
-    StreamStateRecord, StreamStateStore,
+    ContractError, PresenceStateRecord, PresenceStateStore, StreamStateRecord, StreamStateStore,
 };
 use im_time::{rfc3339_cmp, rfc3339_le};
 
 use crate::shared::{
-    principal_scope_key, read_json_records_or_default, rtc_scope_key, scope_key, stream_scope_key,
+    principal_scope_key, read_json_records_or_default, scope_key, stream_scope_key,
     update_json_records,
 };
 
@@ -81,80 +80,6 @@ impl StreamStateStore for FileStreamStateStore {
             |records: &mut BTreeMap<String, StreamStateRecord>| {
                 records
                     .remove(stream_scope_key(tenant_id, stream_id).as_str())
-                    .is_some()
-            },
-        )
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct FileRtcStateStore {
-    file_path: Arc<PathBuf>,
-    io_lock: Arc<Mutex<()>>,
-}
-
-impl FileRtcStateStore {
-    pub fn new(file_path: impl Into<PathBuf>) -> Self {
-        Self {
-            file_path: Arc::new(file_path.into()),
-            io_lock: Arc::new(Mutex::new(())),
-        }
-    }
-
-    pub fn file_path(&self) -> &Path {
-        self.file_path.as_path()
-    }
-
-    fn read_records(&self) -> Result<BTreeMap<String, RtcStateRecord>, ContractError> {
-        read_json_records_or_default(self.file_path.as_path(), "rtc state store")
-    }
-}
-
-impl RtcStateStore for FileRtcStateStore {
-    fn load_state(
-        &self,
-        tenant_id: &str,
-        rtc_session_id: &str,
-    ) -> Result<Option<RtcStateRecord>, ContractError> {
-        let _guard = self
-            .io_lock
-            .lock()
-            .expect("rtc state file store lock should lock");
-        Ok(self
-            .read_records()?
-            .remove(rtc_scope_key(tenant_id, rtc_session_id).as_str()))
-    }
-
-    fn save_state(&self, record: RtcStateRecord) -> Result<(), ContractError> {
-        let _guard = self
-            .io_lock
-            .lock()
-            .expect("rtc state file store lock should lock");
-        update_json_records(
-            self.file_path.as_path(),
-            "rtc state store",
-            |records: &mut BTreeMap<String, RtcStateRecord>| {
-                let key = rtc_scope_key(record.tenant_id.as_str(), record.rtc_session_id.as_str());
-                let next = records
-                    .remove(key.as_str())
-                    .map(|previous| previous.merge_monotonic(record.clone()))
-                    .unwrap_or(record);
-                records.insert(key, next);
-            },
-        )
-    }
-
-    fn clear_state(&self, tenant_id: &str, rtc_session_id: &str) -> Result<bool, ContractError> {
-        let _guard = self
-            .io_lock
-            .lock()
-            .expect("rtc state file store lock should lock");
-        update_json_records(
-            self.file_path.as_path(),
-            "rtc state store",
-            |records: &mut BTreeMap<String, RtcStateRecord>| {
-                records
-                    .remove(rtc_scope_key(tenant_id, rtc_session_id).as_str())
                     .is_some()
             },
         )
@@ -321,12 +246,6 @@ impl PresenceStateStore for FilePresenceStateStore {
 pub fn validate_stream_state_store_file(file_path: impl AsRef<Path>) -> Result<(), ContractError> {
     let _: BTreeMap<String, StreamStateRecord> =
         read_json_records_or_default(file_path.as_ref(), "stream state store")?;
-    Ok(())
-}
-
-pub fn validate_rtc_state_store_file(file_path: impl AsRef<Path>) -> Result<(), ContractError> {
-    let _: BTreeMap<String, RtcStateRecord> =
-        read_json_records_or_default(file_path.as_ref(), "rtc state store")?;
     Ok(())
 }
 

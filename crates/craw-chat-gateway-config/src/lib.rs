@@ -182,7 +182,7 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
         service_upstream("conversation-runtime", "http://127.0.0.1:18082"),
         service_upstream("projection-service", "http://127.0.0.1:18083"),
         service_upstream("streaming-service", "http://127.0.0.1:18084"),
-        service_upstream("rtc-signaling-service", "http://127.0.0.1:18085"),
+        service_upstream("sdkwork-rtc-signaling-service", "http://127.0.0.1:18085"),
         service_upstream("media-service", "http://127.0.0.1:18086"),
         service_upstream("notification-service", "http://127.0.0.1:18087"),
         service_upstream("automation-service", "http://127.0.0.1:18088"),

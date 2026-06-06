@@ -32,7 +32,7 @@
         "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/rtc-sdk": [
-        "../../sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts"
+        "../../../../../../../sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/appbase-pc-react": [
         "../../../../apps/sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts"

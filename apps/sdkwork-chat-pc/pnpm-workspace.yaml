@@ -3,7 +3,7 @@ packages:
   - ../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi
   - ../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi
   - ../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript
-  - ../../sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript
+  - ../../../../../../../sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript
   - ../../../../../../../sdkwork-opensource/sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi
 
 catalog:

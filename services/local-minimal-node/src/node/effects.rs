@@ -661,7 +661,7 @@ pub(super) fn build_message_body(
 pub(super) fn emit_rtc_signal_message(
     state: &AppState,
     auth: &AppContext,
-    session: &im_domain_core::rtc::RtcSession,
+    session: &sdkwork_rtc_core::RtcSession,
     signal_type: &'static str,
 ) -> Result<(), ApiError> {
     let Some(conversation_id) = session.conversation_id.clone() else {
@@ -701,7 +701,7 @@ pub(super) fn emit_rtc_signal_message(
 pub(super) fn emit_rtc_custom_signal_message(
     state: &AppState,
     auth: &AppContext,
-    signal: &im_domain_core::rtc::RtcSignalEvent,
+    signal: &sdkwork_rtc_core::RtcSignalEvent,
 ) -> Result<(), ApiError> {
     let Some(conversation_id) = signal.conversation_id.clone() else {
         return Ok(());

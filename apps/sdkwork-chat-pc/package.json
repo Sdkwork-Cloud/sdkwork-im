@@ -27,7 +27,7 @@
     "@sdkwork/iam-sdk-ports": "link:../../../../apps/sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports",
     "@sdkwork/im-sdk": "link:../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript",
     "@sdkwork/i18n-pc-react": "link:../../../../apps/sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react",
-    "@sdkwork/rtc-sdk": "link:../../sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript",
+    "@sdkwork/rtc-sdk": "link:../../../../../../../sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript",
     "@sdkwork/sdk-common": "catalog:",
     "@sdkwork/ui-pc-react": "link:../../../../apps/sdkwork-ui/sdkwork-ui-pc-react",
     "@tailwindcss/typography": "catalog:",
@@ -81,7 +81,7 @@
       "@sdkwork-internal/im-backend-api-generated": "link:../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi",
       "@sdkwork/agent-app-sdk": "link:../../../../../../../sdkwork-opensource/sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi",
       "@sdkwork/im-sdk": "link:../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript",
-      "@sdkwork/rtc-sdk": "link:../../sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript"
+      "@sdkwork/rtc-sdk": "link:../../../../../../../sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript"
     }
   },
   "workspaces": [

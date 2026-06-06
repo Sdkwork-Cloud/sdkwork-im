@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use im_adapters_local_memory::{
     MemoryAutomationExecutionStore, MemoryCommitJournal, MemoryMetadataStore,
     MemoryNotificationTaskStore, MemoryPresenceStateStore, MemoryRealtimeCheckpointStore,
-    MemoryRealtimeDisconnectFenceStore, MemoryRealtimeSubscriptionStore, MemoryRtcStateStore,
+    MemoryRealtimeDisconnectFenceStore, MemoryRealtimeSubscriptionStore,
     MemoryStorageDomainSnapshotStore, MemoryStreamStateStore, MemoryTimelineProjectionStore,
 };
 use im_domain_core::{
@@ -12,7 +12,6 @@ use im_domain_core::{
     message::Sender,
     notification::{NotificationStatus, NotificationTask},
     realtime::RealtimeSubscription,
-    rtc::{RtcSession, RtcSessionState, RtcSignalEvent},
     stream::{StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState},
 };
 use im_platform_contracts::{
@@ -20,65 +19,12 @@ use im_platform_contracts::{
     NotificationTaskRecord, NotificationTaskStore, PresenceStateRecord, PresenceStateStore,
     RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
     RealtimeDisconnectFenceStore, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
-    RtcStateRecord, RtcStateStore, StreamStateRecord, StreamStateStore, TimelineProjectionStore,
+    StreamStateRecord, StreamStateStore, TimelineProjectionStore,
 };
 use im_storage_contracts::{
     StorageBindingRecord, StorageCatalog, StorageConfigRecord, StorageCredentialMode,
     StorageDomainSnapshot, StorageDomainSnapshotStore, StorageSecretRecord,
 };
-
-fn rtc_state_record(
-    state: RtcSessionState,
-    updated_at: &str,
-    signals: Vec<RtcSignalEvent>,
-) -> RtcStateRecord {
-    RtcStateRecord {
-        tenant_id: "t_demo".into(),
-        rtc_session_id: "rtc_demo".into(),
-        session: RtcSession {
-            tenant_id: "t_demo".into(),
-            rtc_session_id: "rtc_demo".into(),
-            conversation_id: Some("c_demo".into()),
-            rtc_mode: "voice".into(),
-            initiator_id: "u_demo".into(),
-            initiator_kind: "user".into(),
-            provider_plugin_id: Some("webrtc".into()),
-            provider_session_id: Some("ps_demo".into()),
-            access_endpoint: Some("wss://rtc.example.test/session/ps_demo".into()),
-            provider_region: Some("cn-shanghai".into()),
-            state,
-            signaling_stream_id: Some("st_demo".into()),
-            artifact_message_id: None,
-            started_at: "2026-05-06T00:00:00.000Z".into(),
-            ended_at: None,
-        },
-        signals,
-        updated_at: updated_at.into(),
-    }
-}
-
-fn rtc_signal_event(signal_seq: u64) -> RtcSignalEvent {
-    RtcSignalEvent {
-        tenant_id: "t_demo".into(),
-        rtc_session_id: "rtc_demo".into(),
-        signal_seq,
-        conversation_id: Some("c_demo".into()),
-        rtc_mode: "voice".into(),
-        signal_type: format!("rtc.signal.{signal_seq}"),
-        schema_ref: Some("webrtc.signal.v1".into()),
-        payload: format!("{{\"seq\":{signal_seq}}}"),
-        sender: Sender {
-            id: "u_demo".into(),
-            kind: "user".into(),
-            member_id: None,
-            device_id: Some("d_demo".into()),
-            session_id: Some("s_demo".into()),
-            metadata: BTreeMap::new(),
-        },
-        signaling_stream_id: Some("st_demo".into()),
-        occurred_at: format!("2026-05-06T00:00:0{signal_seq}.000Z"),
-    }
-}
 
 fn realtime_disconnect_fence_record(
     principal_id: &str,
@@ -1116,39 +1062,6 @@ fn test_memory_realtime_subscription_store_loads_matching_scope_event_candidates
         .collect::<Vec<_>>();
 
     assert_eq!(device_ids, vec!["d_match", "d_wildcard"]);
-}
-
-#[test]
-fn test_memory_rtc_state_store_merges_signals_and_rejects_stale_session_regression() {
-    let store = MemoryRtcStateStore::default();
-    store
-        .save_state(rtc_state_record(
-            RtcSessionState::Accepted,
-            "2026-05-06T00:00:02.000Z",
-            vec![rtc_signal_event(1), rtc_signal_event(2)],
-        ))
-        .expect("new rtc state save should succeed");
-    store
-        .save_state(rtc_state_record(
-            RtcSessionState::Started,
-            "2026-05-06T00:00:01.000Z",
-            vec![rtc_signal_event(1)],
-        ))
-        .expect("stale rtc state save should not fail the caller");
-
-    let state = store
-        .state("t_demo", "rtc_demo")
-        .expect("rtc state should be present");
-    assert_eq!(state.session.state, RtcSessionState::Accepted);
-    assert_eq!(state.updated_at, "2026-05-06T00:00:02.000Z");
-    assert_eq!(
-        state
-            .signals
-            .iter()
-            .map(|signal| signal.signal_seq)
-            .collect::<Vec<_>>(),
-        vec![1, 2]
-    );
 }
 
 #[test]

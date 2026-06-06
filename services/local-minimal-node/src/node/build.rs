@@ -1251,7 +1251,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
             "projection-service".into(),
             "media-service".into(),
             "streaming-service".into(),
-            "rtc-signaling-service".into(),
+            "sdkwork-rtc-signaling-service".into(),
             "notification-service".into(),
             "automation-service".into(),
             "audit-service".into(),
@@ -1471,6 +1471,7 @@ fn build_app(state: AppState) -> Router {
             get(export_backend_api_openapi_schema),
         )
         .nest("/im/v3/api", im_standard_api_routes())
+        .nest("/app/v3/api/rtc", rtc_app_api_routes())
         .nest("/backend/v3/api", backend_api_routes())
         .with_state(state)
         .merge(build_local_agent_app_router())
@@ -1713,36 +1714,45 @@ fn im_standard_api_routes() -> Router<AppState> {
             post(stream::complete_stream),
         )
         .route("/streams/{stream_id}/abort", post(stream::abort_stream))
-        .route("/rtc/sessions", post(rtc::create_rtc_session))
-        .route("/rtc/sessions/{rtc_session_id}", get(rtc::get_rtc_session))
+}
+
+fn rtc_app_api_routes() -> Router<AppState> {
+    Router::new()
+        .route("/sessions", post(rtc::create_rtc_session))
+        .route("/sessions/{rtc_session_id}", get(rtc::get_rtc_session))
         .route(
-            "/rtc/sessions/{rtc_session_id}/invite",
+            "/sessions/{rtc_session_id}/invite",
             post(rtc::invite_rtc_session),
         )
         .route(
-            "/rtc/sessions/{rtc_session_id}/accept",
+            "/sessions/{rtc_session_id}/accept",
             post(rtc::accept_rtc_session),
         )
         .route(
-            "/rtc/sessions/{rtc_session_id}/reject",
+            "/sessions/{rtc_session_id}/reject",
             post(rtc::reject_rtc_session),
         )
         .route(
-            "/rtc/sessions/{rtc_session_id}/end",
+            "/sessions/{rtc_session_id}/end",
             post(rtc::end_rtc_session),
         )
         .route(
-            "/rtc/sessions/{rtc_session_id}/signals",
+            "/sessions/{rtc_session_id}/signals",
             post(rtc::post_rtc_signal),
         )
         .route(
-            "/rtc/sessions/{rtc_session_id}/credentials",
+            "/sessions/{rtc_session_id}/credentials",
             post(rtc::issue_rtc_participant_credential),
         )
         .route(
-            "/rtc/sessions/{rtc_session_id}/artifacts/recording",
+            "/sessions/{rtc_session_id}/artifacts/recording",
             get(rtc::get_rtc_recording_artifact),
         )
+        .route(
+            "/provider_callbacks",
+            post(rtc::map_rtc_provider_callback),
+        )
+        .route("/provider_health", get(rtc::get_rtc_provider_health))
 }
 
 fn backend_api_routes() -> Router<AppState> {

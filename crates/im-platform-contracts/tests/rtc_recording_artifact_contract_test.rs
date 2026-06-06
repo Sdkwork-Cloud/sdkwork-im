@@ -1,4 +1,4 @@
-use im_platform_contracts::RtcRecordingArtifact;
+use sdkwork_rtc_core::RtcRecordingArtifact;
 use serde_json::{Value, json};
 
 #[test]
