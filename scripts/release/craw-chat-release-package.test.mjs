@@ -529,78 +529,100 @@ assert.match(
   'bin/install-server.sh should support server archive config/postgresql.yaml.example',
 );
 
-assertFile('.github/workflows/release-package.yml');
-const workflowText = readText('.github', 'workflows', 'release-package.yml');
-assert.doesNotMatch(
-  workflowText,
-  /inputs\.build_desktop\s*\|\|/u,
-  'workflow must not coerce an explicit build_desktop=false input back to true',
+assert.equal(
+  existsSync(repoPath('.github', 'workflows', 'release-package.yml')),
+  false,
+  'legacy copied release-package.yml must be removed after sdkwork-github-workflow integration',
+);
+assertFile('sdkwork.workflow.json');
+assertFile('.github/workflows/package.yml');
+
+const workflowConfig = JSON.parse(readText('sdkwork.workflow.json'));
+assert.equal(workflowConfig.schemaVersion, '2026-06-06.sdkwork.workflow.v1');
+assert.equal(workflowConfig.app?.id, 'craw-chat');
+assert.equal(workflowConfig.app?.repository, 'Sdkwork-Cloud/craw-chat');
+assert.equal(workflowConfig.release?.artifactPrefix, 'craw-chat');
+assert.equal(workflowConfig.release?.defaultVersion, '0.1.0');
+assert.equal(workflowConfig.release?.changelog?.source, 'auto');
+assert.equal(workflowConfig.publish?.githubRelease, true);
+assert.equal(workflowConfig.publish?.workflowArtifact, true);
+assert.equal(workflowConfig.security?.artifactAttestations, true);
+assert.match(
+  workflowConfig.lifecycle?.install?.map((step) => step.run).join('\n') ?? '',
+  /SDKWORK_SHARED_SDK_GITHUB_TOKEN/u,
+  'install lifecycle should preserve the legacy shared SDK GitHub token environment',
 );
 assert.match(
-  workflowText,
-  /tag:\s*\r?\n\s+description: GitHub Release tag[^\r\n]*\r?\n\s+required: true\r?\n\s+default: v0\.1\.0/u,
-  'workflow_dispatch tag input should be required and default to a release tag',
-);
-assert.match(
-  workflowText,
-  /package_version:\s*\r?\n\s+description: Package version[^\r\n]*\r?\n\s+required: true\r?\n\s+default: 0\.1\.0/u,
-  'workflow_dispatch package_version input should be required and default to a package version',
-);
-assert.match(
-  workflowText,
-  /Build all production artifacts[\s\S]*?if: needs\.plan\.outputs\.build_server == 'true' && needs\.plan\.outputs\.build_desktop == 'true'[\s\S]*?pnpm release:build:production -- --target all --target-triple \$\{\{ matrix\.desktop_target \}\}/u,
-  'workflow should build server and desktop production artifacts in one pass when both modes are selected',
-);
-assert.match(
-  workflowText,
-  /Build server production artifacts[\s\S]*?if: needs\.plan\.outputs\.build_server == 'true' && needs\.plan\.outputs\.build_desktop != 'true'[\s\S]*?pnpm release:build:production -- --target server/u,
-  'workflow server-only build step should not run when desktop build is also selected',
-);
-assert.match(
-  workflowText,
-  /Build desktop installer artifacts[\s\S]*?if: needs\.plan\.outputs\.build_desktop == 'true' && needs\.plan\.outputs\.build_server != 'true'[\s\S]*?pnpm release:build:production -- --target desktop --target-triple \$\{\{ matrix\.desktop_target \}\}/u,
-  'workflow desktop-only build step should not run when server build is also selected',
-);
-assert.match(
-  workflowText,
-  /Scope package manifest[\s\S]*?release-packages-manifest-\$\{\{ matrix\.platform \}\}-\$\{\{ matrix\.architecture \}\}\.json[\s\S]*?Remove-Item -LiteralPath \$aggregateManifest -Force/u,
-  'workflow should scope the aggregate manifest per platform runner before uploading artifacts',
-);
-assert.match(
-  workflowText,
-  /find dist\/release-upload -mindepth 2 -type f -name 'SHA256SUMS' -delete/u,
-  'workflow should remove per-runner SHA256SUMS files before creating the aggregate release checksum file',
+  workflowConfig.lifecycle?.build?.map((step) => step.run).join('\n') ?? '',
+  /SDKWORK_SHARED_SDK_GITHUB_TOKEN/u,
+  'build lifecycle should preserve the legacy shared SDK GitHub token environment',
 );
 assert.doesNotMatch(
-  workflowText,
-  /!\s+-name 'release-packages-manifest\.json'/u,
-  'workflow should not exclude release package manifests from SHA256SUMS or GitHub Release assets',
+  workflowConfig.lifecycle?.preflight?.map((step) => step.run).join('\n') ?? '',
+  /dotnet tool install --global wix/u,
+  'preflight lifecycle should not duplicate framework WiX toolchain setup',
+);
+
+const expectedWorkflowTargetIds = [
+  'linux-x64-server-tar-gz',
+  'linux-arm64-server-tar-gz',
+  'macos-x64-server-tar-gz',
+  'macos-arm64-server-tar-gz',
+  'windows-x64-server-zip',
+  'windows-arm64-server-zip',
+  'linux-x64-desktop-zip',
+  'linux-arm64-desktop-zip',
+  'macos-x64-desktop-zip',
+  'macos-arm64-desktop-zip',
+  'windows-x64-desktop-zip',
+  'windows-arm64-desktop-zip',
+];
+assert.deepEqual(
+  workflowConfig.targets?.map((target) => target.id),
+  expectedWorkflowTargetIds,
+  'sdkwork.workflow.json should expose canonical package ids for the supported server archives and desktop bundles',
+);
+for (const target of workflowConfig.targets ?? []) {
+  assert.equal(target.id, `${target.platform}-${target.architecture}-${target.profile}-${String(target.formats?.[0] ?? '').replaceAll('.', '-')}`);
+  assert.equal(target.outputGlobs?.includes('dist/release-packages/*'), true, `${target.id} should upload release packages`);
+}
+
+const packageWorkflowText = readText('.github', 'workflows', 'package.yml');
+assert.match(
+  packageWorkflowText,
+  /uses: Sdkwork-Cloud\/sdkwork-github-workflow\/\.github\/workflows\/sdkwork-package\.yml@b0829529b9277a3da32b90c2d36ff34ff09fa832/u,
+  'package workflow should call the pinned sdkwork-github-workflow reusable workflow',
 );
 for (const expectedText of [
   'workflow_dispatch:',
-  'platform:',
-  'architecture:',
-  'deployment_mode:',
+  'push:',
+  'release:',
+  'config_path: sdkwork.workflow.json',
+  "package_version: ${{ github.event.inputs.package_version || '' }}",
+  'publish_release: true',
+  'upload_artifact: true',
+  'framework_ref: b0829529b9277a3da32b90c2d36ff34ff09fa832',
+]) {
+  assert.match(
+    packageWorkflowText,
+    new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'),
+    `package workflow should include ${expectedText}`,
+  );
+}
+for (const forbiddenText of [
   'Plan package matrix',
   'fromJson(needs.plan.outputs.matrix)',
-  'tags:',
-  'v*',
-  'contents: write',
-  'ubuntu-latest',
-  'windows-latest',
-  'macos-latest',
-  'pnpm release:plan -- --check',
   'pnpm release:build:production',
-  'pnpm release:stage',
-  'pnpm release:package',
-  'pnpm release:validate',
-  'gh release',
   'actions/upload-artifact',
   'actions/download-artifact',
-  'merge-multiple: false',
+  'gh release',
   'sha256sum "$file"',
 ]) {
-  assert.match(workflowText, new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'), `workflow should include ${expectedText}`);
+  assert.doesNotMatch(
+    packageWorkflowText,
+    new RegExp(forbiddenText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'),
+    `package workflow must not copy framework logic: ${forbiddenText}`,
+  );
 }
 
 console.log('[craw-chat-release-package] contract passed');
