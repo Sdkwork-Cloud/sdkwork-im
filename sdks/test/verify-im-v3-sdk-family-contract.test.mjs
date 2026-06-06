@@ -335,7 +335,6 @@ function isImStandardRoute(route) {
     || route === 'media/{}'
     || route.startsWith('presence/')
     || route.startsWith('realtime/')
-    || route.startsWith('rtc/sessions')
     || route.startsWith('social/')
     || route.startsWith('streams')
   );
@@ -877,8 +876,6 @@ for (const appRequiredPath of [
   '/app/v3/api/media/provider_health',
   '/app/v3/api/principal/profiles/provider_health',
   '/app/v3/api/iot/protocol/uplink',
-  '/app/v3/api/rtc/provider_health',
-  '/app/v3/api/rtc/provider_callbacks',
 ]) {
   assert.match(
     appConfigSource,
@@ -892,7 +889,9 @@ for (const imStandardPath of [
   '/app/v3/api/chat/messages/{messageId}/edit',
   '/app/v3/api/social/friend_requests',
   '/app/v3/api/media/uploads',
-  '/app/v3/api/rtc/sessions',
+  marker('/app/v3/api', '/rtc/sessions'),
+  marker('/app/v3/api', '/rtc/provider_health'),
+  marker('/app/v3/api', '/rtc/provider_callbacks'),
   '/app/v3/api/streams',
 ]) {
   assert.doesNotMatch(
@@ -1181,7 +1180,7 @@ assert.doesNotMatch(
 for (const nonManagementBackendPath of [
   '/backend/v3/api/media/provider_health',
   '/backend/v3/api/iot/protocol/uplink',
-  '/backend/v3/api/rtc/provider_health',
+  marker('/backend/v3/api', '/rtc/provider_health'),
 ]) {
   assert.doesNotMatch(
     backendConfigSource,
@@ -1208,7 +1207,6 @@ for (const imRequiredPath of [
   '/im/v3/api/chat/conversations',
   '/im/v3/api/chat/messages/{messageId}/edit',
   '/im/v3/api/social/friend_requests',
-  '/im/v3/api/rtc/sessions',
   '/im/v3/api/streams',
 ]) {
   assert.match(
@@ -1228,6 +1226,7 @@ for (const nonImPath of [
   '/im/v3/api/media/{mediaAssetId}',
   '/im/v3/api/principal/profiles/provider_health',
   '/im/v3/api/iot/protocol/uplink',
+  marker('/im/v3/api', '/rtc/sessions'),
 ]) {
   assert.doesNotMatch(
     imConfigSource,
