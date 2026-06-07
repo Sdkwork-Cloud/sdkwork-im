@@ -26,6 +26,5 @@
     "stateRoots": [
       ".sdkwork/"
     ]
-  },
-  "description": "Generator-owned Kotlin transport SDK for sdkwork-im-sdk."
+  }
 }

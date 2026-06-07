@@ -1,6 +1,6 @@
 # sdkwork-im-backend-sdk (Python)
 
-Generator-owned Python transport SDK for sdkwork-im-backend-sdk.
+Generated SDKWork v3 dual-token transport SDK.
 
 ## Installation
 
@@ -18,22 +18,18 @@ config = SdkConfig(
 )
 
 client = SdkworkImBackendClient(config)
-# Attach the authenticated SDKWork session tokens
-    client.set_auth_token("your-auth-token")
-    client.set_access_token("your-access-token")
+client.set_auth_token("your-auth-token")
+client.set_access_token("your-access-token")
 
 # Use the SDK
 result = client.admin.api_key_groups.list()
 ```
 
-## Dual Token Authentication
+## Authentication
 
-```
-client.set_auth_token("your-auth-token")
-client.set_access_token("your-access-token")
-# Sends:
-# Authorization: Bearer <authToken>
-# Access-Token: <accessToken>
+```text
+Authorization: Bearer <authToken>
+Access-Token: <accessToken>
 ```
 
 
@@ -132,7 +128,7 @@ This SDK includes cross-platform publish scripts in `bin/`:
 .\bin\publish.ps1 --action publish --channel test --dry-run
 ```
 
-> Set `PYPI_TOKEN` for release (or `TEST_PYPI_TOKEN` for test channel).
+> Configure Python package registry credentials before release publish.
 
 ## License
 

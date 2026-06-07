@@ -1,6 +1,6 @@
 # sdkwork-im-sdk (C#)
 
-Generator-owned C# transport SDK for sdkwork-im-sdk.
+Generated SDKWork v3 dual-token transport SDK.
 
 ## Installation
 
@@ -23,22 +23,18 @@ using SDKwork.Common.Core;
 
 var config = new SdkConfig("http://127.0.0.1:18090");
 var client = new SdkworkImClient(config);
-// Attach the authenticated SDKWork session tokens
-    client.SetAuthToken("your-auth-token");
-    client.SetAccessToken("your-access-token");
+client.SetAuthToken("your-auth-token");
+client.SetAccessToken("your-access-token");
 
 var result = await client.Presence.MeRetrieveAsync();
 Console.WriteLine(result);
 ```
 
-## Dual Token Authentication
+## Authentication
 
-```
-client.SetAuthToken("your-auth-token");
-client.SetAccessToken("your-access-token");
-// Sends:
-// Authorization: Bearer <authToken>
-// Access-Token: <accessToken>
+```text
+Authorization: Bearer <authToken>
+Access-Token: <accessToken>
 ```
 
 
@@ -186,7 +182,7 @@ This SDK includes cross-platform publish scripts in `bin/`:
 .\bin\publish.ps1 --action publish --channel test --dry-run
 ```
 
-> Set `NUGET_TOKEN` for release (or `NUGET_TEST_TOKEN` for test channel).
+> Configure NuGet registry credentials before release publish.
 
 ## License
 

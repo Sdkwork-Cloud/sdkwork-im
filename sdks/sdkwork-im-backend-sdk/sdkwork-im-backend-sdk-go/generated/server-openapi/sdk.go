@@ -31,7 +31,6 @@ func NewSdkworkImBackendClientWithConfig(config sdkhttp.Config) *SdkworkImBacken
     }
 }
 
-
 func (c *SdkworkImBackendClient) SetAuthToken(token string) *SdkworkImBackendClient {
     c.http.SetAuthToken(token)
     return c

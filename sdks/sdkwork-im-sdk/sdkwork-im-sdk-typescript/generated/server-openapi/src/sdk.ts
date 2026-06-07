@@ -37,8 +37,6 @@ export class SdkworkImClient {
 
     this.streams = createStreamsApi(this.httpClient);
   }
-
-
   setAuthToken(token: string): this {
     this.httpClient.setAuthToken(token);
     return this;
@@ -62,6 +60,5 @@ export class SdkworkImClient {
 export function createClient(config: SdkworkImConfig): SdkworkImClient {
   return new SdkworkImClient(config);
 }
-
 
 export default SdkworkImClient;

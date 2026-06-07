@@ -23,8 +23,6 @@ class SdkworkImBackendClient:
         self.automation = AutomationApi(self._client)
         self.control = ControlApi(self._client)
         self.admin = AdminApi(self._client)
-
-
     def set_auth_token(self, token: str) -> 'SdkworkImBackendClient':
         """Set auth token for authentication."""
         self._client.set_auth_token(token)

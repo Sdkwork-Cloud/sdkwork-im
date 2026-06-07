@@ -1,6 +1,6 @@
 # sdkwork-im-backend-sdk (Rust)
 
-Generator-owned Rust transport SDK for sdkwork-im-backend-sdk.
+Generated SDKWork v3 dual-token transport SDK.
 
 ## Installation
 
@@ -17,9 +17,8 @@ use sdkwork_im_backend_api_generated::{SdkworkImBackendClient, SdkworkConfig};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = SdkworkImBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
-    // Attach the authenticated SDKWork session tokens
-        client.set_auth_token("your-auth-token");
-        client.set_access_token("your-access-token");
+    client.set_auth_token("your-auth-token");
+client.set_access_token("your-access-token");
 
     let result = client.admin().api_key_groups_list().await?;
     println!("{result:?}");
@@ -27,14 +26,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Dual Token Authentication
+## Authentication
 
-```
-client.set_auth_token("your-auth-token");
-client.set_access_token("your-access-token");
-// Sends:
-// Authorization: Bearer <authToken>
-// Access-Token: <accessToken>
+```text
+Authorization: Bearer <authToken>
+Access-Token: <accessToken>
 ```
 
 

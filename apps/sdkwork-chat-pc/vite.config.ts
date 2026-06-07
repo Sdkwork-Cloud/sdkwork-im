@@ -4,6 +4,12 @@ import path from 'path';
 import {defineConfig, loadEnv, type Plugin} from 'vite';
 import { handleSdkworkChatLocalApiRequest } from './local-api';
 
+const repoRoot = path.resolve(__dirname, '../..');
+
+function dependencyRoot(dependencyId: string): string {
+  return path.resolve(repoRoot, '.sdkwork/dependencies', dependencyId);
+}
+
 const generatedImAppSdkEntry = path.resolve(
   __dirname,
   '../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi/src/index.ts',
@@ -13,76 +19,76 @@ const generatedImBackendSdkEntry = path.resolve(
   '../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/src/index.ts',
 );
 const generatedAgentAppSdkEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  dependencyRoot('sdkwork-kernel'),
+  'sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi/src/index.ts',
 );
 const generatedAppbaseAppSdkEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  dependencyRoot('sdkwork-appbase'),
+  'sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts',
 );
 const generatedAppbaseBackendSdkEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts',
+  dependencyRoot('sdkwork-appbase'),
+  'sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts',
 );
 const generatedAiotAppSdkEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-aiot/sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript/src/index.ts',
+  dependencyRoot('sdkwork-aiot'),
+  'sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript/src/index.ts',
 );
 const generatedImSdkEntry = path.resolve(
   __dirname,
   '../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts',
 );
 const generatedRtcSdkEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts',
+  dependencyRoot('sdkwork-rtc'),
+  'sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts',
 );
 const appbasePcReactEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts',
+  dependencyRoot('sdkwork-appbase'),
+  'packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts',
 );
 const authPcReactEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
+  dependencyRoot('sdkwork-appbase'),
+  'packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
 );
 const authRuntimePcReactEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts',
+  dependencyRoot('sdkwork-appbase'),
+  'packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts',
 );
 const authPcReactAuthEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
+  dependencyRoot('sdkwork-appbase'),
+  'packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
 );
 const iamContractsEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts/src/index.ts',
+  dependencyRoot('sdkwork-appbase'),
+  'packages/common/iam/sdkwork-iam-contracts/src/index.ts',
 );
 const iamSdkPortsEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts',
+  dependencyRoot('sdkwork-appbase'),
+  'packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts',
 );
 const i18nPcReactEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react/src/index.ts',
+  dependencyRoot('sdkwork-appbase'),
+  'packages/pc-react/foundation/sdkwork-i18n-pc-react/src/index.ts',
 );
 const corePcReactEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-core/sdkwork-core-pc-react/src',
+  dependencyRoot('sdkwork-core'),
+  'sdkwork-core-pc-react/src',
 );
 const uiPcReactSourceRoot = path.resolve(
-  __dirname,
-  '../../../sdkwork-ui/sdkwork-ui-pc-react/src',
+  dependencyRoot('sdkwork-ui'),
+  'sdkwork-ui-pc-react/src',
 );
 const uiPcReactEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts',
+  dependencyRoot('sdkwork-ui'),
+  'sdkwork-ui-pc-react/src/index.ts',
 );
 const uiPcReactStylesEntry = path.resolve(
-  __dirname,
-  '../../../sdkwork-ui/sdkwork-ui-pc-react/src/styles/sdkwork-ui.css',
+  dependencyRoot('sdkwork-ui'),
+  'sdkwork-ui-pc-react/src/styles/sdkwork-ui.css',
 );
 const sdkCommonSourceRoot = path.resolve(
-  __dirname,
-  '../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src',
+  dependencyRoot('sdkwork-sdk-commons'),
+  'sdkwork-sdk-common-typescript/src',
 );
 const sdkCommonEntry = path.resolve(
   sdkCommonSourceRoot,

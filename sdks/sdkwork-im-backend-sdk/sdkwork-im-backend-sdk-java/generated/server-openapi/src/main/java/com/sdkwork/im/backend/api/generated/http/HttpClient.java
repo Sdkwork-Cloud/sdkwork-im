@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class HttpClient {
+
     private final OkHttpClient client;
     private final ObjectMapper mapper;
     private final String baseUrl;
@@ -44,11 +45,9 @@ public class HttpClient {
             .writeTimeout(timeoutSeconds, TimeUnit.SECONDS)
             .build();
     }
-
     public void setAuthToken(String token) {
         headers.put("Authorization", "Bearer " + token);
     }
-
     public void setAccessToken(String token) {
         headers.put("Access-Token", token);
     }

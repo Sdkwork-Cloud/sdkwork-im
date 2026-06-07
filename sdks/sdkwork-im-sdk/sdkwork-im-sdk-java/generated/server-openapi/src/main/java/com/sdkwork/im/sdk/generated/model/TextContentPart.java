@@ -1,7 +1,7 @@
 package com.sdkwork.im.sdk.generated.model;
 
 
-public class TextContentPart {
+public class TextContentPart extends ContentPart {
     private String kind;
     private String text;
 

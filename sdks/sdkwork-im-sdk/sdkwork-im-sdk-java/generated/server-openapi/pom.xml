@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>sdkwork-im-sdk</name>
-    <description>Generator-owned Java transport SDK for sdkwork-im-sdk.</description>
+    <description>sdkwork-im-sdk SDK</description>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>

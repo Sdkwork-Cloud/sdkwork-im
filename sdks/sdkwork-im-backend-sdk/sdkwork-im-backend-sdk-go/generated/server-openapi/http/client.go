@@ -15,6 +15,7 @@ import (
     common "github.com/sdkwork/sdk-common-go/common"
 )
 
+
 // Config wraps sdk-common Go config and adds SDK auth fields.
 type Config struct {
     common.SdkConfig
@@ -59,7 +60,6 @@ func NewClient(config Config) *Client {
         },
         headers: headers,
     }
-
     if config.AuthToken != "" {
         client.SetAuthToken(config.AuthToken)
     }

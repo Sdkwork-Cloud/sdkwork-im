@@ -29,8 +29,6 @@ class SdkworkImClient:
         self.social = SocialApi(self._client)
         self.chat = ChatApi(self._client)
         self.streams = StreamsApi(self._client)
-
-
     def set_auth_token(self, token: str) -> 'SdkworkImClient':
         """Set auth token for authentication."""
         self._client.set_auth_token(token)

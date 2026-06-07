@@ -1,6 +1,6 @@
 # sdkwork-im-sdk (Flutter)
 
-Generator-owned Flutter transport SDK for sdkwork-im-sdk.
+Generated SDKWork v3 dual-token transport SDK.
 
 ## Installation
 
@@ -17,23 +17,19 @@ dependencies:
 import 'package:im_sdk_generated/im_sdk_generated.dart';
 
 final client = SdkworkImClient.withBaseUrl(baseUrl: 'http://127.0.0.1:18090');
-// Attach the authenticated SDKWork session tokens
-    client.setAuthToken("your-auth-token");
-    client.setAccessToken("your-access-token");
+client.setAuthToken('your-auth-token');
+client.setAccessToken('your-access-token');
 
 // Use the SDK
 final result = await client.presence.meRetrieve();
 print(result);
 ```
 
-## Dual Token Authentication
+## Authentication
 
-```
-client.setAuthToken("your-auth-token")
-client.setAccessToken("your-access-token")
-// Sends:
-// Authorization: Bearer <authToken>
-// Access-Token: <accessToken>
+```text
+Authorization: Bearer <authToken>
+Access-Token: <accessToken>
 ```
 
 

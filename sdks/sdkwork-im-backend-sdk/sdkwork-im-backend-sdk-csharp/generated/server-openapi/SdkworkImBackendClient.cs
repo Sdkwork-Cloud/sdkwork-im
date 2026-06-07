@@ -34,8 +34,6 @@ namespace Sdkwork.Im.BackendApi.Generated
             Control = new ControlApi(_httpClient);
             Admin = new AdminApi(_httpClient);
         }
-
-
         public SdkworkImBackendClient SetAuthToken(string token)
         {
             _httpClient.SetAuthToken(token);

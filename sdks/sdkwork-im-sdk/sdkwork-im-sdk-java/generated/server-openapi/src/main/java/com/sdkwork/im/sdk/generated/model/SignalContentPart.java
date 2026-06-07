@@ -1,7 +1,7 @@
 package com.sdkwork.im.sdk.generated.model;
 
 
-public class SignalContentPart {
+public class SignalContentPart extends ContentPart {
     private String kind;
     private String signalType;
     private String schemaRef;

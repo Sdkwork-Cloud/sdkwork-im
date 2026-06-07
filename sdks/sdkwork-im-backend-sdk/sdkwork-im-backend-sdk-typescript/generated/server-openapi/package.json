@@ -1,6 +1,7 @@
 {
   "name": "@sdkwork-internal/im-backend-api-generated",
   "version": "0.1.0",
+  "private": true,
   "description": "Generator-owned TypeScript transport SDK for sdkwork-im-backend-sdk.",
   "author": "SDKWork Team",
   "license": "MIT",
@@ -36,6 +37,5 @@
     "api",
     "backend",
     "sdkwork"
-  ],
-  "private": true
+  ]
 }

@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>sdkwork-im-backend-sdk</name>
-    <description>Generator-owned Java transport SDK for sdkwork-im-backend-sdk.</description>
+    <description>sdkwork-im-backend-sdk SDK</description>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>

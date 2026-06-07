@@ -26,6 +26,5 @@
     "stateRoots": [
       ".sdkwork/"
     ]
-  },
-  "description": "Generator-owned Go transport SDK for sdkwork-im-sdk."
+  }
 }

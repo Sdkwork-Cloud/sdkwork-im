@@ -1,7 +1,8 @@
 {
   "name": "@sdkwork-internal/im-app-api-generated",
   "version": "0.1.0",
-  "description": "sdkwork-im-app-sdk",
+  "private": true,
+  "description": "Generator-owned TypeScript transport SDK for sdkwork-im-app-sdk.",
   "author": "SDKWork Team",
   "license": "MIT",
   "type": "module",

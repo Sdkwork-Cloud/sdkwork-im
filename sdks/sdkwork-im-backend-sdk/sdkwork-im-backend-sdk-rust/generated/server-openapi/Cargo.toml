@@ -4,7 +4,7 @@
 name = "sdkwork-im-backend-api-generated"
 version = "0.1.0"
 edition = "2021"
-description = "Generator-owned Rust transport SDK for sdkwork-im-backend-sdk."
+description = "sdkwork-im-backend-sdk SDK"
 license = "MIT"
 authors = ["SDKWork Team"]
 

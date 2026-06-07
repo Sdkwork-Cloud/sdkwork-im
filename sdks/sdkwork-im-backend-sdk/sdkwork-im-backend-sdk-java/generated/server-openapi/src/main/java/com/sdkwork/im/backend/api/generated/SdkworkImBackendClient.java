@@ -53,8 +53,6 @@ public class SdkworkImBackendClient {
     public AdminApi getAdmin() {
         return this.admin;
     }
-
-
     public SdkworkImBackendClient setAuthToken(String token) {
         httpClient.setAuthToken(token);
         return this;

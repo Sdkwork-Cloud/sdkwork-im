@@ -1,7 +1,7 @@
 package com.sdkwork.im.sdk.generated.model;
 
 
-public class StreamRefContentPart {
+public class StreamRefContentPart extends ContentPart {
     private String kind;
     private String streamId;
     private String streamType;

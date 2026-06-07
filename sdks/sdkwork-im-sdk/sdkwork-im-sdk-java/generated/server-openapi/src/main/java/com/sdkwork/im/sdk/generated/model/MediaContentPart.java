@@ -1,7 +1,7 @@
 package com.sdkwork.im.sdk.generated.model;
 
 
-public class MediaContentPart {
+public class MediaContentPart extends ContentPart {
     private String kind;
     private DriveReference drive;
     private MediaResource resource;

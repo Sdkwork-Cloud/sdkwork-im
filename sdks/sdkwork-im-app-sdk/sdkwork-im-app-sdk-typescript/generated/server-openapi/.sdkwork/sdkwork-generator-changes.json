@@ -8,7 +8,7 @@
     "sdkType": "app",
     "packageName": "@sdkwork-internal/im-app-api-generated"
   },
-  "changeFingerprint": "62f22d056be9f3bc02ca6a4cc9bb386990baa81e6e3b275218b223c1af69b6a6",
+  "changeFingerprint": "afa4296d9b703f03ea456aea17138c2f02d0f048e3397e2f06061102cf2082e8",
   "changes": {
     "createdGeneratedFiles": [
       "CHANGELOG.md",

@@ -1,6 +1,6 @@
 # sdkwork-im-sdk
 
-Generator-owned TypeScript transport SDK for sdkwork-im-sdk.
+Generated SDKWork v3 dual-token transport SDK.
 
 ## Installation
 
@@ -22,7 +22,7 @@ const client = new SdkworkImClient({
   timeout: 30000,
 });
 
-// Attach the authenticated SDKWork session tokens
+// Authentication
 client.setAuthToken('your-auth-token');
 client.setAccessToken('your-access-token');
 
@@ -30,16 +30,13 @@ client.setAccessToken('your-access-token');
 const result = await client.presence.me.retrieve();
 ```
 
-## Dual Token Authentication
+## Authentication
 
-```typescript
-const client = new SdkworkImClient({ baseUrl: 'http://127.0.0.1:18090' });
-client.setAuthToken('your-auth-token');
-client.setAccessToken('your-access-token');
-// Sends:
-// Authorization: Bearer <authToken>
-// Access-Token: <accessToken>
+```text
+Authorization: Bearer <authToken>
+Access-Token: <accessToken>
 ```
+
 
 ## Configuration (Non-Auth)
 
@@ -183,7 +180,7 @@ This SDK includes cross-platform publish scripts in `bin/`:
 .\bin\publish.ps1 --action publish --channel test --dry-run
 ```
 
-> Set `NPM_TOKEN` (and optional `NPM_REGISTRY_URL`) before release publish.
+> Configure npm registry credentials before release publish.
 
 ## License
 

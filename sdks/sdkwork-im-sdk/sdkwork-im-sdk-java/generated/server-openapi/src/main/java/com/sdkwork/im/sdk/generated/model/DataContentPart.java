@@ -1,7 +1,7 @@
 package com.sdkwork.im.sdk.generated.model;
 
 
-public class DataContentPart {
+public class DataContentPart extends ContentPart {
     private String kind;
     private String schemaRef;
     private String encoding;

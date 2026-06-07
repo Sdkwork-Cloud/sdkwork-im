@@ -60,6 +60,38 @@ on:
         required: true
         default: false
         type: boolean
+      sdkwork_appbase_ref:
+        description: sdkwork-appbase commit/ref.
+        required: false
+        default: 4e287906b0d712213f8b6ede39b505aac3a67722
+      sdkwork_core_ref:
+        description: sdkwork-core commit/ref.
+        required: false
+        default: fd64773e8f73ce38f6995ded0ee63c00d6c5e675
+      sdkwork_ui_ref:
+        description: sdkwork-ui commit/ref.
+        required: false
+        default: 672b9a990cdd077422f60651fbc9413b44343ab2
+      sdkwork_rtc_ref:
+        description: sdkwork-rtc commit/ref.
+        required: false
+        default: 9520a452f744b5a868449547bb2031a7ffc6fd30
+      sdkwork_kernel_ref:
+        description: sdkwork-kernel commit/ref.
+        required: false
+        default: 3bd785900224f7519a60477419edb79424be1bea
+      sdkwork_aiot_ref:
+        description: sdkwork-aiot commit/ref.
+        required: false
+        default: ca545c873d17bdcf92a9de6b4a1c47dc07481adf
+      sdkwork_sdk_commons_ref:
+        description: sdkwork-sdk-commons commit/ref.
+        required: false
+        default: c9adc5a02fed0d9ce70ab719e5d2155ed40676da
+      sdkwork_sdk_generator_ref:
+        description: sdkwork-sdk-generator commit/ref.
+        required: false
+        default: 715562e30be876661a1c78f4a84b058e75aba937
 
 permissions:
   contents: write
@@ -84,5 +116,15 @@ jobs:
       deploy: ${{ github.event.inputs.deploy == 'true' || github.event_name == 'release' }}
       retention_days: 30
       framework_ref: b0829529b9277a3da32b90c2d36ff34ff09fa832
-      dependency_refs_json: '{}'
+      dependency_refs_json: >-
+        {
+          "SDKWORK_APPBASE_REF": "${{ github.event.inputs.sdkwork_appbase_ref || vars.SDKWORK_APPBASE_REF }}",
+          "SDKWORK_CORE_REF": "${{ github.event.inputs.sdkwork_core_ref || vars.SDKWORK_CORE_REF }}",
+          "SDKWORK_UI_REF": "${{ github.event.inputs.sdkwork_ui_ref || vars.SDKWORK_UI_REF }}",
+          "SDKWORK_RTC_REF": "${{ github.event.inputs.sdkwork_rtc_ref || vars.SDKWORK_RTC_REF }}",
+          "SDKWORK_KERNEL_REF": "${{ github.event.inputs.sdkwork_kernel_ref || vars.SDKWORK_KERNEL_REF }}",
+          "SDKWORK_AIOT_REF": "${{ github.event.inputs.sdkwork_aiot_ref || vars.SDKWORK_AIOT_REF }}",
+          "SDKWORK_SDK_COMMONS_REF": "${{ github.event.inputs.sdkwork_sdk_commons_ref || vars.SDKWORK_SDK_COMMONS_REF }}",
+          "SDKWORK_SDK_GENERATOR_REF": "${{ github.event.inputs.sdkwork_sdk_generator_ref || vars.SDKWORK_SDK_GENERATOR_REF }}"
+        }
     secrets: inherit

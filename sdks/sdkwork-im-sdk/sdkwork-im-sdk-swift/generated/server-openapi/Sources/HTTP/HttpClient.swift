@@ -2,6 +2,7 @@ import Foundation
 import SDKworkCommon
 
 public class HttpClient {
+
     private struct AnyEncodable: Encodable {
         private let encodeClosure: (Encoder) throws -> Void
 
@@ -35,11 +36,9 @@ public class HttpClient {
             headers: config.headers ?? [:]
         )
     }
-
     public func setAuthToken(_ token: String) {
-        headers["Authorization"] = "Bearer \\(token)"
+        headers["Authorization"] = "Bearer \(token)"
     }
-
     public func setAccessToken(_ token: String) {
         headers["Access-Token"] = token
     }

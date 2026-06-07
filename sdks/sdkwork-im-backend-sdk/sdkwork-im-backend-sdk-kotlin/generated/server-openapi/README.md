@@ -1,6 +1,6 @@
 # sdkwork-im-backend-sdk (Kotlin)
 
-Generator-owned Kotlin transport SDK for sdkwork-im-backend-sdk.
+Generated SDKWork v3 dual-token transport SDK.
 
 ## Installation
 
@@ -27,9 +27,8 @@ import kotlinx.coroutines.runBlocking
 fun main() = runBlocking {
     val config = SdkConfig(baseUrl = "http://127.0.0.1:18090")
     val client = SdkworkImBackendClient(config)
-    // Attach the authenticated SDKWork session tokens
-        client.setAuthToken("your-auth-token");
-        client.setAccessToken("your-access-token");
+    client.setAuthToken("your-auth-token")
+client.setAccessToken("your-access-token")
 
     // Use the SDK
     val result = client.admin.apiKeyGroupsList()
@@ -37,14 +36,11 @@ fun main() = runBlocking {
 }
 ```
 
-## Dual Token Authentication
+## Authentication
 
-```
-client.setAuthToken("your-auth-token")
-client.setAccessToken("your-access-token")
-// Sends:
-// Authorization: Bearer <authToken>
-// Access-Token: <accessToken>
+```text
+Authorization: Bearer <authToken>
+Access-Token: <accessToken>
 ```
 
 

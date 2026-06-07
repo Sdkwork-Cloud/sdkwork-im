@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sdkwork-im-sdk-generated"
 version = "0.1.0"
-description = "Generator-owned Python transport SDK for sdkwork-im-sdk."
+description = "sdkwork-im-sdk SDK"
 authors = [{name = "SDKWork Team"}]
 readme = "README.md"
 license = "MIT"

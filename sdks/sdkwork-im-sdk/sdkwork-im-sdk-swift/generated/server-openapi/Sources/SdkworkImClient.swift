@@ -32,8 +32,6 @@ public class SdkworkImClient {
         self.chat = ChatApi(client: httpClient)
         self.streams = StreamsApi(client: httpClient)
     }
-
-
     public func setAuthToken(_ token: String) -> SdkworkImClient {
         httpClient.setAuthToken(token)
         return self

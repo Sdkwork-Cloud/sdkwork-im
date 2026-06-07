@@ -10,7 +10,7 @@
     <PackageId>Sdkwork.Im.Sdk.Generated</PackageId>
     <Version>0.1.0</Version>
     <Authors>SDKWork Team</Authors>
-    <Description>Generator-owned C# transport SDK for sdkwork-im-sdk.</Description>
+    <Description>sdkwork-im-sdk SDK</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 

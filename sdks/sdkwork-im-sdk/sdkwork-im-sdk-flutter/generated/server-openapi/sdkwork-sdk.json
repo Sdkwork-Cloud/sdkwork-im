@@ -26,6 +26,5 @@
     "stateRoots": [
       ".sdkwork/"
     ]
-  },
-  "description": "Generator-owned Flutter transport SDK for sdkwork-im-sdk."
+  }
 }

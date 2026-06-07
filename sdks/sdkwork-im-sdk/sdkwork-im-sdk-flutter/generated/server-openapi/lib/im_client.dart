@@ -49,7 +49,6 @@ class SdkworkImClient {
     );
   }
 
-
   void setAuthToken(String token) {
     _httpClient.setAuthToken(token);
   }

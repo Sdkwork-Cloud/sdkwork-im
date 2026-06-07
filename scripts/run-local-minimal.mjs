@@ -5,7 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { runCommandSequence } from '../../sdkwork-appbase/scripts/run-command-sequence.mjs';
+import { runCommandSequence } from '../.sdkwork/dependencies/sdkwork-appbase/scripts/run-command-sequence.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -29,8 +29,6 @@ export class SdkworkImBackendClient {
 
     this.admin = createAdminApi(this.httpClient);
   }
-
-
   setAuthToken(token: string): this {
     this.httpClient.setAuthToken(token);
     return this;
@@ -56,6 +54,5 @@ export function createClient(config: SdkworkBackendConfig): SdkworkImBackendClie
 }
 
 export { SdkworkImBackendClient as SdkworkBackendClient };
-
 
 export default SdkworkImBackendClient;

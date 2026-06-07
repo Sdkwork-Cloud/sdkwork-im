@@ -1,6 +1,6 @@
 # sdkwork-im-backend-sdk (Java)
 
-Generator-owned Java transport SDK for sdkwork-im-backend-sdk.
+Generated SDKWork v3 dual-token transport SDK.
 
 ## Installation
 
@@ -30,9 +30,8 @@ public class Main {
     public static void main(String[] args) throws Exception {
         Types.SdkConfig config = new Types.SdkConfig("http://127.0.0.1:18090");
         SdkworkImBackendClient client = new SdkworkImBackendClient(config);
-        // Attach the authenticated SDKWork session tokens
-            client.setAuthToken("your-auth-token");
-            client.setAccessToken("your-access-token");
+        client.setAuthToken("your-auth-token");
+client.setAccessToken("your-access-token");
 
         // Use the SDK
         Object result = client.getAdmin().apiKeyGroupsList();
@@ -41,14 +40,11 @@ public class Main {
 }
 ```
 
-## Dual Token Authentication
+## Authentication
 
-```
-client.setAuthToken("your-auth-token")
-client.setAccessToken("your-access-token")
-// Sends:
-// Authorization: Bearer <authToken>
-// Access-Token: <accessToken>
+```text
+Authorization: Bearer <authToken>
+Access-Token: <accessToken>
 ```
 
 

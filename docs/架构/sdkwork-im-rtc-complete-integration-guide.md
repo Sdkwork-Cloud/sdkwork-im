@@ -5,7 +5,7 @@ Last updated: `2026-04-21`
 This document is the current complete integration guide for:
 
 - `sdks/sdkwork-im-sdk`
-- `../sdkwork-rtc/sdks/sdkwork-rtc-sdk`
+- `.sdkwork/dependencies/sdkwork-rtc/sdks/sdkwork-rtc-sdk`
 
 It is written against the checked-in code and the fresh verification snapshot from this workspace.
 It focuses on the two currently executable baselines:
@@ -107,7 +107,7 @@ Important current contract:
 | --- | --- | --- |
 | IM | `im_sdk` | `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/composed` |
 | IM generated transport | `im_sdk_generated` | `sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/generated/server-openapi` |
-| RTC | `rtc_sdk` | `../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-flutter` |
+| RTC | `rtc_sdk` | `.sdkwork/dependencies/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-flutter` |
 | RTC vendor | `volc_engine_rtc` | external vendor package |
 
 Important current contract:
@@ -381,7 +381,7 @@ If you are integrating directly from the current repository checkout:
 
 ```bash
 pnpm add file:../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript
-pnpm add file:../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript
+pnpm add file:.sdkwork/dependencies/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript
 pnpm add @volcengine/rtc
 ```
 
@@ -479,7 +479,7 @@ In the current repository layout, the verified dependency pattern is:
 ```yaml
 dependencies:
   rtc_sdk:
-    path: ../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-flutter
+    path: .sdkwork/dependencies/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-flutter
   im_sdk:
     path: ../sdks/sdkwork-im-sdk/sdkwork-im-sdk-flutter/composed
   volc_engine_rtc: ^3.60.3
@@ -549,7 +549,7 @@ For the current Volcengine Flutter runtime baseline, the app must provide:
 RTC fresh verification:
 
 ```powershell
-node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
+node .\.sdkwork\dependencies\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
 ```
 
 Observed result:
@@ -575,10 +575,10 @@ Observed result:
 RTC:
 
 ```powershell
-node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
-node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\sdk-call-smoke.mjs --json
-node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\sdk-call-smoke.mjs --language flutter --json
-node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
+node .\.sdkwork\dependencies\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
+node .\.sdkwork\dependencies\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\sdk-call-smoke.mjs --json
+node .\.sdkwork\dependencies\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\sdk-call-smoke.mjs --language flutter --json
+node .\.sdkwork\dependencies\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
 ```
 
 IM:
@@ -728,9 +728,9 @@ Recommended language priority:
 
 RTC references:
 
-- `../sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/usage-guide.md`
-- `../sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/typescript-volcengine-im-usage.md`
-- `../sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/flutter-volcengine-im-usage.md`
+- `.sdkwork/dependencies/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/usage-guide.md`
+- `.sdkwork/dependencies/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/typescript-volcengine-im-usage.md`
+- `.sdkwork/dependencies/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/flutter-volcengine-im-usage.md`
 
 IM references:
 

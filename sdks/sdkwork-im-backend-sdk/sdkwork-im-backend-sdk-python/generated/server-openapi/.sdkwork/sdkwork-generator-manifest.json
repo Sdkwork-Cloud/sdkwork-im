@@ -11,7 +11,7 @@
   "generatedFiles": [
     {
       "path": "bin/publish-core.mjs",
-      "sha256": "18b05851461e9176a2ad18c3f5138316a6da45ad0dfb847565603ff3d90bf14b"
+      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
     },
     {
       "path": "bin/publish.ps1",
@@ -35,11 +35,11 @@
     },
     {
       "path": "pyproject.toml",
-      "sha256": "cb4c3582851c58fa692c16e7650be6af8c60e4f8f23a43aaf6b37f648bcf4fce"
+      "sha256": "5fe9e6964b5cd2bdf4b5334295455dab2478fdd2e3fc90e178278de27388782f"
     },
     {
       "path": "README.md",
-      "sha256": "00689adcc6824d8e65b7c0153a6112e7adcf35376a498c70d8b3a1a766938f72"
+      "sha256": "042dc464caa301b978ceb03687fcd92e6fe61ef6aafb9252f35bc94a5131e989"
     },
     {
       "path": "requirements.txt",
@@ -75,11 +75,11 @@
     },
     {
       "path": "sdkwork_im_backend_api_generated/client.py",
-      "sha256": "19a024b24b537010204cf2b9e737a703331b662516d27cc0fe7c0c25b1abe63d"
+      "sha256": "5890110c261d3bfa28a6c2495b1b10f3c69414ca6651e6fa873afcebff362630"
     },
     {
       "path": "sdkwork_im_backend_api_generated/http_client.py",
-      "sha256": "b4c380db4b00734f9faca76e923d6916e96939ca49dc1d71a8bbb7caa668cc28"
+      "sha256": "508505ecffc68fb21ec0b25b8d53b764e39c4d861d15590357a07fe96eb85e66"
     },
     {
       "path": "sdkwork_im_backend_api_generated/models/__init__.py",
@@ -347,7 +347,7 @@
     },
     {
       "path": "sdkwork-sdk.json",
-      "sha256": "9641d3a841f1ec40c09333b3e7e8d8c77aab8ea3c3ac672da6f84ccb1b35cfbb"
+      "sha256": "b6a7689398ff8bebf6fbbf8996ca742109bf3c11303b528c59178fdf0d62c735"
     },
     {
       "path": "setup.py",

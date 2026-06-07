@@ -1,5 +1,5 @@
 name: im_sdk_generated
-description: Generator-owned Flutter transport SDK for sdkwork-im-sdk.
+description: sdkwork-im-sdk SDK
 version: 0.1.0
 homepage: https://github.com/Sdkwork-Cloud/sdkwork-sdk-generator
 repository: https://github.com/Sdkwork-Cloud/sdkwork-sdk-generator

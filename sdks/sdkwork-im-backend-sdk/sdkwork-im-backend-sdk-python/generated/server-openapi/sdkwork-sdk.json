@@ -26,6 +26,5 @@
     "stateRoots": [
       ".sdkwork/"
     ]
-  },
-  "description": "Generator-owned Python transport SDK for sdkwork-im-backend-sdk."
+  }
 }

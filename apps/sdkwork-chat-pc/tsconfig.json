@@ -38,76 +38,76 @@
         "../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
       "@sdkwork/agent-app-sdk": [
-        "../../../sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
       "@sdkwork/aiot-app-sdk": [
-        "../../../sdkwork-aiot/sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-aiot/sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/appbase-app-sdk": [
-        "../../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
       "@sdkwork/appbase-backend-sdk": [
-        "../../../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
       "@sdkwork/im-sdk": [
         "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/rtc-sdk": [
-        "../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/appbase-pc-react": [
-        "../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts"
       ],
       "@sdkwork/auth-pc-react": [
-        "../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts"
       ],
       "@sdkwork/auth-runtime-pc-react": [
-        "../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts"
       ],
       "@sdkwork/auth-pc-react/auth": [
-        "../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts"
+        "../../.sdkwork/dependencies/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts"
       ],
       "@sdkwork/iam-contracts": [
-        "../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts/src/index.ts"
       ],
       "@sdkwork/iam-sdk-ports": [
-        "../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts"
       ],
       "@sdkwork/i18n-pc-react": [
-        "../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react/src/index.ts"
       ],
       "@sdkwork/core-pc-react": [
-        "../../../sdkwork-core/sdkwork-core-pc-react/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-core/sdkwork-core-pc-react/src/index.ts"
       ],
       "@sdkwork/core-pc-react/*": [
-        "../../../sdkwork-core/sdkwork-core-pc-react/src/*/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-core/sdkwork-core-pc-react/src/*/index.ts"
       ],
       "@sdkwork/ui-pc-react/styles.css": [
-        "../../../sdkwork-ui/sdkwork-ui-pc-react/src/styles/sdkwork-ui.css"
+        "../../.sdkwork/dependencies/sdkwork-ui/sdkwork-ui-pc-react/src/styles/sdkwork-ui.css"
       ],
       "@sdkwork/ui-pc-react": [
-        "../../../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-ui/sdkwork-ui-pc-react/src/index.ts"
       ],
       "@sdkwork/ui-pc-react/*": [
-        "../../../sdkwork-ui/sdkwork-ui-pc-react/src/*"
+        "../../.sdkwork/dependencies/sdkwork-ui/sdkwork-ui-pc-react/src/*"
       ],
       "@sdkwork/sdk-common": [
-        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"
       ],
       "@sdkwork/sdk-common/core": [
-        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/core/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/core/index.ts"
       ],
       "@sdkwork/sdk-common/auth": [
-        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/auth/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/auth/index.ts"
       ],
       "@sdkwork/sdk-common/http": [
-        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/http/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/http/index.ts"
       ],
       "@sdkwork/sdk-common/errors": [
-        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/errors/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/errors/index.ts"
       ],
       "@sdkwork/sdk-common/utils": [
-        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/utils/index.ts"
+        "../../.sdkwork/dependencies/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/utils/index.ts"
       ],
       "@sdkwork/clawchat-pc-types/*": [
         "./packages/sdkwork-clawchat-pc-types/src/*"

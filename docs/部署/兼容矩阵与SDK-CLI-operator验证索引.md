@@ -27,7 +27,7 @@
    - [`../../sdks/sdkwork-im-sdk/README.md`](../../sdks/sdkwork-im-sdk/README.md)
    - [`../../sdks/sdkwork-im-app-sdk/README.md`](../../sdks/sdkwork-im-app-sdk/README.md)
    - [`../../sdks/sdkwork-im-backend-sdk/README.md`](../../sdks/sdkwork-im-backend-sdk/README.md)
-   - [`../sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`](../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md)
+   - [`.sdkwork/dependencies/sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`](../../.sdkwork/dependencies/sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md)
 
 ## 3. �?compatibility matrix 到消费�?
 

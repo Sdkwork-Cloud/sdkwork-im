@@ -13,7 +13,6 @@ type HttpRequestOptions = RequestOptions & {
 export class HttpClient extends BaseHttpClient {
   private static readonly ACCESS_TOKEN_HEADER: string = 'Access-Token';
 
-
   constructor(config: SdkworkImConfig) {
     super(config as any);
   }
@@ -176,13 +175,9 @@ export class HttpClient extends BaseHttpClient {
     }
     params.append(key, String(value));
   }
-
-
-
   setAuthToken(token: string): void {
     super.setAuthToken(token);
   }
-
   setAccessToken(token: string): void {
     const headers = this.getInternalHeaders();
     headers[HttpClient.ACCESS_TOKEN_HEADER] = token;

@@ -11,7 +11,7 @@
   "generatedFiles": [
     {
       "path": "bin/publish-core.mjs",
-      "sha256": "18b05851461e9176a2ad18c3f5138316a6da45ad0dfb847565603ff3d90bf14b"
+      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
     },
     {
       "path": "bin/publish.ps1",
@@ -35,11 +35,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "d2c9286437e4e13c131a49251adf12f90aa0b43134bc99f9edaa0b36abba4290"
+      "sha256": "c7a0492c5c928a3da32745776c18cc6eb107577907d01839e02f3d615c619620"
     },
     {
       "path": "sdkwork-sdk.json",
-      "sha256": "23584d4451fef3b70613f5e7fbde94eec17de59dcf502c7134213176d4666202"
+      "sha256": "946a95241399d3ba145537d6aba733720f62f98c7aa1d301c6f7b526f75c209d"
     },
     {
       "path": "settings.gradle.kts",
@@ -127,7 +127,7 @@
     },
     {
       "path": "src/main/kotlin/com/sdkwork/im/backend/api/generated/http/HttpClient.kt",
-      "sha256": "1c71be37ec025fe7a8f2d36c6727dc6ef00f655a43603f8186f4055f8370afca"
+      "sha256": "6a926b30b30cf14bed305a8987773ddd0c74cd93e589e8c4abe68b916d4dd902"
     },
     {
       "path": "src/main/kotlin/com/sdkwork/im/backend/api/generated/KillSwitchResponse.kt",
@@ -203,11 +203,11 @@
     },
     {
       "path": "src/main/kotlin/com/sdkwork/im/backend/api/generated/SdkworkBackendClient.kt",
-      "sha256": "c15378e25e585ee1d7e9e55d620b69654842ea59ac26d03e1f90ab9d9f0d6e13"
+      "sha256": "f238335a7951b7c8ea8bf13b13f262b0fea36c4949fc4f6d5b208226506ff254"
     },
     {
       "path": "src/main/kotlin/com/sdkwork/im/backend/api/generated/SdkworkImBackendClient.kt",
-      "sha256": "fcbf3c180e4ee2a29481377cf0886f13f1e911b4fd617363669ddb58af10b4df"
+      "sha256": "4e9dd0c396667afdbd78d7c39567371ad076029177af78ed7e1f6f53f48154b5"
     },
     {
       "path": "src/main/kotlin/com/sdkwork/im/backend/api/generated/SocialDirectChatCommitResponse.kt",

@@ -26,6 +26,5 @@
     "stateRoots": [
       ".sdkwork/"
     ]
-  },
-  "description": "Generator-owned TypeScript transport SDK for sdkwork-im-backend-sdk."
+  }
 }

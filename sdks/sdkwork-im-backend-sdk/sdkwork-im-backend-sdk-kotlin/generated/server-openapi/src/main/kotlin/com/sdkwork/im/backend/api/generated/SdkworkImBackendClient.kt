@@ -34,8 +34,6 @@ open class SdkworkImBackendClient {
         control = ControlApi(httpClient)
         admin = AdminApi(httpClient)
     }
-
-
     fun setAuthToken(token: String): SdkworkImBackendClient {
         httpClient.setAuthToken(token)
         return this

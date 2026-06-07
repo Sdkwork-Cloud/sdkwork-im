@@ -8,12 +8,11 @@
     "sdkType": "backend",
     "packageName": "Sdkwork.Im.BackendApi.Generated"
   },
-  "changeFingerprint": "b3d825f614730bdda2f2ee8b9a4ab48b0e8684d917deb6195e2aabee289bcf5d",
+  "changeFingerprint": "4d666fc7fad443a7606e04f430a908ca5817f4d47b0cf4e16b72fae6c8081645",
   "changes": {
-    "createdGeneratedFiles": [
-      "SdkworkImBackendClient.cs"
-    ],
-    "updatedGeneratedFiles": [
+    "createdGeneratedFiles": [],
+    "updatedGeneratedFiles": [],
+    "unchangedGeneratedFiles": [
       "Api/AdminApi.cs",
       "Api/Api.cs",
       "Api/ApiPaths.cs",
@@ -95,270 +94,38 @@
       "README.md",
       "sdkwork-sdk.json",
       "Sdkwork.Im.BackendApi.Generated.csproj",
-      "SdkworkBackendClient.cs"
+      "SdkworkBackendClient.cs",
+      "SdkworkImBackendClient.cs"
     ],
-    "unchangedGeneratedFiles": [],
     "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/README.md"
     ],
-    "backedUpFiles": [
-      "Api/AdminApi.cs",
-      "Api/Api.cs",
-      "Api/ApiPaths.cs",
-      "Api/AuditApi.cs",
-      "Api/AutomationApi.cs",
-      "Api/ControlApi.cs",
-      "Api/OpsApi.cs",
-      "bin/publish-core.mjs",
-      "bin/publish.ps1",
-      "bin/publish.sh",
-      "CHANGELOG.md",
-      "Http/HttpClient.cs",
-      "LICENSE",
-      "Models/AcceptFriendRequestRequest.cs",
-      "Models/ActivateFriendshipRequest.cs",
-      "Models/ApplySharedChannelPolicyRequest.cs",
-      "Models/BindDirectChatRequest.cs",
-      "Models/BindExternalMemberLinkRequest.cs",
-      "Models/BlockUserRequest.cs",
-      "Models/BusinessPolicyVocabularyResponse.cs",
-      "Models/CancelFriendRequestRequest.cs",
-      "Models/CapabilityProfileResponse.cs",
-      "Models/ClientCompatibilityResponse.cs",
-      "Models/DeclineFriendRequestRequest.cs",
-      "Models/EffectiveProtocolSnapshotResponse.cs",
-      "Models/EstablishExternalConnectionRequest.cs",
-      "Models/KillSwitchResponse.cs",
-      "Models/MigrateRoutesRequest.cs",
-      "Models/ProblemDetail.cs",
-      "Models/ProtocolGovernanceResponse.cs",
-      "Models/ProtocolRegistryResponse.cs",
-      "Models/ProtocolSchemaResponse.cs",
-      "Models/ProviderBindingCommitResponse.cs",
-      "Models/ProviderBindingsResponse.cs",
-      "Models/ProviderPolicyDiffResponse.cs",
-      "Models/ProviderPolicyHistoryResponse.cs",
-      "Models/ProviderPolicyRollbackRequest.cs",
-      "Models/ProviderRegistrySnapshotResponse.cs",
-      "Models/QuotaProfileResponse.cs",
-      "Models/RemoveFriendshipRequest.cs",
-      "Models/RolloutPolicyResponse.cs",
-      "Models/RouteMigrationResult.cs",
-      "Models/RouteNodeLifecycle.cs",
-      "Models/SdkCompatibilityBaselineResponse.cs",
-      "Models/SocialDirectChatCommitResponse.cs",
-      "Models/SocialDirectChatSnapshotResponse.cs",
-      "Models/SocialExternalConnectionCommitResponse.cs",
-      "Models/SocialExternalConnectionSnapshotResponse.cs",
-      "Models/SocialExternalMemberLinkCommitResponse.cs",
-      "Models/SocialExternalMemberLinkSnapshotResponse.cs",
-      "Models/SocialFriendRequestCommitResponse.cs",
-      "Models/SocialFriendRequestSnapshotResponse.cs",
-      "Models/SocialFriendshipCommitResponse.cs",
-      "Models/SocialFriendshipSnapshotResponse.cs",
-      "Models/SocialRuntimeRepairResponse.cs",
-      "Models/SocialSharedChannelPolicyCommitResponse.cs",
-      "Models/SocialSharedChannelPolicySnapshotResponse.cs",
-      "Models/SocialSharedChannelSyncDeadLetterInventoryResponse.cs",
-      "Models/SocialSharedChannelSyncDeadLetterRequeueResponse.cs",
-      "Models/SocialSharedChannelSyncDeadLetterTargetedRequeueRequest.cs",
-      "Models/SocialSharedChannelSyncDeadLetterTargetedRequeueResponse.cs",
-      "Models/SocialSharedChannelSyncDeliveredInventoryResponse.cs",
-      "Models/SocialSharedChannelSyncDeliveryStateInventoryResponse.cs",
-      "Models/SocialSharedChannelSyncPendingClaimResponse.cs",
-      "Models/SocialSharedChannelSyncPendingInventoryResponse.cs",
-      "Models/SocialSharedChannelSyncPendingReleaseResponse.cs",
-      "Models/SocialSharedChannelSyncPendingStaleReclaimResponse.cs",
-      "Models/SocialSharedChannelSyncPendingTakeoverResponse.cs",
-      "Models/SocialSharedChannelSyncPendingTargetedClaimRequest.cs",
-      "Models/SocialSharedChannelSyncPendingTargetedReleaseRequest.cs",
-      "Models/SocialSharedChannelSyncPendingTargetedTakeoverRequest.cs",
-      "Models/SocialSharedChannelSyncRepairResponse.cs",
-      "Models/SocialSharedChannelSyncTargetedRepublishRequest.cs",
-      "Models/SocialSharedChannelSyncTargetedRepublishResponse.cs",
-      "Models/SocialUserBlockCommitResponse.cs",
-      "Models/SocialUserBlockSnapshotResponse.cs",
-      "Models/SubmitFriendRequestRequest.cs",
-      "Models/UpsertProviderBindingPolicyRequest.cs",
-      "README.md",
-      "sdkwork-sdk.json",
-      "Sdkwork.Im.BackendApi.Generated.csproj",
-      "SdkworkBackendClient.cs"
-    ]
+    "backedUpFiles": []
   },
   "impact": {
     "schemaVersion": 1,
-    "areas": [
-      "api-surface",
-      "models",
-      "runtime",
-      "build-metadata",
-      "publish-workflow",
-      "documentation",
-      "unknown"
-    ],
-    "details": [
-      {
-        "area": "api-surface",
-        "paths": [
-          "Api/AdminApi.cs",
-          "Api/Api.cs",
-          "Api/ApiPaths.cs",
-          "Api/AuditApi.cs",
-          "Api/AutomationApi.cs",
-          "Api/ControlApi.cs",
-          "Api/OpsApi.cs",
-          "SdkworkBackendClient.cs",
-          "SdkworkImBackendClient.cs"
-        ]
-      },
-      {
-        "area": "models",
-        "paths": [
-          "Models/AcceptFriendRequestRequest.cs",
-          "Models/ActivateFriendshipRequest.cs",
-          "Models/ApplySharedChannelPolicyRequest.cs",
-          "Models/BindDirectChatRequest.cs",
-          "Models/BindExternalMemberLinkRequest.cs",
-          "Models/BlockUserRequest.cs",
-          "Models/BusinessPolicyVocabularyResponse.cs",
-          "Models/CancelFriendRequestRequest.cs",
-          "Models/CapabilityProfileResponse.cs",
-          "Models/ClientCompatibilityResponse.cs",
-          "Models/DeclineFriendRequestRequest.cs",
-          "Models/EffectiveProtocolSnapshotResponse.cs",
-          "Models/EstablishExternalConnectionRequest.cs",
-          "Models/KillSwitchResponse.cs",
-          "Models/MigrateRoutesRequest.cs",
-          "Models/ProblemDetail.cs",
-          "Models/ProtocolGovernanceResponse.cs",
-          "Models/ProtocolRegistryResponse.cs",
-          "Models/ProtocolSchemaResponse.cs",
-          "Models/ProviderBindingCommitResponse.cs",
-          "Models/ProviderBindingsResponse.cs",
-          "Models/ProviderPolicyDiffResponse.cs",
-          "Models/ProviderPolicyHistoryResponse.cs",
-          "Models/ProviderPolicyRollbackRequest.cs",
-          "Models/ProviderRegistrySnapshotResponse.cs",
-          "Models/QuotaProfileResponse.cs",
-          "Models/RemoveFriendshipRequest.cs",
-          "Models/RolloutPolicyResponse.cs",
-          "Models/RouteMigrationResult.cs",
-          "Models/RouteNodeLifecycle.cs",
-          "Models/SdkCompatibilityBaselineResponse.cs",
-          "Models/SocialDirectChatCommitResponse.cs",
-          "Models/SocialDirectChatSnapshotResponse.cs",
-          "Models/SocialExternalConnectionCommitResponse.cs",
-          "Models/SocialExternalConnectionSnapshotResponse.cs",
-          "Models/SocialExternalMemberLinkCommitResponse.cs",
-          "Models/SocialExternalMemberLinkSnapshotResponse.cs",
-          "Models/SocialFriendRequestCommitResponse.cs",
-          "Models/SocialFriendRequestSnapshotResponse.cs",
-          "Models/SocialFriendshipCommitResponse.cs",
-          "Models/SocialFriendshipSnapshotResponse.cs",
-          "Models/SocialRuntimeRepairResponse.cs",
-          "Models/SocialSharedChannelPolicyCommitResponse.cs",
-          "Models/SocialSharedChannelPolicySnapshotResponse.cs",
-          "Models/SocialSharedChannelSyncDeadLetterInventoryResponse.cs",
-          "Models/SocialSharedChannelSyncDeadLetterRequeueResponse.cs",
-          "Models/SocialSharedChannelSyncDeadLetterTargetedRequeueRequest.cs",
-          "Models/SocialSharedChannelSyncDeadLetterTargetedRequeueResponse.cs",
-          "Models/SocialSharedChannelSyncDeliveredInventoryResponse.cs",
-          "Models/SocialSharedChannelSyncDeliveryStateInventoryResponse.cs",
-          "Models/SocialSharedChannelSyncPendingClaimResponse.cs",
-          "Models/SocialSharedChannelSyncPendingInventoryResponse.cs",
-          "Models/SocialSharedChannelSyncPendingReleaseResponse.cs",
-          "Models/SocialSharedChannelSyncPendingStaleReclaimResponse.cs",
-          "Models/SocialSharedChannelSyncPendingTakeoverResponse.cs",
-          "Models/SocialSharedChannelSyncPendingTargetedClaimRequest.cs",
-          "Models/SocialSharedChannelSyncPendingTargetedReleaseRequest.cs",
-          "Models/SocialSharedChannelSyncPendingTargetedTakeoverRequest.cs",
-          "Models/SocialSharedChannelSyncRepairResponse.cs",
-          "Models/SocialSharedChannelSyncTargetedRepublishRequest.cs",
-          "Models/SocialSharedChannelSyncTargetedRepublishResponse.cs",
-          "Models/SocialUserBlockCommitResponse.cs",
-          "Models/SocialUserBlockSnapshotResponse.cs",
-          "Models/SubmitFriendRequestRequest.cs",
-          "Models/UpsertProviderBindingPolicyRequest.cs"
-        ]
-      },
-      {
-        "area": "runtime",
-        "paths": [
-          "Http/HttpClient.cs"
-        ]
-      },
-      {
-        "area": "build-metadata",
-        "paths": [
-          "sdkwork-sdk.json",
-          "Sdkwork.Im.BackendApi.Generated.csproj"
-        ]
-      },
-      {
-        "area": "publish-workflow",
-        "paths": [
-          "bin/publish-core.mjs",
-          "bin/publish.ps1",
-          "bin/publish.sh"
-        ]
-      },
-      {
-        "area": "documentation",
-        "paths": [
-          "CHANGELOG.md",
-          "README.md"
-        ]
-      },
-      {
-        "area": "unknown",
-        "paths": [
-          "LICENSE"
-        ]
-      }
-    ],
-    "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required."
+    "areas": [],
+    "details": [],
+    "requiresVerification": false,
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
   },
   "verificationPlan": {
-    "shouldRun": true,
-    "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
-    "steps": [
-      {
-        "id": "check",
-        "title": "Unified package check",
-        "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-csharp\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "csharp",
-          "--project-dir",
-          ".",
-          "--action",
-          "check"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language csharp --project-dir . --action check"
-      }
-    ]
+    "shouldRun": false,
+    "runPhase": "skip",
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
+    "steps": []
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "high",
-    "nextAction": "verify",
+    "riskLevel": "low",
+    "nextAction": "skip",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "Changes have been applied. Run the required verification plan now.",
+    "summary": "No actionable changes were detected. No apply or verification step is required.",
     "reasons": [
-      "backed-up-generated-files",
-      "manual-review-required",
-      "unknown-impact",
-      "verification-required"
+      "no-actionable-changes"
     ]
   },
   "preservedLegacyFiles": false

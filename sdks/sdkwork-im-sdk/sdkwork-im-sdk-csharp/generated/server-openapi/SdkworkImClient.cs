@@ -40,8 +40,6 @@ namespace Sdkwork.Im.Sdk.Generated
             Chat = new ChatApi(_httpClient);
             Streams = new StreamsApi(_httpClient);
         }
-
-
         public SdkworkImClient SetAuthToken(string token)
         {
             _httpClient.SetAuthToken(token);

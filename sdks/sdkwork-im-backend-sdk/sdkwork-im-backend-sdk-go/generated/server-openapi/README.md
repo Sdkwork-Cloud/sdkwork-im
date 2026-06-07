@@ -1,6 +1,6 @@
 # sdkwork-im-backend-sdk (Go)
 
-Generator-owned Go transport SDK for sdkwork-im-backend-sdk.
+Generated SDKWork v3 dual-token transport SDK.
 
 ## Installation
 
@@ -23,9 +23,8 @@ import (
 func main() {
     cfg := sdkhttp.NewDefaultConfig("http://127.0.0.1:18090")
     client := github.com/sdkwork/im-backend-api-generated.NewSdkworkImBackendClientWithConfig(cfg)
-    // Attach the authenticated SDKWork session tokens
-        client.SetAuthToken("your-auth-token")
-        client.SetAccessToken("your-access-token")
+    client.SetAuthToken("your-auth-token")
+client.SetAccessToken("your-access-token")
     
     // Use the SDK
     result, err := client.Admin.ApiKeyGroupsList()
@@ -36,14 +35,11 @@ func main() {
 }
 ```
 
-## Dual Token Authentication
+## Authentication
 
-```
-client.SetAuthToken("your-auth-token")
-client.SetAccessToken("your-access-token")
-// Sends:
-// Authorization: Bearer <authToken>
-// Access-Token: <accessToken>
+```text
+Authorization: Bearer <authToken>
+Access-Token: <accessToken>
 ```
 
 

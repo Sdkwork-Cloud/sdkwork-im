@@ -26,8 +26,6 @@ public class SdkworkImBackendClient {
         self.control = ControlApi(client: httpClient)
         self.admin = AdminApi(client: httpClient)
     }
-
-
     public func setAuthToken(_ token: String) -> SdkworkImBackendClient {
         httpClient.setAuthToken(token)
         return self

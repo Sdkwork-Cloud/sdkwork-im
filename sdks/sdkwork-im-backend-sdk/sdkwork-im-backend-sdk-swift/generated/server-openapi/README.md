@@ -1,6 +1,6 @@
 # sdkwork-im-backend-sdk (Swift)
 
-Generator-owned Swift transport SDK for sdkwork-im-backend-sdk.
+Generated SDKWork v3 dual-token transport SDK.
 
 ## Installation
 
@@ -8,7 +8,7 @@ Add to `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/sdkwork/backend-sdk-swift", from: "0.1.0")
+    .package(url: "https://github.com/sdkwork/ImBackendApiGenerated", from: "0.1.0")
 ]
 ```
 
@@ -20,23 +20,19 @@ import SDKworkCommon
 
 let config = SdkConfig(baseUrl: "http://127.0.0.1:18090")
 let client = SdkworkImBackendClient(config: config)
-// Attach the authenticated SDKWork session tokens
-    client.setAuthToken("your-auth-token");
-    client.setAccessToken("your-access-token");
+client.setAuthToken("your-auth-token")
+client.setAccessToken("your-access-token")
 
 // Use the SDK
 let result = try await client.admin.apiKeyGroupsList()
 print(result)
 ```
 
-## Dual Token Authentication
+## Authentication
 
-```
-client.setAuthToken("your-auth-token")
-client.setAccessToken("your-access-token")
-// Sends:
-// Authorization: Bearer <authToken>
-// Access-Token: <accessToken>
+```text
+Authorization: Bearer <authToken>
+Access-Token: <accessToken>
 ```
 
 

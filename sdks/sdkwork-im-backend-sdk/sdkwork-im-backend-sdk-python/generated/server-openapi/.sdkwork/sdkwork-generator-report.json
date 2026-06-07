@@ -10,209 +10,37 @@
   },
   "status": "ok",
   "mode": "apply",
-  "hasChanges": true,
+  "hasChanges": false,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "249831d8bb6af19bbfaa22d3c6889c6a312c36b171528802c71b84b40ffa459c",
+  "changeFingerprint": "741a7ea1f94f5ee4ddb33c8641300fe6826797b6ca59a53e0490d1e97c8d1eef",
   "changeImpact": {
     "schemaVersion": 1,
-    "areas": [
-      "api-surface",
-      "models",
-      "runtime",
-      "build-metadata",
-      "publish-workflow",
-      "documentation",
-      "unknown"
-    ],
-    "details": [
-      {
-        "area": "api-surface",
-        "paths": [
-          "sdkwork_im_backend_api_generated/__init__.py",
-          "sdkwork_im_backend_api_generated/api/__init__.py",
-          "sdkwork_im_backend_api_generated/api/admin.py",
-          "sdkwork_im_backend_api_generated/api/audit.py",
-          "sdkwork_im_backend_api_generated/api/automation.py",
-          "sdkwork_im_backend_api_generated/api/control.py",
-          "sdkwork_im_backend_api_generated/api/ops.py",
-          "sdkwork_im_backend_api_generated/client.py",
-          "sdkwork_im_backend_api_generated/models/__init__.py"
-        ]
-      },
-      {
-        "area": "models",
-        "paths": [
-          "sdkwork_im_backend_api_generated/models/__init__.py",
-          "sdkwork_im_backend_api_generated/models/accept_friend_request_request.py",
-          "sdkwork_im_backend_api_generated/models/activate_friendship_request.py",
-          "sdkwork_im_backend_api_generated/models/apply_shared_channel_policy_request.py",
-          "sdkwork_im_backend_api_generated/models/bind_direct_chat_request.py",
-          "sdkwork_im_backend_api_generated/models/bind_external_member_link_request.py",
-          "sdkwork_im_backend_api_generated/models/block_user_request.py",
-          "sdkwork_im_backend_api_generated/models/business_policy_vocabulary_response.py",
-          "sdkwork_im_backend_api_generated/models/cancel_friend_request_request.py",
-          "sdkwork_im_backend_api_generated/models/capability_profile_response.py",
-          "sdkwork_im_backend_api_generated/models/client_compatibility_response.py",
-          "sdkwork_im_backend_api_generated/models/decline_friend_request_request.py",
-          "sdkwork_im_backend_api_generated/models/effective_protocol_snapshot_response.py",
-          "sdkwork_im_backend_api_generated/models/establish_external_connection_request.py",
-          "sdkwork_im_backend_api_generated/models/kill_switch_response.py",
-          "sdkwork_im_backend_api_generated/models/migrate_routes_request.py",
-          "sdkwork_im_backend_api_generated/models/problem_detail.py",
-          "sdkwork_im_backend_api_generated/models/protocol_governance_response.py",
-          "sdkwork_im_backend_api_generated/models/protocol_registry_response.py",
-          "sdkwork_im_backend_api_generated/models/protocol_schema_response.py",
-          "sdkwork_im_backend_api_generated/models/provider_binding_commit_response.py",
-          "sdkwork_im_backend_api_generated/models/provider_bindings_response.py",
-          "sdkwork_im_backend_api_generated/models/provider_policy_diff_response.py",
-          "sdkwork_im_backend_api_generated/models/provider_policy_history_response.py",
-          "sdkwork_im_backend_api_generated/models/provider_policy_rollback_request.py",
-          "sdkwork_im_backend_api_generated/models/provider_registry_snapshot_response.py",
-          "sdkwork_im_backend_api_generated/models/quota_profile_response.py",
-          "sdkwork_im_backend_api_generated/models/remove_friendship_request.py",
-          "sdkwork_im_backend_api_generated/models/rollout_policy_response.py",
-          "sdkwork_im_backend_api_generated/models/route_migration_result.py",
-          "sdkwork_im_backend_api_generated/models/route_node_lifecycle.py",
-          "sdkwork_im_backend_api_generated/models/sdk_compatibility_baseline_response.py",
-          "sdkwork_im_backend_api_generated/models/social_direct_chat_commit_response.py",
-          "sdkwork_im_backend_api_generated/models/social_direct_chat_snapshot_response.py",
-          "sdkwork_im_backend_api_generated/models/social_external_connection_commit_response.py",
-          "sdkwork_im_backend_api_generated/models/social_external_connection_snapshot_response.py",
-          "sdkwork_im_backend_api_generated/models/social_external_member_link_commit_response.py",
-          "sdkwork_im_backend_api_generated/models/social_external_member_link_snapshot_response.py",
-          "sdkwork_im_backend_api_generated/models/social_friend_request_commit_response.py",
-          "sdkwork_im_backend_api_generated/models/social_friend_request_snapshot_response.py",
-          "sdkwork_im_backend_api_generated/models/social_friendship_commit_response.py",
-          "sdkwork_im_backend_api_generated/models/social_friendship_snapshot_response.py",
-          "sdkwork_im_backend_api_generated/models/social_runtime_repair_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_policy_commit_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_policy_snapshot_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_inventory_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_requeue_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_targeted_requeue_request.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_targeted_requeue_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_delivered_inventory_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_delivery_state_inventory_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_claim_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_inventory_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_release_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_stale_reclaim_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_takeover_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_claim_request.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_release_request.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_takeover_request.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_repair_response.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_targeted_republish_request.py",
-          "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_targeted_republish_response.py",
-          "sdkwork_im_backend_api_generated/models/social_user_block_commit_response.py",
-          "sdkwork_im_backend_api_generated/models/social_user_block_snapshot_response.py",
-          "sdkwork_im_backend_api_generated/models/submit_friend_request_request.py",
-          "sdkwork_im_backend_api_generated/models/upsert_provider_binding_policy_request.py"
-        ]
-      },
-      {
-        "area": "runtime",
-        "paths": [
-          "sdkwork_im_backend_api_generated/http_client.py"
-        ]
-      },
-      {
-        "area": "build-metadata",
-        "paths": [
-          "pyproject.toml",
-          "requirements.txt",
-          "sdkwork-sdk.json",
-          "setup.py"
-        ]
-      },
-      {
-        "area": "publish-workflow",
-        "paths": [
-          "bin/publish-core.mjs",
-          "bin/publish.ps1",
-          "bin/publish.sh"
-        ]
-      },
-      {
-        "area": "documentation",
-        "paths": [
-          "CHANGELOG.md",
-          "README.md"
-        ]
-      },
-      {
-        "area": "unknown",
-        "paths": [
-          "LICENSE",
-          "MANIFEST.in"
-        ]
-      }
-    ],
-    "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required."
+    "areas": [],
+    "details": [],
+    "requiresVerification": false,
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "high",
-    "nextAction": "verify",
+    "riskLevel": "low",
+    "nextAction": "skip",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "Changes have been applied. Run the required verification plan now.",
+    "summary": "No actionable changes were detected. No apply or verification step is required.",
     "reasons": [
-      "backed-up-generated-files",
-      "manual-review-required",
-      "unknown-impact",
-      "verification-required"
+      "no-actionable-changes"
     ]
   },
   "executionHandoff": {
     "schemaVersion": 1,
-    "summary": "Run the required verification commands now.",
-    "steps": [
-      {
-        "id": "verify-check",
-        "title": "Unified package check",
-        "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-python\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "python",
-          "--project-dir",
-          ".",
-          "--action",
-          "check"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language python --project-dir . --action check"
-      }
-    ]
+    "summary": "No further commands are required.",
+    "steps": []
   },
   "verificationPlan": {
-    "shouldRun": true,
-    "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
-    "steps": [
-      {
-        "id": "check",
-        "title": "Unified package check",
-        "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-python\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "python",
-          "--project-dir",
-          ".",
-          "--action",
-          "check"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language python --project-dir . --action check"
-      }
-    ]
+    "shouldRun": false,
+    "runPhase": "skip",
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
+    "steps": []
   },
   "sdk": {
     "name": "sdkwork-im-backend-sdk",
@@ -235,15 +63,16 @@
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 86,
+    "writtenFiles": 0,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 0,
+    "skippedUnchangedGeneratedFiles": 86,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "249831d8bb6af19bbfaa22d3c6889c6a312c36b171528802c71b84b40ffa459c",
+    "changeFingerprint": "741a7ea1f94f5ee4ddb33c8641300fe6826797b6ca59a53e0490d1e97c8d1eef",
     "changes": {
       "createdGeneratedFiles": [],
-      "updatedGeneratedFiles": [
+      "updatedGeneratedFiles": [],
+      "unchangedGeneratedFiles": [
         "bin/publish-core.mjs",
         "bin/publish.ps1",
         "bin/publish.sh",
@@ -331,366 +160,38 @@
         "sdkwork-sdk.json",
         "setup.py"
       ],
-      "unchangedGeneratedFiles": [],
       "deletedGeneratedFiles": [],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/README.md"
       ],
-      "backedUpFiles": [
-        "bin/publish-core.mjs",
-        "bin/publish.ps1",
-        "bin/publish.sh",
-        "CHANGELOG.md",
-        "LICENSE",
-        "MANIFEST.in",
-        "pyproject.toml",
-        "README.md",
-        "requirements.txt",
-        "sdkwork_im_backend_api_generated/__init__.py",
-        "sdkwork_im_backend_api_generated/api/__init__.py",
-        "sdkwork_im_backend_api_generated/api/admin.py",
-        "sdkwork_im_backend_api_generated/api/audit.py",
-        "sdkwork_im_backend_api_generated/api/automation.py",
-        "sdkwork_im_backend_api_generated/api/control.py",
-        "sdkwork_im_backend_api_generated/api/ops.py",
-        "sdkwork_im_backend_api_generated/client.py",
-        "sdkwork_im_backend_api_generated/http_client.py",
-        "sdkwork_im_backend_api_generated/models/__init__.py",
-        "sdkwork_im_backend_api_generated/models/accept_friend_request_request.py",
-        "sdkwork_im_backend_api_generated/models/activate_friendship_request.py",
-        "sdkwork_im_backend_api_generated/models/apply_shared_channel_policy_request.py",
-        "sdkwork_im_backend_api_generated/models/bind_direct_chat_request.py",
-        "sdkwork_im_backend_api_generated/models/bind_external_member_link_request.py",
-        "sdkwork_im_backend_api_generated/models/block_user_request.py",
-        "sdkwork_im_backend_api_generated/models/business_policy_vocabulary_response.py",
-        "sdkwork_im_backend_api_generated/models/cancel_friend_request_request.py",
-        "sdkwork_im_backend_api_generated/models/capability_profile_response.py",
-        "sdkwork_im_backend_api_generated/models/client_compatibility_response.py",
-        "sdkwork_im_backend_api_generated/models/decline_friend_request_request.py",
-        "sdkwork_im_backend_api_generated/models/effective_protocol_snapshot_response.py",
-        "sdkwork_im_backend_api_generated/models/establish_external_connection_request.py",
-        "sdkwork_im_backend_api_generated/models/kill_switch_response.py",
-        "sdkwork_im_backend_api_generated/models/migrate_routes_request.py",
-        "sdkwork_im_backend_api_generated/models/problem_detail.py",
-        "sdkwork_im_backend_api_generated/models/protocol_governance_response.py",
-        "sdkwork_im_backend_api_generated/models/protocol_registry_response.py",
-        "sdkwork_im_backend_api_generated/models/protocol_schema_response.py",
-        "sdkwork_im_backend_api_generated/models/provider_binding_commit_response.py",
-        "sdkwork_im_backend_api_generated/models/provider_bindings_response.py",
-        "sdkwork_im_backend_api_generated/models/provider_policy_diff_response.py",
-        "sdkwork_im_backend_api_generated/models/provider_policy_history_response.py",
-        "sdkwork_im_backend_api_generated/models/provider_policy_rollback_request.py",
-        "sdkwork_im_backend_api_generated/models/provider_registry_snapshot_response.py",
-        "sdkwork_im_backend_api_generated/models/quota_profile_response.py",
-        "sdkwork_im_backend_api_generated/models/remove_friendship_request.py",
-        "sdkwork_im_backend_api_generated/models/rollout_policy_response.py",
-        "sdkwork_im_backend_api_generated/models/route_migration_result.py",
-        "sdkwork_im_backend_api_generated/models/route_node_lifecycle.py",
-        "sdkwork_im_backend_api_generated/models/sdk_compatibility_baseline_response.py",
-        "sdkwork_im_backend_api_generated/models/social_direct_chat_commit_response.py",
-        "sdkwork_im_backend_api_generated/models/social_direct_chat_snapshot_response.py",
-        "sdkwork_im_backend_api_generated/models/social_external_connection_commit_response.py",
-        "sdkwork_im_backend_api_generated/models/social_external_connection_snapshot_response.py",
-        "sdkwork_im_backend_api_generated/models/social_external_member_link_commit_response.py",
-        "sdkwork_im_backend_api_generated/models/social_external_member_link_snapshot_response.py",
-        "sdkwork_im_backend_api_generated/models/social_friend_request_commit_response.py",
-        "sdkwork_im_backend_api_generated/models/social_friend_request_snapshot_response.py",
-        "sdkwork_im_backend_api_generated/models/social_friendship_commit_response.py",
-        "sdkwork_im_backend_api_generated/models/social_friendship_snapshot_response.py",
-        "sdkwork_im_backend_api_generated/models/social_runtime_repair_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_policy_commit_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_policy_snapshot_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_inventory_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_requeue_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_targeted_requeue_request.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_targeted_requeue_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_delivered_inventory_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_delivery_state_inventory_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_claim_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_inventory_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_release_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_stale_reclaim_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_takeover_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_claim_request.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_release_request.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_takeover_request.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_repair_response.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_targeted_republish_request.py",
-        "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_targeted_republish_response.py",
-        "sdkwork_im_backend_api_generated/models/social_user_block_commit_response.py",
-        "sdkwork_im_backend_api_generated/models/social_user_block_snapshot_response.py",
-        "sdkwork_im_backend_api_generated/models/submit_friend_request_request.py",
-        "sdkwork_im_backend_api_generated/models/upsert_provider_binding_policy_request.py",
-        "sdkwork-sdk.json",
-        "setup.py"
-      ]
+      "backedUpFiles": []
     },
     "impact": {
       "schemaVersion": 1,
-      "areas": [
-        "api-surface",
-        "models",
-        "runtime",
-        "build-metadata",
-        "publish-workflow",
-        "documentation",
-        "unknown"
-      ],
-      "details": [
-        {
-          "area": "api-surface",
-          "paths": [
-            "sdkwork_im_backend_api_generated/__init__.py",
-            "sdkwork_im_backend_api_generated/api/__init__.py",
-            "sdkwork_im_backend_api_generated/api/admin.py",
-            "sdkwork_im_backend_api_generated/api/audit.py",
-            "sdkwork_im_backend_api_generated/api/automation.py",
-            "sdkwork_im_backend_api_generated/api/control.py",
-            "sdkwork_im_backend_api_generated/api/ops.py",
-            "sdkwork_im_backend_api_generated/client.py",
-            "sdkwork_im_backend_api_generated/models/__init__.py"
-          ]
-        },
-        {
-          "area": "models",
-          "paths": [
-            "sdkwork_im_backend_api_generated/models/__init__.py",
-            "sdkwork_im_backend_api_generated/models/accept_friend_request_request.py",
-            "sdkwork_im_backend_api_generated/models/activate_friendship_request.py",
-            "sdkwork_im_backend_api_generated/models/apply_shared_channel_policy_request.py",
-            "sdkwork_im_backend_api_generated/models/bind_direct_chat_request.py",
-            "sdkwork_im_backend_api_generated/models/bind_external_member_link_request.py",
-            "sdkwork_im_backend_api_generated/models/block_user_request.py",
-            "sdkwork_im_backend_api_generated/models/business_policy_vocabulary_response.py",
-            "sdkwork_im_backend_api_generated/models/cancel_friend_request_request.py",
-            "sdkwork_im_backend_api_generated/models/capability_profile_response.py",
-            "sdkwork_im_backend_api_generated/models/client_compatibility_response.py",
-            "sdkwork_im_backend_api_generated/models/decline_friend_request_request.py",
-            "sdkwork_im_backend_api_generated/models/effective_protocol_snapshot_response.py",
-            "sdkwork_im_backend_api_generated/models/establish_external_connection_request.py",
-            "sdkwork_im_backend_api_generated/models/kill_switch_response.py",
-            "sdkwork_im_backend_api_generated/models/migrate_routes_request.py",
-            "sdkwork_im_backend_api_generated/models/problem_detail.py",
-            "sdkwork_im_backend_api_generated/models/protocol_governance_response.py",
-            "sdkwork_im_backend_api_generated/models/protocol_registry_response.py",
-            "sdkwork_im_backend_api_generated/models/protocol_schema_response.py",
-            "sdkwork_im_backend_api_generated/models/provider_binding_commit_response.py",
-            "sdkwork_im_backend_api_generated/models/provider_bindings_response.py",
-            "sdkwork_im_backend_api_generated/models/provider_policy_diff_response.py",
-            "sdkwork_im_backend_api_generated/models/provider_policy_history_response.py",
-            "sdkwork_im_backend_api_generated/models/provider_policy_rollback_request.py",
-            "sdkwork_im_backend_api_generated/models/provider_registry_snapshot_response.py",
-            "sdkwork_im_backend_api_generated/models/quota_profile_response.py",
-            "sdkwork_im_backend_api_generated/models/remove_friendship_request.py",
-            "sdkwork_im_backend_api_generated/models/rollout_policy_response.py",
-            "sdkwork_im_backend_api_generated/models/route_migration_result.py",
-            "sdkwork_im_backend_api_generated/models/route_node_lifecycle.py",
-            "sdkwork_im_backend_api_generated/models/sdk_compatibility_baseline_response.py",
-            "sdkwork_im_backend_api_generated/models/social_direct_chat_commit_response.py",
-            "sdkwork_im_backend_api_generated/models/social_direct_chat_snapshot_response.py",
-            "sdkwork_im_backend_api_generated/models/social_external_connection_commit_response.py",
-            "sdkwork_im_backend_api_generated/models/social_external_connection_snapshot_response.py",
-            "sdkwork_im_backend_api_generated/models/social_external_member_link_commit_response.py",
-            "sdkwork_im_backend_api_generated/models/social_external_member_link_snapshot_response.py",
-            "sdkwork_im_backend_api_generated/models/social_friend_request_commit_response.py",
-            "sdkwork_im_backend_api_generated/models/social_friend_request_snapshot_response.py",
-            "sdkwork_im_backend_api_generated/models/social_friendship_commit_response.py",
-            "sdkwork_im_backend_api_generated/models/social_friendship_snapshot_response.py",
-            "sdkwork_im_backend_api_generated/models/social_runtime_repair_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_policy_commit_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_policy_snapshot_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_inventory_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_requeue_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_targeted_requeue_request.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_targeted_requeue_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_delivered_inventory_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_delivery_state_inventory_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_claim_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_inventory_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_release_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_stale_reclaim_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_takeover_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_claim_request.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_release_request.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_takeover_request.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_repair_response.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_targeted_republish_request.py",
-            "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_targeted_republish_response.py",
-            "sdkwork_im_backend_api_generated/models/social_user_block_commit_response.py",
-            "sdkwork_im_backend_api_generated/models/social_user_block_snapshot_response.py",
-            "sdkwork_im_backend_api_generated/models/submit_friend_request_request.py",
-            "sdkwork_im_backend_api_generated/models/upsert_provider_binding_policy_request.py"
-          ]
-        },
-        {
-          "area": "runtime",
-          "paths": [
-            "sdkwork_im_backend_api_generated/http_client.py"
-          ]
-        },
-        {
-          "area": "build-metadata",
-          "paths": [
-            "pyproject.toml",
-            "requirements.txt",
-            "sdkwork-sdk.json",
-            "setup.py"
-          ]
-        },
-        {
-          "area": "publish-workflow",
-          "paths": [
-            "bin/publish-core.mjs",
-            "bin/publish.ps1",
-            "bin/publish.sh"
-          ]
-        },
-        {
-          "area": "documentation",
-          "paths": [
-            "CHANGELOG.md",
-            "README.md"
-          ]
-        },
-        {
-          "area": "unknown",
-          "paths": [
-            "LICENSE",
-            "MANIFEST.in"
-          ]
-        }
-      ],
-      "requiresVerification": true,
-      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required."
+      "areas": [],
+      "details": [],
+      "requiresVerification": false,
+      "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
     },
     "verificationPlan": {
-      "shouldRun": true,
-      "runPhase": "now",
-      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
-      "steps": [
-        {
-          "id": "check",
-          "title": "Unified package check",
-          "required": true,
-          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown.",
-          "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-python\\generated\\server-openapi",
-          "command": "node",
-          "args": [
-            "./bin/publish-core.mjs",
-            "--language",
-            "python",
-            "--project-dir",
-            ".",
-            "--action",
-            "check"
-          ],
-          "displayCommand": "node ./bin/publish-core.mjs --language python --project-dir . --action check"
-        }
-      ]
+      "shouldRun": false,
+      "runPhase": "skip",
+      "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
+      "steps": []
     },
     "executionDecision": {
       "schemaVersion": 1,
-      "riskLevel": "high",
-      "nextAction": "verify",
+      "riskLevel": "low",
+      "nextAction": "skip",
       "requiresManualReview": false,
       "applyRequiresExpectedFingerprint": false,
-      "summary": "Changes have been applied. Run the required verification plan now.",
+      "summary": "No actionable changes were detected. No apply or verification step is required.",
       "reasons": [
-        "backed-up-generated-files",
-        "manual-review-required",
-        "unknown-impact",
-        "verification-required"
+        "no-actionable-changes"
       ]
     },
-    "backedUpFiles": [
-      "bin/publish-core.mjs",
-      "bin/publish.ps1",
-      "bin/publish.sh",
-      "CHANGELOG.md",
-      "LICENSE",
-      "MANIFEST.in",
-      "pyproject.toml",
-      "README.md",
-      "requirements.txt",
-      "sdkwork_im_backend_api_generated/__init__.py",
-      "sdkwork_im_backend_api_generated/api/__init__.py",
-      "sdkwork_im_backend_api_generated/api/admin.py",
-      "sdkwork_im_backend_api_generated/api/audit.py",
-      "sdkwork_im_backend_api_generated/api/automation.py",
-      "sdkwork_im_backend_api_generated/api/control.py",
-      "sdkwork_im_backend_api_generated/api/ops.py",
-      "sdkwork_im_backend_api_generated/client.py",
-      "sdkwork_im_backend_api_generated/http_client.py",
-      "sdkwork_im_backend_api_generated/models/__init__.py",
-      "sdkwork_im_backend_api_generated/models/accept_friend_request_request.py",
-      "sdkwork_im_backend_api_generated/models/activate_friendship_request.py",
-      "sdkwork_im_backend_api_generated/models/apply_shared_channel_policy_request.py",
-      "sdkwork_im_backend_api_generated/models/bind_direct_chat_request.py",
-      "sdkwork_im_backend_api_generated/models/bind_external_member_link_request.py",
-      "sdkwork_im_backend_api_generated/models/block_user_request.py",
-      "sdkwork_im_backend_api_generated/models/business_policy_vocabulary_response.py",
-      "sdkwork_im_backend_api_generated/models/cancel_friend_request_request.py",
-      "sdkwork_im_backend_api_generated/models/capability_profile_response.py",
-      "sdkwork_im_backend_api_generated/models/client_compatibility_response.py",
-      "sdkwork_im_backend_api_generated/models/decline_friend_request_request.py",
-      "sdkwork_im_backend_api_generated/models/effective_protocol_snapshot_response.py",
-      "sdkwork_im_backend_api_generated/models/establish_external_connection_request.py",
-      "sdkwork_im_backend_api_generated/models/kill_switch_response.py",
-      "sdkwork_im_backend_api_generated/models/migrate_routes_request.py",
-      "sdkwork_im_backend_api_generated/models/problem_detail.py",
-      "sdkwork_im_backend_api_generated/models/protocol_governance_response.py",
-      "sdkwork_im_backend_api_generated/models/protocol_registry_response.py",
-      "sdkwork_im_backend_api_generated/models/protocol_schema_response.py",
-      "sdkwork_im_backend_api_generated/models/provider_binding_commit_response.py",
-      "sdkwork_im_backend_api_generated/models/provider_bindings_response.py",
-      "sdkwork_im_backend_api_generated/models/provider_policy_diff_response.py",
-      "sdkwork_im_backend_api_generated/models/provider_policy_history_response.py",
-      "sdkwork_im_backend_api_generated/models/provider_policy_rollback_request.py",
-      "sdkwork_im_backend_api_generated/models/provider_registry_snapshot_response.py",
-      "sdkwork_im_backend_api_generated/models/quota_profile_response.py",
-      "sdkwork_im_backend_api_generated/models/remove_friendship_request.py",
-      "sdkwork_im_backend_api_generated/models/rollout_policy_response.py",
-      "sdkwork_im_backend_api_generated/models/route_migration_result.py",
-      "sdkwork_im_backend_api_generated/models/route_node_lifecycle.py",
-      "sdkwork_im_backend_api_generated/models/sdk_compatibility_baseline_response.py",
-      "sdkwork_im_backend_api_generated/models/social_direct_chat_commit_response.py",
-      "sdkwork_im_backend_api_generated/models/social_direct_chat_snapshot_response.py",
-      "sdkwork_im_backend_api_generated/models/social_external_connection_commit_response.py",
-      "sdkwork_im_backend_api_generated/models/social_external_connection_snapshot_response.py",
-      "sdkwork_im_backend_api_generated/models/social_external_member_link_commit_response.py",
-      "sdkwork_im_backend_api_generated/models/social_external_member_link_snapshot_response.py",
-      "sdkwork_im_backend_api_generated/models/social_friend_request_commit_response.py",
-      "sdkwork_im_backend_api_generated/models/social_friend_request_snapshot_response.py",
-      "sdkwork_im_backend_api_generated/models/social_friendship_commit_response.py",
-      "sdkwork_im_backend_api_generated/models/social_friendship_snapshot_response.py",
-      "sdkwork_im_backend_api_generated/models/social_runtime_repair_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_policy_commit_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_policy_snapshot_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_inventory_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_requeue_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_targeted_requeue_request.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_dead_letter_targeted_requeue_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_delivered_inventory_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_delivery_state_inventory_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_claim_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_inventory_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_release_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_stale_reclaim_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_takeover_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_claim_request.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_release_request.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_pending_targeted_takeover_request.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_repair_response.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_targeted_republish_request.py",
-      "sdkwork_im_backend_api_generated/models/social_shared_channel_sync_targeted_republish_response.py",
-      "sdkwork_im_backend_api_generated/models/social_user_block_commit_response.py",
-      "sdkwork_im_backend_api_generated/models/social_user_block_snapshot_response.py",
-      "sdkwork_im_backend_api_generated/models/submit_friend_request_request.py",
-      "sdkwork_im_backend_api_generated/models/upsert_provider_binding_policy_request.py",
-      "sdkwork-sdk.json",
-      "setup.py"
-    ],
+    "backedUpFiles": [],
     "preservedLegacyFiles": false
   }
 }

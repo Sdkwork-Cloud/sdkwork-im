@@ -61,7 +61,7 @@ and `/backend/v3/api/admin/*` are backend SDK modules.
 | `sdkwork-im-sdk` | `node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs` |
 | `sdkwork-im-app-sdk` | `node ./sdks/sdkwork-im-app-sdk/bin/verify-sdk.mjs` |
 | `sdkwork-im-backend-sdk` | `node ./sdks/sdkwork-im-backend-sdk/bin/verify-sdk.mjs` |
-| `sdkwork-rtc-sdk` | `node ../sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs` |
+| `sdkwork-rtc-sdk` | `node ./.sdkwork/dependencies/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs` |
 
 Use `.sdkwork-assembly.json` in each workspace for package-layer ownership, `manifestPath`,
 generated output path, and release-state facts.

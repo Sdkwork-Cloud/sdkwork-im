@@ -42,8 +42,6 @@ open class SdkworkImClient {
         chat = ChatApi(httpClient)
         streams = StreamsApi(httpClient)
     }
-
-
     fun setAuthToken(token: String): SdkworkImClient {
         httpClient.setAuthToken(token)
         return this

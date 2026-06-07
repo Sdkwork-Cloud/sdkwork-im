@@ -69,8 +69,6 @@ public class SdkworkImClient {
     public StreamsApi getStreams() {
         return this.streams;
     }
-
-
     public SdkworkImClient setAuthToken(String token) {
         httpClient.setAuthToken(token);
         return this;

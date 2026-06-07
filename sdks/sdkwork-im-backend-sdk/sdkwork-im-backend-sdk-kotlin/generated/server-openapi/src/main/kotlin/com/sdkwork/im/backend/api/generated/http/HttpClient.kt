@@ -40,11 +40,9 @@ class HttpClient(
     init {
         headers.putAll(defaultHeaders)
     }
-
     fun setAuthToken(token: String) {
         headers["Authorization"] = "Bearer $token"
     }
-
     fun setAccessToken(token: String) {
         headers["Access-Token"] = token
     }
