@@ -18,7 +18,10 @@ const localSpec = read('specs/im-app-api-sdk-integration.spec.md');
 const specsReadme = read('specs/README.md');
 const componentSpec = readJson('specs/component.spec.json');
 const appPackageJson = readJson('apps/sdkwork-chat-pc/package.json');
+const retiredGenericAppSdkPackage = `@sdkwork/${'app'}-sdk`;
+const retiredGenericBackendSdkPackage = `@sdkwork/${'backend'}-sdk`;
 const appSdkClientSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appSdkClient.ts');
+const appbaseAppSdkClientSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appbaseAppSdkClient.ts');
 const appAuthRuntimeSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appAuthRuntime.ts');
 const imSdkClientSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/imSdkClient.ts');
 const appAuthServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appAuthService.ts');
@@ -66,7 +69,7 @@ for (const requiredText of [
 
 assert.match(
   localSpec,
-  /must not import `@sdkwork\/app-sdk`, `@sdkwork\/backend-sdk`, `spring-ai-plus-app-api`, or `spring-ai-plus-backend-api`/iu,
+  /must not import retired generic Spring app\/backend SDK packages or authorities/iu,
   'local standard must explicitly forbid generic app/backend SDK imports for Craw Chat.',
 );
 assert.match(
@@ -82,8 +85,9 @@ assert.match(
 
 assert.ok(appPackageJson.dependencies['@sdkwork-internal/im-app-api-generated']);
 assert.ok(appPackageJson.dependencies['@sdkwork-internal/im-backend-api-generated']);
-assert.ok(!appPackageJson.dependencies['@sdkwork/app-sdk']);
-assert.ok(!appPackageJson.dependencies['@sdkwork/backend-sdk']);
+assert.ok(appPackageJson.dependencies['@sdkwork/appbase-app-sdk']);
+assert.ok(!appPackageJson.dependencies[retiredGenericAppSdkPackage]);
+assert.ok(!appPackageJson.dependencies[retiredGenericBackendSdkPackage]);
 
 assert.match(appSdkClientSource, /SdkworkImAppClient/u);
 assert.match(appSdkClientSource, /@sdkwork-internal\/im-app-api-generated/u);
@@ -91,15 +95,25 @@ assert.doesNotMatch(
   appSdkClientSource,
   /@sdkwork\/(?:app|backend)-sdk|spring-ai-plus-(?:app|backend)-api/u,
 );
+assert.match(appbaseAppSdkClientSource, /SdkworkAppbaseAppClient/u);
+assert.match(appbaseAppSdkClientSource, /@sdkwork\/appbase-app-sdk/u);
+assert.doesNotMatch(appbaseAppSdkClientSource, /@sdkwork-internal\/im-app-api-generated/u);
 
-assert.match(appAuthServiceSource, /createIamAppSdkAdapter/u);
-assert.match(appAuthServiceSource, /openPlatform\.qrAuth\.sessions\.create/u);
-assert.match(appAuthServiceSource, /openPlatform\.qrAuth\.sessions\.retrieve/u);
-assert.match(appAuthServiceSource, /openPlatform\.qrAuth\.sessions\.scans\.create/u);
-assert.match(appAuthServiceSource, /openPlatform\.qrAuth\.sessions\.passwords\.create/u);
+assert.match(appAuthServiceSource, /createSdkworkAuthAppbaseIntegration/u);
+assert.match(appAuthServiceSource, /getSdkworkChatIamRuntime\(\)\.service\.auth\.sessions\.current\.retrieve/u);
+assert.match(appAuthServiceSource, /getSdkworkChatIamRuntime\(\)\.service\.auth\.sessions\.current\.delete/u);
+assert.doesNotMatch(appAuthServiceSource, /@sdkwork-internal\/im-app-api-generated/u);
 assert.doesNotMatch(appAuthServiceSource, /\bfetch\s*\(/u);
 
 assert.match(appAuthRuntimeSource, /loginMethods:\s*\[\s*['"]password['"]\s*\]/u);
+assert.match(appAuthRuntimeSource, /createSdkworkAppbasePcAuthRuntime/u);
+assert.match(appAuthRuntimeSource, /sdkClients:\s*getAuthenticatedSdkClients\(\)/u);
+assert.match(appAuthRuntimeSource, /tokenManager:\s*getSdkworkChatGlobalTokenManager\(\)/u);
+assert.match(appAuthRuntimeSource, /sessionBridge:\s*\{/u);
+assert.match(appAuthRuntimeSource, /commitSession:\s*\(session\)\s*=>\s*applyAppSdkSessionTokens/u);
+assert.match(appAuthRuntimeSource, /readSession:\s*readAppSdkSessionTokens/u);
+assert.match(appAuthRuntimeSource, /appbaseAppApiBaseUrl:\s*resolveAppSdkBaseUrl\(\)/u);
+assert.match(appAuthRuntimeSource, /appbaseBackendApiBaseUrl:\s*resolveBackendSdkBaseUrl\(\)/u);
 assert.match(appAuthRuntimeSource, /qrLoginEnabled:\s*true/u);
 assert.doesNotMatch(
   appAuthRuntimeSource,

@@ -1,7 +1,7 @@
 import { ImSdkClient, ImWebSocketAuthOptions, type ImSdkClientOptions } from '@sdkwork/im-sdk';
 import {
   buildSdkworkChatAppContextHeaders,
-  createSdkworkChatSessionTokenManager,
+  getSdkworkChatGlobalTokenManager,
   readAppSdkSessionTokens,
   resolveAppSdkAccessToken,
   resolveAppSdkAuthToken,
@@ -14,9 +14,46 @@ const SDKWORK_APP_API_PREFIX = '/app/v3/api';
 const SDKWORK_IM_API_PREFIX = '/im/v3/api';
 const SDKWORK_IM_REALTIME_WEBSOCKET_PATH = '/im/v3/api/realtime/ws';
 
+type RuntimeImportMetaEnv = Record<string, string | boolean | undefined> & {
+  DEV?: boolean | string;
+};
+
+function readRuntimeImportMetaEnv(): RuntimeImportMetaEnv {
+  return (import.meta.env ?? {}) as RuntimeImportMetaEnv;
+}
+
+function hasViteImportMetaEnv(): boolean {
+  return typeof import.meta.env !== 'undefined';
+}
+
 function readEnvValue(key: string): string | undefined {
-  const value = import.meta.env?.[key];
+  const value = readRuntimeImportMetaEnv()[key];
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function readNodeEnvValue(key: string): string | undefined {
+  const processLike = (globalThis as {
+    process?: {
+      env?: Record<string, string | undefined>;
+    };
+  }).process;
+  const value = processLike?.env?.[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function isRuntimeDev(): boolean {
+  const env = readRuntimeImportMetaEnv();
+  if (env.DEV === true || env.DEV === 'true') {
+    return true;
+  }
+  if (env.DEV === false || env.DEV === 'false') {
+    return false;
+  }
+  const nodeEnv = readNodeEnvValue('NODE_ENV');
+  if (nodeEnv) {
+    return nodeEnv !== 'production';
+  }
+  return typeof window === 'undefined';
 }
 
 function stripSdkOwnedPathSuffix(pathname: string, suffixes: string[]): string {
@@ -85,14 +122,22 @@ function deriveWebSocketBaseUrlFromHttpBaseUrl(value: string | undefined): strin
 }
 
 function resolveLocalDevImApiBaseUrl(): string | undefined {
-  if (!import.meta.env.DEV) {
+  if (hasViteImportMetaEnv()) {
+    if (!import.meta.env.DEV) {
+      return undefined;
+    }
+  } else if (!isRuntimeDev()) {
     return undefined;
   }
   return 'http://127.0.0.1:18079';
 }
 
 function resolveLocalDevImWebSocketBaseUrl(): string | undefined {
-  if (!import.meta.env.DEV) {
+  if (hasViteImportMetaEnv()) {
+    if (!import.meta.env.DEV) {
+      return undefined;
+    }
+  } else if (!isRuntimeDev()) {
     return undefined;
   }
   return 'ws://127.0.0.1:18079';
@@ -156,7 +201,7 @@ function buildImSdkContextHeaders(session?: SdkworkChatSession | null): Record<s
 
 export function createImSdkClientOptions(session?: SdkworkChatSession | null): ImSdkClientOptions {
   const currentSession = session ?? readAppSdkSessionTokens();
-  const tokenManager = createSdkworkChatSessionTokenManager(currentSession);
+  const tokenManager = getSdkworkChatGlobalTokenManager();
   return {
     apiBaseUrl: resolveImSdkApiBaseUrl(),
     websocketBaseUrl: resolveImSdkWebSocketBaseUrl(),

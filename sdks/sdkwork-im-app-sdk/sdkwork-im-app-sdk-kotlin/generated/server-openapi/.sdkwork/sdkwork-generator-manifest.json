@@ -35,7 +35,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "92978c7f64fa30a845a989170bd4749b101cede956b8c3545f87b79652da1288"
+      "sha256": "f7c255b90a6ab497a1ffe066127bde539bf99473f0ad3ce7cb14234649d4f85e"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -55,7 +55,7 @@
     },
     {
       "path": "src/main/kotlin/com/sdkwork/im/app/api/generated/api/Api.kt",
-      "sha256": "4158be2983cbe832d772ac1d3bed72fb10b6ba9c00fe9870f1282b4a82c076e2"
+      "sha256": "90ff4baa0d67ff59232aef011ad49598fc972e57bc38af9b56a4b47d70ba73e6"
     },
     {
       "path": "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ApiPaths.kt",
@@ -86,10 +86,6 @@
       "sha256": "f39ea11c6c896a3d9ecaa50f2c0976f3c528dc15b66f8ea9d24f5158bb2c92d6"
     },
     {
-      "path": "src/main/kotlin/com/sdkwork/im/app/api/generated/api/RtcApi.kt",
-      "sha256": "aeaee6232bb071c85f6e526836f20c62dcbc5b565a10603b120f366170f5f2dc"
-    },
-    {
       "path": "src/main/kotlin/com/sdkwork/im/app/api/generated/AppendAgentResponseDeltaRequest.kt",
       "sha256": "5605701ffc40af314bb800b5c56989484b7d98c3a1b72db6fb106ead2c6b7ab5"
     },
@@ -115,7 +111,7 @@
     },
     {
       "path": "src/main/kotlin/com/sdkwork/im/app/api/generated/http/HttpClient.kt",
-      "sha256": "84ca5aab71bb1aff7371bde05f2c1510822eff15c11414b55794501c04fc9dd3"
+      "sha256": "b57ff8604053a451c5ecbc865144a5451020911dd4f0017615ef8a1310a8f86f"
     },
     {
       "path": "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationListResponse.kt",
@@ -151,7 +147,11 @@
     },
     {
       "path": "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkAppClient.kt",
-      "sha256": "4560e346f0dbbbde244647010a3dc5c91bcff4b36ce6fc219044d7f262103175"
+      "sha256": "1b2d36dec959c31629c7632631da18ad095e3b792595c6bbf4c06e297216a93c"
+    },
+    {
+      "path": "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkImAppClient.kt",
+      "sha256": "7a8e6ed120f4ac2b58384b6dd4ea37f7b6061647246e7f3650f3124b6315b121"
     },
     {
       "path": "src/main/kotlin/com/sdkwork/im/app/api/generated/Sender.kt",

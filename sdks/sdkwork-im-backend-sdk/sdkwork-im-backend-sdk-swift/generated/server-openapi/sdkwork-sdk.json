@@ -27,5 +27,5 @@
       ".sdkwork/"
     ]
   },
-  "description": "Generator-owned Swift transport SDK for the Craw Chat backend/operator API."
+  "description": "Generator-owned Swift transport SDK for sdkwork-im-backend-sdk."
 }

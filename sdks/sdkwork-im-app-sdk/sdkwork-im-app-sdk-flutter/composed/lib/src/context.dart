@@ -1,17 +1,21 @@
 import 'package:im_app_api_generated/im_app_api_generated.dart';
+import 'package:rtc_sdk/rtc_sdk.dart';
 
 class ImAppSdkContext {
   final SdkworkAppClient transportClient;
+  final RtcDataSource rtcDataSource;
   final String? apiBaseUrl;
   String? _authToken;
   String? _accessToken;
 
   ImAppSdkContext({
     required this.transportClient,
+    RtcDataSource? rtcDataSource,
     this.apiBaseUrl,
     String? authToken,
     String? accessToken,
-  }) : _authToken = _normalizeToken(authToken),
+  }) : rtcDataSource = rtcDataSource ?? RtcDataSource(),
+       _authToken = _normalizeToken(authToken),
        _accessToken = _normalizeToken(accessToken) {
     if (_authToken != null && _authToken!.isNotEmpty) {
       transportClient.setAuthToken(_authToken!);

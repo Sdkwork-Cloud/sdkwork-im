@@ -13,7 +13,7 @@ public class AppendAgentResponseDeltaRequest {
     public Integer getFrameSeq() {
         return this.frameSeq;
     }
-
+    
     public void setFrameSeq(Integer frameSeq) {
         this.frameSeq = frameSeq;
     }
@@ -21,7 +21,7 @@ public class AppendAgentResponseDeltaRequest {
     public String getFrameType() {
         return this.frameType;
     }
-
+    
     public void setFrameType(String frameType) {
         this.frameType = frameType;
     }
@@ -29,7 +29,7 @@ public class AppendAgentResponseDeltaRequest {
     public String getSchemaRef() {
         return this.schemaRef;
     }
-
+    
     public void setSchemaRef(String schemaRef) {
         this.schemaRef = schemaRef;
     }
@@ -37,7 +37,7 @@ public class AppendAgentResponseDeltaRequest {
     public String getEncoding() {
         return this.encoding;
     }
-
+    
     public void setEncoding(String encoding) {
         this.encoding = encoding;
     }
@@ -45,7 +45,7 @@ public class AppendAgentResponseDeltaRequest {
     public String getPayload() {
         return this.payload;
     }
-
+    
     public void setPayload(String payload) {
         this.payload = payload;
     }
@@ -53,7 +53,7 @@ public class AppendAgentResponseDeltaRequest {
     public Map<String, String> getAttributes() {
         return this.attributes;
     }
-
+    
     public void setAttributes(Map<String, String> attributes) {
         this.attributes = attributes;
     }

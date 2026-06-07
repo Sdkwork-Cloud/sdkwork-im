@@ -3,16 +3,16 @@
 ## 1. 当前定位
 
 - `Wave B / Step 05 / CP05-4`
-- 本轮继续做这个子项，因为 [`services/local-minimal-node/src/node/session.rs`](D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\services\local-minimal-node\src\node\session.rs) 仍在多个 session / realtime / websocket 入口保留本地 `bind_device(...)` 胶水，非 takeover 路径没有直接对齐到 `LocalNodeDeviceRegistration` owner seam。
+- 本轮继续做这个子项，因为 [`services/local-minimal-node/src/node/session.rs`](<workspace-root>\craw-chat\services\local-minimal-node\src\node\session.rs) 仍在多个 session / realtime / websocket 入口保留本地 `bind_device(...)` 胶水，非 takeover 路径没有直接对齐到 `LocalNodeDeviceRegistration` owner seam。
 
 ## 2. 本轮实际完成
 
-- 在 [`services/local-minimal-node/src/node/device_registration.rs`](D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\services\local-minimal-node\src\node\device_registration.rs) 新增 `LocalNodeDeviceRegistration::prepare_active_device_route(...)`。
-- 在 [`services/local-minimal-node/src/node.rs`](D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\services\local-minimal-node\src\node.rs) 新增 `AppState::prepare_active_device_route(...)` delegate。
-- 在 [`services/local-minimal-node/src/node/session.rs`](D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\services\local-minimal-node\src\node\session.rs) 删除本地 `bind_device(...)` helper。
+- 在 [`services/local-minimal-node/src/node/device_registration.rs`](<workspace-root>\craw-chat\services\local-minimal-node\src\node\device_registration.rs) 新增 `LocalNodeDeviceRegistration::prepare_active_device_route(...)`。
+- 在 [`services/local-minimal-node/src/node.rs`](<workspace-root>\craw-chat\services\local-minimal-node\src\node.rs) 新增 `AppState::prepare_active_device_route(...)` delegate。
+- 在 [`services/local-minimal-node/src/node/session.rs`](<workspace-root>\craw-chat\services\local-minimal-node\src\node\session.rs) 删除本地 `bind_device(...)` helper。
 - `heartbeat_presence(...)`、`disconnect_session(...)`、`register_device(...)`、`sync_realtime_subscriptions(...)`、`list_realtime_events(...)`、`ack_realtime_events(...)`、`realtime_websocket(...)` 改为统一消费 `state.prepare_active_device_route(...)`。
 - `resume_session(...)` 保留直接调用 `state.bind_device_registration(..., allow_session_takeover = true)`，继续承载 session takeover 语义，不把 takeover 语义误收进普通 preflight seam。
-- 在 [`services/local-minimal-node/tests/lib_structure_test.rs`](D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\services\local-minimal-node\tests\lib_structure_test.rs) 新增 `test_local_minimal_node_route_preflight_owner_moves_out_of_session_entrypoints`。
+- 在 [`services/local-minimal-node/tests/lib_structure_test.rs`](<workspace-root>\craw-chat\services\local-minimal-node\tests\lib_structure_test.rs) 新增 `test_local_minimal_node_route_preflight_owner_moves_out_of_session_entrypoints`。
 
 ## 3. 验证
 

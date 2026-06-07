@@ -8,5 +8,4 @@ public struct API {
     public static let portal = PortalApi.self
     public static let provider = ProviderApi.self
     public static let iot = IotApi.self
-    public static let rtc = RtcApi.self
 }

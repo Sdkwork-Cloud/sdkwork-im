@@ -8,17 +8,9 @@
     "sdkType": "app",
     "packageName": "Sdkwork.Im.AppApi.Generated"
   },
-  "changeFingerprint": "01ee93d65ae4a26992b6f629ac0771830fc198a3800d5b775e4698a355d0ce79",
+  "changeFingerprint": "e073e6b4e4c47d626e58451dbd6a8927f5ae6540c1d689390a7041d60dc221c3",
   "changes": {
-    "createdGeneratedFiles": [],
-    "updatedGeneratedFiles": [
-      "Http/HttpClient.cs",
-      "README.md",
-      "sdkwork-sdk.json",
-      "Sdkwork.Im.AppApi.Generated.csproj",
-      "SdkworkAppClient.cs"
-    ],
-    "unchangedGeneratedFiles": [
+    "createdGeneratedFiles": [
       "Api/Api.cs",
       "Api/ApiPaths.cs",
       "Api/AutomationApi.cs",
@@ -27,11 +19,8 @@
       "Api/NotificationApi.cs",
       "Api/PortalApi.cs",
       "Api/ProviderApi.cs",
-      "Api/RtcApi.cs",
-      "bin/publish-core.mjs",
-      "bin/publish.ps1",
-      "bin/publish.sh",
       "CHANGELOG.md",
+      "Http/HttpClient.cs",
       "LICENSE",
       "Models/AgentSubject.cs",
       "Models/AgentToolCall.cs",
@@ -54,34 +43,77 @@
       "Models/StreamFrame.cs",
       "Models/StreamSession.cs",
       "Models/UpdateDeviceTwinDesiredRequest.cs",
-      "Models/UpdateDeviceTwinReportedRequest.cs"
+      "Models/UpdateDeviceTwinReportedRequest.cs",
+      "README.md",
+      "sdkwork-sdk.json",
+      "Sdkwork.Im.AppApi.Generated.csproj",
+      "SdkworkAppClient.cs",
+      "SdkworkImAppClient.cs"
+    ],
+    "updatedGeneratedFiles": [],
+    "unchangedGeneratedFiles": [
+      "bin/publish-core.mjs",
+      "bin/publish.ps1",
+      "bin/publish.sh"
     ],
     "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/README.md"
     ],
-    "backedUpFiles": [
-      "Http/HttpClient.cs",
-      "README.md",
-      "sdkwork-sdk.json",
-      "Sdkwork.Im.AppApi.Generated.csproj",
-      "SdkworkAppClient.cs"
-    ]
+    "backedUpFiles": []
   },
   "impact": {
     "schemaVersion": 1,
     "areas": [
       "api-surface",
+      "models",
       "runtime",
       "build-metadata",
-      "documentation"
+      "documentation",
+      "unknown"
     ],
     "details": [
       {
         "area": "api-surface",
         "paths": [
-          "SdkworkAppClient.cs"
+          "Api/Api.cs",
+          "Api/ApiPaths.cs",
+          "Api/AutomationApi.cs",
+          "Api/DeviceApi.cs",
+          "Api/IotApi.cs",
+          "Api/NotificationApi.cs",
+          "Api/PortalApi.cs",
+          "Api/ProviderApi.cs",
+          "SdkworkAppClient.cs",
+          "SdkworkImAppClient.cs"
+        ]
+      },
+      {
+        "area": "models",
+        "paths": [
+          "Models/AgentSubject.cs",
+          "Models/AgentToolCall.cs",
+          "Models/AppendAgentResponseDeltaRequest.cs",
+          "Models/AutomationExecution.cs",
+          "Models/AutomationExecutionRequestResponse.cs",
+          "Models/CompleteAgentResponseRequest.cs",
+          "Models/CompleteAgentToolCallRequest.cs",
+          "Models/DeviceTwinView.cs",
+          "Models/NotificationListResponse.cs",
+          "Models/NotificationRequestResponse.cs",
+          "Models/NotificationTask.cs",
+          "Models/PortalWorkspaceView.cs",
+          "Models/ProblemDetail.cs",
+          "Models/RequestAgentToolCallRequest.cs",
+          "Models/RequestAutomationExecution.cs",
+          "Models/RequestNotification.cs",
+          "Models/Sender.cs",
+          "Models/StartAgentResponseRequest.cs",
+          "Models/StreamFrame.cs",
+          "Models/StreamSession.cs",
+          "Models/UpdateDeviceTwinDesiredRequest.cs",
+          "Models/UpdateDeviceTwinReportedRequest.cs"
         ]
       },
       {
@@ -100,24 +132,31 @@
       {
         "area": "documentation",
         "paths": [
+          "CHANGELOG.md",
           "README.md"
+        ]
+      },
+      {
+        "area": "unknown",
+        "paths": [
+          "LICENSE"
         ]
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required."
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-csharp\\generated\\server-openapi",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-csharp\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -140,10 +179,11 @@
     "applyRequiresExpectedFingerprint": false,
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "backed-up-generated-files",
       "manual-review-required",
+      "preserved-legacy-files",
+      "unknown-impact",
       "verification-required"
     ]
   },
-  "preservedLegacyFiles": false
+  "preservedLegacyFiles": true
 }

@@ -29,5 +29,8 @@
     "test:sdkwork-chat-pc-i18n": "node scripts/dev/sdkwork-chat-pc-i18n.test.mjs",
     "test:sdkwork-chat-pc-sidebar-modules": "node scripts/dev/sdkwork-chat-pc-sidebar-modules.test.mjs",
     "server:dev": "node ./scripts/dev/start-craw-chat-unified-web.mjs"
+  },
+  "dependencies": {
+    "@sdkwork/drive-app-sdk": "workspace:*"
   }
 }

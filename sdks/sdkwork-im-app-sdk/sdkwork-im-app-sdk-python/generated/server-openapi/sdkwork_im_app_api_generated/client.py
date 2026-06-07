@@ -5,10 +5,9 @@ from .api.notification import NotificationApi
 from .api.portal import PortalApi
 from .api.provider import ProviderApi
 from .api.iot import IotApi
-from .api.rtc import RtcApi
 
 
-class SdkworkAppClient:
+class SdkworkImAppClient:
     """sdkwork-im-app-sdk SDK Client."""
 
     def __init__(self, config: SdkConfig):
@@ -19,7 +18,6 @@ class SdkworkAppClient:
         self.portal: PortalApi
         self.provider: ProviderApi
         self.iot: IotApi
-        self.rtc: RtcApi
 
         # Initialize API modules
         self.automation = AutomationApi(self._client)
@@ -28,20 +26,17 @@ class SdkworkAppClient:
         self.portal = PortalApi(self._client)
         self.provider = ProviderApi(self._client)
         self.iot = IotApi(self._client)
-        self.rtc = RtcApi(self._client)
-
-
-    def set_auth_token(self, token: str) -> 'SdkworkAppClient':
+    def set_auth_token(self, token: str) -> 'SdkworkImAppClient':
         """Set auth token for authentication."""
         self._client.set_auth_token(token)
         return self
 
-    def set_access_token(self, token: str) -> 'SdkworkAppClient':
+    def set_access_token(self, token: str) -> 'SdkworkImAppClient':
         """Set access token for authentication."""
         self._client.set_access_token(token)
         return self
 
-    def set_header(self, key: str, value: str) -> 'SdkworkAppClient':
+    def set_header(self, key: str, value: str) -> 'SdkworkImAppClient':
         """Set custom header."""
         self._client.set_header(key, value)
         return self
@@ -52,6 +47,8 @@ class SdkworkAppClient:
         return self._client
 
 
-def create_client(config: SdkConfig) -> SdkworkAppClient:
+def create_client(config: SdkConfig) -> SdkworkImAppClient:
     """Create a new SDK client instance."""
-    return SdkworkAppClient(config)
+    return SdkworkImAppClient(config)
+
+SdkworkAppClient = SdkworkImAppClient

@@ -11,20 +11,45 @@
   "status": "ok",
   "mode": "apply",
   "hasChanges": true,
-  "hasDestructiveChanges": false,
-  "changeFingerprint": "14abc43542e2c301c3a0936944089a24b6609193f3624bd1d9353b2922656769",
+  "hasDestructiveChanges": true,
+  "changeFingerprint": "4a6cdc94d38a91ccecad3d17a64d302d1eed52ce799e25309ba90cc0c2323886",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
       "api-surface",
+      "models",
+      "runtime",
       "build-metadata",
-      "documentation"
+      "publish-workflow",
+      "documentation",
+      "unknown"
     ],
     "details": [
       {
         "area": "api-surface",
         "paths": [
-          "lib/backend_client.dart"
+          "lib/backend_client.dart",
+          "lib/src/api/admin.dart",
+          "lib/src/api/api.dart",
+          "lib/src/api/audit.dart",
+          "lib/src/api/automation.dart",
+          "lib/src/api/control.dart",
+          "lib/src/api/ops.dart",
+          "lib/src/api/paths.dart",
+          "lib/src/api/response_helpers.dart",
+          "lib/src/http/client.dart"
+        ]
+      },
+      {
+        "area": "models",
+        "paths": [
+          "lib/src/models.dart"
+        ]
+      },
+      {
+        "area": "runtime",
+        "paths": [
+          "lib/src/http/client.dart"
         ]
       },
       {
@@ -35,14 +60,31 @@
         ]
       },
       {
+        "area": "publish-workflow",
+        "paths": [
+          "bin/publish-core.mjs",
+          "bin/publish.ps1",
+          "bin/publish.sh"
+        ]
+      },
+      {
         "area": "documentation",
         "paths": [
+          "CHANGELOG.md",
           "README.md"
+        ]
+      },
+      {
+        "area": "unknown",
+        "paths": [
+          "lib/im_backend_api_generated.dart",
+          "LICENSE",
+          "pubspec_overrides.yaml"
         ]
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, build-metadata, documentation. Verification is required."
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required."
   },
   "executionDecision": {
     "schemaVersion": 1,
@@ -53,7 +95,9 @@
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
       "backed-up-generated-files",
+      "deleted-generated-files",
       "manual-review-required",
+      "unknown-impact",
       "verification-required"
     ]
   },
@@ -65,8 +109,8 @@
         "id": "verify-check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, build-metadata, documentation.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-flutter\\generated\\server-openapi",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-flutter\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -84,14 +128,14 @@
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, build-metadata, documentation.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-flutter\\generated\\server-openapi",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-flutter\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -111,7 +155,7 @@
     "version": "0.1.0",
     "language": "flutter",
     "sdkType": "backend",
-    "outputPath": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-flutter\\generated\\server-openapi",
+    "outputPath": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-flutter\\generated\\server-openapi",
     "packageName": "im_backend_api_generated"
   },
   "versioning": {
@@ -119,7 +163,7 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 22,
+    "totalFiles": 21,
     "models": 65,
     "apis": 5,
     "types": 1
@@ -127,25 +171,20 @@
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 4,
+    "writtenFiles": 20,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 17,
-    "deletedGeneratedFiles": 0,
+    "skippedUnchangedGeneratedFiles": 0,
+    "deletedGeneratedFiles": 1,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "14abc43542e2c301c3a0936944089a24b6609193f3624bd1d9353b2922656769",
+    "changeFingerprint": "4a6cdc94d38a91ccecad3d17a64d302d1eed52ce799e25309ba90cc0c2323886",
     "changes": {
       "createdGeneratedFiles": [],
       "updatedGeneratedFiles": [
-        "lib/backend_client.dart",
-        "pubspec.yaml",
-        "README.md",
-        "sdkwork-sdk.json"
-      ],
-      "unchangedGeneratedFiles": [
         "bin/publish-core.mjs",
         "bin/publish.ps1",
         "bin/publish.sh",
         "CHANGELOG.md",
+        "lib/backend_client.dart",
         "lib/im_backend_api_generated.dart",
         "lib/src/api/admin.dart",
         "lib/src/api/api.dart",
@@ -158,15 +197,37 @@
         "lib/src/http/client.dart",
         "lib/src/models.dart",
         "LICENSE",
+        "pubspec.yaml",
+        "README.md",
+        "sdkwork-sdk.json"
+      ],
+      "unchangedGeneratedFiles": [],
+      "deletedGeneratedFiles": [
         "pubspec_overrides.yaml"
       ],
-      "deletedGeneratedFiles": [],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/README.md"
       ],
       "backedUpFiles": [
+        "bin/publish-core.mjs",
+        "bin/publish.ps1",
+        "bin/publish.sh",
+        "CHANGELOG.md",
         "lib/backend_client.dart",
+        "lib/im_backend_api_generated.dart",
+        "lib/src/api/admin.dart",
+        "lib/src/api/api.dart",
+        "lib/src/api/audit.dart",
+        "lib/src/api/automation.dart",
+        "lib/src/api/control.dart",
+        "lib/src/api/ops.dart",
+        "lib/src/api/paths.dart",
+        "lib/src/api/response_helpers.dart",
+        "lib/src/http/client.dart",
+        "lib/src/models.dart",
+        "LICENSE",
+        "pubspec_overrides.yaml",
         "pubspec.yaml",
         "README.md",
         "sdkwork-sdk.json"
@@ -176,14 +237,39 @@
       "schemaVersion": 1,
       "areas": [
         "api-surface",
+        "models",
+        "runtime",
         "build-metadata",
-        "documentation"
+        "publish-workflow",
+        "documentation",
+        "unknown"
       ],
       "details": [
         {
           "area": "api-surface",
           "paths": [
-            "lib/backend_client.dart"
+            "lib/backend_client.dart",
+            "lib/src/api/admin.dart",
+            "lib/src/api/api.dart",
+            "lib/src/api/audit.dart",
+            "lib/src/api/automation.dart",
+            "lib/src/api/control.dart",
+            "lib/src/api/ops.dart",
+            "lib/src/api/paths.dart",
+            "lib/src/api/response_helpers.dart",
+            "lib/src/http/client.dart"
+          ]
+        },
+        {
+          "area": "models",
+          "paths": [
+            "lib/src/models.dart"
+          ]
+        },
+        {
+          "area": "runtime",
+          "paths": [
+            "lib/src/http/client.dart"
           ]
         },
         {
@@ -194,26 +280,43 @@
           ]
         },
         {
+          "area": "publish-workflow",
+          "paths": [
+            "bin/publish-core.mjs",
+            "bin/publish.ps1",
+            "bin/publish.sh"
+          ]
+        },
+        {
           "area": "documentation",
           "paths": [
+            "CHANGELOG.md",
             "README.md"
+          ]
+        },
+        {
+          "area": "unknown",
+          "paths": [
+            "lib/im_backend_api_generated.dart",
+            "LICENSE",
+            "pubspec_overrides.yaml"
           ]
         }
       ],
       "requiresVerification": true,
-      "summary": "Detected impact areas: api-surface, build-metadata, documentation. Verification is required."
+      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required."
     },
     "verificationPlan": {
       "shouldRun": true,
       "runPhase": "now",
-      "summary": "Detected impact areas: api-surface, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
       "steps": [
         {
           "id": "check",
           "title": "Unified package check",
           "required": true,
-          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, build-metadata, documentation.",
-          "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-flutter\\generated\\server-openapi",
+          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown.",
+          "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-flutter\\generated\\server-openapi",
           "command": "node",
           "args": [
             "./bin/publish-core.mjs",
@@ -237,12 +340,31 @@
       "summary": "Changes have been applied. Run the required verification plan now.",
       "reasons": [
         "backed-up-generated-files",
+        "deleted-generated-files",
         "manual-review-required",
+        "unknown-impact",
         "verification-required"
       ]
     },
     "backedUpFiles": [
+      "bin/publish-core.mjs",
+      "bin/publish.ps1",
+      "bin/publish.sh",
+      "CHANGELOG.md",
       "lib/backend_client.dart",
+      "lib/im_backend_api_generated.dart",
+      "lib/src/api/admin.dart",
+      "lib/src/api/api.dart",
+      "lib/src/api/audit.dart",
+      "lib/src/api/automation.dart",
+      "lib/src/api/control.dart",
+      "lib/src/api/ops.dart",
+      "lib/src/api/paths.dart",
+      "lib/src/api/response_helpers.dart",
+      "lib/src/http/client.dart",
+      "lib/src/models.dart",
+      "LICENSE",
+      "pubspec_overrides.yaml",
       "pubspec.yaml",
       "README.md",
       "sdkwork-sdk.json"

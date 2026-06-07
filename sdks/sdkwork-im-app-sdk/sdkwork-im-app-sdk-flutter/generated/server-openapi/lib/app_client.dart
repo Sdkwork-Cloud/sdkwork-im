@@ -6,7 +6,6 @@ import 'src/api/notification.dart';
 import 'src/api/portal.dart';
 import 'src/api/provider.dart';
 import 'src/api/iot.dart';
-import 'src/api/rtc.dart';
 
 class SdkworkImAppClient {
   final HttpClient _httpClient;
@@ -17,7 +16,6 @@ class SdkworkImAppClient {
   late final PortalApi portal;
   late final ProviderApi provider;
   late final IotApi iot;
-  late final RtcApi rtc;
 
   SdkworkImAppClient({
     required SdkConfig config,
@@ -28,7 +26,6 @@ class SdkworkImAppClient {
     portal = PortalApi(_httpClient);
     provider = ProviderApi(_httpClient);
     iot = IotApi(_httpClient);
-    rtc = RtcApi(_httpClient);
   }
 
   factory SdkworkImAppClient.withBaseUrl({
@@ -48,7 +45,6 @@ class SdkworkImAppClient {
       ),
     );
   }
-
 
   void setAuthToken(String token) {
     _httpClient.setAuthToken(token);

@@ -4,7 +4,7 @@
 - Scope: Craw Chat PC, `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `@sdkwork/im-sdk`, appbase IAM integration, local SQLite/PostgreSQL development, and release dependency sourcing
 - Related root standards: `../../../specs/API_SPEC.md`, `../../../specs/SDK_SPEC.md`, `../../../specs/IAM_SPEC.md`, `../../../specs/DATABASE_SPEC.md`, `../../../specs/CONFIG_SPEC.md`, `../../../specs/DEPLOYMENT_SPEC.md`, `../../../specs/TEST_SPEC.md`
 
-This local standard narrows the root SDKWork standards for the Craw Chat application. It is authoritative for the Craw Chat app workspace when root generic examples mention `spring-ai-plus-app-api`, `spring-ai-plus-backend-api`, `@sdkwork/app-sdk`, or `@sdkwork/backend-sdk`.
+This local standard narrows the root SDKWork standards for the Craw Chat application. It is authoritative for the Craw Chat app workspace when root examples mention retired generic Spring app/backend SDK packages or authorities.
 
 ## 1. API Surface Ownership
 
@@ -34,7 +34,7 @@ Craw Chat uses product-scoped SDKs, not generic Spring SDK packages.
 
 Rules:
 
-- Craw Chat app code must not import `@sdkwork/app-sdk`, `@sdkwork/backend-sdk`, `spring-ai-plus-app-api`, or `spring-ai-plus-backend-api`.
+- Craw Chat app code must not import retired generic Spring app/backend SDK packages or authorities.
 - Generated client classes must be product-scoped so multiple app SDKs can be installed without class-name collisions.
 - Compatibility aliases may exist only inside the generated SDK package for migration. Craw Chat integration code must use the product-scoped client names.
 - App SDK and backend SDK generated outputs must remain reproducible from their OpenAPI inputs and generator configuration. Generated files must not be the long-term source of hand-written behavior.

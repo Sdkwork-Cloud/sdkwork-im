@@ -2,10 +2,10 @@
 
 ## 1. 审计范围
 
-- [`services/local-minimal-node/src/node.rs`](D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\services\local-minimal-node\src\node.rs)
-- [`services/local-minimal-node/src/node/device_registration.rs`](D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\services\local-minimal-node\src\node\device_registration.rs)
-- [`services/local-minimal-node/src/node/session.rs`](D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\services\local-minimal-node\src\node\session.rs)
-- [`services/local-minimal-node/tests/lib_structure_test.rs`](D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\services\local-minimal-node\tests\lib_structure_test.rs)
+- [`services/local-minimal-node/src/node.rs`](<workspace-root>\craw-chat\services\local-minimal-node\src\node.rs)
+- [`services/local-minimal-node/src/node/device_registration.rs`](<workspace-root>\craw-chat\services\local-minimal-node\src\node\device_registration.rs)
+- [`services/local-minimal-node/src/node/session.rs`](<workspace-root>\craw-chat\services\local-minimal-node\src\node\session.rs)
+- [`services/local-minimal-node/tests/lib_structure_test.rs`](<workspace-root>\craw-chat\services\local-minimal-node\tests\lib_structure_test.rs)
 
 ## 2. 审计结论
 

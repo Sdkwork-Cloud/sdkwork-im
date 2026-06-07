@@ -15,7 +15,8 @@ import (
     common "github.com/sdkwork/sdk-common-go/common"
 )
 
-// Config wraps sdk-common Go config and adds dual-token auth fields.
+
+// Config wraps sdk-common Go config and adds SDK auth fields.
 type Config struct {
     common.SdkConfig
     AuthToken   string
@@ -59,7 +60,6 @@ func NewClient(config Config) *Client {
         },
         headers: headers,
     }
-
     if config.AuthToken != "" {
         client.SetAuthToken(config.AuthToken)
     }
@@ -77,7 +77,6 @@ func (c *Client) SetAuthToken(token string) {
 func (c *Client) SetAccessToken(token string) {
     c.headers["Access-Token"] = token
 }
-
 
 func (c *Client) SetHeader(key, value string) {
     c.headers[key] = value

@@ -1,20 +1,156 @@
-# sdkwork-im-app-sdk
+# sdkwork-im-app-sdk (Flutter)
 
-Generator-owned Flutter transport SDK for the Craw Chat app-development API.
+Generated SDKWork v3 dual-token transport SDK.
 
-This package is generated transport. It targets `/app/v3/api` and is not a login,
-user, tenant, organization, or account-session SDK. Those identity and token lifecycles are
-owned by `sdkwork-appbase`; this SDK only forwards the already validated dual-token context.
+## Installation
 
-## Token Boundary
+Add to `pubspec.yaml`:
 
-- `Authorization: Bearer <authToken>` carries the upstream authenticated principal context.
-- `Access-Token: <accessToken>` carries the upstream access token context.
-- Login, refresh, current-user, tenant, organization, and account-session APIs stay outside this package.
+```yaml
+dependencies:
+  im_app_api_generated: ^0.1.0
+```
 
+## Quick Start
+
+```dart
+import 'package:im_app_api_generated/im_app_api_generated.dart';
+
+final client = SdkworkImAppClient.withBaseUrl(baseUrl: 'http://127.0.0.1:18090');
+client.setAuthToken('your-auth-token');
+client.setAccessToken('your-access-token');
+
+// Use the SDK
+final result = await client.iot.accessProviderHealthRetrieve();
+print(result);
+```
+
+## Authentication
+
+```text
+Authorization: Bearer <authToken>
+Access-Token: <accessToken>
+```
+
+
+## Configuration (Non-Auth)
+
+```dart
+final client = SdkworkImAppClient.withBaseUrl(baseUrl: 'http://127.0.0.1:18090');
+
+// Set custom headers
+client.setHeader('X-Custom-Header', 'value');
+```
+
+## API Modules
+
+- `client.automation` - automation API
+- `client.device` - device API
+- `client.notification` - notification API
+- `client.portal` - portal API
+- `client.provider` - provider API
+- `client.iot` - iot API
+
+## Usage Examples
+
+### automation
+```dart
+// Start an agent response stream
+final body = StartAgentResponseRequest(
+  executionId: '1',
+  streamId: '1',
+  streamType: 'streamtype',
+  conversationId: '1',
+  schemaRef: 'schemaref',
+  memberId: '1',
+  agent: AgentSubject(),
+);
+final result = await client.automation.agentResponsesCreate(body);
+print(result);
+```
+
+### device
+```dart
+// Get the device twin
+final deviceId = '1';
+final result = await client.device.devicesTwinRetrieve(deviceId);
+print(result);
+```
+
+### notification
+```dart
+// List notifications for the current principal
+final result = await client.notification.notificationsList();
+print(result);
+```
+
+### portal
+```dart
+// Read the tenant portal sign-in snapshot
+final result = await client.portal.accessRetrieve();
+print(result);
+```
+
+### provider
+```dart
+// Retrieve media provider health
+final result = await client.provider.mediaHealthRetrieve();
+print(result);
+```
+
+### iot
+```dart
+// Retrieve IoT access provider health
+final result = await client.iot.accessProviderHealthRetrieve();
+print(result);
+```
+
+## Error Handling
+
+```dart
+try {
+  final result = await client.iot.accessProviderHealthRetrieve();
+  print(result);
+} catch (e) {
+  print('Error: $e');
+}
+```
+
+## Publishing
+
+This SDK includes cross-platform publish scripts in `bin/`:
+- `bin/publish-core.mjs`
+- `bin/publish.sh`
+- `bin/publish.ps1`
+
+### Check
+
+```bash
+./bin/publish.sh --action check
+```
+
+### Publish
+
+```bash
+./bin/publish.sh --action publish --channel release
+```
+
+```powershell
+.\bin\publish.ps1 --action publish --channel test --dry-run
+```
+
+> Ensure `dart pub publish --dry-run` passes before release publish.
+
+## License
+
+MIT
 
 ## Regeneration Contract
 
-- Generated files are tracked by the SDK generator under `.sdkwork/`.
-- Fix runtime, OpenAPI, or family generator inputs first, then regenerate.
-- Hand-written application wrappers must live outside `generated/server-openapi`.
+- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
+- Put hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across regenerations.
+- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.

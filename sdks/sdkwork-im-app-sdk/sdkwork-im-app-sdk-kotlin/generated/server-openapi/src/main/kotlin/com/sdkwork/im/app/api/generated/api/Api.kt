@@ -12,5 +12,4 @@ class Api(private val client: HttpClient) {
     val portal: PortalApi = PortalApi(client)
     val provider: ProviderApi = ProviderApi(client)
     val iot: IotApi = IotApi(client)
-    val rtc: RtcApi = RtcApi(client)
 }

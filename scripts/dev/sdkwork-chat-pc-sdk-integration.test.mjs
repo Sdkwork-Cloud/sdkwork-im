@@ -51,6 +51,9 @@ function listFiles(rootRelativePath, predicate) {
 }
 
 const appPackageJson = readJson('apps/sdkwork-chat-pc/package.json');
+const retiredGenericAppSdkPackage = `@sdkwork/${'app'}-sdk`;
+const retiredGenericBackendSdkPackage = `@sdkwork/${'backend'}-sdk`;
+
 assert.equal(appPackageJson.name, '@sdkwork/chat-pc', 'desktop app package must use a standard SDKWork package name');
 assert.equal(appPackageJson.scripts.dev, 'vite --host 127.0.0.1 --port 1620 --strictPort');
 assert.equal(appPackageJson.scripts['dev:tauri'], 'vite --host 127.0.0.1 --port 1620 --strictPort');
@@ -65,17 +68,22 @@ assert.ok(
   'PC app must depend on generated sdkwork-im-backend-sdk TypeScript package so backend SDK ownership is explicit',
 );
 assert.ok(
-  !appPackageJson.dependencies['@sdkwork/app-sdk'],
+  !appPackageJson.dependencies[retiredGenericAppSdkPackage],
   'PC app must not depend on the generic spring-ai-plus app SDK package',
 );
 assert.ok(
-  !appPackageJson.dependencies['@sdkwork/backend-sdk'],
+  !appPackageJson.dependencies[retiredGenericBackendSdkPackage],
   'PC app must not depend on the generic spring-ai-plus backend SDK package',
 );
 assert.ok(appPackageJson.dependencies['@sdkwork/im-sdk'], 'PC app must depend on generated @sdkwork/im-sdk');
 assert.ok(appPackageJson.dependencies['@sdkwork/rtc-sdk'], 'PC app must depend on standard @sdkwork/rtc-sdk for call capability');
 assert.ok(appPackageJson.dependencies['@sdkwork/appbase-pc-react'], 'PC app must depend on sdkwork-appbase PC wrapper');
-assert.ok(appPackageJson.dependencies['@sdkwork/iam-sdk-adapter'], 'PC app must depend on the appbase IAM SDK adapter');
+assert.ok(appPackageJson.dependencies['@sdkwork/auth-runtime-pc-react'], 'PC app must depend on the appbase high-level auth runtime');
+assert.equal(
+  appPackageJson.dependencies['@sdkwork/iam-sdk-adapter'],
+  undefined,
+  'PC app must not depend on the lower-level appbase IAM SDK adapter after appbase auth runtime migration',
+);
 assert.ok(appPackageJson.dependencies['@sdkwork/iam-sdk-ports'], 'PC app must depend on the appbase IAM SDK ports');
 assert.ok(!appPackageJson.dependencies['@tauri-apps/api'], 'Tauri renderer API must live in the desktop workspace package');
 assert.ok(!appPackageJson.devDependencies['@tauri-apps/cli'], 'Tauri CLI must live in the desktop workspace package');
@@ -175,7 +183,7 @@ assert.match(viteConfig, /@sdkwork\/appbase-pc-react/u, 'Vite must alias appbase
 assert.match(viteConfig, /@sdkwork\/core-pc-react/u, 'Vite must alias SDKWork core PC React package');
 assert.match(
   viteConfig,
-  /apps[\\\/]sdkwork-core[\\\/]sdkwork-core-pc-react[\\\/]src/u,
+  /sdkwork-core[\\\/]sdkwork-core-pc-react[\\\/]src/u,
   'Vite must alias SDKWork core PC React to source for live development',
 );
 assert.doesNotMatch(
@@ -191,7 +199,7 @@ assert.doesNotMatch(
 assert.match(viteConfig, /@sdkwork\/ui-pc-react/u, 'Vite must alias SDKWork UI PC React package');
 assert.match(
   viteConfig,
-  /apps[\\\/]sdkwork-ui[\\\/]sdkwork-ui-pc-react[\\\/]src/u,
+  /sdkwork-ui[\\\/]sdkwork-ui-pc-react[\\\/]src/u,
   'Vite must alias SDKWork UI PC React to source for live development',
 );
 assert.doesNotMatch(
@@ -214,13 +222,14 @@ for (const localReactPackageName of ['@sdkwork/core-pc-react', '@sdkwork/ui-pc-r
 for (const localSdkPackageName of [
   '@sdkwork-internal/im-app-api-generated',
   '@sdkwork-internal/im-backend-api-generated',
+  '@sdkwork/appbase-app-sdk',
   '@sdkwork/im-sdk',
   '@sdkwork/rtc-sdk',
   '@sdkwork/appbase-pc-react',
   '@sdkwork/auth-pc-react',
   '@sdkwork/auth-pc-react/auth',
+  '@sdkwork/auth-runtime-pc-react',
   '@sdkwork/iam-contracts',
-  '@sdkwork/iam-sdk-adapter',
   '@sdkwork/iam-sdk-ports',
   '@sdkwork/i18n-pc-react',
 ]) {
@@ -532,43 +541,68 @@ assert.doesNotMatch(
 assert.doesNotMatch(agentAppSdkClientSource, /\bfetch\s*\(/u, 'agent app SDK wrapper must not use raw fetch');
 
 const appAuthSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appAuthService.ts');
+const appAuthRuntimeSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appAuthRuntime.ts');
+const appbaseAppSdkClientSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appbaseAppSdkClient.ts');
 assert.match(
-  appAuthSource,
-  /from ['"]@sdkwork-internal\/im-app-api-generated['"]/u,
-  'auth service must use generated sdkwork-im-app-sdk types and client',
-);
-assert.match(appAuthSource, /@sdkwork\/appbase-pc-react/u, 'auth service must integrate the appbase PC wrapper boundary');
-assert.match(
-  appAuthSource,
-  /@sdkwork\/iam-sdk-adapter/u,
-  'auth service must adapt the generated IM app SDK client through the appbase IAM SDK adapter',
+  appbaseAppSdkClientSource,
+  /from ['"]@sdkwork\/appbase-app-sdk['"]/u,
+  'appbase app SDK wrapper must use the generated sdkwork-appbase-app-sdk client for appbase-owned app surfaces',
 );
 assert.match(
   appAuthSource,
-  /createIamAppSdkAdapter/u,
-  'auth service must create an appbase IAM adapter from SdkworkImAppClient instead of hand-coding an IAM transport',
+  /import\s+\{[\s\S]*createSdkworkAuthAppbaseIntegration[\s\S]*\}\s+from\s+['"]@sdkwork\/auth-pc-react['"]/u,
+  'auth service must integrate the appbase PC wrapper through the high-level auth appbase integration factory',
 );
-for (const method of ['login', 'register', 'logout', 'refreshToken', 'sendVerifyCode', 'verifyCode', 'getCurrentSession']) {
+assert.doesNotMatch(
+  appAuthSource,
+  /@sdkwork\/appbase-pc-react|@sdkwork\/auth-pc-react\/auth|createSdkworkAppCapabilityPresetManifest|createAuthRouteCatalog|appbasePackageMeta|authPackageMeta/u,
+  'auth service must not hand-build appbase/auth metadata or route catalogs after the high-level auth appbase integration migration',
+);
+assert.match(
+  appAuthRuntimeSource,
+  /@sdkwork\/auth-runtime-pc-react/u,
+  'auth runtime must integrate the appbase high-level PC auth runtime package',
+);
+assert.match(
+  appAuthRuntimeSource,
+  /createSdkworkAppbasePcAuthRuntime/u,
+  'auth runtime must create the appbase auth runtime through the standard high-level factory',
+);
+for (const method of ['logout', 'getCurrentSession']) {
   assert.match(appAuthSource, new RegExp(`\\b${method}\\s*\\(`, 'u'), `auth service must expose ${method}`);
+}
+for (const localAuthMethod of ['login', 'register', 'refreshToken', 'sendVerifyCode', 'verifyCode']) {
+  assert.doesNotMatch(
+    appAuthSource,
+    new RegExp(`\\b${localAuthMethod}\\s*\\(`, 'u'),
+    `auth service must not expose product-local ${localAuthMethod}; appbase runtime owns auth flows`,
+  );
 }
 for (const generatedMethod of [
   'auth.sessions.create',
   'auth.registrations.create',
-  'auth.sessions.current.delete',
   'auth.sessions.refresh',
-  'auth.verificationCodes.create',
-  'auth.verificationCodes.verify',
   'openPlatform.qrAuth.sessions.create',
   'openPlatform.qrAuth.sessions.retrieve',
   'openPlatform.qrAuth.sessions.scans.create',
   'openPlatform.qrAuth.sessions.passwords.create',
 ]) {
-  assert.match(
-    appAuthSource,
+  assert.doesNotMatch(
+    `${appAuthSource}\n${appAuthRuntimeSource}`,
     new RegExp(generatedMethod.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'),
-    `auth service must route ${generatedMethod} through sdkwork-im-app-sdk/appbase IAM adapter`,
+    `PC product code must not remap ${generatedMethod}; appbase auth runtime owns auth validation and session creation`,
   );
 }
+assert.match(
+  appAuthSource,
+  /service\.auth\.sessions\.current\.retrieve[\s\S]*service\.auth\.sessions\.current\.delete/u,
+  'auth service may only bridge current-session bootstrap and logout through the appbase runtime service',
+);
+assert.doesNotMatch(
+  `${appAuthSource}\n${appAuthRuntimeSource}`,
+  /@sdkwork\/iam-sdk-adapter|createIamAppSdkAdapter|unwrapIamSdkResponse|getIam\(\)/u,
+  'auth integration must not import or call the lower-level IAM SDK adapter after appbase auth runtime migration',
+);
 assert.doesNotMatch(appAuthSource, /\bfetch\s*\(/u, 'auth service must not use raw fetch');
 assert.doesNotMatch(appAuthSource, /PlusApiResult|LoginVO|assertSuccess/u, 'auth service must not keep generic spring app SDK envelope shims');
 
@@ -1614,8 +1648,8 @@ assert.match(contactServiceSource, /@sdkwork\/im-sdk/u, 'contact service must ro
 assert.match(contactServiceSource, /getImSdkClientWithSession/u, 'contact service must use the shared IM SDK client wrapper');
 assert.match(
   organizationDirectoryServiceSource,
-  /getAppSdkClientWithSession/u,
-  'organization directory service must use the shared generated im-app-sdk wrapper',
+  /getAppbaseAppSdkClientWithSession/u,
+  'organization directory service must use the generated appbase app SDK wrapper for IAM organization directory resources',
 );
 assert.match(
   contactServiceSource,

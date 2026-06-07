@@ -1519,6 +1519,8 @@ fn im_standard_api_routes() -> Router<AppState> {
             "/devices/{device_id}/sync_feed",
             get(device_session::get_device_sync_feed),
         )
+        .route("/rtc/sessions", post(rtc::create_rtc_session))
+        .route("/rtc/sessions/{rtc_session_id}", get(rtc::get_rtc_session))
         .route("/social/users", get(social::list_social_users))
         .route(
             "/social/friend_requests",

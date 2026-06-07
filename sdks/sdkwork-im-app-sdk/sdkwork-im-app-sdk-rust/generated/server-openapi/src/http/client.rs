@@ -13,6 +13,7 @@ use thiserror::Error;
 pub type QueryParams = HashMap<String, Value>;
 pub type RequestHeaders = HashMap<String, String>;
 
+
 #[derive(Debug, Clone)]
 pub struct SdkworkConfig {
     pub base_url: String,
@@ -75,17 +76,14 @@ impl SdkworkHttpClient {
             headers: Arc::new(RwLock::new(config.headers)),
         })
     }
-
     pub fn set_auth_token(&self, token: impl Into<String>) {
         let mut headers = self.headers.write().expect("sdk headers poisoned");
         headers.insert("Authorization".to_string(), format!("Bearer {}", token.into()));
     }
-
     pub fn set_access_token(&self, token: impl Into<String>) {
         let mut headers = self.headers.write().expect("sdk headers poisoned");
         headers.insert("Access-Token".to_string(), token.into());
     }
-
 
     pub fn set_header(&self, key: impl Into<String>, value: impl Into<String>) {
         let mut headers = self.headers.write().expect("sdk headers poisoned");

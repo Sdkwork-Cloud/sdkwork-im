@@ -5,7 +5,7 @@ import (
     sdkhttp "github.com/sdkwork/im-backend-api-generated/http"
 )
 
-type SdkworkBackendClient struct {
+type SdkworkImBackendClient struct {
     http *sdkhttp.Client
     Ops *api.OpsApi
     Audit *api.AuditApi
@@ -14,14 +14,14 @@ type SdkworkBackendClient struct {
     Admin *api.AdminApi
 }
 
-func NewSdkworkBackendClient(baseURL string) *SdkworkBackendClient {
+func NewSdkworkImBackendClient(baseURL string) *SdkworkImBackendClient {
     cfg := sdkhttp.NewDefaultConfig(baseURL)
-    return NewSdkworkBackendClientWithConfig(cfg)
+    return NewSdkworkImBackendClientWithConfig(cfg)
 }
 
-func NewSdkworkBackendClientWithConfig(config sdkhttp.Config) *SdkworkBackendClient {
+func NewSdkworkImBackendClientWithConfig(config sdkhttp.Config) *SdkworkImBackendClient {
     client := sdkhttp.NewClient(config)
-    return &SdkworkBackendClient{
+    return &SdkworkImBackendClient{
         http: client,
         Ops: api.NewOpsApi(client),
         Audit: api.NewAuditApi(client),
@@ -32,21 +32,31 @@ func NewSdkworkBackendClientWithConfig(config sdkhttp.Config) *SdkworkBackendCli
 }
 
 
-func (c *SdkworkBackendClient) SetAuthToken(token string) *SdkworkBackendClient {
+func (c *SdkworkImBackendClient) SetAuthToken(token string) *SdkworkImBackendClient {
     c.http.SetAuthToken(token)
     return c
 }
 
-func (c *SdkworkBackendClient) SetAccessToken(token string) *SdkworkBackendClient {
+func (c *SdkworkImBackendClient) SetAccessToken(token string) *SdkworkImBackendClient {
     c.http.SetAccessToken(token)
     return c
 }
 
-func (c *SdkworkBackendClient) SetHeader(key string, value string) *SdkworkBackendClient {
+func (c *SdkworkImBackendClient) SetHeader(key string, value string) *SdkworkImBackendClient {
     c.http.SetHeader(key, value)
     return c
 }
 
-func (c *SdkworkBackendClient) Http() *sdkhttp.Client {
+func (c *SdkworkImBackendClient) Http() *sdkhttp.Client {
     return c.http
+}
+
+type SdkworkBackendClient = SdkworkImBackendClient
+
+func NewSdkworkBackendClient(baseURL string) *SdkworkBackendClient {
+    return NewSdkworkImBackendClient(baseURL)
+}
+
+func NewSdkworkBackendClientWithConfig(config sdkhttp.Config) *SdkworkBackendClient {
+    return NewSdkworkImBackendClientWithConfig(config)
 }

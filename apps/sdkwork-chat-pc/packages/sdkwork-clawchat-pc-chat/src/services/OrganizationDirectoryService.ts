@@ -1,7 +1,6 @@
 import {
-  getAppSdkClientWithSession,
+  getAppbaseAppSdkClientWithSession,
   readAppSdkSessionTokens,
-  type SdkworkImAppClient,
 } from '@sdkwork/clawchat-pc-core';
 import type { User, UserPositionAssignment, UserRoleBinding } from '@sdkwork/clawchat-pc-types';
 
@@ -616,7 +615,7 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
   private readonly explicitDepartmentOrganizationById = new Map<string, string>();
 
   constructor(
-    private readonly getClient: () => OrganizationDirectoryClient = getAppSdkClientWithSession as () => SdkworkImAppClient,
+    private readonly getClient: () => OrganizationDirectoryClient = getAppbaseAppSdkClientWithSession as () => OrganizationDirectoryClient,
     private readonly options: CreateOrganizationDirectoryServiceOptions = {},
   ) {}
 

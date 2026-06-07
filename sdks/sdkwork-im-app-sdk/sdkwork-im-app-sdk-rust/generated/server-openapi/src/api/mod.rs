@@ -12,5 +12,3 @@ pub mod provider;
 pub use provider::ProviderApi;
 pub mod iot;
 pub use iot::IotApi;
-pub mod rtc;
-pub use rtc::RtcApi;

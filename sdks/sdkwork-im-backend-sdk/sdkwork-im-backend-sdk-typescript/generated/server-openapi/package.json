@@ -1,7 +1,7 @@
 {
   "name": "@sdkwork-internal/im-backend-api-generated",
   "version": "0.1.0",
-  "description": "Generator-owned TypeScript transport SDK for the Craw Chat backend/operator API.",
+  "description": "Generator-owned TypeScript transport SDK for sdkwork-im-backend-sdk.",
   "author": "SDKWork Team",
   "license": "MIT",
   "type": "module",

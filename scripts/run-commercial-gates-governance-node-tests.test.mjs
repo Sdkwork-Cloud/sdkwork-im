@@ -6,6 +6,7 @@ import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
+const fixtureRepoRoot = repoRoot;
 const governanceCatalog = await import(
   pathToFileURL(
     path.join(repoRoot, 'scripts', 'commercial-gates-governance-node-test-catalog.mjs'),
@@ -33,7 +34,7 @@ test('commercial gates governance node test runner exposes the governed test set
   );
 
   const plan = module.createCommercialGatesGovernanceNodeTestPlan({
-    cwd: 'D:/workspace/craw-chat',
+    cwd: fixtureRepoRoot,
     env: { SDKWORK_RELEASE_MODE: '1' },
     nodeExecutable: 'node-custom',
   });
@@ -42,7 +43,7 @@ test('commercial gates governance node test runner exposes the governed test set
     plan.args,
     ['--test', '--experimental-test-isolation=none', ...testFiles],
   );
-  assert.equal(plan.cwd, 'D:/workspace/craw-chat');
+  assert.equal(plan.cwd, fixtureRepoRoot);
   assert.deepEqual(plan.env, { SDKWORK_RELEASE_MODE: '1' });
   assert.equal(plan.shell, false);
   assert.equal(plan.windowsHide, process.platform === 'win32');
@@ -63,7 +64,7 @@ test('commercial gates governance node test runner executes the canonical node t
 
   const calls = [];
   const result = module.runCommercialGatesGovernanceNodeTests({
-    cwd: 'D:/workspace/craw-chat',
+    cwd: fixtureRepoRoot,
     env: { SDKWORK_ENV: '1' },
     nodeExecutable: 'node-custom',
     spawnSyncImpl(command, args, options) {
@@ -86,7 +87,7 @@ test('commercial gates governance node test runner executes the canonical node t
         ...module.listCommercialGatesGovernanceNodeTests(),
       ],
       options: {
-        cwd: 'D:/workspace/craw-chat',
+        cwd: fixtureRepoRoot,
         env: { SDKWORK_ENV: '1' },
         shell: false,
         stdio: 'inherit',

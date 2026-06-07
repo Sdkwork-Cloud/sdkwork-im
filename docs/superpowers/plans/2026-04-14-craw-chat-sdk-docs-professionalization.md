@@ -13,7 +13,7 @@
 ## Spec Basis
 
 - Approved design spec in the main workspace:
-  `D:\javasource\spring-ai-plus\spring-ai-plus-business\apps\craw-chat\docs\superpowers\specs\2026-04-14-im-sdk-docs-professionalization-design.md`
+  `<workspace-root>\craw-chat\docs\superpowers\specs\2026-04-14-im-sdk-docs-professionalization-design.md`
 - Implementation branch and worktree:
   `.worktrees/im-sdk-trilanguage-expansion`
 

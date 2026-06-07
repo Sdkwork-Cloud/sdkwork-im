@@ -3,20 +3,28 @@ import type {
   SdkworkAuthRuntimeConfig,
   SdkworkIamRuntimeAuthRuntimeLike,
 } from '@sdkwork/auth-pc-react';
-import { createAppAuthService } from './appAuthService';
-import { getAppSdkClientWithSession, resetAppSdkClient } from './appSdkClient';
-import { resetAgentAppSdkClient } from './agentAppSdkClient';
-import { resetImSdkClient } from './imSdkClient';
+import {
+  createSdkworkAppbasePcAuthRuntime,
+  type SdkworkAppbasePcAuthRuntimeComposition,
+  type SdkworkAppbasePcAuthRuntimeSdkClient,
+} from '@sdkwork/auth-runtime-pc-react';
+import { resetAiotAppSdkClient, getAiotAppSdkClient } from './aiotAppSdkClient';
+import { resetAppSdkClient, getAppSdkClient, resolveAppSdkBaseUrl } from './appSdkClient';
+import { resetAgentAppSdkClient, getAgentAppSdkClient } from './agentAppSdkClient';
+import { resetAppbaseAppSdkClient } from './appbaseAppSdkClient';
+import { resetAppbaseBackendSdkClient } from './appbaseBackendSdkClient';
+import { resetBackendSdkClient, getBackendSdkClient, resolveBackendSdkBaseUrl } from './backendSdkClient';
+import { resetImSdkClient, getImSdkClient } from './imSdkClient';
 import {
   applyAppSdkSessionTokens,
   clearAppSdkSessionTokens,
+  getSdkworkChatGlobalTokenManager,
   readAppSdkSessionTokens,
   type SdkworkChatSession,
-  type SdkworkChatSessionUser,
 } from './session';
 
-const AUTH_METHOD_UNAVAILABLE_MESSAGE =
-  'This SDKWork Chat IAM runtime auth method is not available in the current integration.';
+type IamEnvironment = 'dev' | 'prod' | 'test';
+type IamDeploymentMode = 'local' | 'private' | 'saas';
 
 const SDKWORK_CHAT_VERIFICATION_POLICY = {
   emailCodeLoginEnabled: false,
@@ -25,7 +33,7 @@ const SDKWORK_CHAT_VERIFICATION_POLICY = {
   phoneRegistrationVerificationRequired: false,
 } as const;
 
-let sdkworkChatIamRuntime: SdkworkIamRuntimeAuthRuntimeLike | null = null;
+let sdkworkChatIamRuntimeComposition: SdkworkAppbasePcAuthRuntimeComposition | null = null;
 
 function readEnvValue(...keys: string[]): string | undefined {
   const meta = import.meta as ImportMeta & {
@@ -59,217 +67,78 @@ function parseBoolean(value: string | undefined): boolean | undefined {
   return undefined;
 }
 
-function toRuntimeUser(user?: SdkworkChatSessionUser) {
-  if (!user) {
-    return undefined;
-  }
-
-  return {
-    avatar: user.avatar,
-    displayName: user.displayName ?? user.name ?? user.nickname,
-    email: user.email,
-    id: typeof user.id === 'number' ? String(user.id) : user.id,
-    name: user.name,
-    nickname: user.nickname,
-    phone: user.phone,
-    userId: user.userId,
-    username: user.username,
-  };
+function resolveIamEnvironment(): IamEnvironment {
+  const value = readEnvValue(
+    'VITE_SDKWORK_CHAT_IAM_ENVIRONMENT',
+    'VITE_SDKWORK_IAM_ENVIRONMENT',
+  );
+  return value === 'prod' || value === 'production'
+    ? 'prod'
+    : value === 'test'
+      ? 'test'
+      : 'dev';
 }
 
-function toRuntimeSession(session: SdkworkChatSession) {
-  const accessToken = session.accessToken ?? session.authToken;
-  const authToken = session.authToken ?? session.accessToken;
-
-  if (!accessToken || !authToken) {
-    throw new Error('SDKWork Chat IAM session requires accessToken or authToken.');
-  }
-
-  const user = toRuntimeUser(session.user);
-  return {
-    accessToken,
-    authToken,
-    context: session.context,
-    expiresAt: session.expiresAt ? new Date(session.expiresAt).toISOString() : undefined,
-    refreshToken: session.refreshToken,
-    sessionId: session.sessionId ?? session.context?.sessionId,
-    user,
-    userInfo: user,
-  };
+function resolveIamDeploymentMode(): IamDeploymentMode {
+  const value = readEnvValue(
+    'VITE_SDKWORK_CHAT_IAM_DEPLOYMENT_MODE',
+    'VITE_SDKWORK_IAM_DEPLOYMENT_MODE',
+  );
+  return value === 'saas' || value === 'private' || value === 'local'
+    ? value
+    : 'local';
 }
 
-function readStoredRuntimeSession() {
-  const session = readAppSdkSessionTokens();
-  if (!session) {
-    return {};
-  }
-
-  return {
-    accessToken: session.accessToken ?? session.authToken,
-    authToken: session.authToken ?? session.accessToken,
-    refreshToken: session.refreshToken,
-  };
-}
-
-function persistRuntimeSession(session: {
-  accessToken?: string;
-  authToken?: string;
-  context?: SdkworkChatSession['context'];
-  refreshToken?: string;
-  sessionId?: string;
-  user?: SdkworkChatSessionUser;
-  userInfo?: SdkworkChatSessionUser;
-}): void {
-  const existingSession = readAppSdkSessionTokens();
-  applyAppSdkSessionTokens({
-    accessToken: session.accessToken ?? session.authToken,
-    authToken: session.authToken ?? session.accessToken,
-    context: session.context ?? existingSession?.context,
-    refreshToken: session.refreshToken ?? existingSession?.refreshToken,
-    sessionId: session.sessionId ?? existingSession?.sessionId,
-    user: session.user ?? session.userInfo ?? existingSession?.user,
-  });
+export function resetSdkworkChatAuthenticatedSdkClients(): void {
+  resetAppbaseAppSdkClient();
+  resetAppbaseBackendSdkClient();
+  resetAiotAppSdkClient();
   resetAppSdkClient();
   resetAgentAppSdkClient();
+  resetBackendSdkClient();
   resetImSdkClient();
 }
 
-function clearRuntimeSession() {
+export function clearSdkworkChatIamRuntimeSession(): void {
   clearAppSdkSessionTokens();
-  resetAppSdkClient();
-  resetAgentAppSdkClient();
-  resetImSdkClient();
+  resetSdkworkChatAuthenticatedSdkClients();
 }
 
-async function unavailable(): Promise<never> {
-  throw new Error(AUTH_METHOD_UNAVAILABLE_MESSAGE);
+function getAuthenticatedSdkClients(): SdkworkAppbasePcAuthRuntimeSdkClient[] {
+  return [
+    getAiotAppSdkClient(),
+    getAppSdkClient(),
+    getAgentAppSdkClient(),
+    getBackendSdkClient(),
+    getImSdkClient(),
+  ] as SdkworkAppbasePcAuthRuntimeSdkClient[];
 }
 
-function createSdkworkChatIamRuntime(): SdkworkIamRuntimeAuthRuntimeLike {
-  const service = createAppAuthService(() => getAppSdkClientWithSession(readAppSdkSessionTokens()));
-  return {
-    contextStore: {
-      clear: clearRuntimeSession,
+function createSdkworkChatIamRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
+  return createSdkworkAppbasePcAuthRuntime({
+    app: {
+      appId: 'sdkwork-chat-pc',
+      deploymentMode: resolveIamDeploymentMode(),
+      environment: resolveIamEnvironment(),
+      platform: 'pc',
     },
-    service: {
-      auth: {
-        oauthAuthorizationUrls: {
-          retrieve: unavailable,
-        },
-        oauthSessions: {
-          create: unavailable,
-        },
-        passwordResetRequests: {
-          create: unavailable,
-        },
-        passwordResets: {
-          create: unavailable,
-        },
-        sessions: {
-          create: async (payload) => toRuntimeSession(await service.login({
-            password: String(payload.password ?? ''),
-            remember: Boolean(payload.remember),
-            username: String(payload.username ?? '').trim(),
-          })),
-          current: {
-            delete: () => service.logout(),
-            retrieve: async () => {
-              const session = await service.getCurrentSession();
-              if (!session) {
-                throw new Error('SDKWork Chat IAM session is not authenticated.');
-              }
-              return toRuntimeSession(session);
-            },
-            update: async () => {
-              const session = await service.getCurrentSession();
-              if (!session) {
-                throw new Error('SDKWork Chat IAM session is not authenticated.');
-              }
-              return toRuntimeSession(session);
-            },
-          },
-          refresh: async (payload) => toRuntimeSession(await service.refreshToken(
-            typeof payload.refreshToken === 'string' ? payload.refreshToken : undefined,
-          )),
-        },
-        registrations: {
-          create: async (payload) => toRuntimeSession(await service.register({
-            confirmPassword: typeof payload.confirmPassword === 'string' ? payload.confirmPassword : undefined,
-            email: typeof payload.email === 'string' ? payload.email : undefined,
-            name: typeof payload.name === 'string' ? payload.name : undefined,
-            password: String(payload.password ?? ''),
-            phone: typeof payload.phone === 'string' ? payload.phone : undefined,
-            username: String(payload.username ?? payload.email ?? payload.phone ?? '').trim(),
-            verificationCode: typeof payload.verificationCode === 'string' ? payload.verificationCode : undefined,
-          })),
-        },
-        verificationCodes: {
-          create: (payload) => service.sendVerifyCode({
-            scene: String(payload.scene ?? 'REGISTER'),
-            target: String(payload.target ?? ''),
-            verifyType: String(payload.verifyType ?? 'EMAIL'),
-          }),
-          verify: async (payload) => {
-            const verified = await service.verifyCode({
-              code: String(payload.code ?? ''),
-              scene: String(payload.scene ?? 'REGISTER'),
-              target: String(payload.target ?? ''),
-              verifyType: String(payload.verifyType ?? 'EMAIL'),
-            });
-            return {
-              valid: verified,
-              verified,
-            };
-          },
-        },
-      },
-      iam: {
-        users: {
-          current: {
-            retrieve: async () => {
-              const session = await service.getCurrentSession();
-              return toRuntimeUser(session?.user) ?? {};
-            },
-          },
-        },
-      },
-      openPlatform: {
-        qrAuth: {
-          sessions: {
-            create: (payload) => service.createQrAuthSession({
-              purpose: payload?.purpose === 'register' ? 'register' : 'login',
-            }),
-            retrieve: (sessionKey) => service.retrieveQrAuthSession(sessionKey),
-            scans: {
-              create: (sessionKey, payload = {}) => service.createQrAuthScan(sessionKey, payload),
-            },
-            passwords: {
-              create: (sessionKey, payload) => service.createQrAuthPassword(sessionKey, {
-                confirmPassword: typeof payload.confirmPassword === 'string' ? payload.confirmPassword : undefined,
-                email: typeof payload.email === 'string' ? payload.email : undefined,
-                password: String(payload.password ?? ''),
-                phone: typeof payload.phone === 'string' ? payload.phone : undefined,
-                username: String(payload.username ?? payload.email ?? payload.phone ?? '').trim(),
-                verificationCode: typeof payload.verificationCode === 'string' ? payload.verificationCode : undefined,
-              }),
-            },
-          },
-        },
-      },
-      system: {
-        iam: {
-          verificationPolicy: {
-            retrieve: async () => SDKWORK_CHAT_VERIFICATION_POLICY,
-          },
-        },
+    baseUrls: {
+      appbaseAppApiBaseUrl: resolveAppSdkBaseUrl(),
+      appbaseBackendApiBaseUrl: resolveBackendSdkBaseUrl(),
+    },
+    hooks: {
+      onSessionChanged: () => {
+        resetSdkworkChatAuthenticatedSdkClients();
       },
     },
-    tokenStore: {
-      clear: clearRuntimeSession,
-      get: readStoredRuntimeSession,
-      set: persistRuntimeSession,
+    sdkClients: getAuthenticatedSdkClients(),
+    sessionBridge: {
+      clearSession: clearSdkworkChatIamRuntimeSession,
+      commitSession: (session) => applyAppSdkSessionTokens(session as SdkworkChatSession),
+      readSession: readAppSdkSessionTokens,
     },
-  };
+    tokenManager: getSdkworkChatGlobalTokenManager(),
+  });
 }
 
 function resolveDevelopmentPrefill(): SdkworkAuthRuntimeConfig['developmentPrefill'] {
@@ -322,15 +191,15 @@ function resolveDevelopmentPrefill(): SdkworkAuthRuntimeConfig['developmentPrefi
 }
 
 export function getSdkworkChatIamRuntime(): SdkworkIamRuntimeAuthRuntimeLike {
-  if (!sdkworkChatIamRuntime) {
-    sdkworkChatIamRuntime = createSdkworkChatIamRuntime();
+  if (!sdkworkChatIamRuntimeComposition) {
+    sdkworkChatIamRuntimeComposition = createSdkworkChatIamRuntime();
   }
 
-  return sdkworkChatIamRuntime;
+  return sdkworkChatIamRuntimeComposition.runtime as SdkworkIamRuntimeAuthRuntimeLike;
 }
 
 export function resetSdkworkChatIamRuntime(): void {
-  sdkworkChatIamRuntime = null;
+  sdkworkChatIamRuntimeComposition = null;
 }
 
 export function resolveSdkworkChatAuthRuntimeConfig(): SdkworkAuthRuntimeConfig {
@@ -343,12 +212,7 @@ export function resolveSdkworkChatAuthRuntimeConfig(): SdkworkAuthRuntimeConfig 
     qrLoginEnabled: true,
     recoveryMethods: [],
     registerMethods: ['email', 'phone'],
-    verificationPolicy: {
-      emailCodeLoginEnabled: false,
-      emailRegistrationVerificationRequired: false,
-      phoneCodeLoginEnabled: false,
-      phoneRegistrationVerificationRequired: false,
-    },
+    verificationPolicy: SDKWORK_CHAT_VERIFICATION_POLICY,
     ...(developmentPrefill ? { developmentPrefill } : {}),
   };
 }

@@ -4,7 +4,7 @@
 name = "sdkwork-im-app-api-generated"
 version = "0.1.0"
 edition = "2021"
-description = "Generator-owned Rust transport SDK for the Craw Chat app-development API."
+description = "sdkwork-im-app-sdk SDK"
 license = "MIT"
 authors = ["SDKWork Team"]
 

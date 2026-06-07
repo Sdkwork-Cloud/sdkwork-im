@@ -7,7 +7,7 @@ public class UpdateDeviceTwinDesiredRequest {
     public String getDesiredStateJson() {
         return this.desiredStateJson;
     }
-
+    
     public void setDesiredStateJson(String desiredStateJson) {
         this.desiredStateJson = desiredStateJson;
     }

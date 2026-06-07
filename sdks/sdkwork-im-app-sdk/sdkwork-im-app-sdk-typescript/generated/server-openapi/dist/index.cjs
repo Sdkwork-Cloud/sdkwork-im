@@ -729,35 +729,6 @@ function createIotApi(client) {
     return new IotApi(client);
 }
 
-class RtcProviderHealthApi {
-    constructor(client) {
-        this.client = client;
-    }
-    /** Retrieve RTC provider health */
-    async retrieve() {
-        return this.client.get(appApiPath(`/rtc/provider_health`));
-    }
-}
-class RtcProviderCallbacksApi {
-    constructor(client) {
-        this.client = client;
-    }
-    /** Map RTC provider callback */
-    async create() {
-        return this.client.post(appApiPath(`/rtc/provider_callbacks`));
-    }
-}
-class RtcApi {
-    constructor(client) {
-        this.client = client;
-        this.providerCallbacks = new RtcProviderCallbacksApi(client);
-        this.providerHealth = new RtcProviderHealthApi(client);
-    }
-}
-function createRtcApi(client) {
-    return new RtcApi(client);
-}
-
 class SdkworkImAppClient {
     constructor(config) {
         this.httpClient = createHttpClient(config);
@@ -767,7 +738,6 @@ class SdkworkImAppClient {
         this.portal = createPortalApi(this.httpClient);
         this.provider = createProviderApi(this.httpClient);
         this.iot = createIotApi(this.httpClient);
-        this.rtc = createRtcApi(this.httpClient);
     }
     setAuthToken(token) {
         this.httpClient.setAuthToken(token);
@@ -818,9 +788,17 @@ Object.defineProperty(exports, "DEFAULT_TIMEOUT", {
     enumerable: true,
     get: function () { return sdkCommon.DEFAULT_TIMEOUT; }
 });
+Object.defineProperty(exports, "DefaultAuthTokenManager", {
+    enumerable: true,
+    get: function () { return sdkCommon.DefaultAuthTokenManager; }
+});
 Object.defineProperty(exports, "SUCCESS_CODES", {
     enumerable: true,
     get: function () { return sdkCommon.SUCCESS_CODES; }
+});
+Object.defineProperty(exports, "createTokenManager", {
+    enumerable: true,
+    get: function () { return sdkCommon.createTokenManager; }
 });
 exports.AutomationApi = AutomationApi;
 exports.BaseApi = BaseApi;
@@ -830,7 +808,6 @@ exports.IotApi = IotApi;
 exports.NotificationApi = NotificationApi;
 exports.PortalApi = PortalApi;
 exports.ProviderApi = ProviderApi;
-exports.RtcApi = RtcApi;
 exports.SdkworkAppClient = SdkworkImAppClient;
 exports.SdkworkImAppClient = SdkworkImAppClient;
 exports.appApiPath = appApiPath;
@@ -842,4 +819,3 @@ exports.createIotApi = createIotApi;
 exports.createNotificationApi = createNotificationApi;
 exports.createPortalApi = createPortalApi;
 exports.createProviderApi = createProviderApi;
-exports.createRtcApi = createRtcApi;

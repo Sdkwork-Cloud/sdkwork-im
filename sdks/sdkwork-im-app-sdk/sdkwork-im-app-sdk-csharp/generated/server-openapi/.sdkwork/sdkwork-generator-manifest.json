@@ -11,7 +11,7 @@
   "generatedFiles": [
     {
       "path": "Api/Api.cs",
-      "sha256": "185251ea1c89983543898f3e5d6dc76b0320f693d159336df9a34a528933b85f"
+      "sha256": "15b273be4b44721cd468057aa8d46ac50d54909b5a5998947dd2630e247bdb23"
     },
     {
       "path": "Api/ApiPaths.cs",
@@ -42,10 +42,6 @@
       "sha256": "d35774080894c996f37cc20b66596f86a50d30d69b8cb6723c77257d37b8f6d9"
     },
     {
-      "path": "Api/RtcApi.cs",
-      "sha256": "b69c62a034d48a26fa3a7fa8d0ff6c21497072af0cc9071373db04c80124a677"
-    },
-    {
       "path": "bin/publish-core.mjs",
       "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
     },
@@ -63,7 +59,7 @@
     },
     {
       "path": "Http/HttpClient.cs",
-      "sha256": "8a36deea09645fbde53c6359dfd6762ce537af562a60541155b0e94c5d85ca4a"
+      "sha256": "3d109af50de6ce0887ee6e614a53a6dfb0e46dd39b1c6ed4b63369e6982fbfbd"
     },
     {
       "path": "LICENSE",
@@ -159,7 +155,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "d115ba52262a260103018877d35ac6e6c2354766d18ee8c9acb4e19e32bd997c"
+      "sha256": "9835ecf957b7d8336a6356b87c89410854d3bcabe54c63fe2ce4a1e214ed95f0"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -167,11 +163,15 @@
     },
     {
       "path": "Sdkwork.Im.AppApi.Generated.csproj",
-      "sha256": "fba18b8f3dd101c2408ff2b5e001471ca565ce5ece8005bb58261c1d9e12aa5d"
+      "sha256": "462c452ab512b38963f3d5e4d86e42376c009d2e5a1d03be1b6f67717b1ccb78"
     },
     {
       "path": "SdkworkAppClient.cs",
-      "sha256": "e909a2f8ba777e1d01b5ae82fa37a11b66c896306f82c6def6cb6e6e78d40e7b"
+      "sha256": "6b7b2700ceb7bb01876cd01679d5f607e7d3fa52de06f9c9b1ee8fba19f39326"
+    },
+    {
+      "path": "SdkworkImAppClient.cs",
+      "sha256": "22c15f5d9bcf01637e501d91498d7892e549d18f3ffed14b099996cba14f1801"
     }
   ],
   "scaffoldFiles": [

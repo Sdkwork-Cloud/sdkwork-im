@@ -1,3 +1,5 @@
+import { getBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
+
 export interface AdminMetrics {
   systemLoad: { value: string; trend: string; isUp: boolean };
   activeTenants: { value: string; trend: string; isUp: boolean };
@@ -24,37 +26,127 @@ export interface AdminDashboardData {
   anomalies: SystemAnomaly[];
 }
 
+type UnknownRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): UnknownRecord {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : {};
+}
+
+function asRecordArray(value: unknown): UnknownRecord[] {
+  return Array.isArray(value) ? value.map(asRecord).filter((item) => Object.keys(item).length > 0) : [];
+}
+
+function readNumber(record: UnknownRecord, keys: string[], fallback = 0): number {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return fallback;
+}
+
+function readString(record: UnknownRecord, keys: string[], fallback = ''): string {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+  return fallback;
+}
+
+function formatCount(value: number): string {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(value >= 10_000 ? 0 : 1)}K`;
+  }
+  return String(Math.max(0, Math.round(value)));
+}
+
+function formatPercent(value: number): string {
+  return `${Math.max(0, Math.min(100, Math.round(value)))}%`;
+}
+
+function resolveSystemLoad(health: UnknownRecord, diagnostics: UnknownRecord): number {
+  const direct = readNumber(health, ['systemLoad', 'loadPercent', 'cpuUsagePercent'], Number.NaN);
+  if (Number.isFinite(direct)) {
+    return direct;
+  }
+  const nodes = asRecordArray(diagnostics.deviceRoutes);
+  return nodes.length > 0 ? Math.min(100, nodes.length * 8) : 0;
+}
+
+function resolveActiveConnections(health: UnknownRecord, cluster: UnknownRecord): number {
+  const direct = readNumber(health, ['activeConnections', 'connectionCount', 'websocketConnections'], Number.NaN);
+  if (Number.isFinite(direct)) {
+    return direct;
+  }
+  return asRecordArray(cluster.nodes)
+    .reduce((total, node) => total + readNumber(node, ['connectionCount', 'connections', 'deviceRouteCount'], 0), 0);
+}
+
+function buildThroughput(health: UnknownRecord, diagnostics: UnknownRecord): NetworkThroughput[] {
+  const samples = asRecordArray(health.throughputSamples)
+    .concat(asRecordArray(diagnostics.throughputSamples));
+  return samples.slice(0, 12).map((sample) => ({
+    egress: readNumber(sample, ['egress', 'egressPercent', 'outbound'], 0),
+    ingress: readNumber(sample, ['ingress', 'ingressPercent', 'inbound'], 0),
+  }));
+}
+
+function buildAnomalies(records: UnknownRecord[]): SystemAnomaly[] {
+  return records.slice(0, 4).map((record, index) => {
+    const action = readString(record, ['action', 'eventType', 'type'], 'backend.audit');
+    const aggregate = readString(record, ['aggregateId', 'recordId', 'id'], `record-${index + 1}`);
+    return {
+      id: readString(record, ['recordId', 'id'], `audit-${index + 1}`),
+      message: action,
+      tenant: readString(record, ['tenantId', 'aggregateType'], 'System'),
+      time: readString(record, ['recordedAt', 'createdAt', 'time'], ''),
+      type: action.toLowerCase().includes('error') || action.toLowerCase().includes('fail') ? 'critical' : 'info',
+      ...(aggregate ? { message: `${action} (${aggregate})` } : {}),
+    };
+  });
+}
+
 class AdminDashboardService {
   async getDashboardData(): Promise<AdminDashboardData> {
-    await new Promise(resolve => setTimeout(resolve, 200));
+    const backend = getBackendSdkClientWithSession();
+    const [health, cluster, diagnostics, auditRecords] = await Promise.all([
+      backend.ops.health.retrieve(),
+      backend.ops.cluster.retrieve(),
+      backend.ops.diagnostics.retrieve(),
+      backend.audit.records.list(),
+    ]);
+    const normalizedHealth = asRecord(health);
+    const normalizedCluster = asRecord(cluster);
+    const normalizedDiagnostics = asRecord(diagnostics);
+    const nodeCount = asRecordArray(normalizedCluster.nodes).length;
+    const activeConnections = resolveActiveConnections(normalizedHealth, normalizedCluster);
+    const systemLoad = resolveSystemLoad(normalizedHealth, normalizedDiagnostics);
+    const records = asRecordArray(asRecord(auditRecords).items);
 
     return {
       metrics: {
-        systemLoad: { value: "28%", trend: "-2%", isUp: false },
-        activeTenants: { value: "8,240", trend: "+12", isUp: true },
-        activeConnections: { value: "1.2M", trend: "+45k", isUp: true },
-        globalNodes: { value: "12", trend: "0", isUp: true },
+        systemLoad: { value: formatPercent(systemLoad), trend: '', isUp: systemLoad < 80 },
+        activeTenants: { value: formatCount(readNumber(normalizedHealth, ['activeTenants', 'tenantCount'], 0)), trend: '', isUp: true },
+        activeConnections: { value: formatCount(activeConnections), trend: '', isUp: true },
+        globalNodes: { value: String(nodeCount), trend: '', isUp: nodeCount > 0 },
       },
-      throughput: [
-        { egress: 30, ingress: 18 },
-        { egress: 45, ingress: 27 },
-        { egress: 25, ingress: 15 },
-        { egress: 60, ingress: 36 },
-        { egress: 85, ingress: 51 },
-        { egress: 40, ingress: 24 },
-        { egress: 70, ingress: 42 },
-        { egress: 90, ingress: 54 },
-        { egress: 50, ingress: 30 },
-        { egress: 65, ingress: 39 },
-        { egress: 35, ingress: 21 },
-        { egress: 80, ingress: 48 },
-      ],
-      anomalies: [
-        { id: '1', type: "critical", tenant: "T-4829", message: "Database connection pool exhausted", time: "2m ago" },
-        { id: '2', type: "warning", tenant: "T-9921", message: "Spike in auth failures (120 req/s)", time: "15m ago" },
-        { id: '3', type: "info", tenant: "System", message: "Routine backup completed successfully", time: "1h ago" },
-        { id: '4', type: "warning", tenant: "T-1021", message: "Payment gateway latency > 2s", time: "2.5h ago" },
-      ]
+      throughput: buildThroughput(normalizedHealth, normalizedDiagnostics),
+      anomalies: buildAnomalies(records),
     };
   }
 }

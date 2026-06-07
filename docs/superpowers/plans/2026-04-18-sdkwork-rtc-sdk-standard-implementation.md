@@ -19,61 +19,61 @@
 ### New files to create
 
 - `docs/superpowers/specs/2026-04-18-sdkwork-rtc-sdk-jdbc-style-standard-design.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/README.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/package-standards.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/provider-adapter-standard.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/multilanguage-capability-matrix.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/verification-matrix.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.ps1`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.sh`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/package.json`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/tsconfig.build.json`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/README.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/bin/package-task.mjs`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/errors.ts`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/types.ts`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/capabilities.ts`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/driver.ts`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/driver-manager.ts`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/data-source.ts`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/client.ts`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/volcengine.ts`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/aliyun.ts`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/tencent.ts`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/driver-manager.test.mjs`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/data-source.test.mjs`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/built-in-providers.test.mjs`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-flutter/README.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-rust/README.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-java/README.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-csharp/README.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-swift/README.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-kotlin/README.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-go/README.md`
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-python/README.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/README.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/package-standards.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/provider-adapter-standard.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/multilanguage-capability-matrix.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/verification-matrix.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.ps1`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.sh`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/package.json`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/tsconfig.build.json`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/README.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/bin/package-task.mjs`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/errors.ts`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/types.ts`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/capabilities.ts`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/driver.ts`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/driver-manager.ts`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/data-source.ts`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/client.ts`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/volcengine.ts`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/aliyun.ts`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/tencent.ts`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/driver-manager.test.mjs`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/data-source.test.mjs`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/built-in-providers.test.mjs`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-flutter/README.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-rust/README.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-java/README.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-csharp/README.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-swift/README.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-kotlin/README.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-go/README.md`
+- `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-python/README.md`
 
 ---
 
 ### Task 1: Materialize The Root RTC Workspace Contract
 
 **Files:**
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/README.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/package-standards.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/provider-adapter-standard.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/multilanguage-capability-matrix.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/verification-matrix.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/README.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/package-standards.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/provider-adapter-standard.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/multilanguage-capability-matrix.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/verification-matrix.md`
 - Modify: `sdks/README.md`
 
 - [ ] **Step 1: Write the failing root automation test**
 
-Add `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs` assertions that require:
+Add `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs` assertions that require:
 - the RTC workspace is listed in `sdks/README.md`
 - the root docs files exist
 - `.sdkwork-assembly.json` declares all official languages
@@ -84,7 +84,7 @@ Add `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-auto
 Run:
 
 ```bash
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
 ```
 
 Expected: FAIL because the workspace contract files do not exist yet.
@@ -99,7 +99,7 @@ machine-readable and human-readable contract.
 Run:
 
 ```bash
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
 ```
 
 Expected: PASS
@@ -107,16 +107,16 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/README.md D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk
+git add sdks/README.md <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk
 git commit -m "feat(rtc-sdk): add workspace contract"
 ```
 
 ### Task 2: Add Root Verification Entry Points
 
 **Files:**
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.ps1`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.sh`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.ps1`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.sh`
 
 - [ ] **Step 1: Extend the failing root automation test**
 
@@ -130,7 +130,7 @@ Add assertions that require:
 Run:
 
 ```bash
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
 ```
 
 Expected: FAIL because the verifier and wrappers are missing.
@@ -148,8 +148,8 @@ Write `verify-sdk.mjs` so it validates:
 Run:
 
 ```bash
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs
 ```
 
 Expected: PASS
@@ -157,27 +157,27 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
+git add <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
 git commit -m "feat(rtc-sdk): add root verification"
 ```
 
 ### Task 3: Implement The TypeScript Core Contract With TDD
 
 **Files:**
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/package.json`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/tsconfig.build.json`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/README.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/bin/package-task.mjs`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/errors.ts`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/types.ts`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/capabilities.ts`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/driver.ts`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/driver-manager.ts`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/data-source.ts`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/client.ts`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/driver-manager.test.mjs`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/data-source.test.mjs`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/package.json`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/tsconfig.build.json`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/README.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/bin/package-task.mjs`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/errors.ts`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/types.ts`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/capabilities.ts`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/driver.ts`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/driver-manager.ts`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/data-source.ts`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/client.ts`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/driver-manager.test.mjs`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/data-source.test.mjs`
 
 - [ ] **Step 1: Write the failing driver-manager and data-source tests**
 
@@ -193,8 +193,8 @@ Require these behaviors:
 Run:
 
 ```bash
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/driver-manager.test.mjs
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/data-source.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/driver-manager.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/data-source.test.mjs
 ```
 
 Expected: FAIL because the TypeScript workspace files do not exist yet.
@@ -213,8 +213,8 @@ Create the package metadata, build config, and source files for:
 Run:
 
 ```bash
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/driver-manager.test.mjs
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/data-source.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/driver-manager.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/data-source.test.mjs
 ```
 
 Expected: PASS
@@ -222,17 +222,17 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript
+git add <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript
 git commit -m "feat(rtc-sdk): add typescript core contract"
 ```
 
 ### Task 4: Add Built-In TypeScript Provider Adapters
 
 **Files:**
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/volcengine.ts`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/aliyun.ts`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/tencent.ts`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/built-in-providers.test.mjs`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/volcengine.ts`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/aliyun.ts`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers/tencent.ts`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/built-in-providers.test.mjs`
 
 - [ ] **Step 1: Write the failing built-in provider tests**
 
@@ -247,7 +247,7 @@ Require:
 Run:
 
 ```bash
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/built-in-providers.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/built-in-providers.test.mjs
 ```
 
 Expected: FAIL because the built-in provider modules do not exist yet.
@@ -262,8 +262,8 @@ implementations directly. Keep the adapters explicit, typed, and one-provider-on
 Run:
 
 ```bash
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/built-in-providers.test.mjs
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/bin/package-task.mjs test
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/built-in-providers.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/bin/package-task.mjs test
 ```
 
 Expected: PASS
@@ -271,21 +271,21 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/built-in-providers.test.mjs
+git add <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/providers <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/test/built-in-providers.test.mjs
 git commit -m "feat(rtc-sdk): add built-in provider adapters"
 ```
 
 ### Task 5: Materialize The Official Multi-Language Skeletons
 
 **Files:**
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-flutter/README.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-rust/README.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-java/README.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-csharp/README.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-swift/README.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-kotlin/README.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-go/README.md`
-- Create: `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-python/README.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-flutter/README.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-rust/README.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-java/README.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-csharp/README.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-swift/README.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-kotlin/README.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-go/README.md`
+- Create: `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-python/README.md`
 
 - [ ] **Step 1: Extend the root automation test**
 
@@ -299,7 +299,7 @@ Add assertions that require every official language directory to exist and conta
 Run:
 
 ```bash
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
 ```
 
 Expected: FAIL because the language skeletons do not exist yet.
@@ -317,9 +317,9 @@ Each README must document:
 Run:
 
 ```bash
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs
-node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/bin/package-task.mjs test
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/test/verify-sdk-automation.test.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs
+node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/bin/package-task.mjs test
 ```
 
 Expected: PASS
@@ -327,6 +327,6 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk
+git add <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk
 git commit -m "feat(rtc-sdk): add official language skeletons"
 ```

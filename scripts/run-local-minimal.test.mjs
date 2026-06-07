@@ -4,6 +4,7 @@ import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
+const fixtureRepoRoot = repoRoot;
 
 async function loadModule() {
   return import(pathToFileURL(path.join(repoRoot, 'scripts', 'run-local-minimal.mjs')).href);
@@ -86,13 +87,13 @@ test('craw-chat local-minimal runner parses dotenv content and gives CLI precede
     options: {
       bindAddr: '0.0.0.0:28080',
     },
-    repoRoot: 'D:/workspace/craw-chat',
+    repoRoot: fixtureRepoRoot,
   });
 
   assert.equal(env.CRAW_CHAT_BIND_ADDR, '0.0.0.0:28080');
   assert.equal(env.CRAW_CHAT_RUNTIME_DIR, './.runtime/local-minimal');
   assert.equal(env.CRAW_CHAT_USER_MODULE_PROVIDER, 'local');
-  assert.equal(env.PWD, 'D:/workspace/craw-chat');
+  assert.equal(env.PWD, fixtureRepoRoot);
   assert.equal(
     Object.keys(env).some((key) => key.includes('USER_CENTER')),
     false,
@@ -128,14 +129,14 @@ test('craw-chat local-minimal runner materializes build and run plans and suppor
       CRAW_CHAT_BIND_ADDR: '127.0.0.1:18090',
     },
     noBuild: false,
-    repoRoot: 'D:/workspace/craw-chat',
+    repoRoot: fixtureRepoRoot,
   });
 
   assert.deepEqual(plan, [
     {
       args: ['build', '-p', 'local-minimal-node', '--offline'],
       command: 'cargo-custom',
-      cwd: 'D:/workspace/craw-chat',
+      cwd: fixtureRepoRoot,
       env: {
         CRAW_CHAT_BIND_ADDR: '127.0.0.1:18090',
       },
@@ -144,7 +145,7 @@ test('craw-chat local-minimal runner materializes build and run plans and suppor
     {
       args: ['run', '-p', 'local-minimal-node', '--offline'],
       command: 'cargo-custom',
-      cwd: 'D:/workspace/craw-chat',
+      cwd: fixtureRepoRoot,
       env: {
         CRAW_CHAT_BIND_ADDR: '127.0.0.1:18090',
       },
@@ -160,7 +161,7 @@ test('craw-chat local-minimal runner materializes build and run plans and suppor
     existsSyncImpl() {
       return false;
     },
-    repoRoot: 'D:/workspace/craw-chat',
+    repoRoot: fixtureRepoRoot,
     runCommandSequenceImpl() {
       throw new Error('dry-run must not execute command sequence');
     },
@@ -196,7 +197,7 @@ test('craw-chat local-minimal runner invokes the shared command sequence with ro
     existsSyncImpl() {
       return false;
     },
-    repoRoot: 'D:/workspace/craw-chat',
+    repoRoot: fixtureRepoRoot,
     runCommandSequenceImpl(argument) {
       receivedSequenceArgument = argument;
       return 0;
@@ -212,7 +213,7 @@ test('craw-chat local-minimal runner invokes the shared command sequence with ro
     Array.isArray(receivedSequenceArgument.commands),
     'shared runner expects a { commands, cwd, env } argument, not a bare command array',
   );
-  assert.equal(receivedSequenceArgument.cwd, 'D:/workspace/craw-chat');
+  assert.equal(receivedSequenceArgument.cwd, fixtureRepoRoot);
   assert.equal(receivedSequenceArgument.env.CRAW_CHAT_BIND_ADDR, '127.0.0.1:28080');
   assert.equal(
     receivedSequenceArgument.env.CRAW_CHAT_BROWSER_ORIGINS,
@@ -222,7 +223,7 @@ test('craw-chat local-minimal runner invokes the shared command sequence with ro
     {
       args: ['run', '-p', 'local-minimal-node', '--offline'],
       command: 'cargo-custom',
-      cwd: 'D:/workspace/craw-chat',
+      cwd: fixtureRepoRoot,
       env: receivedSequenceArgument.env,
       label: 'run local-minimal-node',
     },

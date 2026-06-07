@@ -1,41 +1,160 @@
 # sdkwork-im-backend-sdk
 
-Generator-owned TypeScript transport SDK for the Craw Chat backend/operator API.
+Generator-owned TypeScript transport SDK for sdkwork-im-backend-sdk.
 
-This package is generated transport. It targets `/backend/v3/api` and is not a login,
-user, tenant, organization, or account-session SDK. Those identity and token lifecycles are
-owned by `sdkwork-appbase`; this SDK only forwards the already validated dual-token context.
-
-## Install
+## Installation
 
 ```bash
 npm install @sdkwork-internal/im-backend-api-generated
+# or
+yarn add @sdkwork-internal/im-backend-api-generated
+# or
+pnpm add @sdkwork-internal/im-backend-api-generated
 ```
 
-## Usage
+## Quick Start
 
 ```typescript
 import { SdkworkImBackendClient } from '@sdkwork-internal/im-backend-api-generated';
 
 const client = new SdkworkImBackendClient({
   baseUrl: 'http://127.0.0.1:18090',
-  authToken: appbaseAuthToken,
-  accessToken: appbaseAccessToken,
+  timeout: 30000,
 });
 
-client.setAuthToken(appbaseAuthToken);
-client.setAccessToken(appbaseAccessToken);
+// Attach the authenticated SDKWork session tokens
+client.setAuthToken('your-auth-token');
+client.setAccessToken('your-access-token');
+
+// Use the SDK
+const result = await client.admin.apiKeyGroups.list();
 ```
 
-## Token Boundary
+## Dual Token Authentication
 
-- `Authorization: Bearer <authToken>` carries the upstream authenticated principal context.
-- `Access-Token: <accessToken>` carries the upstream access token context.
-- Login, refresh, current-user, tenant, organization, and account-session APIs stay outside this package.
+```typescript
+const client = new SdkworkImBackendClient({ baseUrl: 'http://127.0.0.1:18090' });
+client.setAuthToken('your-auth-token');
+client.setAccessToken('your-access-token');
+// Sends:
+// Authorization: Bearer <authToken>
+// Access-Token: <accessToken>
+```
 
+## Configuration (Non-Auth)
+
+```typescript
+import { SdkworkImBackendClient } from '@sdkwork-internal/im-backend-api-generated';
+
+const client = new SdkworkImBackendClient({
+  baseUrl: 'http://127.0.0.1:18090',
+  timeout: 30000, // Request timeout in ms
+  headers: {      // Custom headers
+    'X-Custom-Header': 'value',
+  },
+});
+```
+
+## API Modules
+
+- `client.ops` - ops API
+- `client.audit` - audit API
+- `client.automation` - automation API
+- `client.control` - control API
+- `client.admin` - admin API
+
+## Usage Examples
+
+### ops
+
+```typescript
+// Retrieve ops health
+const result = await client.ops.health.retrieve();
+```
+
+### audit
+
+```typescript
+// List audit records
+const result = await client.audit.records.list();
+```
+
+### automation
+
+```typescript
+// Retrieve automation governance
+const result = await client.automation.governance.retrieve();
+```
+
+### control
+
+```typescript
+// Read the control-plane protocol governance snapshot.
+const result = await client.control.protocolGovernance.retrieve();
+```
+
+### admin
+
+```typescript
+// listApiKeyGroups
+const result = await client.admin.apiKeyGroups.list();
+```
+
+## Error Handling
+
+```typescript
+import { SdkworkImBackendClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork-internal/im-backend-api-generated';
+
+try {
+  const result = await client.admin.apiKeyGroups.list();
+} catch (error) {
+  if (error instanceof AuthenticationError) {
+    console.error('Authentication failed:', error.message);
+  } else if (error instanceof TimeoutError) {
+    console.error('Request timed out:', error.message);
+  } else if (error instanceof NetworkError) {
+    console.error('Network error:', error.message);
+  } else {
+    throw error;
+  }
+}
+```
+
+## Publishing
+
+This SDK includes cross-platform publish scripts in `bin/`:
+- `bin/publish-core.mjs`
+- `bin/publish.sh`
+- `bin/publish.ps1`
+
+### Check
+
+```bash
+./bin/publish.sh --action check
+```
+
+### Publish
+
+```bash
+./bin/publish.sh --action publish --channel release
+```
+
+```powershell
+.\bin\publish.ps1 --action publish --channel test --dry-run
+```
+
+> Set `NPM_TOKEN` (and optional `NPM_REGISTRY_URL`) before release publish.
+
+## License
+
+MIT
 
 ## Regeneration Contract
 
-- Generated files are tracked by the SDK generator under `.sdkwork/`.
-- Fix runtime, OpenAPI, or family generator inputs first, then regenerate.
-- Hand-written application wrappers must live outside `generated/server-openapi`.
+- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
+- Put hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across regenerations.
+- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.

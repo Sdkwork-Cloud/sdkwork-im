@@ -11,7 +11,6 @@ const APP_MODULES = [
   'automation',
   'provider',
   'iot',
-  'rtc',
 ];
 
 function fail(message) {
@@ -82,6 +81,23 @@ export function verifyFlutterComposedMethodCoverage(workspaceRoot) {
     const generatedMethods = extractGeneratedMethodNames(generatedSource);
     const composedCallTargets = extractComposedCallTargets(composedSource, moduleName);
     assertMethodCoverage(moduleName, generatedMethods, composedCallTargets);
+  }
+
+  const rtcModuleSource = readSource(
+    path.join(
+      root,
+      'sdkwork-im-app-sdk-flutter',
+      'composed',
+      'lib',
+      'src',
+      'rtc_module.dart',
+    ),
+  );
+  if (/context\.transportClient\.rtc\b/.test(rtcModuleSource)) {
+    fail(`[${PREFIX}] Flutter composed rtc module must consume rtc_sdk, not generated app transport rtc.`);
+  }
+  if (!/package:rtc_sdk\/rtc_sdk\.dart/.test(rtcModuleSource)) {
+    fail(`[${PREFIX}] Flutter composed rtc module must import rtc_sdk.`);
   }
 }
 

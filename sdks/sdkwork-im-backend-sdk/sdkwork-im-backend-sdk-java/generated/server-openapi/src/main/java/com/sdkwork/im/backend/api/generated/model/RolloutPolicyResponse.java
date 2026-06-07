@@ -14,7 +14,7 @@ public class RolloutPolicyResponse {
     public String getCellSelector() {
         return this.cellSelector;
     }
-
+    
     public void setCellSelector(String cellSelector) {
         this.cellSelector = cellSelector;
     }
@@ -22,7 +22,7 @@ public class RolloutPolicyResponse {
     public Boolean getOperatorOverride() {
         return this.operatorOverride;
     }
-
+    
     public void setOperatorOverride(Boolean operatorOverride) {
         this.operatorOverride = operatorOverride;
     }
@@ -30,7 +30,7 @@ public class RolloutPolicyResponse {
     public String getPolicyId() {
         return this.policyId;
     }
-
+    
     public void setPolicyId(String policyId) {
         this.policyId = policyId;
     }
@@ -38,7 +38,7 @@ public class RolloutPolicyResponse {
     public String getRegionSelector() {
         return this.regionSelector;
     }
-
+    
     public void setRegionSelector(String regionSelector) {
         this.regionSelector = regionSelector;
     }
@@ -46,7 +46,7 @@ public class RolloutPolicyResponse {
     public String getReleaseChannel() {
         return this.releaseChannel;
     }
-
+    
     public void setReleaseChannel(String releaseChannel) {
         this.releaseChannel = releaseChannel;
     }
@@ -54,7 +54,7 @@ public class RolloutPolicyResponse {
     public List<String> getTenantAllowlist() {
         return this.tenantAllowlist;
     }
-
+    
     public void setTenantAllowlist(List<String> tenantAllowlist) {
         this.tenantAllowlist = tenantAllowlist;
     }
@@ -62,7 +62,7 @@ public class RolloutPolicyResponse {
     public Integer getTrafficPercent() {
         return this.trafficPercent;
     }
-
+    
     public void setTrafficPercent(Integer trafficPercent) {
         this.trafficPercent = trafficPercent;
     }

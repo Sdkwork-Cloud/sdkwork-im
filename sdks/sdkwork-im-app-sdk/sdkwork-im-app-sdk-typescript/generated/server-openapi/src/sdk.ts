@@ -8,7 +8,6 @@ import { NotificationApi, createNotificationApi } from './api/notification';
 import { PortalApi, createPortalApi } from './api/portal';
 import { ProviderApi, createProviderApi } from './api/provider';
 import { IotApi, createIotApi } from './api/iot';
-import { RtcApi, createRtcApi } from './api/rtc';
 
 export class SdkworkImAppClient {
   private httpClient: HttpClient;
@@ -19,7 +18,6 @@ export class SdkworkImAppClient {
   public readonly portal: PortalApi;
   public readonly provider: ProviderApi;
   public readonly iot: IotApi;
-  public readonly rtc: RtcApi;
 
   constructor(config: SdkworkAppConfig) {
     this.httpClient = createHttpClient(config);
@@ -34,11 +32,7 @@ export class SdkworkImAppClient {
     this.provider = createProviderApi(this.httpClient);
 
     this.iot = createIotApi(this.httpClient);
-
-    this.rtc = createRtcApi(this.httpClient);
   }
-
-
   setAuthToken(token: string): this {
     this.httpClient.setAuthToken(token);
     return this;

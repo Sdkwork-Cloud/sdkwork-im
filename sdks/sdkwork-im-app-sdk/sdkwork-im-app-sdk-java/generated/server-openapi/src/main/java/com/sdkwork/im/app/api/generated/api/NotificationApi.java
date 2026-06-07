@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class NotificationApi {
     private final HttpClient client;
-
+    
     public NotificationApi(HttpClient client) {
         this.client = client;
     }

@@ -1,4 +1,4 @@
-import { mockConsoleFetch, mockConsolePost } from '@sdkwork/clawchat-pc-commons';
+import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
 
 export interface Role {
   id: string;
@@ -13,28 +13,139 @@ export interface GetRolesResponse {
   total: number;
 }
 
-class RoleService {
-  private mockRoles: Role[] = [
-    { id: '1', name: '超级管理员', desc: '拥有企业所有模块的完全控制权。', count: 2, system: true },
-    { id: '2', name: '安全合规管理员', desc: '管理安全策略、审计日志和数据防泄漏。', count: 3, system: true },
-    { id: '3', name: '部门管理员', desc: '管理本部门的人员和基础通信设置。', count: 15, system: false },
-    { id: '4', name: '开发集成者', desc: '管理自建应用、第三方集成及 Webhook。', count: 8, system: false },
-    { id: '5', name: '普通员工', desc: '默认角色，允许基础的聊天及应用使用。', count: 1215, system: true }
-  ];
+type UnknownRecord = Record<string, unknown>;
 
+function asRecord(value: unknown): UnknownRecord {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : {};
+}
+
+function unwrapAppbaseResult(value: unknown): unknown {
+  const record = asRecord(value);
+  if (!('code' in record) && !('data' in record)) {
+    return value;
+  }
+
+  const code = record.code;
+  const normalizedCode = code === undefined || code === null ? '2000' : String(code).trim();
+  if (!['0', '200', '2000'].includes(normalizedCode)) {
+    throw new Error(String(record.message || record.msg || 'Appbase backend role request failed'));
+  }
+  return record.data;
+}
+
+function readRecords(value: unknown): UnknownRecord[] {
+  const unwrapped = unwrapAppbaseResult(value);
+  if (Array.isArray(unwrapped)) {
+    return unwrapped.map(asRecord).filter((record) => Object.keys(record).length > 0);
+  }
+  const record = asRecord(unwrapped);
+  for (const key of ['items', 'records', 'data', 'list', 'rows', 'content', 'roles']) {
+    const nested = record[key];
+    if (Array.isArray(nested)) {
+      return nested.map(asRecord).filter((item) => Object.keys(item).length > 0);
+    }
+  }
+  return [];
+}
+
+function readString(record: UnknownRecord, keys: string[], fallback = ''): string {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+  return fallback;
+}
+
+function readNumber(record: UnknownRecord, keys: string[], fallback = 0): number {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value.replace(/[,%\s]/gu, ''));
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return fallback;
+}
+
+function readBoolean(record: UnknownRecord, keys: string[], fallback = false): boolean {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value !== 0;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const normalized = value.trim().toLowerCase();
+      if (['1', 'true', 'yes', 'system', 'builtin', 'built_in'].includes(normalized)) {
+        return true;
+      }
+      if (['0', 'false', 'no', 'custom'].includes(normalized)) {
+        return false;
+      }
+    }
+  }
+  return fallback;
+}
+
+function readTotal(value: unknown, fallback: number): number {
+  const record = asRecord(unwrapAppbaseResult(value));
+  return readNumber(record, ['total', 'totalElements', 'totalCount', 'count'], fallback);
+}
+
+function mapRole(record: UnknownRecord): Role {
+  const id = readString(record, ['roleId', 'role_id', 'id', 'code'], 'role');
+  return {
+    count: readNumber(record, ['memberCount', 'bindingCount', 'userCount', 'count'], 0),
+    desc: readString(record, ['description', 'desc', 'remark'], ''),
+    id,
+    name: readString(record, ['name', 'displayName', 'display_name', 'roleName', 'role_name'], id),
+    system: readBoolean(record, ['system', 'systemRole', 'builtIn', 'builtin', 'roleType'], false),
+  };
+}
+
+function toRoleUpdateCommand(updates: Partial<Role>): Record<string, unknown> {
+  return {
+    ...(updates.name !== undefined ? { name: updates.name } : {}),
+    ...(updates.desc !== undefined ? { description: updates.desc } : {}),
+    ...(updates.system !== undefined ? { system: updates.system } : {}),
+  };
+}
+
+class RoleService {
   async getRoles(): Promise<GetRolesResponse> {
-    const mockData = {
-      data: this.mockRoles,
-      total: this.mockRoles.length
+    const response = await getAppbaseBackendSdkClientWithSession().iam.roles.list({});
+    const records = readRecords(response);
+    const data = records.map(mapRole);
+    return {
+      data,
+      total: readTotal(response, data.length),
     };
-    return mockConsoleFetch('/roles/list', mockData);
   }
 
   async updateRole(id: string, updates: Partial<Role>): Promise<Role> {
-    const role = this.mockRoles.find(r => r.id === id);
-    if (!role) throw new Error('Role not found');
-    Object.assign(role, updates);
-    return mockConsolePost(`/roles/${id}/update`, updates, role);
+    const roleId = id.trim();
+    if (!roleId) {
+      throw new Error('role id is required');
+    }
+    const response = await getAppbaseBackendSdkClientWithSession().iam.roles.update(
+      roleId,
+      toRoleUpdateCommand(updates),
+    );
+    const records = readRecords(response);
+    const updatedRole = records[0] ?? asRecord(unwrapAppbaseResult(response));
+    return mapRole({ roleId, ...updates, ...updatedRole });
   }
 }
 

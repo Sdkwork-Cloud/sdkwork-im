@@ -1,20 +1,154 @@
-# sdkwork-im-backend-sdk
+# sdkwork-im-backend-sdk (Rust)
 
-Generator-owned Rust transport SDK for the Craw Chat backend/operator API.
+Generator-owned Rust transport SDK for sdkwork-im-backend-sdk.
 
-This package is generated transport. It targets `/backend/v3/api` and is not a login,
-user, tenant, organization, or account-session SDK. Those identity and token lifecycles are
-owned by `sdkwork-appbase`; this SDK only forwards the already validated dual-token context.
+## Installation
 
-## Token Boundary
+```bash
+cargo add sdkwork-im-backend-api-generated
+```
 
-- `Authorization: Bearer <authToken>` carries the upstream authenticated principal context.
-- `Access-Token: <accessToken>` carries the upstream access token context.
-- Login, refresh, current-user, tenant, organization, and account-session APIs stay outside this package.
+## Quick Start
 
+```rust
+use sdkwork_im_backend_api_generated::{SdkworkImBackendClient, SdkworkConfig};
+
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = SdkworkImBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+    // Attach the authenticated SDKWork session tokens
+        client.set_auth_token("your-auth-token");
+        client.set_access_token("your-access-token");
+
+    let result = client.admin().api_key_groups_list().await?;
+    println!("{result:?}");
+    Ok(())
+}
+```
+
+## Dual Token Authentication
+
+```
+client.set_auth_token("your-auth-token");
+client.set_access_token("your-access-token");
+// Sends:
+// Authorization: Bearer <authToken>
+// Access-Token: <accessToken>
+```
+
+
+## Configuration (Non-Auth)
+
+```rust
+let client = SdkworkImBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+client.set_header("X-Custom-Header", "value");
+```
+
+## API Modules
+
+- `client.ops()` - ops API
+- `client.audit()` - audit API
+- `client.automation()` - automation API
+- `client.control()` - control API
+- `client.admin()` - admin API
+
+## Usage Examples
+
+### ops
+
+```rust
+// Retrieve ops health
+let result = client.ops().health_retrieve().await?;
+println!("{result:?}");
+```
+
+### audit
+
+```rust
+// List audit records
+let result = client.audit().records_list().await?;
+println!("{result:?}");
+```
+
+### automation
+
+```rust
+// Retrieve automation governance
+let result = client.automation().governance_retrieve().await?;
+println!("{result:?}");
+```
+
+### control
+
+```rust
+// Read the control-plane protocol governance snapshot.
+let result = client.control().protocol_governance_retrieve().await?;
+println!("{result:?}");
+```
+
+### admin
+
+```rust
+// listApiKeyGroups
+let result = client.admin().api_key_groups_list().await?;
+println!("{result:?}");
+```
+
+## Error Handling
+
+```rust
+use sdkwork_im_backend_api_generated::{SdkworkImBackendClient, SdkworkConfig};
+
+
+let client = SdkworkImBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+
+let outcome: Result<(), _> = async {
+    client.admin().api_key_groups_list().await?;
+    Ok(())
+}.await;
+
+match outcome {
+    Ok(()) => println!("request completed"),
+    Err(error) => eprintln!("request failed: {error}"),
+}
+```
+
+## Publishing
+
+This SDK includes cross-platform publish scripts in `bin/`:
+- `bin/publish-core.mjs`
+- `bin/publish.sh`
+- `bin/publish.ps1`
+
+### Check
+
+```bash
+./bin/publish.sh --action check
+```
+
+### Publish
+
+```bash
+./bin/publish.sh --action publish --channel release
+```
+
+```powershell
+.\bin\publish.ps1 --action publish --channel test --dry-run
+```
+
+> Set cargo registry credentials before `cargo publish` and use `--dry-run` first.
+
+## License
+
+MIT
 
 ## Regeneration Contract
 
-- Generated files are tracked by the SDK generator under `.sdkwork/`.
-- Fix runtime, OpenAPI, or family generator inputs first, then regenerate.
-- Hand-written application wrappers must live outside `generated/server-openapi`.
+- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
+- Put hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across regenerations.
+- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.

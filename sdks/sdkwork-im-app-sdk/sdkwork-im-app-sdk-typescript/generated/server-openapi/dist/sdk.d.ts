@@ -7,7 +7,6 @@ import { NotificationApi } from './api/notification';
 import { PortalApi } from './api/portal';
 import { ProviderApi } from './api/provider';
 import { IotApi } from './api/iot';
-import { RtcApi } from './api/rtc';
 export declare class SdkworkImAppClient {
     private httpClient;
     readonly automation: AutomationApi;
@@ -16,7 +15,6 @@ export declare class SdkworkImAppClient {
     readonly portal: PortalApi;
     readonly provider: ProviderApi;
     readonly iot: IotApi;
-    readonly rtc: RtcApi;
     constructor(config: SdkworkAppConfig);
     setAuthToken(token: string): this;
     setAccessToken(token: string): this;

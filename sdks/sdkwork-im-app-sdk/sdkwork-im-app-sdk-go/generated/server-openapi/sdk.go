@@ -5,7 +5,7 @@ import (
     sdkhttp "github.com/sdkwork/im-app-api-generated/http"
 )
 
-type SdkworkAppClient struct {
+type SdkworkImAppClient struct {
     http *sdkhttp.Client
     Automation *api.AutomationApi
     Device *api.DeviceApi
@@ -13,17 +13,16 @@ type SdkworkAppClient struct {
     Portal *api.PortalApi
     Provider *api.ProviderApi
     Iot *api.IotApi
-    Rtc *api.RtcApi
 }
 
-func NewSdkworkAppClient(baseURL string) *SdkworkAppClient {
+func NewSdkworkImAppClient(baseURL string) *SdkworkImAppClient {
     cfg := sdkhttp.NewDefaultConfig(baseURL)
-    return NewSdkworkAppClientWithConfig(cfg)
+    return NewSdkworkImAppClientWithConfig(cfg)
 }
 
-func NewSdkworkAppClientWithConfig(config sdkhttp.Config) *SdkworkAppClient {
+func NewSdkworkImAppClientWithConfig(config sdkhttp.Config) *SdkworkImAppClient {
     client := sdkhttp.NewClient(config)
-    return &SdkworkAppClient{
+    return &SdkworkImAppClient{
         http: client,
         Automation: api.NewAutomationApi(client),
         Device: api.NewDeviceApi(client),
@@ -31,26 +30,34 @@ func NewSdkworkAppClientWithConfig(config sdkhttp.Config) *SdkworkAppClient {
         Portal: api.NewPortalApi(client),
         Provider: api.NewProviderApi(client),
         Iot: api.NewIotApi(client),
-        Rtc: api.NewRtcApi(client),
     }
 }
 
-
-func (c *SdkworkAppClient) SetAuthToken(token string) *SdkworkAppClient {
+func (c *SdkworkImAppClient) SetAuthToken(token string) *SdkworkImAppClient {
     c.http.SetAuthToken(token)
     return c
 }
 
-func (c *SdkworkAppClient) SetAccessToken(token string) *SdkworkAppClient {
+func (c *SdkworkImAppClient) SetAccessToken(token string) *SdkworkImAppClient {
     c.http.SetAccessToken(token)
     return c
 }
 
-func (c *SdkworkAppClient) SetHeader(key string, value string) *SdkworkAppClient {
+func (c *SdkworkImAppClient) SetHeader(key string, value string) *SdkworkImAppClient {
     c.http.SetHeader(key, value)
     return c
 }
 
-func (c *SdkworkAppClient) Http() *sdkhttp.Client {
+func (c *SdkworkImAppClient) Http() *sdkhttp.Client {
     return c.http
+}
+
+type SdkworkAppClient = SdkworkImAppClient
+
+func NewSdkworkAppClient(baseURL string) *SdkworkAppClient {
+    return NewSdkworkImAppClient(baseURL)
+}
+
+func NewSdkworkAppClientWithConfig(config sdkhttp.Config) *SdkworkAppClient {
+    return NewSdkworkImAppClientWithConfig(config)
 }

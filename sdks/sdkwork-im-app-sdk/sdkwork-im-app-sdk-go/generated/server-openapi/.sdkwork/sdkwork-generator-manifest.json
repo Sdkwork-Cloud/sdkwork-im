@@ -46,10 +46,6 @@
       "sha256": "d3f4613719b2fa499e647b909622fe533d58c1c22427655954ea8d2005d20f41"
     },
     {
-      "path": "api/rtc.go",
-      "sha256": "41dd6a1c8b9dbdc83c6878367192299a730e83414c329dd779a283daf185bc76"
-    },
-    {
       "path": "bin/publish-core.mjs",
       "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
     },
@@ -75,7 +71,7 @@
     },
     {
       "path": "http/client.go",
-      "sha256": "8eb80a7718afbcbe5f83dcee1c4e5be529a8bba1707204e79d583dfe79a959c6"
+      "sha256": "6c9b64de1c6f5f3280a038db4bb7931de4f88adfed9f1fa1aab4a7c0ce2899ae"
     },
     {
       "path": "http/doc.go",
@@ -87,11 +83,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "2fad4fe3f77923032fb972098d56f8983dc990c3a855169ffe4d72cb8735127d"
+      "sha256": "cdceaea2a77b7f982e81af1c4a04eecd64039e320b06eee55fa7f86cf0e2b451"
     },
     {
       "path": "sdk.go",
-      "sha256": "676be56a21934f0e840bf15e8ad384ac02abf454ea3bb766e8af470bf61c18ce"
+      "sha256": "3c1c3d5cb8283bdf2c586a7d034dd91562a3e38e2bc5b284d577dddf7bdaea5c"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -204,14 +200,6 @@
     {
       "path": "types/protocol_uplink_create_response.go",
       "sha256": "dacee3147c8f3a989d473f6fd183f9992520d19677e75a494b3132a6d0f11926"
-    },
-    {
-      "path": "types/provider_callbacks_create_response.go",
-      "sha256": "10d1766922e79d3d6adde3f67edbf40fcd263f142a46cb7c7c3d8b9f9bdb9d35"
-    },
-    {
-      "path": "types/provider_health_retrieve_response.go",
-      "sha256": "53ed0acf7bf2c35d89401c454206d0a4b325d7b262cd15e350db454d8d0573ef"
     },
     {
       "path": "types/request_agent_tool_call_request.go",

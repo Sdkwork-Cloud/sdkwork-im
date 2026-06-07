@@ -16,7 +16,7 @@ craw-chat-contract-stream = { path = "../craw-chat-contract-stream" }
 im-domain-core = { path = "../im-domain-core" }
 im-domain-events = { path = "../im-domain-events" }
 im-time = { path = "../im-time" }
-sdkwork-rtc-core = { path = "D:/sdkwork-opensource/sdkwork-rtc/crates/sdkwork-rtc-core" }
+sdkwork-rtc-core = { path = "../../../sdkwork-rtc/crates/sdkwork-rtc-core" }
 serde.workspace = true
 
 [dev-dependencies]

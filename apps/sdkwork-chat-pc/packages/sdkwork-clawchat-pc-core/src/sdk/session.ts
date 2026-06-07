@@ -1,5 +1,5 @@
-import type { AuthTokenManager, AuthTokens, IamAppContext, IamUser } from '@sdkwork-internal/im-app-api-generated';
-import type { Interceptors, RequestConfig } from '@sdkwork/sdk-common';
+import type { IamAppContext } from '@sdkwork/iam-contracts';
+import type { AuthTokenManager, AuthTokens, Interceptors, RequestConfig } from '@sdkwork/sdk-common';
 
 export interface SdkworkChatSessionUser {
   avatar?: string;
@@ -19,16 +19,28 @@ export interface SdkworkChatSessionTokens {
   refreshToken?: string;
 }
 
+export interface SdkworkChatAppContext extends IamAppContext {
+  actorId?: string;
+  actorKind?: string;
+  contextSignature?: string;
+  deviceId?: string;
+}
+
 export interface SdkworkChatSession extends SdkworkChatSessionTokens {
-  context?: IamAppContext;
+  context?: SdkworkChatAppContext;
   expiresAt?: number;
   sessionId?: string;
   user?: SdkworkChatSessionUser;
 }
 
-export type SdkworkChatRequestContext = Partial<IamAppContext>;
+export interface SdkworkChatSessionChangedDetail {
+  session: SdkworkChatSession | null;
+}
+
+export type SdkworkChatRequestContext = Partial<SdkworkChatAppContext>;
 
 const SDKWORK_CHAT_SESSION_KEY = 'sdkwork-chat-pc:session:v1';
+export const SDKWORK_CHAT_SESSION_CHANGED_EVENT = 'sdkwork-chat-pc:auth-session-changed';
 const SDKWORK_CHAT_CONTEXT_HEADER_NAMES = new Set([
   'x-sdkwork-app-id',
   'x-sdkwork-tenant-id',
@@ -49,11 +61,24 @@ const SDKWORK_CHAT_CONTEXT_HEADER_NAMES = new Set([
   'x-user-id',
 ]);
 
+let sdkworkChatGlobalTokenManager: AuthTokenManager | null = null;
+let sdkworkChatGlobalTokenManagerSession: SdkworkChatSession | null = null;
+
 function getStorage(): Storage | undefined {
   if (typeof window === 'undefined') {
     return undefined;
   }
   return window.localStorage;
+}
+
+function dispatchAppSdkSessionChanged(session: SdkworkChatSession | null): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.dispatchEvent(new CustomEvent(
+    SDKWORK_CHAT_SESSION_CHANGED_EVENT,
+    { detail: { session } },
+  ));
 }
 
 function normalizeToken(value: unknown): string | undefined {
@@ -160,7 +185,7 @@ function pickClaimStringArray(
   return normalizeStringArray(fallback);
 }
 
-function normalizeContext(value: unknown): IamAppContext | undefined {
+function normalizeContext(value: unknown): SdkworkChatAppContext | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return undefined;
   }
@@ -186,7 +211,7 @@ export function normalizeSdkworkChatSessionUser(value: unknown): SdkworkChatSess
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return undefined;
   }
-  const user = value as Partial<IamUser & SdkworkChatSessionUser>;
+  const user = value as Partial<SdkworkChatSessionUser>;
   const id = normalizeString(user.userId) ?? normalizeString(user.id);
   const avatar = normalizeString(user.avatar);
   const normalized: SdkworkChatSessionUser = {
@@ -253,6 +278,8 @@ export function persistAppSdkSessionTokens(session: SdkworkChatSession): Sdkwork
   }
 
   getStorage()?.setItem(SDKWORK_CHAT_SESSION_KEY, JSON.stringify(normalizedSession));
+  syncSdkworkChatGlobalTokenManager(normalizedSession);
+  dispatchAppSdkSessionChanged(normalizedSession);
   return normalizedSession;
 }
 
@@ -262,6 +289,8 @@ export function applyAppSdkSessionTokens(session: SdkworkChatSession): SdkworkCh
 
 export function clearAppSdkSessionTokens(): void {
   getStorage()?.removeItem(SDKWORK_CHAT_SESSION_KEY);
+  syncSdkworkChatGlobalTokenManager(null);
+  dispatchAppSdkSessionChanged(null);
 }
 
 export function resolveAppSdkAccessToken(session = readAppSdkSessionTokens()): string | undefined {
@@ -449,9 +478,16 @@ export function createSdkworkChatRequestContextInterceptors(
   };
 }
 
-export function createSdkworkChatSessionTokenManager(session?: SdkworkChatSession | null): AuthTokenManager {
-  let currentSession = session ?? null;
-  const readCurrentSession = () => currentSession ?? readAppSdkSessionTokens();
+export function createSdkworkChatSessionTokenManager(
+  sessionOrReader?: SdkworkChatSession | null | (() => SdkworkChatSession | null),
+): AuthTokenManager {
+  let currentSession = typeof sessionOrReader === 'function' ? null : sessionOrReader ?? null;
+  const readConfiguredSession = () => (
+    typeof sessionOrReader === 'function'
+      ? sessionOrReader()
+      : currentSession
+  );
+  const readCurrentSession = () => readConfiguredSession() ?? readAppSdkSessionTokens();
   const isExpired = () => {
     const expiresAt = readCurrentSession()?.expiresAt;
     return typeof expiresAt === 'number' && Number.isFinite(expiresAt) && Date.now() >= expiresAt;
@@ -513,6 +549,20 @@ export function createSdkworkChatSessionTokenManager(session?: SdkworkChatSessio
       return typeof expiresAt === 'number' && Number.isFinite(expiresAt) && Date.now() + seconds * 1000 >= expiresAt;
     },
   };
+}
+
+export function syncSdkworkChatGlobalTokenManager(session: SdkworkChatSession | null = readAppSdkSessionTokens()): void {
+  sdkworkChatGlobalTokenManagerSession = session ? normalizeSession(session) : null;
+}
+
+export function getSdkworkChatGlobalTokenManager(): AuthTokenManager {
+  syncSdkworkChatGlobalTokenManager(readAppSdkSessionTokens());
+  if (!sdkworkChatGlobalTokenManager) {
+    sdkworkChatGlobalTokenManager = createSdkworkChatSessionTokenManager(
+      () => sdkworkChatGlobalTokenManagerSession,
+    );
+  }
+  return sdkworkChatGlobalTokenManager;
 }
 
 export function isAppSdkSessionAuthenticated(session = readAppSdkSessionTokens()): boolean {

@@ -55,7 +55,6 @@ namespace Sdkwork.Im.BackendApi.Generated.Http
             _client.DefaultRequestHeaders.TryAddWithoutValidation("Access-Token", token);
         }
 
-
         public void SetHeader(string key, string value)
         {
             if (_client.DefaultRequestHeaders.Contains(key))

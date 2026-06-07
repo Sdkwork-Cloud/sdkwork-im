@@ -208,18 +208,18 @@ The backend SDK owns `/backend/v3/api/*`, including `/backend/v3/api/control/*` 
 
 ### RTC SDK Verification
 
-The RTC provider-standard SDK workspace is `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk`.
+The RTC provider-standard SDK workspace is `../sdkwork-rtc/sdks/sdkwork-rtc-sdk`.
 
 Run from the repository root:
 
 ```powershell
-node D:\sdkwork-opensource\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
+node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
 ```
 
 Run full smoke only when required language toolchains are available:
 
 ```powershell
-node D:\sdkwork-opensource\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
+node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
 ```
 
 The RTC SDK is independent from OpenAPI-generated HTTP SDK families.

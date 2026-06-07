@@ -13,7 +13,10 @@ import type {
   TimelineResponse,
   UpdateConversationProfileRequest,
 } from '@sdkwork/im-sdk';
-import { getImSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
+import {
+  getImSdkClientWithSession,
+  SDKWORK_CHAT_SESSION_CHANGED_EVENT,
+} from '@sdkwork/clawchat-pc-core';
 import { Chat, Message } from '@sdkwork/clawchat-pc-types';
 import { contactService } from './ContactService';
 import {
@@ -796,7 +799,15 @@ class SdkworkChatService implements ChatService {
   private localMessages = new Map<string, Message[]>();
   private latestReadSeq = new Map<string, number>();
 
-  constructor(private readonly getClient: () => ImSdkClient = getImSdkClientWithSession) {}
+  private readonly handleAuthSessionChanged = (): void => {
+    this.closeAllLiveSubscriptions('auth session changed');
+  };
+
+  constructor(private readonly getClient: () => ImSdkClient = getImSdkClientWithSession) {
+    if (typeof window !== 'undefined') {
+      window.addEventListener(SDKWORK_CHAT_SESSION_CHANGED_EVENT, this.handleAuthSessionChanged);
+    }
+  }
 
   private client(): ImSdkClient {
     return this.getClient();
@@ -1385,6 +1396,7 @@ class SdkworkChatService implements ChatService {
   private closeLiveSubscription(
     chatId: string,
     subscription: ConversationLiveSubscription,
+    reason = 'conversation subscription closed',
   ): void {
     subscription.isClosed = true;
     if (subscription.reconnectTimer) {
@@ -1394,9 +1406,15 @@ class SdkworkChatService implements ChatService {
     subscription.closeMessageStream?.();
     subscription.closeLifecycleStream?.();
     subscription.closeErrorStream?.();
-    subscription.connection?.disconnect(1000, 'conversation subscription closed');
+    subscription.connection?.disconnect(1000, reason);
     if (this.liveSubscriptions.get(chatId) === subscription) {
       this.liveSubscriptions.delete(chatId);
+    }
+  }
+
+  private closeAllLiveSubscriptions(reason: string): void {
+    for (const [chatId, subscription] of Array.from(this.liveSubscriptions.entries())) {
+      this.closeLiveSubscription(chatId, subscription, reason);
     }
   }
 

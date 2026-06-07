@@ -6,7 +6,7 @@ from .api.control import ControlApi
 from .api.admin import AdminApi
 
 
-class SdkworkBackendClient:
+class SdkworkImBackendClient:
     """sdkwork-im-backend-sdk SDK Client."""
 
     def __init__(self, config: SdkConfig):
@@ -25,17 +25,17 @@ class SdkworkBackendClient:
         self.admin = AdminApi(self._client)
 
 
-    def set_auth_token(self, token: str) -> 'SdkworkBackendClient':
+    def set_auth_token(self, token: str) -> 'SdkworkImBackendClient':
         """Set auth token for authentication."""
         self._client.set_auth_token(token)
         return self
 
-    def set_access_token(self, token: str) -> 'SdkworkBackendClient':
+    def set_access_token(self, token: str) -> 'SdkworkImBackendClient':
         """Set access token for authentication."""
         self._client.set_access_token(token)
         return self
 
-    def set_header(self, key: str, value: str) -> 'SdkworkBackendClient':
+    def set_header(self, key: str, value: str) -> 'SdkworkImBackendClient':
         """Set custom header."""
         self._client.set_header(key, value)
         return self
@@ -46,6 +46,8 @@ class SdkworkBackendClient:
         return self._client
 
 
-def create_client(config: SdkConfig) -> SdkworkBackendClient:
+def create_client(config: SdkConfig) -> SdkworkImBackendClient:
     """Create a new SDK client instance."""
-    return SdkworkBackendClient(config)
+    return SdkworkImBackendClient(config)
+
+SdkworkBackendClient = SdkworkImBackendClient

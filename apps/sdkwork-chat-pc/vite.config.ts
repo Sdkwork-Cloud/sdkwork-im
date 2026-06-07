@@ -14,7 +14,19 @@ const generatedImBackendSdkEntry = path.resolve(
 );
 const generatedAgentAppSdkEntry = path.resolve(
   __dirname,
-  '../../../../../../../sdkwork-opensource/sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  '../../../sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi/src/index.ts',
+);
+const generatedAppbaseAppSdkEntry = path.resolve(
+  __dirname,
+  '../../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts',
+);
+const generatedAppbaseBackendSdkEntry = path.resolve(
+  __dirname,
+  '../../../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts',
+);
+const generatedAiotAppSdkEntry = path.resolve(
+  __dirname,
+  '../../../sdkwork-aiot/sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript/src/index.ts',
 );
 const generatedImSdkEntry = path.resolve(
   __dirname,
@@ -22,60 +34,66 @@ const generatedImSdkEntry = path.resolve(
 );
 const generatedRtcSdkEntry = path.resolve(
   __dirname,
-  '../../../../../../../sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts',
+  '../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts',
 );
 const appbasePcReactEntry = path.resolve(
   __dirname,
-  '../../../../apps/sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts',
+  '../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts',
 );
 const authPcReactEntry = path.resolve(
   __dirname,
-  '../../../../apps/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
+  '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
+);
+const authRuntimePcReactEntry = path.resolve(
+  __dirname,
+  '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts',
 );
 const authPcReactAuthEntry = path.resolve(
   __dirname,
-  '../../../../apps/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
+  '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
 );
 const iamContractsEntry = path.resolve(
   __dirname,
-  '../../../../apps/sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts/src/index.ts',
-);
-const iamSdkAdapterEntry = path.resolve(
-  __dirname,
-  '../../../../apps/sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-adapter/src/index.ts',
+  '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts/src/index.ts',
 );
 const iamSdkPortsEntry = path.resolve(
   __dirname,
-  '../../../../apps/sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts',
+  '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts',
 );
 const i18nPcReactEntry = path.resolve(
   __dirname,
-  '../../../../apps/sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react/src/index.ts',
+  '../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react/src/index.ts',
 );
 const corePcReactEntry = path.resolve(
   __dirname,
-  '../../../../apps/sdkwork-core/sdkwork-core-pc-react/src',
+  '../../../sdkwork-core/sdkwork-core-pc-react/src',
 );
 const uiPcReactSourceRoot = path.resolve(
   __dirname,
-  '../../../../apps/sdkwork-ui/sdkwork-ui-pc-react/src',
+  '../../../sdkwork-ui/sdkwork-ui-pc-react/src',
 );
 const uiPcReactEntry = path.resolve(
   __dirname,
-  '../../../../apps/sdkwork-ui/sdkwork-ui-pc-react/src/index.ts',
+  '../../../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts',
 );
 const uiPcReactStylesEntry = path.resolve(
   __dirname,
-  '../../../../apps/sdkwork-ui/sdkwork-ui-pc-react/src/styles/sdkwork-ui.css',
+  '../../../sdkwork-ui/sdkwork-ui-pc-react/src/styles/sdkwork-ui.css',
 );
 const sdkCommonSourceRoot = path.resolve(
   __dirname,
-  '../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src',
+  '../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src',
 );
 const sdkCommonEntry = path.resolve(
   sdkCommonSourceRoot,
   'index.ts',
 );
+const reactEntry = path.resolve(__dirname, 'node_modules/react/index.js');
+const reactJsxRuntimeEntry = path.resolve(__dirname, 'node_modules/react/jsx-runtime.js');
+const reactJsxDevRuntimeEntry = path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime.js');
+const reactDomEntry = path.resolve(__dirname, 'node_modules/react-dom/index.js');
+const reactDomClientEntry = path.resolve(__dirname, 'node_modules/react-dom/client.js');
+const reactRouterDomEntry = path.resolve(__dirname, 'node_modules/react-router-dom/dist/index.mjs');
 
 function sdkworkChatLocalApiPlugin(): Plugin {
   return {
@@ -104,16 +122,25 @@ export default defineConfig(({mode}) => {
     resolve: {
       alias: [
         { find: '@', replacement: path.resolve(__dirname, '.') },
+        { find: 'react/jsx-runtime', replacement: reactJsxRuntimeEntry },
+        { find: 'react/jsx-dev-runtime', replacement: reactJsxDevRuntimeEntry },
+        { find: 'react-dom/client', replacement: reactDomClientEntry },
+        { find: /^react-dom$/, replacement: reactDomEntry },
+        { find: /^react-router-dom$/, replacement: reactRouterDomEntry },
+        { find: /^react$/, replacement: reactEntry },
         { find: '@sdkwork-internal/im-app-api-generated', replacement: generatedImAppSdkEntry },
         { find: '@sdkwork-internal/im-backend-api-generated', replacement: generatedImBackendSdkEntry },
         { find: '@sdkwork/agent-app-sdk', replacement: generatedAgentAppSdkEntry },
+        { find: '@sdkwork/aiot-app-sdk', replacement: generatedAiotAppSdkEntry },
+        { find: '@sdkwork/appbase-app-sdk', replacement: generatedAppbaseAppSdkEntry },
+        { find: '@sdkwork/appbase-backend-sdk', replacement: generatedAppbaseBackendSdkEntry },
         { find: '@sdkwork/im-sdk', replacement: generatedImSdkEntry },
         { find: '@sdkwork/rtc-sdk', replacement: generatedRtcSdkEntry },
         { find: '@sdkwork/appbase-pc-react', replacement: appbasePcReactEntry },
         { find: '@sdkwork/auth-pc-react/auth', replacement: authPcReactAuthEntry },
+        { find: '@sdkwork/auth-runtime-pc-react', replacement: authRuntimePcReactEntry },
         { find: '@sdkwork/auth-pc-react', replacement: authPcReactEntry },
         { find: '@sdkwork/iam-contracts', replacement: iamContractsEntry },
-        { find: '@sdkwork/iam-sdk-adapter', replacement: iamSdkAdapterEntry },
         { find: '@sdkwork/iam-sdk-ports', replacement: iamSdkPortsEntry },
         { find: '@sdkwork/i18n-pc-react', replacement: i18nPcReactEntry },
         { find: '@sdkwork/core-pc-react', replacement: corePcReactEntry },
@@ -181,13 +208,16 @@ export default defineConfig(({mode}) => {
         '@sdkwork-internal/im-app-api-generated',
         '@sdkwork-internal/im-backend-api-generated',
         '@sdkwork/agent-app-sdk',
+        '@sdkwork/aiot-app-sdk',
+        '@sdkwork/appbase-app-sdk',
+        '@sdkwork/appbase-backend-sdk',
         '@sdkwork/im-sdk',
         '@sdkwork/rtc-sdk',
         '@sdkwork/appbase-pc-react',
         '@sdkwork/auth-pc-react',
+        '@sdkwork/auth-runtime-pc-react',
         '@sdkwork/auth-pc-react/auth',
         '@sdkwork/iam-contracts',
-        '@sdkwork/iam-sdk-adapter',
         '@sdkwork/iam-sdk-ports',
         '@sdkwork/i18n-pc-react',
         '@sdkwork/sdk-common',

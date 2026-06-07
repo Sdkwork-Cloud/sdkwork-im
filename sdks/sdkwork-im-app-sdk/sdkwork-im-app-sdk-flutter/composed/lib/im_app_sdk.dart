@@ -13,6 +13,7 @@ export 'src/rtc_module.dart';
 export 'src/types.dart';
 
 import 'package:im_app_api_generated/im_app_api_generated.dart';
+import 'package:rtc_sdk/rtc_sdk.dart';
 
 import 'src/automation_module.dart';
 import 'src/context.dart';
@@ -40,6 +41,7 @@ class ImAppSdkClient {
     : transportClient = options.transportClient,
       _context = ImAppSdkContext(
         transportClient: options.transportClient,
+        rtcDataSource: options.rtcDataSource,
         apiBaseUrl: options.apiBaseUrl,
         authToken: options.authToken,
         accessToken: options.accessToken,
@@ -59,10 +61,12 @@ class ImAppSdkClient {
   AutomationApi get automationApi => transportClient.automation;
   ProviderApi get providerApi => transportClient.provider;
   IotApi get iotApi => transportClient.iot;
-  RtcApi get rtcApi => transportClient.rtc;
+  RtcDataSource get rtcDataSource => _context.rtcDataSource;
+  RtcDriverManager get rtcDriverManager => _context.rtcDataSource.driverManager;
 
   factory ImAppSdkClient.create({
     SdkworkAppClient? transportClient,
+    RtcDataSource? rtcDataSource,
     String? baseUrl,
     String? authToken,
     String? accessToken,
@@ -88,6 +92,7 @@ class ImAppSdkClient {
     return ImAppSdkClient(
       ImAppSdkClientOptions(
         transportClient: resolvedTransportClient,
+        rtcDataSource: rtcDataSource,
         apiBaseUrl: baseUrl,
         authToken: authToken,
         accessToken: accessToken,

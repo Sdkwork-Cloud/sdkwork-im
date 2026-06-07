@@ -12,7 +12,7 @@
   "mode": "apply",
   "hasChanges": true,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "f0146a4e626a433330a8dd5c1a3e69437c6f4229271de06701abaef11d063de0",
+  "changeFingerprint": "62f22d056be9f3bc02ca6a4cc9bb386990baa81e6e3b275218b223c1af69b6a6",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
@@ -28,12 +28,14 @@
         "area": "api-surface",
         "paths": [
           "src/api/automation.ts",
+          "src/api/base.ts",
           "src/api/device.ts",
+          "src/api/index.ts",
           "src/api/iot.ts",
           "src/api/notification.ts",
+          "src/api/paths.ts",
           "src/api/portal.ts",
           "src/api/provider.ts",
-          "src/api/rtc.ts",
           "src/http/client.ts",
           "src/sdk.ts"
         ]
@@ -41,32 +43,74 @@
       {
         "area": "models",
         "paths": [
-          "src/types/common.ts"
+          "src/types/access-provider-health-retrieve-response.ts",
+          "src/types/agent-subject.ts",
+          "src/types/agent-tool-call-state.ts",
+          "src/types/agent-tool-call.ts",
+          "src/types/append-agent-response-delta-request.ts",
+          "src/types/automation-execution-delivery-status.ts",
+          "src/types/automation-execution-request-response.ts",
+          "src/types/automation-execution-state.ts",
+          "src/types/automation-execution.ts",
+          "src/types/common.ts",
+          "src/types/complete-agent-response-request.ts",
+          "src/types/complete-agent-tool-call-request.ts",
+          "src/types/device-twin-view.ts",
+          "src/types/index.ts",
+          "src/types/media-health-retrieve-response.ts",
+          "src/types/notification-list-response.ts",
+          "src/types/notification-request-delivery-status.ts",
+          "src/types/notification-request-response.ts",
+          "src/types/notification-status.ts",
+          "src/types/notification-task.ts",
+          "src/types/portal-snapshot.ts",
+          "src/types/portal-workspace-view.ts",
+          "src/types/principal-profile-health-retrieve-response.ts",
+          "src/types/problem-detail.ts",
+          "src/types/protocol-downlink-create-response.ts",
+          "src/types/protocol-provider-health-retrieve-response.ts",
+          "src/types/protocol-uplink-create-response.ts",
+          "src/types/request-agent-tool-call-request.ts",
+          "src/types/request-automation-execution.ts",
+          "src/types/request-notification.ts",
+          "src/types/sender.ts",
+          "src/types/start-agent-response-request.ts",
+          "src/types/stream-durability-class.ts",
+          "src/types/stream-frame.ts",
+          "src/types/stream-session-state.ts",
+          "src/types/stream-session.ts",
+          "src/types/string-map.ts",
+          "src/types/update-device-twin-desired-request.ts",
+          "src/types/update-device-twin-reported-request.ts"
         ]
       },
       {
         "area": "runtime",
         "paths": [
           "src/auth/index.ts",
-          "src/http/client.ts"
+          "src/http/client.ts",
+          "src/http/index.ts"
         ]
       },
       {
         "area": "build-metadata",
         "paths": [
           "package.json",
-          "sdkwork-sdk.json"
+          "sdkwork-sdk.json",
+          "tsconfig.json"
         ]
       },
       {
         "area": "documentation",
         "paths": [
+          "CHANGELOG.md",
           "README.md"
         ]
       },
       {
         "area": "unknown",
         "paths": [
+          "LICENSE",
           "src/index.ts"
         ]
       }
@@ -82,8 +126,8 @@
     "applyRequiresExpectedFingerprint": false,
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "backed-up-generated-files",
       "manual-review-required",
+      "preserved-legacy-files",
       "unknown-impact",
       "verification-required"
     ]
@@ -97,7 +141,7 @@
         "title": "Unified package check",
         "required": true,
         "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -115,7 +159,7 @@
         "title": "Unified package build",
         "required": true,
         "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -140,7 +184,7 @@
         "title": "Unified package check",
         "required": true,
         "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -158,7 +202,7 @@
         "title": "Unified package build",
         "required": true,
         "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -178,7 +222,7 @@
     "version": "0.1.0",
     "language": "typescript",
     "sdkType": "app",
-    "outputPath": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
+    "outputPath": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
     "packageName": "@sdkwork-internal/im-app-api-generated"
   },
   "versioning": {
@@ -186,52 +230,41 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 69,
-    "models": 39,
-    "apis": 7,
-    "types": 41
+    "totalFiles": 66,
+    "models": 37,
+    "apis": 6,
+    "types": 39
   },
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 15,
+    "writtenFiles": 59,
     "skippedScaffoldFiles": 2,
-    "skippedUnchangedGeneratedFiles": 52,
+    "skippedUnchangedGeneratedFiles": 5,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "f0146a4e626a433330a8dd5c1a3e69437c6f4229271de06701abaef11d063de0",
+    "changeFingerprint": "62f22d056be9f3bc02ca6a4cc9bb386990baa81e6e3b275218b223c1af69b6a6",
     "changes": {
       "createdGeneratedFiles": [
-        "src/auth/index.ts"
-      ],
-      "updatedGeneratedFiles": [
+        "CHANGELOG.md",
+        "LICENSE",
         "package.json",
         "README.md",
         "sdkwork-sdk.json",
         "src/api/automation.ts",
+        "src/api/base.ts",
         "src/api/device.ts",
+        "src/api/index.ts",
         "src/api/iot.ts",
         "src/api/notification.ts",
+        "src/api/paths.ts",
         "src/api/portal.ts",
         "src/api/provider.ts",
-        "src/api/rtc.ts",
+        "src/auth/index.ts",
         "src/http/client.ts",
+        "src/http/index.ts",
         "src/index.ts",
         "src/sdk.ts",
-        "src/types/common.ts"
-      ],
-      "unchangedGeneratedFiles": [
-        "bin/publish-core.mjs",
-        "bin/publish.ps1",
-        "bin/publish.sh",
-        "bin/sdk-gen.bat",
-        "bin/sdk-gen.sh",
-        "CHANGELOG.md",
-        "LICENSE",
-        "src/api/base.ts",
-        "src/api/index.ts",
-        "src/api/paths.ts",
-        "src/http/index.ts",
         "src/types/access-provider-health-retrieve-response.ts",
         "src/types/agent-subject.ts",
         "src/types/agent-tool-call-state.ts",
@@ -241,6 +274,7 @@
         "src/types/automation-execution-request-response.ts",
         "src/types/automation-execution-state.ts",
         "src/types/automation-execution.ts",
+        "src/types/common.ts",
         "src/types/complete-agent-response-request.ts",
         "src/types/complete-agent-tool-call-request.ts",
         "src/types/device-twin-view.ts",
@@ -258,8 +292,6 @@
         "src/types/protocol-downlink-create-response.ts",
         "src/types/protocol-provider-health-retrieve-response.ts",
         "src/types/protocol-uplink-create-response.ts",
-        "src/types/provider-callbacks-create-response.ts",
-        "src/types/provider-health-retrieve-response.ts",
         "src/types/request-agent-tool-call-request.ts",
         "src/types/request-automation-execution.ts",
         "src/types/request-notification.ts",
@@ -274,28 +306,21 @@
         "src/types/update-device-twin-reported-request.ts",
         "tsconfig.json"
       ],
+      "updatedGeneratedFiles": [],
+      "unchangedGeneratedFiles": [
+        "bin/publish-core.mjs",
+        "bin/publish.ps1",
+        "bin/publish.sh",
+        "bin/sdk-gen.bat",
+        "bin/sdk-gen.sh"
+      ],
       "deletedGeneratedFiles": [],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/build-runtime.mjs",
         "custom/README.md"
       ],
-      "backedUpFiles": [
-        "package.json",
-        "README.md",
-        "sdkwork-sdk.json",
-        "src/api/automation.ts",
-        "src/api/device.ts",
-        "src/api/iot.ts",
-        "src/api/notification.ts",
-        "src/api/portal.ts",
-        "src/api/provider.ts",
-        "src/api/rtc.ts",
-        "src/http/client.ts",
-        "src/index.ts",
-        "src/sdk.ts",
-        "src/types/common.ts"
-      ]
+      "backedUpFiles": []
     },
     "impact": {
       "schemaVersion": 1,
@@ -312,12 +337,14 @@
           "area": "api-surface",
           "paths": [
             "src/api/automation.ts",
+            "src/api/base.ts",
             "src/api/device.ts",
+            "src/api/index.ts",
             "src/api/iot.ts",
             "src/api/notification.ts",
+            "src/api/paths.ts",
             "src/api/portal.ts",
             "src/api/provider.ts",
-            "src/api/rtc.ts",
             "src/http/client.ts",
             "src/sdk.ts"
           ]
@@ -325,32 +352,74 @@
         {
           "area": "models",
           "paths": [
-            "src/types/common.ts"
+            "src/types/access-provider-health-retrieve-response.ts",
+            "src/types/agent-subject.ts",
+            "src/types/agent-tool-call-state.ts",
+            "src/types/agent-tool-call.ts",
+            "src/types/append-agent-response-delta-request.ts",
+            "src/types/automation-execution-delivery-status.ts",
+            "src/types/automation-execution-request-response.ts",
+            "src/types/automation-execution-state.ts",
+            "src/types/automation-execution.ts",
+            "src/types/common.ts",
+            "src/types/complete-agent-response-request.ts",
+            "src/types/complete-agent-tool-call-request.ts",
+            "src/types/device-twin-view.ts",
+            "src/types/index.ts",
+            "src/types/media-health-retrieve-response.ts",
+            "src/types/notification-list-response.ts",
+            "src/types/notification-request-delivery-status.ts",
+            "src/types/notification-request-response.ts",
+            "src/types/notification-status.ts",
+            "src/types/notification-task.ts",
+            "src/types/portal-snapshot.ts",
+            "src/types/portal-workspace-view.ts",
+            "src/types/principal-profile-health-retrieve-response.ts",
+            "src/types/problem-detail.ts",
+            "src/types/protocol-downlink-create-response.ts",
+            "src/types/protocol-provider-health-retrieve-response.ts",
+            "src/types/protocol-uplink-create-response.ts",
+            "src/types/request-agent-tool-call-request.ts",
+            "src/types/request-automation-execution.ts",
+            "src/types/request-notification.ts",
+            "src/types/sender.ts",
+            "src/types/start-agent-response-request.ts",
+            "src/types/stream-durability-class.ts",
+            "src/types/stream-frame.ts",
+            "src/types/stream-session-state.ts",
+            "src/types/stream-session.ts",
+            "src/types/string-map.ts",
+            "src/types/update-device-twin-desired-request.ts",
+            "src/types/update-device-twin-reported-request.ts"
           ]
         },
         {
           "area": "runtime",
           "paths": [
             "src/auth/index.ts",
-            "src/http/client.ts"
+            "src/http/client.ts",
+            "src/http/index.ts"
           ]
         },
         {
           "area": "build-metadata",
           "paths": [
             "package.json",
-            "sdkwork-sdk.json"
+            "sdkwork-sdk.json",
+            "tsconfig.json"
           ]
         },
         {
           "area": "documentation",
           "paths": [
+            "CHANGELOG.md",
             "README.md"
           ]
         },
         {
           "area": "unknown",
           "paths": [
+            "LICENSE",
             "src/index.ts"
           ]
         }
@@ -368,7 +437,7 @@
           "title": "Unified package check",
           "required": true,
           "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
-          "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
+          "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
           "command": "node",
           "args": [
             "./bin/publish-core.mjs",
@@ -386,7 +455,7 @@
           "title": "Unified package build",
           "required": true,
           "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
-          "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
+          "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
           "command": "node",
           "args": [
             "./bin/publish-core.mjs",
@@ -409,28 +478,13 @@
       "applyRequiresExpectedFingerprint": false,
       "summary": "Changes have been applied. Run the required verification plan now.",
       "reasons": [
-        "backed-up-generated-files",
         "manual-review-required",
+        "preserved-legacy-files",
         "unknown-impact",
         "verification-required"
       ]
     },
-    "backedUpFiles": [
-      "package.json",
-      "README.md",
-      "sdkwork-sdk.json",
-      "src/api/automation.ts",
-      "src/api/device.ts",
-      "src/api/iot.ts",
-      "src/api/notification.ts",
-      "src/api/portal.ts",
-      "src/api/provider.ts",
-      "src/api/rtc.ts",
-      "src/http/client.ts",
-      "src/index.ts",
-      "src/sdk.ts",
-      "src/types/common.ts"
-    ],
-    "preservedLegacyFiles": false
+    "backedUpFiles": [],
+    "preservedLegacyFiles": true
   }
 }

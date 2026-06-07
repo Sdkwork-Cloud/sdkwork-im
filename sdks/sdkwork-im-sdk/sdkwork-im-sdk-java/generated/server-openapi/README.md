@@ -1,0 +1,200 @@
+# sdkwork-im-sdk (Java)
+
+Generator-owned Java transport SDK for sdkwork-im-sdk.
+
+## Installation
+
+Add to your `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>com.sdkwork</groupId>
+    <artifactId>im-sdk-generated</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
+
+Or with Gradle:
+
+```groovy
+implementation 'com.sdkwork:im-sdk-generated:0.1.0'
+```
+
+## Quick Start
+
+```java
+import com.sdkwork.im.sdk.generated.SdkworkImClient;
+import com.sdkwork.common.core.Types;
+import com.sdkwork.im.sdk.generated.model.*;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Types.SdkConfig config = new Types.SdkConfig("http://127.0.0.1:18090");
+        SdkworkImClient client = new SdkworkImClient(config);
+        // Attach the authenticated SDKWork session tokens
+            client.setAuthToken("your-auth-token");
+            client.setAccessToken("your-access-token");
+
+        // Use the SDK
+        PresenceView result = client.getPresence().meRetrieve();
+        System.out.println(result);
+    }
+}
+```
+
+## Dual Token Authentication
+
+```
+client.setAuthToken("your-auth-token")
+client.setAccessToken("your-access-token")
+// Sends:
+// Authorization: Bearer <authToken>
+// Access-Token: <accessToken>
+```
+
+
+## Configuration (Non-Auth)
+
+```java
+Types.SdkConfig config = new Types.SdkConfig("http://127.0.0.1:18090");
+SdkworkImClient client = new SdkworkImClient(config);
+
+// Set custom headers
+client.getHttpClient().setHeader("X-Custom-Header", "value");
+```
+
+## API Modules
+
+- `client.getDevice()` - device API
+- `client.getPresence()` - presence API
+- `client.getRealtime()` - realtime API
+- `client.getRtc()` - rtc API
+- `client.getSocial()` - social API
+- `client.getChat()` - chat API
+- `client.getStreams()` - streams API
+
+## Usage Examples
+
+### device
+
+```java
+// Resume a device runtime session
+ResumeDeviceSessionRequest body = new ResumeDeviceSessionRequest();
+body.setDeviceId("1");
+body.setLastSeenSyncSeq(2);
+DeviceSessionView result = client.getDevice().sessionsResume(body);
+System.out.println(result);
+```
+
+### presence
+
+```java
+// Retrieve current principal presence
+PresenceView result = client.getPresence().meRetrieve();
+System.out.println(result);
+```
+
+### realtime
+
+```java
+// List pending realtime events
+Map<String, Object> params = new LinkedHashMap<>();
+params.put("limit", 1);
+params.put("cursor", "cursor");
+RealtimeEventsResponse result = client.getRealtime().eventsList(params);
+System.out.println(result);
+```
+
+### rtc
+
+```java
+// Create an IM-backed RTC session
+CreateRtcSessionRequest body = new CreateRtcSessionRequest();
+body.setConversationId("1");
+body.setMediaKind("mediakind");
+RtcSession result = client.getRtc().sessionsCreate(body);
+System.out.println(result);
+```
+
+### social
+
+```java
+// List contact tags
+Map<String, Object> params = new LinkedHashMap<>();
+params.put("limit", 1);
+params.put("cursor", "cursor");
+ContactTagsResponse result = client.getSocial().contactsTagsList(params);
+System.out.println(result);
+```
+
+### chat
+
+```java
+// List IM contacts
+Map<String, Object> params = new LinkedHashMap<>();
+params.put("limit", 1);
+params.put("cursor", "cursor");
+ContactsResponse result = client.getChat().contactsList(params);
+System.out.println(result);
+```
+
+### streams
+
+```java
+// Open a stream
+OpenStreamRequest body = new OpenStreamRequest();
+body.setStreamType("streamtype");
+body.setConversationId("1");
+StreamView result = client.getStreams().create(body);
+System.out.println(result);
+```
+
+## Error Handling
+
+```java
+try {
+    PresenceView result = client.getPresence().meRetrieve();
+    System.out.println(result);
+} catch (Exception e) {
+    System.err.println("Error: " + e.getMessage());
+}
+```
+
+## Publishing
+
+This SDK includes cross-platform publish scripts in `bin/`:
+- `bin/publish-core.mjs`
+- `bin/publish.sh`
+- `bin/publish.ps1`
+
+### Check
+
+```bash
+./bin/publish.sh --action check
+```
+
+### Publish
+
+```bash
+./bin/publish.sh --action publish --channel release
+```
+
+```powershell
+.\bin\publish.ps1 --action publish --channel test --dry-run
+```
+
+> Use Maven `settings.xml` credentials and optional `MAVEN_PUBLISH_PROFILE`.
+
+## License
+
+MIT
+
+## Regeneration Contract
+
+- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
+- Put hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across regenerations.
+- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.

@@ -10,15 +10,11 @@
     <PackageId>Sdkwork.Im.BackendApi.Generated</PackageId>
     <Version>0.1.0</Version>
     <Authors>SDKWork Team</Authors>
-    <Description>Generator-owned C# transport SDK for the Craw Chat backend/operator API.</Description>
+    <Description>Generator-owned C# transport SDK for sdkwork-im-backend-sdk.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
-  <ItemGroup Condition="Exists('../../../../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-csharp/SDKwork.Common.csproj')">
-    <ProjectReference Include="../../../../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-csharp/SDKwork.Common.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition="!Exists('../../../../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-csharp/SDKwork.Common.csproj')">
+  <ItemGroup>
     <PackageReference Include="SDKwork.Common" Version="1.0.0" />
   </ItemGroup>
 

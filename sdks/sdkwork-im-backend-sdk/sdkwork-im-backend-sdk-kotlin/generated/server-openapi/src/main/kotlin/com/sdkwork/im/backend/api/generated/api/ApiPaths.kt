@@ -2,7 +2,7 @@ package com.sdkwork.im.backend.api.generated.api
 
 object ApiPaths {
     const val API_PREFIX = "/backend/v3/api"
-
+    
     fun backendPath(path: String = ""): String {
         if (path.isEmpty()) return API_PREFIX
         if (path.startsWith("http://") || path.startsWith("https://")) return path

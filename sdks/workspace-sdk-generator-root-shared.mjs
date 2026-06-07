@@ -1,6 +1,8 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const canonicalGeneratorRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'sdkwork-sdk-generator');
 
 function normalizeCandidate(candidate) {
   return path.resolve(candidate);
@@ -10,6 +12,8 @@ function* generatorRootCandidates(workspaceRoot) {
   if (process.env.SDKWORK_GENERATOR_ROOT) {
     yield normalizeCandidate(process.env.SDKWORK_GENERATOR_ROOT);
   }
+
+  yield canonicalGeneratorRoot;
 
   let current = path.resolve(workspaceRoot);
   while (true) {
@@ -30,7 +34,8 @@ export function resolveGeneratorRoot(workspaceRoot) {
       continue;
     }
     tried.push(normalizedCandidate);
-    if (existsSync(path.join(normalizedCandidate, 'node_modules', 'js-yaml', 'dist', 'js-yaml.mjs'))) {
+    if (existsSync(path.join(normalizedCandidate, 'bin', 'sdkgen.js'))
+      && existsSync(path.join(normalizedCandidate, 'node_modules', 'js-yaml', 'dist', 'js-yaml.mjs'))) {
       return normalizedCandidate;
     }
   }

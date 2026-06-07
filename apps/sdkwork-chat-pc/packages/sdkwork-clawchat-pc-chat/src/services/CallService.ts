@@ -1,13 +1,18 @@
 import {
+  createRtcAppHttpClient,
   createStandardRtcCallControllerStack,
-  type ImRtcSdkLike,
   type RtcCallControllerSnapshot,
   type RtcDataSourceConfig,
+  type RtcSignalingTransportLike,
 } from '@sdkwork/rtc-sdk';
 import type { ImSdkClient, RtcSession } from '@sdkwork/im-sdk';
 import {
+  buildSdkworkChatAppContextHeaders,
   getImSdkClientWithSession,
   readAppSdkSessionTokens,
+  resolveAppSdkAccessToken,
+  resolveAppSdkAuthToken,
+  resolveImSdkApiBaseUrl,
   type SdkworkChatSession,
 } from '@sdkwork/clawchat-pc-core';
 
@@ -245,6 +250,16 @@ function createRtcDataSourceConfig(): RtcDataSourceConfig {
   };
 }
 
+function createRtcSignalingTransport(session: SdkworkChatSession | null): RtcSignalingTransportLike {
+  const currentSession = session ?? readAppSdkSessionTokens();
+  return createRtcAppHttpClient({
+    baseUrl: resolveImSdkApiBaseUrl(),
+    accessToken: resolveAppSdkAccessToken(currentSession),
+    authToken: resolveAppSdkAuthToken(currentSession),
+    headerProvider: () => buildSdkworkChatAppContextHeaders(readAppSdkSessionTokens() ?? currentSession),
+  });
+}
+
 class SdkworkRtcCallService implements CallService {
   private readonly listeners = new Set<(snapshot: SdkworkCallSnapshot) => void>();
   private readonly createStack: SdkworkCreateRtcStack;
@@ -305,9 +320,8 @@ class SdkworkRtcCallService implements CallService {
         return this.getSnapshot();
       }
 
-      const imClient = this.getClient(session);
       const stack = await this.createStack({
-        sdk: imClient as unknown as ImRtcSdkLike,
+        transport: createRtcSignalingTransport(session),
         deviceId: resolveDeviceId(session, participantId),
         watchConversationIds: [options.conversationId],
         dataSourceConfig: createRtcDataSourceConfig(),
@@ -405,9 +419,8 @@ class SdkworkRtcCallService implements CallService {
       }
 
       await this.closeStack();
-      const imClient = this.getClient(session);
       const stack = await this.createStack({
-        sdk: imClient as unknown as ImRtcSdkLike,
+        transport: createRtcSignalingTransport(session),
         deviceId: resolveDeviceId(session, participantId),
         watchConversationIds: normalizedConversationIds,
         dataSourceConfig: createRtcDataSourceConfig(),
@@ -565,7 +578,7 @@ class SdkworkRtcCallService implements CallService {
       }
 
       const stack = await this.createStack({
-        sdk: imClient as unknown as ImRtcSdkLike,
+        transport: createRtcSignalingTransport(session),
         deviceId: resolveDeviceId(session, participantId),
         watchConversationIds: [rtcSession.conversationId],
         dataSourceConfig: createRtcDataSourceConfig(),

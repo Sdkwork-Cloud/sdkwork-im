@@ -292,7 +292,7 @@ jobs:
         uses: swatinem/rust-cache@v2
 
       - name: Test sdkwork-rtc-signaling-service
-        run: cargo test --manifest-path D:/sdkwork-opensource/sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --tests
+        run: cargo test --manifest-path ../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --tests
 
       - name: Test media-service
         run: cargo test -p media-service --tests
@@ -304,13 +304,13 @@ jobs:
         run: cargo test -p audit-service --tests
 
       - name: Test rtc duplicate session create
-        run: cargo test --manifest-path D:/sdkwork-opensource/sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_is_rejected -- --exact
+        run: cargo test --manifest-path ../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_is_rejected -- --exact
 
       - name: Test rtc duplicate session create actor-kind scope
-        run: cargo test --manifest-path D:/sdkwork-opensource/sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_with_same_actor_id_but_different_actor_kind_is_conflict -- --exact
+        run: cargo test --manifest-path ../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_with_same_actor_id_but_different_actor_kind_is_conflict -- --exact
 
       - name: Test rtc provider callback oversized payload json
-        run: cargo test --manifest-path D:/sdkwork-opensource/sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_map_rtc_provider_callback_rejects_oversized_payload_json_over_http -- --exact
+        run: cargo test --manifest-path ../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_map_rtc_provider_callback_rejects_oversized_payload_json_over_http -- --exact
 
       - name: Test local-minimal duplicate rtc create
         run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idempotent -- --exact
@@ -405,14 +405,14 @@ jobs:
       - name: Strict clippy downstream exactly-once scope
         run: |
           cargo clippy --no-deps -p media-service -p streaming-service -p audit-service -p local-minimal-node --tests -- -D warnings
-          cargo clippy --manifest-path D:/sdkwork-opensource/sdkwork-rtc/Cargo.toml --no-deps -p sdkwork-rtc-signaling-service --tests -- -D warnings
+          cargo clippy --manifest-path ../sdkwork-rtc/Cargo.toml --no-deps -p sdkwork-rtc-signaling-service --tests -- -D warnings
 
   windows-commercial-smoke:
     name: Windows Commercial Smoke
     runs-on: windows-latest
     timeout-minutes: 75
     env:
-      CARGO_TARGET_DIR: D:/ctg
+      CARGO_TARGET_DIR: ${{ runner.temp }}/sdkwork-cargo-target
       CARGO_INCREMENTAL: "0"
     steps:
       - name: Checkout

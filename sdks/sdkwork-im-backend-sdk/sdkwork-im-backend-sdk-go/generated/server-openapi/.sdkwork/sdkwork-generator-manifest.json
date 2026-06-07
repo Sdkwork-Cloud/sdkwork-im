@@ -43,7 +43,7 @@
     },
     {
       "path": "bin/publish-core.mjs",
-      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+      "sha256": "18b05851461e9176a2ad18c3f5138316a6da45ad0dfb847565603ff3d90bf14b"
     },
     {
       "path": "bin/publish.ps1",
@@ -67,7 +67,7 @@
     },
     {
       "path": "http/client.go",
-      "sha256": "8eb80a7718afbcbe5f83dcee1c4e5be529a8bba1707204e79d583dfe79a959c6"
+      "sha256": "358f3a1a602e436af093671575f0c54e874ab5ab2f238ca5e9a1bad648266caa"
     },
     {
       "path": "http/doc.go",
@@ -79,15 +79,15 @@
     },
     {
       "path": "README.md",
-      "sha256": "32ec8dfc7ab1aa7876eeb49a32050245b10c51eb154f869d50e46501fe7c4621"
+      "sha256": "5607c235edbf37fd531e10cbb681b6cd9a11c18ff4c40145ea4a94496e342e45"
     },
     {
       "path": "sdk.go",
-      "sha256": "315a294d0541583e283accd905def43b1b17dba394ca0d4c1bd526b9302b6885"
+      "sha256": "e1f5ee22fdb55445eaba741394980e48b5bde29e0e47d6a426a1ebb133c83bdc"
     },
     {
       "path": "sdkwork-sdk.json",
-      "sha256": "2e026b717033f4d4bff0980f807c83db335a02a25b765b072ece79a08ec43f26"
+      "sha256": "d414cd91325a15d5fe477c220d40b69baadd10bd1c27ca07997181b6cef8b514"
     },
     {
       "path": "types/accept_friend_request_request.go",

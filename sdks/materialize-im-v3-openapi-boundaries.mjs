@@ -99,6 +99,8 @@ function isImStandardPath(pathKey, prefix) {
     || route.startsWith('device/sessions/')
     || route.startsWith('presence/')
     || route.startsWith('realtime/')
+    || route === 'rtc/sessions'
+    || route === 'rtc/sessions/{}'
     || route.startsWith('social/')
     || route.startsWith('streams')
   );
@@ -603,6 +605,8 @@ function sdkgenDerivedDocument(
       describePrimitiveRefExpansion: describeFlutterCompatibility,
     });
   }
+  pruneUnreachableSchemas(next);
+  pruneUnreachableParameters(next);
   return next;
 }
 

@@ -11,7 +11,7 @@ public class DeviceTwinView {
     public String getTenantId() {
         return this.tenantId;
     }
-
+    
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -19,7 +19,7 @@ public class DeviceTwinView {
     public String getDeviceId() {
         return this.deviceId;
     }
-
+    
     public void setDeviceId(String deviceId) {
         this.deviceId = deviceId;
     }
@@ -27,7 +27,7 @@ public class DeviceTwinView {
     public String getDesiredStateJson() {
         return this.desiredStateJson;
     }
-
+    
     public void setDesiredStateJson(String desiredStateJson) {
         this.desiredStateJson = desiredStateJson;
     }
@@ -35,7 +35,7 @@ public class DeviceTwinView {
     public String getReportedStateJson() {
         return this.reportedStateJson;
     }
-
+    
     public void setReportedStateJson(String reportedStateJson) {
         this.reportedStateJson = reportedStateJson;
     }
@@ -43,7 +43,7 @@ public class DeviceTwinView {
     public String getUpdatedAt() {
         return this.updatedAt;
     }
-
+    
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }

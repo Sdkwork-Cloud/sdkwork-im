@@ -8,10 +8,11 @@
     "sdkType": "app",
     "packageName": "com.sdkwork:im-app-api-generated"
   },
-  "changeFingerprint": "67fe5726c18e37f14cf5bb01f8a5823102d46da205fac6c86f8ca0900421f2f0",
+  "changeFingerprint": "1e896f6cf3062a867be0cf1597078fd96941833066ce21c0d728212243e70fdf",
   "changes": {
-    "createdGeneratedFiles": [],
-    "updatedGeneratedFiles": [
+    "createdGeneratedFiles": [
+      "CHANGELOG.md",
+      "LICENSE",
       "pom.xml",
       "README.md",
       "sdkwork-sdk.json",
@@ -20,9 +21,9 @@
       "src/main/java/com/sdkwork/im/app/api/generated/api/DeviceApi.java",
       "src/main/java/com/sdkwork/im/app/api/generated/api/IotApi.java",
       "src/main/java/com/sdkwork/im/app/api/generated/api/NotificationApi.java",
+      "src/main/java/com/sdkwork/im/app/api/generated/api/package-info.java",
       "src/main/java/com/sdkwork/im/app/api/generated/api/PortalApi.java",
       "src/main/java/com/sdkwork/im/app/api/generated/api/ProviderApi.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/RtcApi.java",
       "src/main/java/com/sdkwork/im/app/api/generated/http/HttpClient.java",
       "src/main/java/com/sdkwork/im/app/api/generated/model/AgentSubject.java",
       "src/main/java/com/sdkwork/im/app/api/generated/model/AgentToolCall.java",
@@ -46,58 +47,21 @@
       "src/main/java/com/sdkwork/im/app/api/generated/model/StreamSession.java",
       "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinDesiredRequest.java",
       "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinReportedRequest.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/SdkworkAppClient.java"
+      "src/main/java/com/sdkwork/im/app/api/generated/SdkworkAppClient.java",
+      "src/main/java/com/sdkwork/im/app/api/generated/SdkworkImAppClient.java"
     ],
+    "updatedGeneratedFiles": [],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
       "bin/publish.ps1",
-      "bin/publish.sh",
-      "CHANGELOG.md",
-      "LICENSE",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/package-info.java"
+      "bin/publish.sh"
     ],
     "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/README.md"
     ],
-    "backedUpFiles": [
-      "pom.xml",
-      "README.md",
-      "sdkwork-sdk.json",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/ApiPaths.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/AutomationApi.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/DeviceApi.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/IotApi.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/NotificationApi.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/PortalApi.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/ProviderApi.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/RtcApi.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/http/HttpClient.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/AgentSubject.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/AgentToolCall.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/AppendAgentResponseDeltaRequest.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/AutomationExecution.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/AutomationExecutionRequestResponse.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/CompleteAgentResponseRequest.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/CompleteAgentToolCallRequest.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/DeviceTwinView.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationListResponse.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationRequestResponse.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationTask.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/PortalWorkspaceView.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/ProblemDetail.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/RequestAgentToolCallRequest.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/RequestAutomationExecution.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/RequestNotification.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/Sender.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/StartAgentResponseRequest.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/StreamFrame.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/StreamSession.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinDesiredRequest.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinReportedRequest.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/SdkworkAppClient.java"
-    ]
+    "backedUpFiles": []
   },
   "impact": {
     "schemaVersion": 1,
@@ -106,7 +70,8 @@
       "models",
       "runtime",
       "build-metadata",
-      "documentation"
+      "documentation",
+      "unknown"
     ],
     "details": [
       {
@@ -117,9 +82,9 @@
           "src/main/java/com/sdkwork/im/app/api/generated/api/DeviceApi.java",
           "src/main/java/com/sdkwork/im/app/api/generated/api/IotApi.java",
           "src/main/java/com/sdkwork/im/app/api/generated/api/NotificationApi.java",
+          "src/main/java/com/sdkwork/im/app/api/generated/api/package-info.java",
           "src/main/java/com/sdkwork/im/app/api/generated/api/PortalApi.java",
           "src/main/java/com/sdkwork/im/app/api/generated/api/ProviderApi.java",
-          "src/main/java/com/sdkwork/im/app/api/generated/api/RtcApi.java",
           "src/main/java/com/sdkwork/im/app/api/generated/http/HttpClient.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/AgentSubject.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/AgentToolCall.java",
@@ -143,7 +108,8 @@
           "src/main/java/com/sdkwork/im/app/api/generated/model/StreamSession.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinDesiredRequest.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinReportedRequest.java",
-          "src/main/java/com/sdkwork/im/app/api/generated/SdkworkAppClient.java"
+          "src/main/java/com/sdkwork/im/app/api/generated/SdkworkAppClient.java",
+          "src/main/java/com/sdkwork/im/app/api/generated/SdkworkImAppClient.java"
         ]
       },
       {
@@ -189,24 +155,31 @@
       {
         "area": "documentation",
         "paths": [
+          "CHANGELOG.md",
           "README.md"
+        ]
+      },
+      {
+        "area": "unknown",
+        "paths": [
+          "LICENSE"
         ]
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation. Verification is required."
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-java\\generated\\server-openapi",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-java\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -229,10 +202,11 @@
     "applyRequiresExpectedFingerprint": false,
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "backed-up-generated-files",
       "manual-review-required",
+      "preserved-legacy-files",
+      "unknown-impact",
       "verification-required"
     ]
   },
-  "preservedLegacyFiles": false
+  "preservedLegacyFiles": true
 }

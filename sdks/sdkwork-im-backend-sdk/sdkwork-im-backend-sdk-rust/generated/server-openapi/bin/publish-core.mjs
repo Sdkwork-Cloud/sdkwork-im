@@ -153,7 +153,7 @@ function printHelp() {
   console.log('  MAVEN_PUBLISH_PROFILE, MAVEN_RELEASE_PROFILE, MAVEN_TEST_PROFILE, MAVEN_SETTINGS');
   console.log('  GRADLE_PUBLISH_TASK');
   console.log('  CARGO_REGISTRY_TOKEN');
-  console.log('  NUGET_API_KEY, NUGET_TEST_API_KEY, NUGET_SOURCE');
+  console.log('  NUGET_TOKEN, NUGET_TEST_TOKEN, NUGET_SOURCE');
   console.log('  PHP_RELEASE_TAG, PHP_PUSH_TAG, COMPOSER_BIN');
   console.log('  GEM_HOST_API_KEY, RUBYGEMS_API_KEY, RUBYGEMS_HOST');
   console.log('  SDKWORK_RELEASE_TAG, SDKWORK_PUSH_TAG');
@@ -572,17 +572,17 @@ function runCSharp(ctx) {
     || (ctx.channel === 'test'
       ? 'https://apiint.nugettest.org/v3/index.json'
       : 'https://api.nuget.org/v3/index.json');
-  const apiKey = ctx.channel === 'test'
-    ? (process.env.NUGET_TEST_API_KEY || process.env.NUGET_API_KEY || '')
-    : (process.env.NUGET_API_KEY || '');
-  if (!apiKey) {
-    fail('Missing NuGet API key. Set NUGET_API_KEY (or NUGET_TEST_API_KEY for test channel).');
+  const nugetToken = ctx.channel === 'test'
+    ? (process.env.NUGET_TEST_TOKEN || process.env.NUGET_TOKEN || '')
+    : (process.env.NUGET_TOKEN || '');
+  if (!nugetToken) {
+    fail('Missing NuGet publish token. Set NUGET_TOKEN (or NUGET_TEST_TOKEN for test channel).');
   }
 
   for (const pkg of packages) {
     run(
       'dotnet',
-      ['nuget', 'push', pkg, '--source', source, '--api-key', apiKey, '--skip-duplicate'],
+      ['nuget', 'push', pkg, '--source', source, '--api-key', nugetToken, '--skip-duplicate'],
       { cwd: ctx.projectDir }
     );
   }
@@ -656,7 +656,7 @@ function runRuby(ctx) {
 
   const host = process.env.RUBYGEMS_HOST || 'https://rubygems.org';
   const apiKey = process.env.GEM_HOST_API_KEY || process.env.RUBYGEMS_API_KEY || '';
-  if (!apiKey) {
+  if (!nugetToken) {
     fail('Missing RubyGems API key. Set GEM_HOST_API_KEY or RUBYGEMS_API_KEY.');
   }
 

@@ -14,11 +14,11 @@ contracts.
 
 | Boundary | Standard |
 | --- | --- |
-| SDK workspace root | `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk` |
-| Authority snapshot | `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json` |
+| SDK workspace root | `../sdkwork-rtc/sdks/sdkwork-rtc-sdk` |
+| Authority snapshot | `../sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json` |
 | Architecture | Provider-standard runtime SDK |
 | Default provider identity | `volcengine`, `rtc-volcengine`, `sdkwork-rtc-driver-volcengine` |
-| Primary verification | `node D:\sdkwork-opensource\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs` |
+| Primary verification | `node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs` |
 
 ## Responsibilities
 
@@ -48,17 +48,17 @@ node .\bin\verify-sdk.mjs
 Or from the repository root:
 
 ```powershell
-node D:\sdkwork-opensource\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
+node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
 ```
 
 Use full smoke only when the required language toolchains are available:
 
 ```powershell
-node D:\sdkwork-opensource\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
+node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
 ```
 
 ## Related Docs
 
 - [SDK Overview](/sdk/index)
 - [IM RTC Signaling API](/api-reference/im/rtc)
-- `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`
+- `../sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`

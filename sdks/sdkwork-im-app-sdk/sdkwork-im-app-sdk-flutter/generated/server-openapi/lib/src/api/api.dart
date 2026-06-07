@@ -5,4 +5,3 @@ export 'notification.dart' hide PathParameterSpec, serializePathParameter, seria
 export 'portal.dart';
 export 'provider.dart';
 export 'iot.dart';
-export 'rtc.dart';

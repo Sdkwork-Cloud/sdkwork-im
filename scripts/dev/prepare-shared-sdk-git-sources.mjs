@@ -108,17 +108,8 @@ function resolveGitCommand(platform = process.platform, env = process.env) {
 
   const configured = [env.GIT_EXE, env.GIT]
     .filter((value) => typeof value === 'string' && value.trim().length > 0);
-  const candidates = [
-    ...configured,
-    'C:\\Program Files\\Git\\cmd\\git.exe',
-    'C:\\Program Files\\Git\\bin\\git.exe',
-    'C:\\Program Files (x86)\\Git\\cmd\\git.exe',
-    'C:\\Program Files (x86)\\Git\\bin\\git.exe',
-  ];
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return candidate;
-    }
+  if (configured.length > 0) {
+    return configured[0];
   }
 
   return 'git.exe';

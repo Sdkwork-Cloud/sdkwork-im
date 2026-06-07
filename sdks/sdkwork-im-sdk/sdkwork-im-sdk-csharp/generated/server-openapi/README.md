@@ -1,0 +1,203 @@
+# sdkwork-im-sdk (C#)
+
+Generator-owned C# transport SDK for sdkwork-im-sdk.
+
+## Installation
+
+```bash
+dotnet add package Sdkwork.Im.Sdk.Generated
+```
+
+Or add to your `.csproj`:
+
+```xml
+<PackageReference Include="Sdkwork.Im.Sdk.Generated" Version="0.1.0" />
+```
+
+## Quick Start
+
+```csharp
+using Sdkwork.Im.Sdk.Generated.Models;
+using Sdkwork.Im.Sdk.Generated;
+using SDKwork.Common.Core;
+
+var config = new SdkConfig("http://127.0.0.1:18090");
+var client = new SdkworkImClient(config);
+// Attach the authenticated SDKWork session tokens
+    client.SetAuthToken("your-auth-token");
+    client.SetAccessToken("your-access-token");
+
+var result = await client.Presence.MeRetrieveAsync();
+Console.WriteLine(result);
+```
+
+## Dual Token Authentication
+
+```
+client.SetAuthToken("your-auth-token");
+client.SetAccessToken("your-access-token");
+// Sends:
+// Authorization: Bearer <authToken>
+// Access-Token: <accessToken>
+```
+
+
+## Configuration (Non-Auth)
+
+```csharp
+var config = new SdkConfig("http://127.0.0.1:18090");
+var client = new SdkworkImClient(config);
+
+// Set custom headers
+client.SetHeader("X-Custom-Header", "value");
+```
+
+## API Modules
+
+- `client.Device` - device API
+- `client.Presence` - presence API
+- `client.Realtime` - realtime API
+- `client.Rtc` - rtc API
+- `client.Social` - social API
+- `client.Chat` - chat API
+- `client.Streams` - streams API
+
+## Usage Examples
+
+### device
+
+```csharp
+// Resume a device runtime session
+var body = new ResumeDeviceSessionRequest
+{
+    DeviceId = "1",
+    LastSeenSyncSeq = 2,
+};
+var result = await client.Device.SessionsResumeAsync(body);
+Console.WriteLine(result);
+```
+
+### presence
+
+```csharp
+// Retrieve current principal presence
+var result = await client.Presence.MeRetrieveAsync();
+Console.WriteLine(result);
+```
+
+### realtime
+
+```csharp
+// List pending realtime events
+var query = new Dictionary<string, object>
+{
+    ["limit"] = 1,
+    ["cursor"] = "cursor",
+};
+var result = await client.Realtime.EventsListAsync(query);
+Console.WriteLine(result);
+```
+
+### rtc
+
+```csharp
+// Create an IM-backed RTC session
+var body = new CreateRtcSessionRequest
+{
+    ConversationId = "1",
+    MediaKind = "mediakind",
+};
+var result = await client.Rtc.SessionsCreateAsync(body);
+Console.WriteLine(result);
+```
+
+### social
+
+```csharp
+// List contact tags
+var query = new Dictionary<string, object>
+{
+    ["limit"] = 1,
+    ["cursor"] = "cursor",
+};
+var result = await client.Social.ContactsTagsListAsync(query);
+Console.WriteLine(result);
+```
+
+### chat
+
+```csharp
+// List IM contacts
+var query = new Dictionary<string, object>
+{
+    ["limit"] = 1,
+    ["cursor"] = "cursor",
+};
+var result = await client.Chat.ContactsListAsync(query);
+Console.WriteLine(result);
+```
+
+### streams
+
+```csharp
+// Open a stream
+var body = new OpenStreamRequest
+{
+    StreamType = "streamtype",
+    ConversationId = "1",
+};
+var result = await client.Streams.CreateAsync(body);
+Console.WriteLine(result);
+```
+
+## Error Handling
+
+```csharp
+try
+{
+    await client.Presence.MeRetrieveAsync();
+}
+catch (HttpRequestException ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+## Publishing
+
+This SDK includes cross-platform publish scripts in `bin/`:
+- `bin/publish-core.mjs`
+- `bin/publish.sh`
+- `bin/publish.ps1`
+
+### Check
+
+```bash
+./bin/publish.sh --action check
+```
+
+### Publish
+
+```bash
+./bin/publish.sh --action publish --channel release
+```
+
+```powershell
+.\bin\publish.ps1 --action publish --channel test --dry-run
+```
+
+> Set `NUGET_TOKEN` for release (or `NUGET_TEST_TOKEN` for test channel).
+
+## License
+
+MIT
+
+## Regeneration Contract
+
+- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
+- Put hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across regenerations.
+- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.

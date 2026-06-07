@@ -1,4 +1,4 @@
-import { mockConsoleFetch, mockConsolePost } from '@sdkwork/clawchat-pc-commons';
+import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
 
 export interface User {
   id: string;
@@ -15,40 +15,125 @@ export interface GetUsersResponse {
   total: number;
 }
 
-class UserService {
-  private mockUsers: User[] = [
-    { id: '1', name: '张三', email: 'zhangsan@acme.com', role: 'admin', department: '产品部', status: 'active', lastLogin: '10分钟前' },
-    { id: '2', name: '李四', email: 'lisi@acme.com', role: 'member', department: '研发部', status: 'active', lastLogin: '1小时前' },
-    { id: '3', name: '王五', email: 'wangwu@acme.com', role: 'member', department: '研发部', status: 'offline', lastLogin: '昨天' },
-    { id: '4', name: '赵六', email: 'zhaoliu@acme.com', role: 'member', department: '设计部', status: 'disabled', lastLogin: '1周前' },
-    { id: '5', name: '陈七', email: 'chenqi@acme.com', role: 'admin', department: '管理层', status: 'active', lastLogin: '2小时前' },
-  ];
+type UnknownRecord = Record<string, unknown>;
 
-  async getUsers(params: { page: number; pageSize: number; search?: string }): Promise<GetUsersResponse> {
-    let filtered = this.mockUsers;
-    if (params.search) {
-      const q = params.search.toLowerCase();
-      filtered = filtered.filter(u => 
-        u.name.toLowerCase().includes(q) || 
-        u.email.toLowerCase().includes(q) ||
-        u.department.toLowerCase().includes(q)
-      );
+function asRecord(value: unknown): UnknownRecord {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : {};
+}
+
+function unwrapAppbaseResult(value: unknown): unknown {
+  const record = asRecord(value);
+  if (!('code' in record) && !('data' in record)) {
+    return value;
+  }
+
+  const code = record.code;
+  const normalizedCode = code === undefined || code === null ? '2000' : String(code).trim();
+  if (!['0', '200', '2000'].includes(normalizedCode)) {
+    throw new Error(String(record.message || record.msg || 'Appbase backend user request failed'));
+  }
+  return record.data;
+}
+
+function readRecords(value: unknown): UnknownRecord[] {
+  const unwrapped = unwrapAppbaseResult(value);
+  if (Array.isArray(unwrapped)) {
+    return unwrapped.map(asRecord).filter((record) => Object.keys(record).length > 0);
+  }
+  const record = asRecord(unwrapped);
+  for (const key of ['items', 'records', 'data', 'list', 'rows', 'content', 'users']) {
+    const nested = record[key];
+    if (Array.isArray(nested)) {
+      return nested.map(asRecord).filter((item) => Object.keys(item).length > 0);
     }
+  }
+  return [];
+}
 
-    const start = (params.page - 1) * params.pageSize;
-    const end = start + params.pageSize;
+function readString(record: UnknownRecord, keys: string[], fallback = ''): string {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+  return fallback;
+}
 
-    const mockData = {
-      data: filtered.slice(start, end),
-      total: filtered.length
+function readNumber(record: UnknownRecord, keys: string[], fallback = 0): number {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value.replace(/[,%\s]/gu, ''));
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return fallback;
+}
+
+function readTotal(value: unknown, fallback: number): number {
+  const record = asRecord(unwrapAppbaseResult(value));
+  return readNumber(record, ['total', 'totalElements', 'totalCount', 'count'], fallback);
+}
+
+function normalizeRole(record: UnknownRecord): User['role'] {
+  const role = readString(record, ['role', 'roleCode', 'role_code', 'roleName'], '').toLowerCase();
+  return role.includes('admin') || role.includes('owner') ? 'admin' : 'member';
+}
+
+function normalizeStatus(value: unknown): User['status'] {
+  const status = String(value ?? '').trim().toLowerCase();
+  if (status === 'disabled' || status === 'banned' || status === 'blocked' || status === 'deleted') {
+    return 'disabled';
+  }
+  if (status === 'offline' || status === 'inactive') {
+    return 'offline';
+  }
+  return 'active';
+}
+
+function mapUser(record: UnknownRecord): User {
+  const id = readString(record, ['userId', 'user_id', 'id', 'accountId'], 'user');
+  return {
+    department: readString(record, ['departmentName', 'department_name', 'department', 'orgName'], ''),
+    email: readString(record, ['email'], ''),
+    id,
+    lastLogin: readString(record, ['lastLoginAt', 'last_login_at', 'lastLogin', 'updatedAt'], ''),
+    name: readString(record, ['displayName', 'display_name', 'name', 'nickname', 'username'], id),
+    role: normalizeRole(record),
+    status: normalizeStatus(readString(record, ['status', 'state'], 'active')),
+  };
+}
+
+class UserService {
+  async getUsers(params: { page: number; pageSize: number; search?: string }): Promise<GetUsersResponse> {
+    const response = await getAppbaseBackendSdkClientWithSession().iam.users.list({
+      page: params.page,
+      pageSize: params.pageSize,
+      ...(params.search?.trim() ? { q: params.search.trim() } : {}),
+    });
+    const records = readRecords(response);
+    const data = records.map(mapUser);
+    return {
+      data,
+      total: readTotal(response, data.length),
     };
-    
-    return mockConsoleFetch(`/users/list?page=${params.page}&pageSize=${params.pageSize}${params.search ? `&search=${encodeURIComponent(params.search)}` : ''}`, mockData);
   }
 
   async deleteUser(id: string): Promise<void> {
-    this.mockUsers = this.mockUsers.filter(u => u.id !== id);
-    return mockConsolePost(`/users/${id}/delete`, {}, undefined);
+    const userId = id.trim();
+    if (!userId) {
+      throw new Error('user id is required');
+    }
+    await getAppbaseBackendSdkClientWithSession().iam.users.delete(userId);
   }
 }
 

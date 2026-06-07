@@ -11,6 +11,5 @@ namespace Sdkwork.Im.AppApi.Generated.Api
         public static PortalApi? Portal { get; set; }
         public static ProviderApi? Provider { get; set; }
         public static IotApi? Iot { get; set; }
-        public static RtcApi? Rtc { get; set; }
     }
 }

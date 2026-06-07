@@ -163,7 +163,7 @@ node .\sdks\sdkwork-im-backend-sdk\bin\verify-sdk.mjs
 Use the RTC verifier for the independent provider-standard SDK:
 
 ```powershell
-node D:\sdkwork-opensource\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
+node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
 ```
 
 ## Recommended Reading
@@ -171,5 +171,5 @@ node D:\sdkwork-opensource\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
 - [`sdks/sdkwork-im-sdk/README.md`](./sdkwork-im-sdk/README.md)
 - [`sdks/sdkwork-im-app-sdk/README.md`](./sdkwork-im-app-sdk/README.md)
 - [`sdks/sdkwork-im-backend-sdk/README.md`](./sdkwork-im-backend-sdk/README.md)
-- [`D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`](D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md)
+- [`../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`](../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md)
 - [`docs/sites/sdk/index.md`](../docs/sites/sdk/index.md)

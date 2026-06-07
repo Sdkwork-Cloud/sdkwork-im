@@ -67,9 +67,19 @@ export function verifyFlutterComposedWorkspace(workspaceRoot) {
       pattern: /^\s*im_app_api_generated:\s*.+$/m,
     },
     {
+      description: 'composed pubspec depends on rtc_sdk as dependency SDK',
+      source: pubspecSource,
+      pattern: /^\s*rtc_sdk:\s*.+$/m,
+    },
+    {
       description: 'composed override pins generated package to ../generated/server-openapi',
       source: pubspecOverridesSource,
       pattern: /^\s*path:\s*\.\.\/generated\/server-openapi\s*$/m,
+    },
+    {
+      description: 'composed override pins rtc_sdk dependency workspace',
+      source: pubspecOverridesSource,
+      pattern: /^\s*path:\s*\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/sdkwork-rtc\/sdks\/sdkwork-rtc-sdk\/sdkwork-rtc-sdk-flutter\s*$/m,
     },
     {
       description: 'composed sdk re-exports generated app SDK',
@@ -115,6 +125,11 @@ export function verifyFlutterComposedWorkspace(workspaceRoot) {
       description: 'composed sdk exposes module rtc',
       source: sdkSource,
       pattern: /late final ImAppRtcModule rtc;/,
+    },
+    {
+      description: 'composed sdk exposes rtc data source from dependency SDK',
+      source: sdkSource,
+      pattern: /RtcDataSource get rtcDataSource => _context\.rtcDataSource;/,
     },
   ];
 

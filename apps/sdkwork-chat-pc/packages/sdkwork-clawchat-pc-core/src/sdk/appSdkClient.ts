@@ -5,7 +5,7 @@ import {
 } from '@sdkwork-internal/im-app-api-generated';
 import {
   createSdkworkChatRequestContextInterceptors,
-  createSdkworkChatSessionTokenManager,
+  getSdkworkChatGlobalTokenManager,
   readAppSdkSessionTokens,
   resolveAppSdkAccessToken,
   resolveAppSdkAuthToken,
@@ -99,7 +99,7 @@ export function createAppSdkClientConfig(session?: SdkworkChatSession | null): S
     authToken: resolveAppSdkAuthToken(currentSession),
     interceptors: createSdkworkChatRequestContextInterceptors(() => readAppSdkSessionTokens() ?? currentSession),
     platform: 'pc',
-    tokenManager: createSdkworkChatSessionTokenManager(currentSession),
+    tokenManager: getSdkworkChatGlobalTokenManager(),
   };
 }
 

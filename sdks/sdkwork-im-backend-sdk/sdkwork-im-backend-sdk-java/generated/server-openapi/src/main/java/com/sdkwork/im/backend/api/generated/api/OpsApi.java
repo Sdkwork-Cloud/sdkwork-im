@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class OpsApi {
     private final HttpClient client;
-
+    
     public OpsApi(HttpClient client) {
         this.client = client;
     }

@@ -1,92 +1,13 @@
 package com.sdkwork.im.app.api.generated;
 
 import com.sdkwork.common.core.Types;
-import com.sdkwork.im.app.api.generated.http.HttpClient;
-import com.sdkwork.im.app.api.generated.api.AutomationApi;
-import com.sdkwork.im.app.api.generated.api.DeviceApi;
-import com.sdkwork.im.app.api.generated.api.NotificationApi;
-import com.sdkwork.im.app.api.generated.api.PortalApi;
-import com.sdkwork.im.app.api.generated.api.ProviderApi;
-import com.sdkwork.im.app.api.generated.api.IotApi;
-import com.sdkwork.im.app.api.generated.api.RtcApi;
 
-public class SdkworkAppClient {
-    private final HttpClient httpClient;
-    private AutomationApi automation;
-    private DeviceApi device;
-    private NotificationApi notification;
-    private PortalApi portal;
-    private ProviderApi provider;
-    private IotApi iot;
-    private RtcApi rtc;
-
+public class SdkworkAppClient extends SdkworkImAppClient {
     public SdkworkAppClient(String baseUrl) {
-        this.httpClient = new HttpClient(baseUrl);
-        this.automation = new AutomationApi(httpClient);
-        this.device = new DeviceApi(httpClient);
-        this.notification = new NotificationApi(httpClient);
-        this.portal = new PortalApi(httpClient);
-        this.provider = new ProviderApi(httpClient);
-        this.iot = new IotApi(httpClient);
-        this.rtc = new RtcApi(httpClient);
+        super(baseUrl);
     }
 
     public SdkworkAppClient(Types.SdkConfig config) {
-        this.httpClient = new HttpClient(config);
-        this.automation = new AutomationApi(httpClient);
-        this.device = new DeviceApi(httpClient);
-        this.notification = new NotificationApi(httpClient);
-        this.portal = new PortalApi(httpClient);
-        this.provider = new ProviderApi(httpClient);
-        this.iot = new IotApi(httpClient);
-        this.rtc = new RtcApi(httpClient);
-    }
-
-    public AutomationApi getAutomation() {
-        return this.automation;
-    }
-
-    public DeviceApi getDevice() {
-        return this.device;
-    }
-
-    public NotificationApi getNotification() {
-        return this.notification;
-    }
-
-    public PortalApi getPortal() {
-        return this.portal;
-    }
-
-    public ProviderApi getProvider() {
-        return this.provider;
-    }
-
-    public IotApi getIot() {
-        return this.iot;
-    }
-
-    public RtcApi getRtc() {
-        return this.rtc;
-    }
-
-
-    public SdkworkAppClient setAuthToken(String token) {
-        httpClient.setAuthToken(token);
-        return this;
-    }
-
-    public SdkworkAppClient setAccessToken(String token) {
-        httpClient.setAccessToken(token);
-        return this;
-    }
-
-    public SdkworkAppClient setHeader(String key, String value) {
-        httpClient.setHeader(key, value);
-        return this;
-    }
-
-    public HttpClient getHttpClient() {
-        return httpClient;
+        super(config);
     }
 }

@@ -22,6 +22,7 @@ class HttpClient(
     timeoutMs: Int = 30000,
     defaultHeaders: Map<String, String> = emptyMap()
 ) {
+
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(timeoutMs.toLong(), TimeUnit.MILLISECONDS)
         .readTimeout(timeoutMs.toLong(), TimeUnit.MILLISECONDS)
@@ -47,7 +48,6 @@ class HttpClient(
     fun setAccessToken(token: String) {
         headers["Access-Token"] = token
     }
-
 
     fun setHeader(key: String, value: String) {
         headers[key] = value

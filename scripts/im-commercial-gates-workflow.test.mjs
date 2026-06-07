@@ -150,6 +150,16 @@ test('repository exposes a governed im commercial gates workflow with repository
   assert.match(workflow, /FORCE_JAVASCRIPT_ACTIONS_TO_NODE24:\s*'true'/);
   assert.match(workflow, /actions\/checkout@v5/);
   assert.match(workflow, /actions\/setup-node@v5/);
+  assert.match(
+    workflow,
+    /CARGO_TARGET_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}\/sdkwork-cargo-target/u,
+    'Windows cargo target directory must use the GitHub runner temp directory instead of a machine-specific drive path',
+  );
+  assert.doesNotMatch(
+    workflow,
+    /\b[A-Z]:[\\/](?!Program Files(?: \(x86\))?[\\/]Git[\\/])/u,
+    'workflow source/build paths must not contain machine-specific absolute drive paths',
+  );
   for (const watchedPath of DEFAULT_IM_COMMERCIAL_GATES_WORKFLOW_WATCH_PATHS) {
     assert.match(workflow, new RegExp(escapeRegexLiteral(watchedPath)));
   }

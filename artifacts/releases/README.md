@@ -174,7 +174,7 @@ The SDK release catalog is a machine-readable release snapshot, not a hand-maint
   - `sdks/sdkwork-im-sdk`
   - `sdks/sdkwork-im-app-sdk`
   - `sdks/sdkwork-im-backend-sdk`
-  - `D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk`
+  - `<workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk`
 - synchronization script:
   - `node artifacts/releases/sync-sdk-release-catalog.mjs --bundle <bundle-id>`
 - drift check:

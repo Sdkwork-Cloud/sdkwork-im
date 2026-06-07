@@ -15,6 +15,7 @@ namespace Sdkwork.Im.AppApi.Generated.Http
 {
     public class HttpClient
     {
+
         private readonly System.Net.Http.HttpClient _client;
         private readonly string _baseUrl;
 
@@ -39,13 +40,11 @@ namespace Sdkwork.Im.AppApi.Generated.Http
                 }
             }
         }
-
         public void SetAuthToken(string token)
         {
             _client.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
-
         public void SetAccessToken(string token)
         {
             if (_client.DefaultRequestHeaders.Contains("Access-Token"))
@@ -54,7 +53,6 @@ namespace Sdkwork.Im.AppApi.Generated.Http
             }
             _client.DefaultRequestHeaders.TryAddWithoutValidation("Access-Token", token);
         }
-
 
         public void SetHeader(string key, string value)
         {

@@ -7,7 +7,7 @@ const IM_OPENAPI_SCHEMA: &str = "../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.
 const APP_OPENAPI_SCHEMA: &str =
     "../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml";
 const RTC_APP_OPENAPI_SCHEMA: &str =
-    "D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-app-sdk/openapi/sdkwork-rtc-app-api.openapi.json";
+    "../../../sdkwork-rtc/sdks/sdkwork-rtc-app-sdk/openapi/sdkwork-rtc-app-api.openapi.json";
 const BACKEND_OPENAPI_SCHEMA: &str =
     "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml";
 const API_STANDARD_SPEC: &str = "../../../../specs/API_SPEC.md";
@@ -417,7 +417,9 @@ fn test_workspace_api_standard_documents_craw_chat_three_surface_authority() {
         "Craw Chat local standard must override generic Spring SDK examples"
     );
     assert!(
-        local_standard.contains("Craw Chat app code must not import `@sdkwork/app-sdk`, `@sdkwork/backend-sdk`, `spring-ai-plus-app-api`, or `spring-ai-plus-backend-api`."),
+        local_standard.contains(
+            "Craw Chat app code must not import retired generic Spring app/backend SDK packages or authorities."
+        ),
         "Craw Chat local standard must forbid generic app/backend SDK imports"
     );
 }

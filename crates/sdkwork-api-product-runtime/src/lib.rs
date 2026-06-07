@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use axum::{
+    Router,
     body::Body,
     extract::{Path, State},
-    http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri},
+    http::{HeaderMap, HeaderValue, Method, StatusCode, Uri, header},
     response::{Redirect, Response},
     routing::{any, get},
-    Router,
 };
 use bytes::Bytes;
 use rand::random;
@@ -19,10 +19,8 @@ use tokio::{fs, net::TcpListener, sync::oneshot};
 use url::{Host, Url};
 
 mod admin_sandbox;
-mod local_iam;
 
-use admin_sandbox::{handle_admin_sandbox_request, SharedAdminSandboxState};
-use local_iam::{local_iam_router, LocalIamState};
+use admin_sandbox::{SharedAdminSandboxState, handle_admin_sandbox_request};
 
 const JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 const BACKEND_ADMIN_API_PREFIX: &str = "/backend/v3/api/admin";
@@ -104,7 +102,6 @@ struct RuntimeProxyState {
     admin_sandbox: Option<SharedAdminSandboxState>,
     pc_product_api_upstream: String,
     portal_api_base_url: String,
-    local_iam: LocalIamState,
     site_dirs: ProductSiteDirs,
 }
 
@@ -165,7 +162,7 @@ pub async fn build_product_runtime_router(
     let site_dirs = options.site_dirs;
     let state = build_runtime_proxy_state(config, site_dirs.clone());
 
-    Ok(local_iam_router()
+    Ok(Router::new()
         .route(BACKEND_ADMIN_API_PREFIX, any(proxy_admin_request))
         .route(
             format!("{BACKEND_ADMIN_API_PREFIX}/{{*path}}").as_str(),
@@ -175,6 +172,8 @@ pub async fn build_product_runtime_router(
         .route("/api/agent/{*path}", any(proxy_pc_product_api_request))
         .route("/app/v3/api/portal/workspace", get(get_portal_workspace))
         .route("/app/v3/api/portal/{section}", get(get_portal_snapshot))
+        .route("/app/v3/api", any(api_not_found))
+        .route("/app/v3/api/{*path}", any(api_not_found))
         .route("/api", any(api_not_found))
         .route("/api/{*path}", any(api_not_found))
         .route("/admin", get(redirect_admin_root))
@@ -209,7 +208,6 @@ fn build_runtime_proxy_state(
         admin_sandbox,
         pc_product_api_upstream: resolve_pc_product_api_upstream(),
         portal_api_base_url: config.portal_api_base_url,
-        local_iam: LocalIamState::default(),
         site_dirs,
     }
 }
@@ -917,7 +915,6 @@ mod tests {
                 admin_sandbox: None,
                 pc_product_api_upstream: String::new(),
                 portal_api_base_url: "http://127.0.0.1:18090".into(),
-                local_iam: LocalIamState::default(),
                 site_dirs: ProductSiteDirs::new(".", "."),
             }),
             Method::GET,
@@ -971,19 +968,23 @@ mod tests {
 
         let admin_index = fetch_response(base_url.as_str(), "/admin/").await;
         assert_eq!(admin_index.status(), StatusCode::OK);
-        assert!(admin_index
-            .text()
-            .await
-            .expect("admin index body should be readable")
-            .contains("admin-shell"));
+        assert!(
+            admin_index
+                .text()
+                .await
+                .expect("admin index body should be readable")
+                .contains("admin-shell")
+        );
 
         let admin_route = fetch_response(base_url.as_str(), "/admin/operators/shift").await;
         assert_eq!(admin_route.status(), StatusCode::OK);
-        assert!(admin_route
-            .text()
-            .await
-            .expect("admin route body should be readable")
-            .contains("admin-shell"));
+        assert!(
+            admin_route
+                .text()
+                .await
+                .expect("admin route body should be readable")
+                .contains("admin-shell")
+        );
 
         let admin_asset = fetch_response(base_url.as_str(), "/admin/assets/admin.js").await;
         assert_eq!(admin_asset.status(), StatusCode::OK);
@@ -997,19 +998,23 @@ mod tests {
 
         let portal_index = fetch_response(base_url.as_str(), "/").await;
         assert_eq!(portal_index.status(), StatusCode::OK);
-        assert!(portal_index
-            .text()
-            .await
-            .expect("portal index body should be readable")
-            .contains("portal-shell"));
+        assert!(
+            portal_index
+                .text()
+                .await
+                .expect("portal index body should be readable")
+                .contains("portal-shell")
+        );
 
         let portal_route = fetch_response(base_url.as_str(), "/workspace/inbox").await;
         assert_eq!(portal_route.status(), StatusCode::OK);
-        assert!(portal_route
-            .text()
-            .await
-            .expect("portal route body should be readable")
-            .contains("portal-shell"));
+        assert!(
+            portal_route
+                .text()
+                .await
+                .expect("portal route body should be readable")
+                .contains("portal-shell")
+        );
 
         let portal_asset = fetch_response(base_url.as_str(), "/assets/portal.js").await;
         assert_eq!(portal_asset.status(), StatusCode::OK);
@@ -1261,27 +1266,33 @@ mod tests {
         let missing_admin_asset =
             fetch_response(base_url.as_str(), "/admin/assets/missing.js").await;
         assert_eq!(missing_admin_asset.status(), StatusCode::NOT_FOUND);
-        assert!(!missing_admin_asset
-            .text()
-            .await
-            .expect("missing admin asset body should be readable")
-            .contains("admin-shell"));
+        assert!(
+            !missing_admin_asset
+                .text()
+                .await
+                .expect("missing admin asset body should be readable")
+                .contains("admin-shell")
+        );
 
         let missing_portal_asset = fetch_response(base_url.as_str(), "/assets/missing.js").await;
         assert_eq!(missing_portal_asset.status(), StatusCode::NOT_FOUND);
-        assert!(!missing_portal_asset
-            .text()
-            .await
-            .expect("missing portal asset body should be readable")
-            .contains("portal-shell"));
+        assert!(
+            !missing_portal_asset
+                .text()
+                .await
+                .expect("missing portal asset body should be readable")
+                .contains("portal-shell")
+        );
 
         let unknown_api = fetch_response(base_url.as_str(), "/api/runtime-health").await;
         assert_eq!(unknown_api.status(), StatusCode::NOT_FOUND);
-        assert!(!unknown_api
-            .text()
-            .await
-            .expect("unknown api body should be readable")
-            .contains("portal-shell"));
+        assert!(
+            !unknown_api
+                .text()
+                .await
+                .expect("unknown api body should be readable")
+                .contains("portal-shell")
+        );
 
         let modules_api = fetch_response(base_url.as_str(), "/api/config/modules").await;
         assert_eq!(modules_api.status(), StatusCode::OK);
@@ -1300,20 +1311,24 @@ mod tests {
             .await
             .expect("agent api request should complete");
         assert_eq!(agent_api.status(), StatusCode::SERVICE_UNAVAILABLE);
-        assert!(agent_api
-            .text()
-            .await
-            .expect("agent api body should be readable")
-            .contains("CRAW_CHAT_PC_API_UPSTREAM"));
+        assert!(
+            agent_api
+                .text()
+                .await
+                .expect("agent api body should be readable")
+                .contains("CRAW_CHAT_PC_API_UPSTREAM")
+        );
 
         let admin_api =
             fetch_response(base_url.as_str(), "/backend/v3/api/admin/storage/config").await;
         assert_eq!(admin_api.status(), StatusCode::SERVICE_UNAVAILABLE);
-        assert!(admin_api
-            .text()
-            .await
-            .expect("admin api body should be readable")
-            .contains("SDKWORK_ADMIN_PROXY_TARGET"));
+        assert!(
+            admin_api
+                .text()
+                .await
+                .expect("admin api body should be readable")
+                .contains("SDKWORK_ADMIN_PROXY_TARGET")
+        );
     }
 
     #[tokio::test]
@@ -1361,168 +1376,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn router_runtime_serves_local_iam_organization_department_directory() {
-        let admin_site_dir = TestSiteDir::new("iam-org-admin");
+    async fn router_runtime_does_not_expose_appbase_owned_iam_routes() {
+        let admin_site_dir = TestSiteDir::new("appbase-owned-iam-admin");
         admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
 
-        let portal_site_dir = TestSiteDir::new("iam-org-portal");
-        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
-
-        let runtime = start_runtime(ProductSiteDirs::new(
-            admin_site_dir.path().to_path_buf(),
-            portal_site_dir.path().to_path_buf(),
-        ))
-        .await;
-        tokio::task::yield_now().await;
-
-        let base_url = runtime
-            .public_base_url()
-            .expect("runtime should expose a public base url")
-            .to_owned();
-
-        let organizations =
-            fetch_response(base_url.as_str(), "/app/v3/api/iam/organizations").await;
-        assert_eq!(organizations.status(), StatusCode::OK);
-        let organizations = parse_json_response(organizations, "organizations").await;
-        assert_eq!(organizations["code"], "2000");
-        assert_eq!(organizations["msg"], "SUCCESS");
-        let organization_items = organizations["data"]["items"]
-            .as_array()
-            .expect("organizations should include items");
-        assert!(
-            organization_items.iter().any(|organization| {
-                organization["organizationId"] == "sdkwork-local-org"
-                    && organization["tenantId"] == "sdkwork-local-tenant"
-                    && organization["parentOrganizationId"] == "sdkwork-local-group"
-                    && organization["tenantBoundaryKind"] == "sub_tenant"
-                    && organization["dataBoundaryKind"] == "organization_isolated"
-                    && organization["appBoundaryEnabled"] == true
-            }),
-            "organizations must model tenant-scoped operating subjects with parent organization and sub-tenant boundaries"
-        );
-        assert_eq!(organizations["data"]["iam_accounts"], serde_json::Value::Null);
-
-        let organization_tree =
-            fetch_response(base_url.as_str(), "/app/v3/api/iam/organizations/tree").await;
-        assert_eq!(organization_tree.status(), StatusCode::OK);
-        let organization_tree =
-            parse_json_response(organization_tree, "organization tree").await;
-        assert_eq!(
-            organization_tree["data"]["items"][0]["children"][0]["organizationId"],
-            "sdkwork-local-org"
-        );
-
-        let departments = fetch_response(
-            base_url.as_str(),
-            "/app/v3/api/iam/departments?organizationId=sdkwork-local-org",
-        )
-        .await;
-        assert_eq!(departments.status(), StatusCode::OK);
-        let departments = parse_json_response(departments, "departments").await;
-        let department_items = departments["data"]["items"]
-            .as_array()
-            .expect("departments should include items");
-        assert!(
-            department_items.iter().any(|department| {
-                department["departmentId"] == "dept-product"
-                    && department["organizationId"] == "sdkwork-local-org"
-                    && department["parentDepartmentId"] == "dept-root"
-                    && department["departmentKind"] == "department"
-            }),
-            "departments must be independent organization-internal nodes, not iam_organizations rows"
-        );
-        assert_eq!(departments["data"]["iam_department_members"], serde_json::Value::Null);
-
-        let department_tree = fetch_response(
-            base_url.as_str(),
-            "/app/v3/api/iam/departments/tree?organizationId=sdkwork-local-org",
-        )
-        .await;
-        assert_eq!(department_tree.status(), StatusCode::OK);
-        let department_tree = parse_json_response(department_tree, "department tree").await;
-        assert_eq!(
-            department_tree["data"]["items"][0]["children"][0]["departmentId"],
-            "dept-product"
-        );
-
-        let memberships = fetch_response(
-            base_url.as_str(),
-            "/app/v3/api/iam/organization_memberships?organizationId=sdkwork-local-org",
-        )
-        .await;
-        assert_eq!(memberships.status(), StatusCode::OK);
-        let memberships = parse_json_response(memberships, "memberships").await;
-        assert_eq!(
-            memberships["data"]["items"][0]["membershipId"],
-            "membership-local-default"
-        );
-        assert_eq!(memberships["data"]["items"][0]["membershipType"], "employee");
-
-        let assignments = fetch_response(
-            base_url.as_str(),
-            "/app/v3/api/iam/department_assignments?departmentId=dept-product",
-        )
-        .await;
-        assert_eq!(assignments.status(), StatusCode::OK);
-        let assignments = parse_json_response(assignments, "department assignments").await;
-        let assignment = &assignments["data"]["items"][0];
-        assert_eq!(assignment["assignmentId"], "assignment-local-default-product");
-        assert_eq!(assignment["membershipId"], "membership-local-default");
-        assert_eq!(assignment["departmentId"], "dept-product");
-        assert_eq!(assignment["positionName"], "Product Owner");
-        assert!(
-            assignment["roleCodes"]
-                .as_array()
-                .expect("department assignment should include roleCodes")
-                .contains(&serde_json::json!("department.product_owner")),
-            "department assignments must expose role summaries for directory UX"
-        );
-
-        let positions = fetch_response(
-            base_url.as_str(),
-            "/app/v3/api/iam/positions?departmentId=dept-product",
-        )
-        .await;
-        assert_eq!(positions.status(), StatusCode::OK);
-        let positions = parse_json_response(positions, "positions").await;
-        assert_eq!(positions["data"]["items"][0]["positionId"], "position-product-owner");
-
-        let position_assignments = fetch_response(
-            base_url.as_str(),
-            "/app/v3/api/iam/position_assignments?departmentAssignmentId=assignment-local-default-product",
-        )
-        .await;
-        assert_eq!(position_assignments.status(), StatusCode::OK);
-        let position_assignments =
-            parse_json_response(position_assignments, "position assignments").await;
-        assert_eq!(
-            position_assignments["data"]["items"][0]["positionAssignmentId"],
-            "position-assignment-local-default-product-owner"
-        );
-
-        let role_bindings = fetch_response(
-            base_url.as_str(),
-            "/app/v3/api/iam/role_bindings?scopeKind=department&scopeId=dept-product",
-        )
-        .await;
-        assert_eq!(role_bindings.status(), StatusCode::OK);
-        let role_bindings = parse_json_response(role_bindings, "role bindings").await;
-        assert_eq!(
-            role_bindings["data"]["items"][0]["principalKind"],
-            "department_assignment"
-        );
-        assert_eq!(
-            role_bindings["data"]["items"][0]["roleCode"],
-            "department.product_owner"
-        );
-    }
-
-    #[tokio::test]
-    async fn router_runtime_serves_local_iam_qr_auth_flow() {
-        let admin_site_dir = TestSiteDir::new("iam-qr-admin");
-        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
-
-        let portal_site_dir = TestSiteDir::new("iam-qr-portal");
+        let portal_site_dir = TestSiteDir::new("appbase-owned-iam-portal");
         portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
 
         let runtime = start_runtime(ProductSiteDirs::new(
@@ -1538,302 +1396,110 @@ mod tests {
             .to_owned();
         let client = reqwest::Client::new();
 
-        let created = client
-            .post(format!(
-                "{base_url}/app/v3/api/open_platform/qr_auth/sessions"
-            ))
-            .header(header::CONTENT_TYPE, JSON_CONTENT_TYPE)
-            .body(serde_json::json!({}).to_string())
-            .send()
-            .await
-            .expect("create QR auth session request should complete");
-        assert_eq!(created.status(), StatusCode::OK);
-        let created = parse_json_response(created, "QR auth session").await;
-        assert_eq!(created["code"], "2000");
-        assert_eq!(created["msg"], "SUCCESS");
-        let created_data = &created["data"];
-        let session_key = created_data["sessionKey"]
-            .as_str()
-            .expect("QR auth session should include sessionKey")
-            .to_owned();
-        assert!(!session_key.is_empty());
-        assert!(!session_key.starts_with("local-qr-"));
-        assert_eq!(created_data["id"], format!("qr_auth_session_{session_key}"));
-        assert_eq!(created_data["purpose"], "login");
-        assert_eq!(created_data["defaultAccountId"], serde_json::Value::Null);
-        assert_eq!(created_data["defaultEntryId"], serde_json::Value::Null);
-        assert_eq!(created_data["defaultProvider"], serde_json::Value::Null);
-        assert_eq!(created_data["defaultAccountType"], serde_json::Value::Null);
-        assert_eq!(created_data["status"], "pending");
-        assert_eq!(created_data["qrContent"]["mode"], "fallback_url");
-        let fallback_url = created_data["fallbackUrl"]
-            .as_str()
-            .expect("QR auth session should include fallbackUrl");
-        assert_eq!(created_data["qrContent"]["content"], fallback_url);
-        assert!(fallback_url.contains(format!("/auth/qr/{session_key}").as_str()));
-        assert!(fallback_url.contains(format!("session_key={session_key}").as_str()));
-        assert!(fallback_url.contains("purpose=login"));
-        assert!(fallback_url.contains("scan_source=browser"));
-        assert_eq!(created_data["scannedAt"], serde_json::Value::Null);
-        assert_eq!(created_data["completedAt"], serde_json::Value::Null);
-        assert!(created_data["createdAt"].as_str().is_some());
-        assert!(created_data["updatedAt"].as_str().is_some());
-
-        let retrieved = fetch_response(
-            base_url.as_str(),
-            format!("/app/v3/api/open_platform/qr_auth/sessions/{session_key}").as_str(),
-        )
-        .await;
-        assert_eq!(retrieved.status(), StatusCode::OK);
-        let retrieved = parse_json_response(retrieved, "retrieved QR auth session").await;
-        assert_eq!(retrieved["code"], "2000");
-        assert_eq!(retrieved["msg"], "SUCCESS");
-        assert_eq!(retrieved["data"]["sessionKey"], session_key);
-        assert_eq!(retrieved["data"]["status"], "pending");
-        assert_eq!(retrieved["data"]["qrContent"]["mode"], "fallback_url");
-
-        let scanned = client
-            .post(format!(
-                "{base_url}/app/v3/api/open_platform/qr_auth/sessions/{session_key}/scans"
-            ))
-            .header(header::CONTENT_TYPE, JSON_CONTENT_TYPE)
-            .body(serde_json::json!({"deviceId": "pc-test"}).to_string())
-            .send()
-            .await
-            .expect("scan QR auth session request should complete");
-        assert_eq!(scanned.status(), StatusCode::OK);
-        let scanned = parse_json_response(scanned, "scanned QR auth session").await;
-        assert_eq!(scanned["code"], "2000");
-        assert_eq!(scanned["msg"], "SUCCESS");
-        assert_eq!(scanned["data"]["status"], "scanned");
-        assert_eq!(scanned["data"]["scannedAt"].is_string(), true);
-        assert_eq!(scanned["data"]["completedAt"], serde_json::Value::Null);
-
-        let auth_session = client
-            .post(format!(
-                "{base_url}/app/v3/api/open_platform/qr_auth/sessions/{session_key}/passwords"
-            ))
-            .header(header::CONTENT_TYPE, JSON_CONTENT_TYPE)
-            .body(
+        for (method, path, body) in [
+            (
+                reqwest::Method::POST,
+                "/app/v3/api/auth/sessions",
                 serde_json::json!({
                     "username": "local-default@sdkwork-iam.local",
+                    "password": "wrong-password",
+                }),
+            ),
+            (
+                reqwest::Method::POST,
+                "/app/v3/api/auth/registrations",
+                serde_json::json!({
+                    "username": "new-user@sdkwork-iam.local",
                     "password": "dev123456",
-                    "deviceId": "pc-test",
-                })
-                .to_string(),
-            )
-            .send()
-            .await
-            .expect("QR password auth request should complete");
-        assert_eq!(auth_session.status(), StatusCode::OK);
-        let auth_session = parse_json_response(auth_session, "QR password auth session").await;
-        assert_eq!(auth_session["code"], "2000");
-        assert_eq!(auth_session["msg"], "SUCCESS");
-        let auth_session_data = &auth_session["data"];
-        assert_eq!(auth_session_data["sessionKey"], session_key);
-        assert_eq!(auth_session_data["status"], "completed");
-        assert_eq!(auth_session_data["completedAt"].is_string(), true);
-        let auth_session = &auth_session_data["session"];
-        assert!(auth_session["accessToken"]
-            .as_str()
-            .expect("auth session should include accessToken")
-            .starts_with("local-access-"));
-        assert!(auth_session["authToken"]
-            .as_str()
-            .expect("auth session should include authToken")
-            .starts_with("local-auth-"));
-        assert!(auth_session["refreshToken"].as_str().is_some());
-        assert!(auth_session["sessionId"].as_str().is_some());
-        assert_eq!(auth_session["context"]["environment"], "dev");
-        assert_eq!(auth_session["context"]["deploymentMode"], "local");
-        assert_eq!(auth_session["context"]["authLevel"], "password");
-        assert_eq!(auth_session["context"]["deviceId"], "pc-test");
-        assert_eq!(auth_session["context"]["userId"], "U1000000000");
-        assert_eq!(auth_session["user"]["id"], "U1000000000");
-        assert_eq!(auth_session["user"]["userId"], "U1000000000");
-        assert_eq!(
-            auth_session["user"]["username"],
-            "local-default@sdkwork-iam.local"
-        );
+                }),
+            ),
+            (
+                reqwest::Method::POST,
+                "/app/v3/api/auth/sessions/refresh",
+                serde_json::json!({ "refreshToken": "local-refresh-fake" }),
+            ),
+            (
+                reqwest::Method::POST,
+                "/app/v3/api/open_platform/qr_auth/sessions",
+                serde_json::json!({}),
+            ),
+            (
+                reqwest::Method::POST,
+                "/app/v3/api/open_platform/qr_auth/sessions/session-1/passwords",
+                serde_json::json!({
+                    "username": "local-default@sdkwork-iam.local",
+                    "password": "wrong-password",
+                }),
+            ),
+        ] {
+            let response = client
+                .request(method, format!("{base_url}{path}"))
+                .header(header::CONTENT_TYPE, JSON_CONTENT_TYPE)
+                .body(body.to_string())
+                .send()
+                .await
+                .expect("appbase-owned POST request should return response");
+            assert_eq!(
+                response.status(),
+                StatusCode::NOT_FOUND,
+                "{path} must not be served by sdkwork-api-product-runtime; sdkwork-appbase owns IAM login/session validation"
+            );
+        }
 
-        let access_token = auth_session["accessToken"]
-            .as_str()
-            .expect("auth session should include accessToken");
-        let current_session = client
-            .get(format!("{base_url}/app/v3/api/auth/sessions/current"))
-            .header("Access-Token", access_token)
-            .send()
-            .await
-            .expect("current session request should complete");
-        assert_eq!(current_session.status(), StatusCode::OK);
-        let current_session = parse_json_response(current_session, "current session").await;
-        assert_eq!(current_session["code"], "2000");
-        assert_eq!(current_session["msg"], "SUCCESS");
-        assert_eq!(
-            current_session["data"]["sessionId"],
-            auth_session["sessionId"]
-        );
-
-        let current_user = client
-            .get(format!("{base_url}/app/v3/api/iam/users/current"))
-            .header("Access-Token", access_token)
-            .send()
-            .await
-            .expect("current user request should complete");
-        assert_eq!(current_user.status(), StatusCode::OK);
-        let current_user = parse_json_response(current_user, "current user").await;
-        assert_eq!(current_user["code"], "2000");
-        assert_eq!(current_user["msg"], "SUCCESS");
-        assert_eq!(
-            current_user["data"]["id"],
-            auth_session["context"]["userId"]
-        );
-    }
-
-    #[tokio::test]
-    async fn router_runtime_serves_local_iam_password_login_metadata_and_verification() {
-        let admin_site_dir = TestSiteDir::new("iam-password-admin");
-        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
-
-        let portal_site_dir = TestSiteDir::new("iam-password-portal");
-        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
-
-        let runtime = start_runtime(ProductSiteDirs::new(
-            admin_site_dir.path().to_path_buf(),
-            portal_site_dir.path().to_path_buf(),
-        ))
-        .await;
-        tokio::task::yield_now().await;
-
-        let base_url = runtime
-            .public_base_url()
-            .expect("runtime should expose a public base url")
-            .to_owned();
-        let client = reqwest::Client::new();
-
-        let runtime_info =
-            fetch_response(base_url.as_str(), "/app/v3/api/system/iam/runtime").await;
-        assert_eq!(runtime_info.status(), StatusCode::OK);
-        let runtime_info = parse_json_response(runtime_info, "runtime info").await;
-        assert_eq!(runtime_info["code"], "2000");
-        assert_eq!(runtime_info["msg"], "SUCCESS");
-        let runtime_info = &runtime_info["data"];
-        assert_eq!(runtime_info["appId"], "sdkwork-chat-pc");
-        assert_eq!(runtime_info["environment"], "dev");
-        assert_eq!(runtime_info["deploymentMode"], "local");
-        assert_eq!(runtime_info["qrAuthEnabled"], true);
-
-        let verification_policy = fetch_response(
-            base_url.as_str(),
+        for path in [
+            "/app/v3/api/auth/sessions/current",
+            "/app/v3/api/iam/users/current",
+            "/app/v3/api/system/iam/runtime",
             "/app/v3/api/system/iam/verification_policy",
-        )
+            "/app/v3/api/open_platform/qr_auth/sessions/session-1",
+        ] {
+            let response = fetch_response(base_url.as_str(), path).await;
+            assert_eq!(
+                response.status(),
+                StatusCode::NOT_FOUND,
+                "{path} must not be served by sdkwork-api-product-runtime; sdkwork-appbase owns IAM login/session validation"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn router_runtime_keeps_appbase_iam_directory_routes_unowned() {
+        let admin_site_dir = TestSiteDir::new("iam-directory-admin");
+        admin_site_dir.write("index.html", "<!doctype html><title>admin-shell</title>");
+
+        let portal_site_dir = TestSiteDir::new("iam-directory-portal");
+        portal_site_dir.write("index.html", "<!doctype html><title>portal-shell</title>");
+
+        let runtime = start_runtime(ProductSiteDirs::new(
+            admin_site_dir.path().to_path_buf(),
+            portal_site_dir.path().to_path_buf(),
+        ))
         .await;
-        assert_eq!(verification_policy.status(), StatusCode::OK);
-        let verification_policy =
-            parse_json_response(verification_policy, "verification policy").await;
-        assert_eq!(verification_policy["code"], "2000");
-        assert_eq!(verification_policy["msg"], "SUCCESS");
-        let verification_policy = &verification_policy["data"];
-        assert_eq!(verification_policy["password"], true);
-        assert_eq!(verification_policy["email"], false);
-        assert_eq!(verification_policy["captcha"], false);
+        tokio::task::yield_now().await;
 
-        let verification_code = client
-            .post(format!("{base_url}/app/v3/api/auth/verification_codes"))
-            .header(header::CONTENT_TYPE, JSON_CONTENT_TYPE)
-            .body(
-                serde_json::json!({
-                    "target": "local-default@sdkwork-iam.local",
-                    "scene": "login",
-                    "verifyType": "email",
-                })
-                .to_string(),
-            )
-            .send()
-            .await
-            .expect("verification code request should complete");
-        assert_eq!(verification_code.status(), StatusCode::OK);
-        let verification_code =
-            parse_json_response(verification_code, "verification code response").await;
-        assert_eq!(verification_code["code"], "2000");
-        assert_eq!(verification_code["msg"], "SUCCESS");
-        let verification_code = &verification_code["data"];
-        assert!(verification_code["codeId"].as_str().is_some());
+        let base_url = runtime
+            .public_base_url()
+            .expect("runtime should expose a public base url")
+            .to_owned();
 
-        let verification = client
-            .post(format!(
-                "{base_url}/app/v3/api/auth/verification_codes/verify"
-            ))
-            .header(header::CONTENT_TYPE, JSON_CONTENT_TYPE)
-            .body(
-                serde_json::json!({
-                    "target": "local-default@sdkwork-iam.local",
-                    "scene": "login",
-                    "verifyType": "email",
-                    "code": "123456",
-                })
-                .to_string(),
-            )
-            .send()
-            .await
-            .expect("verification request should complete");
-        assert_eq!(verification.status(), StatusCode::OK);
-        let verification = parse_json_response(verification, "verification response").await;
-        assert_eq!(verification["code"], "2000");
-        assert_eq!(verification["msg"], "SUCCESS");
-        let verification = &verification["data"];
-        assert_eq!(verification["verified"], true);
-
-        let auth_session = client
-            .post(format!("{base_url}/app/v3/api/auth/sessions"))
-            .header(header::CONTENT_TYPE, JSON_CONTENT_TYPE)
-            .body(
-                serde_json::json!({
-                    "username": "local-default@sdkwork-iam.local",
-                    "password": "dev123456",
-                    "remember": true,
-                })
-                .to_string(),
-            )
-            .send()
-            .await
-            .expect("password auth request should complete");
-        assert_eq!(auth_session.status(), StatusCode::OK);
-        let auth_session = parse_json_response(auth_session, "password auth session").await;
-        assert_eq!(auth_session["code"], "2000");
-        assert_eq!(auth_session["msg"], "SUCCESS");
-        let auth_session = &auth_session["data"];
-        assert_eq!(auth_session["context"]["userId"], "U1000000000");
-        assert_eq!(auth_session["user"]["id"], "U1000000000");
-        assert_eq!(auth_session["user"]["userId"], "U1000000000");
-        assert_eq!(auth_session["context"]["tenantId"], "sdkwork-local-tenant");
-        assert!(auth_session["context"]["dataScope"]
-            .as_array()
-            .expect("dataScope should be an array")
-            .contains(&serde_json::json!("local")));
-        assert!(auth_session["context"]["permissionScope"]
-            .as_array()
-            .expect("permissionScope should be an array")
-            .contains(&serde_json::json!("*")));
-
-        let refreshed = client
-            .post(format!("{base_url}/app/v3/api/auth/sessions/refresh"))
-            .header(header::CONTENT_TYPE, JSON_CONTENT_TYPE)
-            .body(
-                serde_json::json!({
-                    "refreshToken": auth_session["refreshToken"],
-                })
-                .to_string(),
-            )
-            .send()
-            .await
-            .expect("refresh auth request should complete");
-        assert_eq!(refreshed.status(), StatusCode::OK);
-        let refreshed = parse_json_response(refreshed, "refreshed auth session").await;
-        assert_eq!(refreshed["code"], "2000");
-        assert_eq!(refreshed["msg"], "SUCCESS");
-        let refreshed = &refreshed["data"];
-        assert_eq!(refreshed["sessionId"], auth_session["sessionId"]);
+        for path in [
+            "/app/v3/api/iam/organizations",
+            "/app/v3/api/iam/organizations/tree",
+            "/app/v3/api/iam/organization_memberships?organizationId=sdkwork-local-org",
+            "/app/v3/api/iam/departments?organizationId=sdkwork-local-org",
+            "/app/v3/api/iam/departments/tree?organizationId=sdkwork-local-org",
+            "/app/v3/api/iam/department_assignments?departmentId=dept-product",
+            "/app/v3/api/iam/positions?departmentId=dept-product",
+            "/app/v3/api/iam/position_assignments?departmentAssignmentId=assignment-local-default-product",
+            "/app/v3/api/iam/role_bindings?scopeKind=department&scopeId=dept-product",
+        ] {
+            let response = fetch_response(base_url.as_str(), path).await;
+            assert_eq!(
+                response.status(),
+                StatusCode::NOT_FOUND,
+                "{path} must not be served by sdkwork-api-product-runtime; sdkwork-appbase owns IAM directory routes"
+            );
+        }
     }
 
     #[test]

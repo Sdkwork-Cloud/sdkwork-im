@@ -5,6 +5,7 @@ from sdkwork.common.http import BaseHttpClient
 
 SdkConfig = CommonSdkConfig
 
+
 class HttpClient(BaseHttpClient):
     """
     SDK HTTP client wrapper based on sdkwork-common.
@@ -21,22 +22,18 @@ class HttpClient(BaseHttpClient):
         self._session.headers.pop('Authorization', None)
         self._session.headers.pop('Access-Token', None)
         self._session.headers.pop('X-API-Key', None)
-
         if self._auth_token:
             self._session.headers['Authorization'] = f'Bearer {self._auth_token}'
         if self._access_token:
             self._session.headers['Access-Token'] = self._access_token
-
     def set_auth_token(self, token: str) -> 'HttpClient':
         self._auth_token = token
         self._update_auth_headers()
         return self
-
     def set_access_token(self, token: str) -> 'HttpClient':
         self._access_token = token
         self._update_auth_headers()
         return self
-
 
     def set_header(self, key: str, value: str) -> 'HttpClient':
         self.headers[key] = value

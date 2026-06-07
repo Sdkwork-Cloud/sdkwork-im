@@ -6,5 +6,4 @@ export { NotificationApi, createNotificationApi } from './notification';
 export { PortalApi, createPortalApi } from './portal';
 export { ProviderApi, createProviderApi } from './provider';
 export { IotApi, createIotApi } from './iot';
-export { RtcApi, createRtcApi } from './rtc';
 //# sourceMappingURL=index.d.ts.map

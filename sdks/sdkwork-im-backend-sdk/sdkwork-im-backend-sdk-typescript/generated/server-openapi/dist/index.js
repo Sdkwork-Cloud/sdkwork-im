@@ -1,5 +1,5 @@
 import { BaseHttpClient, withRetry } from '@sdkwork/sdk-common';
-export { DEFAULT_TIMEOUT, SUCCESS_CODES } from '@sdkwork/sdk-common';
+export { DEFAULT_TIMEOUT, DefaultAuthTokenManager, SUCCESS_CODES, createTokenManager } from '@sdkwork/sdk-common';
 
 class HttpClient extends BaseHttpClient {
     constructor(config) {

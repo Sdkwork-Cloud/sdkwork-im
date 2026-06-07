@@ -1,4 +1,4 @@
-import { mockConsoleFetch } from '@sdkwork/clawchat-pc-commons';
+import { getBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
 
 export interface SecurityIntercept {
   id: string;
@@ -20,25 +20,134 @@ export interface SecurityDashboardData {
   auditLogs: SecurityAuditLog[];
 }
 
+type UnknownRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): UnknownRecord {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : {};
+}
+
+function asRecordArray(value: unknown): UnknownRecord[] {
+  return Array.isArray(value) ? value.map(asRecord).filter((item) => Object.keys(item).length > 0) : [];
+}
+
+function readRecords(record: UnknownRecord, keys: string[]): UnknownRecord[] {
+  for (const key of keys) {
+    const values = asRecordArray(record[key]);
+    if (values.length > 0) {
+      return values;
+    }
+  }
+  return [];
+}
+
+function readString(record: UnknownRecord, keys: string[], fallback = ''): string {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+  return fallback;
+}
+
+function readNumber(record: UnknownRecord, keys: string[], fallback = 0): number {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value.replace(/[,%\s]/gu, ''));
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return fallback;
+}
+
+function normalizeInterceptLevel(value: unknown): SecurityIntercept['level'] {
+  const level = String(value ?? '').trim().toLowerCase();
+  if (level === 'critical') {
+    return 'critical';
+  }
+  if (level === 'high' || level === 'error' || level === 'failed') {
+    return 'high';
+  }
+  if (level === 'warning' || level === 'medium') {
+    return 'warning';
+  }
+  return 'info';
+}
+
+function deriveHealthScore(health: UnknownRecord, records: UnknownRecord[]): number {
+  const explicitScore = readNumber(health, ['healthScore', 'securityScore', 'score'], Number.NaN);
+  if (Number.isFinite(explicitScore)) {
+    return Math.max(0, Math.min(100, Math.round(explicitScore)));
+  }
+  const criticalCount = records.filter((record) => normalizeInterceptLevel(readString(record, ['severity', 'level', 'status'], '')) === 'critical').length;
+  const highCount = records.filter((record) => normalizeInterceptLevel(readString(record, ['severity', 'level', 'status'], '')) === 'high').length;
+  const warningCount = records.filter((record) => normalizeInterceptLevel(readString(record, ['severity', 'level', 'status'], '')) === 'warning').length;
+  return Math.max(0, Math.min(100, 100 - criticalCount * 15 - highCount * 8 - warningCount * 3));
+}
+
+function buildIntercepts(health: UnknownRecord, records: UnknownRecord[]): SecurityIntercept[] {
+  const interceptRecords = readRecords(health, ['intercepts', 'securityIntercepts', 'alerts']);
+  if (interceptRecords.length > 0) {
+    return interceptRecords.slice(0, 8).map((item, index) => ({
+      count: readNumber(item, ['count', 'total', 'value'], 0),
+      id: readString(item, ['id', 'key', 'type'], `intercept-${index + 1}`),
+      level: normalizeInterceptLevel(readString(item, ['level', 'severity'], 'info')),
+      title: readString(item, ['title', 'name', 'message'], 'Security signal'),
+    }));
+  }
+
+  const buckets = new Map<SecurityIntercept['level'], number>([
+    ['critical', 0],
+    ['high', 0],
+    ['warning', 0],
+    ['info', 0],
+  ]);
+  for (const record of records) {
+    const level = normalizeInterceptLevel(readString(record, ['severity', 'level', 'status'], 'info'));
+    buckets.set(level, (buckets.get(level) ?? 0) + 1);
+  }
+
+  return [
+    { id: 'critical', title: 'Critical security events', count: buckets.get('critical') ?? 0, level: 'critical' },
+    { id: 'high', title: 'High risk events', count: buckets.get('high') ?? 0, level: 'high' },
+    { id: 'warning', title: 'Policy warnings', count: buckets.get('warning') ?? 0, level: 'warning' },
+    { id: 'info', title: 'Informational audit events', count: buckets.get('info') ?? 0, level: 'info' },
+  ];
+}
+
+function buildAuditLogs(records: UnknownRecord[]): SecurityAuditLog[] {
+  return records.slice(0, 8).map((record, index) => ({
+    action: readString(record, ['action', 'eventType', 'type', 'summary'], 'audit.record'),
+    id: readString(record, ['recordId', 'id'], `security-audit-${index + 1}`),
+    time: readString(record, ['recordedAt', 'createdAt', 'time'], ''),
+    user: readString(record, ['actorId', 'createdBy', 'userId', 'tenantId'], 'system'),
+  }));
+}
+
 class SecurityService {
   async getDashboardData(): Promise<SecurityDashboardData> {
-    const mockData: SecurityDashboardData = {
-      healthScore: 92,
-      intercepts: [
-        { id: '1', title: '敏感内容过滤', count: 324, level: 'warning' as const },
-        { id: '2', title: '异常地点登录阻断', count: 12, level: 'high' as const },
-        { id: '3', title: '恶意文件拦截', count: 3, level: 'critical' as const },
-        { id: '4', title: '高频接口调用限制', count: 142, level: 'info' as const }
-      ],
-      auditLogs: [
-        { id: '1', time: '10:42:15', user: 'Admin User', action: '导出了全员成员列表' },
-        { id: '2', time: '09:15:02', user: 'System', action: '根据保留策略清理了 12,400 条超期消息' },
-        { id: '3', time: '昨天 18:30', user: 'Security Bot', action: '自动隔离了包含敏感信息的附件 (doc-8812.pdf)' },
-        { id: '4', time: '昨天 14:20', user: 'Admin User', action: '修改了全局登录认证策略 (强制 2FA)' },
-        { id: '5', time: '昨天 11:05', user: '张三', action: '解散了群组「Q2 渠道沟通」(G-0921)' }
-      ]
+    const backend = getBackendSdkClientWithSession();
+    const [health, auditRecords] = await Promise.all([
+      backend.ops.health.retrieve(),
+      backend.audit.records.list(),
+    ]);
+    const normalizedHealth = asRecord(health);
+    const records = readRecords(asRecord(auditRecords), ['items', 'data', 'records', 'auditLogs']);
+
+    return {
+      auditLogs: buildAuditLogs(records),
+      healthScore: deriveHealthScore(normalizedHealth, records),
+      intercepts: buildIntercepts(normalizedHealth, records),
     };
-    return mockConsoleFetch('/security/dashboard', mockData);
   }
 }
 

@@ -7,4 +7,4 @@ version.workspace = true
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
-sdkwork-rtc-core = { path = "D:/sdkwork-opensource/sdkwork-rtc/crates/sdkwork-rtc-core" }
+sdkwork-rtc-core = { path = "../../../sdkwork-rtc/crates/sdkwork-rtc-core" }

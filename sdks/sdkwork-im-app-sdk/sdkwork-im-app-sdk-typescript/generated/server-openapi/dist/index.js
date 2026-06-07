@@ -1,5 +1,5 @@
 import { BaseHttpClient, withRetry } from '@sdkwork/sdk-common';
-export { DEFAULT_TIMEOUT, SUCCESS_CODES } from '@sdkwork/sdk-common';
+export { DEFAULT_TIMEOUT, DefaultAuthTokenManager, SUCCESS_CODES, createTokenManager } from '@sdkwork/sdk-common';
 
 class HttpClient extends BaseHttpClient {
     constructor(config) {
@@ -728,35 +728,6 @@ function createIotApi(client) {
     return new IotApi(client);
 }
 
-class RtcProviderHealthApi {
-    constructor(client) {
-        this.client = client;
-    }
-    /** Retrieve RTC provider health */
-    async retrieve() {
-        return this.client.get(appApiPath(`/rtc/provider_health`));
-    }
-}
-class RtcProviderCallbacksApi {
-    constructor(client) {
-        this.client = client;
-    }
-    /** Map RTC provider callback */
-    async create() {
-        return this.client.post(appApiPath(`/rtc/provider_callbacks`));
-    }
-}
-class RtcApi {
-    constructor(client) {
-        this.client = client;
-        this.providerCallbacks = new RtcProviderCallbacksApi(client);
-        this.providerHealth = new RtcProviderHealthApi(client);
-    }
-}
-function createRtcApi(client) {
-    return new RtcApi(client);
-}
-
 class SdkworkImAppClient {
     constructor(config) {
         this.httpClient = createHttpClient(config);
@@ -766,7 +737,6 @@ class SdkworkImAppClient {
         this.portal = createPortalApi(this.httpClient);
         this.provider = createProviderApi(this.httpClient);
         this.iot = createIotApi(this.httpClient);
-        this.rtc = createRtcApi(this.httpClient);
     }
     setAuthToken(token) {
         this.httpClient.setAuthToken(token);
@@ -813,4 +783,4 @@ class BaseApi {
     }
 }
 
-export { AutomationApi, BaseApi, DeviceApi, HttpClient, IotApi, NotificationApi, PortalApi, ProviderApi, RtcApi, SdkworkImAppClient as SdkworkAppClient, SdkworkImAppClient, appApiPath, createAutomationApi, createClient, createDeviceApi, createHttpClient, createIotApi, createNotificationApi, createPortalApi, createProviderApi, createRtcApi };
+export { AutomationApi, BaseApi, DeviceApi, HttpClient, IotApi, NotificationApi, PortalApi, ProviderApi, SdkworkImAppClient as SdkworkAppClient, SdkworkImAppClient, appApiPath, createAutomationApi, createClient, createDeviceApi, createHttpClient, createIotApi, createNotificationApi, createPortalApi, createProviderApi };

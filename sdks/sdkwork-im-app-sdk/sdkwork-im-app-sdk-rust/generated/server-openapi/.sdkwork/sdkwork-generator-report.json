@@ -12,11 +12,12 @@
   "mode": "apply",
   "hasChanges": true,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "4bf1563da0cfff17877c9448b48f0d76be91f4724f62d23903773e8d1cf02f28",
+  "changeFingerprint": "3821f41977e401cc6aaef04ba94a5bd022562d05ffde9a071dd38b8d98b537cc",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
       "api-surface",
+      "models",
       "runtime",
       "build-metadata",
       "documentation",
@@ -26,13 +27,52 @@
       {
         "area": "api-surface",
         "paths": [
+          "src/api/automation.rs",
+          "src/api/base.rs",
+          "src/api/device.rs",
+          "src/api/iot.rs",
+          "src/api/mod.rs",
+          "src/api/notification.rs",
+          "src/api/paths.rs",
+          "src/api/portal.rs",
+          "src/api/provider.rs",
           "src/lib.rs"
+        ]
+      },
+      {
+        "area": "models",
+        "paths": [
+          "src/models/agent_subject.rs",
+          "src/models/agent_tool_call.rs",
+          "src/models/append_agent_response_delta_request.rs",
+          "src/models/automation_execution_request_response.rs",
+          "src/models/automation_execution.rs",
+          "src/models/common.rs",
+          "src/models/complete_agent_response_request.rs",
+          "src/models/complete_agent_tool_call_request.rs",
+          "src/models/device_twin_view.rs",
+          "src/models/mod.rs",
+          "src/models/notification_list_response.rs",
+          "src/models/notification_request_response.rs",
+          "src/models/notification_task.rs",
+          "src/models/portal_workspace_view.rs",
+          "src/models/problem_detail.rs",
+          "src/models/request_agent_tool_call_request.rs",
+          "src/models/request_automation_execution.rs",
+          "src/models/request_notification.rs",
+          "src/models/sender.rs",
+          "src/models/start_agent_response_request.rs",
+          "src/models/stream_frame.rs",
+          "src/models/stream_session.rs",
+          "src/models/update_device_twin_desired_request.rs",
+          "src/models/update_device_twin_reported_request.rs"
         ]
       },
       {
         "area": "runtime",
         "paths": [
-          "src/http/client.rs"
+          "src/http/client.rs",
+          "src/http/mod.rs"
         ]
       },
       {
@@ -45,18 +85,20 @@
       {
         "area": "documentation",
         "paths": [
+          "CHANGELOG.md",
           "README.md"
         ]
       },
       {
         "area": "unknown",
         "paths": [
+          "LICENSE",
           "src/client.rs"
         ]
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required."
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required."
   },
   "executionDecision": {
     "schemaVersion": 1,
@@ -66,8 +108,8 @@
     "applyRequiresExpectedFingerprint": false,
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "backed-up-generated-files",
       "manual-review-required",
+      "preserved-legacy-files",
       "unknown-impact",
       "verification-required"
     ]
@@ -80,8 +122,8 @@
         "id": "verify-check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -98,8 +140,8 @@
         "id": "verify-build",
         "title": "Unified package build",
         "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -117,14 +159,14 @@
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -141,8 +183,8 @@
         "id": "build",
         "title": "Unified package build",
         "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -162,7 +204,7 @@
     "version": "0.1.0",
     "language": "rust",
     "sdkType": "app",
-    "outputPath": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
+    "outputPath": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
     "packageName": "sdkwork-im-app-api-generated"
   },
   "versioning": {
@@ -170,36 +212,27 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 47,
+    "totalFiles": 46,
     "models": 22,
-    "apis": 7,
+    "apis": 6,
     "types": 24
   },
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 6,
+    "writtenFiles": 42,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 40,
+    "skippedUnchangedGeneratedFiles": 3,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "4bf1563da0cfff17877c9448b48f0d76be91f4724f62d23903773e8d1cf02f28",
+    "changeFingerprint": "3821f41977e401cc6aaef04ba94a5bd022562d05ffde9a071dd38b8d98b537cc",
     "changes": {
-      "createdGeneratedFiles": [],
-      "updatedGeneratedFiles": [
+      "createdGeneratedFiles": [
         "Cargo.toml",
-        "README.md",
-        "sdkwork-sdk.json",
-        "src/client.rs",
-        "src/http/client.rs",
-        "src/lib.rs"
-      ],
-      "unchangedGeneratedFiles": [
-        "bin/publish-core.mjs",
-        "bin/publish.ps1",
-        "bin/publish.sh",
         "CHANGELOG.md",
         "LICENSE",
+        "README.md",
+        "sdkwork-sdk.json",
         "src/api/automation.rs",
         "src/api/base.rs",
         "src/api/device.rs",
@@ -209,8 +242,10 @@
         "src/api/paths.rs",
         "src/api/portal.rs",
         "src/api/provider.rs",
-        "src/api/rtc.rs",
+        "src/client.rs",
+        "src/http/client.rs",
         "src/http/mod.rs",
+        "src/lib.rs",
         "src/models/agent_subject.rs",
         "src/models/agent_tool_call.rs",
         "src/models/append_agent_response_delta_request.rs",
@@ -236,24 +271,24 @@
         "src/models/update_device_twin_desired_request.rs",
         "src/models/update_device_twin_reported_request.rs"
       ],
+      "updatedGeneratedFiles": [],
+      "unchangedGeneratedFiles": [
+        "bin/publish-core.mjs",
+        "bin/publish.ps1",
+        "bin/publish.sh"
+      ],
       "deletedGeneratedFiles": [],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/README.md"
       ],
-      "backedUpFiles": [
-        "Cargo.toml",
-        "README.md",
-        "sdkwork-sdk.json",
-        "src/client.rs",
-        "src/http/client.rs",
-        "src/lib.rs"
-      ]
+      "backedUpFiles": []
     },
     "impact": {
       "schemaVersion": 1,
       "areas": [
         "api-surface",
+        "models",
         "runtime",
         "build-metadata",
         "documentation",
@@ -263,13 +298,52 @@
         {
           "area": "api-surface",
           "paths": [
+            "src/api/automation.rs",
+            "src/api/base.rs",
+            "src/api/device.rs",
+            "src/api/iot.rs",
+            "src/api/mod.rs",
+            "src/api/notification.rs",
+            "src/api/paths.rs",
+            "src/api/portal.rs",
+            "src/api/provider.rs",
             "src/lib.rs"
+          ]
+        },
+        {
+          "area": "models",
+          "paths": [
+            "src/models/agent_subject.rs",
+            "src/models/agent_tool_call.rs",
+            "src/models/append_agent_response_delta_request.rs",
+            "src/models/automation_execution_request_response.rs",
+            "src/models/automation_execution.rs",
+            "src/models/common.rs",
+            "src/models/complete_agent_response_request.rs",
+            "src/models/complete_agent_tool_call_request.rs",
+            "src/models/device_twin_view.rs",
+            "src/models/mod.rs",
+            "src/models/notification_list_response.rs",
+            "src/models/notification_request_response.rs",
+            "src/models/notification_task.rs",
+            "src/models/portal_workspace_view.rs",
+            "src/models/problem_detail.rs",
+            "src/models/request_agent_tool_call_request.rs",
+            "src/models/request_automation_execution.rs",
+            "src/models/request_notification.rs",
+            "src/models/sender.rs",
+            "src/models/start_agent_response_request.rs",
+            "src/models/stream_frame.rs",
+            "src/models/stream_session.rs",
+            "src/models/update_device_twin_desired_request.rs",
+            "src/models/update_device_twin_reported_request.rs"
           ]
         },
         {
           "area": "runtime",
           "paths": [
-            "src/http/client.rs"
+            "src/http/client.rs",
+            "src/http/mod.rs"
           ]
         },
         {
@@ -282,30 +356,32 @@
         {
           "area": "documentation",
           "paths": [
+            "CHANGELOG.md",
             "README.md"
           ]
         },
         {
           "area": "unknown",
           "paths": [
+            "LICENSE",
             "src/client.rs"
           ]
         }
       ],
       "requiresVerification": true,
-      "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required."
+      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required."
     },
     "verificationPlan": {
       "shouldRun": true,
       "runPhase": "now",
-      "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
+      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
       "steps": [
         {
           "id": "check",
           "title": "Unified package check",
           "required": true,
-          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-          "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
+          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+          "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
           "command": "node",
           "args": [
             "./bin/publish-core.mjs",
@@ -322,8 +398,8 @@
           "id": "build",
           "title": "Unified package build",
           "required": true,
-          "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-          "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
+          "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+          "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
           "command": "node",
           "args": [
             "./bin/publish-core.mjs",
@@ -346,20 +422,13 @@
       "applyRequiresExpectedFingerprint": false,
       "summary": "Changes have been applied. Run the required verification plan now.",
       "reasons": [
-        "backed-up-generated-files",
         "manual-review-required",
+        "preserved-legacy-files",
         "unknown-impact",
         "verification-required"
       ]
     },
-    "backedUpFiles": [
-      "Cargo.toml",
-      "README.md",
-      "sdkwork-sdk.json",
-      "src/client.rs",
-      "src/http/client.rs",
-      "src/lib.rs"
-    ],
-    "preservedLegacyFiles": false
+    "backedUpFiles": [],
+    "preservedLegacyFiles": true
   }
 }

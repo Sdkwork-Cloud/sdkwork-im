@@ -12,22 +12,53 @@
   "mode": "apply",
   "hasChanges": true,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "9ee57e75d659868d01dd7f81e569af48b9e2be672bf02a9e8d5833aefe9e5f13",
+  "changeFingerprint": "7f4407976689ede24220b8045a549a5e327e5144d6eb729ac33b41c02b1953e9",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
       "api-surface",
       "runtime",
       "build-metadata",
-      "documentation"
+      "documentation",
+      "unknown"
     ],
     "details": [
       {
         "area": "api-surface",
         "paths": [
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/AgentSubject.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/AgentToolCall.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/api/Api.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ApiPaths.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/api/AutomationApi.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/api/DeviceApi.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/api/IotApi.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/api/NotificationApi.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/api/PortalApi.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ProviderApi.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/AppendAgentResponseDeltaRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/AutomationExecution.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/AutomationExecutionRequestResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/CompleteAgentResponseRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/CompleteAgentToolCallRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/DeviceTwinView.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/http/HttpClient.kt",
-          "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkAppClient.kt"
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationListResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationRequestResponse.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationTask.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/PortalWorkspaceView.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/ProblemDetail.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/RequestAgentToolCallRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/RequestAutomationExecution.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/RequestNotification.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkAppClient.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkImAppClient.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/Sender.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/StartAgentResponseRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/StreamFrame.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/StreamSession.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/UpdateDeviceTwinDesiredRequest.kt",
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/UpdateDeviceTwinReportedRequest.kt"
         ]
       },
       {
@@ -40,18 +71,26 @@
         "area": "build-metadata",
         "paths": [
           "build.gradle.kts",
-          "sdkwork-sdk.json"
+          "sdkwork-sdk.json",
+          "settings.gradle.kts"
         ]
       },
       {
         "area": "documentation",
         "paths": [
+          "CHANGELOG.md",
           "README.md"
+        ]
+      },
+      {
+        "area": "unknown",
+        "paths": [
+          "LICENSE"
         ]
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required."
+    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required."
   },
   "executionDecision": {
     "schemaVersion": 1,
@@ -61,8 +100,9 @@
     "applyRequiresExpectedFingerprint": false,
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "backed-up-generated-files",
       "manual-review-required",
+      "preserved-legacy-files",
+      "unknown-impact",
       "verification-required"
     ]
   },
@@ -74,8 +114,8 @@
         "id": "verify-check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -93,14 +133,14 @@
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -120,7 +160,7 @@
     "version": "0.1.0",
     "language": "kotlin",
     "sdkType": "app",
-    "outputPath": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
+    "outputPath": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
     "packageName": "com.sdkwork:im-app-api-generated"
   },
   "versioning": {
@@ -130,51 +170,43 @@
   "stats": {
     "totalFiles": 43,
     "models": 22,
-    "apis": 7,
+    "apis": 6,
     "types": 0
   },
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 6,
+    "writtenFiles": 39,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 36,
+    "skippedUnchangedGeneratedFiles": 3,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "9ee57e75d659868d01dd7f81e569af48b9e2be672bf02a9e8d5833aefe9e5f13",
+    "changeFingerprint": "7f4407976689ede24220b8045a549a5e327e5144d6eb729ac33b41c02b1953e9",
     "changes": {
-      "createdGeneratedFiles": [],
-      "updatedGeneratedFiles": [
+      "createdGeneratedFiles": [
         "build.gradle.kts",
-        "README.md",
-        "sdkwork-sdk.json",
-        "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ApiPaths.kt",
-        "src/main/kotlin/com/sdkwork/im/app/api/generated/http/HttpClient.kt",
-        "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkAppClient.kt"
-      ],
-      "unchangedGeneratedFiles": [
-        "bin/publish-core.mjs",
-        "bin/publish.ps1",
-        "bin/publish.sh",
         "CHANGELOG.md",
         "LICENSE",
+        "README.md",
+        "sdkwork-sdk.json",
         "settings.gradle.kts",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/AgentSubject.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/AgentToolCall.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/api/Api.kt",
+        "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ApiPaths.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/api/AutomationApi.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/api/DeviceApi.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/api/IotApi.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/api/NotificationApi.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/api/PortalApi.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ProviderApi.kt",
-        "src/main/kotlin/com/sdkwork/im/app/api/generated/api/RtcApi.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/AppendAgentResponseDeltaRequest.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/AutomationExecution.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/AutomationExecutionRequestResponse.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/CompleteAgentResponseRequest.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/CompleteAgentToolCallRequest.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/DeviceTwinView.kt",
+        "src/main/kotlin/com/sdkwork/im/app/api/generated/http/HttpClient.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationListResponse.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationRequestResponse.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationTask.kt",
@@ -183,6 +215,8 @@
         "src/main/kotlin/com/sdkwork/im/app/api/generated/RequestAgentToolCallRequest.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/RequestAutomationExecution.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/RequestNotification.kt",
+        "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkAppClient.kt",
+        "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkImAppClient.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/Sender.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/StartAgentResponseRequest.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/StreamFrame.kt",
@@ -190,19 +224,18 @@
         "src/main/kotlin/com/sdkwork/im/app/api/generated/UpdateDeviceTwinDesiredRequest.kt",
         "src/main/kotlin/com/sdkwork/im/app/api/generated/UpdateDeviceTwinReportedRequest.kt"
       ],
+      "updatedGeneratedFiles": [],
+      "unchangedGeneratedFiles": [
+        "bin/publish-core.mjs",
+        "bin/publish.ps1",
+        "bin/publish.sh"
+      ],
       "deletedGeneratedFiles": [],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/README.md"
       ],
-      "backedUpFiles": [
-        "build.gradle.kts",
-        "README.md",
-        "sdkwork-sdk.json",
-        "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ApiPaths.kt",
-        "src/main/kotlin/com/sdkwork/im/app/api/generated/http/HttpClient.kt",
-        "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkAppClient.kt"
-      ]
+      "backedUpFiles": []
     },
     "impact": {
       "schemaVersion": 1,
@@ -210,15 +243,46 @@
         "api-surface",
         "runtime",
         "build-metadata",
-        "documentation"
+        "documentation",
+        "unknown"
       ],
       "details": [
         {
           "area": "api-surface",
           "paths": [
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/AgentSubject.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/AgentToolCall.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/api/Api.kt",
             "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ApiPaths.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/api/AutomationApi.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/api/DeviceApi.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/api/IotApi.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/api/NotificationApi.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/api/PortalApi.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ProviderApi.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/AppendAgentResponseDeltaRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/AutomationExecution.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/AutomationExecutionRequestResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/CompleteAgentResponseRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/CompleteAgentToolCallRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/DeviceTwinView.kt",
             "src/main/kotlin/com/sdkwork/im/app/api/generated/http/HttpClient.kt",
-            "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkAppClient.kt"
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationListResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationRequestResponse.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationTask.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/PortalWorkspaceView.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/ProblemDetail.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/RequestAgentToolCallRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/RequestAutomationExecution.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/RequestNotification.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkAppClient.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkImAppClient.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/Sender.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/StartAgentResponseRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/StreamFrame.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/StreamSession.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/UpdateDeviceTwinDesiredRequest.kt",
+            "src/main/kotlin/com/sdkwork/im/app/api/generated/UpdateDeviceTwinReportedRequest.kt"
           ]
         },
         {
@@ -231,30 +295,38 @@
           "area": "build-metadata",
           "paths": [
             "build.gradle.kts",
-            "sdkwork-sdk.json"
+            "sdkwork-sdk.json",
+            "settings.gradle.kts"
           ]
         },
         {
           "area": "documentation",
           "paths": [
+            "CHANGELOG.md",
             "README.md"
+          ]
+        },
+        {
+          "area": "unknown",
+          "paths": [
+            "LICENSE"
           ]
         }
       ],
       "requiresVerification": true,
-      "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required."
+      "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required."
     },
     "verificationPlan": {
       "shouldRun": true,
       "runPhase": "now",
-      "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+      "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
       "steps": [
         {
           "id": "check",
           "title": "Unified package check",
           "required": true,
-          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation.",
-          "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
+          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
+          "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
           "command": "node",
           "args": [
             "./bin/publish-core.mjs",
@@ -277,19 +349,13 @@
       "applyRequiresExpectedFingerprint": false,
       "summary": "Changes have been applied. Run the required verification plan now.",
       "reasons": [
-        "backed-up-generated-files",
         "manual-review-required",
+        "preserved-legacy-files",
+        "unknown-impact",
         "verification-required"
       ]
     },
-    "backedUpFiles": [
-      "build.gradle.kts",
-      "README.md",
-      "sdkwork-sdk.json",
-      "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ApiPaths.kt",
-      "src/main/kotlin/com/sdkwork/im/app/api/generated/http/HttpClient.kt",
-      "src/main/kotlin/com/sdkwork/im/app/api/generated/SdkworkAppClient.kt"
-    ],
-    "preservedLegacyFiles": false
+    "backedUpFiles": [],
+    "preservedLegacyFiles": true
   }
 }

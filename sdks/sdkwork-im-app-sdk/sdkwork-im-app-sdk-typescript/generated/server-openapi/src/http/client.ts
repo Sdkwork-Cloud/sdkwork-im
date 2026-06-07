@@ -175,11 +175,9 @@ export class HttpClient extends BaseHttpClient {
     }
     params.append(key, String(value));
   }
-
   setAuthToken(token: string): void {
     super.setAuthToken(token);
   }
-
   setAccessToken(token: string): void {
     const headers = this.getInternalHeaders();
     headers[HttpClient.ACCESS_TOKEN_HEADER] = token;
@@ -217,8 +215,8 @@ export class HttpClient extends BaseHttpClient {
     const { body, headers, contentType, method = 'GET', ...rest } = options;
     const requestHeaders = this.applySdkworkAuthHeaders(headers);
     return withRetry(
-      () => execute.call(this, {
-        url: path,
+      () => execute.call(this, { 
+        url: path, 
         method,
         ...rest,
         body: this.buildRequestBody(body, contentType),

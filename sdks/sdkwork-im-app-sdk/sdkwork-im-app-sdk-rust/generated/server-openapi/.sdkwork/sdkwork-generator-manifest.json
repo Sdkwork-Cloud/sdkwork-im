@@ -35,7 +35,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "2601f7589487db0728be28ec9dfe084a4776dc39a98115914b9d02e3092391d6"
+      "sha256": "98d6c1de34a8b6dd9cd69bc38be53f8b3e75526f22ad78f49d29277b52c256d2"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -59,7 +59,7 @@
     },
     {
       "path": "src/api/mod.rs",
-      "sha256": "abdce7277df4340df9e94412a9b3b1fb4225068a6ed922f5c0d929a072d06a50"
+      "sha256": "e75094c8df82d3a4a2da2881adbc0f61c92306c9f4108dad4d2898638131e2c8"
     },
     {
       "path": "src/api/notification.rs",
@@ -78,16 +78,12 @@
       "sha256": "9bb43c09a6b1408a84ab247d32d391aac7d193ed697921c5305c2063aefd4de1"
     },
     {
-      "path": "src/api/rtc.rs",
-      "sha256": "7196f4d0be084305a30adacee137ddec4a92434941a42803720b759f5034ebfb"
-    },
-    {
       "path": "src/client.rs",
-      "sha256": "73a217effef084aee36029c1ecbe680a17c64d65b963a6830140ef5ebe499d3a"
+      "sha256": "d4c41a79bf3d4e10cd37060e58025dc7df41066ba39e0a5713b84b537c4d434e"
     },
     {
       "path": "src/http/client.rs",
-      "sha256": "71567159850fdd8b855c72439bf9d9104151dcd8a6ed687918b6015ce86b1c94"
+      "sha256": "a8facda75772a61c2ff014fa2904934b7dc24e74d52c2debf9983186acef31e4"
     },
     {
       "path": "src/http/mod.rs",
@@ -95,7 +91,7 @@
     },
     {
       "path": "src/lib.rs",
-      "sha256": "851fdaf6863fa8d592a6b9bd4c91084ee727b3854d88cc0ea68645fb919bbab5"
+      "sha256": "cf169930d68465303de3143f5074fcf98fce2142f99e4a5945e6a6c01a3c4d06"
     },
     {
       "path": "src/models/agent_subject.rs",

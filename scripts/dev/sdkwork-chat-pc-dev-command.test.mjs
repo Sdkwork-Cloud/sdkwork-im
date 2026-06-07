@@ -1,6 +1,7 @@
 ﻿import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -26,6 +27,18 @@ const desktopLockfileSource = fs.readFileSync(
 );
 const unifiedWebSource = fs.readFileSync(
   path.join(repoRoot, 'scripts/dev/start-craw-chat-unified-web.mjs'),
+  'utf8',
+);
+const localMinimalNodeCargoSource = fs.readFileSync(
+  path.join(repoRoot, 'services/local-minimal-node/Cargo.toml'),
+  'utf8',
+);
+const imDomainCoreCargoSource = fs.readFileSync(
+  path.join(repoRoot, 'crates/im-domain-core/Cargo.toml'),
+  'utf8',
+);
+const imPlatformContractsCargoSource = fs.readFileSync(
+  path.join(repoRoot, 'crates/im-platform-contracts/Cargo.toml'),
   'utf8',
 );
 const postgresEnvExampleSource = fs.readFileSync(
@@ -157,6 +170,33 @@ assert.ok(
   !localAppApiSource.includes('run-local-minimal.mjs'),
   'legacy local app API wrapper must not start a second runtime beside the unified Rust server',
 );
+assert.doesNotMatch(
+  localMinimalNodeCargoSource,
+  /[A-Za-z]:[\\/]/u,
+  'local-minimal-node Rust manifest must not point to an absolute checkout path',
+);
+assert.ok(
+  localMinimalNodeCargoSource.includes(
+    'sdkwork-agent-business = { path = "../../../sdkwork-kernel/sdkwork-agent-business", features = ["http-axum"] }',
+  ),
+  'local-minimal-node must link sdkwork-agent-business from the sibling sdkwork-kernel checkout',
+);
+for (const cargoSource of [
+  localMinimalNodeCargoSource,
+  imDomainCoreCargoSource,
+  imPlatformContractsCargoSource,
+]) {
+  assert.doesNotMatch(
+    cargoSource,
+    /[A-Za-z]:[\\/]([^\\/]+[\\/])*sdkwork-rtc/u,
+    'Craw Chat Rust manifests must not point RTC dependencies at an absolute checkout path',
+  );
+  assert.match(
+    cargoSource,
+    /\.\.\/\.\.\/\.\.\/sdkwork-rtc\/crates\/sdkwork-rtc-core/u,
+    'Craw Chat Rust manifests that depend on sdkwork-rtc-core must link the sibling sdkwork-rtc checkout',
+  );
+}
 assert.ok(
   desktopWorkspaceSource.includes('catalog:'),
   'desktop workspace must define catalog entries used by imported SDKWork packages',
@@ -201,10 +241,11 @@ assert.match(
 const sharedDependencyNames = [
   '@sdkwork-internal/im-app-api-generated',
   '@sdkwork-internal/im-backend-api-generated',
+  '@sdkwork/appbase-app-sdk',
   '@sdkwork/appbase-pc-react',
   '@sdkwork/auth-pc-react',
+  '@sdkwork/auth-runtime-pc-react',
   '@sdkwork/core-pc-react',
-  '@sdkwork/iam-sdk-adapter',
   '@sdkwork/iam-sdk-ports',
   '@sdkwork/im-sdk',
   '@sdkwork/i18n-pc-react',
@@ -228,8 +269,9 @@ const sharedSdkOverrides = chatPcPackageJson.pnpm?.overrides ?? {};
 for (const [dependencyName, expectedVersion] of Object.entries({
   '@sdkwork-internal/im-app-api-generated': 'link:../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi',
   '@sdkwork-internal/im-backend-api-generated': 'link:../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi',
+  '@sdkwork/appbase-app-sdk': 'link:../../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi',
   '@sdkwork/im-sdk': 'link:../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript',
-  '@sdkwork/rtc-sdk': 'link:../../../../../../../sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript',
+  '@sdkwork/rtc-sdk': 'link:../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript',
 })) {
   assert.equal(
     sharedSdkOverrides[dependencyName],
@@ -847,6 +889,39 @@ assert.ok(
     && devRunnerSource.includes('/F'),
   'dev runner shutdown must terminate Windows process trees so cargo grandchildren cannot keep target/debug/craw-chat-server.exe locked',
 );
+
+const chatPcAppRoot = path.join(repoRoot, 'apps/sdkwork-chat-pc');
+const appRequire = createRequire(path.join(chatPcAppRoot, 'package.json'));
+const { createServer } = await import(pathToFileURL(appRequire.resolve('vite')).href);
+const viteServer = await createServer({
+  configFile: path.join(chatPcAppRoot, 'vite.config.ts'),
+  logLevel: 'silent',
+  root: chatPcAppRoot,
+  server: {
+    hmr: false,
+    middlewareMode: true,
+  },
+});
+try {
+  const mainEntry = path.join(chatPcAppRoot, 'src/main.tsx');
+  const jsxDevRuntime = await viteServer.pluginContainer.resolveId('react/jsx-dev-runtime', mainEntry);
+  assert.ok(jsxDevRuntime, 'Vite must resolve the React JSX dev runtime import injected for TSX dev builds');
+  const resolvedJsxDevRuntimePath = path.normalize(jsxDevRuntime.id.split('?')[0]);
+  assert.doesNotMatch(
+    resolvedJsxDevRuntimePath,
+    /react[\\/]index\.js[\\/]jsx-dev-runtime$/u,
+    'Vite must not append react/jsx-dev-runtime to the bare react/index.js alias',
+  );
+  assert.ok(
+    [
+      path.normalize(path.join(chatPcAppRoot, 'node_modules/react/jsx-dev-runtime.js')),
+      path.normalize(path.join(chatPcAppRoot, 'node_modules/.vite/deps/react_jsx-dev-runtime.js')),
+    ].includes(resolvedJsxDevRuntimePath),
+    'Vite must resolve react/jsx-dev-runtime from the chat PC dependency root instead of appending it to react/index.js',
+  );
+} finally {
+  await viteServer.close();
+}
 
 assert.throws(
   () => createSdkworkChatPcDevPlan({ argv: ['--target', 'mobile'], env: {}, repoRoot }),

@@ -1,20 +1,171 @@
-# sdkwork-im-app-sdk
+# sdkwork-im-app-sdk (Rust)
 
-Generator-owned Rust transport SDK for the Craw Chat app-development API.
+Generated SDKWork v3 dual-token transport SDK.
 
-This package is generated transport. It targets `/app/v3/api` and is not a login,
-user, tenant, organization, or account-session SDK. Those identity and token lifecycles are
-owned by `sdkwork-appbase`; this SDK only forwards the already validated dual-token context.
+## Installation
 
-## Token Boundary
+```bash
+cargo add sdkwork-im-app-api-generated
+```
 
-- `Authorization: Bearer <authToken>` carries the upstream authenticated principal context.
-- `Access-Token: <accessToken>` carries the upstream access token context.
-- Login, refresh, current-user, tenant, organization, and account-session APIs stay outside this package.
+## Quick Start
 
+```rust
+use sdkwork_im_app_api_generated::{SdkworkImAppClient, SdkworkConfig};
+
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = SdkworkImAppClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+    client.set_auth_token("your-auth-token");
+client.set_access_token("your-access-token");
+
+    let result = client.iot().access_provider_health_retrieve().await?;
+    println!("{result:?}");
+    Ok(())
+}
+```
+
+## Authentication
+
+```text
+Authorization: Bearer <authToken>
+Access-Token: <accessToken>
+```
+
+
+## Configuration (Non-Auth)
+
+```rust
+let client = SdkworkImAppClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+client.set_header("X-Custom-Header", "value");
+```
+
+## API Modules
+
+- `client.automation()` - automation API
+- `client.device()` - device API
+- `client.notification()` - notification API
+- `client.portal()` - portal API
+- `client.provider()` - provider API
+- `client.iot()` - iot API
+
+## Usage Examples
+
+### automation
+
+```rust
+use sdkwork_im_app_api_generated::*;
+// Start an agent response stream
+let body = StartAgentResponseRequest {
+    execution_id: "1".to_string(),
+    stream_id: "1".to_string(),
+    stream_type: "streamtype".to_string(),
+    conversation_id: "1".to_string(),
+    schema_ref: Some("schemaref".to_string()),
+    member_id: Some("1".to_string()),
+    agent: AgentSubject::default(),
+    ..Default::default()
+};
+let result = client.automation().agent_responses_create(&body).await?;
+println!("{result:?}");
+```
+
+### device
+
+```rust
+// Get the device twin
+let device_id = "1";
+let result = client.device().devices_twin_retrieve(device_id).await?;
+println!("{result:?}");
+```
+
+### notification
+
+```rust
+// List notifications for the current principal
+let result = client.notification().notifications_list().await?;
+println!("{result:?}");
+```
+
+### portal
+
+```rust
+// Read the tenant portal sign-in snapshot
+let result = client.portal().access_retrieve().await?;
+println!("{result:?}");
+```
+
+### provider
+
+```rust
+// Retrieve media provider health
+let result = client.provider().media_health_retrieve().await?;
+println!("{result:?}");
+```
+
+### iot
+
+```rust
+// Retrieve IoT access provider health
+let result = client.iot().access_provider_health_retrieve().await?;
+println!("{result:?}");
+```
+
+## Error Handling
+
+```rust
+use sdkwork_im_app_api_generated::{SdkworkImAppClient, SdkworkConfig};
+
+
+let client = SdkworkImAppClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+
+let outcome: Result<(), _> = async {
+    client.iot().access_provider_health_retrieve().await?;
+    Ok(())
+}.await;
+
+match outcome {
+    Ok(()) => println!("request completed"),
+    Err(error) => eprintln!("request failed: {error}"),
+}
+```
+
+## Publishing
+
+This SDK includes cross-platform publish scripts in `bin/`:
+- `bin/publish-core.mjs`
+- `bin/publish.sh`
+- `bin/publish.ps1`
+
+### Check
+
+```bash
+./bin/publish.sh --action check
+```
+
+### Publish
+
+```bash
+./bin/publish.sh --action publish --channel release
+```
+
+```powershell
+.\bin\publish.ps1 --action publish --channel test --dry-run
+```
+
+> Set cargo registry credentials before `cargo publish` and use `--dry-run` first.
+
+## License
+
+MIT
 
 ## Regeneration Contract
 
-- Generated files are tracked by the SDK generator under `.sdkwork/`.
-- Fix runtime, OpenAPI, or family generator inputs first, then regenerate.
-- Hand-written application wrappers must live outside `generated/server-openapi`.
+- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
+- Put hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across regenerations.
+- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.

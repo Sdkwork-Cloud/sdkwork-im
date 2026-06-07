@@ -7,7 +7,7 @@ public class ProviderPolicyRollbackRequest {
     public Integer getTargetVersion() {
         return this.targetVersion;
     }
-
+    
     public void setTargetVersion(Integer targetVersion) {
         this.targetVersion = targetVersion;
     }

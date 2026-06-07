@@ -14,7 +14,7 @@ public class ApplySharedChannelPolicyRequest {
     public String getAppliedAt() {
         return this.appliedAt;
     }
-
+    
     public void setAppliedAt(String appliedAt) {
         this.appliedAt = appliedAt;
     }
@@ -22,7 +22,7 @@ public class ApplySharedChannelPolicyRequest {
     public String getChannelId() {
         return this.channelId;
     }
-
+    
     public void setChannelId(String channelId) {
         this.channelId = channelId;
     }
@@ -30,7 +30,7 @@ public class ApplySharedChannelPolicyRequest {
     public String getConnectionId() {
         return this.connectionId;
     }
-
+    
     public void setConnectionId(String connectionId) {
         this.connectionId = connectionId;
     }
@@ -38,7 +38,7 @@ public class ApplySharedChannelPolicyRequest {
     public String getConversationId() {
         return this.conversationId;
     }
-
+    
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -46,7 +46,7 @@ public class ApplySharedChannelPolicyRequest {
     public String getEventId() {
         return this.eventId;
     }
-
+    
     public void setEventId(String eventId) {
         this.eventId = eventId;
     }
@@ -54,7 +54,7 @@ public class ApplySharedChannelPolicyRequest {
     public String getHistoryVisibility() {
         return this.historyVisibility;
     }
-
+    
     public void setHistoryVisibility(String historyVisibility) {
         this.historyVisibility = historyVisibility;
     }
@@ -62,7 +62,7 @@ public class ApplySharedChannelPolicyRequest {
     public String getPolicyId() {
         return this.policyId;
     }
-
+    
     public void setPolicyId(String policyId) {
         this.policyId = policyId;
     }
@@ -70,7 +70,7 @@ public class ApplySharedChannelPolicyRequest {
     public Integer getPolicyVersion() {
         return this.policyVersion;
     }
-
+    
     public void setPolicyVersion(Integer policyVersion) {
         this.policyVersion = policyVersion;
     }

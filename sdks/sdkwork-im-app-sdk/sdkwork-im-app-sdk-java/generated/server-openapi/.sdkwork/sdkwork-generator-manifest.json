@@ -35,7 +35,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "c9f6b29b090fdba460c5b85bc40bb578f292b0526098be49312ab98f098d85c0"
+      "sha256": "6f5d79f157b460681d2508a780dd28350dedc0fe68ecb44704bdfa3cf041673f"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -63,7 +63,7 @@
     },
     {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/api/package-info.java",
-      "sha256": "47c2bed65be4cc1a70a68f3b7ca0348ca0d06d519fdd68f0a1713ae2078eaf02"
+      "sha256": "db44c87442284e9204362eb13d1f3643aa627ae1385a5911be8412a727c38ba5"
     },
     {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/api/PortalApi.java",
@@ -74,12 +74,8 @@
       "sha256": "d521334195ceb77643db49fa8241d928f48e8367da3516e98b6a92ff8cd42df7"
     },
     {
-      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/RtcApi.java",
-      "sha256": "bb2f4e058f121f7217da30b4e843955d3b01677aff70428d9709ddd704650e91"
-    },
-    {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/http/HttpClient.java",
-      "sha256": "8d0c280061307090be810d37a92786039225a4bdad43f6fd8825e114d7bc2891"
+      "sha256": "bbb5ff3785ec2ab0b7bca799fc0451af76813a00d7d8efaf6da2c4dbbc1a0212"
     },
     {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/model/AgentSubject.java",
@@ -171,7 +167,11 @@
     },
     {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/SdkworkAppClient.java",
-      "sha256": "b004616f84ee0538b9ba3bc165d2344c959c15ee3e62ec08cf41b9f694f325e4"
+      "sha256": "6f4d56509e24ff72f02170ea046e5d2f03cd6b786c542d166485d30e4e14b01f"
+    },
+    {
+      "path": "src/main/java/com/sdkwork/im/app/api/generated/SdkworkImAppClient.java",
+      "sha256": "58ef95b691ec3942e37a4827f8eefea498b51087a7370275d940bd6c4b129561"
     }
   ],
   "scaffoldFiles": [

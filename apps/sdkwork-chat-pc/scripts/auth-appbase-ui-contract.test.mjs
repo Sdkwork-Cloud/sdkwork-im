@@ -14,11 +14,34 @@ function readJson(...segments) {
   return JSON.parse(readText(...segments));
 }
 
+function extractObjectPropertyBlock(source, propertyName) {
+  const propertyMatch = new RegExp(`\\b${propertyName}\\s*:\\s*\\{`, 'u').exec(source);
+  assert.ok(propertyMatch, `Expected object property ${propertyName} in source.`);
+
+  const openBraceIndex = source.indexOf('{', propertyMatch.index);
+  let depth = 0;
+  for (let index = openBraceIndex; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === '{') {
+      depth += 1;
+    } else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(openBraceIndex, index + 1);
+      }
+    }
+  }
+
+  throw new Error(`Could not find closing brace for object property ${propertyName}.`);
+}
+
 const authGateSource = readText('src', 'AuthGate.tsx');
 const appSource = readText('src', 'App.tsx');
 const authStylesSource = readText('src', 'index.css');
 const appAuthServiceSource = readText('packages', 'sdkwork-clawchat-pc-core', 'src', 'sdk', 'appAuthService.ts');
 const authRuntimeSource = readText('packages', 'sdkwork-clawchat-pc-core', 'src', 'sdk', 'appAuthRuntime.ts');
+const sessionSource = readText('packages', 'sdkwork-clawchat-pc-core', 'src', 'sdk', 'session.ts');
+const chatServiceSource = readText('packages', 'sdkwork-clawchat-pc-chat', 'src', 'services', 'ChatService.ts');
 const chatLayoutSource = readText('packages', 'sdkwork-clawchat-pc-chat', 'src', 'pages', 'ChatLayout.tsx');
 const sidebarSource = readText('packages', 'sdkwork-clawchat-pc-chat', 'src', 'components', 'Sidebar.tsx');
 const profileMenuSource = readText('packages', 'sdkwork-clawchat-pc-chat', 'src', 'components', 'ProfileMenuModal.tsx');
@@ -210,7 +233,7 @@ assert.match(
 
 assert.match(
   authRuntimeSource,
-  /verificationPolicy[\s\S]*emailCodeLoginEnabled:\s*false[\s\S]*emailRegistrationVerificationRequired:\s*false[\s\S]*phoneCodeLoginEnabled:\s*false[\s\S]*phoneRegistrationVerificationRequired:\s*false/u,
+  /SDKWORK_CHAT_VERIFICATION_POLICY[\s\S]*emailCodeLoginEnabled:\s*false[\s\S]*emailRegistrationVerificationRequired:\s*false[\s\S]*phoneCodeLoginEnabled:\s*false[\s\S]*phoneRegistrationVerificationRequired:\s*false[\s\S]*verificationPolicy:\s*SDKWORK_CHAT_VERIFICATION_POLICY/u,
   'SDKWork Chat IAM runtime must disable email/phone code login and registration verification codes by default.',
 );
 
@@ -240,118 +263,98 @@ assert.match(
 
 assert.match(
   authRuntimeSource,
-  /auth:[\s\S]*sessions:[\s\S]*create[\s\S]*registrations:[\s\S]*create[\s\S]*verificationCodes:[\s\S]*create[\s\S]*verify/u,
-  'SDKWork Chat IAM runtime must adapt sessions, registrations, and verificationCodes to the generated app SDK backed service.',
-);
-
-assert.match(
-  authRuntimeSource,
-  /openPlatform:[\s\S]*qrAuth:[\s\S]*sessions:[\s\S]*create[\s\S]*retrieve[\s\S]*scans:[\s\S]*create[\s\S]*passwords:[\s\S]*create/u,
-  'SDKWork Chat IAM runtime must expose appbase-standard openPlatform.qrAuth.sessions methods.',
-);
-
-assert.match(
-  authRuntimeSource,
-  /createAppAuthService\(\s*\(\)\s*=>\s*getAppSdkClientWithSession/u,
-  'SDKWork Chat IAM runtime must inject the current sdkwork-im-app-sdk client into the auth service boundary.',
+  /createSdkworkAppbasePcAuthRuntime/u,
+  'SDKWork Chat IAM runtime must use the standard appbase PC auth runtime factory.',
 );
 
 assert.match(
   appAuthServiceSource,
-  /createIamAppSdkAdapter\(\s*getClient\(\)\s*\)/u,
-  'SDKWork Chat auth service must pass the generated app SDK directly to the shared appbase IAM adapter.',
+  /import\s+\{[\s\S]*createSdkworkAuthAppbaseIntegration[\s\S]*\}\s+from\s+['"]@sdkwork\/auth-pc-react['"]/u,
+  'SDKWork Chat auth service must consume the high-level appbase auth integration factory from @sdkwork/auth-pc-react.',
+);
+
+assert.match(
+  appAuthServiceSource,
+  /createSdkworkAuthAppbaseIntegration\(\s*\{[\s\S]*app:\s*\{[\s\S]*id:\s*['"]sdkwork-chat-pc['"][\s\S]*title:\s*['"]SDKWork Chat PC['"][\s\S]*basePath:\s*['"]\/auth['"][\s\S]*extraPackageNames:\s*\[\s*['"]@sdkwork\/im-pc-react['"],?\s*\]/u,
+  'SDKWork Chat auth service must provide only app identity, auth base path, and product extra packages to the high-level auth integration factory.',
 );
 
 assert.doesNotMatch(
   appAuthServiceSource,
-  /function\s+createBoundIamAppSdkClient\(/u,
-  'SDKWork Chat auth service must not keep app-local generated SDK binding glue; appbase IAM adapter owns generated SDK method binding.',
-);
-
-assert.doesNotMatch(
-  appAuthServiceSource,
-  /resolveQrAuthSessionKey/u,
-  'SDKWork Chat auth service must not keep app-local QR sessionKey path normalization; appbase IAM adapter owns QR path parameter normalization.',
-);
-
-assert.doesNotMatch(
-  appAuthServiceSource,
-  /createIamAppSdkAdapter\(\s*createBoundIamAppSdkClient/u,
-  'SDKWork Chat auth service must not wrap the generated SDK before appbase IAM adapter.',
-);
-
-assert.match(
-  appAuthServiceSource,
-  /createQrAuthPassword\([^)]*\):\s*Promise<\s*QrAuthSession\s*>/u,
-  'QR password completion must return the canonical QrAuthSession envelope instead of an app-local session-only DTO.',
-);
-
-assert.doesNotMatch(
-  appAuthServiceSource,
-  /resolveQrAuthPasswordSession/u,
-  'SDKWork Chat auth service must not keep app-local QR password response shape fallback; the OpenAPI contract is QrAuthSession.',
-);
-
-assert.match(
-  appAuthServiceSource,
-  /unwrapIamSdkResponse<\s*QrAuthSession\s*>[\s\S]*openPlatform\.qrAuth\.sessions\.passwords\.create/u,
-  'QR password completion must pass through the shared appbase IAM envelope helper and preserve the QrAuthSession DTO.',
-);
-
-assert.doesNotMatch(
-  authRuntimeSource,
-  /toRuntimeSession\(\s*await\s+service\.createQrAuthPassword/u,
-  'SDKWork Chat IAM runtime must return the canonical QrAuthSession to appbase instead of converting QR password completion into a session-only DTO.',
-);
-
-assert.match(
-  appAuthServiceSource,
-  /import\s*\{[^}]*unwrapIamSdkResponse[^}]*\}\s*from\s*['"]@sdkwork\/iam-sdk-adapter['"]/u,
-  'SDKWork Chat auth service must consume the shared appbase IAM response envelope helper instead of defining app-local envelope logic.',
-);
-
-assert.match(
-  appAuthServiceSource,
-  /unwrapIamSdkResponse<\s*QrAuthSession\s*>[\s\S]*openPlatform\.qrAuth\.sessions\.create/u,
-  'QR session creation must pass through the shared appbase IAM envelope helper before appbase auth components consume the session DTO.',
-);
-
-assert.match(
-  appAuthServiceSource,
-  /unwrapIamSdkResponse<\s*QrAuthSession\s*>[\s\S]*openPlatform\.qrAuth\.sessions\.retrieve/u,
-  'QR session polling must pass through the shared appbase IAM envelope helper before appbase auth components consume the status DTO.',
-);
-
-for (const [methodMarker, message] of [
-  ['getIam().auth.sessions.create', 'password login must go through the shared appbase IAM adapter'],
-  ['getIam().auth.registrations.create', 'registration must go through the shared appbase IAM adapter'],
-  ['getIam().auth.sessions.current.retrieve', 'session restore must go through the shared appbase IAM adapter'],
-  ['getIam().auth.sessions.current.delete', 'logout must go through the shared appbase IAM adapter'],
-  ['getIam().auth.sessions.refresh', 'token refresh must go through the shared appbase IAM adapter'],
-  ['getIam().auth.verificationCodes.create', 'verification code creation must go through the shared appbase IAM adapter'],
-  ['getIam().auth.verificationCodes.verify', 'verification code verification must go through the shared appbase IAM adapter'],
-  ['getIam().openPlatform.qrAuth.sessions.create', 'QR session creation must go through the shared appbase IAM adapter'],
-  ['getIam().openPlatform.qrAuth.sessions.retrieve', 'QR session polling must go through the shared appbase IAM adapter'],
-  ['getIam().openPlatform.qrAuth.sessions.scans.create', 'QR scan recording must go through the shared appbase IAM adapter'],
-  ['getIam().openPlatform.qrAuth.sessions.passwords.create', 'QR password confirmation must go through the shared appbase IAM adapter'],
-]) {
-  assert.match(
-    appAuthServiceSource,
-    new RegExp(methodMarker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'),
-    message,
-  );
-}
-
-assert.match(
-  authRuntimeSource,
-  /context[\s\S]*sessionId/u,
-  'SDKWork Chat IAM runtime must preserve AuthSession.context/sessionId for login state continuity.',
+  /createSdkworkAppCapabilityPresetManifest|createAuthRouteCatalog|appbasePackageMeta|authPackageMeta|@sdkwork\/appbase-pc-react|@sdkwork\/auth-pc-react\/auth/u,
+  'SDKWork Chat auth service must not hand-build appbase/auth package metadata or auth route catalogs.',
 );
 
 assert.match(
   authRuntimeSource,
-  /user:\s*session\.user\s*\?\?\s*session\.userInfo\s*\?\?\s*existingSession\?\.user/u,
-  'SDKWork Chat IAM runtime tokenStore must preserve appbase user/userInfo when token updates merge into the stored session.',
+  /from\s+['"]@sdkwork\/auth-runtime-pc-react['"]/u,
+  'SDKWork Chat IAM runtime must consume the high-level appbase auth runtime package.',
+);
+
+assert.match(
+  authRuntimeSource,
+  /appbaseAppApiBaseUrl:\s*resolveAppSdkBaseUrl\(\)[\s\S]*appbaseBackendApiBaseUrl:\s*resolveBackendSdkBaseUrl\(\)/u,
+  'SDKWork Chat IAM runtime must pass appbase app/backend base URLs into the standard factory.',
+);
+
+assert.match(
+  authRuntimeSource,
+  /sdkClients:\s*getAuthenticatedSdkClients\(\)[\s\S]*tokenManager:\s*getSdkworkChatGlobalTokenManager\(\)/u,
+  'SDKWork Chat IAM runtime must inject downstream SDK clients and the shared global token manager through the appbase factory.',
+);
+
+assert.match(
+  authRuntimeSource,
+  /sessionBridge:\s*\{[\s\S]*clearSession:\s*clearSdkworkChatIamRuntimeSession[\s\S]*commitSession:\s*\(session\)\s*=>\s*applyAppSdkSessionTokens\(session\s+as\s+SdkworkChatSession\)[\s\S]*readSession:\s*readAppSdkSessionTokens/u,
+  'SDKWork Chat IAM runtime must supply only app-owned read/commit/clear session hooks to the appbase factory.',
+);
+
+assert.doesNotMatch(
+  authRuntimeSource,
+  /tokenStore:\s*\{|contextStore:\s*|createIamShardingContext|IamAppContext|SdkworkChatAppContext|readStoredRuntimeSession|persistRuntimeTokenStoreSession|persistRuntimeAppContext|createSdkworkChatIamContextStore/u,
+  'SDKWork Chat IAM runtime must not hand-build appbase tokenStore/contextStore or sharding context after sessionBridge migration.',
+);
+
+assert.doesNotMatch(
+  `${authRuntimeSource}\n${appAuthServiceSource}`,
+  /@sdkwork\/iam-sdk-adapter|createIamAppSdkAdapter|unwrapIamSdkResponse|getIam\(\)/u,
+  'SDKWork Chat auth integration must not import or call the lower-level IAM SDK adapter after moving to appbase high-level auth runtime.',
+);
+
+assert.doesNotMatch(
+  appAuthServiceSource,
+  /login\s*\(|register\s*\(|refreshToken\s*\(|sendVerifyCode|verifyCode|createQrAuth/u,
+  'SDKWork Chat auth service must not expose product-local login, registration, refresh, verification-code, or QR auth methods.',
+);
+
+assert.doesNotMatch(
+  `${authRuntimeSource}\n${appAuthServiceSource}`,
+  /(?:service\.)?auth\.sessions\.create|(?:service\.)?auth\.registrations\.create|(?:service\.)?auth\.sessions\.refresh/u,
+  'SDKWork Chat product code must not remap login, registration, or refresh calls; appbase auth runtime owns those flows.',
+);
+
+assert.match(
+  appAuthServiceSource,
+  /getCurrentSession\(\)[\s\S]*service\.auth\.sessions\.current\.retrieve/u,
+  'SDKWork Chat auth service may only bridge current-session bootstrap through the appbase runtime service.',
+);
+
+assert.match(
+  appAuthServiceSource,
+  /logout\(\)[\s\S]*service\.auth\.sessions\.current\.delete/u,
+  'SDKWork Chat auth service may only bridge logout through the appbase runtime service.',
+);
+
+assert.match(
+  appAuthServiceSource,
+  /catch\s*\{[\s\S]*clearSdkworkChatIamRuntimeSession\(\)[\s\S]*resetSdkworkChatIamRuntime\(\)[\s\S]*return\s+null/u,
+  'SDKWork Chat current-session bootstrap must fail closed and clear stale sessions when appbase rejects the session.',
+);
+
+assert.doesNotMatch(
+  authRuntimeSource,
+  /refreshToken:\s*session\.refreshToken\s*\?\?\s*existingSession\?\.refreshToken/u,
+  'SDKWork Chat IAM runtime must not own refresh-token continuation rules; the appbase session bridge owns token merge semantics.',
 );
 
 assert.match(
@@ -394,6 +397,42 @@ assert.match(
   chatLayoutSource,
   /<SettingsModal[\s\S]*onLogout=\{handleLogout\}/u,
   'ChatLayout must pass the real logout handler into the settings modal path.',
+);
+
+assert.match(
+  sessionSource,
+  /export const SDKWORK_CHAT_SESSION_CHANGED_EVENT\s*=\s*['"]sdkwork-chat-pc:auth-session-changed['"]/u,
+  'Session storage must expose a stable auth-session changed event for realtime/session bridges.',
+);
+
+assert.match(
+  sessionSource,
+  /window\.dispatchEvent\(\s*new CustomEvent\(\s*SDKWORK_CHAT_SESSION_CHANGED_EVENT/u,
+  'Session storage must dispatch the auth-session changed event whenever appbase commits or clears tokens.',
+);
+
+assert.match(
+  chatServiceSource,
+  /SDKWORK_CHAT_SESSION_CHANGED_EVENT/u,
+  'ChatService must subscribe to auth-session changes from the shared session module.',
+);
+
+assert.match(
+  chatServiceSource,
+  /window\.addEventListener\(\s*SDKWORK_CHAT_SESSION_CHANGED_EVENT/u,
+  'ChatService must listen for auth-session changes so stale realtime sockets do not keep reconnecting.',
+);
+
+assert.match(
+  chatServiceSource,
+  /closeAllLiveSubscriptions\(\s*['"]auth session changed['"]\s*\)/u,
+  'ChatService must close all live subscriptions when appbase commits or clears an auth session.',
+);
+
+assert.match(
+  chatServiceSource,
+  /connection\?\.disconnect\(\s*1000,\s*reason\s*\)/u,
+  'ChatService must disconnect live IM websocket connections with the auth-session change reason.',
 );
 
 assert.match(
@@ -748,11 +787,27 @@ assert.match(
   /dedupe:\s*\[[\s\S]*['"]react['"][\s\S]*['"]react-dom['"]/u,
   'Vite must dedupe React packages when composing appbase and sdkwork UI source packages.',
 );
+assert.match(
+  viteConfigSource,
+  /reactRouterDomEntry[\s\S]*find:\s*(?:['"]react-router-dom['"]|\/\^react-router-dom\$\/)[\s\S]*replacement:\s*reactRouterDomEntry/u,
+  'Vite must resolve react-router-dom from the chat PC dependency root for source-linked appbase auth routes.',
+);
+assert.match(
+  viteConfigSource,
+  /reactJsxRuntimeEntry[\s\S]*find:\s*['"]react\/jsx-runtime['"][\s\S]*replacement:\s*reactJsxRuntimeEntry/u,
+  'Vite must resolve React JSX runtime from the chat PC dependency root for source-linked appbase packages.',
+);
 
 assert.match(
   viteConfigSource,
-  /sdkwork-appbase[\\/]packages[\\/]common[\\/]iam[\\/]sdkwork-iam-sdk-adapter[\\/]src[\\/]index\.ts/u,
-  'Vite must resolve @sdkwork/iam-sdk-adapter from canonical sdkwork-appbase source.',
+  /sdkwork-appbase[\\/]packages[\\/]pc-react[\\/]iam[\\/]sdkwork-auth-runtime-pc-react[\\/]src[\\/]index\.ts/u,
+  'Vite must resolve @sdkwork/auth-runtime-pc-react from canonical sdkwork-appbase source.',
+);
+
+assert.doesNotMatch(
+  viteConfigSource,
+  /@sdkwork\/iam-sdk-adapter|sdkwork-iam-sdk-adapter/u,
+  'Vite must not keep a product-side IAM SDK adapter alias after auth runtime migration.',
 );
 
 assert.match(
@@ -768,15 +823,27 @@ assert.match(
 );
 
 assert.match(
+  String(packageJson.dependencies?.['@sdkwork/auth-runtime-pc-react'] ?? ''),
+  /sdkwork-appbase[\\/]packages[\\/]pc-react[\\/]iam[\\/]sdkwork-auth-runtime-pc-react/u,
+  'package.json must link @sdkwork/auth-runtime-pc-react to the canonical appbase high-level auth runtime.',
+);
+
+assert.match(
+  String(packageJson.dependencies?.['@sdkwork/appbase-app-sdk'] ?? ''),
+  /sdkwork-appbase[\\/]sdks[\\/]sdkwork-appbase-app-sdk[\\/]sdkwork-appbase-app-sdk-typescript[\\/]generated[\\/]server-openapi/u,
+  'package.json must link @sdkwork/appbase-app-sdk to canonical sdkwork-appbase app SDK.',
+);
+
+assert.match(
   String(packageJson.dependencies?.['@sdkwork/i18n-pc-react'] ?? ''),
   /sdkwork-appbase[\\/]packages[\\/]pc-react[\\/]foundation[\\/]sdkwork-i18n-pc-react/u,
   'package.json must include the canonical appbase i18n PC React package.',
 );
 
-assert.match(
-  String(packageJson.dependencies?.['@sdkwork/iam-sdk-adapter'] ?? ''),
-  /sdkwork-appbase[\\/]packages[\\/]common[\\/]iam[\\/]sdkwork-iam-sdk-adapter/u,
-  'package.json must include the canonical appbase IAM SDK adapter package.',
+assert.equal(
+  packageJson.dependencies?.['@sdkwork/iam-sdk-adapter'],
+  undefined,
+  'package.json must not depend on the lower-level IAM SDK adapter after auth runtime migration.',
 );
 
 assert.match(
@@ -792,15 +859,27 @@ assert.match(
 );
 
 assert.match(
+  String(tsconfig.compilerOptions?.paths?.['@sdkwork/auth-runtime-pc-react']?.[0] ?? ''),
+  /sdkwork-appbase[\\/]packages[\\/]pc-react[\\/]iam[\\/]sdkwork-auth-runtime-pc-react[\\/]src[\\/]index\.ts/u,
+  'tsconfig must resolve @sdkwork/auth-runtime-pc-react from canonical sdkwork-appbase.',
+);
+
+assert.match(
+  String(tsconfig.compilerOptions?.paths?.['@sdkwork/appbase-app-sdk']?.[0] ?? ''),
+  /sdkwork-appbase[\\/]sdks[\\/]sdkwork-appbase-app-sdk[\\/]sdkwork-appbase-app-sdk-typescript[\\/]generated[\\/]server-openapi[\\/]src[\\/]index\.ts/u,
+  'tsconfig must resolve @sdkwork/appbase-app-sdk from canonical sdkwork-appbase app SDK.',
+);
+
+assert.match(
   String(tsconfig.compilerOptions?.paths?.['@sdkwork/i18n-pc-react']?.[0] ?? ''),
   /sdkwork-appbase[\\/]packages[\\/]pc-react[\\/]foundation[\\/]sdkwork-i18n-pc-react[\\/]src[\\/]index\.ts/u,
   'tsconfig must resolve @sdkwork/i18n-pc-react for canonical appbase auth routes.',
 );
 
-assert.match(
-  String(tsconfig.compilerOptions?.paths?.['@sdkwork/iam-sdk-adapter']?.[0] ?? ''),
-  /sdkwork-appbase[\\/]packages[\\/]common[\\/]iam[\\/]sdkwork-iam-sdk-adapter[\\/]src[\\/]index\.ts/u,
-  'tsconfig must resolve @sdkwork/iam-sdk-adapter from canonical sdkwork-appbase.',
+assert.equal(
+  tsconfig.compilerOptions?.paths?.['@sdkwork/iam-sdk-adapter'],
+  undefined,
+  'tsconfig must not resolve the lower-level IAM SDK adapter after auth runtime migration.',
 );
 
 assert.match(

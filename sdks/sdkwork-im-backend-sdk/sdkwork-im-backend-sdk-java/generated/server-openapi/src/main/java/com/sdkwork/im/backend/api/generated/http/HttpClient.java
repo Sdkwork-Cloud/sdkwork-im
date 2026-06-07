@@ -53,7 +53,6 @@ public class HttpClient {
         headers.put("Access-Token", token);
     }
 
-
     public void setHeader(String key, String value) {
         headers.put(key, value);
     }

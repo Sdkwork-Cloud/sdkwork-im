@@ -111,7 +111,7 @@ already published.
 - `node sdks/sdkwork-im-sdk/bin/verify-sdk-automation.mjs`
 - `node sdks/sdkwork-im-app-sdk/bin/verify-sdk.mjs`
 - `node sdks/sdkwork-im-backend-sdk/bin/verify-sdk.mjs`
-- `node D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs`
+- `node <workspace-root>/sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs`
 
 ## Rollout And Recovery Entrypoints
 

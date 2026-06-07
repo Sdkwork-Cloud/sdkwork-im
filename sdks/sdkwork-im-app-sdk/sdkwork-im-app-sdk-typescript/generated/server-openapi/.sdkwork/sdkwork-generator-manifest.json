@@ -43,7 +43,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "eb7a20927bf1a44aafea67d063aaf08d949572d6b3e1d9f5593a43387573d6fa"
+      "sha256": "4af1eaa23d14c8e229acdfcf598355aa1588c069a77c72eadb1db2d736c2082f"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -51,7 +51,7 @@
     },
     {
       "path": "src/api/automation.ts",
-      "sha256": "80c28a2a2fc991d7583756b5c37e5309d17d5f71e583433f86a543bdf523fa49"
+      "sha256": "624fe176e0b8823139eea3753b92f9ec9fa04a2757ca98a1d271e0cdebcd0941"
     },
     {
       "path": "src/api/base.ts",
@@ -59,19 +59,19 @@
     },
     {
       "path": "src/api/device.ts",
-      "sha256": "3cc99f139147867aafae4f81fd85eab7e7ad4045a9ab402d7e0094b72d79f061"
+      "sha256": "bb629c88283014b3c5d517cd32061072e62ec93ee0f8a1ed4ba64232f6e4df4d"
     },
     {
       "path": "src/api/index.ts",
-      "sha256": "2d687957785ee73376139efcff2bbdb3df2e592a3680e794c1459bca4a399c29"
+      "sha256": "96645e589af4ccfdc74ec58525d61808f4441e434b2a50fd5bb07ce4c368ba7d"
     },
     {
       "path": "src/api/iot.ts",
-      "sha256": "78e327b41e5c9d8647d0b87a0a7b04d0c5ee6709d2815b8b977c0ee51317ca59"
+      "sha256": "40f79734babd8b070dfffea2fd39e985bf37938d0bfcf126beafab4a73bbe531"
     },
     {
       "path": "src/api/notification.ts",
-      "sha256": "c205ffc6c8889dc1558c3142a252a66ab386f231b640dd0765967a7e47c23db6"
+      "sha256": "6bd96ec52d30ce956bb809fdef8966a80410f6241bb8bea95efd55c4cfa1588b"
     },
     {
       "path": "src/api/paths.ts",
@@ -79,15 +79,11 @@
     },
     {
       "path": "src/api/portal.ts",
-      "sha256": "779dd2d3a31d0a034331d420263343a4285a392a2cb8d004507c7c54aff73a37"
+      "sha256": "a38ad4f4a1cddd2a6e04cb1e83d72e88bf4412854994ec756a1c08b16f20060c"
     },
     {
       "path": "src/api/provider.ts",
-      "sha256": "f083161310a2c9f22e1712cfee46280a74ffe3bc0c8d0bf05a3cd0a3c4352ba4"
-    },
-    {
-      "path": "src/api/rtc.ts",
-      "sha256": "253b1b1e0e208f0738d269569e706dfac5a75197a1afb844584a6a129c0d5538"
+      "sha256": "291d5febdf8fd0ae5cdb518f29cf7d0f56697a56a2c0556b9be004e206894743"
     },
     {
       "path": "src/auth/index.ts",
@@ -95,7 +91,7 @@
     },
     {
       "path": "src/http/client.ts",
-      "sha256": "05609fa19c8bfded1765dadb8f875dae5dd3e6f11f13244f6239450dea8732fc"
+      "sha256": "4a29de78aa79c6964d43ee533380dfb6a32af200b88fd7b7a2a94375ba407cbb"
     },
     {
       "path": "src/http/index.ts",
@@ -103,11 +99,11 @@
     },
     {
       "path": "src/index.ts",
-      "sha256": "1b72e156546dff1aa4a094a8fb926ab543ccd7e320d3aacef790509f4df5f48b"
+      "sha256": "6ac197ab62aa5cd745d71e59f859358859319e4c8dbf59e9db0783956ab5af2b"
     },
     {
       "path": "src/sdk.ts",
-      "sha256": "2bd65e2c16da0f2d06719a3d276c6e0b2f38d92d83097f829833e10049fd74d1"
+      "sha256": "6a8ec0aa3db9140cf8cae4aa34cd94af65876b5e3149b2ecbc8c8c4e2aad3bbd"
     },
     {
       "path": "src/types/access-provider-health-retrieve-response.ts",
@@ -147,7 +143,7 @@
     },
     {
       "path": "src/types/common.ts",
-      "sha256": "ac5b348259c39e2cd8357dfcf8269268ee1da5f8a6e0770d714ab5eb796b3050"
+      "sha256": "d2506be8c4bdbe8e7059393467e6e71d75ef1d8c018dbf997bb0ab2a77b6c7b6"
     },
     {
       "path": "src/types/complete-agent-response-request.ts",
@@ -163,7 +159,7 @@
     },
     {
       "path": "src/types/index.ts",
-      "sha256": "f85c0a62c4cf358ce748956e7c6da2c0888db2fbfe3085495c66c7e97ccbdd3e"
+      "sha256": "f7e295e27e9fa0ba34b185a1f1444344a5b29f238f2bfd437c72d2926a3db2f7"
     },
     {
       "path": "src/types/media-health-retrieve-response.ts",
@@ -216,14 +212,6 @@
     {
       "path": "src/types/protocol-uplink-create-response.ts",
       "sha256": "ddb933908738689fbb44a50bd890577bd12d5b58f67a856b832e271867d116e7"
-    },
-    {
-      "path": "src/types/provider-callbacks-create-response.ts",
-      "sha256": "e2d0f04efef160ebd2f2b77af7ea541e112fa80b1ad909efe8ab3a6984cc0428"
-    },
-    {
-      "path": "src/types/provider-health-retrieve-response.ts",
-      "sha256": "1a86c4c5df1ea4112426f8d74c149c97da0bdd94d086b1f7d6379932619a3611"
     },
     {
       "path": "src/types/request-agent-tool-call-request.ts",

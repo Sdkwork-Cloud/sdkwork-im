@@ -1,0 +1,200 @@
+# sdkwork-im-sdk
+
+Generator-owned TypeScript transport SDK for sdkwork-im-sdk.
+
+## Installation
+
+```bash
+npm install @sdkwork/im-sdk-generated
+# or
+yarn add @sdkwork/im-sdk-generated
+# or
+pnpm add @sdkwork/im-sdk-generated
+```
+
+## Quick Start
+
+```typescript
+import { SdkworkImClient } from '@sdkwork/im-sdk-generated';
+
+const client = new SdkworkImClient({
+  baseUrl: 'http://127.0.0.1:18090',
+  timeout: 30000,
+});
+
+// Attach the authenticated SDKWork session tokens
+client.setAuthToken('your-auth-token');
+client.setAccessToken('your-access-token');
+
+// Use the SDK
+const result = await client.presence.me.retrieve();
+```
+
+## Dual Token Authentication
+
+```typescript
+const client = new SdkworkImClient({ baseUrl: 'http://127.0.0.1:18090' });
+client.setAuthToken('your-auth-token');
+client.setAccessToken('your-access-token');
+// Sends:
+// Authorization: Bearer <authToken>
+// Access-Token: <accessToken>
+```
+
+## Configuration (Non-Auth)
+
+```typescript
+import { SdkworkImClient } from '@sdkwork/im-sdk-generated';
+
+const client = new SdkworkImClient({
+  baseUrl: 'http://127.0.0.1:18090',
+  timeout: 30000, // Request timeout in ms
+  headers: {      // Custom headers
+    'X-Custom-Header': 'value',
+  },
+});
+```
+
+## API Modules
+
+- `client.device` - device API
+- `client.presence` - presence API
+- `client.realtime` - realtime API
+- `client.rtc` - rtc API
+- `client.social` - social API
+- `client.chat` - chat API
+- `client.streams` - streams API
+
+## Usage Examples
+
+### device
+
+```typescript
+// Resume a device runtime session
+const body = {
+  deviceId: 'deviceId',
+  lastSeenSyncSeq: 1,
+};
+const result = await client.device.sessions.resume(body);
+```
+
+### presence
+
+```typescript
+// Retrieve current principal presence
+const result = await client.presence.me.retrieve();
+```
+
+### realtime
+
+```typescript
+// List pending realtime events
+const params = {
+  limit: 1,
+  cursor: 'cursor',
+};
+const result = await client.realtime.events.list(params);
+```
+
+### rtc
+
+```typescript
+// Create an IM-backed RTC session
+const body = {
+  conversationId: 'conversationId',
+  mediaKind: 'mediaKind',
+};
+const result = await client.rtc.sessions.create(body);
+```
+
+### social
+
+```typescript
+// List contact tags
+const params = {
+  limit: 1,
+  cursor: 'cursor',
+};
+const result = await client.social.contacts.tags.list(params);
+```
+
+### chat
+
+```typescript
+// List IM contacts
+const params = {
+  limit: 1,
+  cursor: 'cursor',
+};
+const result = await client.chat.contacts.list(params);
+```
+
+### streams
+
+```typescript
+// Open a stream
+const body = {
+  streamType: 'streamType',
+  conversationId: 'conversationId',
+};
+const result = await client.streams.create(body);
+```
+
+## Error Handling
+
+```typescript
+import { SdkworkImClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork/im-sdk-generated';
+
+try {
+  const result = await client.presence.me.retrieve();
+} catch (error) {
+  if (error instanceof AuthenticationError) {
+    console.error('Authentication failed:', error.message);
+  } else if (error instanceof TimeoutError) {
+    console.error('Request timed out:', error.message);
+  } else if (error instanceof NetworkError) {
+    console.error('Network error:', error.message);
+  } else {
+    throw error;
+  }
+}
+```
+
+## Publishing
+
+This SDK includes cross-platform publish scripts in `bin/`:
+- `bin/publish-core.mjs`
+- `bin/publish.sh`
+- `bin/publish.ps1`
+
+### Check
+
+```bash
+./bin/publish.sh --action check
+```
+
+### Publish
+
+```bash
+./bin/publish.sh --action publish --channel release
+```
+
+```powershell
+.\bin\publish.ps1 --action publish --channel test --dry-run
+```
+
+> Set `NPM_TOKEN` (and optional `NPM_REGISTRY_URL`) before release publish.
+
+## License
+
+MIT
+
+## Regeneration Contract
+
+- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
+- Put hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across regenerations.
+- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.

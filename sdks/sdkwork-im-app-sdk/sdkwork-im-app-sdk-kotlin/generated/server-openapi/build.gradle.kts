@@ -5,7 +5,6 @@ plugins {
 group = "com.sdkwork"
 version = "0.1.0"
 
-description = "Generator-owned Kotlin transport SDK for the Craw Chat app-development API."
 base {
     archiveBaseName.set("im-app-api-generated")
 }

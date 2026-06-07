@@ -7,15 +7,8 @@ use axum::{
 };
 use craw_chat_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
 use http_body_util::BodyExt;
-use sdkwork_api_config::StandaloneConfig;
-use sdkwork_api_product_runtime::{
-    ProductSiteDirs, RouterProductRuntimeOptions, build_product_runtime_router,
-};
 use serde_json::json;
-use std::fs;
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tower::ServiceExt;
 
 #[derive(Clone)]
@@ -174,8 +167,7 @@ async fn gateway_routes_im_app_iam_requests_to_appbase_app_api() {
 }
 
 #[tokio::test]
-async fn embedded_gateway_delegates_im_app_iam_requests_to_product_runtime_when_upstream_is_absent()
-{
+async fn embedded_gateway_rejects_im_app_iam_requests_when_appbase_upstream_is_absent() {
     let embedded_runtime = Router::new();
     let product_runtime = Router::new()
         .route(
@@ -209,7 +201,7 @@ async fn embedded_gateway_delegates_im_app_iam_requests_to_product_runtime_when_
         .await
         .expect("gateway request should succeed");
 
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
     let value: serde_json::Value = serde_json::from_slice(
         &response
             .into_body()
@@ -219,18 +211,17 @@ async fn embedded_gateway_delegates_im_app_iam_requests_to_product_runtime_when_
             .to_bytes(),
     )
     .expect("response body should be valid json");
-    assert_eq!(value["serviceId"], "sdkwork-api-product-runtime");
-    assert_eq!(value["path"], "/app/v3/api/open_platform/qr_auth/sessions");
+    assert_eq!(
+        value["message"],
+        "upstream target is not configured for sdkwork-appbase-app-api"
+    );
 }
 
 #[tokio::test]
 async fn embedded_gateway_clears_outer_path_params_before_delegating_nested_runtime_routes() {
     let embedded_runtime = Router::new();
     let product_runtime = Router::new()
-        .route(
-            "/app/v3/api/open_platform/qr_auth/sessions/{session_key}",
-            get(echo_runtime_session_key),
-        )
+        .route("/app/v3/api/portal/{section}", get(echo_runtime_section))
         .with_state(UpstreamState {
             service_id: Arc::<str>::from("sdkwork-api-product-runtime"),
         });
@@ -250,7 +241,7 @@ async fn embedded_gateway_clears_outer_path_params_before_delegating_nested_runt
         .oneshot(
             Request::builder()
                 .method(Method::GET)
-                .uri("/app/v3/api/open_platform/qr_auth/sessions/local-qr-123")
+                .uri("/app/v3/api/portal/local-section")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -268,7 +259,7 @@ async fn embedded_gateway_clears_outer_path_params_before_delegating_nested_runt
     )
     .expect("response body should be valid json");
     assert_eq!(value["serviceId"], "sdkwork-api-product-runtime");
-    assert_eq!(value["sessionKey"], "local-qr-123");
+    assert_eq!(value["section"], "local-section");
 }
 
 #[tokio::test]
@@ -317,25 +308,14 @@ async fn embedded_gateway_delegates_app_portal_api_to_product_runtime() {
 }
 
 #[tokio::test]
-async fn embedded_gateway_social_user_search_finds_local_iam_registration_by_user_id() {
-    let site_root = unique_temp_root("local_iam_social_search");
-    let admin_site_dir = site_root.join("admin");
-    let portal_site_dir = site_root.join("portal");
-    write_site_index(admin_site_dir.as_path(), "admin-shell");
-    write_site_index(portal_site_dir.as_path(), "portal-shell");
-
-    let product_runtime = build_product_runtime_router(
-        StandaloneConfig {
-            runtime_bind_addr: "127.0.0.1:0".into(),
-            admin_proxy_target: String::new(),
-            portal_api_base_url: "http://127.0.0.1:18079".into(),
-            admin_sandbox_enabled: false,
-            admin_sandbox_storage_file: None,
-        },
-        RouterProductRuntimeOptions::desktop(ProductSiteDirs::new(admin_site_dir, portal_site_dir)),
-    )
-    .await
-    .expect("product runtime router should build");
+async fn embedded_gateway_rejects_product_runtime_auth_registration_instead_of_seeding_social_search()
+ {
+    let product_runtime = Router::new()
+        .route("/app/v3/api/auth/registrations", any(echo_upstream))
+        .route("/app/v3/api/auth/sessions", any(echo_upstream))
+        .with_state(UpstreamState {
+            service_id: Arc::<str>::from("sdkwork-api-product-runtime"),
+        });
     let app = web_gateway::build_app_with_registry_and_runtime_routers(
         WebGatewayConfig {
             bind_addr: "127.0.0.1:0".to_owned(),
@@ -366,14 +346,13 @@ async fn embedded_gateway_social_user_search_finds_local_iam_registration_by_use
                 .unwrap(),
         )
         .await
-        .expect("local IAM registration should return response");
-    assert_eq!(target_registration.status(), StatusCode::OK);
+        .expect("appbase-owned registration request should return response");
+    assert_eq!(target_registration.status(), StatusCode::BAD_GATEWAY);
     let target_registration = read_json_body(target_registration).await;
-    let target_user_id = target_registration["data"]["context"]["userId"]
-        .as_str()
-        .expect("registration response should include context.userId")
-        .to_owned();
-    assert_public_local_user_id(target_user_id.as_str());
+    assert_eq!(
+        target_registration["message"],
+        "upstream target is not configured for sdkwork-appbase-app-api"
+    );
 
     let searcher_session = app
         .clone()
@@ -392,34 +371,20 @@ async fn embedded_gateway_social_user_search_finds_local_iam_registration_by_use
                 .unwrap(),
         )
         .await
-        .expect("local IAM login should return response");
-    assert_eq!(searcher_session.status(), StatusCode::OK);
-    let searcher_session = read_json_body(searcher_session).await;
-    let searcher = &searcher_session["data"];
-    let context = &searcher["context"];
+        .expect("appbase-owned login request should return response");
+    assert_eq!(searcher_session.status(), StatusCode::BAD_GATEWAY);
 
     let search_response = app
         .oneshot(
             Request::builder()
                 .method(Method::GET)
-                .uri(format!(
-                    "/im/v3/api/social/users?q={target_user_id}&limit=20"
-                ))
-                .header("access-token", string_json_field(searcher, "accessToken"))
-                .header("x-sdkwork-app-id", string_json_field(context, "appId"))
-                .header(
-                    "x-sdkwork-tenant-id",
-                    string_json_field(context, "tenantId"),
-                )
-                .header("x-sdkwork-user-id", string_json_field(context, "userId"))
-                .header(
-                    "x-sdkwork-actor-kind",
-                    string_json_field(context, "actorKind"),
-                )
-                .header(
-                    "x-sdkwork-session-id",
-                    string_json_field(context, "sessionId"),
-                )
+                .uri("/im/v3/api/social/users?q=target-user&limit=20")
+                .header("access-token", "access-token")
+                .header("x-sdkwork-app-id", "sdkwork-chat-pc")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "sdkwork_iam_session_demo")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -431,11 +396,9 @@ async fn embedded_gateway_social_user_search_finds_local_iam_registration_by_use
         .as_array()
         .expect("social user search should return items");
     assert!(
-        items.iter().any(|item| item["userId"] == target_user_id),
-        "registered local IAM user {target_user_id} should be searchable by exact user id; response: {search}"
+        items.is_empty(),
+        "social search must not be seeded by product-runtime auth registration; response: {search}"
     );
-
-    let _ = fs::remove_dir_all(site_root);
 }
 
 #[tokio::test]
@@ -573,44 +536,6 @@ async fn read_json_body(response: axum::response::Response) -> serde_json::Value
     .expect("response body should be valid json")
 }
 
-fn string_json_field<'a>(value: &'a serde_json::Value, field: &str) -> &'a str {
-    value[field]
-        .as_str()
-        .unwrap_or_else(|| panic!("response should include string field {field}"))
-}
-
-fn unique_temp_root(prefix: &str) -> PathBuf {
-    let unique = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system time should be after epoch")
-        .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_web_gateway_{prefix}_{unique}"))
-}
-
-fn write_site_index(site_dir: &Path, title: &str) {
-    fs::create_dir_all(site_dir).expect("site dir should be created");
-    fs::write(
-        site_dir.join("index.html"),
-        format!("<!doctype html><title>{title}</title>"),
-    )
-    .expect("site index should be written");
-}
-
-fn assert_public_local_user_id(value: &str) {
-    let suffix = value.strip_prefix('U').unwrap_or_else(|| {
-        panic!("local IAM user id should use public U-prefixed format: {value}")
-    });
-    assert_eq!(
-        suffix.len(),
-        10,
-        "local IAM user id should contain exactly 10 digits after U: {value}"
-    );
-    assert!(
-        suffix.chars().all(|ch| ch.is_ascii_digit()),
-        "local IAM user id suffix should be numeric: {value}"
-    );
-}
-
 struct TestUpstream {
     base_url: String,
 }
@@ -653,12 +578,12 @@ async fn echo_upstream(
     }))
 }
 
-async fn echo_runtime_session_key(
+async fn echo_runtime_section(
     State(state): State<UpstreamState>,
-    axum::extract::Path(session_key): axum::extract::Path<String>,
+    axum::extract::Path(section): axum::extract::Path<String>,
 ) -> Json<serde_json::Value> {
     Json(json!({
         "serviceId": state.service_id.as_ref(),
-        "sessionKey": session_key,
+        "section": section,
     }))
 }

@@ -1,5 +1,5 @@
 name: im_backend_api_generated
-description: Generator-owned Flutter transport SDK for the Craw Chat backend/operator API.
+description: Generator-owned Flutter transport SDK for sdkwork-im-backend-sdk.
 version: 0.1.0
 homepage: https://github.com/Sdkwork-Cloud/sdkwork-sdk-generator
 repository: https://github.com/Sdkwork-Cloud/sdkwork-sdk-generator

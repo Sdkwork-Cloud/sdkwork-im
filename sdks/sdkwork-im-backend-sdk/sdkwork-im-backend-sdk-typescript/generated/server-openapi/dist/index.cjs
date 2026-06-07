@@ -1563,9 +1563,17 @@ Object.defineProperty(exports, "DEFAULT_TIMEOUT", {
     enumerable: true,
     get: function () { return sdkCommon.DEFAULT_TIMEOUT; }
 });
+Object.defineProperty(exports, "DefaultAuthTokenManager", {
+    enumerable: true,
+    get: function () { return sdkCommon.DefaultAuthTokenManager; }
+});
 Object.defineProperty(exports, "SUCCESS_CODES", {
     enumerable: true,
     get: function () { return sdkCommon.SUCCESS_CODES; }
+});
+Object.defineProperty(exports, "createTokenManager", {
+    enumerable: true,
+    get: function () { return sdkCommon.createTokenManager; }
 });
 exports.AdminApi = AdminApi;
 exports.AuditApi = AuditApi;

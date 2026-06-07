@@ -12,11 +12,12 @@
   "mode": "apply",
   "hasChanges": true,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "ae12182ca2e32d15cdf5fdaba6c59e704f15cbd10ce5c7f579e2e3a19f13e931",
+  "changeFingerprint": "e9865143f6eda86181bf5a4d5826b677004bd40dbdb6d9f724909742353d3dc4",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
       "api-surface",
+      "models",
       "runtime",
       "build-metadata",
       "documentation",
@@ -26,36 +27,94 @@
       {
         "area": "api-surface",
         "paths": [
+          "api/automation.go",
+          "api/base.go",
+          "api/device.go",
+          "api/doc.go",
+          "api/iot.go",
+          "api/notification.go",
+          "api/paths.go",
+          "api/portal.go",
+          "api/provider.go",
           "http/client.go"
+        ]
+      },
+      {
+        "area": "models",
+        "paths": [
+          "types/access_provider_health_retrieve_response.go",
+          "types/agent_subject.go",
+          "types/agent_tool_call_state.go",
+          "types/agent_tool_call.go",
+          "types/append_agent_response_delta_request.go",
+          "types/automation_execution_delivery_status.go",
+          "types/automation_execution_request_response.go",
+          "types/automation_execution_state.go",
+          "types/automation_execution.go",
+          "types/common.go",
+          "types/complete_agent_response_request.go",
+          "types/complete_agent_tool_call_request.go",
+          "types/device_twin_view.go",
+          "types/doc.go",
+          "types/media_health_retrieve_response.go",
+          "types/notification_list_response.go",
+          "types/notification_request_delivery_status.go",
+          "types/notification_request_response.go",
+          "types/notification_status.go",
+          "types/notification_task.go",
+          "types/portal_snapshot.go",
+          "types/portal_workspace_view.go",
+          "types/principal_profile_health_retrieve_response.go",
+          "types/problem_detail.go",
+          "types/protocol_downlink_create_response.go",
+          "types/protocol_provider_health_retrieve_response.go",
+          "types/protocol_uplink_create_response.go",
+          "types/request_agent_tool_call_request.go",
+          "types/request_automation_execution.go",
+          "types/request_notification.go",
+          "types/sender.go",
+          "types/start_agent_response_request.go",
+          "types/stream_durability_class.go",
+          "types/stream_frame.go",
+          "types/stream_session_state.go",
+          "types/stream_session.go",
+          "types/string_map.go",
+          "types/update_device_twin_desired_request.go",
+          "types/update_device_twin_reported_request.go"
         ]
       },
       {
         "area": "runtime",
         "paths": [
-          "http/client.go"
+          "http/client.go",
+          "http/doc.go"
         ]
       },
       {
         "area": "build-metadata",
         "paths": [
+          "go.mod",
           "sdkwork-sdk.json"
         ]
       },
       {
         "area": "documentation",
         "paths": [
+          "CHANGELOG.md",
           "README.md"
         ]
       },
       {
         "area": "unknown",
         "paths": [
+          "doc.go",
+          "LICENSE",
           "sdk.go"
         ]
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required."
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required."
   },
   "executionDecision": {
     "schemaVersion": 1,
@@ -65,8 +124,8 @@
     "applyRequiresExpectedFingerprint": false,
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "backed-up-generated-files",
       "manual-review-required",
+      "preserved-legacy-files",
       "unknown-impact",
       "verification-required"
     ]
@@ -79,8 +138,8 @@
         "id": "verify-check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-go\\generated\\server-openapi",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-go\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -98,14 +157,14 @@
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-go\\generated\\server-openapi",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-go\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -125,7 +184,7 @@
     "version": "0.1.0",
     "language": "go",
     "sdkType": "app",
-    "outputPath": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-go\\generated\\server-openapi",
+    "outputPath": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-go\\generated\\server-openapi",
     "packageName": "github.com/sdkwork/im-app-api-generated"
   },
   "versioning": {
@@ -133,29 +192,22 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 64,
-    "models": 39,
-    "apis": 7,
+    "totalFiles": 61,
+    "models": 37,
+    "apis": 6,
     "types": 0
   },
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 4,
+    "writtenFiles": 57,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 59,
+    "skippedUnchangedGeneratedFiles": 3,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "ae12182ca2e32d15cdf5fdaba6c59e704f15cbd10ce5c7f579e2e3a19f13e931",
+    "changeFingerprint": "e9865143f6eda86181bf5a4d5826b677004bd40dbdb6d9f724909742353d3dc4",
     "changes": {
-      "createdGeneratedFiles": [],
-      "updatedGeneratedFiles": [
-        "http/client.go",
-        "README.md",
-        "sdk.go",
-        "sdkwork-sdk.json"
-      ],
-      "unchangedGeneratedFiles": [
+      "createdGeneratedFiles": [
         "api/automation.go",
         "api/base.go",
         "api/device.go",
@@ -165,15 +217,15 @@
         "api/paths.go",
         "api/portal.go",
         "api/provider.go",
-        "api/rtc.go",
-        "bin/publish-core.mjs",
-        "bin/publish.ps1",
-        "bin/publish.sh",
         "CHANGELOG.md",
         "doc.go",
         "go.mod",
+        "http/client.go",
         "http/doc.go",
         "LICENSE",
+        "README.md",
+        "sdk.go",
+        "sdkwork-sdk.json",
         "types/access_provider_health_retrieve_response.go",
         "types/agent_subject.go",
         "types/agent_tool_call_state.go",
@@ -201,8 +253,6 @@
         "types/protocol_downlink_create_response.go",
         "types/protocol_provider_health_retrieve_response.go",
         "types/protocol_uplink_create_response.go",
-        "types/provider_callbacks_create_response.go",
-        "types/provider_health_retrieve_response.go",
         "types/request_agent_tool_call_request.go",
         "types/request_automation_execution.go",
         "types/request_notification.go",
@@ -216,22 +266,24 @@
         "types/update_device_twin_desired_request.go",
         "types/update_device_twin_reported_request.go"
       ],
+      "updatedGeneratedFiles": [],
+      "unchangedGeneratedFiles": [
+        "bin/publish-core.mjs",
+        "bin/publish.ps1",
+        "bin/publish.sh"
+      ],
       "deletedGeneratedFiles": [],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/README.md"
       ],
-      "backedUpFiles": [
-        "http/client.go",
-        "README.md",
-        "sdk.go",
-        "sdkwork-sdk.json"
-      ]
+      "backedUpFiles": []
     },
     "impact": {
       "schemaVersion": 1,
       "areas": [
         "api-surface",
+        "models",
         "runtime",
         "build-metadata",
         "documentation",
@@ -241,48 +293,106 @@
         {
           "area": "api-surface",
           "paths": [
+            "api/automation.go",
+            "api/base.go",
+            "api/device.go",
+            "api/doc.go",
+            "api/iot.go",
+            "api/notification.go",
+            "api/paths.go",
+            "api/portal.go",
+            "api/provider.go",
             "http/client.go"
+          ]
+        },
+        {
+          "area": "models",
+          "paths": [
+            "types/access_provider_health_retrieve_response.go",
+            "types/agent_subject.go",
+            "types/agent_tool_call_state.go",
+            "types/agent_tool_call.go",
+            "types/append_agent_response_delta_request.go",
+            "types/automation_execution_delivery_status.go",
+            "types/automation_execution_request_response.go",
+            "types/automation_execution_state.go",
+            "types/automation_execution.go",
+            "types/common.go",
+            "types/complete_agent_response_request.go",
+            "types/complete_agent_tool_call_request.go",
+            "types/device_twin_view.go",
+            "types/doc.go",
+            "types/media_health_retrieve_response.go",
+            "types/notification_list_response.go",
+            "types/notification_request_delivery_status.go",
+            "types/notification_request_response.go",
+            "types/notification_status.go",
+            "types/notification_task.go",
+            "types/portal_snapshot.go",
+            "types/portal_workspace_view.go",
+            "types/principal_profile_health_retrieve_response.go",
+            "types/problem_detail.go",
+            "types/protocol_downlink_create_response.go",
+            "types/protocol_provider_health_retrieve_response.go",
+            "types/protocol_uplink_create_response.go",
+            "types/request_agent_tool_call_request.go",
+            "types/request_automation_execution.go",
+            "types/request_notification.go",
+            "types/sender.go",
+            "types/start_agent_response_request.go",
+            "types/stream_durability_class.go",
+            "types/stream_frame.go",
+            "types/stream_session_state.go",
+            "types/stream_session.go",
+            "types/string_map.go",
+            "types/update_device_twin_desired_request.go",
+            "types/update_device_twin_reported_request.go"
           ]
         },
         {
           "area": "runtime",
           "paths": [
-            "http/client.go"
+            "http/client.go",
+            "http/doc.go"
           ]
         },
         {
           "area": "build-metadata",
           "paths": [
+            "go.mod",
             "sdkwork-sdk.json"
           ]
         },
         {
           "area": "documentation",
           "paths": [
+            "CHANGELOG.md",
             "README.md"
           ]
         },
         {
           "area": "unknown",
           "paths": [
+            "doc.go",
+            "LICENSE",
             "sdk.go"
           ]
         }
       ],
       "requiresVerification": true,
-      "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required."
+      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required."
     },
     "verificationPlan": {
       "shouldRun": true,
       "runPhase": "now",
-      "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
+      "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
       "steps": [
         {
           "id": "check",
           "title": "Unified package check",
           "required": true,
-          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-          "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-go\\generated\\server-openapi",
+          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+          "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-go\\generated\\server-openapi",
           "command": "node",
           "args": [
             "./bin/publish-core.mjs",
@@ -305,18 +415,13 @@
       "applyRequiresExpectedFingerprint": false,
       "summary": "Changes have been applied. Run the required verification plan now.",
       "reasons": [
-        "backed-up-generated-files",
         "manual-review-required",
+        "preserved-legacy-files",
         "unknown-impact",
         "verification-required"
       ]
     },
-    "backedUpFiles": [
-      "http/client.go",
-      "README.md",
-      "sdk.go",
-      "sdkwork-sdk.json"
-    ],
-    "preservedLegacyFiles": false
+    "backedUpFiles": [],
+    "preservedLegacyFiles": true
   }
 }

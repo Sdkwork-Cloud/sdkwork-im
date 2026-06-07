@@ -9,7 +9,7 @@ import { loadOpenApiDocument } from '../workspace-openapi-source-shared.mjs';
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const sdkRoot = path.resolve(testDir, '..');
 const repoRoot = path.resolve(sdkRoot, '..');
-const rtcSdkRoot = path.resolve('D:/sdkwork-opensource/sdkwork-rtc/sdks/sdkwork-rtc-sdk');
+const rtcSdkRoot = path.resolve(repoRoot, '..', 'sdkwork-rtc', 'sdks', 'sdkwork-rtc-sdk');
 
 function read(relativePath) {
   return readFileSync(path.join(sdkRoot, relativePath), 'utf8');
@@ -239,6 +239,7 @@ const backendTypeScriptDistSdkSource = read('sdkwork-im-backend-sdk/sdkwork-im-b
 const backendTypeScriptDistIndexSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/dist/index.d.ts');
 const backendTypeScriptDistRuntimeSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/dist/index.js');
 const backendFlutterClientSource = read('sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-flutter/generated/server-openapi/lib/backend_client.dart');
+const imTypeScriptGeneratedPackage = JSON.parse(read('sdkwork-im-sdk/sdkwork-im-sdk-typescript/generated/server-openapi/package.json'));
 const rtcReadmeSource = readRtcSdk('README.md');
 const boundaryMaterializerSource = read('materialize-im-v3-openapi-boundaries.mjs');
 const yaml = await loadGeneratorYaml(sdkRoot);
@@ -335,6 +336,8 @@ function isImStandardRoute(route) {
     || route === 'media/{}'
     || route.startsWith('presence/')
     || route.startsWith('realtime/')
+    || route === 'rtc/sessions'
+    || route === 'rtc/sessions/{}'
     || route.startsWith('social/')
     || route.startsWith('streams')
   );
@@ -369,8 +372,6 @@ const appbaseOwnedAppRoutes = [
   'auth/sessions',
   'auth/sessions/refresh',
   'auth/sessions/current',
-  'auth/verification_codes',
-  'auth/verification_codes/verify',
   'iam/users/current',
   'iam/organizations',
   'iam/organizations/tree',
@@ -582,10 +583,6 @@ for (const marker of [
   "'--standard-profile'",
   "'sdkwork-v3'",
   'config.primaryClient',
-  'normalizeGeneratedTypeScriptAuthSurface',
-  'renderGeneratedTypeScriptReadme',
-  'src\', \'auth',
-  "export \\* from ['\"]\\.\\/auth",
   'custom/build-runtime.mjs',
   'dist/index.js',
   "'.java'",
@@ -1281,15 +1278,35 @@ assert.match(
   /shouldAssembleTypeScriptRoot/,
   'IM generate entrypoint must only run TypeScript root single-package assembly when TypeScript is selected or all languages are generated.',
 );
-assert.match(
+assert.doesNotMatch(
   imGenerateSource,
   /normalize-typescript-generated-package-manifest\.mjs/,
-  'IM generate entrypoint must normalize the TypeScript generated package manifest after generator output changes.',
+  'IM generate entrypoint must not post-process the TypeScript generated package manifest.',
 );
 assert.doesNotMatch(
   imGenerateSource,
   /normalize-generated-auth-surface/,
   'IM generate entrypoint must not call the retired generated auth surface normalizer.',
+);
+assert.doesNotMatch(
+  sharedFamilySource,
+  /function\s+normalizeGeneratedLanguage\b|function\s+normalizeGeneratedTypeScriptAuthSurface\b|function\s+normalize(?:Java|Kotlin|Rust|Go|Python|Flutter|Swift|Csharp)AuthSurface\b/,
+  'Shared IM SDK family generation must not retain generated-output post-processing normalizers.',
+);
+assert.equal(
+  imTypeScriptGeneratedPackage.name,
+  '@sdkwork/im-sdk-generated',
+  'IM TypeScript generated package name must be owned by the generator output.',
+);
+assert.equal(
+  imTypeScriptGeneratedPackage.private,
+  true,
+  'IM TypeScript generated package manifest must mark generated transport private without Craw Chat post-processing.',
+);
+assert.equal(
+  imTypeScriptGeneratedPackage.description,
+  'Generator-owned TypeScript transport SDK for sdkwork-im-sdk.',
+  'IM TypeScript generated package description must come from the canonical generator.',
 );
 
 for (const [label, source] of [

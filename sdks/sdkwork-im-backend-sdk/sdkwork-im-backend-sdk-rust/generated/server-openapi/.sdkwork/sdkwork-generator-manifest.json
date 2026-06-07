@@ -11,7 +11,7 @@
   "generatedFiles": [
     {
       "path": "bin/publish-core.mjs",
-      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+      "sha256": "18b05851461e9176a2ad18c3f5138316a6da45ad0dfb847565603ff3d90bf14b"
     },
     {
       "path": "bin/publish.ps1",
@@ -23,7 +23,7 @@
     },
     {
       "path": "Cargo.toml",
-      "sha256": "cd17bc71c7c12d8ee4b0d32af3914e9946491b2ebb18f8d11f4362c8e086547f"
+      "sha256": "1a742cee952dbd2a46e27490d4f26ef1d3e70ab04feeb60974075819f0e8492b"
     },
     {
       "path": "CHANGELOG.md",
@@ -35,11 +35,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "838c6d5d19b600564ba8d759edbfe04d5a61474f3deb7a6a4aefe24e5e04478c"
+      "sha256": "4e2ace7bab955e605e3f0439ebae09bd1e3fb57a6a59eefd92228f7db8562341"
     },
     {
       "path": "sdkwork-sdk.json",
-      "sha256": "8341c1a35158f17114b20991e7ea06990e78399ddbfe52825499ed0397649fcb"
+      "sha256": "f4ed159164b27f70ca02f53f2dd4128e06cf476395f8c7f414362ac27f136c74"
     },
     {
       "path": "src/api/admin.rs",
@@ -75,11 +75,11 @@
     },
     {
       "path": "src/client.rs",
-      "sha256": "59ca4fe810484030e62b5a038ffc87d1206c044b2150d37a53547d7abba6068c"
+      "sha256": "4d9f533f3ed95a6073cb601c591bc0dbab38008b6bde24e3c34ec086b3cdb9ae"
     },
     {
       "path": "src/http/client.rs",
-      "sha256": "71567159850fdd8b855c72439bf9d9104151dcd8a6ed687918b6015ce86b1c94"
+      "sha256": "12430714e3ad5037c0533831c1bcfa3f31d362205ba286a35e036c02dbe4f1f5"
     },
     {
       "path": "src/http/mod.rs",
@@ -87,7 +87,7 @@
     },
     {
       "path": "src/lib.rs",
-      "sha256": "c1dab4a8eab2ddc82292e3f238479a05575b5ce8c22925188d911c94925f21c4"
+      "sha256": "5c4dcb02f70ca3b88fd460b978590b9ab4ff225e5c30f1bf662f56e666d75407"
     },
     {
       "path": "src/models/accept_friend_request_request.rs",

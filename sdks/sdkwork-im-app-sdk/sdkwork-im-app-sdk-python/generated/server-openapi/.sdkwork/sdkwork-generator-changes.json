@@ -8,23 +8,14 @@
     "sdkType": "app",
     "packageName": "sdkwork-im-app-api-generated"
   },
-  "changeFingerprint": "12a04c6f8b334354a9ca705d539479199ca439a7d10097526612086c43c45ede",
+  "changeFingerprint": "da959b836f59ac82be99e1f992a5815acc9a0f72609dfd4d81963c2620e5a955",
   "changes": {
-    "createdGeneratedFiles": [],
-    "updatedGeneratedFiles": [
-      "pyproject.toml",
-      "README.md",
-      "sdkwork_im_app_api_generated/client.py",
-      "sdkwork_im_app_api_generated/http_client.py",
-      "sdkwork-sdk.json"
-    ],
-    "unchangedGeneratedFiles": [
-      "bin/publish-core.mjs",
-      "bin/publish.ps1",
-      "bin/publish.sh",
+    "createdGeneratedFiles": [
       "CHANGELOG.md",
       "LICENSE",
       "MANIFEST.in",
+      "pyproject.toml",
+      "README.md",
       "requirements.txt",
       "sdkwork_im_app_api_generated/__init__.py",
       "sdkwork_im_app_api_generated/api/__init__.py",
@@ -34,7 +25,8 @@
       "sdkwork_im_app_api_generated/api/notification.py",
       "sdkwork_im_app_api_generated/api/portal.py",
       "sdkwork_im_app_api_generated/api/provider.py",
-      "sdkwork_im_app_api_generated/api/rtc.py",
+      "sdkwork_im_app_api_generated/client.py",
+      "sdkwork_im_app_api_generated/http_client.py",
       "sdkwork_im_app_api_generated/models/__init__.py",
       "sdkwork_im_app_api_generated/models/agent_subject.py",
       "sdkwork_im_app_api_generated/models/agent_tool_call.py",
@@ -58,34 +50,74 @@
       "sdkwork_im_app_api_generated/models/stream_session.py",
       "sdkwork_im_app_api_generated/models/update_device_twin_desired_request.py",
       "sdkwork_im_app_api_generated/models/update_device_twin_reported_request.py",
+      "sdkwork-sdk.json",
       "setup.py"
+    ],
+    "updatedGeneratedFiles": [],
+    "unchangedGeneratedFiles": [
+      "bin/publish-core.mjs",
+      "bin/publish.ps1",
+      "bin/publish.sh"
     ],
     "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/README.md"
     ],
-    "backedUpFiles": [
-      "pyproject.toml",
-      "README.md",
-      "sdkwork_im_app_api_generated/client.py",
-      "sdkwork_im_app_api_generated/http_client.py",
-      "sdkwork-sdk.json"
-    ]
+    "backedUpFiles": []
   },
   "impact": {
     "schemaVersion": 1,
     "areas": [
       "api-surface",
+      "models",
       "runtime",
       "build-metadata",
-      "documentation"
+      "documentation",
+      "unknown"
     ],
     "details": [
       {
         "area": "api-surface",
         "paths": [
-          "sdkwork_im_app_api_generated/client.py"
+          "sdkwork_im_app_api_generated/__init__.py",
+          "sdkwork_im_app_api_generated/api/__init__.py",
+          "sdkwork_im_app_api_generated/api/automation.py",
+          "sdkwork_im_app_api_generated/api/device.py",
+          "sdkwork_im_app_api_generated/api/iot.py",
+          "sdkwork_im_app_api_generated/api/notification.py",
+          "sdkwork_im_app_api_generated/api/portal.py",
+          "sdkwork_im_app_api_generated/api/provider.py",
+          "sdkwork_im_app_api_generated/client.py",
+          "sdkwork_im_app_api_generated/models/__init__.py"
+        ]
+      },
+      {
+        "area": "models",
+        "paths": [
+          "sdkwork_im_app_api_generated/models/__init__.py",
+          "sdkwork_im_app_api_generated/models/agent_subject.py",
+          "sdkwork_im_app_api_generated/models/agent_tool_call.py",
+          "sdkwork_im_app_api_generated/models/append_agent_response_delta_request.py",
+          "sdkwork_im_app_api_generated/models/automation_execution_request_response.py",
+          "sdkwork_im_app_api_generated/models/automation_execution.py",
+          "sdkwork_im_app_api_generated/models/complete_agent_response_request.py",
+          "sdkwork_im_app_api_generated/models/complete_agent_tool_call_request.py",
+          "sdkwork_im_app_api_generated/models/device_twin_view.py",
+          "sdkwork_im_app_api_generated/models/notification_list_response.py",
+          "sdkwork_im_app_api_generated/models/notification_request_response.py",
+          "sdkwork_im_app_api_generated/models/notification_task.py",
+          "sdkwork_im_app_api_generated/models/portal_workspace_view.py",
+          "sdkwork_im_app_api_generated/models/problem_detail.py",
+          "sdkwork_im_app_api_generated/models/request_agent_tool_call_request.py",
+          "sdkwork_im_app_api_generated/models/request_automation_execution.py",
+          "sdkwork_im_app_api_generated/models/request_notification.py",
+          "sdkwork_im_app_api_generated/models/sender.py",
+          "sdkwork_im_app_api_generated/models/start_agent_response_request.py",
+          "sdkwork_im_app_api_generated/models/stream_frame.py",
+          "sdkwork_im_app_api_generated/models/stream_session.py",
+          "sdkwork_im_app_api_generated/models/update_device_twin_desired_request.py",
+          "sdkwork_im_app_api_generated/models/update_device_twin_reported_request.py"
         ]
       },
       {
@@ -98,30 +130,40 @@
         "area": "build-metadata",
         "paths": [
           "pyproject.toml",
-          "sdkwork-sdk.json"
+          "requirements.txt",
+          "sdkwork-sdk.json",
+          "setup.py"
         ]
       },
       {
         "area": "documentation",
         "paths": [
+          "CHANGELOG.md",
           "README.md"
+        ]
+      },
+      {
+        "area": "unknown",
+        "paths": [
+          "LICENSE",
+          "MANIFEST.in"
         ]
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required."
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, runtime, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation.",
-        "workingDirectory": "D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-python\\generated\\server-openapi",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-python\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -144,10 +186,11 @@
     "applyRequiresExpectedFingerprint": false,
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "backed-up-generated-files",
       "manual-review-required",
+      "preserved-legacy-files",
+      "unknown-impact",
       "verification-required"
     ]
   },
-  "preservedLegacyFiles": false
+  "preservedLegacyFiles": true
 }

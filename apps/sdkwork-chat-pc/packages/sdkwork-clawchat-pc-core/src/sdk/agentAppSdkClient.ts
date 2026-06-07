@@ -5,7 +5,7 @@ import {
 } from '@sdkwork/agent-app-sdk';
 import {
   createSdkworkChatRequestContextInterceptors,
-  createSdkworkChatSessionTokenManager,
+  getSdkworkChatGlobalTokenManager,
   readAppSdkSessionTokens,
   resolveAppSdkAccessToken,
   resolveAppSdkAuthToken,
@@ -31,7 +31,7 @@ export function createAgentAppSdkClientConfig(
     authToken: resolveAppSdkAuthToken(currentSession),
     interceptors: createSdkworkChatRequestContextInterceptors(() => readAppSdkSessionTokens() ?? currentSession),
     platform: 'pc',
-    tokenManager: createSdkworkChatSessionTokenManager(currentSession),
+    tokenManager: getSdkworkChatGlobalTokenManager(),
   };
 }
 

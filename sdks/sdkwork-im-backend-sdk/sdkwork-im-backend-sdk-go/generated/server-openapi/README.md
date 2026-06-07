@@ -1,20 +1,173 @@
-# sdkwork-im-backend-sdk
+# sdkwork-im-backend-sdk (Go)
 
-Generator-owned Go transport SDK for the Craw Chat backend/operator API.
+Generator-owned Go transport SDK for sdkwork-im-backend-sdk.
 
-This package is generated transport. It targets `/backend/v3/api` and is not a login,
-user, tenant, organization, or account-session SDK. Those identity and token lifecycles are
-owned by `sdkwork-appbase`; this SDK only forwards the already validated dual-token context.
+## Installation
 
-## Token Boundary
+```bash
+go get github.com/sdkwork/im-backend-api-generated
+```
 
-- `Authorization: Bearer <authToken>` carries the upstream authenticated principal context.
-- `Access-Token: <accessToken>` carries the upstream access token context.
-- Login, refresh, current-user, tenant, organization, and account-session APIs stay outside this package.
+## Quick Start
 
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/sdkwork/im-backend-api-generated"
+    sdkhttp "github.com/sdkwork/im-backend-api-generated/http"
+
+)
+
+func main() {
+    cfg := sdkhttp.NewDefaultConfig("http://127.0.0.1:18090")
+    client := github.com/sdkwork/im-backend-api-generated.NewSdkworkImBackendClientWithConfig(cfg)
+    // Attach the authenticated SDKWork session tokens
+        client.SetAuthToken("your-auth-token")
+        client.SetAccessToken("your-access-token")
+    
+    // Use the SDK
+    result, err := client.Admin.ApiKeyGroupsList()
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println(result)
+}
+```
+
+## Dual Token Authentication
+
+```
+client.SetAuthToken("your-auth-token")
+client.SetAccessToken("your-access-token")
+// Sends:
+// Authorization: Bearer <authToken>
+// Access-Token: <accessToken>
+```
+
+
+## Configuration (Non-Auth)
+
+```go
+cfg := sdkhttp.NewDefaultConfig("http://127.0.0.1:18090")
+client := github.com/sdkwork/im-backend-api-generated.NewSdkworkImBackendClientWithConfig(cfg)
+
+// Set custom headers
+client.SetHeader("X-Custom-Header", "value")
+```
+
+## API Modules
+
+- `client.Ops` - ops API
+- `client.Audit` - audit API
+- `client.Automation` - automation API
+- `client.Control` - control API
+- `client.Admin` - admin API
+
+## Usage Examples
+
+### ops
+
+```go
+// Retrieve ops health
+result, err := client.Ops.HealthRetrieve()
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
+```
+
+### audit
+
+```go
+// List audit records
+result, err := client.Audit.RecordsList()
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
+```
+
+### automation
+
+```go
+// Retrieve automation governance
+result, err := client.Automation.GovernanceRetrieve()
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
+```
+
+### control
+
+```go
+// Read the control-plane protocol governance snapshot.
+result, err := client.Control.ProtocolGovernanceRetrieve()
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
+```
+
+### admin
+
+```go
+// listApiKeyGroups
+result, err := client.Admin.ApiKeyGroupsList()
+if err != nil {
+    panic(err)
+}
+fmt.Println(result)
+```
+
+## Error Handling
+
+```go
+_, err := client.Admin.ApiKeyGroupsList()
+if err != nil {
+    // Handle error
+    fmt.Println("Error:", err)
+    return
+}
+```
+
+## Publishing
+
+This SDK includes cross-platform publish scripts in `bin/`:
+- `bin/publish-core.mjs`
+- `bin/publish.sh`
+- `bin/publish.ps1`
+
+### Check
+
+```bash
+./bin/publish.sh --action check
+```
+
+### Publish
+
+```bash
+./bin/publish.sh --action publish --channel release
+```
+
+```powershell
+.\bin\publish.ps1 --action publish --channel test --dry-run
+```
+
+> Set `GO_RELEASE_TAG` (or `SDKWORK_RELEASE_TAG`) and push tag if needed.
+
+## License
+
+MIT
 
 ## Regeneration Contract
 
-- Generated files are tracked by the SDK generator under `.sdkwork/`.
-- Fix runtime, OpenAPI, or family generator inputs first, then regenerate.
-- Hand-written application wrappers must live outside `generated/server-openapi`.
+- Generator-owned files are tracked in `.sdkwork/sdkwork-generator-manifest.json`.
+- Each run also writes `.sdkwork/sdkwork-generator-changes.json` so automation can inspect created, updated, deleted, unchanged, scaffolded, and backed-up files plus the classified impact areas, verification plan, and execution decision for the latest generation.
+- Apply mode also writes `.sdkwork/sdkwork-generator-report.json` with the full execution report, including `schemaVersion`, `generator`, stable artifact paths, and the execution handoff commands that match CLI `--json` output.
+- CLI JSON output also includes an execution handoff with concrete next commands, including reviewed apply commands for dry-run flows.
+- Put hand-written wrappers, adapters, and orchestration in `custom/`.
+- Files scaffolded under `custom/` are created once and preserved across regenerations.
+- If a generated-owned file was modified locally, its previous content is copied to `.sdkwork/manual-backups/` before overwrite or removal.

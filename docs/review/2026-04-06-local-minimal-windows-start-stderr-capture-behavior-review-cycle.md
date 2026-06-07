@@ -2,9 +2,9 @@
 
 ## 1. Review scope
 
-- [deployment_profile_test.rs](D:/javasource/spring-ai-plus/spring-ai-plus-business/apps/craw-chat/services/local-minimal-node/tests/deployment_profile_test.rs)
-- [start-local.ps1](D:/javasource/spring-ai-plus/spring-ai-plus-business/apps/craw-chat/bin/start-local.ps1)
-- [restart-local.sh](D:/javasource/spring-ai-plus/spring-ai-plus-business/apps/craw-chat/bin/restart-local.sh)
+- [deployment_profile_test.rs](<workspace-root>/craw-chat/services/local-minimal-node/tests/deployment_profile_test.rs)
+- [start-local.ps1](<workspace-root>/craw-chat/bin/start-local.ps1)
+- [restart-local.sh](<workspace-root>/craw-chat/bin/restart-local.sh)
 
 ## 2. Findings
 

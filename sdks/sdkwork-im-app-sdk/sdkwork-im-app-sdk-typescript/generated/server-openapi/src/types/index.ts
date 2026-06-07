@@ -36,5 +36,3 @@ export type { AccessProviderHealthRetrieveResponse } from './access-provider-hea
 export type { ProtocolProviderHealthRetrieveResponse } from './protocol-provider-health-retrieve-response';
 export type { ProtocolUplinkCreateResponse } from './protocol-uplink-create-response';
 export type { ProtocolDownlinkCreateResponse } from './protocol-downlink-create-response';
-export type { ProviderCallbacksCreateResponse } from './provider-callbacks-create-response';
-export type { ProviderHealthRetrieveResponse } from './provider-health-retrieve-response';

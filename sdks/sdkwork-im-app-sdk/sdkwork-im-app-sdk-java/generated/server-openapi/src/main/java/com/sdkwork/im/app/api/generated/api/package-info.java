@@ -9,4 +9,3 @@ import com.sdkwork.im.app.api.generated.api.NotificationApi;
 import com.sdkwork.im.app.api.generated.api.PortalApi;
 import com.sdkwork.im.app.api.generated.api.ProviderApi;
 import com.sdkwork.im.app.api.generated.api.IotApi;
-import com.sdkwork.im.app.api.generated.api.RtcApi;

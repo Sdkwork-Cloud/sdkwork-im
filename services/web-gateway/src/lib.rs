@@ -35,6 +35,7 @@ use tower::ServiceExt;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
 const BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
+const APPBASE_APP_API_SERVICE_ID: &str = "sdkwork-appbase-app-api";
 
 #[derive(Clone)]
 struct GatewayState {
@@ -278,11 +279,16 @@ async fn proxy_request(State(state): State<GatewayState>, request: Request) -> R
     };
     let Some(upstream_base_url) = state.config.upstream_base_url(route.service_id.as_str()) else {
         if state.config.runtime_mode == GatewayRuntimeMode::Embedded {
-            return delegate_to_runtime_router(
-                runtime_router_for_missing_embedded_upstream(&state, route.service_id.as_str()),
-                Request::from_parts(parts, body),
-            )
-            .await;
+            let request = Request::from_parts(parts, body);
+            let Some(runtime_router) =
+                runtime_router_for_missing_embedded_upstream(&state, route.service_id.as_str())
+            else {
+                return json_error_response(
+                    StatusCode::BAD_GATEWAY,
+                    format!("upstream target is not configured for {}", route.service_id).as_str(),
+                );
+            };
+            return delegate_to_runtime_router(Some(runtime_router), request).await;
         }
         return json_error_response(
             StatusCode::BAD_GATEWAY,
@@ -370,8 +376,8 @@ fn runtime_router_for_missing_embedded_upstream(
     state: &GatewayState,
     service_id: &str,
 ) -> Option<Router> {
-    if service_id == "sdkwork-appbase-app-api" {
-        return state.product_runtime_router.clone();
+    if service_id == APPBASE_APP_API_SERVICE_ID {
+        return None;
     }
 
     state

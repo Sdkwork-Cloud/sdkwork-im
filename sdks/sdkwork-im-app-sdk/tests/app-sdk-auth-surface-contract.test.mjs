@@ -22,8 +22,6 @@ const appbaseOwnedAppRoutes = [
   'auth/sessions',
   'auth/sessions/refresh',
   'auth/sessions/current',
-  'auth/verification_codes',
-  'auth/verification_codes/verify',
   'iam/users/current',
   'iam/organizations',
   'iam/organizations/tree',

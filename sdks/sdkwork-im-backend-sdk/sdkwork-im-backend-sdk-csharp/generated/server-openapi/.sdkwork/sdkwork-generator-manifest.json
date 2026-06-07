@@ -39,7 +39,7 @@
     },
     {
       "path": "bin/publish-core.mjs",
-      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+      "sha256": "18b05851461e9176a2ad18c3f5138316a6da45ad0dfb847565603ff3d90bf14b"
     },
     {
       "path": "bin/publish.ps1",
@@ -55,7 +55,7 @@
     },
     {
       "path": "Http/HttpClient.cs",
-      "sha256": "450b18978b6a0e34daa83774620a954cc92c2bd472840ba56c860b52e7181995"
+      "sha256": "2be153dd763d8230aab001c3510d66d1428444e07f211810a00982d26253f214"
     },
     {
       "path": "LICENSE",
@@ -323,19 +323,23 @@
     },
     {
       "path": "README.md",
-      "sha256": "d884cfa81f4345beaa3e66bf3510c2c7bab875eca9fa7351e92e3e66ebbc242a"
+      "sha256": "bc404eb0a890b5f3e3a1bc9b7c353a5de8b06c2930260f58059f1fdfd7201382"
     },
     {
       "path": "sdkwork-sdk.json",
-      "sha256": "f2959ecd2ad35a10308290c6946680f2d5cdc657a88c1f68233945458d2a4b5b"
+      "sha256": "6a18c609be4b397a8268bd2edd55f623595644f9857cbeb56161e468276faad2"
     },
     {
       "path": "Sdkwork.Im.BackendApi.Generated.csproj",
-      "sha256": "7880568db35ebad7aa137c25c845c84f6970852477ed4aa731d839dc989a46af"
+      "sha256": "d4eb72a57ce95b15e7329dbf5a5c8bda8a1faa305acc1858eac137c597f38d23"
     },
     {
       "path": "SdkworkBackendClient.cs",
-      "sha256": "4c06ce45a82e162e7e932ca2b3573ae19b82a779eca625495675aaca1aac10c5"
+      "sha256": "96ffb8d02801b59ceda11bcacad797e9fa1f818454ce7f569439a529c87be876"
+    },
+    {
+      "path": "SdkworkImBackendClient.cs",
+      "sha256": "ead1e08d0ef37c823202e80a6352805106e1e83165c8a0dcc8e9d173041981c0"
     }
   ],
   "scaffoldFiles": [
