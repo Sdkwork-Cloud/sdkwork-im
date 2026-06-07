@@ -3,14 +3,15 @@ use std::ops::Bound::{Excluded, Unbounded};
 use std::sync::{Mutex, MutexGuard};
 
 use im_domain_core::conversation::{
-    ConversationMember, ConversationReadCursor, ConversationReadCursorView, DeviceSyncFeedEntry,
+    ClientRouteSyncFeedEntry, ConversationMember, ConversationReadCursor,
+    ConversationReadCursorView,
 };
 use im_domain_core::message::{ContentPart, Message, MessageEdited, MessageRecalled};
 use im_domain_events::CommitEnvelope;
 
 mod access;
+mod client_route_sync;
 mod contacts;
-mod device_sync;
 mod http;
 mod inbox;
 mod interactions;
@@ -24,7 +25,7 @@ mod snapshot;
 mod summary_updates;
 mod update_delay;
 
-use device_sync::DeviceSyncEntryDraft;
+use client_route_sync::ClientRouteSyncEntryDraft;
 use member_store::ProjectionMemberRuntimeStore;
 use model::ConversationCatalogEntry;
 use observability::ProjectionObservabilityState;
@@ -34,17 +35,18 @@ use projection::{
     handoff_view_from_state_payload,
 };
 use scope::{
-    ContactOwnerScopeKey, DeviceFeedScopeKey, DevicePrincipalScopeKey, scope_key,
+    ClientRouteFeedScopeKey, ClientRoutePrincipalScopeKey, ContactOwnerScopeKey, scope_key,
     tracked_live_projection_lag_scope_id,
 };
 
-pub use access::{DeviceSyncStateSnapshot, ProjectionAccessError};
+pub use access::{ClientRouteSyncStateSnapshot, ProjectionAccessError};
 pub use http::{build_app, build_default_app, build_public_app, build_public_app_with_service};
 pub use model::{
-    ContactView, ContactWindowView, ConversationMemberDirectoryEntry, ConversationSummaryView,
-    DeviceSyncFeedWindowView, InboxWindowView, InteractionActorView, MessageInteractionSummaryView,
-    MessagePinView, MessageReactionCountView, NotificationRecipientView, RealtimeFanoutTarget,
-    RegisteredDeviceView, SummarySenderView, TimelineViewEntry, TimelineWindowView,
+    ClientRouteSyncFeedWindowView, ContactView, ContactWindowView,
+    ConversationMemberDirectoryEntry, ConversationSummaryView, InboxWindowView,
+    InteractionActorView, MessageInteractionSummaryView, MessagePinView, MessageReactionCountView,
+    NotificationRecipientView, RealtimeFanoutTarget, RegisteredClientRouteView, SummarySenderView,
+    TimelineViewEntry, TimelineWindowView,
 };
 pub use observability::{
     ProjectionLagItemView, ProjectionLogView, ProjectionOperationMetricView,
@@ -57,10 +59,10 @@ pub const PROJECTION_TIMELINE_DEFAULT_LIMIT: usize = 100;
 pub const PROJECTION_TIMELINE_MAX_LIMIT: usize = 1000;
 pub const PROJECTION_LIST_DEFAULT_LIMIT: usize = 100;
 pub const PROJECTION_LIST_MAX_LIMIT: usize = 1000;
-pub const PROJECTION_DEVICE_SYNC_FEED_DEFAULT_LIMIT: usize = 100;
-pub const PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT: usize = 1000;
-pub const PROJECTION_DEVICE_SYNC_FEED_MAX_RETAINED_EVENTS: usize =
-    PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT;
+pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_DEFAULT_LIMIT: usize = 100;
+pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT: usize = 1000;
+pub const PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_RETAINED_EVENTS: usize =
+    PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT;
 
 #[derive(Default)]
 pub struct TimelineProjectionService {
@@ -73,10 +75,11 @@ pub struct TimelineProjectionService {
     direct_chat_bindings: Mutex<contacts::ContactDirectChatBindingRuntimeStore>,
     message_interactions:
         Mutex<HashMap<String, HashMap<String, interactions::StoredMessageInteractionSummary>>>,
-    registered_devices:
-        Mutex<HashMap<DevicePrincipalScopeKey, HashMap<String, RegisteredDeviceView>>>,
-    device_sync_feeds: Mutex<HashMap<DeviceFeedScopeKey, BTreeMap<u64, DeviceSyncFeedEntry>>>,
-    device_sync_sequences: Mutex<HashMap<DeviceFeedScopeKey, u64>>,
+    registered_client_routes:
+        Mutex<HashMap<ClientRoutePrincipalScopeKey, HashMap<String, RegisteredClientRouteView>>>,
+    client_route_sync_feeds:
+        Mutex<HashMap<ClientRouteFeedScopeKey, BTreeMap<u64, ClientRouteSyncFeedEntry>>>,
+    client_route_sync_sequences: Mutex<HashMap<ClientRouteFeedScopeKey, u64>>,
     observability: Mutex<ProjectionObservabilityState>,
 }
 
@@ -94,9 +97,21 @@ impl TimelineProjectionService {
         )
         .clear();
         lock_projection_mutex(&self.message_interactions, "message interaction store").clear();
-        lock_projection_mutex(&self.registered_devices, "registered device store").clear();
-        lock_projection_mutex(&self.device_sync_feeds, "device sync feed store").clear();
-        lock_projection_mutex(&self.device_sync_sequences, "device sync sequence store").clear();
+        lock_projection_mutex(
+            &self.registered_client_routes,
+            "registered client route store",
+        )
+        .clear();
+        lock_projection_mutex(
+            &self.client_route_sync_feeds,
+            "client route sync feed store",
+        )
+        .clear();
+        lock_projection_mutex(
+            &self.client_route_sync_sequences,
+            "client route sync sequence store",
+        )
+        .clear();
         *lock_projection_mutex(&self.observability, "projection observability store") =
             ProjectionObservabilityState::default();
     }
@@ -156,13 +171,13 @@ impl TimelineProjectionService {
         result
     }
 
-    pub fn device_sync_fanout_targets_for_conversation(
+    pub fn client_route_sync_fanout_targets_for_conversation(
         &self,
         tenant_id: &str,
         conversation_id: &str,
         fallback_recipients: Vec<NotificationRecipientView>,
     ) -> Vec<RealtimeFanoutTarget> {
-        device_sync::device_sync_fanout_targets_for_conversation(
+        client_route_sync::client_route_sync_fanout_targets_for_conversation(
             self,
             tenant_id,
             conversation_id,
@@ -235,7 +250,7 @@ impl TimelineProjectionService {
             });
         summary.agent_handoff = Some(handoff_view);
         drop(summaries);
-        self.fan_out_agent_handoff_status_to_device_sync_feeds(event, &payload);
+        self.fan_out_agent_handoff_status_to_client_route_sync_feeds(event, &payload);
         Ok(())
     }
 
@@ -300,7 +315,7 @@ impl TimelineProjectionService {
         );
         drop(summaries);
 
-        self.fan_out_message_to_device_sync_feeds(event, &message);
+        self.fan_out_message_to_client_route_sync_feeds(event, &message);
         self.record_projection_update_delay_for_scope(
             "message.posted",
             scope_key(message.tenant_id.as_str(), message.conversation_id.as_str()).as_str(),
@@ -328,7 +343,7 @@ impl TimelineProjectionService {
             message.body.summary.clone(),
             message.edited_at.clone(),
         );
-        self.fan_out_message_mutation_to_device_sync_feeds(
+        self.fan_out_message_mutation_to_client_route_sync_feeds(
             event,
             message.tenant_id.as_str(),
             message.conversation_id.as_str(),
@@ -364,7 +379,7 @@ impl TimelineProjectionService {
             recalled_summary.clone(),
             message.recalled_at.clone(),
         );
-        self.fan_out_message_mutation_to_device_sync_feeds(
+        self.fan_out_message_mutation_to_client_route_sync_feeds(
             event,
             message.tenant_id.as_str(),
             message.conversation_id.as_str(),
@@ -407,7 +422,7 @@ impl TimelineProjectionService {
             });
         drop(cursors);
 
-        self.fan_out_member_governance_to_device_sync_feeds(
+        self.fan_out_member_governance_to_client_route_sync_feeds(
             event,
             member.tenant_id.as_str(),
             member.conversation_id.as_str(),
@@ -427,7 +442,7 @@ impl TimelineProjectionService {
         let key = scope_key(member.tenant_id.as_str(), member.conversation_id.as_str());
         lock_projection_mutex(&self.members, "member store").insert_member(key, member.clone());
 
-        self.fan_out_member_governance_to_device_sync_feeds(
+        self.fan_out_member_governance_to_client_route_sync_feeds(
             event,
             member.tenant_id.as_str(),
             member.conversation_id.as_str(),
@@ -450,7 +465,7 @@ impl TimelineProjectionService {
             member.principal_kind.as_str(),
         );
 
-        self.fan_out_member_governance_to_device_sync_feeds(
+        self.fan_out_member_governance_to_client_route_sync_feeds(
             event,
             member.tenant_id.as_str(),
             member.conversation_id.as_str(),
@@ -476,7 +491,7 @@ impl TimelineProjectionService {
             member.principal_kind.as_str(),
         );
 
-        self.fan_out_member_governance_to_device_sync_feeds(
+        self.fan_out_member_governance_to_client_route_sync_feeds(
             event,
             member.tenant_id.as_str(),
             member.conversation_id.as_str(),
@@ -503,7 +518,7 @@ impl TimelineProjectionService {
             .insert(cursor.member_id.clone(), cursor.clone());
         drop(cursors);
 
-        self.fan_out_read_cursor_to_device_sync_feeds(event, &cursor);
+        self.fan_out_read_cursor_to_client_route_sync_feeds(event, &cursor);
         Ok(())
     }
 
@@ -605,9 +620,13 @@ impl TimelineProjectionService {
             .cloned()
     }
 
-    fn fan_out_message_to_device_sync_feeds(&self, event: &CommitEnvelope, message: &Message) {
-        let (payload_schema, payload) = message_device_sync_payload(event, message);
-        let draft = DeviceSyncEntryDraft {
+    fn fan_out_message_to_client_route_sync_feeds(
+        &self,
+        event: &CommitEnvelope,
+        message: &Message,
+    ) {
+        let (payload_schema, payload) = message_client_route_sync_payload(event, message);
+        let draft = ClientRouteSyncEntryDraft {
             tenant_id: message.tenant_id.clone(),
             origin_event_id: event.event_id.clone(),
             origin_event_type: event.event_type.clone(),
@@ -629,7 +648,7 @@ impl TimelineProjectionService {
                 .unwrap_or_else(|| message.occurred_at.clone()),
         };
 
-        for target in self.device_sync_fanout_targets_for_conversation(
+        for target in self.client_route_sync_fanout_targets_for_conversation(
             message.tenant_id.as_str(),
             message.conversation_id.as_str(),
             vec![NotificationRecipientView {
@@ -637,14 +656,14 @@ impl TimelineProjectionService {
                 principal_kind: message.sender.kind.clone(),
             }],
         ) {
-            self.append_device_sync_draft(&target, &draft);
+            self.append_client_route_sync_draft(&target, &draft);
         }
     }
 
     // These fanout helpers keep event and conversation identity fields explicit
-    // because they bridge journal payloads into device-sync artifacts.
+    // because they bridge journal payloads into client-route-sync artifacts.
     #[allow(clippy::too_many_arguments)]
-    fn fan_out_message_mutation_to_device_sync_feeds(
+    fn fan_out_message_mutation_to_client_route_sync_feeds(
         &self,
         event: &CommitEnvelope,
         tenant_id: &str,
@@ -656,7 +675,7 @@ impl TimelineProjectionService {
         actor_device_id: Option<String>,
         summary: Option<String>,
     ) {
-        let draft = DeviceSyncEntryDraft {
+        let draft = ClientRouteSyncEntryDraft {
             tenant_id: tenant_id.into(),
             origin_event_id: event.event_id.clone(),
             origin_event_type: event.event_type.clone(),
@@ -675,7 +694,7 @@ impl TimelineProjectionService {
             occurred_at: event.committed_at.clone(),
         };
 
-        for target in self.device_sync_fanout_targets_for_conversation(
+        for target in self.client_route_sync_fanout_targets_for_conversation(
             tenant_id,
             conversation_id,
             vec![NotificationRecipientView {
@@ -683,16 +702,16 @@ impl TimelineProjectionService {
                 principal_kind: actor_kind.into(),
             }],
         ) {
-            self.append_device_sync_draft(&target, &draft);
+            self.append_client_route_sync_draft(&target, &draft);
         }
     }
 
-    fn fan_out_read_cursor_to_device_sync_feeds(
+    fn fan_out_read_cursor_to_client_route_sync_feeds(
         &self,
         event: &CommitEnvelope,
         cursor: &ConversationReadCursor,
     ) {
-        let draft = DeviceSyncEntryDraft {
+        let draft = ClientRouteSyncEntryDraft {
             tenant_id: cursor.tenant_id.clone(),
             origin_event_id: event.event_id.clone(),
             origin_event_type: event.event_type.clone(),
@@ -711,7 +730,7 @@ impl TimelineProjectionService {
             occurred_at: cursor.updated_at.clone(),
         };
 
-        for target in device_sync::realtime_fanout_targets_for_recipients(
+        for target in client_route_sync::realtime_fanout_targets_for_recipients(
             self,
             cursor.tenant_id.as_str(),
             vec![NotificationRecipientView {
@@ -719,16 +738,16 @@ impl TimelineProjectionService {
                 principal_kind: cursor.principal_kind.clone(),
             }],
         ) {
-            self.append_device_sync_draft(&target, &draft);
+            self.append_client_route_sync_draft(&target, &draft);
         }
     }
 
-    fn fan_out_agent_handoff_status_to_device_sync_feeds(
+    fn fan_out_agent_handoff_status_to_client_route_sync_feeds(
         &self,
         event: &CommitEnvelope,
         payload: &AgentHandoffStatusChangedProjectionPayload,
     ) {
-        let draft = DeviceSyncEntryDraft {
+        let draft = ClientRouteSyncEntryDraft {
             tenant_id: event.tenant_id.clone(),
             origin_event_id: event.event_id.clone(),
             origin_event_type: event.event_type.clone(),
@@ -747,7 +766,7 @@ impl TimelineProjectionService {
             occurred_at: payload.changed_at.clone(),
         };
 
-        for target in self.device_sync_fanout_targets_for_conversation(
+        for target in self.client_route_sync_fanout_targets_for_conversation(
             event.tenant_id.as_str(),
             payload.state.conversation_id.as_str(),
             vec![NotificationRecipientView {
@@ -755,12 +774,12 @@ impl TimelineProjectionService {
                 principal_kind: payload.changed_by.kind.clone(),
             }],
         ) {
-            self.append_device_sync_draft(&target, &draft);
+            self.append_client_route_sync_draft(&target, &draft);
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn fan_out_member_governance_to_device_sync_feeds(
+    fn fan_out_member_governance_to_client_route_sync_feeds(
         &self,
         event: &CommitEnvelope,
         tenant_id: &str,
@@ -772,7 +791,7 @@ impl TimelineProjectionService {
         occurred_at: &str,
     ) {
         let include_fallback = include_affected_principal_fallback
-            || device_sync::active_conversation_principal_recipients(
+            || client_route_sync::active_conversation_principal_recipients(
                 self,
                 tenant_id,
                 conversation_id,
@@ -786,7 +805,7 @@ impl TimelineProjectionService {
         } else {
             Vec::new()
         };
-        let draft = DeviceSyncEntryDraft {
+        let draft = ClientRouteSyncEntryDraft {
             tenant_id: tenant_id.into(),
             origin_event_id: event.event_id.clone(),
             origin_event_type: event.event_type.clone(),
@@ -805,28 +824,28 @@ impl TimelineProjectionService {
             occurred_at: occurred_at.into(),
         };
 
-        for target in self.device_sync_fanout_targets_for_conversation(
+        for target in self.client_route_sync_fanout_targets_for_conversation(
             tenant_id,
             conversation_id,
             fallback_recipients,
         ) {
-            self.append_device_sync_draft(&target, &draft);
+            self.append_client_route_sync_draft(&target, &draft);
         }
     }
 }
 
-fn message_device_sync_payload(
+fn message_client_route_sync_payload(
     event: &CommitEnvelope,
     message: &Message,
 ) -> (Option<String>, Option<String>) {
-    if !message_requires_device_sync_payload(message) {
+    if !message_requires_client_route_sync_payload(message) {
         return (None, None);
     }
 
     (event.payload_schema.clone(), Some(event.payload.clone()))
 }
 
-fn message_requires_device_sync_payload(message: &Message) -> bool {
+fn message_requires_client_route_sync_payload(message: &Message) -> bool {
     message.rtc_session_id.is_some()
         || message.message_type == im_domain_core::message::MessageType::Signal
         || message

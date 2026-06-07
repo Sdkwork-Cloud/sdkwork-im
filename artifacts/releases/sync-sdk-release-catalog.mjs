@@ -98,7 +98,7 @@ function buildCatalog(repoRoot, bundleId) {
       assemblyPath: path.join(repoRoot, '.sdkwork', 'dependencies', 'sdkwork-rtc', 'sdks', 'sdkwork-rtc-sdk', '.sdkwork-assembly.json'),
       packageField: 'publicPackage',
       readmePathFor: (workspaceConfig, languageEntry) =>
-        `.sdkwork/dependencies/sdkwork-rtc/sdks/${workspaceConfig.workspace}/${languageEntry.workspace}/README.md`,
+        `../../../sdkwork-rtc/sdks/${workspaceConfig.workspace}/${languageEntry.workspace}/README.md`,
     },
   ];
 

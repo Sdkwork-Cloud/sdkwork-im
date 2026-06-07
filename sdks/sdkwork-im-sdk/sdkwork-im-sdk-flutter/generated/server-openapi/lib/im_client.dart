@@ -1,6 +1,5 @@
 import 'package:sdkwork_common_flutter/sdkwork_common_flutter.dart';
 import 'src/http/client.dart';
-import 'src/api/device.dart';
 import 'src/api/presence.dart';
 import 'src/api/realtime.dart';
 import 'src/api/rtc.dart';
@@ -11,7 +10,6 @@ import 'src/api/streams.dart';
 class SdkworkImClient {
   final HttpClient _httpClient;
 
-  late final DeviceApi device;
   late final PresenceApi presence;
   late final RealtimeApi realtime;
   late final RtcApi rtc;
@@ -22,7 +20,6 @@ class SdkworkImClient {
   SdkworkImClient({
     required SdkConfig config,
   }) : _httpClient = HttpClient(config: config) {
-    device = DeviceApi(_httpClient);
     presence = PresenceApi(_httpClient);
     realtime = RealtimeApi(_httpClient);
     rtc = RtcApi(_httpClient);

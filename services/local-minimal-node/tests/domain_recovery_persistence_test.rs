@@ -495,200 +495,6 @@ async fn test_default_local_minimal_profile_restores_projection_queries_from_run
 }
 
 #[tokio::test]
-async fn test_default_local_minimal_profile_restores_device_sync_resume_and_feed_from_runtime_dir_snapshots_when_commit_journal_is_missing()
- {
-    let runtime_dir = unique_runtime_dir();
-    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
-
-    let app_before = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
-
-    let create_conversation = app_before
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "conversationId":"c_device_sync_snapshot_restart",
-                        "conversationType":"group"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create conversation should succeed");
-    assert_eq!(create_conversation.status(), StatusCode::OK);
-
-    for (device_id, session_id) in [("d_phone", "s_phone"), ("d_pad", "s_pad")] {
-        let register = app_before
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/im/v3/api/devices/register")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_demo")
-                    .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-device-id", device_id)
-                    .header("x-sdkwork-session-id", session_id)
-                    .header("content-type", "application/json")
-                    .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
-                    .unwrap(),
-            )
-            .await
-            .expect("device register should succeed");
-        assert_eq!(register.status(), StatusCode::OK);
-    }
-
-    let post_message = app_before
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_device_sync_snapshot_restart/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "clientMsgId":"client_device_sync_snapshot_restart_1",
-                        "summary":"device sync snapshot summary",
-                        "text":"device sync snapshot summary"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("post message should succeed");
-    assert_eq!(post_message.status(), StatusCode::OK);
-
-    let update_cursor = app_before
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/chat/conversations/c_device_sync_snapshot_restart/read_cursor")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "readSeq":1,
-                        "lastReadMessageId":"msg_c_device_sync_snapshot_restart_1"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("update read cursor should succeed");
-    assert_eq!(update_cursor.status(), StatusCode::OK);
-
-    assert!(
-        state_file(runtime_dir.as_path(), "projection-metadata.json").exists(),
-        "managed runtime dir should persist projection metadata snapshots"
-    );
-    assert!(
-        state_file(runtime_dir.as_path(), "projection-timeline.json").exists(),
-        "managed runtime dir should persist projection timeline snapshots"
-    );
-
-    fs::remove_file(state_file(runtime_dir.as_path(), "commit-journal.json"))
-        .expect("commit journal should be removed to force snapshot restore");
-
-    let app_after = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
-
-    let resume_after_restart = app_after
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad_after")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "lastSeenSyncSeq":0
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("resume after restart should return a response");
-    assert_eq!(resume_after_restart.status(), StatusCode::OK);
-    let resume_after_restart_body = resume_after_restart
-        .into_body()
-        .collect()
-        .await
-        .expect("resume after restart body should collect")
-        .to_bytes();
-    let resume_after_restart_json: serde_json::Value =
-        serde_json::from_slice(&resume_after_restart_body)
-            .expect("resume after restart should be valid json");
-    assert_eq!(resume_after_restart_json["deviceId"], "d_pad");
-    assert_eq!(resume_after_restart_json["resumeRequired"], true);
-    assert_eq!(resume_after_restart_json["resumeFromSyncSeq"], 1);
-    assert_eq!(resume_after_restart_json["latestSyncSeq"], 2);
-
-    let sync_feed_after_restart = app_after
-        .oneshot(
-            Request::builder()
-                .uri("/im/v3/api/devices/d_pad/sync_feed?afterSeq=0")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad_after")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("sync feed after restart should return a response");
-    assert_eq!(sync_feed_after_restart.status(), StatusCode::OK);
-    let sync_feed_after_restart_body = sync_feed_after_restart
-        .into_body()
-        .collect()
-        .await
-        .expect("sync feed after restart body should collect")
-        .to_bytes();
-    let sync_feed_after_restart_json: serde_json::Value =
-        serde_json::from_slice(&sync_feed_after_restart_body)
-            .expect("sync feed after restart should be valid json");
-    let sync_items = sync_feed_after_restart_json["items"]
-        .as_array()
-        .expect("sync feed items should be an array");
-    assert_eq!(sync_items.len(), 2);
-    assert_eq!(sync_items[0]["originEventType"], "message.posted");
-    assert_eq!(
-        sync_items[0]["messageId"],
-        "msg_c_device_sync_snapshot_restart_1"
-    );
-    assert_eq!(
-        sync_items[1]["originEventType"],
-        "conversation.read_cursor_updated"
-    );
-    assert_eq!(sync_items[1]["readSeq"], 1);
-
-    let _ = fs::remove_dir_all(runtime_dir);
-}
-
-#[tokio::test]
 async fn test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics()
  {
     let runtime_dir = unique_runtime_dir();
@@ -725,7 +531,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -799,7 +605,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
             .as_u64()
             .unwrap()
             >= 1,
-        "ops health should expose device sync snapshot persist metrics"
+        "ops health should expose client route sync snapshot persist metrics"
     );
     assert!(
         ops_health_json["projectionPlane"]["updateDelay"]["timelineMs"]
@@ -902,7 +708,7 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
             .as_u64()
             .unwrap()
             >= 1,
-        "ops diagnostics should expose device sync snapshot restore metrics"
+        "ops diagnostics should expose client route sync snapshot restore metrics"
     );
     assert_eq!(
         diagnostics_json["projectionPlane"]["replay"]["backlogSize"],

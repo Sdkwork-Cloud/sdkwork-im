@@ -21,7 +21,7 @@ client.setAuthToken('your-auth-token');
 client.setAccessToken('your-access-token');
 
 // Use the SDK
-final result = await client.iot.accessProviderHealthRetrieve();
+final result = await client.notification.notificationsList();
 print(result);
 ```
 
@@ -45,11 +45,9 @@ client.setHeader('X-Custom-Header', 'value');
 ## API Modules
 
 - `client.automation` - automation API
-- `client.device` - device API
 - `client.notification` - notification API
 - `client.portal` - portal API
 - `client.provider` - provider API
-- `client.iot` - iot API
 
 ## Usage Examples
 
@@ -66,14 +64,6 @@ final body = StartAgentResponseRequest(
   agent: AgentSubject(),
 );
 final result = await client.automation.agentResponsesCreate(body);
-print(result);
-```
-
-### device
-```dart
-// Get the device twin
-final deviceId = '1';
-final result = await client.device.devicesTwinRetrieve(deviceId);
 print(result);
 ```
 
@@ -98,18 +88,11 @@ final result = await client.provider.mediaHealthRetrieve();
 print(result);
 ```
 
-### iot
-```dart
-// Retrieve IoT access provider health
-final result = await client.iot.accessProviderHealthRetrieve();
-print(result);
-```
-
 ## Error Handling
 
 ```dart
 try {
-  final result = await client.iot.accessProviderHealthRetrieve();
+  final result = await client.notification.notificationsList();
   print(result);
 } catch (e) {
   print('Error: $e');

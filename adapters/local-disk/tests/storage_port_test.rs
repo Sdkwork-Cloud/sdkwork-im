@@ -467,7 +467,7 @@ fn test_file_timeline_projection_store_batches_multiple_scopes_across_reopen() {
             },
             TimelineProjectionBatch {
                 tenant_id: "t_demo".into(),
-                timeline_scope: "device-sync:u_demo:d_demo".into(),
+                timeline_scope: "client-route-sync:u_demo:d_demo".into(),
                 records: vec![TimelineProjectionRecord {
                     message_seq: 9,
                     payload: "{\"syncSeq\":9}".into(),
@@ -493,7 +493,7 @@ fn test_file_timeline_projection_store_batches_multiple_scopes_across_reopen() {
         ]
     );
     assert_eq!(
-        reopened.entries("t_demo", "device-sync:u_demo:d_demo"),
+        reopened.entries("t_demo", "client-route-sync:u_demo:d_demo"),
         vec![(9, "{\"syncSeq\":9}".to_string())]
     );
 

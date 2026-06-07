@@ -4,8 +4,6 @@ use control_plane_api::{
     SharedChannelLinkedMemberSyncRequest, SharedChannelLinkedMemberSyncTrigger,
 };
 use conversation_runtime::SyncSharedChannelLinkedMemberCommand;
-use im_adapter_iot_access_local::LocalDeviceAccessProvider;
-use im_adapter_iot_mqtt::MqttIotProtocolAdapter;
 use im_adapters_postgres_realtime::{
     PostgresRealtimeCheckpointStore, PostgresRealtimeConfig, PostgresRealtimeDisconnectFenceStore,
     PostgresRealtimeEventWindowStore, PostgresRealtimePresenceStateStore,
@@ -135,36 +133,6 @@ pub fn build_default_app_with_principal_profile_provider(
     }
 }
 
-pub fn build_default_app_with_device_access_provider(
-    device_access_provider: Arc<dyn DeviceAccessProvider>,
-) -> Router {
-    match configured_runtime_dir() {
-        Some(runtime_dir) => build_default_app_with_runtime_dir_and_device_access_provider(
-            runtime_dir,
-            device_access_provider,
-        ),
-        None => build_default_app_with_bind_addr_and_device_access_provider(
-            resolve_bind_addr().as_str(),
-            device_access_provider,
-        ),
-    }
-}
-
-pub fn build_default_app_with_iot_protocol_adapter(
-    iot_protocol_adapter: Arc<dyn IotProtocolAdapter>,
-) -> Router {
-    match configured_runtime_dir() {
-        Some(runtime_dir) => build_default_app_with_runtime_dir_and_iot_protocol_adapter(
-            runtime_dir,
-            iot_protocol_adapter,
-        ),
-        None => build_default_app_with_bind_addr_and_iot_protocol_adapter(
-            resolve_bind_addr().as_str(),
-            iot_protocol_adapter,
-        ),
-    }
-}
-
 pub fn build_default_app_with_runtime_dir_and_principal_profile_provider(
     runtime_dir: impl AsRef<StdPath>,
     principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
@@ -176,40 +144,10 @@ pub fn build_default_app_with_runtime_dir_and_principal_profile_provider(
     )
 }
 
-pub fn build_default_app_with_runtime_dir_and_device_access_provider(
-    runtime_dir: impl AsRef<StdPath>,
-    device_access_provider: Arc<dyn DeviceAccessProvider>,
-) -> Router {
-    build_default_app_with_bind_addr_and_runtime_dir_and_device_access_provider(
-        resolve_bind_addr().as_str(),
-        runtime_dir,
-        device_access_provider,
-    )
-}
-
-pub fn build_default_app_with_runtime_dir_and_iot_protocol_adapter(
-    runtime_dir: impl AsRef<StdPath>,
-    iot_protocol_adapter: Arc<dyn IotProtocolAdapter>,
-) -> Router {
-    build_default_app_with_bind_addr_and_runtime_dir_and_iot_protocol_adapter(
-        resolve_bind_addr().as_str(),
-        runtime_dir,
-        iot_protocol_adapter,
-    )
-}
-
 fn configured_runtime_dir() -> Option<PathBuf> {
     std::env::var("CRAW_CHAT_RUNTIME_DIR")
         .ok()
         .map(PathBuf::from)
-}
-
-fn build_default_device_access_provider() -> Arc<dyn DeviceAccessProvider> {
-    Arc::new(LocalDeviceAccessProvider::default())
-}
-
-fn build_default_iot_protocol_adapter() -> Arc<dyn IotProtocolAdapter> {
-    Arc::new(MqttIotProtocolAdapter::default())
 }
 
 fn build_default_app_with_bind_addr(bind_addr: &str) -> Router {
@@ -221,8 +159,6 @@ fn build_default_app_with_bind_addr(bind_addr: &str) -> Router {
         projection_service,
         realtime_cluster,
         build_default_principal_profile_provider(),
-        build_default_device_access_provider(),
-        build_default_iot_protocol_adapter(),
     )
 }
 
@@ -235,8 +171,6 @@ fn build_public_app_with_bind_addr(bind_addr: &str) -> Router {
         projection_service,
         realtime_cluster,
         build_default_principal_profile_provider(),
-        build_default_device_access_provider(),
-        build_default_iot_protocol_adapter(),
     )
     .layer(axum::extract::DefaultBodyLimit::max(
         resolve_max_http_request_body_bytes(),
@@ -271,42 +205,6 @@ fn build_default_app_with_bind_addr_and_principal_profile_provider(
         projection_service,
         realtime_cluster,
         principal_profile_provider,
-        build_default_device_access_provider(),
-        build_default_iot_protocol_adapter(),
-    )
-}
-
-fn build_default_app_with_bind_addr_and_device_access_provider(
-    bind_addr: &str,
-    device_access_provider: Arc<dyn DeviceAccessProvider>,
-) -> Router {
-    let projection_service = Arc::new(TimelineProjectionService::default());
-    let realtime_cluster = Arc::new(RealtimeClusterBridge::default());
-    build_app_with_dependencies_and_provider_ports(
-        "local_minimal_node_1",
-        bind_addr,
-        projection_service,
-        realtime_cluster,
-        build_default_principal_profile_provider(),
-        device_access_provider,
-        build_default_iot_protocol_adapter(),
-    )
-}
-
-fn build_default_app_with_bind_addr_and_iot_protocol_adapter(
-    bind_addr: &str,
-    iot_protocol_adapter: Arc<dyn IotProtocolAdapter>,
-) -> Router {
-    let projection_service = Arc::new(TimelineProjectionService::default());
-    let realtime_cluster = Arc::new(RealtimeClusterBridge::default());
-    build_app_with_dependencies_and_provider_ports(
-        "local_minimal_node_1",
-        bind_addr,
-        projection_service,
-        realtime_cluster,
-        build_default_principal_profile_provider(),
-        build_default_device_access_provider(),
-        iot_protocol_adapter,
     )
 }
 
@@ -348,94 +246,6 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_principal_profile_provid
         ),
         build_local_minimal_automation_runtime(journal, runtime_dir.as_path()),
         principal_profile_provider,
-        build_default_device_access_provider(),
-        build_default_iot_protocol_adapter(),
-    )
-}
-
-fn build_default_app_with_bind_addr_and_runtime_dir_and_device_access_provider(
-    bind_addr: &str,
-    runtime_dir: impl AsRef<StdPath>,
-    device_access_provider: Arc<dyn DeviceAccessProvider>,
-) -> Router {
-    let projection_service = Arc::new(TimelineProjectionService::default());
-    let runtime_dir = runtime_dir.as_ref().to_path_buf();
-    let projection_snapshot_stores =
-        build_local_minimal_projection_snapshot_stores(runtime_dir.as_path());
-    let realtime_scope_policy =
-        realtime_policy::direct_chat_realtime_policy(projection_service.clone());
-    let realtime_plane =
-        build_local_minimal_realtime_plane(runtime_dir.as_path(), realtime_scope_policy.clone());
-    let journal = ProjectionJournal::new_file(
-        projection_service.clone(),
-        runtime_dir
-            .as_path()
-            .join("state")
-            .join("commit-journal.json"),
-        projection_snapshot_stores,
-    );
-    build_app_with_dependencies_and_runtime_and_journal(
-        "local_minimal_node_1",
-        bind_addr,
-        Some(runtime_dir.clone()),
-        projection_service.clone(),
-        realtime_plane,
-        journal.clone(),
-        Some(realtime_scope_policy),
-        build_local_minimal_streaming_runtime(runtime_dir.as_path()),
-        build_local_minimal_rtc_runtime(runtime_dir.as_path()),
-        build_local_minimal_notification_runtime(
-            journal.clone(),
-            runtime_dir.as_path(),
-            projection_service,
-        ),
-        build_local_minimal_automation_runtime(journal, runtime_dir.as_path()),
-        build_default_principal_profile_provider(),
-        device_access_provider,
-        build_default_iot_protocol_adapter(),
-    )
-}
-
-fn build_default_app_with_bind_addr_and_runtime_dir_and_iot_protocol_adapter(
-    bind_addr: &str,
-    runtime_dir: impl AsRef<StdPath>,
-    iot_protocol_adapter: Arc<dyn IotProtocolAdapter>,
-) -> Router {
-    let projection_service = Arc::new(TimelineProjectionService::default());
-    let runtime_dir = runtime_dir.as_ref().to_path_buf();
-    let projection_snapshot_stores =
-        build_local_minimal_projection_snapshot_stores(runtime_dir.as_path());
-    let realtime_scope_policy =
-        realtime_policy::direct_chat_realtime_policy(projection_service.clone());
-    let realtime_plane =
-        build_local_minimal_realtime_plane(runtime_dir.as_path(), realtime_scope_policy.clone());
-    let journal = ProjectionJournal::new_file(
-        projection_service.clone(),
-        runtime_dir
-            .as_path()
-            .join("state")
-            .join("commit-journal.json"),
-        projection_snapshot_stores,
-    );
-    build_app_with_dependencies_and_runtime_and_journal(
-        "local_minimal_node_1",
-        bind_addr,
-        Some(runtime_dir.clone()),
-        projection_service.clone(),
-        realtime_plane,
-        journal.clone(),
-        Some(realtime_scope_policy),
-        build_local_minimal_streaming_runtime(runtime_dir.as_path()),
-        build_local_minimal_rtc_runtime(runtime_dir.as_path()),
-        build_local_minimal_notification_runtime(
-            journal.clone(),
-            runtime_dir.as_path(),
-            projection_service,
-        ),
-        build_local_minimal_automation_runtime(journal, runtime_dir.as_path()),
-        build_default_principal_profile_provider(),
-        build_default_device_access_provider(),
-        iot_protocol_adapter,
     )
 }
 
@@ -489,8 +299,6 @@ fn try_build_public_app_with_bind_addr_and_runtime_dir(
         ),
         build_local_minimal_automation_runtime(journal, runtime_dir.as_path()),
         build_default_principal_profile_provider(),
-        build_default_device_access_provider(),
-        build_default_iot_protocol_adapter(),
     )
     .layer(axum::extract::DefaultBodyLimit::max(
         resolve_max_http_request_body_bytes(),
@@ -638,7 +446,7 @@ fn build_local_minimal_file_realtime_plane(
                 scope_access_policy,
             ),
         ),
-        Arc::new(DevicePresenceRuntime::with_store(presence_state_store)),
+        Arc::new(PresenceRuntime::with_store(presence_state_store)),
     )
 }
 
@@ -670,7 +478,7 @@ fn build_local_minimal_postgres_realtime_plane(
                 scope_access_policy,
             ),
         ),
-        Arc::new(DevicePresenceRuntime::with_store(presence_state_store)),
+        Arc::new(PresenceRuntime::with_store(presence_state_store)),
     ))
 }
 
@@ -1025,8 +833,6 @@ pub fn build_app_with_dependencies(
         projection_service,
         realtime_cluster,
         build_default_principal_profile_provider(),
-        build_default_device_access_provider(),
-        build_default_iot_protocol_adapter(),
     )
 }
 
@@ -1076,7 +882,7 @@ pub fn build_app_with_dependencies_and_runtime_dir(
                 realtime_scope_policy.clone(),
             ),
         ),
-        Arc::new(DevicePresenceRuntime::with_store(presence_state_store)),
+        Arc::new(PresenceRuntime::with_store(presence_state_store)),
     );
     let journal = ProjectionJournal::new_file(
         projection_service.clone(),
@@ -1103,8 +909,6 @@ pub fn build_app_with_dependencies_and_runtime_dir(
         ),
         build_local_minimal_automation_runtime(journal, runtime_dir.as_path()),
         build_default_principal_profile_provider(),
-        build_default_device_access_provider(),
-        build_default_iot_protocol_adapter(),
     )
 }
 
@@ -1114,8 +918,6 @@ fn build_app_with_dependencies_and_provider_ports(
     projection_service: Arc<TimelineProjectionService>,
     realtime_cluster: Arc<RealtimeClusterBridge>,
     principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
-    device_access_provider: Arc<dyn DeviceAccessProvider>,
-    iot_protocol_adapter: Arc<dyn IotProtocolAdapter>,
 ) -> Router {
     let realtime_scope_policy =
         realtime_policy::direct_chat_realtime_policy(projection_service.clone());
@@ -1142,8 +944,6 @@ fn build_app_with_dependencies_and_provider_ports(
         )),
         Arc::new(AutomationRuntime::with_journal(Arc::new(journal))),
         principal_profile_provider,
-        device_access_provider,
-        iot_protocol_adapter,
     )
 }
 
@@ -1171,8 +971,6 @@ pub fn build_app_with_dependencies_and_runtime(
         )),
         Arc::new(AutomationRuntime::default()),
         build_default_principal_profile_provider(),
-        build_default_device_access_provider(),
-        build_default_iot_protocol_adapter(),
     )
 }
 
@@ -1198,8 +996,6 @@ pub fn build_app_with_dependencies_realtime_and_notification_runtime(
         notification_runtime,
         Arc::new(AutomationRuntime::default()),
         build_default_principal_profile_provider(),
-        build_default_device_access_provider(),
-        build_default_iot_protocol_adapter(),
     )
 }
 
@@ -1219,14 +1015,12 @@ fn build_app_with_dependencies_and_runtime_and_journal(
     notification_runtime: Arc<NotificationRuntime>,
     automation_runtime: Arc<AutomationRuntime>,
     principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
-    device_access_provider: Arc<dyn DeviceAccessProvider>,
-    iot_protocol_adapter: Arc<dyn IotProtocolAdapter>,
 ) -> Router {
     let node_id = node_id.into();
     let bind_addr = bind_addr.into();
     realtime_plane.bind_node_runtime(node_id.as_str());
     let realtime_cluster = realtime_plane.realtime_cluster();
-    let device_presence_runtime = realtime_plane.presence_runtime();
+    let presence_runtime = realtime_plane.presence_runtime();
     let realtime_runtime = realtime_plane.realtime_runtime();
     let conversation_runtime = Arc::new(ConversationRuntime::new(journal.clone()));
     let replay_summary = replay_projection_journal(
@@ -1289,14 +1083,21 @@ fn build_app_with_dependencies_and_runtime_and_journal(
     if let Some(realtime_scope_policy) = realtime_scope_policy.as_ref() {
         realtime_scope_policy.bind_social_query(social_query.clone());
     }
-    let device_registration = LocalNodeDeviceRegistration::new(
+    let client_route_registration = LocalNodeClientRouteRegistration::new(
         node_id.clone(),
         realtime_cluster.clone(),
-        device_presence_runtime.clone(),
+        presence_runtime.clone(),
         realtime_runtime.clone(),
         projection_service.clone(),
         journal.snapshot_stores(),
-        device_access_provider,
+    );
+    let aiot_app_api_server = Arc::new(
+        sdkwork_aiot_http_api::standard_app_api_server()
+            .expect("sdkwork-aiot app API server should build"),
+    );
+    let aiot_backend_api_server = Arc::new(
+        sdkwork_aiot_http_api::standard_admin_api_server()
+            .expect("sdkwork-aiot backend API server should build"),
     );
     let pending_friend_request_accept_repairs =
         social::load_pending_friend_request_accept_repairs(runtime_dir.as_deref());
@@ -1309,10 +1110,11 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         conversation_runtime,
         principal_profile_provider,
         projection_service,
-        device_presence_runtime,
+        presence_runtime,
         realtime_runtime,
-        device_registration,
-        iot_protocol_adapter,
+        client_route_registration,
+        aiot_app_api_server,
+        aiot_backend_api_server,
         streaming_runtime,
         rtc_runtime,
         notification_runtime,
@@ -1380,7 +1182,7 @@ fn replay_projection_journal(
     }
     let mut backlog_size = 0;
     let mut replayed_event_count = 0;
-    let rebuild_happened = restore_summary.restored_device_sync
+    let rebuild_happened = restore_summary.restored_client_route_sync
         || !restored_checkpoints.is_empty()
         || recorded
             .iter()
@@ -1471,7 +1273,20 @@ fn build_app(state: AppState) -> Router {
             get(export_backend_api_openapi_schema),
         )
         .nest("/im/v3/api", im_standard_api_routes())
+        .route("/app/v3/api/iot", any(aiot_bridge::handle_app_iot_api))
+        .route(
+            "/app/v3/api/iot/{*path}",
+            any(aiot_bridge::handle_app_iot_api),
+        )
         .nest("/app/v3/api/rtc", rtc_app_api_routes())
+        .route(
+            "/backend/v3/api/iot",
+            any(aiot_bridge::handle_backend_iot_api),
+        )
+        .route(
+            "/backend/v3/api/iot/{*path}",
+            any(aiot_bridge::handle_backend_iot_api),
+        )
         .nest("/backend/v3/api", backend_api_routes())
         .with_state(state)
         .merge(build_local_agent_app_router())
@@ -1489,35 +1304,22 @@ fn build_local_agent_app_router() -> Router {
 fn im_standard_api_routes() -> Router<AppState> {
     Router::new()
         .route(
-            "/device/sessions/resume",
-            post(device_session::resume_device_session),
-        )
-        .route(
-            "/device/sessions/disconnect",
-            post(device_session::disconnect_device_session),
-        )
-        .route(
             "/presence/heartbeat",
-            post(device_session::heartbeat_presence),
+            post(presence_routes::heartbeat_presence),
         )
-        .route("/presence/me", get(device_session::get_presence_me))
+        .route("/presence/me", get(presence_routes::get_presence_me))
         .route(
             "/realtime/subscriptions/sync",
-            post(device_session::sync_realtime_subscriptions),
+            post(presence_routes::sync_realtime_subscriptions),
         )
-        .route("/realtime/ws", get(device_session::realtime_websocket))
+        .route("/realtime/ws", get(presence_routes::realtime_websocket))
         .route(
             "/realtime/events/ack",
-            post(device_session::ack_realtime_events),
+            post(presence_routes::ack_realtime_events),
         )
         .route(
             "/realtime/events",
-            get(device_session::list_realtime_events),
-        )
-        .route("/devices/register", post(device_session::register_device))
-        .route(
-            "/devices/{device_id}/sync_feed",
-            get(device_session::get_device_sync_feed),
+            get(presence_routes::list_realtime_events),
         )
         .route("/rtc/sessions", post(rtc::create_rtc_session))
         .route("/rtc/sessions/{rtc_session_id}", get(rtc::get_rtc_session))
@@ -1734,10 +1536,7 @@ fn rtc_app_api_routes() -> Router<AppState> {
             "/sessions/{rtc_session_id}/reject",
             post(rtc::reject_rtc_session),
         )
-        .route(
-            "/sessions/{rtc_session_id}/end",
-            post(rtc::end_rtc_session),
-        )
+        .route("/sessions/{rtc_session_id}/end", post(rtc::end_rtc_session))
         .route(
             "/sessions/{rtc_session_id}/signals",
             post(rtc::post_rtc_signal),
@@ -1750,10 +1549,7 @@ fn rtc_app_api_routes() -> Router<AppState> {
             "/sessions/{rtc_session_id}/artifacts/recording",
             get(rtc::get_rtc_recording_artifact),
         )
-        .route(
-            "/provider_callbacks",
-            post(rtc::map_rtc_provider_callback),
-        )
+        .route("/provider_callbacks", post(rtc::map_rtc_provider_callback))
         .route("/provider_health", get(rtc::get_rtc_provider_health))
 }
 

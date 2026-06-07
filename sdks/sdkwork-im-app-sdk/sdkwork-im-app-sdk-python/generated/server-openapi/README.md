@@ -22,7 +22,7 @@ client.set_auth_token("your-auth-token")
 client.set_access_token("your-access-token")
 
 # Use the SDK
-result = client.iot.access_provider_health.retrieve()
+result = client.notification.list()
 ```
 
 ## Authentication
@@ -49,11 +49,9 @@ client.set_header('X-Custom-Header', 'value')
 ## API Modules
 
 - `client.automation` - automation API
-- `client.device` - device API
 - `client.notification` - notification API
 - `client.portal` - portal API
 - `client.provider` - provider API
-- `client.iot` - iot API
 
 ## Usage Examples
 
@@ -75,15 +73,6 @@ body = {
     },
 }
 result = client.automation.agent_responses.create(body)
-print(result)
-```
-
-### device
-
-```python
-# Get the device twin
-device_id = '1'
-result = client.device.twin.list(device_id)
 print(result)
 ```
 
@@ -111,19 +100,11 @@ result = client.provider.media_health.retrieve()
 print(result)
 ```
 
-### iot
-
-```python
-# Retrieve IoT access provider health
-result = client.iot.access_provider_health.retrieve()
-print(result)
-```
-
 ## Error Handling
 
 ```python
 try:
-    client.iot.access_provider_health.retrieve()
+    client.notification.list()
 except Exception as error:
     print(f"Error: {error}")
 ```

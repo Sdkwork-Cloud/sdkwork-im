@@ -61,7 +61,7 @@ pub(super) async fn edit_message(
     Json(request): Json<EditMessageRequest>,
 ) -> Result<Json<MessageMutationResult>, ApiError> {
     let auth = resolve_request_app_context(auth, &headers)?;
-    access::ensure_registered_device(&state, &auth)?;
+    access::ensure_client_route_key(&state, &auth)?;
     let conversation_id = state
         .conversation_runtime
         .conversation_id_for_message_from_auth_context(&auth, message_id.as_str())?;
@@ -122,7 +122,7 @@ pub(super) async fn recall_message(
     State(state): State<AppState>,
 ) -> Result<Json<MessageMutationResult>, ApiError> {
     let auth = resolve_request_app_context(auth, &headers)?;
-    access::ensure_registered_device(&state, &auth)?;
+    access::ensure_client_route_key(&state, &auth)?;
     let conversation_id = state
         .conversation_runtime
         .conversation_id_for_message_from_auth_context(&auth, message_id.as_str())?;
@@ -175,7 +175,7 @@ pub(super) async fn delete_message_visibility(
     State(state): State<AppState>,
 ) -> Result<Json<MessageVisibilityMutationResult>, ApiError> {
     let auth = resolve_request_app_context(auth, &headers)?;
-    access::ensure_registered_device(&state, &auth)?;
+    access::ensure_client_route_key(&state, &auth)?;
     let conversation_id = state
         .conversation_runtime
         .conversation_id_for_message_from_auth_context(&auth, message_id.as_str())?;
@@ -240,21 +240,23 @@ pub(super) async fn delete_message_visibility(
         },
     );
 
-    state.projection_service.append_principal_device_sync_event(
-        auth.tenant_id.as_str(),
-        view.principal_id.as_str(),
-        view.principal_kind.as_str(),
-        event_id.as_str(),
-        "message.visibility_deleted",
-        Some(view.conversation_id.clone()),
-        Some(view.message_id.clone()),
-        Some(view.message_seq),
-        auth.device_id.clone(),
-        None,
-        Some("im.message.visibility.deleted.v1".into()),
-        Some(payload.clone()),
-        updated_at.clone(),
-    );
+    state
+        .projection_service
+        .append_principal_client_route_sync_event(
+            auth.tenant_id.as_str(),
+            view.principal_id.as_str(),
+            view.principal_kind.as_str(),
+            event_id.as_str(),
+            "message.visibility_deleted",
+            Some(view.conversation_id.clone()),
+            Some(view.message_id.clone()),
+            Some(view.message_seq),
+            auth.device_id.clone(),
+            None,
+            Some("im.message.visibility.deleted.v1".into()),
+            Some(payload.clone()),
+            updated_at.clone(),
+        );
 
     effects::publish_realtime_event_to_scope(
         &state,
@@ -341,7 +343,7 @@ pub(super) async fn create_message_favorite(
     Json(request): Json<FavoriteMessageRequest>,
 ) -> Result<Json<MessageFavoriteView>, ApiError> {
     let auth = resolve_request_app_context(auth, &headers)?;
-    access::ensure_registered_device(&state, &auth)?;
+    access::ensure_client_route_key(&state, &auth)?;
     let conversation_id = state
         .conversation_runtime
         .conversation_id_for_message_from_auth_context(&auth, message_id.as_str())?;
@@ -420,7 +422,7 @@ pub(super) async fn delete_message_favorite(
     State(state): State<AppState>,
 ) -> Result<Json<DeleteMessageFavoriteResponse>, ApiError> {
     let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
-    access::ensure_registered_device(&state, &auth)?;
+    access::ensure_client_route_key(&state, &auth)?;
     let favorite_id = normalize_favorite_id(favorite_id)?;
     let key = message_favorite_key(
         auth.tenant_id.as_str(),
@@ -468,7 +470,7 @@ pub(super) async fn add_message_reaction(
             "reaction key must not be empty",
         ));
     }
-    access::ensure_registered_device(&state, &auth)?;
+    access::ensure_client_route_key(&state, &auth)?;
     let conversation_id = state
         .conversation_runtime
         .conversation_id_for_message_from_auth_context(&auth, message_id.as_str())?;
@@ -584,21 +586,23 @@ fn publish_message_favorite_event(
         },
     );
 
-    state.projection_service.append_principal_device_sync_event(
-        favorite.tenant_id.as_str(),
-        favorite.principal_id.as_str(),
-        favorite.principal_kind.as_str(),
-        event_id.as_str(),
-        action,
-        Some(favorite.conversation_id.clone()),
-        Some(favorite.message_id.clone()),
-        Some(favorite.message_seq),
-        auth.device_id.clone(),
-        None,
-        Some(payload_schema.into()),
-        Some(payload.clone()),
-        favorite.favorited_at.clone(),
-    );
+    state
+        .projection_service
+        .append_principal_client_route_sync_event(
+            favorite.tenant_id.as_str(),
+            favorite.principal_id.as_str(),
+            favorite.principal_kind.as_str(),
+            event_id.as_str(),
+            action,
+            Some(favorite.conversation_id.clone()),
+            Some(favorite.message_id.clone()),
+            Some(favorite.message_seq),
+            auth.device_id.clone(),
+            None,
+            Some(payload_schema.into()),
+            Some(payload.clone()),
+            favorite.favorited_at.clone(),
+        );
 
     effects::publish_realtime_event_to_scope(
         state,
@@ -624,7 +628,7 @@ pub(super) async fn remove_message_reaction(
             "reaction key must not be empty",
         ));
     }
-    access::ensure_registered_device(&state, &auth)?;
+    access::ensure_client_route_key(&state, &auth)?;
     let conversation_id = state
         .conversation_runtime
         .conversation_id_for_message_from_auth_context(&auth, message_id.as_str())?;
@@ -650,7 +654,7 @@ pub(super) async fn pin_message(
     State(state): State<AppState>,
 ) -> Result<Json<MessagePinMutationResult>, ApiError> {
     let auth = resolve_request_app_context(auth, &headers)?;
-    access::ensure_registered_device(&state, &auth)?;
+    access::ensure_client_route_key(&state, &auth)?;
     let conversation_id = state
         .conversation_runtime
         .conversation_id_for_message_from_auth_context(&auth, message_id.as_str())?;
@@ -670,7 +674,7 @@ pub(super) async fn unpin_message(
     State(state): State<AppState>,
 ) -> Result<Json<MessagePinMutationResult>, ApiError> {
     let auth = resolve_request_app_context(auth, &headers)?;
-    access::ensure_registered_device(&state, &auth)?;
+    access::ensure_client_route_key(&state, &auth)?;
     let conversation_id = state
         .conversation_runtime
         .conversation_id_for_message_from_auth_context(&auth, message_id.as_str())?;

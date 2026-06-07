@@ -98,7 +98,7 @@ Managed private deployment may additionally compose:
 When those standards are enabled together with this one:
 
 - Standard 95 rebuilds conversation-domain context automatically
-- Standard 96 restores live subscription intent on fresh device bootstrap
+- Standard 96 restores live subscription intent on fresh client route bootstrap
 - Standard 97 restores stream runtime state on demand after rebuild
 
 That boundary is intentional and must be documented clearly in tests and deployment expectations.

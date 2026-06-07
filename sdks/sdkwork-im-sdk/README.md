@@ -3,9 +3,9 @@
 `sdkwork-im-sdk` is the Craw Chat standard IM SDK family for `/im/v3/api`.
 Runtime schema discovery uses `/im/v3/openapi.json`.
 
-The family owns the open IM runtime surface: device sessions, presence, realtime
+The family owns the open IM runtime surface: client route presence, realtime
 subscription bootstrap, social friend/contact flows, conversations, messages,
-streams, and IM-backed RTC session state recovery. App-business routes,
+streams, and IM-backed RTC session state. App-business routes,
 backend/operator routes, appbase identity, Drive file lifecycle, and provider RTC
 SDK behavior are dependency capabilities and must not be regenerated into this
 family.

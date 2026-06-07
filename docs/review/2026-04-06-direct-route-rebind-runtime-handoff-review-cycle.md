@@ -8,14 +8,14 @@
   - `services/session-gateway`
   - `services/local-minimal-node`
 - Root cause:
-  - `RealtimeClusterBridge::bind_device_route(...)` implemented `latest bind wins` by overwriting the route directory entry only
+  - `RealtimeClusterBridge::bind_client_route(...)` implemented `latest bind wins` by overwriting the route directory entry only
   - unlike `migrate_node_routes(...)`, the direct rebind path did not move:
     - subscriptions
     - realtime event window
     - `latestRealtimeSeq`
     - `ackedThroughSeq`
     - `trimmedThroughSeq`
-  - if the same `tenantId + principalId + deviceId` reconnected through another node, the new owner node became authoritative for delivery, but the old owner runtime still held the actual device state
+  - if the same `tenantId + principalId + clientRouteId` reconnected through another node, the new owner node became authoritative for delivery, but the old owner runtime still held the actual client route state
 
 ## 2. Impact
 
@@ -63,12 +63,12 @@ Those remain later commercial enhancements, but they must not block correctness 
 ## 5. Implementation
 
 - `services/session-gateway/src/cluster.rs`
-  - `bind_device_route(...)` now:
+  - `bind_client_route(...)` now:
     - reads the previous route for the same device
     - detects cross-node owner changes
     - loads both source and target runtimes
-    - performs `take_device_state(...)` from the old owner
-    - performs `restore_device_state(...)` into the new owner
+    - performs `take_client_route_state(...)` from the old owner
+    - performs `restore_client_route_state(...)` into the new owner
   - after the directory entry is overwritten, the bridge now reconciles the previous owner lifecycle:
     - `draining + no remaining routes -> drained + stable`
     - `draining + remaining routes -> draining + moving_routes`

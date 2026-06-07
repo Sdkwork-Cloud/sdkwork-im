@@ -5,9 +5,9 @@
 - `docs/架构/09-实施计划.md`
   - `Wave B / Step 05 / CP05-4` 的 owner 收口推进记录
 - `docs/架构/130-连接优先的AI时代即时通讯架构蓝图-2026-04-06.md`
-  - session / presence 多设备 sync-state 不能长期停留在 edge glue
+  - session / presence 多客户端路由 sync-state 不能长期停留在 edge glue
 - `docs/架构/134-AI-Agent-IoT统一实时通信模型设计-2026-04-06.md`
-  - device-scoped realtime/session state 需要进入稳定 owner seam 后再进入 runtime
+  - client-route-scoped realtime/session state 需要进入稳定 owner seam 后再进入 runtime
 - `docs/架构/136-关键业务链路与跨Plane时序设计-2026-04-06.md`
   - session / presence 请求时序应先命中 owner seam，再进入 runtime
 - `docs/架构/139-权限能力模型与协议演进设计-2026-04-06.md`
@@ -22,7 +22,7 @@
 - session/presence handler 与 storage owner 的边界已分层：
   - `session.rs` 负责业务入口与编排
   - `session_state.rs` 负责 sync-state owner
-  - `DevicePresenceRuntime` 继续负责 presence runtime 行为
+  - `PresenceRuntime` 继续负责 presence runtime 行为
 
 ## 本轮未兑现
 

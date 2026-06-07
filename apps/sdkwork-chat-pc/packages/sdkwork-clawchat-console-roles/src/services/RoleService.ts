@@ -1,4 +1,4 @@
-import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
+import { getAppbaseAppSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
 
 export interface Role {
   id: string;
@@ -125,9 +125,15 @@ function toRoleUpdateCommand(updates: Partial<Role>): Record<string, unknown> {
 
 class RoleService {
   async getRoles(): Promise<GetRolesResponse> {
-    const response = await getAppbaseBackendSdkClientWithSession().iam.roles.list({});
+    const response = await getAppbaseAppSdkClientWithSession().iam.roleBindings.list({});
     const records = readRecords(response);
-    const data = records.map(mapRole);
+    const roleMap = new Map<string, Role>();
+    for (const record of records) {
+      const role = mapRole(record);
+      const existing = roleMap.get(role.id);
+      roleMap.set(role.id, existing ? { ...existing, count: existing.count + Math.max(1, role.count) } : { ...role, count: Math.max(1, role.count) });
+    }
+    const data = [...roleMap.values()];
     return {
       data,
       total: readTotal(response, data.length),
@@ -139,13 +145,10 @@ class RoleService {
     if (!roleId) {
       throw new Error('role id is required');
     }
-    const response = await getAppbaseBackendSdkClientWithSession().iam.roles.update(
-      roleId,
-      toRoleUpdateCommand(updates),
+    const command = toRoleUpdateCommand(updates);
+    throw new Error(
+      `Updating role ${roleId} is an admin-only backend SDK capability. Move role management to the admin surface or add an app-api console contract. Requested fields: ${Object.keys(command).join(', ') || 'none'}.`,
     );
-    const records = readRecords(response);
-    const updatedRole = records[0] ?? asRecord(unwrapAppbaseResult(response));
-    return mapRole({ roleId, ...updates, ...updatedRole });
   }
 }
 

@@ -72,6 +72,10 @@ const {
 const {
   resolveCrawChatSharedDatabaseConfig,
 } = await import(pathToFileURL(path.join(repoRoot, 'scripts/dev/craw-chat-shared-database.mjs')).href);
+const {
+  ensureSdkworkUiDist,
+  resolveSdkworkUiPackageRoot,
+} = await import(pathToFileURL(path.join(repoRoot, 'scripts/dev/sdkwork-ui-runtime-lib.mjs')).href);
 
 assert.equal(
   packageJson.scripts.dev,
@@ -176,10 +180,8 @@ assert.doesNotMatch(
   'local-minimal-node Rust manifest must not point to an absolute checkout path',
 );
 assert.ok(
-  localMinimalNodeCargoSource.includes(
-    'sdkwork-agent-business = { path = "../../../sdkwork-kernel/sdkwork-agent-business", features = ["http-axum"] }',
-  ),
-  'local-minimal-node must link sdkwork-agent-business from the sibling sdkwork-kernel checkout',
+  localMinimalNodeCargoSource.includes('sdkwork-agent-business.workspace = true'),
+  'local-minimal-node must consume sdkwork-agent-business through [workspace.dependencies] with `workspace = true`',
 );
 for (const cargoSource of [
   localMinimalNodeCargoSource,
@@ -193,8 +195,13 @@ for (const cargoSource of [
   );
   assert.match(
     cargoSource,
-    /\.\.\/\.\.\/\.\.\/sdkwork-rtc\/crates\/sdkwork-rtc-core/u,
-    'Craw Chat Rust manifests that depend on sdkwork-rtc-core must link the sibling sdkwork-rtc checkout',
+    /sdkwork-rtc-core\.workspace = true/u,
+    'Craw Chat Rust manifests that depend on sdkwork-rtc-core must consume it through [workspace.dependencies] with `workspace = true`',
+  );
+  assert.doesNotMatch(
+    cargoSource,
+    /path\s*=\s*"\.\.\/\.\.\/\.\.\/sdkwork-[A-Za-z0-9-]+/u,
+    'Craw Chat Rust manifests must not redeclare cross-workspace SDKWork source paths in member crates; the path belongs in root [workspace.dependencies] only',
   );
 }
 assert.ok(
@@ -205,6 +212,10 @@ assert.doesNotMatch(
   desktopWorkspaceSource,
   /\.\.\/\.\.\/\.\.\/\.\.\/apps\/sdkwork-(?:appbase|core|ui)\//u,
   'desktop workspace must not register sibling sdkwork-appbase/core/ui packages as workspace importers; they stay source-linked dependencies so install never rewrites sibling node_modules',
+);
+assert.ok(
+  desktopWorkspaceSource.includes('link:') === false || desktopWorkspaceSource.includes('../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts') === true,
+  'desktop workspace packages: section must declare every SDKWork sibling source path (not just the local packages/* glob)',
 );
 assert.ok(
   fs.existsSync(path.join(repoRoot, 'apps/sdkwork-chat-pc/pnpm-lock.yaml')),
@@ -253,30 +264,30 @@ const sharedDependencyNames = [
 ];
 for (const dependencyName of sharedDependencyNames) {
   const version = chatPcPackageJson.dependencies?.[dependencyName];
-  assert.match(
+  assert.equal(
     version,
-    /^link:\.\.\//u,
-    `local dev dependency ${dependencyName} must use a relative link: specifier`,
+    'workspace:*',
+    `local dev dependency ${dependencyName} must use the workspace: protocol declared once in pnpm-workspace.yaml packages`,
   );
   assert.doesNotMatch(
     version,
-    /^(?:https?:|git\+|github:|git@)/u,
-    `local dev dependency ${dependencyName} must not use a git or registry URL`,
+    /^(?:https?:|git\+|github:|git@|link:)/u,
+    `local dev dependency ${dependencyName} must not use a git, link:, or registry URL`,
   );
 }
 
 const sharedSdkOverrides = chatPcPackageJson.pnpm?.overrides ?? {};
 for (const [dependencyName, expectedVersion] of Object.entries({
-  '@sdkwork-internal/im-app-api-generated': 'link:../../sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-typescript/generated/server-openapi',
-  '@sdkwork-internal/im-backend-api-generated': 'link:../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi',
-  '@sdkwork/appbase-app-sdk': 'link:../../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi',
-  '@sdkwork/im-sdk': 'link:../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript',
-  '@sdkwork/rtc-sdk': 'link:../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript',
+  '@sdkwork-internal/im-app-api-generated': 'workspace:*',
+  '@sdkwork-internal/im-backend-api-generated': 'workspace:*',
+  '@sdkwork/appbase-app-sdk': 'workspace:*',
+  '@sdkwork/im-sdk': 'workspace:*',
+  '@sdkwork/rtc-sdk': 'workspace:*',
 })) {
   assert.equal(
     sharedSdkOverrides[dependencyName],
     expectedVersion,
-    `desktop workspace must override transitive ${dependencyName} to the local source path`,
+    `desktop workspace must override transitive ${dependencyName} to workspace:* (the local source path is declared in pnpm-workspace.yaml packages: only)`,
   );
   assert.doesNotMatch(
     desktopLockfileSource,
@@ -891,6 +902,50 @@ assert.ok(
 );
 
 const chatPcAppRoot = path.join(repoRoot, 'apps/sdkwork-chat-pc');
+const sdkworkUiDependencyPackageRoot = path.join(
+  repoRoot,
+  '../sdkwork-ui/sdkwork-ui-pc-react',
+);
+assert.equal(
+  resolveSdkworkUiPackageRoot(chatPcAppRoot),
+  sdkworkUiDependencyPackageRoot,
+  'sdkwork ui runtime helper must resolve the source-linked UI package from the sibling workspace',
+);
+const sdkworkUiRuntimeFiles = new Set([
+  'apps/sdkwork-chat-pc/pnpm-workspace.yaml',
+  '../sdkwork-ui/sdkwork-ui-pc-react/package.json',
+  '../sdkwork-ui/sdkwork-ui-pc-react/dist/index.js',
+  '../sdkwork-ui/sdkwork-ui-pc-react/dist/theme.js',
+  '../sdkwork-ui/sdkwork-ui-pc-react/dist/components-ui.js',
+  '../sdkwork-ui/sdkwork-ui-pc-react/dist/ui-feedback.js',
+  '../sdkwork-ui/sdkwork-ui-pc-react/dist/patterns-app-shell.js',
+  '../sdkwork-ui/sdkwork-ui-pc-react/dist/patterns-desktop-shell.js',
+  '../sdkwork-ui/sdkwork-ui-pc-react/dist/sdkwork-ui.css',
+]);
+const sdkworkUiInstallCalls = [];
+assert.equal(
+  ensureSdkworkUiDist({
+    appRoot: chatPcAppRoot,
+    fileExists(filePath) {
+      return sdkworkUiRuntimeFiles.has(
+        path.relative(repoRoot, path.resolve(filePath)).replaceAll('\\', '/'),
+      );
+    },
+    runProcess(command, args, options) {
+      sdkworkUiInstallCalls.push({ args, command, cwd: options.cwd });
+      return { status: 0 };
+    },
+  }),
+  sdkworkUiDependencyPackageRoot,
+  'sdkwork ui runtime helper must prepare the sibling source dependency root',
+);
+assert.ok(
+  sdkworkUiInstallCalls.some((call) => (
+    call.args.join(' ').includes('install')
+      && path.resolve(call.cwd) === chatPcAppRoot
+  )),
+  'sdkwork ui runtime helper must install missing dependency packages from the app workspace root when pnpm-workspace.yaml is present',
+);
 const appRequire = createRequire(path.join(chatPcAppRoot, 'package.json'));
 const { createServer } = await import(pathToFileURL(appRequire.resolve('vite')).href);
 const viteServer = await createServer({
@@ -918,6 +973,18 @@ try {
       path.normalize(path.join(chatPcAppRoot, 'node_modules/.vite/deps/react_jsx-dev-runtime.js')),
     ].includes(resolvedJsxDevRuntimePath),
     'Vite must resolve react/jsx-dev-runtime from the chat PC dependency root instead of appending it to react/index.js',
+  );
+  const sdkworkUiContextMenuSource = path.join(
+    sdkworkUiDependencyPackageRoot,
+    'src/components/ui/overlays/context-menu.tsx',
+  );
+  const resolvedRadixContextMenu = await viteServer.pluginContainer.resolveId(
+    '@radix-ui/react-context-menu',
+    sdkworkUiContextMenuSource,
+  );
+  assert.ok(
+    resolvedRadixContextMenu,
+    'Vite must resolve Radix context menu imports from the source-linked SDKWork UI package',
   );
 } finally {
   await viteServer.close();

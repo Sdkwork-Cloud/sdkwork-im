@@ -27,6 +27,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
+name = "argon2"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c3610892ee6e0cbce8ae2700349fcf8f98adb0dbfbee85aec3c9179d29cc072"
+dependencies = [
+ "base64ct",
+ "blake2",
+ "cpufeatures 0.2.17",
+ "password-hash",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -155,10 +167,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "base64ct"
+version = "1.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
+
+[[package]]
 name = "bitflags"
 version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4512299f36f043ab09a583e57bceb5a5aab7a73db1805848e8fef3c9e8c78b3"
+
+[[package]]
+name = "blake2"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe"
+dependencies = [
+ "digest 0.10.7",
+]
 
 [[package]]
 name = "block-buffer"
@@ -497,15 +524,6 @@ dependencies = [
 [[package]]
 name = "craw-chat-contract-core"
 version = "0.1.0"
-
-[[package]]
-name = "craw-chat-contract-iot"
-version = "0.1.0"
-dependencies = [
- "craw-chat-contract-core",
- "im-domain-core",
- "serde",
-]
 
 [[package]]
 name = "craw-chat-contract-message"
@@ -1120,25 +1138,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "im-adapter-iot-access-local"
-version = "0.1.0"
-dependencies = [
- "craw-chat-contract-core",
- "im-platform-contracts",
- "im-time",
-]
-
-[[package]]
-name = "im-adapter-iot-mqtt"
-version = "0.1.0"
-dependencies = [
- "craw-chat-contract-core",
- "im-platform-contracts",
- "im-time",
- "serde_json",
-]
-
-[[package]]
 name = "im-adapter-object-storage-s3"
 version = "0.1.0"
 dependencies = [
@@ -1233,7 +1232,6 @@ dependencies = [
  "craw-chat-contract-agent",
  "craw-chat-contract-control",
  "craw-chat-contract-core",
- "craw-chat-contract-iot",
  "craw-chat-contract-message",
  "craw-chat-contract-notification",
  "craw-chat-contract-stream",
@@ -1380,8 +1378,6 @@ dependencies = [
  "fs4",
  "futures-util",
  "http-body-util",
- "im-adapter-iot-access-local",
- "im-adapter-iot-mqtt",
  "im-adapters-local-disk",
  "im-adapters-local-memory",
  "im-adapters-postgres-realtime",
@@ -1396,6 +1392,10 @@ dependencies = [
  "projection-service",
  "regex",
  "sdkwork-agent-business",
+ "sdkwork-aiot-contract",
+ "sdkwork-aiot-http-api",
+ "sdkwork-aiot-runtime",
+ "sdkwork-aiot-transport",
  "sdkwork-rtc-app-context",
  "sdkwork-rtc-core",
  "sdkwork-rtc-signaling-service",
@@ -1625,6 +1625,17 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-link",
+]
+
+[[package]]
+name = "password-hash"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166"
+dependencies = [
+ "base64ct",
+ "rand_core 0.6.4",
+ "subtle",
 ]
 
 [[package]]
@@ -2133,6 +2144,69 @@ name = "sdkwork-agent-kernel"
 version = "0.1.0"
 
 [[package]]
+name = "sdkwork-aiot-contract"
+version = "0.1.0"
+
+[[package]]
+name = "sdkwork-aiot-core"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-aiot-contract",
+]
+
+[[package]]
+name = "sdkwork-aiot-http-api"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-aiot-contract",
+ "sdkwork-aiot-core",
+ "sdkwork-aiot-protocol",
+ "sdkwork-aiot-runtime",
+ "sdkwork-aiot-storage",
+ "sdkwork-aiot-transport",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-aiot-protocol"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-aiot-contract",
+]
+
+[[package]]
+name = "sdkwork-aiot-runtime"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-aiot-contract",
+ "sdkwork-aiot-core",
+ "sdkwork-aiot-protocol",
+ "sdkwork-aiot-security",
+ "sdkwork-aiot-storage",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "sdkwork-aiot-security"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-aiot-contract",
+]
+
+[[package]]
+name = "sdkwork-aiot-storage"
+version = "0.1.0"
+
+[[package]]
+name = "sdkwork-aiot-transport"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-aiot-contract",
+ "sdkwork-aiot-protocol",
+ "sdkwork-aiot-runtime",
+]
+
+[[package]]
 name = "sdkwork-api-config"
 version = "0.1.0"
 dependencies = [
@@ -2267,6 +2341,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork_iam_core"
+version = "0.1.0"
+
+[[package]]
+name = "sdkwork_iam_http"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "axum",
+ "password-hash",
+ "rand_core 0.6.4",
+ "sdkwork_iam_core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "sdkwork_id"
 version = "0.1.0"
 
@@ -2373,7 +2464,6 @@ dependencies = [
  "craw-chat-runtime-route",
  "futures-util",
  "http-body-util",
- "im-adapter-iot-access-local",
  "im-adapters-local-memory",
  "im-adapters-postgres-realtime",
  "im-app-context",
@@ -3134,6 +3224,7 @@ dependencies = [
  "reqwest",
  "sdkwork-api-config",
  "sdkwork-api-product-runtime",
+ "sdkwork_iam_http",
  "serde",
  "serde_json",
  "tokio",

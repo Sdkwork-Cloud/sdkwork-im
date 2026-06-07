@@ -10,32 +10,26 @@ namespace Sdkwork.Im.AppApi.Generated
         private readonly SdkHttpClient _httpClient;
 
         public AutomationApi Automation { get; }
-        public DeviceApi Device { get; }
         public NotificationApi Notification { get; }
         public PortalApi Portal { get; }
         public ProviderApi Provider { get; }
-        public IotApi Iot { get; }
 
         public SdkworkImAppClient(string baseUrl)
         {
             _httpClient = new SdkHttpClient(baseUrl);
             Automation = new AutomationApi(_httpClient);
-            Device = new DeviceApi(_httpClient);
             Notification = new NotificationApi(_httpClient);
             Portal = new PortalApi(_httpClient);
             Provider = new ProviderApi(_httpClient);
-            Iot = new IotApi(_httpClient);
         }
 
         public SdkworkImAppClient(SdkConfig config)
         {
             _httpClient = new SdkHttpClient(config);
             Automation = new AutomationApi(_httpClient);
-            Device = new DeviceApi(_httpClient);
             Notification = new NotificationApi(_httpClient);
             Portal = new PortalApi(_httpClient);
             Provider = new ProviderApi(_httpClient);
-            Iot = new IotApi(_httpClient);
         }
         public SdkworkImAppClient SetAuthToken(string token)
         {

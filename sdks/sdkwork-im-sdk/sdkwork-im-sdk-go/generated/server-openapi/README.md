@@ -55,7 +55,6 @@ client.SetHeader("X-Custom-Header", "value")
 
 ## API Modules
 
-- `client.Device` - device API
 - `client.Presence` - presence API
 - `client.Realtime` - realtime API
 - `client.Rtc` - rtc API
@@ -64,21 +63,6 @@ client.SetHeader("X-Custom-Header", "value")
 - `client.Streams` - streams API
 
 ## Usage Examples
-
-### device
-
-```go
-// Resume a device runtime session
-body := sdktypes.ResumeDeviceSessionRequest{
-    DeviceId: "deviceId",
-    LastSeenSyncSeq: 2,
-}
-result, err := client.Device.SessionsResume(body)
-if err != nil {
-    panic(err)
-}
-fmt.Println(result)
-```
 
 ### presence
 

@@ -19,11 +19,9 @@ function requiredFiles() {
     'sdkwork-im-app-sdk-flutter/composed/lib/src/context.dart',
     'sdkwork-im-app-sdk-flutter/composed/lib/src/types.dart',
     'sdkwork-im-app-sdk-flutter/composed/lib/src/portal_module.dart',
-    'sdkwork-im-app-sdk-flutter/composed/lib/src/device_module.dart',
     'sdkwork-im-app-sdk-flutter/composed/lib/src/notification_module.dart',
     'sdkwork-im-app-sdk-flutter/composed/lib/src/automation_module.dart',
     'sdkwork-im-app-sdk-flutter/composed/lib/src/provider_module.dart',
-    'sdkwork-im-app-sdk-flutter/composed/lib/src/iot_module.dart',
     'sdkwork-im-app-sdk-flutter/composed/lib/src/rtc_module.dart',
   ];
 }
@@ -79,7 +77,12 @@ export function verifyFlutterComposedWorkspace(workspaceRoot) {
     {
       description: 'composed override pins rtc_sdk dependency workspace',
       source: pubspecOverridesSource,
-      pattern: /^\s*path:\s*\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/sdkwork-rtc\/sdks\/sdkwork-rtc-sdk\/sdkwork-rtc-sdk-flutter\s*$/m,
+      pattern: /^\s*path:\s*(?:\.\.\/\.\.\/\.\.\/\.\.\/\.sdkwork\/dependencies\/sdkwork-rtc|\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/sdkwork-rtc)\/sdks\/sdkwork-rtc-sdk\/sdkwork-rtc-sdk-flutter\s*$/m,
+    },
+    {
+      description: 'composed override pins sdkwork_common_flutter dependency workspace',
+      source: pubspecOverridesSource,
+      pattern: /^\s*path:\s*(?:\.\.\/\.\.\/\.\.\/\.\.\/\.sdkwork\/dependencies\/sdkwork-sdk-commons|\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/sdkwork-sdk-commons)\/sdkwork-sdk-common-flutter\s*$/m,
     },
     {
       description: 'composed sdk re-exports generated app SDK',
@@ -97,11 +100,6 @@ export function verifyFlutterComposedWorkspace(workspaceRoot) {
       pattern: /late final ImAppPortalModule portal;/,
     },
     {
-      description: 'composed sdk exposes module device',
-      source: sdkSource,
-      pattern: /late final ImAppDeviceModule device;/,
-    },
-    {
       description: 'composed sdk exposes module notification',
       source: sdkSource,
       pattern: /late final ImAppNotificationModule notification;/,
@@ -117,11 +115,6 @@ export function verifyFlutterComposedWorkspace(workspaceRoot) {
       pattern: /late final ImAppProviderModule provider;/,
     },
     {
-      description: 'composed sdk exposes module iot',
-      source: sdkSource,
-      pattern: /late final ImAppIotModule iot;/,
-    },
-    {
       description: 'composed sdk exposes module rtc',
       source: sdkSource,
       pattern: /late final ImAppRtcModule rtc;/,
@@ -134,6 +127,12 @@ export function verifyFlutterComposedWorkspace(workspaceRoot) {
   ];
 
   const failures = [...missing, ...collectExpectationFailures(expectations)];
+  if (/ImAppDeviceModule|DeviceApi|get deviceApi|src\/device_module/u.test(sdkSource)) {
+    failures.push('composed sdk must not expose IM app device module after device ownership moved to sdkwork-aiot');
+  }
+  if (/ImAppIotModule|IotApi|get iotApi|src\/iot_module/u.test(sdkSource)) {
+    failures.push('composed sdk must not expose IM app iot module after AIoT ownership moved to sdkwork-aiot');
+  }
   finishFileExpectationVerification({
     prefix: PREFIX,
     failures,

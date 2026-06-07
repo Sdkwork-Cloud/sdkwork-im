@@ -9,46 +9,7 @@ public struct AckResponse: Codable {
     }
 }
 
-public struct DeviceSessionView: Codable {
-    public let tenantId: String?
-    public let principalId: String?
-    public let principalKind: String?
-    public let deviceId: String?
-    public let resumedAt: String?
-
-
-    public init(tenantId: String? = nil, principalId: String? = nil, principalKind: String? = nil, deviceId: String? = nil, resumedAt: String? = nil) {
-        self.tenantId = tenantId
-        self.principalId = principalId
-        self.principalKind = principalKind
-        self.deviceId = deviceId
-        self.resumedAt = resumedAt
-    }
-}
-
-public struct DeviceSessionDisconnectResponse: Codable {
-    public let deviceId: String?
-    public let disconnected: Bool?
-
-
-    public init(deviceId: String? = nil, disconnected: Bool? = nil) {
-        self.deviceId = deviceId
-        self.disconnected = disconnected
-    }
-}
-
-public struct ResumeDeviceSessionRequest: Codable {
-    public let deviceId: String?
-    public let lastSeenSyncSeq: Int?
-
-
-    public init(deviceId: String? = nil, lastSeenSyncSeq: Int? = nil) {
-        self.deviceId = deviceId
-        self.lastSeenSyncSeq = lastSeenSyncSeq
-    }
-}
-
-public struct DevicePresenceRequest: Codable {
+public struct PresenceHeartbeatRequest: Codable {
     public let deviceId: String?
 
 
@@ -134,84 +95,6 @@ public struct RealtimeEventsResponse: Codable {
         self.items = items
         self.nextCursor = nextCursor
         self.hasMore = hasMore
-    }
-}
-
-public struct RegisterDeviceRequest: Codable {
-    public let deviceId: String?
-
-
-    public init(deviceId: String? = nil) {
-        self.deviceId = deviceId
-    }
-}
-
-public struct RegisteredDeviceView: Codable {
-    public let tenantId: String?
-    public let principalId: String?
-    public let principalKind: String?
-    public let deviceId: String?
-    public let registeredAt: String?
-
-
-    public init(tenantId: String? = nil, principalId: String? = nil, principalKind: String? = nil, deviceId: String? = nil, registeredAt: String? = nil) {
-        self.tenantId = tenantId
-        self.principalId = principalId
-        self.principalKind = principalKind
-        self.deviceId = deviceId
-        self.registeredAt = registeredAt
-    }
-}
-
-public struct DeviceSyncFeedEntry: Codable {
-    public let tenantId: String?
-    public let principalId: String?
-    public let principalKind: String?
-    public let deviceId: String?
-    public let syncSeq: Int?
-    public let eventId: String?
-    public let originEventType: String?
-    public let actorId: String?
-    public let conversationId: String?
-    public let messageId: String?
-    public let messageSeq: Int?
-    public let payload: String?
-    public let readSeq: Int?
-    public let summary: String?
-    public let occurredAt: String?
-
-
-    public init(tenantId: String? = nil, principalId: String? = nil, principalKind: String? = nil, deviceId: String? = nil, syncSeq: Int? = nil, eventId: String? = nil, originEventType: String? = nil, actorId: String? = nil, conversationId: String? = nil, messageId: String? = nil, messageSeq: Int? = nil, payload: String? = nil, readSeq: Int? = nil, summary: String? = nil, occurredAt: String? = nil) {
-        self.tenantId = tenantId
-        self.principalId = principalId
-        self.principalKind = principalKind
-        self.deviceId = deviceId
-        self.syncSeq = syncSeq
-        self.eventId = eventId
-        self.originEventType = originEventType
-        self.actorId = actorId
-        self.conversationId = conversationId
-        self.messageId = messageId
-        self.messageSeq = messageSeq
-        self.payload = payload
-        self.readSeq = readSeq
-        self.summary = summary
-        self.occurredAt = occurredAt
-    }
-}
-
-public struct DeviceSyncFeedResponse: Codable {
-    public let items: [DeviceSyncFeedEntry]?
-    public let nextAfterSeq: Int?
-    public let hasMore: Bool?
-    public let trimmedThroughSeq: Int?
-
-
-    public init(items: [DeviceSyncFeedEntry]? = nil, nextAfterSeq: Int? = nil, hasMore: Bool? = nil, trimmedThroughSeq: Int? = nil) {
-        self.items = items
-        self.nextAfterSeq = nextAfterSeq
-        self.hasMore = hasMore
-        self.trimmedThroughSeq = trimmedThroughSeq
     }
 }
 
@@ -983,6 +866,7 @@ public struct CreateContactRecommendationRequest: Codable {
 public struct SocialUserSearchResult: Codable {
     public let tenantId: String?
     public let userId: String?
+    public let chatId: String?
     public let displayName: String?
     public let relationshipState: String?
     public let avatarUrl: String?
@@ -991,9 +875,10 @@ public struct SocialUserSearchResult: Codable {
     public let metadata: [String: Any]?
 
 
-    public init(tenantId: String? = nil, userId: String? = nil, displayName: String? = nil, relationshipState: String? = nil, avatarUrl: String? = nil, email: String? = nil, phone: String? = nil, metadata: [String: Any]? = nil) {
+    public init(tenantId: String? = nil, userId: String? = nil, chatId: String? = nil, displayName: String? = nil, relationshipState: String? = nil, avatarUrl: String? = nil, email: String? = nil, phone: String? = nil, metadata: [String: Any]? = nil) {
         self.tenantId = tenantId
         self.userId = userId
+        self.chatId = chatId
         self.displayName = displayName
         self.relationshipState = relationshipState
         self.avatarUrl = avatarUrl

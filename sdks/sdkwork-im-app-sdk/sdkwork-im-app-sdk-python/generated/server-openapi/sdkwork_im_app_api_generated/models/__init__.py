@@ -12,7 +12,6 @@ from .automation_execution import AutomationExecution
 from .automation_execution_request_response import AutomationExecutionRequestResponse
 from .complete_agent_response_request import CompleteAgentResponseRequest
 from .complete_agent_tool_call_request import CompleteAgentToolCallRequest
-from .device_twin_view import DeviceTwinView
 from .notification_task import NotificationTask
 from .notification_list_response import NotificationListResponse
 from .notification_request_response import NotificationRequestResponse
@@ -20,7 +19,5 @@ from .request_agent_tool_call_request import RequestAgentToolCallRequest
 from .request_automation_execution import RequestAutomationExecution
 from .request_notification import RequestNotification
 from .start_agent_response_request import StartAgentResponseRequest
-from .update_device_twin_desired_request import UpdateDeviceTwinDesiredRequest
-from .update_device_twin_reported_request import UpdateDeviceTwinReportedRequest
 
-__all__ = ['PortalWorkspaceView', 'Sender', 'StreamSession', 'StreamFrame', 'ProblemDetail', 'AgentSubject', 'AgentToolCall', 'AppendAgentResponseDeltaRequest', 'AutomationExecution', 'AutomationExecutionRequestResponse', 'CompleteAgentResponseRequest', 'CompleteAgentToolCallRequest', 'DeviceTwinView', 'NotificationTask', 'NotificationListResponse', 'NotificationRequestResponse', 'RequestAgentToolCallRequest', 'RequestAutomationExecution', 'RequestNotification', 'StartAgentResponseRequest', 'UpdateDeviceTwinDesiredRequest', 'UpdateDeviceTwinReportedRequest']
+__all__ = ['PortalWorkspaceView', 'Sender', 'StreamSession', 'StreamFrame', 'ProblemDetail', 'AgentSubject', 'AgentToolCall', 'AppendAgentResponseDeltaRequest', 'AutomationExecution', 'AutomationExecutionRequestResponse', 'CompleteAgentResponseRequest', 'CompleteAgentToolCallRequest', 'NotificationTask', 'NotificationListResponse', 'NotificationRequestResponse', 'RequestAgentToolCallRequest', 'RequestAutomationExecution', 'RequestNotification', 'StartAgentResponseRequest']

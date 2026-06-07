@@ -54,7 +54,6 @@ const client = new SdkworkImClient({
 
 ## API Modules
 
-- `client.device` - device API
 - `client.presence` - presence API
 - `client.realtime` - realtime API
 - `client.rtc` - rtc API
@@ -63,17 +62,6 @@ const client = new SdkworkImClient({
 - `client.streams` - streams API
 
 ## Usage Examples
-
-### device
-
-```typescript
-// Resume a device runtime session
-const body = {
-  deviceId: 'deviceId',
-  lastSeenSyncSeq: 1,
-};
-const result = await client.device.sessions.resume(body);
-```
 
 ### presence
 

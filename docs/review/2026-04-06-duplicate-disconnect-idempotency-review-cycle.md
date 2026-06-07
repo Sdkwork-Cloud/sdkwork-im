@@ -53,7 +53,7 @@ Red evidence:
 
 The minimum correct rule is:
 
-1. reconnect fence must continue to block ordinary non-`resume` device-bound requests
+1. reconnect fence must continue to block ordinary non-`resume` client-route-bound requests
 2. the exact same session may retry `session.disconnect` idempotently
 3. that retry path must not recreate route ownership or mutate live state again
 4. it should simply return the current offline presence snapshot

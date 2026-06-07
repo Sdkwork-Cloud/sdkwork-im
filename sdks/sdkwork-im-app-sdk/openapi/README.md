@@ -17,9 +17,9 @@ API.
 
 - `/app/v3/openapi.json` is the live service schema export.
 - `CRAW_CHAT_APP_API_OPENAPI_SCHEMA_PATH` can override the runtime schema export source.
-- `/app/v3/api/device/sessions/*` is the device route lifecycle namespace, not the upstream
-  platform identity session namespace.
-- Non-management provider, IoT, RTC, and platform callback or health HTTP routes belong here when
-  they are exposed to app/business integrations.
+- Non-management provider, platform callback, or health HTTP routes belong here when they are
+  exposed to app/business integrations.
+- AIoT `/app/v3/api/iot/*` routes belong to `sdkwork-aiot` and are consumed through
+  `sdkwork-aiot-app-sdk`, not regenerated in this family.
 - Management-system, control-plane, and admin-console APIs stay in `sdkwork-im-backend-sdk`.
 - Generated SDK packages must never edit these files in place.

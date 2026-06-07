@@ -52,8 +52,9 @@ final inbox = await client.inbox.list();
 ## First write call
 
 ```dart
-await client.devices.register(
-  RegisterDeviceRequest(deviceId: 'device-mobile-01'),
+await client.conversations.postText(
+  'conv-demo-01',
+  text: 'hello from Flutter',
 );
 ```
 
@@ -62,7 +63,7 @@ await client.devices.register(
 ```dart
 final live = await client.connect(
   const ImConnectOptions(
-    deviceId: 'device-mobile-01',
+    clientRouteId: 'device-mobile-01',
     subscriptions: ImRealtimeSubscriptionGroups(
       conversations: <String>['conv-demo-01'],
     ),
@@ -84,13 +85,6 @@ short-lived realtime credential.
 ## Common module entrypoints
 
 ```dart
-await client.device.sessions.resume(
-  ResumeDeviceSessionRequest(
-    deviceId: 'device-mobile-01',
-    lastSeenSyncSeq: 0,
-  ),
-);
-
 await client.presence.current();
 await client.conversations.postText(
   'conv-demo-01',

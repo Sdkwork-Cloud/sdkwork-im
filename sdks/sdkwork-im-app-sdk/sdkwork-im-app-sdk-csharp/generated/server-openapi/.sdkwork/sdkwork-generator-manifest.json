@@ -11,7 +11,7 @@
   "generatedFiles": [
     {
       "path": "Api/Api.cs",
-      "sha256": "15b273be4b44721cd468057aa8d46ac50d54909b5a5998947dd2630e247bdb23"
+      "sha256": "a52291b3ca4cb135f300eee23be5c4267d09a392d74de7d009c7ebcdb140cf0c"
     },
     {
       "path": "Api/ApiPaths.cs",
@@ -20,14 +20,6 @@
     {
       "path": "Api/AutomationApi.cs",
       "sha256": "70c049716a6a576ccfb58a9f9a9e023f2ec144d44b44e57cd3278e8a088b4820"
-    },
-    {
-      "path": "Api/DeviceApi.cs",
-      "sha256": "6aa03e569c35645e572208ebf1e4e64a9b5b7113f1a5daf47de6015aa2bf35c2"
-    },
-    {
-      "path": "Api/IotApi.cs",
-      "sha256": "530b1ee513038d1c5378b746bff575bc29820213804b8e5d2062e74dc49dfd14"
     },
     {
       "path": "Api/NotificationApi.cs",
@@ -94,10 +86,6 @@
       "sha256": "67be0f8a140d08dc7267c109f9c9f39376df72633629086d551757ada59233ab"
     },
     {
-      "path": "Models/DeviceTwinView.cs",
-      "sha256": "a24c8026a377ca6b0d8ad98ce77ced78edfe100c01df04513a06b5d9bd92e90c"
-    },
-    {
       "path": "Models/NotificationListResponse.cs",
       "sha256": "f0e6abb447128058252c9a6ea8db7ab8ed1552c20261642ac062577632e22529"
     },
@@ -146,16 +134,8 @@
       "sha256": "43629b8bf7f9adc4e06af3195eae236fce37c3d2087ca5bad519f8e316645b9f"
     },
     {
-      "path": "Models/UpdateDeviceTwinDesiredRequest.cs",
-      "sha256": "40b5806b916652bc6f9454f4160741d79cec77b649a89c0f2da4345f05248b75"
-    },
-    {
-      "path": "Models/UpdateDeviceTwinReportedRequest.cs",
-      "sha256": "4919d69b3d599ef256a2757ee46f8766d62d73ac1f7989c7fd8d2b5a5a98c07a"
-    },
-    {
       "path": "README.md",
-      "sha256": "9835ecf957b7d8336a6356b87c89410854d3bcabe54c63fe2ce4a1e214ed95f0"
+      "sha256": "3f7936eb71e37ab79b8d4983bf0dd47262604032a2b372053947c843146ee7cb"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -171,7 +151,7 @@
     },
     {
       "path": "SdkworkImAppClient.cs",
-      "sha256": "22c15f5d9bcf01637e501d91498d7892e549d18f3ffed14b099996cba14f1801"
+      "sha256": "32c014a3492e4c6c01ad9ee8381ac2b88a7addd427404771dd802880b57acccd"
     }
   ],
   "scaffoldFiles": [

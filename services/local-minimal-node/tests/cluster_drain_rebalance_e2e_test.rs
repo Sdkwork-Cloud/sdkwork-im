@@ -79,7 +79,7 @@ async fn test_local_minimal_profile_drain_migrates_routes_and_preserves_realtime
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_remote")
                 .header("x-sdkwork-actor-kind", "user")
@@ -266,7 +266,7 @@ async fn test_local_minimal_profile_drain_migrates_routes_and_preserves_realtime
         serde_json::from_slice(&source_cluster_body).expect("source cluster should be valid json");
     assert_eq!(source_cluster_json["nodes"][0]["nodeId"], "node_a");
     assert_eq!(source_cluster_json["nodes"][0]["drainStatus"], "drained");
-    assert_eq!(source_cluster_json["nodes"][0]["deviceRouteCount"], 0);
+    assert_eq!(source_cluster_json["nodes"][0]["clientRouteCount"], 0);
 
     let target_cluster = app_b
         .clone()
@@ -295,7 +295,7 @@ async fn test_local_minimal_profile_drain_migrates_routes_and_preserves_realtime
         serde_json::from_slice(&target_cluster_body).expect("target cluster should be valid json");
     assert_eq!(target_cluster_json["nodes"][0]["nodeId"], "node_b");
     assert_eq!(target_cluster_json["nodes"][0]["drainStatus"], "active");
-    assert_eq!(target_cluster_json["nodes"][0]["deviceRouteCount"], 2);
+    assert_eq!(target_cluster_json["nodes"][0]["clientRouteCount"], 2);
 
     let target_diagnostics = app_b
         .oneshot(
@@ -323,7 +323,7 @@ async fn test_local_minimal_profile_drain_migrates_routes_and_preserves_realtime
         serde_json::from_slice(&target_diagnostics_body)
             .expect("target diagnostics should be valid json");
     assert_eq!(
-        target_diagnostics_json["deviceRoutes"]
+        target_diagnostics_json["clientRoutes"]
             .as_array()
             .unwrap()
             .iter()
@@ -331,143 +331,4 @@ async fn test_local_minimal_profile_drain_migrates_routes_and_preserves_realtime
             .count(),
         1
     );
-}
-
-#[tokio::test]
-async fn test_local_minimal_profile_disconnect_releases_route_before_drain() {
-    let projection_service = Arc::new(projection_service::TimelineProjectionService::default());
-    let realtime_cluster = Arc::new(RealtimeClusterBridge::default());
-
-    let app_a = local_minimal_node::build_app_with_dependencies(
-        "node_a",
-        "127.0.0.1:18111",
-        projection_service,
-        realtime_cluster.clone(),
-    );
-    let control_app = control_plane_api::build_app_with_cluster(realtime_cluster);
-
-    let resume = app_a
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("resume should succeed");
-    assert_eq!(resume.status(), StatusCode::OK);
-
-    let cluster_before = app_a
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/backend/v3/api/ops/cluster")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-permission-scope", "ops.read")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("cluster before disconnect should succeed");
-    assert_eq!(cluster_before.status(), StatusCode::OK);
-    let cluster_before_body = cluster_before
-        .into_body()
-        .collect()
-        .await
-        .expect("cluster before body should collect")
-        .to_bytes();
-    let cluster_before_json: serde_json::Value =
-        serde_json::from_slice(&cluster_before_body).expect("cluster before should be valid json");
-    assert_eq!(cluster_before_json["nodes"][0]["deviceRouteCount"], 1);
-
-    let disconnect = app_a
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/disconnect")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("disconnect should succeed");
-    assert_eq!(disconnect.status(), StatusCode::OK);
-
-    let diagnostics_after = app_a
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/backend/v3/api/ops/diagnostics")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-permission-scope", "ops.read")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("diagnostics after disconnect should succeed");
-    assert_eq!(diagnostics_after.status(), StatusCode::OK);
-    let diagnostics_after_body = diagnostics_after
-        .into_body()
-        .collect()
-        .await
-        .expect("diagnostics after body should collect")
-        .to_bytes();
-    let diagnostics_after_json: serde_json::Value = serde_json::from_slice(&diagnostics_after_body)
-        .expect("diagnostics after should be valid json");
-    assert_eq!(
-        diagnostics_after_json["deviceRoutes"]
-            .as_array()
-            .unwrap()
-            .len(),
-        0
-    );
-
-    let drain = control_app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/backend/v3/api/control/nodes/node_a/drain")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("drain should succeed");
-    assert_eq!(drain.status(), StatusCode::OK);
-    let drain_body = drain
-        .into_body()
-        .collect()
-        .await
-        .expect("drain body should collect")
-        .to_bytes();
-    let drain_json: serde_json::Value =
-        serde_json::from_slice(&drain_body).expect("drain should be valid json");
-    assert_eq!(drain_json["drainStatus"], "drained");
-    assert_eq!(drain_json["rebalanceState"], "stable");
-    assert_eq!(drain_json["ownedRouteCount"], 0);
 }

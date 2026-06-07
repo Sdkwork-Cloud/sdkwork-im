@@ -177,7 +177,7 @@ Add visible fields and buttons for:
 - login
 - password
 - session id
-- device id
+- client route id
 - login action
 
 Gate send/refresh until auth succeeds.

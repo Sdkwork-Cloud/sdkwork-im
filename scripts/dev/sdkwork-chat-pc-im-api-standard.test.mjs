@@ -113,7 +113,11 @@ assert.match(appAuthRuntimeSource, /sessionBridge:\s*\{/u);
 assert.match(appAuthRuntimeSource, /commitSession:\s*\(session\)\s*=>\s*applyAppSdkSessionTokens/u);
 assert.match(appAuthRuntimeSource, /readSession:\s*readAppSdkSessionTokens/u);
 assert.match(appAuthRuntimeSource, /appbaseAppApiBaseUrl:\s*resolveAppSdkBaseUrl\(\)/u);
-assert.match(appAuthRuntimeSource, /appbaseBackendApiBaseUrl:\s*resolveBackendSdkBaseUrl\(\)/u);
+assert.doesNotMatch(
+  appAuthRuntimeSource,
+  /appbaseBackendApiBaseUrl|resolveBackendSdkBaseUrl/u,
+  'SDKWork Chat app auth runtime must not construct backend SDK base URLs on the app UI surface.',
+);
 assert.match(appAuthRuntimeSource, /qrLoginEnabled:\s*true/u);
 assert.doesNotMatch(
   appAuthRuntimeSource,

@@ -1,4 +1,4 @@
-import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
+import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/clawchat-admin-core/sdk';
 
 export interface GlobalUser {
   id: string;

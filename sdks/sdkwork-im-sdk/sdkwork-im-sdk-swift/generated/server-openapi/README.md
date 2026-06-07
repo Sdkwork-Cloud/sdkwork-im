@@ -48,7 +48,6 @@ client.setHeader("X-Custom-Header", value: "value")
 
 ## API Modules
 
-- `client.device` - device API
 - `client.presence` - presence API
 - `client.realtime` - realtime API
 - `client.rtc` - rtc API
@@ -57,18 +56,6 @@ client.setHeader("X-Custom-Header", value: "value")
 - `client.streams` - streams API
 
 ## Usage Examples
-
-### device
-
-```swift
-// Resume a device runtime session
-let body = ResumeDeviceSessionRequest(
-    deviceId: "1",
-    lastSeenSyncSeq: 2
-)
-let result = try await client.device.sessionsResume(body: body)
-print(result)
-```
 
 ### presence
 

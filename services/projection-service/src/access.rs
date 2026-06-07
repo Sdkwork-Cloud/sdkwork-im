@@ -4,12 +4,12 @@ use im_domain_core::conversation::{ConversationInboxEntry, ConversationReadCurso
 use im_domain_core::social::DirectChatStatus;
 
 use super::{
-    ContactView, ContactWindowView, ConversationMemberDirectoryEntry, ConversationSummaryView,
-    DeviceSyncFeedWindowView, MessageInteractionSummaryView, NotificationRecipientView,
-    PROJECTION_DEVICE_SYNC_FEED_DEFAULT_LIMIT, PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT,
-    PROJECTION_LIST_DEFAULT_LIMIT, PROJECTION_LIST_MAX_LIMIT, PROJECTION_TIMELINE_DEFAULT_LIMIT,
-    PROJECTION_TIMELINE_MAX_LIMIT, RealtimeFanoutTarget, RegisteredDeviceView,
-    TimelineProjectionService, TimelineWindowView,
+    ClientRouteSyncFeedWindowView, ContactView, ContactWindowView,
+    ConversationMemberDirectoryEntry, ConversationSummaryView, MessageInteractionSummaryView,
+    NotificationRecipientView, PROJECTION_CLIENT_ROUTE_SYNC_FEED_DEFAULT_LIMIT,
+    PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT, PROJECTION_LIST_DEFAULT_LIMIT,
+    PROJECTION_LIST_MAX_LIMIT, PROJECTION_TIMELINE_DEFAULT_LIMIT, PROJECTION_TIMELINE_MAX_LIMIT,
+    RealtimeFanoutTarget, RegisteredClientRouteView, TimelineProjectionService, TimelineWindowView,
 };
 
 const PROJECTION_MAX_DEVICE_ID_BYTES: usize = 256;
@@ -24,8 +24,8 @@ pub struct ProjectionAccessError {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DeviceSyncStateSnapshot {
-    pub registered_devices: Vec<String>,
+pub struct ClientRouteSyncStateSnapshot {
+    pub registered_client_routes: Vec<String>,
     pub latest_sync_seq: Option<u64>,
 }
 
@@ -198,7 +198,7 @@ impl TimelineProjectionService {
     ) -> Result<Vec<NotificationRecipientView>, ProjectionAccessError> {
         self.ensure_active_member_from_auth_context(auth, conversation_id)?;
         Ok(
-            super::device_sync::active_conversation_principal_recipients(
+            super::client_route_sync::active_conversation_principal_recipients(
                 self,
                 auth.tenant_id.as_str(),
                 conversation_id,
@@ -239,14 +239,16 @@ impl TimelineProjectionService {
         recipients
     }
 
-    pub fn register_device_from_auth_context(
+    pub fn register_client_route_from_auth_context(
         &self,
         auth: &AppContext,
         requested_device_id: Option<String>,
-    ) -> Result<RegisteredDeviceView, ProjectionAccessError> {
-        let device_id =
-            self.ensure_device_registration_allowed_from_auth_context(auth, requested_device_id)?;
-        Ok(self.register_device_for_principal_kind(
+    ) -> Result<RegisteredClientRouteView, ProjectionAccessError> {
+        let device_id = self.ensure_client_route_registration_allowed_from_auth_context(
+            auth,
+            requested_device_id,
+        )?;
+        Ok(self.register_client_route_for_principal_kind(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
@@ -254,42 +256,42 @@ impl TimelineProjectionService {
         ))
     }
 
-    pub fn ensure_device_registration_allowed_from_auth_context(
+    pub fn ensure_client_route_registration_allowed_from_auth_context(
         &self,
         auth: &AppContext,
         requested_device_id: Option<String>,
     ) -> Result<String, ProjectionAccessError> {
         let device_id = resolve_requested_device_id(auth, requested_device_id)?;
-        ensure_device_registration_available(self, auth, device_id.as_str())?;
+        ensure_client_route_registration_available(self, auth, device_id.as_str())?;
         Ok(device_id)
     }
 
-    pub fn registered_devices_from_auth_context(
+    pub fn registered_client_routes_from_auth_context(
         &self,
         auth: &AppContext,
-    ) -> Vec<RegisteredDeviceView> {
-        self.registered_devices_for_principal_kind(
+    ) -> Vec<RegisteredClientRouteView> {
+        self.registered_client_routes_for_principal_kind(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
         )
     }
 
-    pub fn device_sync_state_snapshot_from_auth_context(
+    pub fn client_route_sync_state_snapshot_from_auth_context(
         &self,
         auth: &AppContext,
         requested_device_id: Option<&str>,
-    ) -> Result<DeviceSyncStateSnapshot, ProjectionAccessError> {
-        let registered_devices = self
-            .registered_devices_from_auth_context(auth)
+    ) -> Result<ClientRouteSyncStateSnapshot, ProjectionAccessError> {
+        let registered_client_routes = self
+            .registered_client_routes_from_auth_context(auth)
             .into_iter()
             .map(|item| item.device_id)
             .collect::<Vec<_>>();
         let latest_sync_seq = match requested_device_id.or(auth.device_id.as_deref()) {
             Some(device_id) => {
                 validate_device_scope(auth, device_id)?;
-                ensure_device_owned_by_auth_kind(self, auth, device_id)?;
-                Some(self.latest_device_sync_seq_for_principal_kind(
+                ensure_client_route_owned_by_auth_kind(self, auth, device_id)?;
+                Some(self.latest_client_route_sync_seq_for_principal_kind(
                     auth.tenant_id.as_str(),
                     auth.actor_id.as_str(),
                     auth.actor_kind.as_str(),
@@ -299,8 +301,8 @@ impl TimelineProjectionService {
             None => None,
         };
 
-        Ok(DeviceSyncStateSnapshot {
-            registered_devices,
+        Ok(ClientRouteSyncStateSnapshot {
+            registered_client_routes,
             latest_sync_seq,
         })
     }
@@ -310,21 +312,21 @@ impl TimelineProjectionService {
         auth: &AppContext,
         recipients: impl IntoIterator<Item = NotificationRecipientView>,
     ) -> Vec<RealtimeFanoutTarget> {
-        super::device_sync::realtime_fanout_targets_for_recipients(
+        super::client_route_sync::realtime_fanout_targets_for_recipients(
             self,
             auth.tenant_id.as_str(),
             recipients,
         )
     }
 
-    pub fn latest_device_sync_seq_from_auth_context(
+    pub fn latest_client_route_sync_seq_from_auth_context(
         &self,
         auth: &AppContext,
         device_id: &str,
     ) -> Result<u64, ProjectionAccessError> {
         validate_device_scope(auth, device_id)?;
-        ensure_device_owned_by_auth_kind(self, auth, device_id)?;
-        Ok(self.latest_device_sync_seq_for_principal_kind(
+        ensure_client_route_owned_by_auth_kind(self, auth, device_id)?;
+        Ok(self.latest_client_route_sync_seq_for_principal_kind(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
@@ -332,17 +334,17 @@ impl TimelineProjectionService {
         ))
     }
 
-    pub fn device_sync_feed_window_from_auth_context(
+    pub fn client_route_sync_feed_window_from_auth_context(
         &self,
         auth: &AppContext,
         device_id: &str,
         after_seq: Option<u64>,
         limit: Option<usize>,
-    ) -> Result<DeviceSyncFeedWindowView, ProjectionAccessError> {
+    ) -> Result<ClientRouteSyncFeedWindowView, ProjectionAccessError> {
         validate_device_scope(auth, device_id)?;
-        ensure_device_owned_by_auth_kind(self, auth, device_id)?;
-        let limit = validate_device_sync_feed_limit(limit)?;
-        Ok(self.device_sync_feed_window_for_principal_kind(
+        ensure_client_route_owned_by_auth_kind(self, auth, device_id)?;
+        let limit = validate_client_route_sync_feed_limit(limit)?;
+        Ok(self.client_route_sync_feed_window_for_principal_kind(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
@@ -517,19 +519,21 @@ fn validate_device_scope(auth: &AppContext, device_id: &str) -> Result<(), Proje
     Ok(())
 }
 
-fn ensure_device_registration_available(
+fn ensure_client_route_registration_available(
     service: &TimelineProjectionService,
     auth: &AppContext,
     device_id: &str,
 ) -> Result<(), ProjectionAccessError> {
-    let has_conflict =
-        super::lock_projection_mutex(&service.registered_devices, "registered device store")
-            .iter()
-            .filter(|(scope, devices)| {
-                scope.tenant_id == auth.tenant_id.as_str() && devices.contains_key(device_id)
-            })
-            .filter_map(|(_, devices)| devices.get(device_id))
-            .any(|device| !device_registration_is_compatible_with_auth(device, auth));
+    let has_conflict = super::lock_projection_mutex(
+        &service.registered_client_routes,
+        "registered client route store",
+    )
+    .iter()
+    .filter(|(scope, devices)| {
+        scope.tenant_id == auth.tenant_id.as_str() && devices.contains_key(device_id)
+    })
+    .filter_map(|(_, devices)| devices.get(device_id))
+    .any(|client_route| !client_route_registration_is_compatible_with_auth(client_route, auth));
 
     if has_conflict {
         return Err(ProjectionAccessError::conflict(
@@ -541,25 +545,28 @@ fn ensure_device_registration_available(
     Ok(())
 }
 
-fn device_registration_is_compatible_with_auth(
-    device: &RegisteredDeviceView,
+fn client_route_registration_is_compatible_with_auth(
+    client_route: &RegisteredClientRouteView,
     auth: &AppContext,
 ) -> bool {
-    device.principal_id == auth.actor_id
-        && (device.principal_kind == auth.actor_kind
+    client_route.principal_id == auth.actor_id
+        && (client_route.principal_kind == auth.actor_kind
             || matches!(
-                (device.principal_kind.as_str(), auth.actor_kind.as_str()),
+                (
+                    client_route.principal_kind.as_str(),
+                    auth.actor_kind.as_str()
+                ),
                 ("user", "device") | ("device", "user")
             ))
 }
 
-fn ensure_device_owned_by_auth_kind(
+fn ensure_client_route_owned_by_auth_kind(
     service: &TimelineProjectionService,
     auth: &AppContext,
     device_id: &str,
 ) -> Result<(), ProjectionAccessError> {
     if service
-        .registered_devices_for_principal_kind(
+        .registered_client_routes_for_principal_kind(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
@@ -639,13 +646,15 @@ fn validate_timeline_limit(limit: Option<usize>) -> Result<usize, ProjectionAcce
     Ok(limit)
 }
 
-fn validate_device_sync_feed_limit(limit: Option<usize>) -> Result<usize, ProjectionAccessError> {
-    let limit = limit.unwrap_or(PROJECTION_DEVICE_SYNC_FEED_DEFAULT_LIMIT);
-    if limit == 0 || limit > PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT {
+fn validate_client_route_sync_feed_limit(
+    limit: Option<usize>,
+) -> Result<usize, ProjectionAccessError> {
+    let limit = limit.unwrap_or(PROJECTION_CLIENT_ROUTE_SYNC_FEED_DEFAULT_LIMIT);
+    if limit == 0 || limit > PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT {
         return Err(ProjectionAccessError::bad_request(
             "limit_invalid",
             format!(
-                "device sync feed limit must be between 1 and {PROJECTION_DEVICE_SYNC_FEED_MAX_LIMIT}: {limit}"
+                "client route sync feed limit must be between 1 and {PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_LIMIT}: {limit}"
             ),
         ));
     }

@@ -76,7 +76,7 @@ Returns the inbox view for the current principal.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -118,7 +118,7 @@ Creates a regular conversation.
 | --- | --- | --- |
 | `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -160,7 +160,7 @@ Creates a one-to-one conversation with a specific agent.
 | --- | --- | --- |
 | `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -202,7 +202,7 @@ Creates a handoff conversation and initializes handoff state.
 | --- | --- | --- |
 | `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -244,7 +244,7 @@ Creates a system channel for the specified subscriber principal.
 | --- | --- | --- |
 | `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -326,7 +326,7 @@ Reads the current handoff state for the conversation.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -374,7 +374,7 @@ None. This operation does not accept a JSON request body.
 | --- | --- | --- |
 | `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -422,7 +422,7 @@ None. This operation does not accept a JSON request body.
 | --- | --- | --- |
 | `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -470,7 +470,7 @@ None. This operation does not accept a JSON request body.
 | --- | --- | --- |
 | `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |

@@ -35,7 +35,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "6f5d79f157b460681d2508a780dd28350dedc0fe68ecb44704bdfa3cf041673f"
+      "sha256": "10f9611f4ededcc48bafb1793b90ea143dce2760ac4f3777d2bb2839bfacdeba"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -50,20 +50,12 @@
       "sha256": "678a5f88356130f1e66467ac223880dfc0805825f1fb2b01cf31fcde8c2cd98f"
     },
     {
-      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/DeviceApi.java",
-      "sha256": "1be53490b662c53ef379071b752aa6d9efce77010ede3e99e237fa29a1a02169"
-    },
-    {
-      "path": "src/main/java/com/sdkwork/im/app/api/generated/api/IotApi.java",
-      "sha256": "4986a0b78b3ba3b8eef3387f4c1e6a51338774e795102ea71bbb853b131ad9ca"
-    },
-    {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/api/NotificationApi.java",
       "sha256": "688d9239c8611b3bf009c9cd91d112681195f8ea8caa4732029a29e2342dabaf"
     },
     {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/api/package-info.java",
-      "sha256": "db44c87442284e9204362eb13d1f3643aa627ae1385a5911be8412a727c38ba5"
+      "sha256": "6cfd3b5db6d3a0f71c1e3c2ac98af6dc684c3bc8dce9b87ddbdb99ece625e4ec"
     },
     {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/api/PortalApi.java",
@@ -104,10 +96,6 @@
     {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/model/CompleteAgentToolCallRequest.java",
       "sha256": "d61491cdd0112695023681d5b096bc949a39dc0d602f7b5b66be5e129e2134f5"
-    },
-    {
-      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/DeviceTwinView.java",
-      "sha256": "4ec97d826252afe0b29ceef0ca6443de2c0932de54304715d101469ef0f6e76d"
     },
     {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationListResponse.java",
@@ -158,20 +146,12 @@
       "sha256": "2917264a8369d0039599d0b1fc93f7c28aeca3cc2db133f03656ff02391d66f7"
     },
     {
-      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinDesiredRequest.java",
-      "sha256": "b322a76ae0c123a5e0032d1b036a5d393345dd10c888cf7b712f209bd1081b83"
-    },
-    {
-      "path": "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinReportedRequest.java",
-      "sha256": "c2227e87dffc9ba28ad4ab3bf1341b228182ea6d81346ff91f9663327b86f948"
-    },
-    {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/SdkworkAppClient.java",
       "sha256": "6f4d56509e24ff72f02170ea046e5d2f03cd6b786c542d166485d30e4e14b01f"
     },
     {
       "path": "src/main/java/com/sdkwork/im/app/api/generated/SdkworkImAppClient.java",
-      "sha256": "58ef95b691ec3942e37a4827f8eefea498b51087a7370275d940bd6c4b129561"
+      "sha256": "927ef2b2aeb61b315db807c30d6d452348f99e39f94965d0421f1e42947f2dc5"
     }
   ],
   "scaffoldFiles": [

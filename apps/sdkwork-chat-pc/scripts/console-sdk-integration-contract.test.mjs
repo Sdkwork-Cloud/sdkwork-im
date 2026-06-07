@@ -41,18 +41,23 @@ assert.doesNotMatch(
 
 assert.match(
   securityServiceSource,
-  /getBackendSdkClientWithSession/u,
-  'Console security service must consume security and audit data through the IM backend SDK runtime wrapper.',
+  /getAppSdkClientWithSession/u,
+  'Console security service must consume user-facing governance data through the IM app SDK runtime wrapper.',
 );
 assert.match(
   securityServiceSource,
-  /\.ops\.health\.retrieve\s*\(/u,
-  'Console security service must retrieve security health through backend.ops.health.retrieve().',
+  /\.portal\.governance\.retrieve\s*\(/u,
+  'Console security service must retrieve governance health through client.portal.governance.retrieve().',
 );
 assert.match(
   securityServiceSource,
-  /\.audit\.records\.list\s*\(/u,
-  'Console security service must retrieve audit activity through backend.audit.records.list().',
+  /\.portal\.access\.retrieve\s*\(/u,
+  'Console security service must retrieve user-facing access activity through client.portal.access.retrieve().',
+);
+assert.doesNotMatch(
+  securityServiceSource,
+  /getBackendSdkClientWithSession|\.ops\.|\.audit\.records/u,
+  'Console security service must not consume backend SDK operations; backend security/audit records belong to admin.',
 );
 assert.doesNotMatch(
   securityServiceSource,

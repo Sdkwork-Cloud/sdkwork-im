@@ -3,6 +3,7 @@ import type { AuthTokenManager, AuthTokens, Interceptors, RequestConfig } from '
 
 export interface SdkworkChatSessionUser {
   avatar?: string;
+  chatId?: string;
   displayName?: string;
   email?: string;
   id?: string | number;
@@ -214,8 +215,12 @@ export function normalizeSdkworkChatSessionUser(value: unknown): SdkworkChatSess
   const user = value as Partial<SdkworkChatSessionUser>;
   const id = normalizeString(user.userId) ?? normalizeString(user.id);
   const avatar = normalizeString(user.avatar);
+  const chatId = normalizeString((value as { chatId?: unknown }).chatId)
+    ?? normalizeString((value as { imId?: unknown }).imId)
+    ?? normalizeString((value as { crawChatId?: unknown }).crawChatId);
   const normalized: SdkworkChatSessionUser = {
     ...(avatar ? { avatar } : {}),
+    ...(chatId ? { chatId } : {}),
     ...(normalizeString(user.displayName) ? { displayName: normalizeString(user.displayName) } : {}),
     ...(normalizeString(user.email) ? { email: normalizeString(user.email) } : {}),
     ...(id ? { id } : {}),

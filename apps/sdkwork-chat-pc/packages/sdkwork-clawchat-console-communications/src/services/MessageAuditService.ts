@@ -1,5 +1,3 @@
-import { getBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
-
 export interface AuditMessage {
   id: string;
   time: string;
@@ -68,27 +66,10 @@ function normalizeAuditMessage(record: UnknownRecord, index: number): AuditMessa
 
 class MessageAuditService {
   async getMessages(params: { page: number; pageSize: number; search?: string }): Promise<GetAuditMessagesResponse> {
-    const backend = getBackendSdkClientWithSession();
-    const response = await backend.audit.records.list();
-    let filtered = asRecordArray(asRecord(response).items)
-      .map(normalizeAuditMessage);
-
-    if (params.search) {
-      const q = params.search.toLowerCase();
-      filtered = filtered.filter((message) =>
-        message.sender.toLowerCase().includes(q)
-        || message.receiver.toLowerCase().includes(q)
-        || message.snippet.toLowerCase().includes(q),
-      );
-    }
-
-    const start = (params.page - 1) * params.pageSize;
-    const end = start + params.pageSize;
-
-    return {
-      data: filtered.slice(start, end),
-      total: filtered.length,
-    };
+    void params;
+    throw new Error(
+      'Message audit records are an admin-only backend SDK capability. Move this workflow to the admin surface or add an app-api console audit contract.',
+    );
   }
 }
 

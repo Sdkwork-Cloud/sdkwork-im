@@ -24,7 +24,7 @@ Aborts the stream lifecycle.
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.stream.abort(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.abort` capability or device stream permission.</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Conversation `stream.abort` capability or stream permission.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamSession`</span></div>
 </div>
 

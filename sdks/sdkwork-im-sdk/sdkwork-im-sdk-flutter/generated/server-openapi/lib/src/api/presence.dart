@@ -10,8 +10,8 @@ class PresenceApi {
 
   PresenceApi(this._client);
 
-  /// Publish current device presence heartbeat
-  Future<PresenceView?> heartbeatCreate(DevicePresenceRequest body) async {
+  /// Publish current client route presence heartbeat
+  Future<PresenceView?> heartbeatCreate(PresenceHeartbeatRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.imPath('/presence/heartbeat'), body: payload, contentType: 'application/json');
     return (() {

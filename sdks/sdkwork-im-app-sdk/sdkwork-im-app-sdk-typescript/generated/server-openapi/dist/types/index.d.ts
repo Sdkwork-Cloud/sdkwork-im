@@ -18,7 +18,6 @@ export type { AutomationExecutionDeliveryStatus } from './automation-execution-d
 export type { AutomationExecutionRequestResponse } from './automation-execution-request-response';
 export type { CompleteAgentResponseRequest } from './complete-agent-response-request';
 export type { CompleteAgentToolCallRequest } from './complete-agent-tool-call-request';
-export type { DeviceTwinView } from './device-twin-view';
 export type { NotificationRequestDeliveryStatus } from './notification-request-delivery-status';
 export type { NotificationStatus } from './notification-status';
 export type { NotificationTask } from './notification-task';
@@ -28,12 +27,6 @@ export type { RequestAgentToolCallRequest } from './request-agent-tool-call-requ
 export type { RequestAutomationExecution } from './request-automation-execution';
 export type { RequestNotification } from './request-notification';
 export type { StartAgentResponseRequest } from './start-agent-response-request';
-export type { UpdateDeviceTwinDesiredRequest } from './update-device-twin-desired-request';
-export type { UpdateDeviceTwinReportedRequest } from './update-device-twin-reported-request';
 export type { MediaHealthRetrieveResponse } from './media-health-retrieve-response';
 export type { PrincipalProfileHealthRetrieveResponse } from './principal-profile-health-retrieve-response';
-export type { AccessProviderHealthRetrieveResponse } from './access-provider-health-retrieve-response';
-export type { ProtocolProviderHealthRetrieveResponse } from './protocol-provider-health-retrieve-response';
-export type { ProtocolUplinkCreateResponse } from './protocol-uplink-create-response';
-export type { ProtocolDownlinkCreateResponse } from './protocol-downlink-create-response';
 //# sourceMappingURL=index.d.ts.map

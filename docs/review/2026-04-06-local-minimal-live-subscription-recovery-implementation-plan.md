@@ -4,7 +4,7 @@
 
 **Goal:** Make managed `local-minimal` rebuilds restore live realtime subscription intent for the same device after a fresh resume so private deployment no longer requires an extra `subscriptions.sync` after restart.
 
-**Architecture:** Introduce a pluggable durable subscription store keyed by `tenant + principal + device`, bind it under the runtime dir for managed `local-minimal`, and lazily restore subscriptions during device bootstrap paths such as `session.resume` or equivalent device registration. Keep unmanaged/default builders memory-backed.
+**Architecture:** Introduce a pluggable durable subscription store keyed by `tenant + principal + device`, bind it under the runtime dir for managed `local-minimal`, and lazily restore subscriptions during client route bootstrap paths such as `session.resume` or equivalent client route registration. Keep unmanaged/default builders memory-backed.
 
 **Tech Stack:** Rust, Axum, serde/serde_json, local file persistence, existing realtime runtime and runtime-dir builder seams, existing device-scope checkpoint/disconnect-fence patterns.
 
@@ -87,7 +87,7 @@ Support:
 
 - [ ] **Step 2: Restore subscriptions lazily**
 
-Restore device-scope subscriptions when the runtime initializes device state for an active device bootstrap path.
+Restore device-scope subscriptions when the runtime initializes client route state for an active client route bootstrap path.
 
 Constraints:
 - do not silently resurrect subscriptions after explicit disconnect if the store was cleared
@@ -99,7 +99,7 @@ Constraints:
 Persist on:
 - `sync_subscriptions(...)`
 - `clear_device_subscriptions(...)`
-- `restore_device_state(...)` when route migration snapshots are restored
+- `restore_client_route_state(...)` when route migration snapshots are restored
 
 - [ ] **Step 4: Run the runtime test**
 
@@ -119,7 +119,7 @@ Managed runtime-dir builders must bind:
 - `FileRealtimeDisconnectFenceStore`
 - `FileRealtimeSubscriptionStore`
 
-- [ ] **Step 2: Recover subscriptions through a fresh device bootstrap**
+- [ ] **Step 2: Recover subscriptions through a fresh client route bootstrap**
 
 Use the same managed runtime-dir and verify that a fresh resumed device gets restored live subscription matching without a second `subscriptions.sync`.
 

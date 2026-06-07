@@ -1,18 +1,12 @@
 import type {
+  InboxResponse,
   ConversationMember,
   ImSdkClient,
 } from '@sdkwork/im-sdk';
-import { getImSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
+import { getImSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/imSdkClient';
 import type { Chat } from '@sdkwork/clawchat-pc-types';
 import { chatService, createSdkworkChatService, type ChatService } from './ChatService';
 import { contactService } from './ContactService';
-import {
-  parseDeviceSyncPayload,
-  pickDeviceSyncString,
-  resolveSdkworkChatPcDeviceId,
-  retrieveDeviceSyncFeedWindow,
-  toDeviceSyncRecord,
-} from './DeviceSyncFeedService';
 
 export interface GroupService {
   createGroup(name: string, members: string[]): Promise<Chat>;
@@ -22,20 +16,16 @@ export interface GroupService {
   addMembersBySearchQuery(groupId: string, memberQueries: string[]): Promise<string[]>;
   removeMember(groupId: string, memberId: string): Promise<void>;
   deleteGroup(groupId: string): Promise<void>;
-  syncGroupMembersFromDeviceFeed(deviceId?: string): Promise<GroupMemberSyncChange[]>;
+  syncGroupMembers(): Promise<GroupMemberSyncChange[]>;
 }
 
 type GroupViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'memberCount' | 'members' | 'name' | 'notice'>>;
 export type GroupMemberSyncChange = Required<Pick<GroupViewState, 'activeCount' | 'memberCount' | 'members'>> & {
   groupId: string;
 };
-type GroupMemberEvent = {
-  conversationId: string;
-  principalId: string;
-  state: string;
-};
-const GROUP_DEVICE_SYNC_NAMESPACE = 'groups';
+type ConversationListEntry = InboxResponse['items'][number];
 const GROUP_MEMBERS_PAGE_LIMIT = 100;
+const GROUPS_PAGE_LIMIT = 100;
 const SOCIAL_USER_SEARCH_LIMIT = 20;
 
 function createGroupId(): string {
@@ -76,7 +66,6 @@ function mapActiveMemberIds(members: ConversationMember[]): string[] {
 }
 
 class SdkworkGroupService implements GroupService {
-  private readonly groupDeviceSyncAfterSeq = new Map<string, number>();
   private readonly groupViewState = new Map<string, GroupViewState>();
   private readonly chatClient: ChatService;
 
@@ -112,6 +101,22 @@ class SdkworkGroupService implements GroupService {
 
       cursor = response.nextCursor;
     }
+
+    return items;
+  }
+
+  private async listAllConversationEntries(): Promise<ConversationListEntry[]> {
+    const items: ConversationListEntry[] = [];
+    let cursor: string | undefined;
+
+    do {
+      const response = await this.client().conversations.list({
+        limit: GROUPS_PAGE_LIMIT,
+        ...(cursor ? { cursor } : {}),
+      });
+      items.push(...response.items);
+      cursor = response.hasMore ? response.nextCursor : undefined;
+    } while (cursor);
 
     return items;
   }
@@ -268,33 +273,22 @@ class SdkworkGroupService implements GroupService {
     this.groupViewState.delete(groupId);
   }
 
-  async syncGroupMembersFromDeviceFeed(deviceId = resolveSdkworkChatPcDeviceId()): Promise<GroupMemberSyncChange[]> {
-    const window = await retrieveDeviceSyncFeedWindow(
-      this.client(),
-      GROUP_DEVICE_SYNC_NAMESPACE,
-      deviceId,
-      this.groupDeviceSyncAfterSeq,
-    );
-    const changedGroupIds = new Set<string>();
+  async syncGroupMembers(): Promise<GroupMemberSyncChange[]> {
+    const entries = await this.listAllConversationEntries();
+    const groupIds = entries
+      .filter((entry) => entry.conversationType.toLowerCase() === 'group')
+      .map((entry) => entry.conversationId);
+    const changes: GroupMemberSyncChange[] = [];
 
-    for (const entry of window.entries) {
-      const memberEvent = this.parseGroupMemberEvent(entry.originEventType, entry.conversationId, parseDeviceSyncPayload(entry));
-      if (!memberEvent) {
-        continue;
-      }
-      this.applyGroupMemberEvent(memberEvent);
-      changedGroupIds.add(memberEvent.conversationId);
+    for (const groupId of groupIds) {
+      const state = await this.syncMemberViewState(groupId, false);
+      changes.push({
+        ...state,
+        groupId,
+      });
     }
 
-    return [...changedGroupIds].sort().map((groupId) => {
-      const state = this.groupViewState.get(groupId) ?? {};
-      return {
-        activeCount: state.activeCount ?? 0,
-        groupId,
-        memberCount: state.memberCount ?? 0,
-        members: state.members ?? [],
-      };
-    });
+    return changes.sort((left, right) => left.groupId.localeCompare(right.groupId));
   }
 
   private async withMemberState(group: Chat): Promise<Chat> {
@@ -343,44 +337,6 @@ class SdkworkGroupService implements GroupService {
     };
   }
 
-  private parseGroupMemberEvent(
-    originEventType: string,
-    conversationId: string | undefined,
-    payload: Record<string, unknown>,
-  ): GroupMemberEvent | undefined {
-    if (!conversationId || !originEventType.startsWith('conversation.member_')) {
-      return undefined;
-    }
-    const member = toDeviceSyncRecord(payload.member ?? payload.updatedMember ?? payload.previousMember);
-    const principalId = pickDeviceSyncString(member.principalId, payload.principalId);
-    if (!principalId) {
-      return undefined;
-    }
-    const state = pickDeviceSyncString(member.state, payload.state)
-      ?? (originEventType === 'conversation.member_removed' ? 'removed' : 'joined');
-    return {
-      conversationId,
-      principalId,
-      state,
-    };
-  }
-
-  private applyGroupMemberEvent(event: GroupMemberEvent): void {
-    const existingState = this.groupViewState.get(event.conversationId) ?? {};
-    const members = new Set(existingState.members ?? []);
-    if (event.state === 'removed' || event.state === 'left') {
-      members.delete(event.principalId);
-    } else {
-      members.add(event.principalId);
-    }
-    const nextMembers = [...members].sort();
-    this.groupViewState.set(event.conversationId, {
-      ...existingState,
-      activeCount: nextMembers.length,
-      memberCount: nextMembers.length,
-      members: nextMembers,
-    });
-  }
 }
 
 export function createSdkworkGroupService(getClient?: () => ImSdkClient): GroupService {

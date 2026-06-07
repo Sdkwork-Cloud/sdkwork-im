@@ -7,9 +7,9 @@
 - `docs/架构/130-连接优先的AI时代即时通讯架构蓝图-2026-04-06.md`
   - realtime side-effect 不应长期停留在 edge 侧重复抓取 tenant scope 再访问 projection fanout owner
 - `docs/架构/136-关键业务链路与跨Plane时序设计-2026-04-06.md`
-  - conversation / stream / handoff / membership realtime publish 应先进入 projection-owned auth-context seam，再完成 device fanout
+  - conversation / stream / handoff / membership realtime publish 应先进入 projection-owned auth-context seam，再完成 client route fanout
 - `docs/架构/139-权限能力模型与协议演进设计-2026-04-06.md`
-  - auth context 下的 tenant/device fanout scope capture 应由单一 owner seam 维护
+  - auth context 下的 tenant/client route fanout scope capture 应由单一 owner seam 维护
 - `docs/架构/147-CCP到Crate与接口模块落地映射设计-2026-04-06.md`
   - 该 seam 应映射到 `projection-service::access`，consumer 位于 `local-minimal-node/effects.rs`
 

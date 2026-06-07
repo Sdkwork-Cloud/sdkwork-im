@@ -24,7 +24,7 @@ directories are stable enough to document as product surfaces.
 | --- | --- |
 | `local-minimal-node` | IM open-platform HTTP node that assembles the current default runtime |
 | `conversation-runtime` | Conversation, membership, message, and handoff behavior |
-| `session-gateway` | Device route resume, presence, realtime route ownership, disconnect fences, and websocket handling |
+| `session-gateway` | client route heartbeat, presence, realtime route ownership, disconnect fences, and websocket handling |
 | `projection-service` | Inbox, timeline, summary, and read-model projection support |
 | `media-service` | Media upload lifecycle, lookup, attachment, and provider-aware download URLs |
 | `streaming-service` | Stream sessions, frames, checkpoints, completion, and abort flow |

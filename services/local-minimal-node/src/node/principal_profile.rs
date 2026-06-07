@@ -9,6 +9,7 @@ use im_platform_contracts::{
     ProviderPluginDescriptor,
 };
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 
 use super::*;
 
@@ -16,6 +17,9 @@ const PRINCIPAL_PROFILE_PROVIDER_ENV: &str = "CRAW_CHAT_PRINCIPAL_PROFILE_PROVID
 const PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH_ENV: &str =
     "CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH";
 const PRINCIPAL_PROFILE_EXTERNAL_SYSTEM_ENV: &str = "CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_SYSTEM";
+const PUBLIC_CHAT_ID_PREFIX: &str = "cc";
+const PUBLIC_CHAT_ID_HASH_CHARS: usize = 10;
+const PUBLIC_CHAT_ID_ALPHABET: &[u8; 32] = b"abcdefghijklmnopqrstuvwxyz234567";
 
 pub(super) fn build_default_principal_profile_provider() -> Arc<dyn PrincipalProfileProvider> {
     match resolve_default_principal_profile_provider_mode() {
@@ -205,6 +209,7 @@ fn profile_metadata(
     profile: &PrincipalProfile,
 ) -> BTreeMap<String, String> {
     let mut metadata = profile.attributes.clone();
+    metadata.insert("chatId".into(), public_chat_id_for_profile(profile));
     metadata.insert("displayName".into(), profile.display_name.clone());
     metadata.insert(
         "principalProfilePluginId".into(),
@@ -221,6 +226,125 @@ fn profile_metadata(
         metadata.insert("externalPrincipalId".into(), external_principal_id.clone());
     }
     metadata
+}
+
+pub(super) fn public_chat_id_for_user(tenant_id: &str, user_id: &str) -> String {
+    let seed = format!("{tenant_id}:user:{user_id}");
+    format!(
+        "{PUBLIC_CHAT_ID_PREFIX}{}",
+        public_chat_id_digest_suffix(seed.as_str())
+    )
+}
+
+pub(super) fn public_chat_id_for_profile(profile: &PrincipalProfile) -> String {
+    explicit_public_chat_id_from_profile(profile).unwrap_or_else(|| {
+        public_chat_id_for_user(profile.tenant_id.as_str(), profile.principal_id.as_str())
+    })
+}
+
+pub(super) fn is_public_chat_id_query(keyword: &str) -> bool {
+    let keyword = keyword.trim().to_ascii_lowercase();
+    let Some(suffix) = keyword.strip_prefix(PUBLIC_CHAT_ID_PREFIX) else {
+        return false;
+    };
+
+    suffix.len() == PUBLIC_CHAT_ID_HASH_CHARS
+        && suffix
+            .chars()
+            .all(|character| character.is_ascii_lowercase() || character.is_ascii_digit())
+}
+
+fn public_chat_id_digest_suffix(seed: &str) -> String {
+    let digest = Sha256::digest(seed.as_bytes());
+    let mut output = String::with_capacity(PUBLIC_CHAT_ID_HASH_CHARS);
+    let mut bit_buffer = 0u16;
+    let mut bit_count = 0u8;
+
+    for byte in digest {
+        bit_buffer = (bit_buffer << 8) | u16::from(byte);
+        bit_count += 8;
+        while bit_count >= 5 {
+            let index = ((bit_buffer >> (bit_count - 5)) & 0b1_1111) as usize;
+            output.push(char::from(PUBLIC_CHAT_ID_ALPHABET[index]));
+            bit_count -= 5;
+            if output.len() == PUBLIC_CHAT_ID_HASH_CHARS {
+                return output;
+            }
+        }
+    }
+
+    output
+}
+
+fn explicit_public_chat_id_from_profile(profile: &PrincipalProfile) -> Option<String> {
+    ["chatId", "crawChatId", "imId", "sdkworkChatId"]
+        .into_iter()
+        .find_map(|key| {
+            profile
+                .attributes
+                .get(key)
+                .and_then(|value| normalize_explicit_public_chat_id(value))
+        })
+}
+
+fn normalize_explicit_public_chat_id(value: &str) -> Option<String> {
+    let normalized = value.trim().to_ascii_lowercase();
+    if !(6..=24).contains(&normalized.len()) {
+        return None;
+    }
+    let mut characters = normalized.chars();
+    if !characters
+        .next()
+        .is_some_and(|character| character.is_ascii_lowercase())
+    {
+        return None;
+    }
+    if !normalized
+        .chars()
+        .all(|character| character.is_ascii_lowercase() || character.is_ascii_digit())
+    {
+        return None;
+    }
+    if normalized.starts_with("user") || normalized.starts_with("localuser") {
+        return None;
+    }
+    Some(normalized)
+}
+
+fn profile_matches_search_keyword(profile: &PrincipalProfile, keyword: &str) -> bool {
+    let keyword = keyword.trim();
+    if keyword.is_empty() {
+        return true;
+    }
+    let keyword_lower = keyword.to_ascii_lowercase();
+    contains_case_insensitive(profile.principal_id.as_str(), keyword_lower.as_str())
+        || contains_case_insensitive(profile.display_name.as_str(), keyword_lower.as_str())
+        || profile
+            .external_principal_id
+            .as_deref()
+            .is_some_and(|principal_id| {
+                contains_case_insensitive(principal_id, keyword_lower.as_str())
+            })
+        || profile_attribute_matches_search_keyword(profile, keyword_lower.as_str())
+        || public_chat_id_for_profile(profile) == keyword_lower
+}
+
+fn profile_attribute_matches_search_keyword(
+    profile: &PrincipalProfile,
+    keyword_lower: &str,
+) -> bool {
+    ["email", "phone", "phoneNumber", "mobile"]
+        .into_iter()
+        .any(|key| {
+            profile
+                .attributes
+                .get(key)
+                .is_some_and(|value| contains_case_insensitive(value, keyword_lower))
+        })
+}
+
+fn contains_case_insensitive(value: &str, keyword_lower: &str) -> bool {
+    value.to_ascii_lowercase().contains(keyword_lower)
 }
 
 #[derive(Default)]
@@ -559,17 +683,9 @@ impl PrincipalProfileProvider for ExternalCatalogPrincipalProfileProvider {
         Ok(catalog
             .profiles
             .iter()
-            .filter(|entry| {
-                entry.tenant_id == tenant_id
-                    && entry.principal_kind == principal_kind
-                    && (entry.principal_id.contains(keyword)
-                        || entry.display_name.contains(keyword)
-                        || entry
-                            .external_principal_id
-                            .as_deref()
-                            .is_some_and(|principal_id| principal_id.contains(keyword)))
-            })
+            .filter(|entry| entry.tenant_id == tenant_id && entry.principal_kind == principal_kind)
             .map(|entry| self.map_catalog_profile(&catalog, entry))
+            .filter(|profile| profile_matches_search_keyword(profile, keyword))
             .collect())
     }
 

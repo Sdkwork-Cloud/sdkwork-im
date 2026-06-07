@@ -1,5 +1,6 @@
 export interface User {
   id: string;
+  chatId?: string;
   name: string;
   avatar?: string;
   status?: 'online' | 'offline' | 'busy' | 'away';

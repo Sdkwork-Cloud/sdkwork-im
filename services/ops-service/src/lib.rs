@@ -58,7 +58,7 @@ pub struct ClusterNodeView {
     pub bind_addr: String,
     pub drain_status: String,
     pub rebalance_state: String,
-    pub device_route_count: usize,
+    pub client_route_count: usize,
     pub owned_scopes: Vec<String>,
     pub services: Vec<ServiceHealthView>,
 }
@@ -148,8 +148,8 @@ pub struct ProjectionPlaneMetricCounterView {
 pub struct ProjectionPlaneMetricsView {
     pub conversation_snapshot_persist: ProjectionPlaneMetricCounterView,
     pub conversation_snapshot_restore: ProjectionPlaneMetricCounterView,
-    pub device_sync_snapshot_persist: ProjectionPlaneMetricCounterView,
-    pub device_sync_snapshot_restore: ProjectionPlaneMetricCounterView,
+    pub client_route_sync_snapshot_persist: ProjectionPlaneMetricCounterView,
+    pub client_route_sync_snapshot_restore: ProjectionPlaneMetricCounterView,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -278,11 +278,11 @@ pub struct SideEffectOutboxDiagnosticsView {
 #[serde(rename_all = "camelCase")]
 pub struct RealtimeInboxDiagnosticsView {
     pub status: String,
-    pub device_window_count: u64,
+    pub client_route_window_count: u64,
     pub pending_event_count: u64,
-    pub max_device_window_event_count: u64,
-    pub device_window_capacity: u64,
-    pub max_device_window_usage_permille: u64,
+    pub max_client_route_window_event_count: u64,
+    pub client_route_window_capacity: u64,
+    pub max_client_route_window_usage_permille: u64,
     pub max_trimmed_through_seq: u64,
     pub capacity_trimmed_event_count: u64,
     pub max_capacity_trimmed_through_seq: u64,
@@ -311,11 +311,11 @@ impl Default for RealtimeInboxDiagnosticsView {
     fn default() -> Self {
         Self {
             status: "ok".into(),
-            device_window_count: 0,
+            client_route_window_count: 0,
             pending_event_count: 0,
-            max_device_window_event_count: 0,
-            device_window_capacity: 0,
-            max_device_window_usage_permille: 0,
+            max_client_route_window_event_count: 0,
+            client_route_window_capacity: 0,
+            max_client_route_window_usage_permille: 0,
             max_trimmed_through_seq: 0,
             capacity_trimmed_event_count: 0,
             max_capacity_trimmed_through_seq: 0,
@@ -338,7 +338,7 @@ pub struct DiagnosticBundle {
     pub owned_scopes: Vec<String>,
     pub services: Vec<ServiceHealthView>,
     pub lag: Vec<LagItem>,
-    pub device_routes: Vec<RouteOwnershipView>,
+    pub client_routes: Vec<RouteOwnershipView>,
     pub provider_bindings: Vec<ProviderBindingSnapshotView>,
     pub provider_binding_drift: ProviderBindingDriftView,
     pub projection_plane: ProjectionPlaneDiagnosticsView,
@@ -417,7 +417,7 @@ pub struct OpsRuntime {
     lag_items: Mutex<Vec<LagItem>>,
     drain_status: Mutex<String>,
     rebalance_state: Mutex<String>,
-    device_routes: Mutex<Vec<RouteOwnershipView>>,
+    client_routes: Mutex<Vec<RouteOwnershipView>>,
     provider_bindings: Mutex<BTreeMap<String, ProviderBindingSnapshotView>>,
     runtime_dir_inspection: Mutex<RuntimeDirInspectionView>,
     projection_plane: Mutex<ProjectionPlaneDiagnosticsView>,
@@ -460,7 +460,7 @@ impl OpsRuntime {
             lag_items: Mutex::new(default_lag_items()),
             drain_status: Mutex::new("active".into()),
             rebalance_state: Mutex::new("stable".into()),
-            device_routes: Mutex::new(Vec::new()),
+            client_routes: Mutex::new(Vec::new()),
             provider_bindings: Mutex::new(BTreeMap::new()),
             runtime_dir_inspection: Mutex::new(RuntimeDirInspectionView::unmanaged()),
             projection_plane: Mutex::new(ProjectionPlaneDiagnosticsView::default()),
@@ -474,14 +474,14 @@ impl OpsRuntime {
         *lock_ops_mutex(&self.rebalance_state, "ops rebalance state") = rebalance_state.into();
     }
 
-    pub fn update_route_ownership(&self, mut device_routes: Vec<RouteOwnershipView>) {
-        device_routes.sort_by(|left, right| {
+    pub fn update_route_ownership(&self, mut client_routes: Vec<RouteOwnershipView>) {
+        client_routes.sort_by(|left, right| {
             left.tenant_id
                 .cmp(&right.tenant_id)
                 .then_with(|| left.principal_id.cmp(&right.principal_id))
                 .then_with(|| left.device_id.cmp(&right.device_id))
         });
-        *lock_ops_mutex(&self.device_routes, "ops device routes") = device_routes;
+        *lock_ops_mutex(&self.client_routes, "ops client routes") = client_routes;
     }
 
     pub fn update_runtime_dir_inspection(&self, inspection: RuntimeDirInspectionView) {
@@ -580,7 +580,7 @@ impl OpsRuntime {
     pub fn cluster_view(&self) -> ClusterView {
         let drain_status = lock_ops_mutex(&self.drain_status, "ops drain status").clone();
         let rebalance_state = lock_ops_mutex(&self.rebalance_state, "ops rebalance state").clone();
-        let device_route_count = lock_ops_mutex(&self.device_routes, "ops device routes").len();
+        let client_route_count = lock_ops_mutex(&self.client_routes, "ops client routes").len();
         ClusterView {
             nodes: vec![ClusterNodeView {
                 node_id: self.node_id.clone(),
@@ -588,7 +588,7 @@ impl OpsRuntime {
                 bind_addr: self.bind_addr.clone(),
                 drain_status,
                 rebalance_state,
-                device_route_count,
+                client_route_count,
                 owned_scopes: self.owned_scopes.clone(),
                 services: self.services.clone(),
             }],
@@ -675,7 +675,7 @@ impl OpsRuntime {
     pub fn diagnostic_bundle(&self) -> DiagnosticBundle {
         let drain_status = lock_ops_mutex(&self.drain_status, "ops drain status").clone();
         let rebalance_state = lock_ops_mutex(&self.rebalance_state, "ops rebalance state").clone();
-        let device_routes = lock_ops_mutex(&self.device_routes, "ops device routes").clone();
+        let client_routes = lock_ops_mutex(&self.client_routes, "ops client routes").clone();
         let provider_bindings = lock_ops_mutex(&self.provider_bindings, "ops provider bindings")
             .values()
             .cloned()
@@ -697,7 +697,7 @@ impl OpsRuntime {
             owned_scopes: self.owned_scopes.clone(),
             services: self.services.clone(),
             lag,
-            device_routes,
+            client_routes,
             provider_bindings,
             provider_binding_drift,
             projection_plane,

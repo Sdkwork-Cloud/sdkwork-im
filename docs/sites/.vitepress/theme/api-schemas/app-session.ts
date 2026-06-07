@@ -1,34 +1,33 @@
 import {
   arrayField,
   field,
-  objectField,
   type ApiSchemaDefinitionMap,
   type ApiSchemaField,
 } from "./schema-types";
 
-const devicePresenceFields: ApiSchemaField[] = [
+const presenceClientFields: ApiSchemaField[] = [
   field("tenantId", "string", "Tenant identifier.", { required: true }),
   field("principalId", "string", "Principal identifier.", { required: true }),
-  field("deviceId", "string", "Device identifier.", { required: true }),
+  field("deviceId", "string", "Client route key carried by the `deviceId` wire field.", { required: true }),
   field("platform", "string | null", "Client platform label."),
-  field("sessionId", "string | null", "Active session identifier."),
-  field("status", "string", "Device presence state. Supported values: online, offline.", {
+  field("sessionId", "string | null", "Active realtime session identifier."),
+  field("status", "string", "Client route presence state. Supported values: online, offline.", {
     required: true,
   }),
-  field("lastSyncSeq", "uint64", "Latest device sync sequence acknowledged by the service.", {
+  field("lastSyncSeq", "uint64", "Latest realtime sequence acknowledged by the service.", {
     required: true,
   }),
-  field("lastResumeAt", "date-time string | null", "Most recent resume timestamp."),
+  field("lastResumeAt", "date-time string | null", "Most recent route recovery timestamp."),
   field("lastSeenAt", "date-time string | null", "Most recent heartbeat timestamp."),
 ];
 
 const presenceSnapshotFields: ApiSchemaField[] = [
   field("tenantId", "string", "Tenant identifier.", { required: true }),
   field("principalId", "string", "Principal identifier.", { required: true }),
-  field("currentDeviceId", "string | null", "Current active device identifier."),
-  arrayField("devices", "DevicePresenceView", "Presence snapshots for all known devices.", devicePresenceFields, {
+  field("currentDeviceId", "string | null", "Current active client route key carried by the `currentDeviceId` wire field."),
+  arrayField("devices", "PresenceClientView", "Presence snapshots for all known client route keys.", presenceClientFields, {
     required: true,
-    summary: "View nested fields for devices",
+    summary: "View nested fields for client routes",
   }),
 ];
 
@@ -50,7 +49,7 @@ const realtimeSubscriptionFields: ApiSchemaField[] = [
 const realtimeEventFields: ApiSchemaField[] = [
   field("tenantId", "string", "Tenant identifier.", { required: true }),
   field("principalId", "string", "Target principal identifier.", { required: true }),
-  field("deviceId", "string", "Target device identifier.", { required: true }),
+  field("deviceId", "string", "Target client route key carried by the `deviceId` wire field.", { required: true }),
   field("realtimeSeq", "uint64", "Realtime event sequence number.", { required: true }),
   field("scopeType", "string", "Event scope type.", { required: true }),
   field("scopeId", "string", "Event scope identifier.", { required: true }),
@@ -62,88 +61,22 @@ const realtimeEventFields: ApiSchemaField[] = [
   field("occurredAt", "date-time string", "Event timestamp.", { required: true }),
 ];
 
-const registeredDeviceViewFields: ApiSchemaField[] = [
-  field("tenantId", "string", "Tenant identifier.", { required: true }),
-  field("principalId", "string", "Owning principal identifier.", { required: true }),
-  field("deviceId", "string", "Device identifier.", { required: true }),
-  field("registeredAt", "date-time string", "Registration or latest bind timestamp.", {
-    required: true,
-  }),
-];
-
-const deviceSyncFeedEntryFields: ApiSchemaField[] = [
-  field("tenantId", "string", "Tenant identifier.", { required: true }),
-  field("principalId", "string", "Principal identifier.", { required: true }),
-  field("deviceId", "string", "Device identifier.", { required: true }),
-  field("syncSeq", "uint64", "Device sync sequence number.", { required: true }),
-  field("originEventId", "string", "Source event identifier.", { required: true }),
-  field("originEventType", "string", "Source event type.", { required: true }),
-  field("conversationId", "string | null", "Related conversation identifier."),
-  field("messageId", "string | null", "Related message identifier."),
-  field("messageSeq", "uint64 | null", "Related message sequence number."),
-  field("memberId", "string | null", "Related conversation member identifier."),
-  field("readSeq", "uint64 | null", "Read cursor sequence number."),
-  field("lastReadMessageId", "string | null", "Related last-read message identifier."),
-  field("actorId", "string | null", "Actor identifier that produced the sync item."),
-  field("actorKind", "string | null", "Actor kind that produced the sync item."),
-  field("actorDeviceId", "string | null", "Actor device identifier."),
-  field("summary", "string | null", "Human-readable sync item summary."),
-  field("payloadSchema", "string | null", "Payload schema identifier."),
-  field("payload", "string | null", "Serialized sync payload JSON."),
-  field("occurredAt", "date-time string", "Event timestamp.", { required: true }),
-];
-
 export const appSessionSchemas: ApiSchemaDefinitionMap = {
-  DevicePresenceView: {
-    fields: devicePresenceFields,
+  PresenceClientView: {
+    fields: presenceClientFields,
   },
   PresenceSnapshotView: {
     fields: presenceSnapshotFields,
   },
-  ResumeSessionRequest: {
-    fields: [
-      field("deviceId", "string | null", "Device identifier to resume."),
-      field("lastSeenSyncSeq", "uint64 | null", "Last sync sequence already consumed by the client."),
-    ],
-  },
-  SessionResumeView: {
-    fields: [
-      field("tenantId", "string", "Tenant identifier.", { required: true }),
-      field("actorId", "string", "Current actor identifier.", { required: true }),
-      field("actorKind", "string", "Current actor kind.", { required: true }),
-      field("sessionId", "string | null", "Active session identifier."),
-      field("deviceId", "string", "Active device identifier.", { required: true }),
-      field("resumeRequired", "boolean", "Whether the client must execute a replay or recovery flow.", {
-        required: true,
-      }),
-      field("resumeFromSyncSeq", "uint64", "Recommended sync replay starting point.", {
-        required: true,
-      }),
-      field("latestSyncSeq", "uint64", "Latest sync sequence known by the server.", {
-        required: true,
-      }),
-      field("resumedAt", "date-time string", "Resume timestamp.", { required: true }),
-      objectField("presence", "Presence snapshot after resuming.", presenceSnapshotFields, {
-        required: true,
-        summary: "View nested fields for presence",
-      }),
-    ],
-  },
-  PresenceDeviceRequest: {
-    fields: [field("deviceId", "string | null", "Target device identifier.")],
-  },
-  RegisterDeviceRequest: {
-    fields: [field("deviceId", "string | null", "Device identifier to register or reactivate.")],
-  },
-  RegisteredDeviceView: {
-    fields: registeredDeviceViewFields,
+  PresenceHeartbeatRequest: {
+    fields: [field("deviceId", "string | null", "Target client route key carried by the `deviceId` wire field.")],
   },
   RealtimeSubscriptionItemInput: {
     fields: realtimeSubscriptionItemInputFields,
   },
   SyncRealtimeSubscriptionsRequest: {
     fields: [
-      field("deviceId", "string | null", "Target device identifier."),
+      field("deviceId", "string | null", "Target client route key carried by the `deviceId` wire field."),
       arrayField(
         "items",
         "RealtimeSubscriptionItemInput",
@@ -162,8 +95,8 @@ export const appSessionSchemas: ApiSchemaDefinitionMap = {
     fields: [
       field("tenantId", "string", "Tenant identifier.", { required: true }),
       field("principalId", "string", "Principal identifier.", { required: true }),
-      field("deviceId", "string", "Device identifier.", { required: true }),
-      arrayField("items", "RealtimeSubscription", "Resolved realtime subscriptions for the device.", realtimeSubscriptionFields, {
+      field("deviceId", "string", "Client route key carried by the `deviceId` wire field.", { required: true }),
+      arrayField("items", "RealtimeSubscription", "Resolved realtime subscriptions for the client route.", realtimeSubscriptionFields, {
         required: true,
         summary: "View nested fields for items",
       }),
@@ -175,7 +108,7 @@ export const appSessionSchemas: ApiSchemaDefinitionMap = {
   },
   RealtimeEventWindow: {
     fields: [
-      field("deviceId", "string", "Device identifier.", { required: true }),
+      field("deviceId", "string", "Client route key carried by the `deviceId` wire field.", { required: true }),
       arrayField("items", "RealtimeEvent", "Realtime events in the current fetch window.", realtimeEventFields, {
         required: true,
         summary: "View nested fields for items",
@@ -190,7 +123,7 @@ export const appSessionSchemas: ApiSchemaDefinitionMap = {
   },
   AckRealtimeEventsRequest: {
     fields: [
-      field("deviceId", "string | null", "Target device identifier."),
+      field("deviceId", "string | null", "Target client route key carried by the `deviceId` wire field."),
       field("ackedSeq", "uint64", "Highest event sequence confirmed by the client.", {
         required: true,
       }),
@@ -200,24 +133,13 @@ export const appSessionSchemas: ApiSchemaDefinitionMap = {
     fields: [
       field("tenantId", "string", "Tenant identifier.", { required: true }),
       field("principalId", "string", "Principal identifier.", { required: true }),
-      field("deviceId", "string", "Device identifier.", { required: true }),
+      field("deviceId", "string", "Client route key carried by the `deviceId` wire field.", { required: true }),
       field("ackedThroughSeq", "uint64", "Highest acknowledged event sequence.", { required: true }),
       field("trimmedThroughSeq", "uint64", "Highest trimmed event sequence.", { required: true }),
-      field("retainedEventCount", "uint64", "Number of retained events still available in the device window.", {
+      field("retainedEventCount", "uint64", "Number of retained events still available in the client route window.", {
         required: true,
       }),
       field("ackedAt", "date-time string", "ACK timestamp.", { required: true }),
-    ],
-  },
-  DeviceSyncFeedEntry: {
-    fields: deviceSyncFeedEntryFields,
-  },
-  DeviceSyncFeedResponse: {
-    fields: [
-      arrayField("items", "DeviceSyncFeedEntry", "Device sync feed entries.", deviceSyncFeedEntryFields, {
-        required: true,
-        summary: "View nested fields for items",
-      }),
     ],
   },
 };

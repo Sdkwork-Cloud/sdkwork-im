@@ -114,7 +114,7 @@ This standard does **not** yet require automatic recovery of:
 
 - live realtime subscription sets outside the separate Standard 96 bootstrap-recovery boundary
 - presence runtime state outside the separate Standard 101 persistence boundary
-- registered device runtime caches outside projection rebuild
+- registered client route runtime caches outside projection rebuild
 - stream runtime state outside the separate Standard 97 persistence boundary
 - RTC runtime state outside the separate Standard 98 persistence boundary
 - media runtime state beyond already committed conversation references

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make managed `local-minimal` rebuilds restore presence device inventory and last-observed timestamps from the runtime dir while forcing a fresh `session.resume` before stale pre-restart device traffic can become online again.
+**Goal:** Make managed `local-minimal` rebuilds restore presence client route inventory and last-observed timestamps from the runtime dir while forcing a fresh `session.resume` before stale pre-restart device traffic can become online again.
 
-**Architecture:** Introduce a pluggable presence state store, persist per-device presence records behind `DevicePresenceRuntime`, lazily restore principal-scoped device state, normalize previously `online` entries to `offline` after restart, and require a fresh resume before non-resume device-bound traffic may reactivate a restored device. Keep unmanaged/default builders memory-backed and bind a file-backed store only for managed runtime-dir builders.
+**Architecture:** Introduce a pluggable presence state store, persist per-client-route presence records behind `PresenceRuntime`, lazily restore principal-scoped client route state, normalize previously `online` entries to `offline` after restart, and require a fresh resume before non-resume client-route-bound traffic may reactivate a restored device. Keep unmanaged/default builders memory-backed and bind a file-backed store only for managed runtime-dir builders.
 
 **Tech Stack:** Rust, Axum, serde/serde_json, local file persistence, `session-gateway`, `local-minimal-node`, existing `im-platform-contracts` adapter model.
 
@@ -17,7 +17,7 @@
 - Create: `services/local-minimal-node/tests/presence_runtime_persistence_test.rs`
 
 - [ ] Add a `session-gateway` runtime rebuild test using a shared presence store and verify a previously online device restores as `offline` with preserved timestamps and requires a fresh resume before heartbeat.
-- [ ] Add a managed `local-minimal` runtime-dir rebuild test proving `/im/v3/api/presence/me` restores device inventory across restart, stale heartbeat is rejected, and fresh resume reactivates the device.
+- [ ] Add a managed `local-minimal` runtime-dir rebuild test proving `/im/v3/api/presence/me` restores client route inventory across restart, stale heartbeat is rejected, and fresh resume reactivates the device.
 - [ ] Run the focused tests and capture the red state before runtime changes.
 
 ### Task 2: Add Presence Store Contracts And Adapters
@@ -28,7 +28,7 @@
 - Modify: `adapters/local-disk/src/lib.rs`
 
 - [ ] Add `PresenceStateRecord` and `PresenceStateStore`.
-- [ ] Support both point lookup and principal-scope listing so restart can rebuild multi-device presence without relying on in-memory registration caches.
+- [ ] Support both point lookup and principal-scope listing so restart can rebuild multi-client-route presence without relying on in-memory registration caches.
 - [ ] Add `MemoryPresenceStateStore` and `FilePresenceStateStore`.
 - [ ] Add file adapter reopen regression coverage for the presence store.
 
@@ -38,11 +38,11 @@
 - Modify: `services/session-gateway/src/lib.rs`
 - Modify: `services/session-gateway/Cargo.toml`
 
-- [ ] Add a `DevicePresenceRuntime::with_store(...)` constructor plus runtime-memory default store.
-- [ ] Persist registered-device placeholders so restart can reconstruct device inventory even if projection/device caches are empty.
+- [ ] Add a `PresenceRuntime::with_store(...)` constructor plus runtime-memory default store.
+- [ ] Persist registered-device placeholders so restart can reconstruct client route inventory even if projection/client route caches are empty.
 - [ ] Lazily restore principal-scoped presence state from the store.
 - [ ] Normalize restored `online` records to `offline` with cleared `session_id`, preserved `last_resume_at` / `last_seen_at`, and an internal `resume required` marker.
-- [ ] Reject non-resume device-bound traffic with `reconnect_required` while a restored device still requires a fresh resume.
+- [ ] Reject non-resume client-route-bound traffic with `reconnect_required` while a restored device still requires a fresh resume.
 - [ ] Clear the `resume required` marker on successful `session.resume`.
 - [ ] Surface presence-store failures as controlled runtime/API errors.
 

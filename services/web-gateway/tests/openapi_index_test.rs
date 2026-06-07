@@ -303,9 +303,6 @@ async fn gateway_service_index_surfaces_session_websocket_metadata() {
             "openapi": "3.1.0",
             "info": { "title": "Craw Chat Session Gateway API", "version": "0.1.0" },
             "paths": {
-                "/im/v3/api/device/sessions/resume": {
-                    "post": { "summary": "Resume session", "responses": { "200": { "description": "ok" } } }
-                },
                 "/im/v3/api/presence/me": {
                     "get": { "summary": "Get current presence", "responses": { "200": { "description": "ok" } } }
                 },
@@ -348,10 +345,10 @@ async fn gateway_service_index_surfaces_session_websocket_metadata() {
 
     assert_eq!(index_value["services"][0]["serviceId"], "session-gateway");
     assert_eq!(index_value["services"][0]["visibility"], "public");
-    assert_eq!(index_value["services"][0]["routeCount"], 4);
+    assert_eq!(index_value["services"][0]["routeCount"], 3);
     assert_eq!(
         index_value["services"][0]["operationGroups"],
-        json!(["presence", "realtime", "sessions"])
+        json!(["presence", "realtime"])
     );
     assert_eq!(
         index_value["services"][0]["sdkTargets"],
@@ -400,19 +397,13 @@ async fn gateway_service_index_surfaces_session_websocket_metadata() {
 }
 
 #[tokio::test]
-async fn gateway_service_index_surfaces_projection_device_metadata() {
+async fn gateway_service_index_does_not_surface_projection_device_metadata() {
     let projection = spawn_openapi_upstream(
         "projection-service",
         json!({
             "openapi": "3.1.0",
             "info": { "title": "Craw Chat Projection Service API", "version": "0.1.0" },
             "paths": {
-                "/im/v3/api/devices/register": {
-                    "post": { "summary": "Register device", "responses": { "200": { "description": "ok" } } }
-                },
-                "/im/v3/api/devices/{device_id}/sync_feed": {
-                    "get": { "summary": "Get device sync feed", "responses": { "200": { "description": "ok" } } }
-                },
                 "/im/v3/api/chat/inbox": {
                     "get": { "summary": "Get inbox", "responses": { "200": { "description": "ok" } } }
                 }
@@ -450,56 +441,35 @@ async fn gateway_service_index_surfaces_projection_device_metadata() {
         "projection-service"
     );
     assert_eq!(index_value["services"][0]["visibility"], "public");
-    assert_eq!(index_value["services"][0]["routeCount"], 5);
+    assert_eq!(index_value["services"][0]["routeCount"], 3);
     assert_eq!(
         index_value["services"][0]["operationGroups"],
-        json!(["conversations", "devices"])
+        json!(["conversations"])
     );
     assert_eq!(
         index_value["services"][0]["sdkTargets"],
         json!(["sdkworkImSdk"])
     );
     assert_eq!(index_value["services"][0]["protocols"], json!(["http"]));
+    let routes = index_value["routes"]
+        .as_array()
+        .expect("routes should be an array");
     assert!(
-        index_value["routes"]
-            .as_array()
-            .expect("routes should be an array")
+        !routes
             .iter()
-            .any(|route| {
-                route["serviceId"] == "projection-service"
-                    && route["operationGroup"] == "devices"
-                    && route["pathPattern"] == "/im/v3/api/devices/register"
-                    && route["methods"] == json!(["post"])
-                    && route["protocol"] == "http"
-                    && route["sdkTargets"] == json!(["sdkworkImSdk"])
-            })
+            .any(|route| route["operationGroup"] == "devices"
+                || route["pathPattern"] == "/im/v3/api/devices/register"
+                || route["pathPattern"] == "/im/v3/api/devices/{device_id}/sync_feed"),
+        "gateway index must not surface retired IM client route endpoints"
     );
+    let surface_groups = index_value["surfaceGroups"]
+        .as_array()
+        .expect("surface groups should be an array");
     assert!(
-        index_value["routes"]
-            .as_array()
-            .expect("routes should be an array")
+        !surface_groups
             .iter()
-            .any(|route| {
-                route["serviceId"] == "projection-service"
-                    && route["operationGroup"] == "devices"
-                    && route["pathPattern"] == "/im/v3/api/devices/{device_id}/sync_feed"
-                    && route["methods"] == json!(["get"])
-                    && route["protocol"] == "http"
-                    && route["sdkTargets"] == json!(["sdkworkImSdk"])
-            })
-    );
-    assert!(
-        index_value["surfaceGroups"]
-            .as_array()
-            .expect("surface groups should be an array")
-            .iter()
-            .any(|group| {
-                group["serviceId"] == "projection-service"
-                    && group["operationGroup"] == "devices"
-                    && group["routeCount"] == 2
-                    && group["protocols"] == json!(["http"])
-                    && group["sdkTargets"] == json!(["sdkworkImSdk"])
-            })
+            .any(|group| group["operationGroup"] == "devices"),
+        "gateway surface groups must not contain the retired devices group"
     );
 }
 
@@ -524,9 +494,6 @@ async fn gateway_exposes_runtime_summary_json() {
             "openapi": "3.1.0",
             "info": { "title": "Craw Chat Session Gateway API", "version": "0.1.0" },
             "paths": {
-                "/im/v3/api/device/sessions/resume": {
-                    "post": { "summary": "Resume session", "responses": { "200": { "description": "ok" } } }
-                },
                 "/im/v3/api/presence/me": {
                     "get": { "summary": "Get current presence", "responses": { "200": { "description": "ok" } } }
                 },

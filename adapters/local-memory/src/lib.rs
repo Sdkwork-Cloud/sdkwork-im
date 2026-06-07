@@ -4,13 +4,13 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use im_domain_events::CommitEnvelope;
 use im_platform_contracts::{
     AutomationExecutionRecord, AutomationExecutionStore, CommitJournal, CommitPosition,
-    ContractError, DeviceTwinRecord, DeviceTwinStore, MetadataSnapshotRecord, MetadataStore,
-    NotificationTaskRecord, NotificationTaskStore, PresenceStateRecord, PresenceStateStore,
-    RealtimeCheckpointRecord, RealtimeCheckpointStore, RealtimeDisconnectFenceRecord,
-    RealtimeDisconnectFenceStore, RealtimeEventWindowDiagnosticsSnapshot,
-    RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeMatchingSubscriptionQuery,
-    RealtimeSubscriptionRecord, RealtimeSubscriptionStore, StreamStateRecord, StreamStateStore,
-    TimelineProjectionBatch, TimelineProjectionRecord, TimelineProjectionStore,
+    ContractError, MetadataSnapshotRecord, MetadataStore, NotificationTaskRecord,
+    NotificationTaskStore, PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord,
+    RealtimeCheckpointStore, RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
+    RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowRecord, RealtimeEventWindowStore,
+    RealtimeMatchingSubscriptionQuery, RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
+    StreamStateRecord, StreamStateStore, TimelineProjectionBatch, TimelineProjectionRecord,
+    TimelineProjectionStore,
 };
 use im_storage_contracts::{StorageDomainSnapshot, StorageDomainSnapshotStore};
 use im_time::{rfc3339_cmp, rfc3339_le};
@@ -153,7 +153,9 @@ impl MemoryRealtimeCheckpointStore {
         device_id: &str,
     ) -> Option<RealtimeCheckpointRecord> {
         lock_memory_mutex(&self.checkpoints, "realtime checkpoint store")
-            .get(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
+            .get(
+                client_route_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str(),
+            )
             .cloned()
     }
 }
@@ -175,7 +177,7 @@ impl RealtimeCheckpointStore for MemoryRealtimeCheckpointStore {
     ) -> Result<(), ContractError> {
         let mut checkpoints = lock_memory_mutex(&self.checkpoints, "realtime checkpoint store");
         for record in records {
-            let key = device_scope_key(
+            let key = client_route_scope_key(
                 record.tenant_id.as_str(),
                 record.principal_kind.as_str(),
                 record.principal_id.as_str(),
@@ -205,7 +207,9 @@ impl MemoryRealtimeEventWindowStore {
         device_id: &str,
     ) -> Option<RealtimeEventWindowRecord> {
         lock_memory_mutex(&self.windows, "realtime event window store")
-            .get(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
+            .get(
+                client_route_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str(),
+            )
             .cloned()
     }
 }
@@ -225,7 +229,7 @@ impl RealtimeEventWindowStore for MemoryRealtimeEventWindowStore {
         let mut windows = lock_memory_mutex(&self.windows, "realtime event window store");
         for record in records {
             windows.insert(
-                device_scope_key(
+                client_route_scope_key(
                     record.tenant_id.as_str(),
                     record.principal_kind.as_str(),
                     record.principal_id.as_str(),
@@ -247,7 +251,8 @@ impl RealtimeEventWindowStore for MemoryRealtimeEventWindowStore {
         Ok(
             lock_memory_mutex(&self.windows, "realtime event window store")
                 .remove(
-                    device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str(),
+                    client_route_scope_key(tenant_id, principal_kind, principal_id, device_id)
+                        .as_str(),
                 )
                 .is_some(),
         )
@@ -270,7 +275,7 @@ impl RealtimeEventWindowStore for MemoryRealtimeEventWindowStore {
         device_id: &str,
         acked_through_seq: u64,
     ) -> Result<(), ContractError> {
-        let key = device_scope_key(tenant_id, principal_kind, principal_id, device_id);
+        let key = client_route_scope_key(tenant_id, principal_kind, principal_id, device_id);
         if let Some(record) =
             lock_memory_mutex(&self.windows, "realtime event window store").get_mut(key.as_str())
         {
@@ -279,37 +284,6 @@ impl RealtimeEventWindowStore for MemoryRealtimeEventWindowStore {
                 .events
                 .retain(|event| event.realtime_seq > record.trimmed_through_seq);
         }
-        Ok(())
-    }
-}
-
-#[derive(Clone, Default)]
-pub struct MemoryDeviceTwinStore {
-    twins: Arc<Mutex<HashMap<String, DeviceTwinRecord>>>,
-}
-
-impl MemoryDeviceTwinStore {
-    pub fn twin(&self, tenant_id: &str, device_id: &str) -> Option<DeviceTwinRecord> {
-        lock_memory_mutex(&self.twins, "device twin store")
-            .get(device_twin_scope_key(tenant_id, device_id).as_str())
-            .cloned()
-    }
-}
-
-impl DeviceTwinStore for MemoryDeviceTwinStore {
-    fn load_twin(
-        &self,
-        tenant_id: &str,
-        device_id: &str,
-    ) -> Result<Option<DeviceTwinRecord>, ContractError> {
-        Ok(self.twin(tenant_id, device_id))
-    }
-
-    fn save_twin(&self, record: DeviceTwinRecord) -> Result<(), ContractError> {
-        lock_memory_mutex(&self.twins, "device twin store").insert(
-            device_twin_scope_key(record.tenant_id.as_str(), record.device_id.as_str()),
-            record,
-        );
         Ok(())
     }
 }
@@ -328,7 +302,9 @@ impl MemoryRealtimeDisconnectFenceStore {
         device_id: &str,
     ) -> Option<RealtimeDisconnectFenceRecord> {
         lock_memory_mutex(&self.fences, "realtime disconnect fence store")
-            .get(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
+            .get(
+                client_route_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str(),
+            )
             .cloned()
     }
 }
@@ -345,7 +321,7 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
     }
 
     fn save_fence(&self, record: RealtimeDisconnectFenceRecord) -> Result<(), ContractError> {
-        let key = device_scope_key(
+        let key = client_route_scope_key(
             record.tenant_id.as_str(),
             record.principal_kind.as_str(),
             record.principal_id.as_str(),
@@ -370,7 +346,8 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
         Ok(
             lock_memory_mutex(&self.fences, "realtime disconnect fence store")
                 .remove(
-                    device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str(),
+                    client_route_scope_key(tenant_id, principal_kind, principal_id, device_id)
+                        .as_str(),
                 )
                 .is_some(),
         )
@@ -384,7 +361,7 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
         device_id: &str,
         cutoff_disconnected_at: &str,
     ) -> Result<bool, ContractError> {
-        let key = device_scope_key(tenant_id, principal_kind, principal_id, device_id);
+        let key = client_route_scope_key(tenant_id, principal_kind, principal_id, device_id);
         let mut fences = lock_memory_mutex(&self.fences, "realtime disconnect fence store");
         let should_clear = fences
             .get(key.as_str())
@@ -400,7 +377,7 @@ impl RealtimeDisconnectFenceStore for MemoryRealtimeDisconnectFenceStore {
         &self,
         expected: &RealtimeDisconnectFenceRecord,
     ) -> Result<bool, ContractError> {
-        let key = device_scope_key(
+        let key = client_route_scope_key(
             expected.tenant_id.as_str(),
             expected.principal_kind.as_str(),
             expected.principal_id.as_str(),
@@ -432,7 +409,9 @@ impl MemoryRealtimeSubscriptionStore {
         device_id: &str,
     ) -> Option<RealtimeSubscriptionRecord> {
         lock_memory_mutex(&self.subscriptions, "realtime subscription store")
-            .get(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
+            .get(
+                client_route_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str(),
+            )
             .cloned()
     }
 }
@@ -459,7 +438,7 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
             .filter_map(|device_id| {
                 subscriptions
                     .get(
-                        device_scope_key(
+                        client_route_scope_key(
                             query.tenant_id,
                             query.principal_kind,
                             query.principal_id,
@@ -481,7 +460,7 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
 
     fn save_subscriptions(&self, record: RealtimeSubscriptionRecord) -> Result<(), ContractError> {
         lock_memory_mutex(&self.subscriptions, "realtime subscription store").insert(
-            device_scope_key(
+            client_route_scope_key(
                 record.tenant_id.as_str(),
                 record.principal_kind.as_str(),
                 record.principal_id.as_str(),
@@ -502,7 +481,8 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
         Ok(
             lock_memory_mutex(&self.subscriptions, "realtime subscription store")
                 .remove(
-                    device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str(),
+                    client_route_scope_key(tenant_id, principal_kind, principal_id, device_id)
+                        .as_str(),
                 )
                 .is_some(),
         )
@@ -516,7 +496,7 @@ impl RealtimeSubscriptionStore for MemoryRealtimeSubscriptionStore {
         device_id: &str,
         cutoff_synced_at: &str,
     ) -> Result<bool, ContractError> {
-        let key = device_scope_key(tenant_id, principal_kind, principal_id, device_id);
+        let key = client_route_scope_key(tenant_id, principal_kind, principal_id, device_id);
         let mut subscriptions =
             lock_memory_mutex(&self.subscriptions, "realtime subscription store");
         let should_clear = subscriptions
@@ -723,7 +703,9 @@ impl MemoryPresenceStateStore {
     ) -> Option<PresenceStateRecord> {
         lock_memory_mutex(&self.state, "presence state store")
             .by_device
-            .get(device_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str())
+            .get(
+                client_route_scope_key(tenant_id, principal_kind, principal_id, device_id).as_str(),
+            )
             .cloned()
     }
 }
@@ -740,7 +722,7 @@ impl PresenceStateStore for MemoryPresenceStateStore {
     }
 
     fn save_state(&self, record: PresenceStateRecord) -> Result<(), ContractError> {
-        let device_key = device_scope_key(
+        let device_key = client_route_scope_key(
             record.tenant_id.as_str(),
             record.principal_kind.as_str(),
             record.principal_id.as_str(),
@@ -821,7 +803,7 @@ impl PresenceStateStore for MemoryPresenceStateStore {
         cutoff_seen_at: &str,
         expired_at: &str,
     ) -> Result<Option<PresenceStateRecord>, ContractError> {
-        let device_key = device_scope_key(tenant_id, principal_kind, principal_id, device_id);
+        let device_key = client_route_scope_key(tenant_id, principal_kind, principal_id, device_id);
         let mut state = lock_memory_mutex(&self.state, "presence state store");
         let Some(current) = state.by_device.get(device_key.as_str()).cloned() else {
             return Ok(None);
@@ -931,11 +913,7 @@ fn snapshot_key(scope: &str, key: &str) -> String {
     scope_key_parts(&[scope, key])
 }
 
-fn device_twin_scope_key(tenant_id: &str, device_id: &str) -> String {
-    scope_key_parts(&[tenant_id, device_id])
-}
-
-fn device_scope_key(
+fn client_route_scope_key(
     tenant_id: &str,
     principal_kind: &str,
     principal_id: &str,
@@ -972,7 +950,7 @@ fn remove_presence_online_seen_at_index(
     index: &mut BTreeSet<PresenceOnlineSeenAtKey>,
     record: &PresenceStateRecord,
 ) {
-    let device_key = device_scope_key(
+    let device_key = client_route_scope_key(
         record.tenant_id.as_str(),
         record.principal_kind.as_str(),
         record.principal_id.as_str(),

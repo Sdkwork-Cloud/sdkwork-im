@@ -70,8 +70,6 @@
   - `POST /im/v3/api/chat/messages/{message_id}/edit`
   - `POST /im/v3/api/chat/messages/{message_id}/recall`
 - `projection-service`
-  - `POST /im/v3/api/devices/register`
-  - `GET /im/v3/api/devices/{device_id}/sync-feed`
   - `GET /im/v3/api/chat/inbox`
   - `GET /im/v3/api/chat/conversations/{conversation_id}`
   - `GET /im/v3/api/chat/conversations/{conversation_id}/read-cursor`

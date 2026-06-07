@@ -6,10 +6,8 @@ namespace Sdkwork.Im.AppApi.Generated.Api
     public static class Api
     {
         public static AutomationApi? Automation { get; set; }
-        public static DeviceApi? Device { get; set; }
         public static NotificationApi? Notification { get; set; }
         public static PortalApi? Portal { get; set; }
         public static ProviderApi? Provider { get; set; }
-        public static IotApi? Iot { get; set; }
     }
 }

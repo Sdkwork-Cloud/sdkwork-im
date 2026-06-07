@@ -141,7 +141,7 @@
 本标准当前不要求：
 
 - 独立 admin read model
-- device sync feed 的 handoff 生命周期同步项
+- client-route event window 的 handoff 生命周期同步项
 - `agent_dialog` close/archive
 - `system_channel` scheduled/bulk publish 生命周期
 

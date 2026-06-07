@@ -25,5 +25,5 @@
 ## 3. 剩余问题
 
 - 该增量只解决 `CP05-4` 中一个 projection / notification 连接点，不能据此结束 `CP05-4`。
-- `projection / sync` 与 notification 的剩余连接点、multi-device sync final closure 仍待继续推进。
+- `projection / sync` 与 notification 的剩余连接点、multi-client-route sync final closure 仍待继续推进。
 - `Step 05 / 91 / 95 / 97 / Wave B / 93` 仍未闭环。

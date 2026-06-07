@@ -29,7 +29,7 @@
 - 行为验证
   - `projection-service` principal -> device pair 输出测试
 - 回归验证
-  - `projection-service` registered device / latest sync seq 查询测试
+  - `projection-service` registered client route / latest sync seq 查询测试
   - `local-minimal-node` cross-node realtime routing e2e
 - 额外验证
   - `cargo fmt --all`
@@ -40,5 +40,5 @@
 - 本轮未发现新的架构偏离
 - 剩余风险仍集中在 `CP05-4` 的其他 owner seam：
   - notification side-effect 与 projection / sync 的剩余衔接点
-  - multi-device sync 最终收口
+  - multi-client-route sync 最终收口
 - 只有这些剩余 seam 也完成后，`CP05-4` 才能进入通过态

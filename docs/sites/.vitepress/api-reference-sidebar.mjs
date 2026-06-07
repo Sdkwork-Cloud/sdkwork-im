@@ -19,8 +19,7 @@ export const groupedPages = [
   {
     text: "IM Standard API",
     pages: [
-      { text: "Device Sessions and Realtime", link: "/api-reference/im/session-and-realtime" },
-      { text: "Device Sync", link: "/api-reference/im/device-sync" },
+      { text: "Realtime Presence", link: "/api-reference/im/session-and-realtime" },
       { text: "Conversations and Handoff", link: "/api-reference/im/conversations" },
       { text: "Membership and Read State", link: "/api-reference/im/membership-and-read-state" },
       { text: "Messages", link: "/api-reference/im/messages" },
@@ -33,11 +32,9 @@ export const groupedPages = [
     text: "App API",
     pages: [
       { text: "Portal Access", link: "/api-reference/app/portal-access" },
-      { text: "Device Twin", link: "/api-reference/app/device-twin" },
       { text: "Notifications", link: "/api-reference/app/notifications" },
       { text: "Automation", link: "/api-reference/app/automation" },
       { text: "Provider Health", link: "/api-reference/app/provider-health" },
-      { text: "IoT Protocol and Health", link: "/api-reference/app/iot-protocol-and-health" },
     ],
   },
   {
@@ -75,7 +72,6 @@ export const pageOperationGroups = {
   ],
   "/api-reference/im/session-and-realtime": [
     { text: "Health and Probes", anchors: ["get-healthz", "get-readyz"] },
-    { text: "Device Route Lifecycle", anchors: ["resume-session", "disconnect-session"] },
     { text: "Presence", anchors: ["heartbeat-presence", "get-presence-me"] },
     {
       text: "Realtime Delivery",
@@ -86,10 +82,6 @@ export const pageOperationGroups = {
         "realtime-websocket",
       ],
     },
-  ],
-  "/api-reference/im/device-sync": [
-    { text: "Registration", anchors: ["register-device"] },
-    { text: "Projection Sync Feed", anchors: ["get-device-sync-feed"] },
   ],
   "/api-reference/im/conversations": [
     {
@@ -167,10 +159,6 @@ export const pageOperationGroups = {
     { text: "Submission", anchors: ["request-notification"] },
     { text: "Read Models", anchors: ["list-notifications", "get-notification"] },
   ],
-  "/api-reference/app/device-twin": [
-    { text: "Read Model", anchors: ["get-device-twin"] },
-    { text: "State Mutation", anchors: ["update-device-twin-desired", "update-device-twin-reported"] },
-  ],
   "/api-reference/app/automation": [
     { text: "Executions", anchors: ["request-automation-execution", "get-automation-execution"] },
     {
@@ -208,13 +196,6 @@ export const pageOperationGroups = {
         "map-rtc-provider-callback",
       ],
     },
-  ],
-  "/api-reference/app/iot-protocol-and-health": [
-    {
-      text: "Provider Health",
-      anchors: ["get-iot-access-provider-health", "get-iot-protocol-provider-health"],
-    },
-    { text: "Protocol Traffic", anchors: ["ingest-iot-uplink", "ingest-iot-downlink"] },
   ],
   "/api-reference/control-plane/protocol": [
     { text: "Probe", anchors: ["get-control-healthz"] },

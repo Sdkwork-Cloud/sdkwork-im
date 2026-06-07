@@ -93,10 +93,7 @@ function rebasePath(pathKey, fromPrefix, toPrefix) {
 function isImStandardPath(pathKey, prefix) {
   const route = pathWithoutPrefix(pathKey, prefix);
   return (
-    route === 'devices/register'
-    || route === 'devices/{}/sync_feed'
-    || route.startsWith('chat/')
-    || route.startsWith('device/sessions/')
+    route.startsWith('chat/')
     || route.startsWith('presence/')
     || route.startsWith('realtime/')
     || route === 'rtc/sessions'
@@ -104,6 +101,18 @@ function isImStandardPath(pathKey, prefix) {
     || route.startsWith('social/')
     || route.startsWith('streams')
   );
+}
+
+function isDeviceCapabilityPath(pathKey, prefix) {
+  const route = pathWithoutPrefix(pathKey, prefix);
+  return (
+    route.startsWith('device/')
+    || route.startsWith('devices/')
+  );
+}
+
+function isAiotOwnedPath(pathKey, prefix) {
+  return pathWithoutPrefix(pathKey, prefix).startsWith('iot/');
 }
 
 function isRtcPath(pathKey, prefix) {
@@ -537,6 +546,8 @@ function normalizeAppAuthority(app, im, dependencyAppRouteSet) {
     toPrefix: appPrefix,
     shouldInclude: (pathKey) =>
       !isAppManagementPath(pathKey)
+      && !isDeviceCapabilityPath(pathKey, appPrefix)
+      && !isAiotOwnedPath(pathKey, appPrefix)
       && !isImStandardPath(pathKey, appPrefix)
       && !isRtcPath(pathKey, appPrefix)
       && !isDriveOwnedMediaLifecyclePath(pathKey, appPrefix)
@@ -547,7 +558,9 @@ function normalizeAppAuthority(app, im, dependencyAppRouteSet) {
     fromPrefix: imPrefix,
     toPrefix: appPrefix,
     shouldInclude: (pathKey) =>
-      !isImStandardPath(pathKey, imPrefix)
+      !isDeviceCapabilityPath(pathKey, imPrefix)
+      && !isAiotOwnedPath(pathKey, imPrefix)
+      && !isImStandardPath(pathKey, imPrefix)
       && !isRtcPath(pathKey, imPrefix)
       && !isDriveOwnedMediaLifecyclePath(pathKey, imPrefix)
       && !dependencyAppRouteSet.has(pathWithoutPrefix(pathKey, imPrefix)),
@@ -674,11 +687,13 @@ if (!consolidatedBackend.paths['/backend/v3/api/admin/api_keys']) {
 if (!consolidatedBackend.paths['/backend/v3/api/automation/governance']) {
   fail('Backend authority is missing /backend/v3/api/automation/governance.');
 }
-if (!consolidatedApp.paths['/app/v3/api/iot/protocol/uplink']) {
-  fail('App authority is missing /app/v3/api/iot/protocol/uplink.');
-}
 if (!consolidatedApp.paths['/app/v3/api/automation/executions']) {
   fail('App authority is missing /app/v3/api/automation/executions.');
+}
+for (const appPath of Object.keys(consolidatedApp.paths)) {
+  if (appPath.startsWith('/app/v3/api/iot/')) {
+    fail(`App authority must not contain AIoT route now owned by sdkwork-aiot: ${appPath}`);
+  }
 }
 for (const appPath of Object.keys(consolidatedApp.paths)) {
   if (appPath.startsWith('/app/v3/api/rtc/')) {

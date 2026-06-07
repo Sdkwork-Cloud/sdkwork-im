@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::api::{AutomationApi, DeviceApi, NotificationApi, PortalApi, ProviderApi, IotApi};
+use crate::api::{AutomationApi, NotificationApi, PortalApi, ProviderApi};
 use crate::http::{SdkworkConfig, SdkworkError, SdkworkHttpClient};
 
 #[derive(Clone)]
@@ -41,10 +41,6 @@ impl SdkworkImAppClient {
             AutomationApi::new(Arc::clone(&self.http))
         }
 
-    pub fn device(&self) -> DeviceApi {
-            DeviceApi::new(Arc::clone(&self.http))
-        }
-
     pub fn notification(&self) -> NotificationApi {
             NotificationApi::new(Arc::clone(&self.http))
         }
@@ -55,10 +51,6 @@ impl SdkworkImAppClient {
 
     pub fn provider(&self) -> ProviderApi {
             ProviderApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn iot(&self) -> IotApi {
-            IotApi::new(Arc::clone(&self.http))
         }
 }
 

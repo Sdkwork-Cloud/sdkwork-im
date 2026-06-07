@@ -64,8 +64,7 @@ Use the map below to jump from the Rust surface you are using to the matching HT
 | Concern | Preferred Rust surface today | Exact API reference |
 | --- | --- | --- |
 | SDKWork appbase credential pass-through and portal reads | `ImTransportClient` fallback via generated exports or `client.transport_client()` | [Portal Access](/api-reference/app/portal-access) |
-| Device Sessions, presence, and realtime coordination | `ImSdkClient::device_sessions()`, `presence()`, `realtime()` | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
-| Device registration and sync feeds | `ImSdkClient::devices()` | [Device Sync](/api-reference/im/device-sync) |
+| Realtime presence and coordination | `ImSdkClient::presence()`, `realtime()` | [Realtime And Presence](/api-reference/im/session-and-realtime) |
 | Inbox and conversation lifecycle | `ImSdkClient::inbox()`, `conversations()` | [Conversations](/api-reference/im/conversations) |
 | Membership and read cursors | `ImSdkClient::conversations()` plus generated DTOs | [Membership and Read State](/api-reference/im/membership-and-read-state) |
 | Message posting and mutation helpers | `ImSdkClient::conversations()`, `messages()`, `build_text_message(...)` | [Messages](/api-reference/im/messages) |
@@ -135,5 +134,5 @@ Rust workspace wrappers:
 - Read [Portal Access](/api-reference/app/portal-access), [Conversations](/api-reference/im/conversations),
   and [Messages](/api-reference/im/messages) when you need the exact HTTP contract behind the Rust
   semantic and generated layers.
-- Read [Device Sessions and Realtime](/api-reference/im/session-and-realtime) and [RTC](/api-reference/im/rtc)
+- Read [Realtime Presence](/api-reference/im/session-and-realtime) and [RTC](/api-reference/im/rtc)
   when you need the route-level contract for live coordination and RTC workflows.

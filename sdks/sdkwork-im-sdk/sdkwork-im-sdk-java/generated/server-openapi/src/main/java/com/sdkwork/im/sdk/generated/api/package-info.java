@@ -3,7 +3,6 @@
  */
 package com.sdkwork.im.sdk.generated.api;
 
-import com.sdkwork.im.sdk.generated.api.DeviceApi;
 import com.sdkwork.im.sdk.generated.api.PresenceApi;
 import com.sdkwork.im.sdk.generated.api.RealtimeApi;
 import com.sdkwork.im.sdk.generated.api.RtcApi;

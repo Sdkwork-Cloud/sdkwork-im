@@ -85,7 +85,7 @@ export const FavoritesView: React.FC<{ searchQuery?: string }> = ({ searchQuery 
           <div className="flex items-center justify-between mb-8 shrink-0">
             <div>
               <h2 className="text-xl font-medium text-gray-200 mb-1">全部收藏</h2>
-              <p className="text-sm text-gray-500">跨设备同步你的关键链接、重要图片和工作文件</p>
+              <p className="text-sm text-gray-500">跨端同步你的关键链接、重要图片和工作文件</p>
             </div>
             
             <div className="flex items-center gap-3">

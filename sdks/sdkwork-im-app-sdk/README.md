@@ -11,6 +11,8 @@ This workspace is intentionally separate from `sdkwork-im-sdk`:
   verification, and QR auth capability.
 - `sdkwork-im-app-sdk` depends on `sdkwork-im-sdk` for standardized IM capability and on
   `sdkwork-rtc-sdk` for provider-standard RTC runtime capability.
+- `sdkwork-im-app-sdk` depends on `sdkwork-aiot-app-sdk` for AIoT device, twin, command, and event
+  capability.
 - `sdkwork-im-app-sdk` ownsIdentityLifecycle: false. It consumes appbase identity/session context
   through the appbase SDK and must not regenerate appbase-owned app routes.
 
@@ -23,38 +25,40 @@ to `/app/v3/api` only.
   verification, runtime policy, and QR auth routes.
 - `sdkwork-im-sdk` remains the owner of `/im/v3/api` standardized IM routes, realtime adapters, and
   semantic IM modules.
+- `sdkwork-aiot-app-sdk` remains the owner of `/app/v3/api/iot` device catalog, twin, command, and
+  device event routes.
 - `sdkwork-rtc-sdk` remains the owner of provider-standard RTC runtime contracts, provider catalogs,
   and runtime bridge semantics.
-- `sdkwork-im-app-sdk` owns app-business HTTP routes such as portal access, device twin,
-  notifications, automation, provider health, IoT provider APIs, and RTC provider health/callback
-  app APIs.
+- `sdkwork-im-app-sdk` owns app-business HTTP routes such as portal access, notifications,
+  automation, provider health, and RTC provider health/callback app APIs.
 - Generated app transport must not import, vendor, or regenerate `sdkwork-appbase-app-sdk`,
-  `sdkwork-im-sdk`, or `sdkwork-rtc-sdk`; consumers compose those SDKs at the app SDK boundary.
+  `sdkwork-aiot-app-sdk`, `sdkwork-im-sdk`, or `sdkwork-rtc-sdk`; consumers compose those SDKs at
+  the app SDK boundary.
 
 Machine-readable contract fields:
 
-| Field | `sdkwork-appbase-app-sdk` | `sdkwork-im-sdk` | `sdkwork-rtc-sdk` |
-| --- | --- | --- | --- |
-| `sdkDependencies[].workspace` | `sdkwork-appbase-app-sdk` | `sdkwork-im-sdk` | `sdkwork-rtc-sdk` |
-| `sdkDependencies[].role` | `appbase-identity-and-session-capability` | `standardized-im-capability` | `provider-standard-rtc-runtime` |
-| `sdkDependencies[].required` | `true` | `true` | `true` |
-| `sdkDependencies[].dependencyMode` | `consumer-sdk` | `consumer-sdk` | `consumer-sdk` |
-| `sdkDependencies[].apiPrefix` | `/app/v3/api` | `/im/v3/api` | `null` |
-| `sdkDependencies[].generatedTransportImportPolicy` | `forbidden` | `forbidden` | `forbidden` |
+| Field | `sdkwork-appbase-app-sdk` | `sdkwork-im-sdk` | `sdkwork-aiot-app-sdk` | `sdkwork-rtc-sdk` |
+| --- | --- | --- | --- | --- |
+| `sdkDependencies[].workspace` | `sdkwork-appbase-app-sdk` | `sdkwork-im-sdk` | `sdkwork-aiot-app-sdk` | `sdkwork-rtc-sdk` |
+| `sdkDependencies[].role` | `appbase-identity-and-session-capability` | `standardized-im-capability` | `device-aiot-app-capability` | `provider-standard-rtc-runtime` |
+| `sdkDependencies[].required` | `true` | `true` | `true` | `true` |
+| `sdkDependencies[].dependencyMode` | `consumer-sdk` | `consumer-sdk` | `consumer-sdk` | `consumer-sdk` |
+| `sdkDependencies[].apiPrefix` | `/app/v3/api` | `/im/v3/api` | `/app/v3/api/iot` | `null` |
+| `sdkDependencies[].generatedTransportImportPolicy` | `forbidden` | `forbidden` | `forbidden` | `forbidden` |
 
 Package-level dependency names:
 
-| Language | Appbase app SDK dependency | IM SDK dependency | RTC SDK dependency |
-| --- | --- | --- | --- |
-| TypeScript | `@sdkwork/appbase-app-sdk` | `@sdkwork/im-sdk` | `@sdkwork/rtc-sdk` |
-| Flutter | `sdkwork_appbase_app_sdk` | `im_sdk` | `rtc_sdk` |
-| Rust | `sdkwork-appbase-app-sdk` | `im-sdk` | `rtc_sdk` |
-| Java | `com.sdkwork:sdkwork-appbase-app-sdk` | `com.sdkwork:im-sdk` | `com.sdkwork:rtc-sdk` |
-| C# | `SDKWork.Appbase.AppSdk` | `Sdkwork.Im.Sdk` | `Sdkwork.Rtc.Sdk` |
-| Swift | `sdkwork-appbase-app-sdk` | `ImSdk` | `RtcSdk` |
-| Kotlin | `com.sdkwork:sdkwork-appbase-app-sdk` | `com.sdkwork:im-sdk` | `com.sdkwork:rtc-sdk` |
-| Go | `github.com/sdkwork/sdkwork-appbase-app-sdk` | `github.com/sdkwork/im-sdk` | `github.com/sdkwork/rtc-sdk` |
-| Python | `sdkwork-appbase-app-sdk` | `sdkwork-im-sdk` | `sdkwork-rtc-sdk` |
+| Language | Appbase app SDK dependency | IM SDK dependency | AIoT app SDK dependency | RTC SDK dependency |
+| --- | --- | --- | --- | --- |
+| TypeScript | `@sdkwork/appbase-app-sdk` | `@sdkwork/im-sdk` | `@sdkwork/aiot-app-sdk` | `@sdkwork/rtc-sdk` |
+| Flutter | `sdkwork_appbase_app_sdk` | `im_sdk` | `sdkwork_aiot_app_sdk` | `rtc_sdk` |
+| Rust | `sdkwork-appbase-app-sdk` | `im-sdk` | `sdkwork-aiot-app-sdk` | `rtc_sdk` |
+| Java | `com.sdkwork:sdkwork-appbase-app-sdk` | `com.sdkwork:im-sdk` | `com.sdkwork:sdkwork-aiot-app-sdk` | `com.sdkwork:rtc-sdk` |
+| C# | `SDKWork.Appbase.AppSdk` | `Sdkwork.Im.Sdk` | `SDKWork.Aiot.AppSdk` | `Sdkwork.Rtc.Sdk` |
+| Swift | `sdkwork-appbase-app-sdk` | `ImSdk` | `sdkwork-aiot-app-sdk` | `RtcSdk` |
+| Kotlin | `com.sdkwork:sdkwork-appbase-app-sdk` | `com.sdkwork:im-sdk` | `com.sdkwork:sdkwork-aiot-app-sdk` | `com.sdkwork:rtc-sdk` |
+| Go | `github.com/sdkwork/sdkwork-appbase-app-sdk` | `github.com/sdkwork/im-sdk` | `github.com/sdkwork/sdkwork-aiot-app-sdk` | `github.com/sdkwork/rtc-sdk` |
+| Python | `sdkwork-appbase-app-sdk` | `sdkwork-im-sdk` | `sdkwork-aiot-app-sdk` | `sdkwork-rtc-sdk` |
 
 ## Contract Files
 
@@ -107,7 +111,7 @@ Flutter keeps both generated and manual-owned layers:
   `sdkwork-im-app-sdk-flutter/composed` (`im_app_sdk`)
 
 The composed package re-exports generated transport and provides `ImAppSdkClient` plus semantic
-modules (`portal`, `device`, `notification`, `automation`, `provider`, `iot`, `rtc`). Keep HTTP
+modules (`portal`, `notification`, `automation`, `provider`, `rtc`). Keep HTTP
 transport ownership in generated output and place manual ergonomics only in `composed`.
 
 ## Verification

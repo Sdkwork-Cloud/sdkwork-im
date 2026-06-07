@@ -1,7 +1,7 @@
 import { imApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { DevicePresenceRequest, PresenceView } from '../types';
+import type { PresenceHeartbeatRequest, PresenceView } from '../types';
 
 
 export class PresenceMeApi {
@@ -26,8 +26,8 @@ export class PresenceHeartbeatApi {
   }
 
 
-/** Publish current device presence heartbeat */
-  async create(body: DevicePresenceRequest): Promise<PresenceView> {
+/** Publish current client route presence heartbeat */
+  async create(body: PresenceHeartbeatRequest): Promise<PresenceView> {
     return this.client.post<PresenceView>(imApiPath(`/presence/heartbeat`), body, undefined, undefined, 'application/json');
   }
 }

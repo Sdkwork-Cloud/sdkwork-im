@@ -165,7 +165,7 @@ function assertNoActiveAppBusinessSdkSurfaceInImFamily() {
     },
     {
       pattern: /\bclient\.deviceSessions\b|\bsdk\.deviceSessions\b|\bdeviceSessions\b/,
-      reason: 'device session APIs must be nested under device.sessions in sdkwork-im-sdk',
+      reason: 'retired IM device session APIs must not be exposed by sdkwork-im-sdk',
     },
     {
       pattern: /\breadonly\s+portal\b|\blate\s+final\s+\w*Portal\w*\s+portal\b/,
@@ -327,10 +327,7 @@ function assertNoPathsUsePrefix(label, document, forbiddenPrefix) {
 
 function isImStandardRoute(route) {
   return (
-    route === 'devices/register'
-    || route === 'devices/{}/sync_feed'
-    || route.startsWith('chat/')
-    || route.startsWith('device/sessions/')
+    route.startsWith('chat/')
     || route.startsWith('media/uploads')
     || route.startsWith('media/{}/')
     || route === 'media/{}'
@@ -822,13 +819,13 @@ for (const marker of [
 }
 assert.deepEqual(
   appAssembly.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
-  ['sdkwork-appbase-app-sdk', 'sdkwork-im-sdk', 'sdkwork-rtc-sdk'],
-  'app SDK assembly must declare appbase, IM, and RTC SDK dependencies.',
+  ['sdkwork-aiot-app-sdk', 'sdkwork-appbase-app-sdk', 'sdkwork-im-sdk', 'sdkwork-rtc-sdk'],
+  'app SDK assembly must declare appbase, AIoT, IM, and RTC SDK dependencies.',
 );
 assert.deepEqual(
   appComponentSpec.contracts?.sdkDependencies?.map((dependency) => dependency.workspace).sort(),
-  ['sdkwork-appbase-app-sdk', 'sdkwork-im-sdk', 'sdkwork-rtc-sdk'],
-  'app SDK component spec must declare appbase, IM, and RTC SDK dependencies.',
+  ['sdkwork-aiot-app-sdk', 'sdkwork-appbase-app-sdk', 'sdkwork-im-sdk', 'sdkwork-rtc-sdk'],
+  'app SDK component spec must declare appbase, AIoT, IM, and RTC SDK dependencies.',
 );
 for (const dependency of appAssembly.sdkDependencies ?? []) {
   assert.equal(dependency.required, true, `${dependency.workspace} dependency must be required.`);
@@ -847,6 +844,7 @@ assert.deepEqual(
 for (const marker of [
   'sdkDependencies',
   'sdkwork-appbase-app-sdk',
+  'sdkwork-aiot-app-sdk',
   'sdkwork-im-sdk',
   'sdkwork-rtc-sdk',
   'consumer-sdk',
@@ -867,12 +865,10 @@ assertGeneratedTransportDoesNotImportSdkDependencies(
 assertFlutterDerivedExpandsPrimitiveComponentRefs('app SDK Flutter derived OpenAPI', appFlutterDerived);
 for (const appRequiredPath of [
   '/app/v3/api/portal/access',
-  '/app/v3/api/devices/{deviceId}/twin',
   '/app/v3/api/notifications/requests',
   '/app/v3/api/automation/executions',
   '/app/v3/api/media/provider_health',
   '/app/v3/api/principal/profiles/provider_health',
-  '/app/v3/api/iot/protocol/uplink',
 ]) {
   assert.match(
     appConfigSource,
@@ -882,6 +878,11 @@ for (const appRequiredPath of [
 }
 for (const imStandardPath of [
   '/app/v3/api/device/sessions/resume',
+  '/app/v3/api/devices/{deviceId}/twin',
+  '/app/v3/api/iot/devices/{deviceId}/twin',
+  '/app/v3/api/iot/devices/{deviceId}/commands',
+  '/app/v3/api/iot/devices/{deviceId}/events',
+  '/app/v3/api/iot/protocol/uplink',
   '/app/v3/api/chat/conversations',
   '/app/v3/api/chat/messages/{messageId}/edit',
   '/app/v3/api/social/friend_requests',
@@ -1197,10 +1198,6 @@ assert.match(
 assert.match(imConfigSource, /apiPrefix:\s*'\/im\/v3\/api'/, 'IM SDK family must target /im/v3/api.');
 assert.match(imConfigSource, /schemaUrl:\s*'\/im\/v3\/openapi\.json'/, 'IM SDK family must target /im/v3/openapi.json.');
 for (const imRequiredPath of [
-  '/im/v3/api/device/sessions/resume',
-  '/im/v3/api/device/sessions/disconnect',
-  '/im/v3/api/devices/register',
-  '/im/v3/api/devices/{deviceId}/sync_feed',
   '/im/v3/api/chat/conversations',
   '/im/v3/api/chat/messages/{messageId}/edit',
   '/im/v3/api/social/friend_requests',
@@ -1214,6 +1211,10 @@ for (const imRequiredPath of [
 }
 assertFlutterDerivedExpandsPrimitiveComponentRefs('IM SDK Flutter derived OpenAPI', imFlutterDerived);
 for (const nonImPath of [
+  '/im/v3/api/device/sessions/resume',
+  '/im/v3/api/device/sessions/disconnect',
+  '/im/v3/api/devices/register',
+  '/im/v3/api/devices/{deviceId}/sync_feed',
   '/im/v3/api/portal/access',
   '/im/v3/api/devices/{deviceId}/twin',
   '/im/v3/api/notifications/requests',
@@ -1240,17 +1241,20 @@ for (const [label, document] of [
   ['IM Flutter derived', imFlutterDerived],
 ]) {
   const operationIds = operationEntries(document).map(({ operation }) => String(operation?.operationId ?? ''));
+  for (const forbiddenOperationId of [
+    'device.sessions.resume',
+    'device.sessions.disconnect',
+    'device.registrations.create',
+    'device.syncFeed.retrieve',
+  ]) {
+    assert.ok(
+      !operationIds.includes(forbiddenOperationId),
+      `${label} must not expose retired IM device operation ${forbiddenOperationId}.`,
+    );
+  }
   assert.ok(
-    operationIds.includes('device.sessions.resume'),
-    `${label} must expose device.sessions.resume as a dotted SDK operation.`,
-  );
-  assert.ok(
-    operationIds.includes('device.sessions.disconnect'),
-    `${label} must expose device.sessions.disconnect as a dotted SDK operation.`,
-  );
-  assert.ok(
-    !operationIds.some((operationId) => /deviceSessions|DeviceSessions/.test(operationId)),
-    `${label} must not expose top-level deviceSessions operation namespace.`,
+    !operationIds.some((operationId) => /device(?:Sessions|\.sessions|\.registrations|\.syncFeed)|DeviceSessions/u.test(operationId)),
+    `${label} must not expose an IM device SDK operation namespace.`,
   );
 }
 
@@ -1263,6 +1267,16 @@ for (const [label, source] of [
   assert.match(source, /sdkFamilyConfig/, `${label} entrypoint must use its local SDK family config.`);
 }
 
+assert.match(
+  imGenerateSource,
+  /materialize-local-openapi-seed\.mjs/,
+  'IM generate entrypoint must materialize the local OpenAPI seed before boundary normalization.',
+);
+assert.match(
+  imGenerateSource,
+  /materialize-im-v3-openapi-boundaries\.mjs/,
+  'IM generate entrypoint must normalize OpenAPI SDK boundaries before generator execution.',
+);
 assert.match(
   imGenerateSource,
   /assemble-sdk\.mjs/,

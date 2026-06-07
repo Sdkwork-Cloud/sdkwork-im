@@ -1,7 +1,5 @@
 pub mod base;
 pub mod paths;
-pub mod device;
-pub use device::DeviceApi;
 pub mod presence;
 pub use presence::PresenceApi;
 pub mod realtime;

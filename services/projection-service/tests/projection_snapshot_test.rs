@@ -595,7 +595,7 @@ fn test_projection_service_restores_member_directory_view_from_snapshot_metadata
 }
 
 #[test]
-fn test_projection_service_restores_device_sync_state_from_projection_snapshot() {
+fn test_projection_service_restores_client_route_sync_state_from_projection_snapshot() {
     let metadata_store = MemoryMetadataStore::default();
     let timeline_store = MemoryTimelineProjectionStore::default();
     let service = TimelineProjectionService::default();
@@ -603,25 +603,25 @@ fn test_projection_service_restores_device_sync_state_from_projection_snapshot()
     service
         .apply(&conversation_created_event(
             "t_alpha",
-            "c_device_sync_restore",
+            "c_client_route_sync_restore",
             "group",
         ))
         .expect("conversation projection should succeed");
     service
         .apply(&member_joined_event(
             "t_alpha",
-            "c_device_sync_restore",
+            "c_client_route_sync_restore",
             "u_member",
             MembershipRole::Member,
         ))
         .expect("member join projection should succeed");
-    service.register_device("t_alpha", "u_member", "d_phone");
-    service.register_device("t_alpha", "u_member", "d_pad");
+    service.register_client_route("t_alpha", "u_member", "d_phone");
+    service.register_client_route("t_alpha", "u_member", "d_pad");
     service
         .apply(&message_posted_event(
             "t_alpha",
-            "c_device_sync_restore",
-            "msg_device_sync_restore_1",
+            "c_client_route_sync_restore",
+            "msg_client_route_sync_restore_1",
             1,
             "u_member",
             "device snapshot summary",
@@ -630,10 +630,10 @@ fn test_projection_service_restores_device_sync_state_from_projection_snapshot()
     service
         .apply(&read_cursor_updated_event(
             "t_alpha",
-            "c_device_sync_restore",
+            "c_client_route_sync_restore",
             "u_member",
             1,
-            Some("msg_device_sync_restore_1"),
+            Some("msg_client_route_sync_restore_1"),
         ))
         .expect("read cursor projection should succeed");
 
@@ -641,7 +641,7 @@ fn test_projection_service_restores_device_sync_state_from_projection_snapshot()
         service
             .persist_conversation_snapshot(
                 "t_alpha",
-                "c_device_sync_restore",
+                "c_client_route_sync_restore",
                 &metadata_store,
                 &timeline_store,
             )
@@ -654,7 +654,7 @@ fn test_projection_service_restores_device_sync_state_from_projection_snapshot()
         restored
             .restore_conversation_snapshot(
                 "t_alpha",
-                "c_device_sync_restore",
+                "c_client_route_sync_restore",
                 &metadata_store,
                 &timeline_store,
             )
@@ -662,13 +662,13 @@ fn test_projection_service_restores_device_sync_state_from_projection_snapshot()
         "snapshot should exist"
     );
 
-    let devices = restored.registered_devices("t_alpha", "u_member");
+    let devices = restored.registered_client_routes("t_alpha", "u_member");
     assert_eq!(devices.len(), 2);
     assert_eq!(devices[0].device_id, "d_pad");
     assert_eq!(devices[1].device_id, "d_phone");
 
     let phone_feed = restored
-        .device_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(
             "t_alpha",
             "u_member",
             "user",
@@ -681,7 +681,7 @@ fn test_projection_service_restores_device_sync_state_from_projection_snapshot()
     assert_eq!(phone_feed[0].origin_event_type, "message.posted");
     assert_eq!(
         phone_feed[0].message_id.as_deref(),
-        Some("msg_device_sync_restore_1")
+        Some("msg_client_route_sync_restore_1")
     );
     assert_eq!(
         phone_feed[1].origin_event_type,
@@ -690,7 +690,7 @@ fn test_projection_service_restores_device_sync_state_from_projection_snapshot()
     assert_eq!(phone_feed[1].read_seq, Some(1));
 
     let pad_feed = restored
-        .device_sync_feed_window_for_principal_kind(
+        .client_route_sync_feed_window_for_principal_kind(
             "t_alpha",
             "u_member",
             "user",
@@ -707,17 +707,17 @@ fn test_projection_service_restores_device_sync_state_from_projection_snapshot()
     );
 
     assert_eq!(
-        restored.latest_device_sync_seq("t_alpha", "u_member", "d_phone"),
+        restored.latest_client_route_sync_seq("t_alpha", "u_member", "d_phone"),
         2
     );
     assert_eq!(
-        restored.latest_device_sync_seq("t_alpha", "u_member", "d_pad"),
+        restored.latest_client_route_sync_seq("t_alpha", "u_member", "d_pad"),
         2
     );
 }
 
 #[test]
-fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_device() {
+fn test_projection_service_restores_typed_client_route_sync_state_for_same_actor_and_device() {
     let metadata_store = MemoryMetadataStore::default();
     let timeline_store = MemoryTimelineProjectionStore::default();
     let service = TimelineProjectionService::default();
@@ -725,14 +725,14 @@ fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_d
     service
         .apply(&conversation_created_event(
             "t_alpha",
-            "c_typed_device_sync_restore",
+            "c_typed_client_route_sync_restore",
             "group",
         ))
         .expect("conversation projection should succeed");
     service
         .apply(&member_joined_event(
             "t_alpha",
-            "c_typed_device_sync_restore",
+            "c_typed_client_route_sync_restore",
             "u_owner",
             MembershipRole::Owner,
         ))
@@ -740,19 +740,19 @@ fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_d
     service
         .apply(
             &im_domain_events::CommitEnvelope::minimal(
-                "evt_t_alpha_c_typed_device_sync_restore_u_dual_joined",
+                "evt_t_alpha_c_typed_client_route_sync_restore_u_dual_joined",
                 "t_alpha",
                 "conversation.member_joined",
                 "conversation",
-                "c_typed_device_sync_restore",
+                "c_typed_client_route_sync_restore",
                 2,
             )
             .with_payload(
                 "conversation.member.v1",
                 r#"{
                     "tenantId":"t_alpha",
-                    "conversationId":"c_typed_device_sync_restore",
-                    "memberId":"cm_c_typed_device_sync_restore_u_dual_user",
+                    "conversationId":"c_typed_client_route_sync_restore",
+                    "memberId":"cm_c_typed_client_route_sync_restore_u_dual_user",
                     "principalId":"u_dual",
                     "principalKind":"user",
                     "role":"member",
@@ -766,14 +766,14 @@ fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_d
         )
         .expect("typed user join projection should succeed");
 
-    service.register_device_for_principal_kind("t_alpha", "u_owner", "user", "d_owner");
-    service.register_device_for_principal_kind("t_alpha", "u_dual", "user", "d_shared");
-    service.register_device_for_principal_kind("t_alpha", "u_dual", "agent", "d_shared");
+    service.register_client_route_for_principal_kind("t_alpha", "u_owner", "user", "d_owner");
+    service.register_client_route_for_principal_kind("t_alpha", "u_dual", "user", "d_shared");
+    service.register_client_route_for_principal_kind("t_alpha", "u_dual", "agent", "d_shared");
     service
         .apply(&message_posted_event(
             "t_alpha",
-            "c_typed_device_sync_restore",
-            "msg_typed_device_sync_restore_1",
+            "c_typed_client_route_sync_restore",
+            "msg_typed_client_route_sync_restore_1",
             1,
             "u_owner",
             "typed snapshot summary",
@@ -784,7 +784,7 @@ fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_d
         service
             .persist_conversation_snapshot(
                 "t_alpha",
-                "c_typed_device_sync_restore",
+                "c_typed_client_route_sync_restore",
                 &metadata_store,
                 &timeline_store,
             )
@@ -797,7 +797,7 @@ fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_d
         restored
             .restore_conversation_snapshot(
                 "t_alpha",
-                "c_typed_device_sync_restore",
+                "c_typed_client_route_sync_restore",
                 &metadata_store,
                 &timeline_store,
             )
@@ -820,40 +820,45 @@ fn test_projection_service_restores_typed_device_sync_state_for_same_actor_and_d
         Some("d_shared"),
     );
 
-    let user_devices = restored.registered_devices_from_auth_context(&user_auth);
-    assert_eq!(user_devices.len(), 1);
-    assert_eq!(user_devices[0].device_id, "d_shared");
-    assert_eq!(user_devices[0].principal_kind, "user");
+    let user_client_routes = restored.registered_client_routes_from_auth_context(&user_auth);
+    assert_eq!(user_client_routes.len(), 1);
+    assert_eq!(user_client_routes[0].device_id, "d_shared");
+    assert_eq!(user_client_routes[0].principal_kind, "user");
 
-    let agent_devices = restored.registered_devices_from_auth_context(&agent_auth);
-    assert_eq!(agent_devices.len(), 1);
-    assert_eq!(agent_devices[0].device_id, "d_shared");
-    assert_eq!(agent_devices[0].principal_kind, "agent");
+    let agent_client_routes = restored.registered_client_routes_from_auth_context(&agent_auth);
+    assert_eq!(agent_client_routes.len(), 1);
+    assert_eq!(agent_client_routes[0].device_id, "d_shared");
+    assert_eq!(agent_client_routes[0].principal_kind, "agent");
 
     let user_feed = restored
-        .device_sync_feed_window_from_auth_context(&user_auth, "d_shared", Some(0), Some(100))
+        .client_route_sync_feed_window_from_auth_context(&user_auth, "d_shared", Some(0), Some(100))
         .expect("restored user feed should remain accessible")
         .items;
     assert_eq!(user_feed.len(), 1);
     assert_eq!(
         user_feed[0].message_id.as_deref(),
-        Some("msg_typed_device_sync_restore_1")
+        Some("msg_typed_client_route_sync_restore_1")
     );
     assert_eq!(
         restored
-            .latest_device_sync_seq_from_auth_context(&user_auth, "d_shared")
+            .latest_client_route_sync_seq_from_auth_context(&user_auth, "d_shared")
             .expect("restored user seq should remain accessible"),
         1
     );
 
     let agent_feed = restored
-        .device_sync_feed_window_from_auth_context(&agent_auth, "d_shared", Some(0), Some(100))
+        .client_route_sync_feed_window_from_auth_context(
+            &agent_auth,
+            "d_shared",
+            Some(0),
+            Some(100),
+        )
         .expect("restored agent feed should remain accessible")
         .items;
     assert!(agent_feed.is_empty());
     assert_eq!(
         restored
-            .latest_device_sync_seq_from_auth_context(&agent_auth, "d_shared")
+            .latest_client_route_sync_seq_from_auth_context(&agent_auth, "d_shared")
             .expect("restored agent seq should remain accessible"),
         0
     );
@@ -1042,7 +1047,7 @@ fn test_projection_service_records_snapshot_observability_metrics_traces_and_log
             MembershipRole::Member,
         ))
         .expect("member join projection should succeed");
-    service.register_device("t_alpha", "u_member", "d_pad");
+    service.register_client_route("t_alpha", "u_member", "d_pad");
     service
         .apply(&message_posted_event(
             "t_alpha",
@@ -1076,7 +1081,10 @@ fn test_projection_service_records_snapshot_observability_metrics_traces_and_log
         1
     );
     assert_eq!(
-        snapshot.metrics.device_sync_snapshot_restore.success_count,
+        snapshot
+            .metrics
+            .client_route_sync_snapshot_restore
+            .success_count,
         1
     );
     assert!(
@@ -1109,17 +1117,15 @@ fn test_projection_service_records_snapshot_observability_metrics_traces_and_log
     assert_eq!(
         live_snapshot
             .metrics
-            .device_sync_snapshot_persist
+            .client_route_sync_snapshot_persist
             .success_count,
         1
     );
     assert!(
-        live_snapshot
-            .traces
-            .iter()
-            .any(|item| item.operation == "device_sync_snapshot.persist"
-                && item.outcome == "success"),
-        "device sync persist trace should be recorded"
+        live_snapshot.traces.iter().any(|item| item.operation
+            == "client_route_sync_snapshot.persist"
+            && item.outcome == "success"),
+        "client route sync persist trace should be recorded"
     );
     assert!(
         live_snapshot

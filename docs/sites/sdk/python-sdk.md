@@ -58,8 +58,7 @@ concern to the matching HTTP reference:
 | Membership and read cursors | conversation membership and read-state route groups | [Membership and Read State](/api-reference/im/membership-and-read-state) |
 | Message send payloads and timeline schemas | message route groups and DTOs | [Messages](/api-reference/im/messages) |
 | Upload and attachment lifecycle | media route groups and DTOs | [Media](/api-reference/im/media) |
-| Device Sessions, presence, and realtime coordination | session, presence, and realtime route groups | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
-| Device registration and sync feeds | device route groups | [Device Sync](/api-reference/im/device-sync) |
+| Realtime Presence, presence, and realtime coordination | session, presence, and realtime route groups | [Realtime Presence](/api-reference/im/session-and-realtime) |
 | RTC lifecycle and signaling-side HTTP operations | rtc route groups | [RTC](/api-reference/im/rtc) |
 | Stream ingestion and checkpoints | stream route groups | [Streams](/api-reference/im/streams) |
 
@@ -126,5 +125,5 @@ Python workspace wrappers:
 - Read [Portal Access](/api-reference/app/portal-access), [Conversations](/api-reference/im/conversations),
   and [Messages](/api-reference/im/messages) when you need the exact HTTP contract behind the
   generated Python transport.
-- Read [Device Sessions and Realtime](/api-reference/im/session-and-realtime) and [RTC](/api-reference/im/rtc)
+- Read [Realtime Presence](/api-reference/im/session-and-realtime) and [RTC](/api-reference/im/rtc)
   when you need the route-level transport contract for live coordination and RTC workflows.

@@ -128,13 +128,13 @@ async fn test_public_app_does_not_expose_craw_chat_private_app_api_bootstrap_rou
 }
 
 #[tokio::test]
-async fn test_im_v3_api_uses_device_session_namespace_and_does_not_expose_identity_paths() {
+async fn test_im_v3_api_uses_presence_realtime_namespace_and_does_not_expose_identity_paths() {
     let app = local_minimal_node::build_default_app();
 
     let authorization_only = post_json_with_authorization_only(
         &app,
-        "/im/v3/api/device/sessions/resume",
-        r#"{"deviceId":"d_demo","lastSeenSyncSeq":0}"#,
+        "/im/v3/api/presence/heartbeat",
+        r#"{"deviceId":"d_demo"}"#,
     )
     .await;
     assert_eq!(
@@ -143,32 +143,21 @@ async fn test_im_v3_api_uses_device_session_namespace_and_does_not_expose_identi
         "craw-chat must require the trusted SDKWork AppContext projection; an authorization header alone is not enough"
     );
 
-    let resume = post_json(
+    let heartbeat = post_json(
         &app,
-        "/im/v3/api/device/sessions/resume",
-        r#"{"deviceId":"d_demo","lastSeenSyncSeq":0}"#,
-    )
-    .await;
-    assert_eq!(
-        resume.status(),
-        StatusCode::OK,
-        "IM API device session resume should be exposed"
-    );
-    let resume_body = read_json(resume).await;
-    assert_eq!(resume_body["tenantId"], "t_demo");
-    assert_eq!(resume_body["actorId"], "u_demo");
-
-    let disconnect = post_json(
-        &app,
-        "/im/v3/api/device/sessions/disconnect",
+        "/im/v3/api/presence/heartbeat",
         r#"{"deviceId":"d_demo"}"#,
     )
     .await;
     assert_eq!(
-        disconnect.status(),
+        heartbeat.status(),
         StatusCode::OK,
-        "IM API device session disconnect should be exposed"
+        "IM API presence heartbeat should be exposed"
     );
+    let heartbeat_body = read_json(heartbeat).await;
+    assert_eq!(heartbeat_body["tenantId"], "t_demo");
+    assert_eq!(heartbeat_body["principalId"], "u_demo");
+    assert_eq!(heartbeat_body["currentDeviceId"], "d_demo");
 
     for app_device_session_path in [
         "/app/v3/api/device/sessions/resume",
@@ -236,8 +225,10 @@ async fn test_im_v3_api_uses_device_session_namespace_and_does_not_expose_identi
         marker(&["/api", "/v1", "/sessions/disconnect"]),
         marker(&["/api", "/v1", "/chat", "-runtime/sessions/resume"]),
         marker(&["/api", "/v1", "/chat", "-runtime/sessions/disconnect"]),
-        marker(&["/im/v3/api/device", "-sessions/resume"]),
-        marker(&["/im/v3/api/device", "-sessions/disconnect"]),
+        marker(&["/im/v3/api/device", "/sessions/resume"]),
+        marker(&["/im/v3/api/device", "/sessions/disconnect"]),
+        marker(&["/im/v3/api/devices", "/register"]),
+        marker(&["/im/v3/api/devices", "/d_demo/sync_feed"]),
         marker(&["/api", "/v1", "/auth", "/login"]),
         marker(&["/api", "/v1", "/auth/refresh"]),
         marker(&["/api", "/v1", "/auth", "/me"]),

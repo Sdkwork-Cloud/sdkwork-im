@@ -65,19 +65,6 @@ async fn test_control_plane_exposes_provider_registry_snapshot_to_control_reader
             .any(|plugin| plugin["pluginId"] == "principal-profile-upstream-context"),
         "provider registry should surface the upstream-context principal-profile provider"
     );
-    assert!(
-        plugins
-            .iter()
-            .any(|plugin| plugin["pluginId"] == "iot-access-local"),
-        "provider registry should surface the device access provider"
-    );
-    assert!(
-        plugins
-            .iter()
-            .any(|plugin| plugin["pluginId"] == "iot-xiaozhi"),
-        "provider registry should surface the xiaozhi protocol adapter"
-    );
-
     let effective_bindings = json["effectiveBindings"]
         .as_array()
         .expect("effective bindings should be returned as an array");

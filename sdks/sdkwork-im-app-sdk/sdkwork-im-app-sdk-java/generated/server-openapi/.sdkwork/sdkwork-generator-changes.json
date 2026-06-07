@@ -8,7 +8,7 @@
     "sdkType": "app",
     "packageName": "com.sdkwork:im-app-api-generated"
   },
-  "changeFingerprint": "1e896f6cf3062a867be0cf1597078fd96941833066ce21c0d728212243e70fdf",
+  "changeFingerprint": "9b7df760a3beb583d810f4c2df6bf5246fb196d551da75ae427aa894475f8032",
   "changes": {
     "createdGeneratedFiles": [
       "CHANGELOG.md",
@@ -18,8 +18,6 @@
       "sdkwork-sdk.json",
       "src/main/java/com/sdkwork/im/app/api/generated/api/ApiPaths.java",
       "src/main/java/com/sdkwork/im/app/api/generated/api/AutomationApi.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/DeviceApi.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/api/IotApi.java",
       "src/main/java/com/sdkwork/im/app/api/generated/api/NotificationApi.java",
       "src/main/java/com/sdkwork/im/app/api/generated/api/package-info.java",
       "src/main/java/com/sdkwork/im/app/api/generated/api/PortalApi.java",
@@ -32,7 +30,6 @@
       "src/main/java/com/sdkwork/im/app/api/generated/model/AutomationExecutionRequestResponse.java",
       "src/main/java/com/sdkwork/im/app/api/generated/model/CompleteAgentResponseRequest.java",
       "src/main/java/com/sdkwork/im/app/api/generated/model/CompleteAgentToolCallRequest.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/DeviceTwinView.java",
       "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationListResponse.java",
       "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationRequestResponse.java",
       "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationTask.java",
@@ -45,8 +42,6 @@
       "src/main/java/com/sdkwork/im/app/api/generated/model/StartAgentResponseRequest.java",
       "src/main/java/com/sdkwork/im/app/api/generated/model/StreamFrame.java",
       "src/main/java/com/sdkwork/im/app/api/generated/model/StreamSession.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinDesiredRequest.java",
-      "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinReportedRequest.java",
       "src/main/java/com/sdkwork/im/app/api/generated/SdkworkAppClient.java",
       "src/main/java/com/sdkwork/im/app/api/generated/SdkworkImAppClient.java"
     ],
@@ -79,8 +74,6 @@
         "paths": [
           "src/main/java/com/sdkwork/im/app/api/generated/api/ApiPaths.java",
           "src/main/java/com/sdkwork/im/app/api/generated/api/AutomationApi.java",
-          "src/main/java/com/sdkwork/im/app/api/generated/api/DeviceApi.java",
-          "src/main/java/com/sdkwork/im/app/api/generated/api/IotApi.java",
           "src/main/java/com/sdkwork/im/app/api/generated/api/NotificationApi.java",
           "src/main/java/com/sdkwork/im/app/api/generated/api/package-info.java",
           "src/main/java/com/sdkwork/im/app/api/generated/api/PortalApi.java",
@@ -93,7 +86,6 @@
           "src/main/java/com/sdkwork/im/app/api/generated/model/AutomationExecutionRequestResponse.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/CompleteAgentResponseRequest.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/CompleteAgentToolCallRequest.java",
-          "src/main/java/com/sdkwork/im/app/api/generated/model/DeviceTwinView.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationListResponse.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationRequestResponse.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationTask.java",
@@ -106,8 +98,6 @@
           "src/main/java/com/sdkwork/im/app/api/generated/model/StartAgentResponseRequest.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/StreamFrame.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/StreamSession.java",
-          "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinDesiredRequest.java",
-          "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinReportedRequest.java",
           "src/main/java/com/sdkwork/im/app/api/generated/SdkworkAppClient.java",
           "src/main/java/com/sdkwork/im/app/api/generated/SdkworkImAppClient.java"
         ]
@@ -122,7 +112,6 @@
           "src/main/java/com/sdkwork/im/app/api/generated/model/AutomationExecutionRequestResponse.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/CompleteAgentResponseRequest.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/CompleteAgentToolCallRequest.java",
-          "src/main/java/com/sdkwork/im/app/api/generated/model/DeviceTwinView.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationListResponse.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationRequestResponse.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/NotificationTask.java",
@@ -134,9 +123,7 @@
           "src/main/java/com/sdkwork/im/app/api/generated/model/Sender.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/StartAgentResponseRequest.java",
           "src/main/java/com/sdkwork/im/app/api/generated/model/StreamFrame.java",
-          "src/main/java/com/sdkwork/im/app/api/generated/model/StreamSession.java",
-          "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinDesiredRequest.java",
-          "src/main/java/com/sdkwork/im/app/api/generated/model/UpdateDeviceTwinReportedRequest.java"
+          "src/main/java/com/sdkwork/im/app/api/generated/model/StreamSession.java"
         ]
       },
       {

@@ -1,11 +1,11 @@
 # `POST /im/v3/api/presence/heartbeat`
 
 <p class="api-page-intro">
-  Exact request and response contract for <strong>Device Sessions and Realtime</strong> in the <strong>IM Standard API</strong>.
+  Exact request and response contract for <strong>Realtime Presence</strong> in the <strong>IM Standard API</strong>.
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/im/session-and-realtime"><code>Device Sessions and Realtime</code> Return to the group page for workflow context and related operations</a>
+  <a href="/api-reference/im/session-and-realtime"><code>Realtime Presence</code> Return to the group page for workflow context and related operations</a>
   <a href="/api-reference/im-api"><code>IM Standard API</code> Return to the domain overview</a>
   <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, AppContext projection, and error-envelope rules</a>
 </div>
@@ -18,19 +18,19 @@
   <span class="api-op-id">operationId: heartbeatPresence</span>
 </div>
 
-Refreshes the presence heartbeat for the current device.
+Refreshes the presence heartbeat for the current client route.
 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.presence.heartbeat(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; Client route ownership and client route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
 </div>
 
 ### Request Body
 
-<ApiSchemaTable schema="PresenceDeviceRequest" />
+<ApiSchemaTable schema="PresenceHeartbeatRequest" />
 
 ### Response `200`
 
@@ -43,7 +43,7 @@ Refreshes the presence heartbeat for the current device.
 | --- | --- | --- |
 | `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |

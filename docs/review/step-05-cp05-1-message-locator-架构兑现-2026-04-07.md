@@ -21,7 +21,7 @@
 - `CP05-3`
   - direct / group / channel 规则 owner 重收口
 - `CP05-4`
-  - projection / notification / multi-device sync owner 重收口
+  - projection / notification / multi-client-route sync owner 重收口
 
 ## 4. 偏离判断
 

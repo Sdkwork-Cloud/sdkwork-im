@@ -17,6 +17,7 @@ Or add to your `.csproj`:
 ## Quick Start
 
 ```csharp
+using Sdkwork.Im.AppApi.Generated.Models;
 using Sdkwork.Im.AppApi.Generated;
 using SDKwork.Common.Core;
 
@@ -25,7 +26,7 @@ var client = new SdkworkImAppClient(config);
 client.SetAuthToken("your-auth-token");
 client.SetAccessToken("your-access-token");
 
-var result = await client.Iot.AccessProviderHealthRetrieveAsync();
+var result = await client.Notification.NotificationsListAsync();
 Console.WriteLine(result);
 ```
 
@@ -50,11 +51,9 @@ client.SetHeader("X-Custom-Header", "value");
 ## API Modules
 
 - `client.Automation` - automation API
-- `client.Device` - device API
 - `client.Notification` - notification API
 - `client.Portal` - portal API
 - `client.Provider` - provider API
-- `client.Iot` - iot API
 
 ## Usage Examples
 
@@ -73,15 +72,6 @@ var body = new StartAgentResponseRequest
     Agent = new AgentSubject(),
 };
 var result = await client.Automation.AgentResponsesCreateAsync(body);
-Console.WriteLine(result);
-```
-
-### device
-
-```csharp
-// Get the device twin
-var deviceId = "1";
-var result = await client.Device.DevicesTwinRetrieveAsync(deviceId);
 Console.WriteLine(result);
 ```
 
@@ -109,20 +99,12 @@ var result = await client.Provider.MediaHealthRetrieveAsync();
 Console.WriteLine(result);
 ```
 
-### iot
-
-```csharp
-// Retrieve IoT access provider health
-var result = await client.Iot.AccessProviderHealthRetrieveAsync();
-Console.WriteLine(result);
-```
-
 ## Error Handling
 
 ```csharp
 try
 {
-    await client.Iot.AccessProviderHealthRetrieveAsync();
+    await client.Notification.NotificationsListAsync();
 }
 catch (HttpRequestException ex)
 {

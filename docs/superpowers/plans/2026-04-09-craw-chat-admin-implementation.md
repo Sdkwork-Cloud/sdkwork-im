@@ -230,7 +230,7 @@ Write assertions that the pages expose operator-grade IM concepts:
 
 - throughput and hotspots on overview
 - tenant governance
-- user/device posture
+- user/client route posture
 - conversation lifecycle
 - message audit
 - moderation queues

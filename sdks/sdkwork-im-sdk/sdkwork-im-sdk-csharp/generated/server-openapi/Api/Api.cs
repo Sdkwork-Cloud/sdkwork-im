@@ -5,7 +5,6 @@ namespace Sdkwork.Im.Sdk.Generated.Api
     /// </summary>
     public static class Api
     {
-        public static DeviceApi? Device { get; set; }
         public static PresenceApi? Presence { get; set; }
         public static RealtimeApi? Realtime { get; set; }
         public static RtcApi? Rtc { get; set; }

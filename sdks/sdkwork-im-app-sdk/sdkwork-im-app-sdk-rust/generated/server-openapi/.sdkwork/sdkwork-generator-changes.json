@@ -8,7 +8,7 @@
     "sdkType": "app",
     "packageName": "sdkwork-im-app-api-generated"
   },
-  "changeFingerprint": "3821f41977e401cc6aaef04ba94a5bd022562d05ffde9a071dd38b8d98b537cc",
+  "changeFingerprint": "fcfb9afe42fbaa9f9dc6361af587cad43adacc58e39fc3bc2dd89762679b2ae3",
   "changes": {
     "createdGeneratedFiles": [
       "Cargo.toml",
@@ -18,8 +18,6 @@
       "sdkwork-sdk.json",
       "src/api/automation.rs",
       "src/api/base.rs",
-      "src/api/device.rs",
-      "src/api/iot.rs",
       "src/api/mod.rs",
       "src/api/notification.rs",
       "src/api/paths.rs",
@@ -37,7 +35,6 @@
       "src/models/common.rs",
       "src/models/complete_agent_response_request.rs",
       "src/models/complete_agent_tool_call_request.rs",
-      "src/models/device_twin_view.rs",
       "src/models/mod.rs",
       "src/models/notification_list_response.rs",
       "src/models/notification_request_response.rs",
@@ -50,9 +47,7 @@
       "src/models/sender.rs",
       "src/models/start_agent_response_request.rs",
       "src/models/stream_frame.rs",
-      "src/models/stream_session.rs",
-      "src/models/update_device_twin_desired_request.rs",
-      "src/models/update_device_twin_reported_request.rs"
+      "src/models/stream_session.rs"
     ],
     "updatedGeneratedFiles": [],
     "unchangedGeneratedFiles": [
@@ -83,8 +78,6 @@
         "paths": [
           "src/api/automation.rs",
           "src/api/base.rs",
-          "src/api/device.rs",
-          "src/api/iot.rs",
           "src/api/mod.rs",
           "src/api/notification.rs",
           "src/api/paths.rs",
@@ -104,7 +97,6 @@
           "src/models/common.rs",
           "src/models/complete_agent_response_request.rs",
           "src/models/complete_agent_tool_call_request.rs",
-          "src/models/device_twin_view.rs",
           "src/models/mod.rs",
           "src/models/notification_list_response.rs",
           "src/models/notification_request_response.rs",
@@ -117,9 +109,7 @@
           "src/models/sender.rs",
           "src/models/start_agent_response_request.rs",
           "src/models/stream_frame.rs",
-          "src/models/stream_session.rs",
-          "src/models/update_device_twin_desired_request.rs",
-          "src/models/update_device_twin_reported_request.rs"
+          "src/models/stream_session.rs"
         ]
       },
       {

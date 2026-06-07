@@ -10,15 +10,11 @@ import type {
 } from '@sdkwork/im-sdk';
 import {
   getImSdkClientWithSession,
-  readAppSdkSessionTokens,
-} from '@sdkwork/clawchat-pc-core';
-import type { User } from '@sdkwork/clawchat-pc-types';
+} from '@sdkwork/clawchat-pc-core/sdk/imSdkClient';
 import {
-  parseDeviceSyncPayload,
-  pickDeviceSyncString,
-  resolveSdkworkChatPcDeviceId,
-  retrieveDeviceSyncFeedWindow,
-} from './DeviceSyncFeedService';
+  readAppSdkSessionTokens,
+} from '@sdkwork/clawchat-pc-core/sdk/session';
+import type { User } from '@sdkwork/clawchat-pc-types';
 import {
   organizationDirectoryService,
   type OrganizationDirectoryService,
@@ -48,12 +44,9 @@ export interface ContactTag {
   border: string;
 }
 
-export interface ContactDeviceSyncResult {
-  added: User[];
-  deviceId: string;
-  nextAfterSeq: number;
-  removedUserIds: string[];
-  trimmedThroughSeq: number;
+export interface ContactSyncResult {
+  contacts: User[];
+  refreshedContacts: number;
 }
 
 export interface ContactService {
@@ -78,10 +71,9 @@ export interface ContactService {
   setContactRemark(userId: string, remark: string): Promise<void>;
   addToBlacklist(userId: string): Promise<void>;
   recommendToFriend(userId: string): Promise<void>;
-  syncContactsFromDeviceFeed(deviceId?: string): Promise<ContactDeviceSyncResult>;
+  syncContacts(): Promise<ContactSyncResult>;
 }
 
-const CONTACT_DEVICE_SYNC_NAMESPACE = 'contacts';
 const CONTACTS_PAGE_LIMIT = 100;
 const CONTACT_PREFERENCES_BATCH_SIZE = 20;
 const CONTACT_PROFILE_BATCH_SIZE = 20;
@@ -164,11 +156,11 @@ function normalizeRequestStatus(status: ImFriendRequest['status']): FriendReques
 
 class SdkworkContactService implements ContactService {
   private readonly contactByUserId = new Map<string, ContactView>();
-  private readonly contactDeviceSyncAfterSeq = new Map<string, number>();
   private readonly preferenceByUserId = new Map<string, ContactPreferencesView>();
   private readonly requestIdByUiId = new Map<number, string>();
   private readonly requestUiIdByBackendId = new Map<string, number>();
   private readonly userCache = new Map<string, User>();
+  private readonly userIdByChatId = new Map<string, string>();
   private currentUserOverrides: Partial<User> = {};
 
   constructor(
@@ -191,6 +183,22 @@ class SdkworkContactService implements ContactService {
 
     do {
       const response = await this.client().chat.contacts.list({
+        limit: CONTACTS_PAGE_LIMIT,
+        ...(cursor ? { cursor } : {}),
+      });
+      items.push(...response.items);
+      cursor = response.hasMore ? response.nextCursor : undefined;
+    } while (cursor);
+
+    return items;
+  }
+
+  private async listAllSocialContacts(): Promise<ContactView[]> {
+    const items: ContactView[] = [];
+    let cursor: string | undefined;
+
+    do {
+      const response = await this.client().social.contacts.list({
         limit: CONTACTS_PAGE_LIMIT,
         ...(cursor ? { cursor } : {}),
       });
@@ -243,6 +251,10 @@ class SdkworkContactService implements ContactService {
 
   async getContacts(): Promise<User[]> {
     const contacts = await this.listAllContacts();
+    return this.hydrateContactUsers(contacts);
+  }
+
+  private async hydrateContactUsers(contacts: ContactView[]): Promise<User[]> {
     const preferences = await this.loadContactPreferences(contacts);
     await this.loadContactPeerProfiles(contacts);
     const users = contacts
@@ -318,8 +330,22 @@ class SdkworkContactService implements ContactService {
       sessionUser?.username,
       id,
     ) ?? id;
+    const sessionUserRecord = toRecord(sessionUser);
+    const sessionContextRecord = toRecord(session?.context);
+    const cachedCurrentUser = this.userCache.get(id);
+    const chatId = pickString(
+      this.currentUserOverrides.chatId,
+      sessionUserRecord.chatId,
+      sessionUserRecord.chat_id,
+      sessionUserRecord.imId,
+      sessionUserRecord.crawChatId,
+      sessionContextRecord.chatId,
+      sessionContextRecord.chat_id,
+      cachedCurrentUser?.chatId,
+    );
     return {
       id,
+      ...(chatId ? { chatId } : {}),
       name,
       avatar: pickString(this.currentUserOverrides.avatar, sessionUser?.avatar) ?? createAvatar(id),
       status: this.currentUserOverrides.status ?? 'online',
@@ -335,20 +361,27 @@ class SdkworkContactService implements ContactService {
       return null;
     }
     const currentUser = this.getCurrentUser();
-    if (currentUser.id === normalizedId) {
+    if (currentUser.chatId === normalizedId) {
       return currentUser;
     }
-    const cached = this.userCache.get(normalizedId);
+    const shouldReturnCurrentUserIfLookupFails = currentUser.id === normalizedId;
+    if (shouldReturnCurrentUserIfLookupFails && currentUser.chatId) {
+      return currentUser;
+    }
+    const cached = this.userCache.get(this.userIdByChatId.get(normalizedId) ?? normalizedId);
     if (cached) {
       return { ...cached };
     }
     const contacts = await this.getContacts();
-    const contact = contacts.find((user) => user.id === normalizedId);
+    const contact = contacts.find((user) => user.id === normalizedId || user.chatId === normalizedId);
     if (contact) {
       return contact;
     }
     const [searchedUser] = await this.searchContacts(normalizedId);
-    return searchedUser?.id === normalizedId ? searchedUser : null;
+    if (searchedUser?.id === normalizedId || searchedUser?.chatId === normalizedId) {
+      return searchedUser;
+    }
+    return shouldReturnCurrentUserIfLookupFails ? currentUser : null;
   }
 
   async getFriendRequests(): Promise<FriendRequest[]> {
@@ -411,6 +444,10 @@ class SdkworkContactService implements ContactService {
 
     await this.client().social.friendships.remove(contact.friendshipId);
     this.contactByUserId.delete(normalizedUserId);
+    const cached = this.userCache.get(normalizedUserId);
+    if (cached?.chatId) {
+      this.userIdByChatId.delete(cached.chatId);
+    }
     this.userCache.delete(normalizedUserId);
     this.preferenceByUserId.delete(normalizedUserId);
   }
@@ -450,7 +487,7 @@ class SdkworkContactService implements ContactService {
     this.preferenceByUserId.set(normalizedUserId, preferences);
     const cached = this.userCache.get(normalizedUserId);
     if (cached) {
-      this.userCache.set(normalizedUserId, {
+      this.cacheUser({
         ...cached,
         name: preferences.remark || normalizedUserId,
         py: createSearchKey(preferences.remark || normalizedUserId),
@@ -472,47 +509,11 @@ class SdkworkContactService implements ContactService {
     await this.client().social.contacts.recommendations.create(normalizedUserId, {});
   }
 
-  async syncContactsFromDeviceFeed(deviceId = resolveSdkworkChatPcDeviceId()): Promise<ContactDeviceSyncResult> {
-    const window = await retrieveDeviceSyncFeedWindow(
-      this.client(),
-      CONTACT_DEVICE_SYNC_NAMESPACE,
-      deviceId,
-      this.contactDeviceSyncAfterSeq,
-    );
-    const added: User[] = [];
-    const removedUserIds: string[] = [];
-
-    for (const entry of window.entries) {
-      if (entry.originEventType === 'friendship.activated') {
-        const payload = parseDeviceSyncPayload(entry);
-        const targetUserId = this.resolveFriendshipPeerIdFromPayload(payload);
-        if (!targetUserId) {
-          continue;
-        }
-        const contact = this.buildContactViewFromFriendshipPayload(entry.tenantId, payload, targetUserId);
-        const user = this.mapContactViewToUser(contact, this.preferenceByUserId.get(targetUserId));
-        added.push(user);
-        continue;
-      }
-
-      if (entry.originEventType === 'friendship.removed') {
-        const targetUserId = this.resolveFriendshipPeerIdFromPayload(parseDeviceSyncPayload(entry));
-        if (!targetUserId) {
-          continue;
-        }
-        this.contactByUserId.delete(targetUserId);
-        this.userCache.delete(targetUserId);
-        this.preferenceByUserId.delete(targetUserId);
-        removedUserIds.push(targetUserId);
-      }
-    }
-
+  async syncContacts(): Promise<ContactSyncResult> {
+    const contacts = await this.hydrateContactUsers(await this.listAllSocialContacts());
     return {
-      added,
-      deviceId: window.deviceId,
-      nextAfterSeq: window.nextAfterSeq,
-      removedUserIds,
-      trimmedThroughSeq: window.trimmedThroughSeq,
+      contacts,
+      refreshedContacts: contacts.length,
     };
   }
 
@@ -607,14 +608,23 @@ class SdkworkContactService implements ContactService {
   private mapContactViewToUser(contact: ContactView, preferences?: ContactPreferencesView): User {
     this.contactByUserId.set(contact.targetUserId, contact);
     const user = this.createUserFromId(contact.targetUserId, preferences);
-    this.userCache.set(user.id, user);
+    this.cacheUser(user);
     return user;
   }
 
   private mapSocialUserSearchResultToUser(result: SocialUserSearchResult): User {
+    const resultRecord = toRecord(result);
+    const metadata = toRecord(resultRecord.metadata);
+    const chatId = pickString(
+      resultRecord.chatId,
+      resultRecord.chat_id,
+      metadata.chatId,
+      metadata.chat_id,
+    );
     const name = result.displayName || result.userId;
     const user: User = {
       id: result.userId,
+      ...(chatId ? { chatId } : {}),
       name,
       avatar: result.avatarUrl ?? createAvatar(result.userId),
       status: result.relationshipState === 'active' ? 'online' : 'offline',
@@ -628,7 +638,7 @@ class SdkworkContactService implements ContactService {
       ),
       py: createSearchKey(name),
     };
-    this.userCache.set(user.id, user);
+    this.cacheUser(user);
     return user;
   }
 
@@ -637,6 +647,7 @@ class SdkworkContactService implements ContactService {
     const name = preferences?.remark || cached?.name || userId;
     return {
       id: userId,
+      ...(cached?.chatId ? { chatId: cached.chatId } : {}),
       name,
       avatar: cached?.avatar ?? createAvatar(userId),
       status: cached?.status ?? 'offline',
@@ -660,7 +671,7 @@ class SdkworkContactService implements ContactService {
       try {
         const [profile] = await this.searchContacts(peerUserId);
         if (profile?.id === peerUserId) {
-          this.userCache.set(peerUserId, profile);
+          this.cacheUser(profile);
         }
       } catch {
         // Keep the friend-request list usable when profile lookup is temporarily unavailable.
@@ -717,43 +728,13 @@ class SdkworkContactService implements ContactService {
       : friendship.initiatorUserId;
   }
 
-  private resolveFriendshipPeerIdFromPayload(payload: Record<string, unknown>): string | undefined {
-    const currentUserId = this.getCurrentUser().id;
-    const userLowId = pickDeviceSyncString(payload.userLowId, payload.lowUserId);
-    const userHighId = pickDeviceSyncString(payload.userHighId, payload.highUserId);
-    if (userLowId === currentUserId) {
-      return userHighId;
+  private cacheUser(user: User): void {
+    this.userCache.set(user.id, user);
+    if (user.chatId) {
+      this.userIdByChatId.set(user.chatId, user.id);
     }
-    if (userHighId === currentUserId) {
-      return userLowId;
-    }
-    return pickDeviceSyncString(payload.targetUserId, payload.peerUserId);
   }
 
-  private buildContactViewFromFriendshipPayload(
-    tenantId: string,
-    payload: Record<string, unknown>,
-    targetUserId: string,
-  ): ContactView {
-    const currentUserId = this.getCurrentUser().id;
-    const establishedAt = pickDeviceSyncString(
-      payload.activatedAt,
-      payload.establishedAt,
-      payload.createdAt,
-    ) ?? new Date().toISOString();
-    return {
-      contactType: 'friendship',
-      conversationId: pickDeviceSyncString(payload.conversationId),
-      directChatId: pickDeviceSyncString(payload.directChatId),
-      establishedAt,
-      friendshipId: pickDeviceSyncString(payload.friendshipId) ?? `friendship-${targetUserId}`,
-      lastInteractionAt: pickDeviceSyncString(payload.lastInteractionAt, payload.boundAt) ?? establishedAt,
-      ownerUserId: currentUserId,
-      relationshipState: 'active',
-      targetUserId,
-      tenantId,
-    };
-  }
 }
 
 export function createSdkworkContactService(

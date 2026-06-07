@@ -67,7 +67,7 @@
 - 未兑现
   - `sender / tenant` authority closure
   - direct / group / channel 规则重收口
-  - projection / notification / multi-device sync owner 重收口
+  - projection / notification / multi-client-route sync owner 重收口
 - 偏离判断
   - 无新增架构偏离
 

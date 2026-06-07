@@ -4,7 +4,9 @@ use im_time::rfc3339_le;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use super::{RealtimeClusterBridge, RealtimeClusterError, cluster_timestamp, device_scope_key};
+use super::{
+    RealtimeClusterBridge, RealtimeClusterError, client_route_scope_key, cluster_timestamp,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct RealtimeDisconnectFence {
@@ -34,12 +36,14 @@ impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
         Ok(self
             .fences
             .lock_cluster_disconnect_fences()
-            .get(device_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str())
+            .get(
+                client_route_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str(),
+            )
             .cloned())
     }
 
     fn save_fence(&self, record: RealtimeDisconnectFenceRecord) -> Result<(), ContractError> {
-        let key = device_scope_key(
+        let key = client_route_scope_key(
             record.tenant_id.as_str(),
             record.principal_id.as_str(),
             record.principal_kind.as_str(),
@@ -64,7 +68,9 @@ impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
         Ok(self
             .fences
             .lock_cluster_disconnect_fences()
-            .remove(device_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str())
+            .remove(
+                client_route_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str(),
+            )
             .is_some())
     }
 
@@ -76,7 +82,7 @@ impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
         device_id: &str,
         cutoff_disconnected_at: &str,
     ) -> Result<bool, ContractError> {
-        let key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let mut fences = self.fences.lock_cluster_disconnect_fences();
         let should_clear = fences
             .get(key.as_str())
@@ -92,7 +98,7 @@ impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
         &self,
         expected: &RealtimeDisconnectFenceRecord,
     ) -> Result<bool, ContractError> {
-        let key = device_scope_key(
+        let key = client_route_scope_key(
             expected.tenant_id.as_str(),
             expected.principal_id.as_str(),
             expected.principal_kind.as_str(),
@@ -111,7 +117,7 @@ impl RealtimeDisconnectFenceStore for ClusterMemoryDisconnectFenceStore {
 }
 
 impl RealtimeClusterBridge {
-    pub fn mark_device_disconnected_for_principal_kind(
+    pub fn mark_client_route_disconnected_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -120,7 +126,7 @@ impl RealtimeClusterBridge {
         session_id: Option<&str>,
         owner_node_id: &str,
     ) -> Result<(), RealtimeClusterError> {
-        self.mark_device_disconnected_internal(
+        self.mark_client_route_disconnected_internal(
             tenant_id,
             principal_id,
             principal_kind,
@@ -130,7 +136,7 @@ impl RealtimeClusterBridge {
         )
     }
 
-    fn mark_device_disconnected_internal(
+    fn mark_client_route_disconnected_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -139,7 +145,7 @@ impl RealtimeClusterBridge {
         session_id: Option<&str>,
         owner_node_id: &str,
     ) -> Result<(), RealtimeClusterError> {
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let disconnected_at = cluster_timestamp();
         let fence = RealtimeDisconnectFence {
             tenant_id: tenant_id.into(),
@@ -170,14 +176,14 @@ impl RealtimeClusterBridge {
         Ok(())
     }
 
-    pub fn clear_device_disconnect_fence_for_principal_kind(
+    pub fn clear_client_route_disconnect_fence_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
     ) -> Result<bool, RealtimeClusterError> {
-        self.clear_device_disconnect_fence_internal(
+        self.clear_client_route_disconnect_fence_internal(
             tenant_id,
             principal_id,
             principal_kind,
@@ -185,7 +191,7 @@ impl RealtimeClusterBridge {
         )
     }
 
-    pub fn clear_device_disconnect_fence_for_current_session(
+    pub fn clear_client_route_disconnect_fence_for_current_session(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -193,7 +199,7 @@ impl RealtimeClusterBridge {
         device_id: &str,
         current_session_id: Option<&str>,
     ) -> Result<bool, RealtimeClusterError> {
-        self.clear_device_disconnect_fence_for_current_session_internal(
+        self.clear_client_route_disconnect_fence_for_current_session_internal(
             tenant_id,
             principal_id,
             principal_kind,
@@ -202,7 +208,7 @@ impl RealtimeClusterBridge {
         )
     }
 
-    fn clear_device_disconnect_fence_internal(
+    fn clear_client_route_disconnect_fence_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -212,7 +218,9 @@ impl RealtimeClusterBridge {
         let removed_fence = self
             .disconnect_fences
             .lock_cluster_disconnect_fence_cache()
-            .remove(device_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str())
+            .remove(
+                client_route_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str(),
+            )
             .map(|fence| fence.to_record());
         let persisted_removed = if let Some(expected) = removed_fence.as_ref() {
             self.disconnect_fence_store
@@ -230,7 +238,7 @@ impl RealtimeClusterBridge {
         Ok(removed_fence.is_some() || persisted_removed)
     }
 
-    fn clear_device_disconnect_fence_for_current_session_internal(
+    fn clear_client_route_disconnect_fence_for_current_session_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -247,7 +255,7 @@ impl RealtimeClusterBridge {
             return Ok(false);
         }
 
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let expected = fence.to_record();
         let persisted_removed = self
             .disconnect_fence_store
@@ -269,14 +277,14 @@ impl RealtimeClusterBridge {
         Ok(persisted_removed || cache_removed)
     }
 
-    pub fn ensure_device_resume_not_required_for_principal_kind(
+    pub fn ensure_client_route_resume_not_required_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
     ) -> Result<(), RealtimeClusterError> {
-        self.ensure_device_resume_not_required_internal(
+        self.ensure_client_route_resume_not_required_internal(
             tenant_id,
             principal_id,
             principal_kind,
@@ -284,7 +292,7 @@ impl RealtimeClusterBridge {
         )
     }
 
-    fn ensure_device_resume_not_required_internal(
+    fn ensure_client_route_resume_not_required_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -306,7 +314,7 @@ impl RealtimeClusterBridge {
         ))
     }
 
-    pub fn disconnect_fence_matches_session_for_principal_kind(
+    pub fn disconnect_fence_matches_client_route_session_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -314,7 +322,7 @@ impl RealtimeClusterBridge {
         device_id: &str,
         session_id: Option<&str>,
     ) -> Result<bool, RealtimeClusterError> {
-        self.disconnect_fence_matches_session_internal(
+        self.disconnect_fence_matches_client_route_session_internal(
             tenant_id,
             principal_id,
             principal_kind,
@@ -323,7 +331,7 @@ impl RealtimeClusterBridge {
         )
     }
 
-    fn disconnect_fence_matches_session_internal(
+    fn disconnect_fence_matches_client_route_session_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -345,7 +353,7 @@ impl RealtimeClusterBridge {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<Option<RealtimeDisconnectFence>, RealtimeClusterError> {
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         if let Some(fence) = self
             .disconnect_fences
             .lock_cluster_disconnect_fence_cache()
@@ -421,7 +429,7 @@ fn disconnect_fence_token(
     owner_node_id: &str,
     disconnected_at: &str,
 ) -> String {
-    let (device_sync_state, session_value) = match session_id {
+    let (session_route_state, session_value) = match session_id {
         Some(session_id) => ("some-session", session_id),
         None => ("no-session", ""),
     };
@@ -431,7 +439,7 @@ fn disconnect_fence_token(
         principal_kind,
         principal_id,
         device_id,
-        device_sync_state,
+        session_route_state,
         session_value,
         owner_node_id,
         disconnected_at,
@@ -499,7 +507,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mark_device_disconnected_recovers_from_poisoned_disconnect_cache_lock() {
+    fn test_mark_client_route_disconnected_recovers_from_poisoned_disconnect_cache_lock() {
         let cluster = RealtimeClusterBridge::default();
         cluster.bind_node_runtime(
             "node_a",
@@ -508,7 +516,7 @@ mod tests {
         poison_mutex(&cluster.disconnect_fences);
 
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-            cluster.mark_device_disconnected_for_principal_kind(
+            cluster.mark_client_route_disconnected_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -519,7 +527,7 @@ mod tests {
         }));
         assert!(
             result.is_ok(),
-            "mark_device_disconnected should not panic when disconnect cache lock is poisoned"
+            "mark_client_route_disconnected should not panic when disconnect cache lock is poisoned"
         );
         let mark_result = result.expect("panic status should be captured");
         assert!(mark_result.is_ok());

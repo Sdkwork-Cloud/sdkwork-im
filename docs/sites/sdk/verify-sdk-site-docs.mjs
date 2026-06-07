@@ -177,7 +177,7 @@ export function verifySdkSiteDocs(options = {}) {
     'not generated from OpenAPI',
     'provider package',
     'native driver',
-    'node .\\sdks\\sdkwork-rtc-sdk\\bin\\verify-sdk.mjs',
+    'node ../../../../sdkwork-rtc\\sdks\\sdkwork-rtc-sdk\\bin\\verify-sdk.mjs',
   ]) {
     expectIncludes(failures, rtcSource, requiredEntry, `docs/sites/sdk/rtc-sdk.md must include ${requiredEntry}.`);
   }
@@ -214,14 +214,20 @@ export function verifySdkSiteDocs(options = {}) {
   for (const requiredEntry of [
     'sdkwork-im-app-sdk',
     '/app/v3/api/*',
-    'Device Twin',
-    'IoT Protocol',
   ]) {
     expectIncludes(
       failures,
       appApiSource,
       requiredEntry,
       `docs/sites/api-reference/app-api.md must include ${requiredEntry}.`,
+    );
+  }
+  for (const forbiddenEntry of ['Device Twin', 'IoT Protocol']) {
+    expectExcludes(
+      failures,
+      appApiSource,
+      forbiddenEntry,
+      `docs/sites/api-reference/app-api.md must not include retired AIoT-owned domain ${forbiddenEntry}.`,
     );
   }
 

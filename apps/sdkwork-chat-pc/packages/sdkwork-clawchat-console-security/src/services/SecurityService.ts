@@ -1,4 +1,4 @@
-import { getBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
+import { getAppSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
 
 export interface SecurityIntercept {
   id: string;
@@ -135,13 +135,13 @@ function buildAuditLogs(records: UnknownRecord[]): SecurityAuditLog[] {
 
 class SecurityService {
   async getDashboardData(): Promise<SecurityDashboardData> {
-    const backend = getBackendSdkClientWithSession();
-    const [health, auditRecords] = await Promise.all([
-      backend.ops.health.retrieve(),
-      backend.audit.records.list(),
+    const app = getAppSdkClientWithSession();
+    const [governance, access] = await Promise.all([
+      app.portal.governance.retrieve(),
+      app.portal.access.retrieve(),
     ]);
-    const normalizedHealth = asRecord(health);
-    const records = readRecords(asRecord(auditRecords), ['items', 'data', 'records', 'auditLogs']);
+    const normalizedHealth = asRecord(governance);
+    const records = readRecords(asRecord(access), ['items', 'data', 'records', 'auditLogs', 'securityEvents', 'alerts']);
 
     return {
       auditLogs: buildAuditLogs(records),

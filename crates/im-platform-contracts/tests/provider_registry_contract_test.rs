@@ -2,15 +2,12 @@ use std::collections::BTreeMap;
 
 use craw_chat_contract_core::ContractError;
 use im_platform_contracts::{
-    DeviceAccessOwnerBindingRequest, DeviceAccessProvider, DeviceAccessRegistration,
-    DeviceAccessRegistrationRequest, EffectiveProviderBinding, IotProtocolAdapter,
-    IotProtocolDecodeRequest, IotProtocolEncodeRequest, IotProtocolEnvelope,
-    ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
-    ObjectStoragePutRequest, ObjectStorageUploadSession, ObjectStorageUploadUrlRequest,
-    PrincipalProfile, PrincipalProfileProvider, ProviderDomain, ProviderHealthSnapshot,
-    ProviderPluginDescriptor, ProviderRegistry, RtcCallbackEvent, RtcCallbackRequest,
-    RtcCreateSessionRequest, RtcParticipantCredential, RtcProviderPort, RtcRecordingArtifact,
-    RtcSessionHandle, RuntimeProviderRegistry, StaticProviderRegistry,
+    EffectiveProviderBinding, ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor,
+    ObjectStorageProvider, ObjectStoragePutRequest, ObjectStorageUploadSession,
+    ObjectStorageUploadUrlRequest, PrincipalProfile, PrincipalProfileProvider, ProviderDomain,
+    ProviderHealthSnapshot, ProviderPluginDescriptor, ProviderRegistry, RtcCallbackEvent,
+    RtcCallbackRequest, RtcCreateSessionRequest, RtcParticipantCredential, RtcProviderPort,
+    RtcRecordingArtifact, RtcSessionHandle, RuntimeProviderRegistry, StaticProviderRegistry,
 };
 use sdkwork_rtc_core::RtcContractError;
 
@@ -244,97 +241,6 @@ impl PrincipalProfileProvider for StubPrincipalProfileProvider {
     }
 }
 
-#[derive(Clone)]
-struct StubDeviceAccessProvider;
-
-impl DeviceAccessProvider for StubDeviceAccessProvider {
-    fn descriptor(&self) -> ProviderPluginDescriptor {
-        ProviderPluginDescriptor::new(
-            "iot-access-local",
-            ProviderDomain::IotAccess,
-            "local",
-            "本地设备接入",
-        )
-        .with_default_selected(true)
-        .with_required_capabilities(["registry", "credential", "binding", "twin"])
-    }
-
-    fn register_device(
-        &self,
-        request: DeviceAccessRegistrationRequest,
-    ) -> Result<DeviceAccessRegistration, craw_chat_contract_core::ContractError> {
-        Ok(DeviceAccessRegistration {
-            tenant_id: request.tenant_id,
-            device_id: request.device_id,
-            product_id: request.product_id,
-            owner_principal_id: request.owner_principal_id,
-            credential_secret: Some("secret-demo".into()),
-            assigned_protocols: vec!["mqtt".into(), "xiaozhi".into()],
-        })
-    }
-
-    fn bind_owner(
-        &self,
-        _request: DeviceAccessOwnerBindingRequest,
-    ) -> Result<bool, craw_chat_contract_core::ContractError> {
-        Ok(true)
-    }
-
-    fn disable_device(
-        &self,
-        _tenant_id: &str,
-        _device_id: &str,
-    ) -> Result<bool, craw_chat_contract_core::ContractError> {
-        Ok(true)
-    }
-
-    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
-        ProviderHealthSnapshot::healthy("iot-access-local", "2026-04-08T00:00:00Z")
-    }
-}
-
-#[derive(Clone)]
-struct StubIotProtocolAdapter;
-
-impl IotProtocolAdapter for StubIotProtocolAdapter {
-    fn descriptor(&self) -> ProviderPluginDescriptor {
-        ProviderPluginDescriptor::new("iot-mqtt", ProviderDomain::IotProtocol, "mqtt", "MQTT")
-            .with_default_selected(true)
-            .with_required_capabilities(["uplink", "downlink", "telemetry"])
-    }
-
-    fn protocol_key(&self) -> &'static str {
-        "mqtt"
-    }
-
-    fn decode_uplink(
-        &self,
-        request: IotProtocolDecodeRequest,
-    ) -> Result<IotProtocolEnvelope, craw_chat_contract_core::ContractError> {
-        Ok(IotProtocolEnvelope {
-            tenant_id: request.tenant_id,
-            device_id: request.device_id.unwrap_or_else(|| "device-demo".into()),
-            channel: request.channel,
-            payload_json: request.payload,
-            attributes: BTreeMap::from([("codec".into(), "json".into())]),
-        })
-    }
-
-    fn encode_downlink(
-        &self,
-        request: IotProtocolEncodeRequest,
-    ) -> Result<String, craw_chat_contract_core::ContractError> {
-        Ok(format!(
-            "topic={};payload={}",
-            request.channel, request.payload_json
-        ))
-    }
-
-    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
-        ProviderHealthSnapshot::healthy("iot-mqtt", "2026-04-08T00:00:00Z")
-    }
-}
-
 #[test]
 fn test_provider_registry_platform_default_freezes_provider_matrix_and_override_precedence() {
     let registry = StaticProviderRegistry::platform_default().with_tenant_override(
@@ -383,14 +289,6 @@ fn test_provider_registry_platform_default_freezes_provider_matrix_and_override_
         Some("principal-profile-upstream-context")
     );
 
-    let iot_protocol_binding = registry
-        .effective_binding(ProviderDomain::IotProtocol, None)
-        .expect("iot protocol binding should exist");
-    assert_eq!(
-        iot_protocol_binding.selected_plugin_id.as_deref(),
-        Some("iot-mqtt")
-    );
-
     let plugins = snapshot.plugins;
     assert!(
         plugins
@@ -421,16 +319,6 @@ fn test_provider_registry_platform_default_freezes_provider_matrix_and_override_
         plugins
             .iter()
             .any(|plugin| plugin.plugin_id == "principal-profile-external-catalog")
-    );
-    assert!(
-        plugins
-            .iter()
-            .any(|plugin| plugin.plugin_id == "iot-access-local")
-    );
-    assert!(
-        plugins
-            .iter()
-            .any(|plugin| plugin.plugin_id == "iot-xiaozhi")
     );
 }
 
@@ -957,8 +845,6 @@ fn test_provider_ports_can_be_implemented_without_vendor_sdk_types_leaking_into_
     let rtc = StubRtcProvider;
     let storage = StubObjectStorageProvider;
     let principal_profile = StubPrincipalProfileProvider;
-    let device_access = StubDeviceAccessProvider;
-    let iot_protocol = StubIotProtocolAdapter;
 
     let rtc_session = rtc
         .create_session(RtcCreateSessionRequest {
@@ -1000,37 +886,6 @@ fn test_provider_ports_can_be_implemented_without_vendor_sdk_types_leaking_into_
         .expect("profile should exist");
     assert_eq!(profile.display_name, "Demo User");
 
-    let device = device_access
-        .register_device(DeviceAccessRegistrationRequest {
-            tenant_id: "t_demo".into(),
-            device_id: "device_demo".into(),
-            product_id: "product_demo".into(),
-            credential_kind: "token".into(),
-            owner_principal_id: Some("u_demo".into()),
-        })
-        .expect("register_device should succeed");
-    assert_eq!(device.assigned_protocols, vec!["mqtt", "xiaozhi"]);
-
-    let uplink = iot_protocol
-        .decode_uplink(IotProtocolDecodeRequest {
-            tenant_id: "t_demo".into(),
-            device_id: Some("device_demo".into()),
-            channel: "devices/device_demo/up".into(),
-            payload: "{\"temperature\":26}".into(),
-        })
-        .expect("decode_uplink should succeed");
-    assert_eq!(uplink.device_id, "device_demo");
-
-    let downlink = iot_protocol
-        .encode_downlink(IotProtocolEncodeRequest {
-            tenant_id: "t_demo".into(),
-            device_id: "device_demo".into(),
-            channel: "devices/device_demo/down".into(),
-            payload_json: "{\"desired\":{\"switch\":\"on\"}}".into(),
-        })
-        .expect("encode_downlink should succeed");
-    assert!(downlink.contains("devices/device_demo/down"));
-
     let signed_url = storage
         .signed_download_url(ObjectStorageDownloadUrlRequest {
             bucket: "media".into(),
@@ -1060,13 +915,5 @@ fn test_provider_ports_can_be_implemented_without_vendor_sdk_types_leaking_into_
             "principal-profile-upstream-context",
             "2026-04-08T00:00:00Z"
         )
-    );
-    assert_eq!(
-        device_access.provider_health_snapshot(),
-        ProviderHealthSnapshot::healthy("iot-access-local", "2026-04-08T00:00:00Z")
-    );
-    assert_eq!(
-        iot_protocol.provider_health_snapshot(),
-        ProviderHealthSnapshot::healthy("iot-mqtt", "2026-04-08T00:00:00Z")
     );
 }

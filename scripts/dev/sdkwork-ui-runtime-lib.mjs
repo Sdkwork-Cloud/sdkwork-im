@@ -81,6 +81,14 @@ export function resolveSdkworkUiPackageRoot(appRoot, {
   const normalizedAppRoot = path.resolve(appRoot);
   const candidateRoots = [
     path.resolve(normalizedAppRoot, 'packages', 'sdkwork-ui-pc-react'),
+    path.resolve(
+      normalizedAppRoot,
+      '..',
+      '..',
+      '..',
+      'sdkwork-ui',
+      'sdkwork-ui-pc-react',
+    ),
   ];
 
   return candidateRoots.find((candidateRoot) => (

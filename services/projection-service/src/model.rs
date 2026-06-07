@@ -134,7 +134,7 @@ pub struct ConversationSummaryView {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RegisteredDeviceView {
+pub struct RegisteredClientRouteView {
     pub tenant_id: String,
     pub principal_id: String,
     pub principal_kind: String,
@@ -144,8 +144,8 @@ pub struct RegisteredDeviceView {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DeviceSyncFeedWindowView {
-    pub items: Vec<im_domain_core::conversation::DeviceSyncFeedEntry>,
+pub struct ClientRouteSyncFeedWindowView {
+    pub items: Vec<im_domain_core::conversation::ClientRouteSyncFeedEntry>,
     pub next_after_seq: Option<u64>,
     pub has_more: bool,
     pub trimmed_through_seq: u64,

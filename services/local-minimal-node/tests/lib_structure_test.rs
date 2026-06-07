@@ -51,6 +51,7 @@ fn test_local_minimal_node_access_surface_moves_out_of_node_impl() {
         "fn ensure_ops_read_access(",
         "fn ensure_notification_request_access(",
         "fn ensure_registered_device(",
+        "fn bind_client_route_key(",
         "fn ensure_route_session_current(",
         "fn bind_registered_device(",
         "fn resolve_requested_device_id(",
@@ -108,12 +109,12 @@ fn test_local_minimal_node_session_surface_moves_out_of_node_impl() {
         "async fn get_presence_me(",
         "async fn heartbeat_presence(",
         "async fn disconnect_device_session(",
-        "async fn register_device(",
+        "async fn register_client_route(",
         "async fn sync_realtime_subscriptions(",
         "async fn list_realtime_events(",
         "async fn ack_realtime_events(",
         "async fn realtime_websocket(",
-        "async fn get_device_sync_feed(",
+        "async fn get_client_route_sync_feed(",
     ] {
         assert!(
             !node_source.contains(forbidden_symbol),
@@ -377,7 +378,7 @@ fn test_local_minimal_node_read_query_paths_use_runtime_auth_context_entrypoints
     );
 
     for required_symbol in [
-        ".list_members_from_auth_context(",
+        ".list_members_window_from_auth_context(",
         ".get_agent_handoff_state_from_auth_context(",
         ".require_active_member_from_auth_context(",
     ] {
@@ -415,59 +416,59 @@ fn test_local_minimal_node_access_paths_use_runtime_write_access_auth_context_en
 }
 
 #[test]
-fn test_local_minimal_node_device_registration_owner_moves_out_of_access_impl() {
+fn test_local_minimal_node_client_route_registration_owner_moves_out_of_access_impl() {
     let access_source = include_str!("../src/node/access.rs");
     let node_source = include_str!("../src/node.rs");
     let owner_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/node/device_registration.rs"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/node/client_route_registration.rs"),
     )
-    .expect("services/local-minimal-node/src/node/device_registration.rs should exist");
+    .expect("services/local-minimal-node/src/node/client_route_registration.rs should exist");
 
     for forbidden_symbol in [
         "fn ensure_route_session_current(",
         "pub(super) fn bind_registered_device(",
+        "pub(super) fn bind_client_route_key(",
     ] {
         assert!(
             !access_source.contains(forbidden_symbol),
-            "services/local-minimal-node/src/node/access.rs should not keep device registration owner symbol: {forbidden_symbol}"
+            "services/local-minimal-node/src/node/access.rs should not keep legacy route registration owner symbol: {forbidden_symbol}"
         );
     }
 
     for required_symbol in [
-        "mod device_registration;",
-        "device_registration: LocalNodeDeviceRegistration,",
-        "self.device_registration.bind_registered_device(",
-        "self.device_registration.ensure_registered_device(",
+        "mod client_route_registration;",
+        "client_route_registration: LocalNodeClientRouteRegistration,",
+        "self.client_route_registration",
     ] {
         assert!(
             node_source.contains(required_symbol),
-            "services/local-minimal-node/src/node.rs should delegate device registration ownership through LocalNodeDeviceRegistration: {required_symbol}"
+            "services/local-minimal-node/src/node.rs should delegate client route registration ownership through LocalNodeClientRouteRegistration: {required_symbol}"
         );
     }
 
     for required_symbol in [
-        "pub(crate) struct LocalNodeDeviceRegistration",
+        "pub(crate) struct LocalNodeClientRouteRegistration",
         "pub(crate) fn new(",
-        "pub(crate) fn bind_registered_device(",
-        "pub(crate) fn ensure_registered_device(",
+        "pub(crate) fn bind_client_route_key(",
+        "pub(crate) fn ensure_client_route_key(",
         "fn ensure_route_session_current(",
-        "self.device_presence_runtime",
+        "self.presence_runtime",
         "self.realtime_runtime",
         "self.projection_service",
-        ".ensure_device_registration_allowed_from_auth_context(",
-        ".register_device_from_auth_context(",
-        "self.realtime_cluster.bind_device_route_for_principal_kind(",
+        ".ensure_client_route_registration_allowed_from_auth_context(",
+        ".register_client_route_from_auth_context(",
+        "self.realtime_cluster.bind_client_route_for_principal_kind(",
         "platform::refresh_node_operational_view(",
     ] {
         assert!(
             owner_source.contains(required_symbol),
-            "services/local-minimal-node/src/node/device_registration.rs should host device registration owner implementation: {required_symbol}"
+            "services/local-minimal-node/src/node/client_route_registration.rs should host client route registration owner implementation: {required_symbol}"
         );
     }
 
     assert!(
-        !owner_source.contains("projection_service.register_device("),
-        "services/local-minimal-node/src/node/device_registration.rs should not keep projection-service legacy device registration once actor-kind-aware registration owns that seam"
+        !owner_source.contains("projection_service.register_client_route("),
+        "services/local-minimal-node/src/node/client_route_registration.rs should not keep projection-service legacy route registration once actor-kind-aware route registration owns that seam"
     );
 }
 
@@ -481,22 +482,22 @@ fn test_local_minimal_node_manifest_avoids_rand_0_8_direct_dependency() {
 }
 
 #[test]
-fn test_local_minimal_node_route_preflight_owner_moves_out_of_session_entrypoints() {
+fn test_local_minimal_node_route_preflight_owner_moves_out_of_presence_entrypoints() {
     let node_source = include_str!("../src/node.rs");
-    let session_source = include_str!("../src/node/device_session.rs");
+    let presence_source = include_str!("../src/node/presence_routes.rs");
     let owner_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/node/device_registration.rs"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/node/client_route_registration.rs"),
     )
-    .expect("services/local-minimal-node/src/node/device_registration.rs should exist");
+    .expect("services/local-minimal-node/src/node/client_route_registration.rs should exist");
 
     assert!(
-        !session_source.contains("fn bind_device("),
-        "services/local-minimal-node/src/node/device_session.rs should not keep local route preflight glue helper once device_registration owns that seam"
+        !presence_source.contains("fn bind_device("),
+        "services/local-minimal-node/src/node/presence_routes.rs should not keep local route preflight glue helper once client_route_registration owns that seam"
     );
 
     for required_symbol in [
-        "fn prepare_active_device_route(",
-        "self.device_registration.prepare_active_device_route(",
+        "fn prepare_active_client_route(",
+        "self.client_route_registration",
     ] {
         assert!(
             node_source.contains(required_symbol),
@@ -505,74 +506,61 @@ fn test_local_minimal_node_route_preflight_owner_moves_out_of_session_entrypoint
     }
 
     {
-        let required_symbol = "state.prepare_active_device_route(";
+        let required_symbol = "state.prepare_active_client_route(";
         assert!(
-            session_source.contains(required_symbol),
-            "services/local-minimal-node/src/node/device_session.rs should consume the shared route preflight owner seam: {required_symbol}"
+            presence_source.contains(required_symbol),
+            "services/local-minimal-node/src/node/presence_routes.rs should consume the shared route preflight owner seam: {required_symbol}"
         );
     }
 
     for required_symbol in [
-        "pub(crate) fn prepare_active_device_route(",
-        "self.bind_registered_device(",
+        "pub(crate) fn prepare_active_client_route(",
+        "self.bind_client_route_key(",
         "fn ensure_route_session_current(",
     ] {
         assert!(
             owner_source.contains(required_symbol),
-            "services/local-minimal-node/src/node/device_registration.rs should host route preflight owner detail: {required_symbol}"
+            "services/local-minimal-node/src/node/client_route_registration.rs should host route preflight owner detail: {required_symbol}"
         );
     }
 }
 
 #[test]
-fn test_local_minimal_node_disconnect_lifecycle_owner_moves_out_of_session_entrypoints() {
-    let node_source = include_str!("../src/node.rs");
-    let session_source = include_str!("../src/node/device_session.rs");
+fn test_local_minimal_node_disconnect_lifecycle_is_not_exposed_by_presence_entrypoints() {
+    let presence_source = include_str!("../src/node/presence_routes.rs");
     let owner_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/node/device_registration.rs"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/node/client_route_registration.rs"),
     )
-    .expect("services/local-minimal-node/src/node/device_registration.rs should exist");
+    .expect("services/local-minimal-node/src/node/client_route_registration.rs should exist");
 
     for forbidden_symbol in [
-        "state.realtime_cluster.disconnect_fence_matches_session(",
-        "state.realtime_runtime.clear_device_subscriptions(",
-        "state.realtime_cluster.release_device_route(",
-        "state.realtime_cluster.mark_device_disconnected(",
+        "state.realtime_cluster.disconnect_fence_matches_client_route_session(",
+        "state.realtime_runtime.clear_client_route_subscriptions(",
+        "state.realtime_cluster.release_client_route(",
+        "state.realtime_cluster.mark_client_route_disconnected(",
         "platform::refresh_node_operational_view(&state)",
     ] {
         assert!(
-            !session_source.contains(forbidden_symbol),
-            "services/local-minimal-node/src/node/device_session.rs should not keep raw disconnect lifecycle glue once device_registration owns that seam: {forbidden_symbol}"
-        );
-    }
-
-    for required_symbol in [
-        "fn disconnect_active_device_route(",
-        "self.device_registration.disconnect_active_device_route(",
-    ] {
-        assert!(
-            node_source.contains(required_symbol),
-            "services/local-minimal-node/src/node.rs should expose the disconnect lifecycle owner seam: {required_symbol}"
+            !presence_source.contains(forbidden_symbol),
+            "services/local-minimal-node/src/node/presence_routes.rs should not keep raw disconnect lifecycle glue once client_route_registration owns that seam: {forbidden_symbol}"
         );
     }
 
     assert!(
-        session_source.contains("state.disconnect_active_device_route("),
-        "services/local-minimal-node/src/node/device_session.rs should consume the shared disconnect lifecycle owner seam"
+        !presence_source.contains("state.disconnect_active_client_route("),
+        "services/local-minimal-node/src/node/presence_routes.rs must not expose retired HTTP disconnect behavior"
     );
 
-    for required_symbol in [
-        "pub(crate) enum DisconnectActiveDeviceRouteOutcome",
-        "pub(crate) fn disconnect_active_device_route(",
-        "disconnect_fence_matches_session_for_principal_kind(",
-        "clear_device_subscriptions_for_principal_kind(",
-        "release_device_route_for_principal_kind(",
-        "mark_device_disconnected_for_principal_kind(",
-        "platform::refresh_node_operational_view(",
+    for forbidden_symbol in [
+        "pub(crate) enum DisconnectActiveClientRouteOutcome",
+        "pub(crate) fn disconnect_active_client_route(",
+        "disconnect_fence_matches_client_route_session_for_principal_kind(",
+        "clear_client_route_subscriptions_for_principal_kind(",
+        "mark_client_route_disconnected_for_principal_kind(",
     ] {
         assert!(
-            owner_source.contains(required_symbol),
-            "services/local-minimal-node/src/node/device_registration.rs should host disconnect lifecycle owner detail: {required_symbol}"
+            !owner_source.contains(forbidden_symbol),
+            "services/local-minimal-node/src/node/client_route_registration.rs should not keep retired HTTP disconnect lifecycle owner detail: {forbidden_symbol}"
         );
     }
 }
@@ -610,7 +598,7 @@ fn test_local_minimal_node_effects_use_projection_owned_realtime_fanout_target_s
 
     for forbidden_symbol in [
         ".realtime_fanout_targets_from_auth_context(",
-        ".registered_devices(tenant_id, principal_id.as_str())",
+        ".registered_client_routes(tenant_id, principal_id.as_str())",
         ".map(|item| item.device_id)",
         ".realtime_fanout_targets_for_principals(tenant_id, principal_ids)",
     ] {
@@ -634,7 +622,7 @@ fn test_local_minimal_node_effects_do_not_swallow_realtime_delivery_failures() {
         "services/local-minimal-node/src/node/effects.rs should surface realtime fanout delivery failures with a stable API error code"
     );
     assert!(
-        !effects_source.contains("let _ = state\n            .realtime_cluster\n            .publish_device_event_for_principal_kind("),
+        !effects_source.contains("let _ = state\n            .realtime_cluster\n            .publish_client_route_event_for_principal_kind("),
         "services/local-minimal-node/src/node/effects.rs must not silently discard realtime publish results"
     );
 }
@@ -737,32 +725,27 @@ fn test_local_minimal_node_read_cursor_write_path_uses_strict_domain_membership_
 }
 
 #[test]
-fn test_local_minimal_node_session_projection_paths_use_projection_service_auth_context_entrypoints()
- {
-    let session_source = include_str!("../src/node/device_session.rs");
+fn test_local_minimal_node_presence_paths_use_projection_service_auth_context_entrypoints() {
+    let presence_source = include_str!("../src/node/presence_routes.rs");
 
-    for required_symbol in [
-        ".device_sync_state_snapshot_from_auth_context(",
-        ".device_sync_feed_window_from_auth_context(",
-    ] {
-        assert!(
-            session_source.contains(required_symbol),
-            "local-minimal-node session paths should consume projection-service principal-context entrypoint: {required_symbol}"
-        );
-    }
+    let required_symbol = ".client_route_sync_state_snapshot_from_auth_context(";
+    assert!(
+        presence_source.contains(required_symbol),
+        "local-minimal-node presence paths should consume projection-service principal-context entrypoint: {required_symbol}"
+    );
 
     for forbidden_symbol in [
-        "fn registered_devices(state: &AppState, auth: &AppContext) -> Vec<String>",
-        ".registered_devices_from_auth_context(",
-        ".latest_device_sync_seq_from_auth_context(",
-        ".registered_devices(auth.tenant_id.as_str(), auth.actor_id.as_str())",
-        ".latest_device_sync_seq(\n        auth.tenant_id.as_str(),",
-        ".latest_device_sync_seq(\n            auth.tenant_id.as_str(),",
-        ".device_sync_feed(\n            auth.tenant_id.as_str(),",
+        "fn registered_client_routes(state: &AppState, auth: &AppContext) -> Vec<String>",
+        ".registered_client_routes_from_auth_context(",
+        ".latest_client_route_sync_seq_from_auth_context(",
+        ".registered_client_routes(auth.tenant_id.as_str(), auth.actor_id.as_str())",
+        ".latest_client_route_sync_seq(\n        auth.tenant_id.as_str(),",
+        ".latest_client_route_sync_seq(\n            auth.tenant_id.as_str(),",
+        ".client_route_sync_feed(\n            auth.tenant_id.as_str(),",
     ] {
         assert!(
-            !session_source.contains(forbidden_symbol),
-            "local-minimal-node session paths should not keep raw projection auth field capture outside projection-service principal-context entrypoint: {forbidden_symbol}"
+            !presence_source.contains(forbidden_symbol),
+            "local-minimal-node presence paths should not keep raw projection auth field capture outside projection-service principal-context entrypoint: {forbidden_symbol}"
         );
     }
 }
@@ -932,7 +915,6 @@ fn test_local_minimal_node_does_not_keep_appbase_owned_local_api_modules() {
     let access_source = include_str!("../src/node/access.rs");
     let platform_source = include_str!("../src/node/platform.rs");
     let principal_profile_source = include_str!("../src/node/principal_profile.rs");
-    let rtc_source = include_str!("../src/node/rtc.rs");
 
     for removed_module in ["iam.rs", "iot.rs", "portal.rs", "twin.rs"] {
         let module_path = manifest_dir.join("src").join("node").join(removed_module);
@@ -1026,16 +1008,6 @@ fn test_local_minimal_node_does_not_keep_appbase_owned_local_api_modules() {
         !principal_profile_source.contains("async fn get_principal_profile_provider_health("),
         "local-minimal-node principal_profile.rs must not expose appbase-owned provider-health route handlers"
     );
-
-    for forbidden_symbol in [
-        "async fn map_rtc_provider_callback(",
-        "async fn get_rtc_provider_health(",
-    ] {
-        assert!(
-            !rtc_source.contains(forbidden_symbol),
-            "local-minimal-node rtc.rs must not keep appbase-owned provider handlers: {forbidden_symbol}"
-        );
-    }
 }
 
 #[test]
@@ -1094,5 +1066,42 @@ fn test_local_minimal_node_runtime_dir_preview_keys_use_segment_safe_encoding() 
             !preview_diff_source.contains(forbidden_symbol),
             "runtime_dir restore preview keys must not use ambiguous delimiter concatenation: {forbidden_symbol}"
         );
+    }
+}
+
+#[test]
+fn test_local_minimal_node_source_does_not_keep_legacy_device_rust_symbols() {
+    let source_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/node");
+    let forbidden_symbols = [
+        "DeviceSync",
+        "device_sync",
+        "RegisteredDevice",
+        "registered_devices",
+        "register_device",
+        "DeviceTwin",
+        "device-twin-state",
+        "device_route",
+        "bind_device",
+        "release_device",
+        "ensure_device_registration",
+    ];
+
+    for entry in std::fs::read_dir(&source_dir)
+        .expect("services/local-minimal-node/src/node should be readable")
+    {
+        let entry = entry.expect("local-minimal-node src/node entry should be readable");
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("rs") {
+            continue;
+        }
+        let source =
+            std::fs::read_to_string(&path).expect("local-minimal-node Rust source should read");
+        for forbidden_symbol in forbidden_symbols {
+            assert!(
+                !source.contains(forbidden_symbol),
+                "{} must use sdkwork-aiot or client_route naming instead of legacy device symbol: {forbidden_symbol}",
+                path.display()
+            );
+        }
     }
 }

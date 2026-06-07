@@ -38,7 +38,7 @@ craw-chat/
 - `conversation-runtime`
 - `session-gateway`
 - `streaming-service`
-- `sdkwork-rtc-signaling-service` (owned by the materialized dependency at `.sdkwork/dependencies/sdkwork-rtc`)
+- `sdkwork-rtc-signaling-service` (owned by the sibling workspace dependency at `../sdkwork-rtc`)
 - `media-service`
 - `notification-service`
 - `automation-service`

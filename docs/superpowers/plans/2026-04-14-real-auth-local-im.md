@@ -34,7 +34,7 @@ async fn test_seeded_im_user_can_log_in_and_fetch_me() {
             "login": "guest",
             "password": "Guest#2026",
             "clientKind": "im_user",
-            "deviceId": "d_guest",
+            "clientRouteId": "d_guest",
             "sessionId": "s_guest"
         }),
     ).await;

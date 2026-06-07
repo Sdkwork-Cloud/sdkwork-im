@@ -52,8 +52,21 @@ const tauriWindowControlPermissionSource = readText('packages', 'sdkwork-clawcha
 const tauriConfig = readJson('packages', 'sdkwork-clawchat-pc-desktop', 'src-tauri', 'tauri.conf.json');
 const tauriDefaultCapability = readJson('packages', 'sdkwork-clawchat-pc-desktop', 'src-tauri', 'capabilities', 'default.json');
 const viteConfigSource = readText('vite.config.ts');
+const pnpmWorkspaceSource = readText('pnpm-workspace.yaml');
 const tsconfig = readJson('tsconfig.json');
 const packageJson = readJson('package.json');
+
+function assertWorkspaceDependency(dependencyName) {
+  assert.equal(
+    packageJson.dependencies?.[dependencyName],
+    'workspace:*',
+    `package.json must consume ${dependencyName} through workspace:*; the canonical source path belongs in pnpm-workspace.yaml packages.`,
+  );
+}
+
+function assertWorkspacePackagePath(pattern, message) {
+  assert.match(pnpmWorkspaceSource, pattern, message);
+}
 
 assert.match(
   authGateSource,
@@ -293,8 +306,14 @@ assert.match(
 
 assert.match(
   authRuntimeSource,
-  /appbaseAppApiBaseUrl:\s*resolveAppSdkBaseUrl\(\)[\s\S]*appbaseBackendApiBaseUrl:\s*resolveBackendSdkBaseUrl\(\)/u,
-  'SDKWork Chat IAM runtime must pass appbase app/backend base URLs into the standard factory.',
+  /appbaseAppApiBaseUrl:\s*resolveAppSdkBaseUrl\(\)/u,
+  'SDKWork Chat IAM runtime must pass the appbase app base URL into the standard factory.',
+);
+
+assert.doesNotMatch(
+  authRuntimeSource,
+  /appbaseBackendApiBaseUrl|resolveBackendSdkBaseUrl|getBackendSdkClient|resetBackendSdkClient|resetAppbaseBackendSdkClient/u,
+  'SDKWork Chat app auth runtime must not construct or reset backend SDK clients; backend SDKs are exported through the admin surface only.',
 );
 
 assert.match(
@@ -816,28 +835,28 @@ assert.match(
   'Vite must resolve @sdkwork/iam-sdk-ports from canonical sdkwork-appbase source.',
 );
 
-assert.match(
-  String(packageJson.dependencies?.['@sdkwork/auth-pc-react'] ?? ''),
+assertWorkspaceDependency('@sdkwork/auth-pc-react');
+assertWorkspacePackagePath(
   /sdkwork-appbase[\\/]packages[\\/]pc-react[\\/]iam[\\/]sdkwork-auth-pc-react/u,
-  'package.json must link @sdkwork/auth-pc-react to canonical sdkwork-appbase.',
+  'pnpm-workspace.yaml must declare @sdkwork/auth-pc-react canonical sdkwork-appbase source path.',
 );
 
-assert.match(
-  String(packageJson.dependencies?.['@sdkwork/auth-runtime-pc-react'] ?? ''),
+assertWorkspaceDependency('@sdkwork/auth-runtime-pc-react');
+assertWorkspacePackagePath(
   /sdkwork-appbase[\\/]packages[\\/]pc-react[\\/]iam[\\/]sdkwork-auth-runtime-pc-react/u,
-  'package.json must link @sdkwork/auth-runtime-pc-react to the canonical appbase high-level auth runtime.',
+  'pnpm-workspace.yaml must declare @sdkwork/auth-runtime-pc-react canonical appbase high-level auth runtime source path.',
 );
 
-assert.match(
-  String(packageJson.dependencies?.['@sdkwork/appbase-app-sdk'] ?? ''),
+assertWorkspaceDependency('@sdkwork/appbase-app-sdk');
+assertWorkspacePackagePath(
   /sdkwork-appbase[\\/]sdks[\\/]sdkwork-appbase-app-sdk[\\/]sdkwork-appbase-app-sdk-typescript[\\/]generated[\\/]server-openapi/u,
-  'package.json must link @sdkwork/appbase-app-sdk to canonical sdkwork-appbase app SDK.',
+  'pnpm-workspace.yaml must declare @sdkwork/appbase-app-sdk canonical sdkwork-appbase app SDK source path.',
 );
 
-assert.match(
-  String(packageJson.dependencies?.['@sdkwork/i18n-pc-react'] ?? ''),
+assertWorkspaceDependency('@sdkwork/i18n-pc-react');
+assertWorkspacePackagePath(
   /sdkwork-appbase[\\/]packages[\\/]pc-react[\\/]foundation[\\/]sdkwork-i18n-pc-react/u,
-  'package.json must include the canonical appbase i18n PC React package.',
+  'pnpm-workspace.yaml must declare @sdkwork/i18n-pc-react canonical appbase i18n PC React source path.',
 );
 
 assert.equal(
@@ -846,10 +865,10 @@ assert.equal(
   'package.json must not depend on the lower-level IAM SDK adapter after auth runtime migration.',
 );
 
-assert.match(
-  String(packageJson.dependencies?.['@sdkwork/iam-sdk-ports'] ?? ''),
+assertWorkspaceDependency('@sdkwork/iam-sdk-ports');
+assertWorkspacePackagePath(
   /sdkwork-appbase[\\/]packages[\\/]common[\\/]iam[\\/]sdkwork-iam-sdk-ports/u,
-  'package.json must include the canonical appbase IAM SDK ports package.',
+  'pnpm-workspace.yaml must declare @sdkwork/iam-sdk-ports canonical appbase IAM SDK ports source path.',
 );
 
 assert.match(

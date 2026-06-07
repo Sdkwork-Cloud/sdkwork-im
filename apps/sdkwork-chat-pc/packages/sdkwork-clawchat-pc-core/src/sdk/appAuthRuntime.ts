@@ -12,8 +12,6 @@ import { resetAiotAppSdkClient, getAiotAppSdkClient } from './aiotAppSdkClient';
 import { resetAppSdkClient, getAppSdkClient, resolveAppSdkBaseUrl } from './appSdkClient';
 import { resetAgentAppSdkClient, getAgentAppSdkClient } from './agentAppSdkClient';
 import { resetAppbaseAppSdkClient } from './appbaseAppSdkClient';
-import { resetAppbaseBackendSdkClient } from './appbaseBackendSdkClient';
-import { resetBackendSdkClient, getBackendSdkClient, resolveBackendSdkBaseUrl } from './backendSdkClient';
 import { resetImSdkClient, getImSdkClient } from './imSdkClient';
 import {
   applyAppSdkSessionTokens,
@@ -91,11 +89,9 @@ function resolveIamDeploymentMode(): IamDeploymentMode {
 
 export function resetSdkworkChatAuthenticatedSdkClients(): void {
   resetAppbaseAppSdkClient();
-  resetAppbaseBackendSdkClient();
   resetAiotAppSdkClient();
   resetAppSdkClient();
   resetAgentAppSdkClient();
-  resetBackendSdkClient();
   resetImSdkClient();
 }
 
@@ -109,7 +105,6 @@ function getAuthenticatedSdkClients(): SdkworkAppbasePcAuthRuntimeSdkClient[] {
     getAiotAppSdkClient(),
     getAppSdkClient(),
     getAgentAppSdkClient(),
-    getBackendSdkClient(),
     getImSdkClient(),
   ] as SdkworkAppbasePcAuthRuntimeSdkClient[];
 }
@@ -124,7 +119,6 @@ function createSdkworkChatIamRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
     },
     baseUrls: {
       appbaseAppApiBaseUrl: resolveAppSdkBaseUrl(),
-      appbaseBackendApiBaseUrl: resolveBackendSdkBaseUrl(),
     },
     hooks: {
       onSessionChanged: () => {

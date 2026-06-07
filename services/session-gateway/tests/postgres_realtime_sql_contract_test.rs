@@ -1,13 +1,13 @@
 use session_gateway::{
     RealtimePostgresBindingValue, RealtimePostgresCheckpointMutation,
-    RealtimePostgresDeviceEventMutation, RealtimePostgresMethodAtomicity,
+    RealtimePostgresClientRouteEventMutation, RealtimePostgresMethodAtomicity,
     realtime_postgres_adapter_plan, realtime_postgres_bind_ack_transaction,
-    realtime_postgres_bind_checkpoint_upsert, realtime_postgres_bind_device_event_upsert,
+    realtime_postgres_bind_checkpoint_upsert, realtime_postgres_bind_client_route_event_upsert,
     realtime_postgres_bind_publish_transaction,
     realtime_postgres_bind_save_subscription_transaction,
     realtime_postgres_bind_subscription_scope_clear,
     realtime_postgres_bind_subscription_scope_replacements,
-    realtime_postgres_bind_subscription_upsert, realtime_postgres_bind_trim_device_events,
+    realtime_postgres_bind_subscription_upsert, realtime_postgres_bind_trim_client_route_events,
     realtime_postgres_sql_contract_specs,
 };
 
@@ -269,18 +269,19 @@ fn test_postgres_realtime_checkpoint_sql_preserves_monotonic_capacity_trim_metad
 #[test]
 fn test_postgres_realtime_event_window_sql_supports_range_reads_trim_and_clear() {
     let source = postgres_realtime_sql_source();
-    let list = constant_source(&source, "list_realtime_device_events_sql");
-    let upsert = constant_source(&source, "upsert_realtime_device_event_sql");
-    let trim = constant_source(&source, "trim_realtime_device_events_sql");
-    let clear = constant_source(&source, "clear_realtime_device_events_sql");
+    let list = constant_source(&source, "list_realtime_client_route_events_sql");
+    let upsert = constant_source(&source, "upsert_realtime_client_route_event_sql");
+    let trim = constant_source(&source, "trim_realtime_client_route_events_sql");
+    let clear = constant_source(&source, "clear_realtime_client_route_events_sql");
     let diagnostics = constant_source(&source, "load_realtime_event_window_diagnostics_sql");
     let high_risk = constant_source(&source, "list_realtime_event_window_high_risk_windows_sql");
-    let orphaned_events = constant_source(&source, "list_orphaned_realtime_device_events_sql");
+    let orphaned_events =
+        constant_source(&source, "list_orphaned_realtime_client_route_events_sql");
 
     assert_contains_all(
         list,
         &[
-            "pub const list_realtime_device_events_sql",
+            "pub const list_realtime_client_route_events_sql",
             "from im_realtime_device_events",
             "delivery_class",
             "realtime_seq > $3",
@@ -291,7 +292,7 @@ fn test_postgres_realtime_event_window_sql_supports_range_reads_trim_and_clear()
     assert_contains_all(
         upsert,
         &[
-            "pub const upsert_realtime_device_event_sql",
+            "pub const upsert_realtime_client_route_event_sql",
             "delivery_class",
             "payload_json",
             "payload_hash",
@@ -301,7 +302,7 @@ fn test_postgres_realtime_event_window_sql_supports_range_reads_trim_and_clear()
     assert_contains_all(
         trim,
         &[
-            "pub const trim_realtime_device_events_sql",
+            "pub const trim_realtime_client_route_events_sql",
             "delete from im_realtime_device_events",
             "realtime_seq <= $3",
         ],
@@ -309,7 +310,7 @@ fn test_postgres_realtime_event_window_sql_supports_range_reads_trim_and_clear()
     assert_contains_all(
         clear,
         &[
-            "pub const clear_realtime_device_events_sql",
+            "pub const clear_realtime_client_route_events_sql",
             "delete from im_realtime_device_events",
             "where tenant_id = $1 and device_scope_key = $2",
         ],
@@ -320,9 +321,9 @@ fn test_postgres_realtime_event_window_sql_supports_range_reads_trim_and_clear()
             "pub const load_realtime_event_window_diagnostics_sql",
             "from im_realtime_checkpoints c",
             "left join im_realtime_device_events e",
-            "count(distinct c.tenant_id || ':' || c.device_scope_key) as device_window_count",
+            "count(distinct c.tenant_id || ':' || c.device_scope_key) as client_route_window_count",
             "count(e.realtime_seq) as pending_event_count",
-            "coalesce(max(window_counts.pending_event_count), 0) as max_device_window_event_count",
+            "coalesce(max(window_counts.pending_event_count), 0) as max_client_route_window_event_count",
             "coalesce(max(c.trimmed_through_seq), 0) as max_trimmed_through_seq",
             "coalesce(sum(c.capacity_trimmed_event_count), 0) as capacity_trimmed_event_count",
             "coalesce(max(c.capacity_trimmed_through_seq), 0) as max_capacity_trimmed_through_seq",
@@ -346,7 +347,7 @@ fn test_postgres_realtime_event_window_sql_supports_range_reads_trim_and_clear()
     assert_contains_all(
         orphaned_events,
         &[
-            "pub const list_orphaned_realtime_device_events_sql",
+            "pub const list_orphaned_realtime_client_route_events_sql",
             "from im_realtime_device_events e",
             "left join im_realtime_checkpoints c",
             "c.device_scope_key = e.device_scope_key",
@@ -460,7 +461,7 @@ fn test_postgres_realtime_transaction_plans_define_atomic_adapter_boundaries() {
         "publish_realtime_events_transaction_plan",
         &[
             "begin transaction",
-            "1. upsert_realtime_device_event_sql",
+            "1. upsert_realtime_client_route_event_sql",
             "2. upsert_realtime_checkpoint_sql",
             "commit transaction",
             "rollback transaction on any error",
@@ -472,7 +473,7 @@ fn test_postgres_realtime_transaction_plans_define_atomic_adapter_boundaries() {
         "ack_realtime_events_transaction_plan",
         &[
             "begin transaction",
-            "1. trim_realtime_device_events_sql",
+            "1. trim_realtime_client_route_events_sql",
             "2. upsert_realtime_checkpoint_sql",
             "commit transaction",
             "rollback transaction on any error",
@@ -481,28 +482,28 @@ fn test_postgres_realtime_transaction_plans_define_atomic_adapter_boundaries() {
     );
     assert_plan_contains_steps(
         &source,
-        "restore_realtime_device_state_transaction_plan",
+        "restore_realtime_client_route_state_transaction_plan",
         &[
             "begin transaction",
             "1. upsert_realtime_subscription_sql or clear_realtime_subscription_sql",
             "2. clear_realtime_subscription_scopes_sql when replacing subscriptions",
             "3. replace_realtime_subscription_scopes_sql for each derived scope row",
             "4. upsert_realtime_checkpoint_sql",
-            "5. clear_realtime_device_events_sql",
-            "6. upsert_realtime_device_event_sql for each restored event",
+            "5. clear_realtime_client_route_events_sql",
+            "6. upsert_realtime_client_route_event_sql for each restored event",
             "commit transaction",
             "rollback transaction on any error",
         ],
     );
     assert_plan_contains_steps(
         &source,
-        "take_realtime_device_state_transaction_plan",
+        "take_realtime_client_route_state_transaction_plan",
         &[
             "begin transaction",
             "1. load_realtime_checkpoint_sql",
-            "2. list_realtime_device_events_sql",
+            "2. list_realtime_client_route_events_sql",
             "3. load_realtime_subscription_sql",
-            "4. clear_realtime_device_events_sql",
+            "4. clear_realtime_client_route_events_sql",
             "5. clear_realtime_subscription_scopes_sql",
             "6. clear_realtime_subscription_sql",
             "commit transaction",
@@ -565,19 +566,19 @@ fn test_postgres_realtime_sql_placeholders_are_contiguous() {
         13,
     );
     assert_uses_contiguous_placeholders(
-        constant_source(&source, "upsert_realtime_device_event_sql"),
+        constant_source(&source, "upsert_realtime_client_route_event_sql"),
         15,
     );
     assert_uses_contiguous_placeholders(
-        constant_source(&source, "list_realtime_device_events_sql"),
+        constant_source(&source, "list_realtime_client_route_events_sql"),
         4,
     );
     assert_uses_contiguous_placeholders(
-        constant_source(&source, "trim_realtime_device_events_sql"),
+        constant_source(&source, "trim_realtime_client_route_events_sql"),
         3,
     );
     assert_uses_contiguous_placeholders(
-        constant_source(&source, "clear_realtime_device_events_sql"),
+        constant_source(&source, "clear_realtime_client_route_events_sql"),
         2,
     );
     assert_uses_contiguous_placeholders(
@@ -589,7 +590,7 @@ fn test_postgres_realtime_sql_placeholders_are_contiguous() {
         0,
     );
     assert_uses_contiguous_placeholders(
-        constant_source(&source, "list_orphaned_realtime_device_events_sql"),
+        constant_source(&source, "list_orphaned_realtime_client_route_events_sql"),
         1,
     );
     assert_uses_contiguous_placeholders(
@@ -680,7 +681,7 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
         ]
     );
     assert_eq!(
-        row_columns(sql_spec(specs, "LIST_REALTIME_DEVICE_EVENTS_SQL")),
+        row_columns(sql_spec(specs, "LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL")),
         vec![
             "tenant_id",
             "principal_kind",
@@ -744,8 +745,8 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
         "RealtimeDisconnectFenceStore::clear_fence",
         "RealtimeDisconnectFenceStore::clear_fence_disconnected_at_or_before",
         "RealtimeDisconnectFenceStore::clear_fence_if_matches",
-        "RealtimeDeliveryRuntime::restore_device_state",
-        "RealtimeDeliveryRuntime::take_device_state",
+        "RealtimeDeliveryRuntime::restore_client_route_state",
+        "RealtimeDeliveryRuntime::take_client_route_state",
         "RealtimeDeliveryRuntime::publish_scope_event",
         "RealtimeDeliveryRuntime::ack_events",
     ];
@@ -774,7 +775,7 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
     assert_eq!(
         step_sql_names(publish),
         vec![
-            "UPSERT_REALTIME_DEVICE_EVENT_SQL",
+            "UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL",
             "UPSERT_REALTIME_CHECKPOINT_SQL",
         ]
     );
@@ -788,14 +789,14 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
     assert_eq!(
         step_sql_names(ack),
         vec![
-            "TRIM_REALTIME_DEVICE_EVENTS_SQL",
+            "TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
             "UPSERT_REALTIME_CHECKPOINT_SQL",
         ]
     );
 
     let restore = method_plan(
         adapter_plan,
-        "RealtimeDeliveryRuntime::restore_device_state",
+        "RealtimeDeliveryRuntime::restore_client_route_state",
     );
     assert_eq!(
         restore.atomicity,
@@ -803,7 +804,7 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
     );
     assert_eq!(
         restore.transaction_plan_name,
-        Some("RESTORE_REALTIME_DEVICE_STATE_TRANSACTION_PLAN")
+        Some("RESTORE_REALTIME_CLIENT_ROUTE_STATE_TRANSACTION_PLAN")
     );
     assert_eq!(
         step_sql_names(restore),
@@ -812,24 +813,27 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
             "CLEAR_REALTIME_SUBSCRIPTION_SCOPES_SQL",
             "REPLACE_REALTIME_SUBSCRIPTION_SCOPES_SQL",
             "UPSERT_REALTIME_CHECKPOINT_SQL",
-            "CLEAR_REALTIME_DEVICE_EVENTS_SQL",
-            "UPSERT_REALTIME_DEVICE_EVENT_SQL",
+            "CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
+            "UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL",
         ]
     );
 
-    let take = method_plan(adapter_plan, "RealtimeDeliveryRuntime::take_device_state");
+    let take = method_plan(
+        adapter_plan,
+        "RealtimeDeliveryRuntime::take_client_route_state",
+    );
     assert_eq!(take.atomicity, RealtimePostgresMethodAtomicity::Transaction);
     assert_eq!(
         take.transaction_plan_name,
-        Some("TAKE_REALTIME_DEVICE_STATE_TRANSACTION_PLAN")
+        Some("TAKE_REALTIME_CLIENT_ROUTE_STATE_TRANSACTION_PLAN")
     );
     assert_eq!(
         step_sql_names(take),
         vec![
             "LOAD_REALTIME_CHECKPOINT_SQL",
-            "LIST_REALTIME_DEVICE_EVENTS_SQL",
+            "LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
             "LOAD_REALTIME_SUBSCRIPTION_SQL",
-            "CLEAR_REALTIME_DEVICE_EVENTS_SQL",
+            "CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
             "CLEAR_REALTIME_SUBSCRIPTION_SCOPES_SQL",
             "CLEAR_REALTIME_SUBSCRIPTION_SQL",
         ]
@@ -966,7 +970,7 @@ fn test_postgres_realtime_event_and_ack_binding_plans_match_sql_contract_order()
         occurred_at: "2026-05-01T10:00:00.000Z".into(),
     };
 
-    let event_statement = realtime_postgres_bind_device_event_upsert(
+    let event_statement = realtime_postgres_bind_client_route_event_upsert(
         &event,
         "user",
         "6:t_demo|4:user|6:u_demo|5:d_pad",
@@ -1019,11 +1023,17 @@ fn test_postgres_realtime_event_and_ack_binding_plans_match_sql_contract_order()
         ]
     );
 
-    let trim_statement =
-        realtime_postgres_bind_trim_device_events("t_demo", "6:t_demo|4:user|6:u_demo|5:d_pad", 40)
-            .expect("trim binding should succeed");
+    let trim_statement = realtime_postgres_bind_trim_client_route_events(
+        "t_demo",
+        "6:t_demo|4:user|6:u_demo|5:d_pad",
+        40,
+    )
+    .expect("trim binding should succeed");
 
-    assert_eq!(trim_statement.sql_name, "TRIM_REALTIME_DEVICE_EVENTS_SQL");
+    assert_eq!(
+        trim_statement.sql_name,
+        "TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL"
+    );
     assert_eq!(
         bound_values(&trim_statement),
         vec![
@@ -1212,7 +1222,7 @@ fn test_postgres_realtime_binding_plan_rejects_values_postgres_cannot_store() {
         occurred_at: "2026-05-01T10:00:00.000Z".into(),
     };
 
-    let error = realtime_postgres_bind_device_event_upsert(
+    let error = realtime_postgres_bind_client_route_event_upsert(
         &invalid_payload_event,
         "user",
         "6:t_demo|4:user|6:u_demo|5:d_pad",
@@ -1254,7 +1264,7 @@ fn test_postgres_realtime_publish_and_ack_transactions_preserve_atomic_statement
     };
 
     let publish = realtime_postgres_bind_publish_transaction(
-        vec![RealtimePostgresDeviceEventMutation {
+        vec![RealtimePostgresClientRouteEventMutation {
             event: event.clone(),
             principal_kind: "user".into(),
             device_scope_key: "6:t_demo|4:user|6:u_demo|5:d_pad".into(),
@@ -1276,7 +1286,7 @@ fn test_postgres_realtime_publish_and_ack_transactions_preserve_atomic_statement
     assert_eq!(
         transaction_sql_names(&publish),
         vec![
-            "UPSERT_REALTIME_DEVICE_EVENT_SQL",
+            "UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL",
             "UPSERT_REALTIME_CHECKPOINT_SQL",
         ]
     );
@@ -1297,7 +1307,7 @@ fn test_postgres_realtime_publish_and_ack_transactions_preserve_atomic_statement
     assert_eq!(
         transaction_sql_names(&ack),
         vec![
-            "TRIM_REALTIME_DEVICE_EVENTS_SQL",
+            "TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
             "UPSERT_REALTIME_CHECKPOINT_SQL",
         ]
     );

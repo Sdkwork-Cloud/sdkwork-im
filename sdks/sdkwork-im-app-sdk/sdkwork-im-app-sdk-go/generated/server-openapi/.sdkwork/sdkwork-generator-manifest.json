@@ -18,16 +18,8 @@
       "sha256": "72d5f813fee5067aaec65c718451b9da00707586a0d43e11dd7b9e471b88634c"
     },
     {
-      "path": "api/device.go",
-      "sha256": "f454d5de8b57e0771c28910e2c11597d3d8fe46307b4ea09948cac280be0901f"
-    },
-    {
       "path": "api/doc.go",
       "sha256": "df10dbe97e78e9abb8637e8ead7db66d34f5bd85e5fce63caf33c7efc3136cf5"
-    },
-    {
-      "path": "api/iot.go",
-      "sha256": "7af7efc4110ceb32f0fcdb5c7dc626d6da46d12aee548a32f2a84c11f3ad4c9c"
     },
     {
       "path": "api/notification.go",
@@ -83,19 +75,15 @@
     },
     {
       "path": "README.md",
-      "sha256": "cdceaea2a77b7f982e81af1c4a04eecd64039e320b06eee55fa7f86cf0e2b451"
+      "sha256": "266b80eb5b630fc6c14f0ef9f8c4a04b0ff5dda6eda7337b36f69c797a9a09e1"
     },
     {
       "path": "sdk.go",
-      "sha256": "3c1c3d5cb8283bdf2c586a7d034dd91562a3e38e2bc5b284d577dddf7bdaea5c"
+      "sha256": "80224905e877bf678d507cd9913709bf91d266a80ef5f6490efbec9de26c41f6"
     },
     {
       "path": "sdkwork-sdk.json",
       "sha256": "4b9c32c817c877b5a945bf28b778516d7667ea4a17ef53657545d3f62c560afb"
-    },
-    {
-      "path": "types/access_provider_health_retrieve_response.go",
-      "sha256": "3c43c7bf78b364893df84b8439659e1b9c36dd704939bb75d5dfad0becad87da"
     },
     {
       "path": "types/agent_subject.go",
@@ -142,10 +130,6 @@
       "sha256": "8ca97a9dc507aa4c976d724451de05600271d6794c16f64e0db3ea6db504e912"
     },
     {
-      "path": "types/device_twin_view.go",
-      "sha256": "79f643391c5a8b4ac14f9846d71651c2e57a8e0dce945810fe14cee6a39e63e6"
-    },
-    {
       "path": "types/doc.go",
       "sha256": "4089f8b79f655ba08466a19f5bec1dcd3e0333f83b9b8eb27d6370a66c79c097"
     },
@@ -190,18 +174,6 @@
       "sha256": "90452e529ae64cd02071b062a76abf7964869f3d30d3351ef62aab63c107dec0"
     },
     {
-      "path": "types/protocol_downlink_create_response.go",
-      "sha256": "a45ffea5f69b7ff1ac274c5ce441f830181e7b87db5bd0b0717d3a6e49f8f507"
-    },
-    {
-      "path": "types/protocol_provider_health_retrieve_response.go",
-      "sha256": "aa5b750e5860c2599974a1b8cd49247f076da1038fbe413f485eb451f0b14d50"
-    },
-    {
-      "path": "types/protocol_uplink_create_response.go",
-      "sha256": "dacee3147c8f3a989d473f6fd183f9992520d19677e75a494b3132a6d0f11926"
-    },
-    {
       "path": "types/request_agent_tool_call_request.go",
       "sha256": "3360d341ead73a5d309bad57731f67d6468ce511c64c9a5fa9c8b1097d881fba"
     },
@@ -240,14 +212,6 @@
     {
       "path": "types/string_map.go",
       "sha256": "3d26fadbd899a21fd618ae167320396a12d65e8baa00ae1bc91101bbc492013b"
-    },
-    {
-      "path": "types/update_device_twin_desired_request.go",
-      "sha256": "8933696056336843960924a67b48dd466706d8c4d0e84c17034438b879e9c272"
-    },
-    {
-      "path": "types/update_device_twin_reported_request.go",
-      "sha256": "c07e42d90689f09538730adb5e5d5ffd572af5289d20ab726823140dcc1db08e"
     }
   ],
   "scaffoldFiles": [

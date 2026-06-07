@@ -14,26 +14,16 @@ pub enum ProviderDomain {
     Rtc,
     ObjectStorage,
     PrincipalProfile,
-    IotAccess,
-    IotProtocol,
 }
 
 impl ProviderDomain {
-    pub const ALL: [Self; 5] = [
-        Self::Rtc,
-        Self::ObjectStorage,
-        Self::PrincipalProfile,
-        Self::IotAccess,
-        Self::IotProtocol,
-    ];
+    pub const ALL: [Self; 3] = [Self::Rtc, Self::ObjectStorage, Self::PrincipalProfile];
 
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Rtc => "rtc",
             Self::ObjectStorage => "object-storage",
             Self::PrincipalProfile => "principal-profile",
-            Self::IotAccess => "iot-access",
-            Self::IotProtocol => "iot-protocol",
         }
     }
 }
@@ -368,24 +358,6 @@ impl StaticProviderRegistry {
                 "外部系统集成",
             )
             .with_required_capabilities(["read", "profile", "external-mapping"]),
-            ProviderPluginDescriptor::new(
-                "iot-access-local",
-                ProviderDomain::IotAccess,
-                "local",
-                "本地设备接入",
-            )
-            .with_default_selected(true)
-            .with_required_capabilities(["registry", "credential", "binding", "twin"]),
-            ProviderPluginDescriptor::new("iot-mqtt", ProviderDomain::IotProtocol, "mqtt", "MQTT")
-                .with_default_selected(true)
-                .with_required_capabilities(["uplink", "downlink", "telemetry"]),
-            ProviderPluginDescriptor::new(
-                "iot-xiaozhi",
-                ProviderDomain::IotProtocol,
-                "xiaozhi",
-                "小智协议",
-            )
-            .with_required_capabilities(["uplink", "downlink", "semantic-mapping"]),
         ])
     }
 
@@ -1293,86 +1265,6 @@ pub trait PrincipalProfileProvider: Send + Sync {
         external_system: &str,
         external_principal_id: &str,
     ) -> Result<Option<PrincipalProfile>, ContractError>;
-    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot;
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DeviceAccessRegistrationRequest {
-    pub tenant_id: String,
-    pub device_id: String,
-    pub product_id: String,
-    pub credential_kind: String,
-    pub owner_principal_id: Option<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DeviceAccessRegistration {
-    pub tenant_id: String,
-    pub device_id: String,
-    pub product_id: String,
-    pub owner_principal_id: Option<String>,
-    pub credential_secret: Option<String>,
-    pub assigned_protocols: Vec<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DeviceAccessOwnerBindingRequest {
-    pub tenant_id: String,
-    pub device_id: String,
-    pub owner_principal_id: String,
-    pub session_id: Option<String>,
-}
-
-pub trait DeviceAccessProvider: Send + Sync {
-    fn descriptor(&self) -> ProviderPluginDescriptor;
-    fn register_device(
-        &self,
-        request: DeviceAccessRegistrationRequest,
-    ) -> Result<DeviceAccessRegistration, ContractError>;
-    fn bind_owner(&self, request: DeviceAccessOwnerBindingRequest) -> Result<bool, ContractError>;
-    fn disable_device(&self, tenant_id: &str, device_id: &str) -> Result<bool, ContractError>;
-    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot;
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct IotProtocolDecodeRequest {
-    pub tenant_id: String,
-    pub device_id: Option<String>,
-    pub channel: String,
-    pub payload: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct IotProtocolEncodeRequest {
-    pub tenant_id: String,
-    pub device_id: String,
-    pub channel: String,
-    pub payload_json: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct IotProtocolEnvelope {
-    pub tenant_id: String,
-    pub device_id: String,
-    pub channel: String,
-    pub payload_json: String,
-    pub attributes: BTreeMap<String, String>,
-}
-
-pub trait IotProtocolAdapter: Send + Sync {
-    fn descriptor(&self) -> ProviderPluginDescriptor;
-    fn protocol_key(&self) -> &'static str;
-    fn decode_uplink(
-        &self,
-        request: IotProtocolDecodeRequest,
-    ) -> Result<IotProtocolEnvelope, ContractError>;
-    fn encode_downlink(&self, request: IotProtocolEncodeRequest) -> Result<String, ContractError>;
     fn provider_health_snapshot(&self) -> ProviderHealthSnapshot;
 }
 

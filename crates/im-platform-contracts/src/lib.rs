@@ -16,9 +16,6 @@ pub use craw_chat_contract_core::{
     ContractError, LeaseGrant, LeaseStore, MetadataSnapshotRecord, MetadataStore, ObjectDescriptor,
     ObjectPutRequest, ObjectStore,
 };
-pub use craw_chat_contract_iot::{
-    DeviceSubject, DeviceSubjectRecord, DeviceSubjectStore, DeviceTwinRecord, DeviceTwinStore,
-};
 pub use craw_chat_contract_message::{
     CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionBatch,
     TimelineProjectionRecord, TimelineProjectionStore,

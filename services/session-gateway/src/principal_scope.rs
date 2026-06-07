@@ -6,7 +6,7 @@ pub(crate) fn typed_principal_scope_key(
     scope_key(&[tenant_id, principal_kind, principal_id])
 }
 
-pub(crate) fn typed_device_scope_key(
+pub(crate) fn typed_client_route_scope_key(
     tenant_id: &str,
     principal_id: &str,
     principal_kind: &str,
@@ -15,7 +15,7 @@ pub(crate) fn typed_device_scope_key(
     scope_key(&[tenant_id, principal_kind, principal_id, device_id])
 }
 
-pub(crate) fn tenant_device_scope_key(tenant_id: &str, device_id: &str) -> String {
+pub(crate) fn tenant_client_route_scope_key(tenant_id: &str, device_id: &str) -> String {
     scope_key(&[tenant_id, device_id])
 }
 
@@ -39,13 +39,13 @@ mod tests {
             "typed principal scope keys must encode tenant/principal boundaries unambiguously"
         );
         assert_ne!(
-            typed_device_scope_key("t", "u:d", "user", "1"),
-            typed_device_scope_key("t", "u", "user", "d:1"),
+            typed_client_route_scope_key("t", "u:d", "user", "1"),
+            typed_client_route_scope_key("t", "u", "user", "d:1"),
             "typed device scope keys must encode principal/device boundaries unambiguously"
         );
         assert_ne!(
-            tenant_device_scope_key("t:d", "1"),
-            tenant_device_scope_key("t", "d:1"),
+            tenant_client_route_scope_key("t:d", "1"),
+            tenant_client_route_scope_key("t", "d:1"),
             "tenant device scope keys must encode tenant/device boundaries unambiguously"
         );
     }

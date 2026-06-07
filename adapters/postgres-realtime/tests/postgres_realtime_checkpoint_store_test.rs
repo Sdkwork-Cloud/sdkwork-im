@@ -2,7 +2,7 @@ use im_adapters_postgres_realtime::{
     PostgresRealtimeCheckpointStore, PostgresRealtimeConfig, PostgresRealtimeConnectionManager,
     PostgresRealtimeDisconnectFenceStore, PostgresRealtimeEventWindowStore, PostgresRealtimePool,
     PostgresRealtimePresenceStateStore, PostgresRealtimeSubscriptionStore,
-    postgres_realtime_device_scope_key, postgres_realtime_payload_hash,
+    postgres_realtime_client_route_scope_key, postgres_realtime_payload_hash,
 };
 use im_platform_contracts::{
     ContractError, PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
@@ -156,8 +156,8 @@ fn test_session_gateway_postgres_realtime_live_runtime_test_covers_core_runtime_
         "PostgresRealtimeEventWindowStore::from_pool",
         "publish_scope_event_for_principal_kind",
         "ack_events_for_principal_kind",
-        "take_device_state_for_principal_kind",
-        "restore_device_state",
+        "take_client_route_state_for_principal_kind",
+        "restore_client_route_state",
         "source_after_take_delivery, 0",
         "target_window.items[0].realtime_seq, 2",
     ] {
@@ -295,12 +295,14 @@ fn test_postgres_realtime_subscription_sql_uses_indexed_fanout_table() {
 fn test_postgres_realtime_event_window_sql_uses_checkpoint_and_event_tables_atomically() {
     let load_checkpoint_sql =
         PostgresRealtimeEventWindowStore::checkpoint_load_sql().to_lowercase();
-    let list_events_sql = PostgresRealtimeEventWindowStore::device_events_list_sql().to_lowercase();
+    let list_events_sql =
+        PostgresRealtimeEventWindowStore::client_route_events_list_sql().to_lowercase();
     let upsert_event_sql =
-        PostgresRealtimeEventWindowStore::device_event_upsert_sql().to_lowercase();
-    let trim_events_sql = PostgresRealtimeEventWindowStore::device_events_trim_sql().to_lowercase();
+        PostgresRealtimeEventWindowStore::client_route_event_upsert_sql().to_lowercase();
+    let trim_events_sql =
+        PostgresRealtimeEventWindowStore::client_route_events_trim_sql().to_lowercase();
     let clear_events_sql =
-        PostgresRealtimeEventWindowStore::device_events_clear_sql().to_lowercase();
+        PostgresRealtimeEventWindowStore::client_route_events_clear_sql().to_lowercase();
     let diagnostics_sql = PostgresRealtimeEventWindowStore::diagnostics_sql().to_lowercase();
     let high_risk_sql = PostgresRealtimeEventWindowStore::high_risk_windows_sql().to_lowercase();
 
@@ -324,13 +326,13 @@ fn test_postgres_realtime_event_window_sql_uses_checkpoint_and_event_tables_atom
 }
 
 #[test]
-fn test_postgres_realtime_device_scope_key_uses_length_prefixed_segments() {
+fn test_postgres_realtime_client_route_scope_key_uses_length_prefixed_segments() {
     assert_eq!(
-        postgres_realtime_device_scope_key("t:demo", "user", "u|demo", "d#pad"),
+        postgres_realtime_client_route_scope_key("t:demo", "user", "u|demo", "d#pad"),
         "6:t:demo|4:user|6:u|demo|5:d#pad"
     );
     assert_eq!(
-        postgres_realtime_device_scope_key("t_demo", "user", "u_demo", "d_pad"),
+        postgres_realtime_client_route_scope_key("t_demo", "user", "u_demo", "d_pad"),
         "6:t_demo|4:user|6:u_demo|5:d_pad"
     );
 }

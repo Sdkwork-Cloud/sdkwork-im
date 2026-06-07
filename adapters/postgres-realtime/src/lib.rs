@@ -1,6 +1,6 @@
 use chrono::{DateTime, SecondsFormat, Utc};
 use im_domain_core::{
-    device_session::{DevicePresenceStatus, DevicePresenceView},
+    presence::{PresenceClientView, PresenceStatus},
     realtime::RealtimeEvent,
 };
 use im_platform_contracts::{
@@ -159,16 +159,16 @@ returning
 "#;
 
 use im_postgres_realtime_contracts::{
-    CLEAR_REALTIME_DEVICE_EVENTS_SQL,
+    CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
     CLEAR_REALTIME_DISCONNECT_FENCE_DISCONNECTED_AT_OR_BEFORE_SQL,
     CLEAR_REALTIME_DISCONNECT_FENCE_IF_MATCHES_SQL, CLEAR_REALTIME_DISCONNECT_FENCE_SQL,
     CLEAR_REALTIME_SUBSCRIPTION_IF_SYNCED_AT_OR_BEFORE_SQL, CLEAR_REALTIME_SUBSCRIPTION_SCOPES_SQL,
-    CLEAR_REALTIME_SUBSCRIPTION_SQL, LIST_REALTIME_DEVICE_EVENTS_SQL,
+    CLEAR_REALTIME_SUBSCRIPTION_SQL, LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
     LIST_REALTIME_EVENT_WINDOW_HIGH_RISK_WINDOWS_SQL, LOAD_MATCHING_REALTIME_SUBSCRIPTIONS_SQL,
     LOAD_REALTIME_CHECKPOINT_SQL, LOAD_REALTIME_DISCONNECT_FENCE_SQL,
     LOAD_REALTIME_EVENT_WINDOW_DIAGNOSTICS_SQL, LOAD_REALTIME_SUBSCRIPTION_SQL,
-    REPLACE_REALTIME_SUBSCRIPTION_SCOPES_SQL, TRIM_REALTIME_DEVICE_EVENTS_SQL,
-    UPSERT_REALTIME_CHECKPOINT_SQL, UPSERT_REALTIME_DEVICE_EVENT_SQL,
+    REPLACE_REALTIME_SUBSCRIPTION_SCOPES_SQL, TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
+    UPSERT_REALTIME_CHECKPOINT_SQL, UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL,
     UPSERT_REALTIME_DISCONNECT_FENCE_SQL, UPSERT_REALTIME_SUBSCRIPTION_SQL,
 };
 pub type PostgresRealtimeConnectionManager = PostgresConnectionManager<NoTls>;
@@ -299,20 +299,20 @@ impl PostgresRealtimeEventWindowStore {
         UPSERT_REALTIME_CHECKPOINT_SQL
     }
 
-    pub fn device_event_upsert_sql() -> &'static str {
-        UPSERT_REALTIME_DEVICE_EVENT_SQL
+    pub fn client_route_event_upsert_sql() -> &'static str {
+        UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL
     }
 
-    pub fn device_events_list_sql() -> &'static str {
-        LIST_REALTIME_DEVICE_EVENTS_SQL
+    pub fn client_route_events_list_sql() -> &'static str {
+        LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL
     }
 
-    pub fn device_events_trim_sql() -> &'static str {
-        TRIM_REALTIME_DEVICE_EVENTS_SQL
+    pub fn client_route_events_trim_sql() -> &'static str {
+        TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL
     }
 
-    pub fn device_events_clear_sql() -> &'static str {
-        CLEAR_REALTIME_DEVICE_EVENTS_SQL
+    pub fn client_route_events_clear_sql() -> &'static str {
+        CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL
     }
 
     pub fn diagnostics_sql() -> &'static str {
@@ -757,7 +757,7 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
         let device_id = device_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "get subscription connection")?;
-            let device_scope_key = postgres_realtime_device_scope_key(
+            let client_route_scope_key = postgres_realtime_client_route_scope_key(
                 tenant_id.as_str(),
                 principal_kind.as_str(),
                 principal_id.as_str(),
@@ -766,7 +766,7 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
             client
                 .query_opt(
                     LOAD_REALTIME_SUBSCRIPTION_SQL,
-                    &[&tenant_id, &device_scope_key],
+                    &[&tenant_id, &client_route_scope_key],
                 )
                 .map_err(|error| postgres_unavailable("load subscription", error))?
                 .map(subscription_from_row)
@@ -823,7 +823,7 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
             let mut transaction = client.transaction().map_err(|error| {
                 postgres_unavailable("begin subscription save transaction", error)
             })?;
-            let device_scope_key = postgres_realtime_device_scope_key(
+            let client_route_scope_key = postgres_realtime_client_route_scope_key(
                 record.tenant_id.as_str(),
                 record.principal_kind.as_str(),
                 record.principal_id.as_str(),
@@ -833,14 +833,14 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
             execute_subscription_upsert(
                 &mut transaction,
                 &record,
-                device_scope_key.as_str(),
+                client_route_scope_key.as_str(),
                 &statement_timestamp,
             )?;
             let synced_at = parse_utc("synced_at", record.synced_at.as_str())?;
             transaction
                 .execute(
                     CLEAR_REALTIME_SUBSCRIPTION_SCOPES_SQL,
-                    &[&record.tenant_id, &device_scope_key, &synced_at],
+                    &[&record.tenant_id, &client_route_scope_key, &synced_at],
                 )
                 .map_err(|error| postgres_unavailable("clear subscription scopes", error))?;
             for (scope_type, scope_id, event_type) in subscription_scope_rows(&record) {
@@ -854,7 +854,7 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
                             &scope_type,
                             &scope_id,
                             &event_type,
-                            &device_scope_key,
+                            &client_route_scope_key,
                             &record.device_id,
                             &synced_at,
                             &statement_timestamp,
@@ -884,7 +884,7 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
         let device_id = device_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "get subscription connection")?;
-            let device_scope_key = postgres_realtime_device_scope_key(
+            let client_route_scope_key = postgres_realtime_client_route_scope_key(
                 tenant_id.as_str(),
                 principal_kind.as_str(),
                 principal_id.as_str(),
@@ -893,7 +893,7 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
             let deleted = client
                 .execute(
                     CLEAR_REALTIME_SUBSCRIPTION_SQL,
-                    &[&tenant_id, &device_scope_key],
+                    &[&tenant_id, &client_route_scope_key],
                 )
                 .map_err(|error| postgres_unavailable("clear subscription", error))?;
             Ok(deleted > 0)
@@ -916,7 +916,7 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
         let device_id = device_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "get subscription connection")?;
-            let device_scope_key = postgres_realtime_device_scope_key(
+            let client_route_scope_key = postgres_realtime_client_route_scope_key(
                 tenant_id.as_str(),
                 principal_kind.as_str(),
                 principal_id.as_str(),
@@ -925,7 +925,7 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
             let deleted = client
                 .execute(
                     CLEAR_REALTIME_SUBSCRIPTION_IF_SYNCED_AT_OR_BEFORE_SQL,
-                    &[&tenant_id, &device_scope_key, &cutoff_synced_at],
+                    &[&tenant_id, &client_route_scope_key, &cutoff_synced_at],
                 )
                 .map_err(|error| postgres_unavailable("clear subscription by synced_at", error))?;
             Ok(deleted > 0)
@@ -948,7 +948,7 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
         let device_id = device_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "get event window connection")?;
-            let device_scope_key = postgres_realtime_device_scope_key(
+            let client_route_scope_key = postgres_realtime_client_route_scope_key(
                 tenant_id.as_str(),
                 principal_kind.as_str(),
                 principal_id.as_str(),
@@ -960,7 +960,7 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
             let checkpoint_row = transaction
                 .query_opt(
                     LOAD_REALTIME_CHECKPOINT_SQL,
-                    &[&tenant_id, &device_scope_key],
+                    &[&tenant_id, &client_route_scope_key],
                 )
                 .map_err(|error| postgres_unavailable("load event window checkpoint", error))?;
             let Some(checkpoint) = checkpoint_row.map(checkpoint_from_row).transpose()? else {
@@ -973,8 +973,8 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
             let limit = i64::MAX;
             let events = transaction
                 .query(
-                    LIST_REALTIME_DEVICE_EVENTS_SQL,
-                    &[&tenant_id, &device_scope_key, &after_seq, &limit],
+                    LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
+                    &[&tenant_id, &client_route_scope_key, &after_seq, &limit],
                 )
                 .map_err(|error| postgres_unavailable("list event window events", error))?
                 .into_iter()
@@ -1022,7 +1022,7 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
             })?;
             let statement_timestamp = Utc::now();
             for record in records {
-                let device_scope_key = postgres_realtime_device_scope_key(
+                let client_route_scope_key = postgres_realtime_client_route_scope_key(
                     record.tenant_id.as_str(),
                     record.principal_kind.as_str(),
                     record.principal_id.as_str(),
@@ -1030,18 +1030,18 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
                 );
                 transaction
                     .execute(
-                        CLEAR_REALTIME_DEVICE_EVENTS_SQL,
-                        &[&record.tenant_id, &device_scope_key],
+                        CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
+                        &[&record.tenant_id, &client_route_scope_key],
                     )
                     .map_err(|error| {
                         postgres_unavailable("clear previous event window events", error)
                     })?;
                 for event in &record.events {
-                    execute_device_event_upsert(
+                    execute_client_route_event_upsert(
                         &mut transaction,
                         event,
                         record.principal_kind.as_str(),
-                        device_scope_key.as_str(),
+                        client_route_scope_key.as_str(),
                         &statement_timestamp,
                     )?;
                 }
@@ -1049,7 +1049,7 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
                 execute_checkpoint_upsert(
                     &mut transaction,
                     &checkpoint,
-                    device_scope_key.as_str(),
+                    client_route_scope_key.as_str(),
                     &statement_timestamp,
                 )?;
             }
@@ -1074,7 +1074,7 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
         let device_id = device_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "get event window connection")?;
-            let device_scope_key = postgres_realtime_device_scope_key(
+            let client_route_scope_key = postgres_realtime_client_route_scope_key(
                 tenant_id.as_str(),
                 principal_kind.as_str(),
                 principal_id.as_str(),
@@ -1082,8 +1082,8 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
             );
             let deleted = client
                 .execute(
-                    CLEAR_REALTIME_DEVICE_EVENTS_SQL,
-                    &[&tenant_id, &device_scope_key],
+                    CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
+                    &[&tenant_id, &client_route_scope_key],
                 )
                 .map_err(|error| postgres_unavailable("clear event window events", error))?;
             Ok(deleted > 0)
@@ -1125,7 +1125,7 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
         let device_id = device_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "get event window connection")?;
-            let device_scope_key = postgres_realtime_device_scope_key(
+            let client_route_scope_key = postgres_realtime_client_route_scope_key(
                 tenant_id.as_str(),
                 principal_kind.as_str(),
                 principal_id.as_str(),
@@ -1136,14 +1136,14 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
             })?;
             transaction
                 .execute(
-                    TRIM_REALTIME_DEVICE_EVENTS_SQL,
-                    &[&tenant_id, &device_scope_key, &acked_through_seq_i64],
+                    TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
+                    &[&tenant_id, &client_route_scope_key, &acked_through_seq_i64],
                 )
                 .map_err(|error| postgres_unavailable("trim event window events", error))?;
             let existing = transaction
                 .query_opt(
                     LOAD_REALTIME_CHECKPOINT_SQL,
-                    &[&tenant_id, &device_scope_key],
+                    &[&tenant_id, &client_route_scope_key],
                 )
                 .map_err(|error| postgres_unavailable("load checkpoint for trim", error))?
                 .map(checkpoint_from_row)
@@ -1167,7 +1167,7 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
             execute_checkpoint_upsert(
                 &mut transaction,
                 &checkpoint,
-                &device_scope_key,
+                &client_route_scope_key,
                 &Utc::now(),
             )?;
             transaction.commit().map_err(|error| {
@@ -1271,7 +1271,7 @@ impl RealtimeCheckpointStore for PostgresRealtimeCheckpointStore {
         let device_id = device_id.to_owned();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "get checkpoint connection")?;
-            let device_scope_key = postgres_realtime_device_scope_key(
+            let client_route_scope_key = postgres_realtime_client_route_scope_key(
                 tenant_id.as_str(),
                 principal_kind.as_str(),
                 principal_id.as_str(),
@@ -1280,7 +1280,7 @@ impl RealtimeCheckpointStore for PostgresRealtimeCheckpointStore {
             let row = client
                 .query_opt(
                     LOAD_REALTIME_CHECKPOINT_SQL,
-                    &[&tenant_id, &device_scope_key],
+                    &[&tenant_id, &client_route_scope_key],
                 )
                 .map_err(|error| postgres_unavailable("load checkpoint", error))?;
             row.map(checkpoint_from_row).transpose()
@@ -1313,7 +1313,7 @@ impl RealtimeCheckpointStore for PostgresRealtimeCheckpointStore {
             let created_at = Utc::now();
 
             for record in records {
-                let device_scope_key = postgres_realtime_device_scope_key(
+                let client_route_scope_key = postgres_realtime_client_route_scope_key(
                     record.tenant_id.as_str(),
                     record.principal_kind.as_str(),
                     record.principal_id.as_str(),
@@ -1343,7 +1343,7 @@ impl RealtimeCheckpointStore for PostgresRealtimeCheckpointStore {
                         UPSERT_REALTIME_CHECKPOINT_SQL,
                         &[
                             &record.tenant_id,
-                            &device_scope_key,
+                            &client_route_scope_key,
                             &record.principal_kind,
                             &record.principal_id,
                             &record.device_id,
@@ -1368,7 +1368,7 @@ impl RealtimeCheckpointStore for PostgresRealtimeCheckpointStore {
     }
 }
 
-pub fn postgres_realtime_device_scope_key(
+pub fn postgres_realtime_client_route_scope_key(
     tenant_id: &str,
     principal_kind: &str,
     principal_id: &str,
@@ -1494,7 +1494,7 @@ fn validate_realtime_event_for_write(event: &RealtimeEvent) -> Result<(), Contra
 fn execute_checkpoint_upsert(
     transaction: &mut Transaction<'_>,
     record: &RealtimeCheckpointRecord,
-    device_scope_key: &str,
+    client_route_scope_key: &str,
     created_at: &DateTime<Utc>,
 ) -> Result<(), ContractError> {
     let record = record.clone().normalized();
@@ -1520,7 +1520,7 @@ fn execute_checkpoint_upsert(
             UPSERT_REALTIME_CHECKPOINT_SQL,
             &[
                 &record.tenant_id,
-                &device_scope_key,
+                &client_route_scope_key,
                 &record.principal_kind,
                 &record.principal_id,
                 &record.device_id,
@@ -1538,11 +1538,11 @@ fn execute_checkpoint_upsert(
     Ok(())
 }
 
-fn execute_device_event_upsert(
+fn execute_client_route_event_upsert(
     transaction: &mut Transaction<'_>,
     event: &RealtimeEvent,
     principal_kind: &str,
-    device_scope_key: &str,
+    client_route_scope_key: &str,
     statement_timestamp: &DateTime<Utc>,
 ) -> Result<(), ContractError> {
     validate_realtime_event_for_write(event)?;
@@ -1553,10 +1553,10 @@ fn execute_device_event_upsert(
     let retention_until: Option<DateTime<Utc>> = None;
     transaction
         .execute(
-            UPSERT_REALTIME_DEVICE_EVENT_SQL,
+            UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL,
             &[
                 &event.tenant_id,
-                &device_scope_key,
+                &client_route_scope_key,
                 &realtime_seq,
                 &principal_kind,
                 &event.principal_id,
@@ -1596,11 +1596,14 @@ fn diagnostics_from_row(
     high_risk_windows: Vec<RealtimeEventWindowHighRiskRecord>,
 ) -> Result<RealtimeEventWindowDiagnosticsSnapshot, ContractError> {
     Ok(RealtimeEventWindowDiagnosticsSnapshot {
-        device_window_count: i64_to_u64("device_window_count", row.get("device_window_count"))?,
+        client_route_window_count: i64_to_u64(
+            "client_route_window_count",
+            row.get("client_route_window_count"),
+        )?,
         pending_event_count: i64_to_u64("pending_event_count", row.get("pending_event_count"))?,
-        max_device_window_event_count: i64_to_u64(
-            "max_device_window_event_count",
-            row.get("max_device_window_event_count"),
+        max_client_route_window_event_count: i64_to_u64(
+            "max_client_route_window_event_count",
+            row.get("max_client_route_window_event_count"),
         )?,
         max_trimmed_through_seq: i64_to_u64(
             "max_trimmed_through_seq",
@@ -1681,7 +1684,7 @@ fn validate_subscription_for_write(
 fn execute_subscription_upsert(
     transaction: &mut Transaction<'_>,
     record: &RealtimeSubscriptionRecord,
-    device_scope_key: &str,
+    client_route_scope_key: &str,
     statement_timestamp: &DateTime<Utc>,
 ) -> Result<(), ContractError> {
     let subscriptions_json = serde_json::to_string(&record.items).map_err(|error| {
@@ -1706,7 +1709,7 @@ fn execute_subscription_upsert(
             UPSERT_REALTIME_SUBSCRIPTION_SQL,
             &[
                 &record.tenant_id.as_str(),
-                &device_scope_key,
+                &client_route_scope_key,
                 &record.principal_kind.as_str(),
                 &record.principal_id.as_str(),
                 &record.device_id.as_str(),
@@ -1776,7 +1779,7 @@ fn validate_presence_state_for_write(record: &PresenceStateRecord) -> Result<(),
             "postgres realtime presence device_id must match nested presence device_id".into(),
         ));
     }
-    if matches!(record.presence.status, DevicePresenceStatus::Online)
+    if matches!(record.presence.status, PresenceStatus::Online)
         && record.presence.last_seen_at.is_none()
     {
         return Err(ContractError::Conflict(
@@ -1801,7 +1804,7 @@ fn presence_state_from_row(row: Row) -> Result<PresenceStateRecord, ContractErro
         principal_kind,
         principal_id: principal_id.clone(),
         device_id: device_id.clone(),
-        presence: DevicePresenceView {
+        presence: PresenceClientView {
             tenant_id,
             principal_id,
             device_id,
@@ -1818,10 +1821,10 @@ fn presence_state_from_row(row: Row) -> Result<PresenceStateRecord, ContractErro
     Ok(record)
 }
 
-fn presence_status_from_str(status: &str) -> Result<DevicePresenceStatus, ContractError> {
+fn presence_status_from_str(status: &str) -> Result<PresenceStatus, ContractError> {
     match status {
-        "online" => Ok(DevicePresenceStatus::Online),
-        "offline" => Ok(DevicePresenceStatus::Offline),
+        "online" => Ok(PresenceStatus::Online),
+        "offline" => Ok(PresenceStatus::Offline),
         other => Err(ContractError::Unavailable(format!(
             "postgres realtime presence row has unsupported presence_status `{other}`"
         ))),

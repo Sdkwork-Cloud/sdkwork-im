@@ -180,7 +180,7 @@ Examples:
 - chat
 - realtime
 - presence
-- device sessions
+- client route sessions
 - media operations exposed through the IM standard contract
 - stream operations exposed through the IM standard contract
 - IM-side RTC session and signaling HTTP routes that are part of the standardized IM development

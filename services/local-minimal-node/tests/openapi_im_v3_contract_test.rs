@@ -10,7 +10,10 @@ const RTC_APP_OPENAPI_SCHEMA: &str =
     "../../../sdkwork-rtc/sdks/sdkwork-rtc-app-sdk/openapi/sdkwork-rtc-app-api.openapi.json";
 const BACKEND_OPENAPI_SCHEMA: &str =
     "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml";
-const API_STANDARD_SPEC: &str = "../../../../specs/API_SPEC.md";
+const APP_SDK_ASSEMBLY: &str = "../../sdks/sdkwork-im-app-sdk/.sdkwork-assembly.json";
+const APP_SDK_COMPONENT_SPEC: &str = "../../sdks/sdkwork-im-app-sdk/specs/component.spec.json";
+const API_STANDARD_SPEC: &str = "../../../sdkwork-specs/API_SPEC.md";
+const MEDIA_RESOURCE_STANDARD_SPEC: &str = "../../../sdkwork-specs/MEDIA_RESOURCE_SPEC.md";
 const CRAW_CHAT_LOCAL_STANDARD_SPEC: &str = "../../specs/im-app-api-sdk-integration.spec.md";
 const LOCAL_MINIMAL_NODE_BUILD_RS: &str = "src/node/build.rs";
 const CONTROL_PLANE_API_LIB_RS: &str = "../control-plane-api/src/lib.rs";
@@ -343,35 +346,81 @@ fn assert_no_ambiguous_identity_tags_or_generic_session_operations(schema: &Valu
         .filter_map(|tag| tag.get("name").and_then(Value::as_str))
         .collect::<BTreeSet<_>>();
 
-    if label == "app" {
-        assert!(
-            tags.contains("auth"),
-            "app SDK owns the IAM identity lifecycle and must expose the auth namespace"
-        );
-    } else {
-        assert!(
-            !tags.contains("auth"),
-            "{label} must not own upstream identity login SDK namespace"
-        );
-    }
+    assert!(
+        !tags.contains("auth"),
+        "{label} must not own upstream identity login SDK namespace; appbase IAM is consumed through sdkDependencies"
+    );
     assert!(
         !tags.contains("session"),
         "{label} generic session SDK namespace is ambiguous; use a domain-qualified session resource"
     );
 
     let operation_ids = assert_sdkwork_v3_operation_ids(schema, label);
-    if label != "app" {
-        assert!(
-            operation_ids
-                .iter()
-                .all(|operation_id| !operation_id.starts_with("sessions.")),
-            "{label} generic sessions.* operationIds are ambiguous with upstream identity sessions; got {:?}",
-            operation_ids
-                .iter()
-                .filter(|operation_id| operation_id.starts_with("sessions."))
-                .collect::<Vec<_>>()
-        );
-    }
+    assert!(
+        operation_ids
+            .iter()
+            .all(|operation_id| !operation_id.starts_with("sessions.")),
+        "{label} generic sessions.* operationIds are ambiguous with upstream identity sessions; got {:?}",
+        operation_ids
+            .iter()
+            .filter(|operation_id| operation_id.starts_with("sessions."))
+            .collect::<Vec<_>>()
+    );
+}
+
+fn assert_sdk_dependency(
+    metadata: &Value,
+    dependencies_pointer: &str,
+    label: &str,
+    workspace: &str,
+    api_prefix: &str,
+    typescript_package: &str,
+) {
+    let dependencies = metadata
+        .pointer(dependencies_pointer)
+        .and_then(Value::as_array)
+        .unwrap_or_else(|| {
+            panic!("{label} must declare sdkDependencies at {dependencies_pointer}")
+        });
+    let dependency = dependencies
+        .iter()
+        .find(|dependency| {
+            dependency
+                .get("workspace")
+                .and_then(Value::as_str)
+                .is_some_and(|candidate| candidate == workspace)
+        })
+        .unwrap_or_else(|| panic!("{label} must declare dependency workspace {workspace}"));
+
+    assert_eq!(
+        dependency.get("required").and_then(Value::as_bool),
+        Some(true),
+        "{label} dependency {workspace} must be required"
+    );
+    assert_eq!(
+        dependency.get("dependencyMode").and_then(Value::as_str),
+        Some("consumer-sdk"),
+        "{label} dependency {workspace} must be consumed as a dependency SDK"
+    );
+    assert_eq!(
+        dependency.get("apiPrefix").and_then(Value::as_str),
+        Some(api_prefix),
+        "{label} dependency {workspace} must declare apiPrefix {api_prefix}"
+    );
+    assert_eq!(
+        dependency
+            .get("generatedTransportImportPolicy")
+            .and_then(Value::as_str),
+        Some("forbidden"),
+        "{label} dependency {workspace} must not leak into generated transport"
+    );
+    assert_eq!(
+        dependency
+            .pointer("/packageByLanguage/typescript")
+            .and_then(Value::as_str),
+        Some(typescript_package),
+        "{label} dependency {workspace} must declare TypeScript package {typescript_package}"
+    );
 }
 
 #[test]
@@ -385,15 +434,17 @@ fn test_workspace_api_standard_documents_craw_chat_three_surface_authority() {
     );
     assert!(
         api_standard.contains(
-            "IM API | `/im/v3/api` | Current instant messaging application standard open API system"
+            "| Open API | `open-api` | Any approved SDKWork HTTP API prefix that is not `/app/v3/api` and not `/backend/v3/api`, for example `/im/v3/api` |"
+        ) && api_standard.contains(
+            "Craw Chat IM open routes `MUST` start with `/im/v3/api`"
         ),
-        "API standard must define /im/v3/api as the current IM application's standard open API system"
+        "API standard must define /im/v3/api as the current IM open-api prefix"
     );
     assert!(
         api_standard.contains(
-            "App API | `/app/v3/api` | Instant messaging application app/client integration capabilities for mobile App, H5, PC applications, and other clients"
+            "| App API | `app-api` | `/app/v3/api` | Application development clients, desktop apps, mobile apps, H5, PC applications, and other user-facing app clients |"
         ),
-        "API standard must define /app/v3/api as the IM app/client integration surface"
+        "API standard must define /app/v3/api as the fixed app/client integration surface"
     );
     assert!(
         local_standard
@@ -454,15 +505,11 @@ fn test_im_openapi_uses_im_v3_api_paths_without_craw_chat_identity_or_legacy_ses
     let schema = load_schema(IM_OPENAPI_SCHEMA);
     let paths = path_map(&schema);
 
-    assert!(
-        paths.contains_key("/im/v3/api/device/sessions/resume"),
-        "device runtime session resume must live under /im/v3/api/device/sessions"
-    );
-    assert!(
-        paths.contains_key("/im/v3/api/device/sessions/disconnect"),
-        "device runtime session disconnect must live under /im/v3/api/device/sessions"
-    );
     let forbidden_paths = vec![
+        "/im/v3/api/device/sessions/resume".to_owned(),
+        "/im/v3/api/device/sessions/disconnect".to_owned(),
+        "/im/v3/api/devices/register".to_owned(),
+        "/im/v3/api/devices/{deviceId}/sync_feed".to_owned(),
         marker(&["/api", "/v1", "/auth", "/login"]),
         marker(&["/api", "/v1", "/auth", "/me"]),
         marker(&["/api", "/v1", "/portal", "/auth"]),
@@ -505,8 +552,8 @@ fn test_im_openapi_tags_and_operation_ids_are_sdkwork_v3_resource_style() {
         .collect::<BTreeSet<_>>();
 
     assert!(
-        tags.contains("device"),
-        "device SDK namespace must own runtime device sessions"
+        !tags.contains("device"),
+        "IM open-api must not expose a device SDK namespace; device capability belongs to sdkwork-aiot"
     );
     assert!(
         tags.contains("chat"),
@@ -527,9 +574,19 @@ fn test_im_openapi_tags_and_operation_ids_are_sdkwork_v3_resource_style() {
 
     let operation_ids = assert_sdkwork_v3_operation_ids(&schema, "im");
 
-    for expected in [
+    for forbidden in [
         "device.sessions.resume",
         "device.sessions.disconnect",
+        "device.registrations.create",
+        "device.syncFeed.retrieve",
+    ] {
+        assert!(
+            !operation_ids.contains(forbidden),
+            "IM open-api must not expose retired device operation {forbidden}"
+        );
+    }
+
+    for expected in [
         "rtc.sessions.create",
         "rtc.sessions.retrieve",
         "conversations.create",
@@ -1213,25 +1270,32 @@ fn test_im_openapi_conversation_profile_is_standardized_for_pc_group_info() {
 }
 
 #[test]
-fn test_im_openapi_device_sync_feed_is_after_seq_and_limit_bounded() {
+fn test_im_openapi_does_not_expose_client_route_sync_feed_or_registration_contracts() {
     let schema = load_schema(IM_OPENAPI_SCHEMA);
-    let sync_feed_parameters = schema
-        .pointer("/paths/~1im~1v3~1api~1devices~1{deviceId}~1sync_feed/get/parameters")
-        .and_then(Value::as_array)
-        .expect("device sync feed route must define query/path parameters");
-
-    for expected_ref in [
-        "#/components/parameters/DeviceIdPath",
-        "#/components/parameters/AfterSeqQuery",
-        "#/components/parameters/LimitQuery",
+    let paths = path_map(&schema);
+    for forbidden_path in [
+        "/im/v3/api/devices/register",
+        "/im/v3/api/devices/{deviceId}/sync_feed",
+        "/im/v3/api/device/sessions/resume",
+        "/im/v3/api/device/sessions/disconnect",
     ] {
         assert!(
-            sync_feed_parameters
-                .iter()
-                .any(
-                    |parameter| parameter.get("$ref").and_then(Value::as_str) == Some(expected_ref)
-                ),
-            "device sync feed must expose {expected_ref} so clients can page bounded sync windows"
+            !paths.contains_key(forbidden_path),
+            "IM open-api must not expose retired device path {forbidden_path}"
+        );
+    }
+    for forbidden_schema in [
+        "/components/schemas/DeviceSessionView",
+        "/components/schemas/DeviceSessionDisconnectResponse",
+        "/components/schemas/ResumeDeviceSessionRequest",
+        "/components/schemas/RegisterDeviceRequest",
+        "/components/schemas/RegisteredClientRouteView",
+        "/components/schemas/ClientRouteSyncFeedEntry",
+        "/components/schemas/ClientRouteSyncFeedResponse",
+    ] {
+        assert!(
+            schema.pointer(forbidden_schema).is_none(),
+            "IM open-api must not expose retired device schema {forbidden_schema}"
         );
     }
 }
@@ -1506,20 +1570,12 @@ fn test_im_openapi_message_favorites_are_principal_scoped_and_paged() {
 #[test]
 fn test_im_openapi_sync_window_responses_expose_cursor_metadata() {
     let schema = load_schema(IM_OPENAPI_SCHEMA);
-    for (label, schema_pointer, expected_properties, required_properties) in [
-        (
-            "timeline",
-            "/components/schemas/TimelineResponse",
-            ["items", "nextAfterSeq", "hasMore", ""],
-            ["items", "hasMore", "", ""],
-        ),
-        (
-            "device sync feed",
-            "/components/schemas/DeviceSyncFeedResponse",
-            ["items", "nextAfterSeq", "hasMore", "trimmedThroughSeq"],
-            ["items", "hasMore", "trimmedThroughSeq", ""],
-        ),
-    ] {
+    for (label, schema_pointer, expected_properties, required_properties) in [(
+        "timeline",
+        "/components/schemas/TimelineResponse",
+        ["items", "nextAfterSeq", "hasMore", ""],
+        ["items", "hasMore", "", ""],
+    )] {
         let response_schema = schema
             .pointer(schema_pointer)
             .unwrap_or_else(|| panic!("{label} response schema must exist"));
@@ -1653,8 +1709,7 @@ fn test_im_openapi_media_resource_and_message_parts_are_drive_backed() {
     let schema = load_schema(IM_OPENAPI_SCHEMA);
     let raw = load_schema_raw(IM_OPENAPI_SCHEMA);
     let media_resource_spec = fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../../specs/MEDIA_RESOURCE_SPEC.md"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(MEDIA_RESOURCE_STANDARD_SPEC),
     )
     .expect("MediaResource standard spec should be readable");
 
@@ -1817,24 +1872,40 @@ fn test_im_openapi_social_user_search_contract_is_sdk_backed() {
         .pointer("/components/schemas/SocialUserSearchResult/properties")
         .and_then(Value::as_object)
         .expect("SocialUserSearchResult schema must define properties");
-    for property in ["userId", "displayName", "relationshipState"] {
+    for property in ["userId", "chatId", "displayName", "relationshipState"] {
         assert!(
             result_properties.contains_key(property),
             "SocialUserSearchResult must expose {property}"
         );
     }
+    let result_required = schema
+        .pointer("/components/schemas/SocialUserSearchResult/required")
+        .and_then(Value::as_array)
+        .expect("SocialUserSearchResult must define required fields");
+    for required_field in [
+        "tenantId",
+        "userId",
+        "chatId",
+        "displayName",
+        "relationshipState",
+    ] {
+        assert!(
+            result_required.contains(&Value::String(required_field.into())),
+            "SocialUserSearchResult must require {required_field}"
+        );
+    }
 }
 
 #[test]
-fn test_app_api_openapi_uses_sdkwork_im_app_sdk_contract_with_appbase_iam_paths() {
+fn test_app_api_openapi_uses_sdkwork_im_app_sdk_owner_only_contract_with_dependency_sdks() {
     let schema = load_schema(APP_OPENAPI_SCHEMA);
     let paths = path_map(&schema);
 
     assert!(
         paths.len() > 10,
-        "im-app-api must use the product sdkwork-im-app-sdk contract and include appbase IAM integration paths"
+        "im-app-api must use the product sdkwork-im-app-sdk owner-only contract"
     );
-    for expected in [
+    for dependency_owned_path in [
         "/app/v3/api/auth/sessions",
         "/app/v3/api/auth/sessions/current",
         "/app/v3/api/auth/sessions/refresh",
@@ -1844,12 +1915,46 @@ fn test_app_api_openapi_uses_sdkwork_im_app_sdk_contract_with_appbase_iam_paths(
         "/app/v3/api/system/iam/runtime",
         "/app/v3/api/system/iam/verification_policy",
         "/app/v3/api/open_platform/qr_auth/sessions",
+        "/app/v3/api/iot/devices",
+        "/app/v3/api/iot/devices/{deviceId}",
+        "/app/v3/api/iot/devices/{deviceId}/twin",
+        "/app/v3/api/iot/devices/{deviceId}/commands",
+        "/app/v3/api/iot/devices/{deviceId}/events",
     ] {
         assert!(
-            paths.contains_key(expected),
-            "im-app-api must expose product app SDK path {expected}"
+            !paths.contains_key(dependency_owned_path),
+            "im-app-api must not copy dependency-owned path {dependency_owned_path}; consume the owning SDK instead"
         );
     }
+
+    let assembly = load_schema(APP_SDK_ASSEMBLY);
+    let component_spec = load_schema(APP_SDK_COMPONENT_SPEC);
+    for (label, metadata, dependencies_pointer) in [
+        ("sdkwork-im-app-sdk assembly", &assembly, "/sdkDependencies"),
+        (
+            "sdkwork-im-app-sdk component spec",
+            &component_spec,
+            "/contracts/sdkDependencies",
+        ),
+    ] {
+        assert_sdk_dependency(
+            metadata,
+            dependencies_pointer,
+            label,
+            "sdkwork-appbase-app-sdk",
+            "/app/v3/api",
+            "@sdkwork/appbase-app-sdk",
+        );
+        assert_sdk_dependency(
+            metadata,
+            dependencies_pointer,
+            label,
+            "sdkwork-aiot-app-sdk",
+            "/app/v3/api/iot",
+            "@sdkwork/aiot-app-sdk",
+        );
+    }
+
     let forbidden_paths = vec![
         marker(&["/im/v3/api/chat", "/conversations"]),
         marker(&["/app/v3/api/chat", "/conversations"]),

@@ -1,4 +1,4 @@
-import { getBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
+import { getBackendSdkClientWithSession } from '@sdkwork/clawchat-admin-core/sdk';
 
 export interface ServerNode {
   region: string;
@@ -88,7 +88,7 @@ function resolveStatus(node: UnknownRecord): ServerNode['status'] {
 }
 
 function mapNode(node: UnknownRecord, index: number): ServerNode {
-  const routeCount = readNumber(node, ['deviceRouteCount', 'ownedRouteCount', 'connectionCount'], 0);
+  const routeCount = readNumber(node, ['clientRouteCount', 'ownedRouteCount', 'connectionCount'], 0);
   return {
     connections: formatCount(routeCount),
     cpu: normalizeUsage(readNumber(node, ['cpu', 'cpuUsage', 'cpuUsagePercent'], 0)),
@@ -120,11 +120,11 @@ class InfraStatusService {
     }, 0);
     const projectionMetrics = asRecord(asRecord(normalizedHealth.projectionPlane).metrics);
     const conversationPersist = asRecord(projectionMetrics.conversationSnapshotPersist);
-    const devicePersist = asRecord(projectionMetrics.deviceSyncSnapshotPersist);
+    const clientRoutePersist = asRecord(projectionMetrics.clientRouteSyncSnapshotPersist);
     const dbIops = readNumber(conversationPersist, ['successCount'], 0)
-      + readNumber(devicePersist, ['successCount'], 0);
+      + readNumber(clientRoutePersist, ['successCount'], 0);
     const realtimeInbox = asRecord(normalizedHealth.realtimeInbox);
-    const redisHitRate = 100 - normalizeUsage(readNumber(realtimeInbox, ['maxDeviceWindowUsagePermille'], 0) / 10);
+    const redisHitRate = 100 - normalizeUsage(readNumber(realtimeInbox, ['maxClientRouteWindowUsagePermille'], 0) / 10);
 
     return {
       metrics: {
@@ -132,7 +132,7 @@ class InfraStatusService {
         dbIops: { title: 'Database IOPS (Avg)', value: formatCount(dbIops), usage: normalizeUsage(dbIops / 1_000) },
         redisHitRate: { title: 'Realtime Window Health', value: `${redisHitRate}%`, usage: redisHitRate },
       },
-      nodes: nodes.length > 0 ? nodes : asRecordArray(normalizedDiagnostics.deviceRoutes).map(mapNode),
+      nodes: nodes.length > 0 ? nodes : asRecordArray(normalizedDiagnostics.clientRoutes).map(mapNode),
     };
   }
 }

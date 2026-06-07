@@ -9,9 +9,10 @@ This package is the primary IM consumer SDK for browser and Node.js and follows 
 - one generated transport boundary assembled under `src/generated/**`
 - one semantic SDK surface at the package root
 
-Use `ImSdkClient` for application code. Route-aligned transport modules such as `sdk.device.sessions`,
-`sdk.presence`, `sdk.realtime`, `sdk.device`, `sdk.inbox`, and `sdk.stream` are mounted directly on
-the same client when you need exact OpenAPI transport control.
+Use `ImSdkClient` for application code. The root client exposes semantic modules such as
+`sdk.conversations`, `sdk.messages`, `sdk.rtc`, and `sdk.connect(...)`. When you need exact
+OpenAPI transport control, use `sdk.transport.presence`, `sdk.transport.realtime`,
+`sdk.transport.chat`, and `sdk.transport.streams`.
 
 ## Current Delivery Reality
 
@@ -30,7 +31,7 @@ The TypeScript standard is now intentionally narrow and explicit:
 | Official package | `@sdkwork/im-sdk` |
 | Primary client | `ImSdkClient` |
 | Runtime targets | Browser and Node.js |
-| Route-aligned transport modules | `sdk.device.sessions`, `sdk.presence`, `sdk.realtime`, `sdk.device`, `sdk.inbox`, `sdk.stream` |
+| Route-aligned transport modules | `sdk.transport.presence`, `sdk.transport.realtime`, `sdk.transport.chat`, `sdk.transport.streams` |
 | Generated source boundary | `src/generated/**` |
 | Generator-owned authoring boundary | `generated/server-openapi` |
 
@@ -93,30 +94,21 @@ Behavior:
 
 ## Portal Snapshots
 
-Portal snapshot reads are exposed through `sdk.portal`.
+Portal snapshot reads belong to the app API SDK family, not the IM SDK root client. Keep portal
+bootstrap in the app SDK composition layer, then pass the resulting SDKWork credential into
+`ImSdkClient`.
 
 ```ts
-const home = await sdk.portal.getHome();
-const workspace = await sdk.portal.getWorkspace();
-const dashboard = await sdk.portal.getDashboard();
+const sdk = new ImSdkClient({
+  baseUrl: 'https://chat.example.com',
+  authToken: appbaseCredential,
+});
 
-console.log(home.hero?.title, workspace.name, dashboard.hero?.title);
+const inbox = await sdk.conversations.list();
+console.log(inbox.items.length);
 ```
 
-The TypeScript root client promotes the exact portal route group directly, so these helpers stay
-stable and discoverable on the main application client.
-
-| Snapshot | Method |
-| --- | --- |
-| Public landing | `sdk.portal.getHome()` |
-| Sign-in page snapshot | `sdk.portal.getAccess()` |
-| Workspace shell | `sdk.portal.getWorkspace()` |
-| Dashboard | `sdk.portal.getDashboard()` |
-| Conversations portal | `sdk.portal.getConversations()` |
-| Realtime portal | `sdk.portal.getRealtime()` |
-| Media portal | `sdk.portal.getMedia()` |
-| Automation portal | `sdk.portal.getAutomation()` |
-| Governance portal | `sdk.portal.getGovernance()` |
+Use `sdkwork-im-app-sdk` when you need app-owned portal snapshots.
 
 ## Recommended Integration Order
 
@@ -124,9 +116,10 @@ For a new application, build against the SDK in this order:
 
 1. Construct `ImSdkClient`
 2. Authenticate with `authToken`
-3. Send a text message with `sdk.createTextMessage(...)` and `sdk.send(...)`
+3. Send a text message with `sdk.conversations.postText(...)`
 4. Add live push with `sdk.connect(...)`
-5. Add durable catch-up with `sdk.sync.catchUp(...)`
+5. Add durable HTTP coordination with `sdk.transport.realtime.events.list(...)` and
+   `sdk.transport.realtime.events.ack(...)`
 6. Add Drive-backed media message references
 7. Add custom, AI, and agent/workflow messages
 8. Add RTC lifecycle and signaling
@@ -141,16 +134,15 @@ when you need exact OpenAPI operations, request bodies, or transport DTO details
 
 | App domain | Primary TypeScript SDK surface | Exact API reference |
 | --- | --- | --- |
-| SDKWork appbase credential pass-through | `authToken` | [Portal Access](/api-reference/app/portal-access) |
-| Portal shell and workspace snapshots | `sdk.portal` | [Portal Access](/api-reference/app/portal-access) |
-| Conversation lifecycle and handoff | `sdk.conversations.create`, `sdk.conversations.createAgentDialog`, `sdk.conversations.createAgentHandoff`, `sdk.conversations.get` | [Conversations](/api-reference/im/conversations) |
+| SDKWork appbase credential pass-through | `authToken` | [Auth And Client Init](/sdk/auth-and-client-init) |
+| Portal shell and workspace snapshots | `sdkwork-im-app-sdk` dependency | [App SDK](/sdk/app-sdk) |
+| Conversation lifecycle and handoff | `sdk.conversations.create`, `sdk.conversations.createAgentDialog`, `sdk.conversations.bindDirectChat` | [Conversations](/api-reference/im/conversations) |
 | Membership and read cursors | `sdk.conversations.listMembers`, `sdk.conversations.addMember`, `sdk.conversations.updateReadCursor` | [Membership and Read State](/api-reference/im/membership-and-read-state) |
-| Message schemas and semantic send ergonomics | `sdk.createTextMessage(...)`, `sdk.send(...)`, `sdk.decodeMessage(...)` | [Messages](/api-reference/im/messages) |
-| Drive-backed media message references | `sdkwork-drive` for file lifecycle, then `sdk.createImageMessage(...)` with `ContentPart.drive` and `MediaResource` | [Media](/api-reference/im/media) |
-| Device Sessions, presence, live subscriptions, and durable replay | `sdk.connect(...)`, `sdk.sync.catchUp(...)`, `sdk.sync.ack(...)`, `sdk.device.sessions`, `sdk.presence`, `sdk.realtime` | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
-| Device registration and sync feeds | `sdk.device.register(...)`, `sdk.device.getDeviceSyncFeed(...)` | [Device Sync](/api-reference/im/device-sync) |
+| Message schemas and semantic send ergonomics | `sdk.conversations.postText(...)`, `sdk.conversations.postMessage(...)` | [Messages](/api-reference/im/messages) |
+| Drive-backed media message references | `sdkwork-drive` for file lifecycle, then `sdk.conversations.postMessage(...)` with `ContentPart.drive` and `MediaResource` | [Media](/api-reference/im/media) |
+| Realtime presence, live subscriptions, and durable replay | `sdk.connect(...)`, `sdk.transport.presence`, `sdk.transport.realtime` | [Realtime And Presence](/api-reference/im/session-and-realtime) |
 | RTC lifecycle and signaling-side HTTP calls | `sdk.rtc.create(...)`, `sdk.rtc.postJsonSignal(...)`, `sdk.rtc.issueParticipantCredential(...)`, `sdk.rtc.getRecordingArtifact(...)` | [RTC](/api-reference/im/rtc) |
-| Stream transport and checkpointing | `sdk.stream.open(...)`, `sdk.stream.appendStreamFrame(...)`, `sdk.stream.checkpoint(...)`, `sdk.stream.complete(...)` | [Streams](/api-reference/im/streams) |
+| Stream transport and checkpointing | `sdk.transport.streams.create(...)`, `sdk.transport.streams.frames.create(...)`, `sdk.transport.streams.checkpoint.create(...)`, `sdk.transport.streams.complete(...)` | [Streams](/api-reference/im/streams) |
 
 ## Conversations
 
@@ -279,10 +271,11 @@ console.log(timeline.items.length);
 
 ### Inbox
 
-Inbox is exposed directly on the root client:
+Inbox is exposed through the conversations semantic module and the generated transport:
 
 ```ts
-const inbox = await sdk.inbox.getInbox();
+const inbox = await sdk.conversations.list();
+const exactInbox = await sdk.transport.chat.inbox.retrieve();
 console.log(inbox.items.length);
 ```
 
@@ -495,7 +488,7 @@ The SDK intentionally separates live push from durable catch-up.
 
 ```ts
 const live = await sdk.connect({
-  deviceId: 'web-chrome-01',
+  clientRouteId: 'web-chrome-01',
   subscriptions: {
     conversations: ['conversation-1'],
     rtcSessions: ['rtc-1'],
@@ -684,11 +677,10 @@ for provider join credentials, and `sdk.rtc.getRecordingArtifact(...)` for recor
 
 ## Route-Aligned Transport Modules
 
-Some route groups are intentionally exposed as direct transport modules on `ImSdkClient` because
-they already match the public OpenAPI contract cleanly. Use the higher-level semantic modules for
-chat, live receive, media, and RTC workflows. Use the root transport modules when you need exact
-route-group control for session, presence, realtime coordination, device registration, inbox, or
-stream transport.
+Some route groups are intentionally available through the generated transport client because they
+already match the public OpenAPI contract cleanly. Use the higher-level semantic modules for chat,
+live receive, media, and RTC workflows. Use `sdk.transport` when you need exact route-group control
+for presence, realtime coordination, inbox, or stream transport.
 
 ```ts
 import { ImSdkClient } from '@sdkwork/im-sdk';
@@ -698,13 +690,12 @@ const sdk = new ImSdkClient({
   authToken: 'token',
 });
 
-await sdk.device.sessions.resume({ deviceId: 'web-chrome-01' });
-await sdk.presence.getPresenceMe();
-await sdk.realtime.listRealtimeEvents({ limit: 20 });
+await sdk.transport.presence.heartbeat.create({ clientRouteId: 'web-chrome-01' });
+await sdk.transport.presence.me.retrieve();
+await sdk.transport.realtime.events.list({ limit: 20 });
 await sdk.conversations.listMessages('conversation-1');
-await sdk.device.register({ deviceId: 'web-chrome-01' });
-await sdk.inbox.getInbox();
-await sdk.stream.open({
+await sdk.transport.chat.inbox.retrieve();
+await sdk.transport.streams.create({
   streamId: 'stream-demo-1',
   streamType: 'custom.delta.text',
   scopeKind: 'conversation',
@@ -714,11 +705,11 @@ await sdk.stream.open({
 });
 ```
 
-Use the root transport modules when you need exact DTOs or route-group control. Reach for
-`sdk.device.sessions.resume(...)`, `sdk.presence.getPresenceMe()`, `sdk.realtime.listRealtimeEvents(...)`,
-`sdk.device.register(...)`, `sdk.inbox.getInbox()`, and `sdk.stream.open(...)` when the route group
-already matches the API cleanly. Use the semantic domains on `ImSdkClient` for normal application
-integration.
+Use `sdk.transport` when you need exact DTOs or route-group control. Reach for
+`sdk.transport.presence.heartbeat.create(...)`, `sdk.transport.presence.me.retrieve()`,
+`sdk.transport.realtime.events.list(...)`, `sdk.transport.chat.inbox.retrieve()`, and
+`sdk.transport.streams.create(...)` when the route group already matches the API cleanly. Use the
+semantic domains on `ImSdkClient` for normal application integration.
 
 ## Assembly Metadata
 
@@ -777,6 +768,6 @@ node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language typescript
   `src/generated/**`, `generated/server-openapi`, and `composed`.
 - Read [Portal Access](/api-reference/app/portal-access) when you need the underlying HTTP
   contract for portal snapshots and SDKWork appbase credential pass-through.
-- Read [Messages](/api-reference/im/messages), [Device Sessions and Realtime](/api-reference/im/session-and-realtime),
+- Read [Messages](/api-reference/im/messages), [Realtime Presence](/api-reference/im/session-and-realtime),
   and [RTC](/api-reference/im/rtc) when you need the route-level contract behind the semantic
   TypeScript SDK.

@@ -1,8 +1,7 @@
 # Flutter SDK
 
-The official Flutter app-consumer package is `im_sdk`.
-It sits above the generator-owned transport package `im_sdk_generated` and documents the checked-in Dart
-export surface exactly as it exists today.
+The checked-in Flutter IM consumer package is `im_sdk_generated`.
+This page documents the generated Dart transport surface exactly as it exists today.
 
 ::: warning Current delivery status
 The package names below describe repo package contracts, not current pub.dev availability. The
@@ -13,16 +12,16 @@ release catalog still marks `app-flutter` as `generated` and `not_published`.
 
 The checked-in Flutter standard is:
 
-- public consumer package: `im_sdk`
-- primary public client: `ImSdkClient`
+- public consumer package: `im_sdk_generated`
+- primary public client: `ImTransportClient`
 - generated transport boundary: `im_sdk_generated`
-- route-aligned HTTP coverage for auth, portal, conversations, media, streams, and RTC
-- a delivered WebSocket adapter plus `sdk.connect(...)` in the manual-owned `im_sdk` layer
+- route-aligned HTTP coverage for presence, realtime coordination, conversations, streams, social,
+  and RTC
+- no checked-in Dart manual live WebSocket adapter in this repository snapshot
 
 ## How To Use This Page
 
-- Start with [Package Contract](#package-contract) to understand why `im_sdk` is the
-  preferred consumer package and where `im_sdk_generated` remains the low-level transport boundary.
+- Start with [Package Contract](#package-contract) to understand the generated transport boundary.
 - Use [Current Surface Reality](#current-surface-reality) and [Current Parity Gap](#current-parity-gap)
   before promising websocket live push or TypeScript-style message builders.
 - Keep [Consumption Reality](#consumption-reality) and [Local Workspace Workflow](#local-workspace-workflow)
@@ -33,24 +32,21 @@ The checked-in Flutter standard is:
 | Layer | Package | Entrypoint | Primary exports | Use when |
 | --- | --- | --- | --- | --- |
 | Generated transport | `im_sdk_generated` | `package:im_sdk_generated/im_sdk_generated.dart` | `ImTransportClient`, generated models, generated API groups | You want direct transport access and generated request or response models |
-| Composed client | `im_sdk` | `package:im_sdk/im_sdk.dart` | `ImSdkClient`, semantic app modules, helper builders | You want a higher-level client for the app runtime surface |
 
-For most Flutter app integrations, start from `package:im_sdk/im_sdk.dart`.
-`im_sdk` is the official IM consumer package and re-exports `im_sdk_generated`, so generated
-models and low-level route groups remain available without making `im_sdk_generated` the first package
-most teams import.
+For Flutter app integrations in this repository snapshot, start from
+`package:im_sdk_generated/im_sdk_generated.dart`.
 
 ## Consumption Reality
 
 Treat the package names on this page as repo package contracts first. Until the release catalog
 changes, the reliable Flutter consumption paths are:
 
-- local workspace development against the checked-in generated and composed packages
+- local workspace development against the checked-in generated package
 - assembled handoff artifacts produced from the Flutter workspace with `sdk-assemble.ps1` or
   `sdk-assemble.sh`
 
-Do not treat `im_sdk_generated` or `im_sdk` as current pub.dev coordinates while `app-flutter`
-remains `not_published` in the release catalog.
+Do not treat `im_sdk_generated` as a current pub.dev coordinate while `app-flutter` remains
+`not_published` in the release catalog.
 
 ## Generated Transport Quick Start
 
@@ -62,85 +58,64 @@ final client = ImTransportClient.withBaseUrl(
   authToken: 'sdkwork-appbase-credential',
 );
 
-final presence = await client.presence.getPresenceMe();
-final workspace = await client.portal.getWorkspace();
-final inbox = await client.inbox.getInbox();
+final presence = await client.presence.meRetrieve();
+final inbox = await client.chat.inboxRetrieve();
+final events = await client.realtime.eventsList(20);
 ```
 
 The checked-in generated Flutter client currently exports these route groups through
 `ImTransportClient`:
 
-- `portal`
-- `device.sessions`
 - `presence`
 - `realtime`
-- `device`
-- `inbox`
-- `conversation`
-- `message`
-- `media`
-- `stream`
+- `chat`
+- `streams`
 - `rtc`
+- `social`
 
-## Composed Client Quick Start
+## Generated Chat Quick Start
 
 ```dart
-import 'package:im_sdk/im_sdk.dart';
+import 'package:im_sdk_generated/im_sdk_generated.dart';
 
-final sdk = ImSdkClient.create(
+final client = ImTransportClient.withBaseUrl(
   baseUrl: 'http://127.0.0.1:18090',
   authToken: 'sdkwork-appbase-credential',
 );
 
 // Tokens are issued by sdkwork-appbase and passed into Craw Chat.
-final workspace = await sdk.portal.getWorkspace();
+final inbox = await client.chat.inboxRetrieve();
 
-await sdk.conversations.postText(
+await client.chat.conversationsMessagesCreate(
   'conversation-1',
-  text: 'hello world',
-  options: const ImTextMessageOptions(
+  PostMessageRequest(
     clientMsgId: 'client-1',
+    text: 'hello world',
     summary: 'Greeting',
   ),
 );
 
-await sdk.streams.appendTextFrame(
+await client.streams.framesCreate(
   'stream-1',
-  const ImAppendTextFrameOptions(
-    frameSeq: 7,
-    text: 'partial chunk',
-    schemaRef: 'urn:craw-chat:stream:text',
+  AppendStreamFrameRequest(
+    payload: '{"text":"partial chunk"}',
   ),
 );
 
-await sdk.rtc.postJsonSignal(
+await client.rtc.sessionsRetrieve(
   'rtc-1',
-  signalType: 'offer',
-  options: const ImPostJsonSignalOptions(
-    schemaRef: 'urn:craw-chat:rtc:signal',
-    signalingStreamId: 'signal-stream-1',
-    payload: <String, Object>{
-      'sdp': 'v=0',
-      'type': 'offer',
-    },
-  ),
 );
 ```
 
-The composed Flutter client currently exposes:
+The checked-in Flutter transport currently exposes:
 
 - `authToken`
-- `sdk.portal`
-- `sdk.device.sessions`
-- `sdk.presence`
-- `sdk.realtime`
-- `sdk.devices`
-- `sdk.inbox`
-- `sdk.conversations`
-- `sdk.messages`
-- `sdk.streams`
-- `sdk.rtc`
-- `sdk.transportClient` for direct generated fallback access
+- `client.presence`
+- `client.realtime`
+- `client.chat`
+- `client.streams`
+- `client.rtc`
+- `client.social`
 
 ## Drive-Backed Media Messages
 
@@ -189,81 +164,56 @@ catch up.
 
 The checked-in Dart surface is intentionally narrower than the TypeScript SDK:
 
-- `im_sdk` re-exports `im_sdk_generated`, the generated package root exports `PortalApi`,
-  `ImTransportClient` mounts `client.portal` and `client.device.sessions`, and `ImSdkClient`
-  exposes `sdk.portal`, `sdk.device.sessions`, and `sdk.setAuthToken(...)`.
+- `im_sdk_generated` exports the generated `ImTransportClient`; the checked-in route groups are
+  `client.presence`, `client.realtime`, `client.chat`, `client.streams`, `client.rtc`, and
+  `client.social`.
 - Tokens are issued by `sdkwork-appbase`; Flutter consumers pass them through `authToken` at
-  construction time or update them with `sdk.setAuthToken(...)`.
-- The Flutter runtime is WebSocket-first for interactive realtime delivery through
-  `sdk.connect(...)` and the delivered adapter in `im_sdk`.
-- The generated transport and `sdk.realtime.*` modules still expose explicit HTTP coordination
-  through `sdk.realtime.replaceSubscriptions(...)`, `sdk.realtime.catchUpEvents(...)`, and
-  `sdk.realtime.ackEvents(...)`, but those are operational coordination surfaces rather than the
-  default live receive path.
-- The Flutter package does not yet ship `sdk.createXxxMessage()`, `sdk.send()`, or
-  `sdk.decodeMessage()`.
-- Text posting shortcuts currently live on `sdk.conversations.postText(...)`,
-  `sdk.conversations.publishSystemText(...)`, and `ImBuilders.*`.
-- `sdk.messages` currently covers message mutation only: `edit(...)`, `editText(...)`, and
-  `recall(...)`.
+  construction time or update them with `client.setAuthToken(...)`.
+- The generated transport exposes explicit HTTP coordination through
+  `client.realtime.subscriptionsSync(...)`, `client.realtime.eventsList(...)`, and
+  `client.realtime.eventsAck(...)`.
+- The Flutter package does not yet ship `sdk.connect(...)`, `sdk.createXxxMessage()`, `sdk.send()`,
+  or `sdk.decodeMessage()`.
+- Text posting currently uses generated chat calls such as
+  `client.chat.conversationsMessagesCreate(...)`.
 
-## Live WebSocket Receive
+## Realtime Coordination
 
 ```dart
-final sdk = ImSdkClient.create(
+final client = ImTransportClient.withBaseUrl(
   baseUrl: 'https://api.example.com',
-  websocketBaseUrl: 'wss://realtime.example.com',
   authToken: 'sdkwork-appbase-credential',
 );
 
-final live = await sdk.connect(
-  const ImConnectOptions(
-    deviceId: 'device-mobile-01',
-    subscriptions: ImRealtimeSubscriptionGroups(
-      conversations: <String>['conversation-1'],
-      rtcSessions: <String>['rtc-1'],
-    ),
+await client.presence.heartbeatCreate(
+  PresenceHeartbeatRequest(clientRouteId: 'mobile-01'),
+);
+
+await client.realtime.subscriptionsSync(
+  RealtimeSubscriptionSyncRequest(
+    clientRouteId: 'mobile-01',
+    conversations: <String>['conversation-1'],
   ),
 );
 
-live.messages.onConversation('conversation-1', (message, context) {
-  print(message.summary);
-  void context.ack();
-});
-
-live.signals.onRtcSession('rtc-1', (signal, context) {
-  print(signal.signalType);
-  void context.ack();
-});
+final events = await client.realtime.eventsList(50);
 ```
 
-The delivered WebSocket adapter is part of the manual-owned `im_sdk` package, not the generated
-transport package.
-
-`ImWebSocketAuthOptions.automatic()` is the standard default:
-
-- Flutter mobile and desktop pass SDKWork credentials in the WebSocket upgrade header
-- Flutter Web falls back to a query credential because the browser runtime cannot attach custom
-  upgrade headers through the default connector
-- Flutter Web should prefer `credentialProvider` with a short-lived realtime ticket or exchanged
-  query credential when the gateway supports it
-- custom gateways can override the transport by providing `webSocketFactory`
+Generated Flutter currently covers presence heartbeat, subscription sync, event polling, and ACK
+over HTTP. WebSocket live receive is still a manual SDK parity gap for Flutter.
 
 ## Module Coverage Map
 
 | Concern | Generated transport | Composed client | Primary HTTP reference |
 | --- | --- | --- | --- |
-| SDKWork credential pass-through | `client.setAuthToken(...)` | `sdk.setAuthToken(...)` | [Portal Access](/api-reference/app/portal-access) |
-| Portal access | `client.portal` | `sdk.portal` | [Portal Access](/api-reference/app/portal-access) |
-| Portal snapshots | `client.portal` | `sdk.portal` | [Portal Access](/api-reference/app/portal-access) |
-| Device Sessions, presence, realtime | `client.device.sessions`, `client.presence`, `client.realtime` | `sdk.device.sessions`, `sdk.presence`, `sdk.realtime` | [Device Sessions and Realtime](/api-reference/im/session-and-realtime) |
-| Device sync | `client.device` | `sdk.devices` | [Device Sync](/api-reference/im/device-sync) |
-| Inbox and conversations | `client.inbox`, `client.conversation` | `sdk.inbox`, `sdk.conversations` | [Conversations and Handoff](/api-reference/im/conversations) |
-| Membership and read state | `client.conversation` | `sdk.conversations` | [Membership and Read State](/api-reference/im/membership-and-read-state) |
-| Messages | `client.message` | `sdk.messages`, `sdk.conversations` helpers | [Messages](/api-reference/im/messages) |
-| Media usage references | Drive transport plus generated message models | `sdk.conversations` with `ContentPart.drive` | [Media](/api-reference/im/media) |
-| Streams | `client.stream` | `sdk.streams` | [Streams](/api-reference/im/streams) |
-| RTC | `client.rtc` | `sdk.rtc` | [RTC](/api-reference/im/rtc) |
+| SDKWork credential pass-through | `client.setAuthToken(...)` | Not checked in | [Auth And Client Init](/sdk/auth-and-client-init) |
+| Realtime presence | `client.presence`, `client.realtime` | Not checked in | [Realtime And Presence](/api-reference/im/session-and-realtime) |
+| Inbox and conversations | `client.chat` | Not checked in | [Conversations and Handoff](/api-reference/im/conversations) |
+| Membership and read state | `client.chat` | Not checked in | [Membership and Read State](/api-reference/im/membership-and-read-state) |
+| Messages | `client.chat` | Not checked in | [Messages](/api-reference/im/messages) |
+| Media usage references | Drive transport plus generated message models | Not checked in | [Media](/api-reference/im/media) |
+| Streams | `client.streams` | Not checked in | [Streams](/api-reference/im/streams) |
+| RTC | `client.rtc` | Not checked in | [RTC](/api-reference/im/rtc) |
 
 ## Current Parity Gap
 
@@ -407,7 +357,6 @@ process in the current environment.
 
 - Authority contract: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
 - Generated transport manifest: `sdkwork-im-sdk-flutter/generated/server-openapi/pubspec.yaml`
-- Composed package manifest: `sdkwork-im-sdk-flutter/composed/pubspec.yaml`
 - Assembly metadata: `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
 
 ## What To Read Next
@@ -415,5 +364,5 @@ process in the current environment.
 - Read [App SDK](/sdk/app-sdk) for family-wide audience, release, and contract-source rules.
 - Read [Language Support](/sdk/language-support) for the current TypeScript versus Flutter parity
   snapshot.
-- Read [Portal Access](/api-reference/app/portal-access) when you need the underlying HTTP
-  contract behind `client.setAuthToken(...)`, `client.portal`, `authToken`, and `sdk.portal`.
+- Read [Auth And Client Init](/sdk/auth-and-client-init) when you need the underlying token
+  handoff contract behind `client.setAuthToken(...)` and `authToken`.

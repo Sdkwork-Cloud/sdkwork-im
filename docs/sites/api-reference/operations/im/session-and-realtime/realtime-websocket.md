@@ -1,11 +1,11 @@
 # `GET /im/v3/api/realtime/ws`
 
 <p class="api-page-intro">
-  Exact request and response contract for <strong>Device Sessions and Realtime</strong> in the <strong>IM Standard API</strong>.
+  Exact request and response contract for <strong>Realtime Presence</strong> in the <strong>IM Standard API</strong>.
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/im/session-and-realtime"><code>Device Sessions and Realtime</code> Return to the group page for workflow context and related operations</a>
+  <a href="/api-reference/im/session-and-realtime"><code>Realtime Presence</code> Return to the group page for workflow context and related operations</a>
   <a href="/api-reference/im-api"><code>IM Standard API</code> Return to the domain overview</a>
   <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, AppContext projection, and error-envelope rules</a>
 </div>
@@ -25,14 +25,14 @@ not expand the full realtime frame protocol.
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; active device route is prepared before upgrade.</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; active client route is prepared before upgrade.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`101 Switching Protocols`</span></div>
 </div>
 
 ### Security
 
 - SDKWork dual token validated at the appbase boundary, then AppContext projection headers
-- Device ownership and device route binding are validated before upgrade
+- Client route ownership and client route binding are validated before upgrade
 - Browser runtimes that cannot send upgrade headers should prefer a gateway-issued short-lived
   realtime ticket or pre-signed `wss://` URL instead of a long-lived query credential
 
@@ -64,7 +64,7 @@ not expand the full realtime frame protocol.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `device_permission_denied` | The device is not authorized for the current principal. |
+| `409` | `client_route_scope_conflict` | The client route key is already bound to another principal. |
 | `409` | `disconnect_fence_conflict` | Routing or session state blocks the upgrade. |
 
 </section>

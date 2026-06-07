@@ -7,7 +7,7 @@ use im_domain_core::message::{
 use im_domain_events::CommitEnvelope;
 use serde::{Deserialize, Serialize};
 
-use crate::device_sync::DeviceSyncEntryDraft;
+use crate::client_route_sync::ClientRouteSyncEntryDraft;
 use crate::model::{InteractionActorView, MessagePinView};
 use crate::scope::scope_key;
 use crate::{
@@ -126,7 +126,7 @@ impl TimelineProjectionService {
             return Ok(());
         }
 
-        self.fan_out_message_interaction_to_device_sync_feeds(
+        self.fan_out_message_interaction_to_client_route_sync_feeds(
             event,
             MessageInteractionFanoutContext {
                 tenant_id: reaction.tenant_id.clone(),
@@ -181,7 +181,7 @@ impl TimelineProjectionService {
             return Ok(());
         }
 
-        self.fan_out_message_interaction_to_device_sync_feeds(
+        self.fan_out_message_interaction_to_client_route_sync_feeds(
             event,
             MessageInteractionFanoutContext {
                 tenant_id: reaction.tenant_id.clone(),
@@ -238,7 +238,7 @@ impl TimelineProjectionService {
             return Ok(());
         }
 
-        self.fan_out_message_interaction_to_device_sync_feeds(
+        self.fan_out_message_interaction_to_client_route_sync_feeds(
             event,
             MessageInteractionFanoutContext {
                 tenant_id: pin.tenant_id.clone(),
@@ -278,7 +278,7 @@ impl TimelineProjectionService {
             return Ok(());
         }
 
-        self.fan_out_message_interaction_to_device_sync_feeds(
+        self.fan_out_message_interaction_to_client_route_sync_feeds(
             event,
             MessageInteractionFanoutContext {
                 tenant_id: pin.tenant_id.clone(),
@@ -393,7 +393,7 @@ impl TimelineProjectionService {
         }
     }
 
-    fn fan_out_message_interaction_to_device_sync_feeds(
+    fn fan_out_message_interaction_to_client_route_sync_feeds(
         &self,
         event: &CommitEnvelope,
         context: MessageInteractionFanoutContext,
@@ -408,7 +408,7 @@ impl TimelineProjectionService {
             occurred_at,
         } = context;
         let actor_kind = actor.principal_kind.clone();
-        let draft = DeviceSyncEntryDraft {
+        let draft = ClientRouteSyncEntryDraft {
             tenant_id: tenant_id.clone(),
             origin_event_id: event.event_id.clone(),
             origin_event_type: event.event_type.clone(),
@@ -431,7 +431,7 @@ impl TimelineProjectionService {
             occurred_at,
         };
 
-        for target in self.device_sync_fanout_targets_for_conversation(
+        for target in self.client_route_sync_fanout_targets_for_conversation(
             tenant_id.as_str(),
             conversation_id.as_str(),
             vec![crate::NotificationRecipientView {
@@ -439,7 +439,7 @@ impl TimelineProjectionService {
                 principal_kind: actor_kind,
             }],
         ) {
-            self.append_device_sync_draft(&target, &draft);
+            self.append_client_route_sync_draft(&target, &draft);
         }
     }
 }

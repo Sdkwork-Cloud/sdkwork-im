@@ -15,7 +15,6 @@ profile.
 - `MemoryNotificationTaskStore`
 - `MemoryAutomationExecutionStore`
 - `MemoryPresenceStateStore`
-- `MemoryDeviceTwinStore`
 - `MemoryStorageDomainSnapshotStore`
 
 ## Storage Snapshot Store

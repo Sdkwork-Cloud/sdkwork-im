@@ -82,8 +82,6 @@ fn test_provider_plugin_matrix_docs_keep_runtime_provider_ids_visible() {
         "principal-profile-external-catalog",
         "object-storage",
         "rtc",
-        "iot-access",
-        "iot-protocol",
     ] {
         assert!(
             overview.contains(required)

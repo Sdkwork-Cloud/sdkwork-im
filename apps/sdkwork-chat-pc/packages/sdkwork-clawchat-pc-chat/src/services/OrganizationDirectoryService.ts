@@ -1,7 +1,9 @@
 import {
   getAppbaseAppSdkClientWithSession,
+} from '@sdkwork/clawchat-pc-core/sdk/appbaseAppSdkClient';
+import {
   readAppSdkSessionTokens,
-} from '@sdkwork/clawchat-pc-core';
+} from '@sdkwork/clawchat-pc-core/sdk/session';
 import type { User, UserPositionAssignment, UserRoleBinding } from '@sdkwork/clawchat-pc-types';
 
 export interface OrgOrganization {

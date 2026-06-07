@@ -27,7 +27,7 @@ func main() {
 client.SetAccessToken("your-access-token")
     
     // Use the SDK
-    result, err := client.Iot.AccessProviderHealthRetrieve()
+    result, err := client.Notification.NotificationsList()
     if err != nil {
         panic(err)
     }
@@ -56,11 +56,9 @@ client.SetHeader("X-Custom-Header", "value")
 ## API Modules
 
 - `client.Automation` - automation API
-- `client.Device` - device API
 - `client.Notification` - notification API
 - `client.Portal` - portal API
 - `client.Provider` - provider API
-- `client.Iot` - iot API
 
 ## Usage Examples
 
@@ -82,18 +80,6 @@ body := sdktypes.StartAgentResponseRequest{
 },
 }
 result, err := client.Automation.AgentResponsesCreate(body)
-if err != nil {
-    panic(err)
-}
-fmt.Println(result)
-```
-
-### device
-
-```go
-// Get the device twin
-deviceId := "1"
-result, err := client.Device.DevicesTwinRetrieve(deviceId)
 if err != nil {
     panic(err)
 }
@@ -133,21 +119,10 @@ if err != nil {
 fmt.Println(result)
 ```
 
-### iot
-
-```go
-// Retrieve IoT access provider health
-result, err := client.Iot.AccessProviderHealthRetrieve()
-if err != nil {
-    panic(err)
-}
-fmt.Println(result)
-```
-
 ## Error Handling
 
 ```go
-_, err := client.Iot.AccessProviderHealthRetrieve()
+_, err := client.Notification.NotificationsList()
 if err != nil {
     // Handle error
     fmt.Println("Error:", err)

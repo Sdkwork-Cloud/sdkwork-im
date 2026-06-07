@@ -13,8 +13,6 @@ conversation-runtime = { path = "../conversation-runtime" }
 fs4 = "0.13.1"
 futures-util.workspace = true
 http-body-util.workspace = true
-im-adapter-iot-access-local = { path = "../../adapters/iot-access-local" }
-im-adapter-iot-mqtt = { path = "../../adapters/iot-mqtt" }
 im-adapters-local-disk = { path = "../../adapters/local-disk" }
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 im-adapters-postgres-realtime = { path = "../../adapters/postgres-realtime" }
@@ -32,11 +30,15 @@ serde.workspace = true
 serde_json.workspace = true
 serde_yaml = "0.9.34"
 sha2 = "0.10"
-sdkwork-agent-business = { path = "../../.sdkwork/dependencies/sdkwork-kernel/sdkwork-agent-business", features = ["http-axum"] }
-sdkwork-rtc-core = { path = "../../.sdkwork/dependencies/sdkwork-rtc/crates/sdkwork-rtc-core" }
-sdkwork-rtc-app-context = { path = "../../.sdkwork/dependencies/sdkwork-rtc/crates/sdkwork-rtc-app-context" }
-sdkwork-rtc-signaling-service = { path = "../../.sdkwork/dependencies/sdkwork-rtc/services/sdkwork-rtc-signaling-service" }
-sdkwork-rtc-state-store = { path = "../../.sdkwork/dependencies/sdkwork-rtc/crates/sdkwork-rtc-state-store" }
+sdkwork-agent-business.workspace = true
+sdkwork-aiot-contract.workspace = true
+sdkwork-aiot-http-api.workspace = true
+sdkwork-aiot-runtime.workspace = true
+sdkwork-aiot-transport.workspace = true
+sdkwork-rtc-core.workspace = true
+sdkwork-rtc-app-context.workspace = true
+sdkwork-rtc-signaling-service.workspace = true
+sdkwork-rtc-state-store.workspace = true
 streaming-service = { path = "../streaming-service" }
 tokio.workspace = true
 tower.workspace = true

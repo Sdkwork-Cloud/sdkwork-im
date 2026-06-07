@@ -155,7 +155,7 @@ for (const marker of [
   "not generated from OpenAPI",
   "provider package",
   "native driver",
-  "node .\\sdks\\sdkwork-rtc-sdk\\bin\\verify-sdk.mjs",
+  "node ../../../../sdkwork-rtc\\sdks\\sdkwork-rtc-sdk\\bin\\verify-sdk.mjs",
 ]) {
   requireIncludes(rtcSdkSource, rtcSdkPath, marker, `must include ${marker}`);
 }
@@ -198,7 +198,8 @@ for (const marker of [
   "new ImSdkClient({",
   "sdk.connect(...)",
   "sdk.createTextMessage(...)",
-  "sdk.media.upload(",
+  "sdkwork-drive",
+  "ContentPart.drive",
 ]) {
   requireIncludes(typescriptDocSource, typescriptDocPath, marker, `must include ${marker}`);
 }
@@ -214,11 +215,10 @@ for (const marker of forbiddenGeneratedTypeScriptPackageMarkers) {
 const flutterDocPath = "sdk/flutter-sdk.md";
 const flutterDocSource = readRequired(flutterDocPath);
 for (const marker of [
-  "im_sdk",
   "im_sdk_generated",
-  "ImSdkClient",
+  "ImTransportClient",
   "generated/server-openapi",
-  "sdk.connect(...)",
+  "client.realtime.eventsList",
 ]) {
   requireIncludes(flutterDocSource, flutterDocPath, marker, `must include ${marker}`);
 }
@@ -250,10 +250,11 @@ const appApiSource = readRequired(appApiPath);
 for (const marker of [
   "sdkwork-im-app-sdk",
   "/app/v3/api/*",
-  "Device Twin",
-  "IoT Protocol",
 ]) {
   requireIncludes(appApiSource, appApiPath, marker, `must include ${marker}`);
+}
+for (const marker of ["Device Twin", "IoT Protocol"]) {
+  requireExcludes(appApiSource, appApiPath, marker, `must not include retired AIoT-owned domain ${marker}`);
 }
 
 const backendApiPath = "api-reference/backend-api.md";

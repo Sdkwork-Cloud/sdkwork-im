@@ -1,4 +1,4 @@
-import { getAppbaseBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
+import { getAppbaseAppSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
 
 export interface User {
   id: string;
@@ -113,15 +113,28 @@ function mapUser(record: UnknownRecord): User {
   };
 }
 
+function normalizeMemberRecord(record: UnknownRecord): UnknownRecord {
+  const user = asRecord(record.user);
+  const profile = asRecord(record.profile);
+  return {
+    ...record,
+    ...user,
+    ...profile,
+    departmentName: readString(record, ['departmentName', 'department_name', 'department'], readString(profile, ['departmentName', 'department_name', 'department'], '')),
+    role: readString(record, ['role', 'roleCode', 'roleName'], readString(profile, ['role', 'roleCode', 'roleName'], '')),
+  };
+}
+
 class UserService {
   async getUsers(params: { page: number; pageSize: number; search?: string }): Promise<GetUsersResponse> {
-    const response = await getAppbaseBackendSdkClientWithSession().iam.users.list({
+    const client = getAppbaseAppSdkClientWithSession();
+    const response = await client.iam.organizationMemberships.list({
       page: params.page,
       pageSize: params.pageSize,
       ...(params.search?.trim() ? { q: params.search.trim() } : {}),
     });
     const records = readRecords(response);
-    const data = records.map(mapUser);
+    const data = records.map(normalizeMemberRecord).map(mapUser);
     return {
       data,
       total: readTotal(response, data.length),
@@ -133,7 +146,9 @@ class UserService {
     if (!userId) {
       throw new Error('user id is required');
     }
-    await getAppbaseBackendSdkClientWithSession().iam.users.delete(userId);
+    throw new Error(
+      `Deleting tenant users is an admin-only backend SDK capability. Move user ${userId} management to the admin surface or add an app-api console contract.`,
+    );
   }
 }
 

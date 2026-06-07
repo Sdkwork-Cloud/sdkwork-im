@@ -269,7 +269,8 @@ fn test_runtime_restores_persisted_subscriptions_on_rebuild_without_resync() {
         subscription_store,
     );
     expect_ok(
-        rebuilt_runtime.ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
+        rebuilt_runtime
+            .ensure_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
     );
 
     let delivered = expect_ok(rebuilt_runtime.publish_scope_event_for_principal_kind(
@@ -346,7 +347,7 @@ fn test_runtime_restores_unacked_events_from_durable_window_store_after_rebuild(
 }
 
 #[test]
-fn test_publish_restores_persisted_subscriptions_for_registered_devices_after_rebuild() {
+fn test_publish_restores_persisted_subscriptions_for_registered_client_routes_after_rebuild() {
     let checkpoint_store = Arc::new(MemoryRealtimeCheckpointStore::default());
     let subscription_store = Arc::new(MemoryRealtimeSubscriptionStore::default());
     let runtime = RealtimeDeliveryRuntime::with_stores_permissive_for_tests(
@@ -382,7 +383,7 @@ fn test_publish_restores_persisted_subscriptions_for_registered_devices_after_re
     ));
     assert_eq!(
         delivered, 1,
-        "publish must not silently drop a registered device whose durable subscription has not been lazily restored yet"
+        "publish must not silently drop a registered client route whose durable subscription has not been lazily restored yet"
     );
 
     let window = expect_ok(
@@ -396,7 +397,7 @@ fn test_publish_restores_persisted_subscriptions_for_registered_devices_after_re
 }
 
 #[test]
-fn test_publish_does_not_restore_unmatched_registered_devices() {
+fn test_publish_does_not_restore_unmatched_registered_client_routes() {
     let subscription_store = Arc::new(MemoryRealtimeSubscriptionStore::default());
     let seed_runtime = RealtimeDeliveryRuntime::with_stores_permissive_for_tests(
         Arc::new(MemoryRealtimeCheckpointStore::default()),
@@ -431,7 +432,7 @@ fn test_publish_does_not_restore_unmatched_registered_devices() {
     ));
     assert_eq!(
         delivered, 1,
-        "publish should not restore or fail on registered devices that have no matching subscription"
+        "publish should not restore or fail on registered client routes that have no matching subscription"
     );
 
     let window = expect_ok(
@@ -825,7 +826,7 @@ fn test_failed_subscription_clear_preserves_runtime_subscription() {
     ));
 
     let error = runtime
-        .clear_device_subscriptions_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .clear_client_route_subscriptions_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect_err("subscription store clear failure should reject the clear request");
     assert_eq!(error.code, "subscription_store_unavailable");
 
@@ -921,11 +922,11 @@ fn test_runtime_realtime_inbox_diagnostics_tracks_unacked_and_trimmed_windows() 
 
     let diagnostics = expect_ok(runtime.realtime_inbox_diagnostics());
     assert_eq!(diagnostics.status, "degraded");
-    assert_eq!(diagnostics.device_window_count, 1);
+    assert_eq!(diagnostics.client_route_window_count, 1);
     assert_eq!(diagnostics.pending_event_count, 1);
-    assert_eq!(diagnostics.max_device_window_event_count, 1);
-    assert_eq!(diagnostics.device_window_capacity, 1000);
-    assert_eq!(diagnostics.max_device_window_usage_permille, 1);
+    assert_eq!(diagnostics.max_client_route_window_event_count, 1);
+    assert_eq!(diagnostics.client_route_window_capacity, 1000);
+    assert_eq!(diagnostics.max_client_route_window_usage_permille, 1);
     assert_eq!(diagnostics.max_trimmed_through_seq, 0);
     assert_eq!(diagnostics.high_risk_windows.len(), 1);
     assert_eq!(diagnostics.high_risk_windows[0].tenant_id, "t_demo");
@@ -952,11 +953,14 @@ fn test_runtime_realtime_inbox_diagnostics_tracks_unacked_and_trimmed_windows() 
 
     let diagnostics_after_ack = expect_ok(runtime.realtime_inbox_diagnostics());
     assert_eq!(diagnostics_after_ack.status, "ok");
-    assert_eq!(diagnostics_after_ack.device_window_count, 1);
+    assert_eq!(diagnostics_after_ack.client_route_window_count, 1);
     assert_eq!(diagnostics_after_ack.pending_event_count, 0);
-    assert_eq!(diagnostics_after_ack.max_device_window_event_count, 0);
-    assert_eq!(diagnostics_after_ack.device_window_capacity, 1000);
-    assert_eq!(diagnostics_after_ack.max_device_window_usage_permille, 0);
+    assert_eq!(diagnostics_after_ack.max_client_route_window_event_count, 0);
+    assert_eq!(diagnostics_after_ack.client_route_window_capacity, 1000);
+    assert_eq!(
+        diagnostics_after_ack.max_client_route_window_usage_permille,
+        0
+    );
     assert_eq!(diagnostics_after_ack.max_trimmed_through_seq, 1);
     assert_eq!(diagnostics_after_ack.high_risk_windows.len(), 0);
     assert_eq!(diagnostics_after_ack.oldest_pending_occurred_at, None);
@@ -1008,7 +1012,7 @@ fn test_failed_publish_checkpoint_persistence_rolls_back_durable_event_window() 
 }
 
 #[test]
-fn test_failed_multi_device_checkpoint_persistence_does_not_partially_commit_any_device() {
+fn test_failed_multi_client_route_checkpoint_persistence_does_not_partially_commit_any_route() {
     let checkpoint_store = Arc::new(FailAfterRealtimeCheckpointStore::new(1));
     let runtime = RealtimeDeliveryRuntime::with_stores_permissive_for_tests(
         checkpoint_store.clone(),
@@ -1454,14 +1458,14 @@ fn test_failed_checkpoint_normalization_restore_retries_durable_repair() {
 }
 
 #[test]
-fn test_restore_device_state_clamps_invalid_checkpoint_fields_before_persist() {
+fn test_restore_client_route_state_clamps_invalid_checkpoint_fields_before_persist() {
     let checkpoint_store = Arc::new(MemoryRealtimeCheckpointStore::default());
     let runtime = RealtimeDeliveryRuntime::with_checkpoint_store_permissive_for_tests(
         checkpoint_store.clone(),
     );
 
-    expect_ok(
-        runtime.restore_device_state(session_gateway::RealtimeDeviceStateSnapshot {
+    expect_ok(runtime.restore_client_route_state(
+        session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
@@ -1475,8 +1479,8 @@ fn test_restore_device_state_clamps_invalid_checkpoint_fields_before_persist() {
             capacity_trimmed_through_seq: 0,
             last_capacity_trimmed_at: None,
             disconnect_generation: 0,
-        }),
-    );
+        },
+    ));
 
     let restored = expect_ok(
         runtime.window_checkpoint_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
@@ -1494,7 +1498,7 @@ fn test_restore_device_state_clamps_invalid_checkpoint_fields_before_persist() {
 }
 
 #[test]
-fn test_restore_device_state_checkpoint_failure_does_not_install_runtime_state() {
+fn test_restore_client_route_state_checkpoint_failure_does_not_install_runtime_state() {
     let subscription_store = Arc::new(MemoryRealtimeSubscriptionStore::default());
     let runtime = RealtimeDeliveryRuntime::with_stores_permissive_for_tests(
         Arc::new(ToggleRealtimeCheckpointStore::new(true)),
@@ -1502,7 +1506,7 @@ fn test_restore_device_state_checkpoint_failure_does_not_install_runtime_state()
     );
 
     let error = runtime
-        .restore_device_state(session_gateway::RealtimeDeviceStateSnapshot {
+        .restore_client_route_state(session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
@@ -1565,7 +1569,7 @@ fn test_restore_device_state_checkpoint_failure_does_not_install_runtime_state()
 }
 
 #[test]
-fn test_restore_device_state_reports_subscription_compensation_failure() {
+fn test_restore_client_route_state_reports_subscription_compensation_failure() {
     let checkpoint_store = Arc::new(ToggleRealtimeCheckpointStore::new(true));
     let subscription_store = Arc::new(ToggleRealtimeSubscriptionStore::new(false));
     let runtime = RealtimeDeliveryRuntime::with_stores_permissive_for_tests(
@@ -1574,7 +1578,7 @@ fn test_restore_device_state_reports_subscription_compensation_failure() {
     );
 
     let error = runtime
-        .restore_device_state(session_gateway::RealtimeDeviceStateSnapshot {
+        .restore_client_route_state(session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
@@ -1609,7 +1613,7 @@ fn test_restore_device_state_reports_subscription_compensation_failure() {
 }
 
 #[test]
-fn test_restore_device_state_checkpoint_failure_restores_previous_durable_subscription() {
+fn test_restore_client_route_state_checkpoint_failure_restores_previous_durable_subscription() {
     let subscription_store = Arc::new(MemoryRealtimeSubscriptionStore::default());
     let runtime = RealtimeDeliveryRuntime::with_stores_permissive_for_tests(
         Arc::new(ToggleRealtimeCheckpointStore::new(false)),
@@ -1633,7 +1637,7 @@ fn test_restore_device_state_checkpoint_failure_restores_previous_durable_subscr
     );
 
     let error = failing_runtime
-        .restore_device_state(session_gateway::RealtimeDeviceStateSnapshot {
+        .restore_client_route_state(session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
@@ -1664,11 +1668,11 @@ fn test_restore_device_state_checkpoint_failure_restores_previous_durable_subscr
 }
 
 #[test]
-fn test_restore_device_state_normalizes_event_order_for_monotonic_pagination() {
+fn test_restore_client_route_state_normalizes_event_order_for_monotonic_pagination() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
 
-    expect_ok(
-        runtime.restore_device_state(session_gateway::RealtimeDeviceStateSnapshot {
+    expect_ok(runtime.restore_client_route_state(
+        session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
@@ -1686,8 +1690,8 @@ fn test_restore_device_state_normalizes_event_order_for_monotonic_pagination() {
             capacity_trimmed_through_seq: 0,
             last_capacity_trimmed_at: None,
             disconnect_generation: 0,
-        }),
-    );
+        },
+    ));
 
     let first_page = expect_ok(
         runtime.list_events_for_principal_kind("t_demo", "u_demo", "user", "d_pad", 0, 2),
@@ -1721,7 +1725,9 @@ fn test_restore_device_state_normalizes_event_order_for_monotonic_pagination() {
 #[test]
 fn test_list_events_rejects_zero_limit_at_runtime_boundary() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
-    expect_ok(runtime.ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"));
+    expect_ok(
+        runtime.ensure_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
+    );
 
     let error = runtime
         .list_events_for_principal_kind("t_demo", "u_demo", "user", "d_pad", 0, 0)
@@ -1730,11 +1736,11 @@ fn test_list_events_rejects_zero_limit_at_runtime_boundary() {
 }
 
 #[test]
-fn test_restore_device_state_deduplicates_realtime_sequences() {
+fn test_restore_client_route_state_deduplicates_realtime_sequences() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
 
-    expect_ok(
-        runtime.restore_device_state(session_gateway::RealtimeDeviceStateSnapshot {
+    expect_ok(runtime.restore_client_route_state(
+        session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
@@ -1752,8 +1758,8 @@ fn test_restore_device_state_deduplicates_realtime_sequences() {
             capacity_trimmed_through_seq: 0,
             last_capacity_trimmed_at: None,
             disconnect_generation: 0,
-        }),
-    );
+        },
+    ));
 
     let window = expect_ok(
         runtime.list_events_for_principal_kind("t_demo", "u_demo", "user", "d_pad", 0, 10),
@@ -1770,11 +1776,11 @@ fn test_restore_device_state_deduplicates_realtime_sequences() {
 }
 
 #[test]
-fn test_restore_device_state_discards_events_at_or_below_trimmed_boundary() {
+fn test_restore_client_route_state_discards_events_at_or_below_trimmed_boundary() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
 
-    expect_ok(
-        runtime.restore_device_state(session_gateway::RealtimeDeviceStateSnapshot {
+    expect_ok(runtime.restore_client_route_state(
+        session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
@@ -1792,8 +1798,8 @@ fn test_restore_device_state_discards_events_at_or_below_trimmed_boundary() {
             capacity_trimmed_through_seq: 0,
             last_capacity_trimmed_at: None,
             disconnect_generation: 0,
-        }),
-    );
+        },
+    ));
 
     let window = expect_ok(
         runtime.list_events_for_principal_kind("t_demo", "u_demo", "user", "d_pad", 0, 10),
@@ -1811,10 +1817,11 @@ fn test_restore_device_state_discards_events_at_or_below_trimmed_boundary() {
 }
 
 #[test]
-fn test_take_restore_device_state_transfers_disconnect_generation() {
+fn test_take_restore_client_route_state_transfers_disconnect_generation() {
     let source_runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(
-        source_runtime.ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
+        source_runtime
+            .ensure_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
     );
     expect_ok(
         source_runtime
@@ -1833,7 +1840,8 @@ fn test_take_restore_device_state_transfers_disconnect_generation() {
     );
 
     let snapshot = expect_ok(
-        source_runtime.take_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
+        source_runtime
+            .take_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
     );
     assert_eq!(
         expect_ok(
@@ -1841,18 +1849,18 @@ fn test_take_restore_device_state_transfers_disconnect_generation() {
                 .disconnect_generation_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         ),
         0,
-        "taking device state must remove stale source disconnect generation state"
+        "taking client route state must remove stale source disconnect generation state"
     );
 
     let target_runtime = RealtimeDeliveryRuntime::permissive_for_tests();
-    expect_ok(target_runtime.restore_device_state(snapshot));
+    expect_ok(target_runtime.restore_client_route_state(snapshot));
     assert_eq!(
         expect_ok(
             target_runtime
                 .disconnect_generation_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         ),
         2,
-        "restored device state must preserve disconnect signal generation"
+        "restored client route state must preserve disconnect signal generation"
     );
 }
 
@@ -1897,7 +1905,7 @@ fn test_sync_subscriptions_advances_sync_timestamps_between_calls() {
 }
 
 #[test]
-fn test_clearing_device_subscriptions_stops_future_realtime_delivery() {
+fn test_clearing_client_route_subscriptions_stops_future_realtime_delivery() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "t_demo",
@@ -1924,7 +1932,9 @@ fn test_clearing_device_subscriptions_stops_future_realtime_delivery() {
     assert_eq!(first_delivery, 1);
 
     expect_ok(
-        runtime.clear_device_subscriptions_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
+        runtime.clear_client_route_subscriptions_for_principal_kind(
+            "t_demo", "u_demo", "user", "d_pad",
+        ),
     );
 
     let second_delivery = expect_ok(runtime.publish_scope_event_for_principal_kind(
@@ -1948,7 +1958,7 @@ fn test_clearing_device_subscriptions_stops_future_realtime_delivery() {
 }
 
 #[test]
-fn test_resyncing_device_subscriptions_removes_stale_scope_fanout_index() {
+fn test_resyncing_client_route_subscriptions_removes_stale_scope_fanout_index() {
     let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(runtime.sync_subscriptions_for_principal_kind(
         "t_demo",
@@ -2004,7 +2014,7 @@ fn test_resyncing_device_subscriptions_removes_stale_scope_fanout_index() {
 }
 
 #[test]
-fn test_restored_device_state_rebuilds_scope_fanout_index() {
+fn test_restored_client_route_state_rebuilds_scope_fanout_index() {
     let source_runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(source_runtime.sync_subscriptions_for_principal_kind(
         "t_demo",
@@ -2019,10 +2029,11 @@ fn test_restored_device_state_rebuilds_scope_fanout_index() {
     ));
 
     let snapshot = expect_ok(
-        source_runtime.take_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
+        source_runtime
+            .take_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
     );
     let target_runtime = RealtimeDeliveryRuntime::permissive_for_tests();
-    expect_ok(target_runtime.restore_device_state(snapshot));
+    expect_ok(target_runtime.restore_client_route_state(snapshot));
 
     let delivered = expect_ok(target_runtime.publish_scope_event_for_principal_kind(
         "t_demo",
@@ -2044,7 +2055,7 @@ fn test_restored_device_state_rebuilds_scope_fanout_index() {
 }
 
 #[test]
-fn test_take_device_state_clears_source_durable_subscriptions_before_lazy_restore() {
+fn test_take_client_route_state_clears_source_durable_subscriptions_before_lazy_restore() {
     let checkpoint_store = Arc::new(MemoryRealtimeCheckpointStore::default());
     let subscription_store = Arc::new(MemoryRealtimeSubscriptionStore::default());
     let event_window_store = Arc::new(MemoryRealtimeEventWindowStore::default());
@@ -2071,12 +2082,14 @@ fn test_take_device_state_clears_source_durable_subscriptions_before_lazy_restor
         }],
     ));
     let snapshot = expect_ok(
-        source_runtime.take_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
+        source_runtime
+            .take_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
     );
-    expect_ok(target_runtime.restore_device_state(snapshot));
+    expect_ok(target_runtime.restore_client_route_state(snapshot));
 
     expect_ok(
-        source_runtime.ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
+        source_runtime
+            .ensure_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
     );
     let source_delivery = expect_ok(source_runtime.publish_scope_event_for_principal_kind(
         "t_demo",
@@ -2111,7 +2124,7 @@ fn test_take_device_state_clears_source_durable_subscriptions_before_lazy_restor
 }
 
 #[test]
-fn test_sync_subscriptions_after_take_device_state_reclaims_migrated_out_scope() {
+fn test_sync_subscriptions_after_take_client_route_state_reclaims_migrated_out_scope() {
     let source_runtime = RealtimeDeliveryRuntime::permissive_for_tests();
     expect_ok(source_runtime.sync_subscriptions_for_principal_kind(
         "t_demo",
@@ -2125,7 +2138,8 @@ fn test_sync_subscriptions_after_take_device_state_reclaims_migrated_out_scope()
         }],
     ));
     let _snapshot = expect_ok(
-        source_runtime.take_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
+        source_runtime
+            .take_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad"),
     );
 
     expect_ok(source_runtime.sync_subscriptions_for_principal_kind(
@@ -2257,7 +2271,7 @@ fn test_checkpoint_updated_at_advances_after_new_persisted_mutation() {
 }
 
 #[test]
-fn test_publish_scope_event_enforces_bounded_device_window_and_persists_trim_checkpoint() {
+fn test_publish_scope_event_enforces_bounded_client_route_window_and_persists_trim_checkpoint() {
     let checkpoint_store = Arc::new(MemoryRealtimeCheckpointStore::default());
     let runtime = RealtimeDeliveryRuntime::with_checkpoint_store_permissive_for_tests(
         checkpoint_store.clone(),
@@ -2320,9 +2334,9 @@ fn test_publish_scope_event_enforces_bounded_device_window_and_persists_trim_che
 
     let diagnostics = expect_ok(runtime.realtime_inbox_diagnostics());
     assert_eq!(diagnostics.status, "critical");
-    assert_eq!(diagnostics.max_device_window_event_count, 1000);
-    assert_eq!(diagnostics.device_window_capacity, 1000);
-    assert_eq!(diagnostics.max_device_window_usage_permille, 1000);
+    assert_eq!(diagnostics.max_client_route_window_event_count, 1000);
+    assert_eq!(diagnostics.client_route_window_capacity, 1000);
+    assert_eq!(diagnostics.max_client_route_window_usage_permille, 1000);
     assert_eq!(diagnostics.capacity_trimmed_event_count, 100);
     assert_eq!(diagnostics.max_capacity_trimmed_through_seq, 100);
     assert_eq!(diagnostics.high_risk_windows.len(), 1);

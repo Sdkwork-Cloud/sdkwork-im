@@ -3,7 +3,7 @@ import type {
   MessageFavoriteType,
   MessageFavoriteView,
 } from '@sdkwork/im-sdk';
-import { getImSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
+import { getImSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/imSdkClient';
 
 export interface FavoriteItem {
   id: string;

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::api::paths::im_path;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{DevicePresenceRequest, PresenceView};
+use crate::models::{PresenceHeartbeatRequest, PresenceView};
 
 #[derive(Clone)]
 pub struct PresenceApi {
@@ -14,8 +14,8 @@ impl PresenceApi {
         Self { client }
     }
 
-    /// Publish current device presence heartbeat
-    pub async fn heartbeat_create(&self, body: &DevicePresenceRequest) -> Result<PresenceView, SdkworkError> {
+    /// Publish current client route presence heartbeat
+    pub async fn heartbeat_create(&self, body: &PresenceHeartbeatRequest) -> Result<PresenceView, SdkworkError> {
         let path = im_path(&"/presence/heartbeat".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }

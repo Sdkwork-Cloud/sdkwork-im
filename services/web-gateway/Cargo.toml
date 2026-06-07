@@ -22,6 +22,7 @@ serde.workspace = true
 serde_json.workspace = true
 sdkwork-api-config = { path = "../../crates/sdkwork-api-config" }
 sdkwork-api-product-runtime = { path = "../../crates/sdkwork-api-product-runtime" }
+sdkwork_iam_http.workspace = true
 tokio.workspace = true
 tokio-tungstenite = "0.28.0"
 tower.workspace = true

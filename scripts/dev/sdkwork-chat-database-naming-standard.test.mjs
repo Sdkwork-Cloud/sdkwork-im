@@ -4,9 +4,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const workspaceRoot = path.resolve(repoRoot, '..');
 
 function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, ...relativePath.split('/')), 'utf8');
+}
+
+function readWorkspace(relativePath) {
+  return fs.readFileSync(path.join(workspaceRoot, ...relativePath.split('/')), 'utf8');
 }
 
 function readJson(relativePath) {
@@ -28,6 +33,18 @@ function extractRustRawStrings(source) {
 const prefixRegistry = readJson('specs/database-prefix-registry.json');
 const tableRegistry = readJson('specs/database-table-registry.json');
 const schema = read('deployments/database/postgres/migrations/001_im_core_schema.sql').toLowerCase();
+const databaseSpec = readWorkspace('sdkwork-specs/DATABASE_SPEC.md');
+const cargoManifest = read('Cargo.toml');
+const runtimeIdCrate = read('crates/craw-chat-runtime-id/src/lib.rs');
+const appbaseUserCenterCargo = readWorkspace(
+  'sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust/Cargo.toml',
+);
+const appbaseUserCenterLib = readWorkspace(
+  'sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust/src/lib.rs',
+);
+const appbaseUserCenterAuthority = readWorkspace(
+  'sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust/src/user_center_authority.rs',
+);
 const componentSpec = readJson('specs/component.spec.json');
 const localSpecReadme = read('specs/README.md');
 const namingDoc = read('docs/部署/database-table-naming-standard.md');
@@ -218,5 +235,105 @@ assert.ok(
   ubuntuWslGuide.includes('DROP TABLE sdkwork_ai_dev.__manual_smoke_check'),
   'manual smoke check table must be dropped in the same guide',
 );
+
+assert.match(
+  databaseSpec,
+  /运行时业务数据 INSERT 的 `BIGINT id` MUST 由统一 ID 生成器显式生成并绑定写入/u,
+  'root DATABASE_SPEC.md must require explicit generated IDs for runtime INSERTs',
+);
+assert.match(
+  databaseSpec,
+  /sdkwork_id::SnowflakeIdGenerator/u,
+  'root DATABASE_SPEC.md must name the shared Rust Snowflake generator authority',
+);
+
+assert.match(
+  cargoManifest,
+  /"crates\/craw-chat-runtime-id"/u,
+  'craw-chat workspace must include the runtime ID capability crate',
+);
+assert.match(
+  cargoManifest,
+  /sdkwork_id\s*=\s*\{\s*path\s*=\s*"\.\.\/sdkwork-appbase\/packages\/native-rust\/foundation\/sdkwork-id-rust"\s*\}/u,
+  'craw-chat must consume the appbase sdkwork_id Snowflake generator instead of a local fork',
+);
+assert.match(
+  runtimeIdCrate,
+  /use sdkwork_id::\{SnowflakeIdError, SnowflakeIdGenerator\};/u,
+  'craw-chat runtime ID crate must use the appbase Snowflake generator',
+);
+assert.match(
+  runtimeIdCrate,
+  /pub const SDKWORK_CHAT_ID_NODE_ID_ENV/u,
+  'craw-chat runtime ID generation must require an explicit node ID env key',
+);
+assert.match(
+  runtimeIdCrate,
+  /failure_handling:\s*"fail_closed_no_random_or_database_fallback"/u,
+  'craw-chat runtime ID strategy must fail closed without random or database fallback IDs',
+);
+
+assert.match(
+  appbaseUserCenterCargo,
+  /sdkwork_id\.workspace\s*=\s*true/u,
+  'appbase user-center native crate must depend on the shared workspace Snowflake generator',
+);
+assert.match(
+  appbaseUserCenterLib,
+  /use sdkwork_id::\{SnowflakeIdError, SnowflakeIdGenerator\};/u,
+  'appbase user-center create_identifier must use sdkwork_id::SnowflakeIdGenerator',
+);
+assert.match(
+  appbaseUserCenterLib,
+  /static USER_CENTER_ID_GENERATOR:\s*OnceLock<SnowflakeIdGenerator>/u,
+  'appbase user-center must keep a process-local Snowflake generator instead of rebuilding per ID',
+);
+assert.doesNotMatch(
+  appbaseUserCenterLib,
+  /DECIMAL_IDENTIFIER_BASE|NEXT_DECIMAL_IDENTIFIER|AtomicU64|saturating_mul\(1_000\)/u,
+  'appbase user-center must not use the old decimal timestamp ID generator',
+);
+assert.doesNotMatch(
+  appbaseUserCenterAuthority,
+  /fn stable_numeric_identifier/u,
+  'runtime appbase IAM write IDs must not use stable hash-derived numeric identifiers',
+);
+assert.match(
+  appbaseUserCenterAuthority,
+  /fn resolve_existing_external_user/u,
+  'appbase user-center must resolve existing users by external subject before allocating a new internal ID',
+);
+assert.match(
+  appbaseUserCenterAuthority,
+  /let external_subject = normalize_optional_text\(request\.subject\.as_deref\(\)\)\s*\.or_else\(\|\| normalize_optional_text\(request\.user_id\.as_deref\(\)\)\);/u,
+  'appbase session exchange must treat request.user_id as external_subject fallback',
+);
+assert.doesNotMatch(
+  appbaseUserCenterAuthority,
+  /let preferred_user_id\s*=\s*normalize_optional_text\(request\.user_id\.as_deref\(\)\)/u,
+  'appbase session exchange must not use external request.user_id as the internal iam_user.id',
+);
+
+for (const [builderName, ignoredArgument] of [
+  ['build_local_user_id', 'email'],
+  ['build_local_phone_user_id', 'phone'],
+  ['build_external_user_id', 'provider_key'],
+  ['build_local_oauth_user_id', 'provider'],
+]) {
+  const builderMatch = appbaseUserCenterAuthority.match(
+    new RegExp(`fn ${builderName}\\([^)]*\\) -> String \\{([\\s\\S]*?)\\n\\}`, 'u'),
+  );
+  assert.ok(builderMatch, `appbase user-center must define ${builderName}`);
+  assert.match(
+    builderMatch[1],
+    /crate::create_identifier\("user"\)/u,
+    `${builderName} must allocate internal IAM user IDs through create_identifier("user")`,
+  );
+  assert.doesNotMatch(
+    builderMatch[1],
+    new RegExp(`sanitize_identifier_segment\\(${ignoredArgument}\\)|format!\\(\\s*"user[_-]`, 'u'),
+    `${builderName} must not derive internal user IDs from account/email/provider text`,
+  );
+}
 
 console.log('sdkwork-chat database naming standard contract passed');

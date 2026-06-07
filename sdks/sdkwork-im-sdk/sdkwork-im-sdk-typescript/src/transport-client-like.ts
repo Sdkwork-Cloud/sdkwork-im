@@ -14,7 +14,6 @@ import type {
   CreateConversationResult,
   DeleteContactTagResponse,
   DeleteMessageFavoriteResponse,
-  DeviceSyncFeedResponse,
   FavoriteMessageRequest,
   FavoriteMessagesResponse,
   InboxResponse,
@@ -31,8 +30,6 @@ import type {
   PostedMessageResponse,
   QueryParams,
   ReadCursorView,
-  RegisterDeviceRequest,
-  RegisteredDeviceView,
   RtcSession,
   SocialFriendRequestAcceptanceResponse,
   SocialFriendRequestListResponse,
@@ -113,14 +110,6 @@ export interface ImTransportClientLike {
       };
     };
   };
-  device: {
-    registrations: {
-      create(body: RegisterDeviceRequest): Promise<RegisteredDeviceView>;
-    };
-    syncFeed: {
-      retrieve(deviceId: string | number, params?: QueryParams & { afterSeq?: number; limit?: number }): Promise<DeviceSyncFeedResponse>;
-    };
-  };
   rtc: {
     sessions: {
       retrieve(rtcSessionId: string | number): Promise<RtcSession>;
@@ -141,6 +130,7 @@ export interface ImTransportClientLike {
       remove(friendshipId: string | number): Promise<SocialFriendshipMutationResponse>;
     };
     contacts: {
+      list(params?: QueryParams): Promise<ContactsResponse>;
       preferences: {
         retrieve(targetUserId: string | number): Promise<ContactPreferencesView>;
         update(targetUserId: string | number, body: UpdateContactPreferencesRequest): Promise<ContactPreferencesView>;

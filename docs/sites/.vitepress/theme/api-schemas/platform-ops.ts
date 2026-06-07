@@ -40,13 +40,13 @@ const projectionPlaneMetricsFields: ApiSchemaField[] = [
   ),
   objectField(
     "deviceSyncSnapshotPersist",
-    "Device sync snapshot persist counters.",
+    "Client-route sync snapshot persist counters.",
     projectionPlaneMetricCounterFields,
     { required: true, summary: "View nested fields for deviceSyncSnapshotPersist" },
   ),
   objectField(
     "deviceSyncSnapshotRestore",
-    "Device sync snapshot restore counters.",
+    "Client-route sync snapshot restore counters.",
     projectionPlaneMetricCounterFields,
     { required: true, summary: "View nested fields for deviceSyncSnapshotRestore" },
   ),
@@ -93,7 +93,7 @@ const clusterNodeViewFields: ApiSchemaField[] = [
   field("bindAddr", "string", "Listen address.", { required: true }),
   field("drainStatus", "string", "Drain state.", { required: true }),
   field("rebalanceState", "string", "Rebalance state.", { required: true }),
-  field("deviceRouteCount", "uint64", "Number of owned device routes.", { required: true }),
+  field("deviceRouteCount", "uint64", "Number of owned client routes.", { required: true }),
   field("ownedScopes", "string[]", "Scope identifiers currently owned by the node.", {
     required: true,
   }),
@@ -301,7 +301,7 @@ export const platformOpsSchemas: ApiSchemaDefinitionMap = {
         required: true,
         summary: "View nested fields for lag",
       }),
-      arrayField("deviceRoutes", "RouteOwnershipView", "Device route ownership records.", routeOwnershipViewFields, {
+      arrayField("deviceRoutes", "RouteOwnershipView", "Client route ownership records.", routeOwnershipViewFields, {
         required: true,
         summary: "View nested fields for deviceRoutes",
       }),

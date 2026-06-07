@@ -47,7 +47,7 @@
 - `CP05-3`
   - direct / group / channel 重新收口尚未开始闭环
 - `CP05-4`
-  - projection / notification / multi-device sync owner 重新收口尚未开始闭环
+  - projection / notification / multi-client-route sync owner 重新收口尚未开始闭环
 
 ## 4. 是否偏离架构
 

@@ -82,23 +82,6 @@ async fn test_local_minimal_ops_diagnostics_exposes_runtime_provider_bindings() 
         }),
         "principal-profile binding should expose the local provider"
     );
-    assert!(
-        effective_bindings.iter().any(|binding| {
-            binding["domain"] == "iot-access"
-                && binding["selectedPluginId"] == "iot-access-local"
-                && binding["selectionSource"] == "global_default"
-        }),
-        "iot access binding should expose the local provider"
-    );
-    assert!(
-        effective_bindings.iter().any(|binding| {
-            binding["domain"] == "iot-protocol"
-                && binding["selectedPluginId"] == "iot-mqtt"
-                && binding["selectionSource"] == "global_default"
-        }),
-        "iot protocol binding should expose the mqtt provider"
-    );
-
     assert_eq!(
         json["providerBindingDrift"]["items"],
         serde_json::json!([]),

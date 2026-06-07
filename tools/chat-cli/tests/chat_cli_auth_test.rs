@@ -46,7 +46,7 @@ async fn test_chat_cli_token_command_uses_supplied_bearer_token_without_login() 
             "--user-id",
             "u_guest",
             "--session-id",
-            "device_session_guest",
+            "chat_session_guest",
             "--device-id",
             "d_guest",
             "--bearer-token",

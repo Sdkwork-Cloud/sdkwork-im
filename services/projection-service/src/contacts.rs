@@ -8,7 +8,7 @@ use im_domain_events::social::{
 };
 use im_time::{max_rfc3339_string, rfc3339_cmp};
 
-use crate::device_sync::registered_devices_for_principal_kind;
+use crate::client_route_sync::registered_client_routes_for_principal_kind;
 use crate::model::ContactDirectChatBindingView;
 use crate::{ContactView, TimelineProjectionService};
 
@@ -134,7 +134,7 @@ impl TimelineProjectionService {
             &payload,
             binding.as_ref(),
         );
-        self.fan_out_friendship_activated_to_device_sync_feeds(event, &payload);
+        self.fan_out_friendship_activated_to_client_route_sync_feeds(event, &payload);
 
         Ok(())
     }
@@ -163,7 +163,7 @@ impl TimelineProjectionService {
             payload.user_low_id.as_str(),
             payload.friendship_id.as_str(),
         );
-        self.fan_out_friendship_removed_to_device_sync_feeds(event, &payload);
+        self.fan_out_friendship_removed_to_client_route_sync_feeds(event, &payload);
 
         Ok(())
     }
@@ -323,19 +323,19 @@ impl TimelineProjectionService {
             .cloned()
     }
 
-    fn fan_out_friendship_activated_to_device_sync_feeds(
+    fn fan_out_friendship_activated_to_client_route_sync_feeds(
         &self,
         event: &CommitEnvelope,
         payload: &FriendshipActivatedPayload,
     ) {
-        self.fan_out_friendship_to_device_sync_feeds(
+        self.fan_out_friendship_to_client_route_sync_feeds(
             event,
             payload.user_low_id.as_str(),
             payload.user_high_id.as_str(),
             payload.initiator_user_id.as_str(),
             payload.established_at.as_str(),
         );
-        self.fan_out_friendship_to_device_sync_feeds(
+        self.fan_out_friendship_to_client_route_sync_feeds(
             event,
             payload.user_high_id.as_str(),
             payload.user_low_id.as_str(),
@@ -344,19 +344,19 @@ impl TimelineProjectionService {
         );
     }
 
-    fn fan_out_friendship_removed_to_device_sync_feeds(
+    fn fan_out_friendship_removed_to_client_route_sync_feeds(
         &self,
         event: &CommitEnvelope,
         payload: &FriendshipRemovedPayload,
     ) {
-        self.fan_out_friendship_to_device_sync_feeds(
+        self.fan_out_friendship_to_client_route_sync_feeds(
             event,
             payload.user_low_id.as_str(),
             payload.user_high_id.as_str(),
             payload.removed_by_user_id.as_str(),
             payload.removed_at.as_str(),
         );
-        self.fan_out_friendship_to_device_sync_feeds(
+        self.fan_out_friendship_to_client_route_sync_feeds(
             event,
             payload.user_high_id.as_str(),
             payload.user_low_id.as_str(),
@@ -365,7 +365,7 @@ impl TimelineProjectionService {
         );
     }
 
-    fn fan_out_friendship_to_device_sync_feeds(
+    fn fan_out_friendship_to_client_route_sync_feeds(
         &self,
         event: &CommitEnvelope,
         principal_id: &str,
@@ -373,18 +373,18 @@ impl TimelineProjectionService {
         actor_id: &str,
         occurred_at: &str,
     ) {
-        for device in registered_devices_for_principal_kind(
+        for device in registered_client_routes_for_principal_kind(
             self,
             event.tenant_id.as_str(),
             principal_id,
             "user",
         ) {
-            self.append_device_sync_entry(
+            self.append_client_route_sync_entry(
                 event.tenant_id.as_str(),
                 principal_id,
                 "user",
                 device.device_id.as_str(),
-                |sync_seq| im_domain_core::conversation::DeviceSyncFeedEntry {
+                |sync_seq| im_domain_core::conversation::ClientRouteSyncFeedEntry {
                     tenant_id: event.tenant_id.clone(),
                     principal_id: principal_id.into(),
                     device_id: device.device_id.clone(),

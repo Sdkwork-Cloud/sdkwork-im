@@ -22,7 +22,7 @@
 ## 3. 未兑现
 
 - `CP05-4` 仍未闭环
-- projection / multi-device sync 仍有剩余 owner seam
+- projection / multi-client-route sync 仍有剩余 owner seam
 - `Step 05` 仍未闭环
 
 ## 4. 偏离判断

@@ -246,11 +246,11 @@ fn realtime_inbox_diagnostics_for_ops(
     match state.realtime_runtime.realtime_inbox_diagnostics() {
         Ok(snapshot) => ops_service::RealtimeInboxDiagnosticsView {
             status: snapshot.status,
-            device_window_count: snapshot.device_window_count,
+            client_route_window_count: snapshot.client_route_window_count,
             pending_event_count: snapshot.pending_event_count,
-            max_device_window_event_count: snapshot.max_device_window_event_count,
-            device_window_capacity: snapshot.device_window_capacity,
-            max_device_window_usage_permille: snapshot.max_device_window_usage_permille,
+            max_client_route_window_event_count: snapshot.max_client_route_window_event_count,
+            client_route_window_capacity: snapshot.client_route_window_capacity,
+            max_client_route_window_usage_permille: snapshot.max_client_route_window_usage_permille,
             max_trimmed_through_seq: snapshot.max_trimmed_through_seq,
             capacity_trimmed_event_count: snapshot.capacity_trimmed_event_count,
             max_capacity_trimmed_through_seq: snapshot.max_capacity_trimmed_through_seq,
@@ -276,11 +276,11 @@ fn realtime_inbox_diagnostics_for_ops(
         },
         Err(_error) => ops_service::RealtimeInboxDiagnosticsView {
             status: "unavailable".into(),
-            device_window_count: 0,
+            client_route_window_count: 0,
             pending_event_count: 0,
-            max_device_window_event_count: 0,
-            device_window_capacity: 0,
-            max_device_window_usage_permille: 0,
+            max_client_route_window_event_count: 0,
+            client_route_window_capacity: 0,
+            max_client_route_window_usage_permille: 0,
             max_trimmed_through_seq: 0,
             capacity_trimmed_event_count: 0,
             max_capacity_trimmed_through_seq: 0,
@@ -303,11 +303,11 @@ fn map_projection_plane_observability(
             conversation_snapshot_restore: map_projection_metric_counter(
                 view.metrics.conversation_snapshot_restore,
             ),
-            device_sync_snapshot_persist: map_projection_metric_counter(
-                view.metrics.device_sync_snapshot_persist,
+            client_route_sync_snapshot_persist: map_projection_metric_counter(
+                view.metrics.client_route_sync_snapshot_persist,
             ),
-            device_sync_snapshot_restore: map_projection_metric_counter(
-                view.metrics.device_sync_snapshot_restore,
+            client_route_sync_snapshot_restore: map_projection_metric_counter(
+                view.metrics.client_route_sync_snapshot_restore,
             ),
         },
         replay: ops_service::ProjectionReplayMetricsView {

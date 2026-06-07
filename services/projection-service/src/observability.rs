@@ -21,8 +21,8 @@ pub struct ProjectionOperationMetricView {
 pub struct ProjectionPlaneMetricsView {
     pub conversation_snapshot_persist: ProjectionOperationMetricView,
     pub conversation_snapshot_restore: ProjectionOperationMetricView,
-    pub device_sync_snapshot_persist: ProjectionOperationMetricView,
-    pub device_sync_snapshot_restore: ProjectionOperationMetricView,
+    pub client_route_sync_snapshot_persist: ProjectionOperationMetricView,
+    pub client_route_sync_snapshot_restore: ProjectionOperationMetricView,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -94,8 +94,8 @@ pub struct ProjectionPlaneObservabilityView {
 pub(super) enum ProjectionSnapshotOperation {
     ConversationSnapshotPersist,
     ConversationSnapshotRestore,
-    DeviceSyncSnapshotPersist,
-    DeviceSyncSnapshotRestore,
+    ClientRouteSyncSnapshotPersist,
+    ClientRouteSyncSnapshotRestore,
 }
 
 #[derive(Default)]
@@ -364,8 +364,8 @@ impl ProjectionSnapshotOperation {
         match self {
             Self::ConversationSnapshotPersist => "conversation_snapshot.persist",
             Self::ConversationSnapshotRestore => "conversation_snapshot.restore",
-            Self::DeviceSyncSnapshotPersist => "device_sync_snapshot.persist",
-            Self::DeviceSyncSnapshotRestore => "device_sync_snapshot.restore",
+            Self::ClientRouteSyncSnapshotPersist => "client_route_sync_snapshot.persist",
+            Self::ClientRouteSyncSnapshotRestore => "client_route_sync_snapshot.restore",
         }
     }
 
@@ -373,8 +373,8 @@ impl ProjectionSnapshotOperation {
         match self {
             Self::ConversationSnapshotPersist => "projection_snapshot_persist_succeeded",
             Self::ConversationSnapshotRestore => "projection_snapshot_restore_succeeded",
-            Self::DeviceSyncSnapshotPersist => "device_sync_snapshot_persist_succeeded",
-            Self::DeviceSyncSnapshotRestore => "device_sync_snapshot_restore_succeeded",
+            Self::ClientRouteSyncSnapshotPersist => "client_route_sync_snapshot_persist_succeeded",
+            Self::ClientRouteSyncSnapshotRestore => "client_route_sync_snapshot_restore_succeeded",
         }
     }
 
@@ -382,8 +382,8 @@ impl ProjectionSnapshotOperation {
         match self {
             Self::ConversationSnapshotPersist => "projection_snapshot_persist_failed",
             Self::ConversationSnapshotRestore => "projection_snapshot_restore_failed",
-            Self::DeviceSyncSnapshotPersist => "device_sync_snapshot_persist_failed",
-            Self::DeviceSyncSnapshotRestore => "device_sync_snapshot_restore_failed",
+            Self::ClientRouteSyncSnapshotPersist => "client_route_sync_snapshot_persist_failed",
+            Self::ClientRouteSyncSnapshotRestore => "client_route_sync_snapshot_restore_failed",
         }
     }
 
@@ -394,8 +394,8 @@ impl ProjectionSnapshotOperation {
         match self {
             Self::ConversationSnapshotPersist => &mut metrics.conversation_snapshot_persist,
             Self::ConversationSnapshotRestore => &mut metrics.conversation_snapshot_restore,
-            Self::DeviceSyncSnapshotPersist => &mut metrics.device_sync_snapshot_persist,
-            Self::DeviceSyncSnapshotRestore => &mut metrics.device_sync_snapshot_restore,
+            Self::ClientRouteSyncSnapshotPersist => &mut metrics.client_route_sync_snapshot_persist,
+            Self::ClientRouteSyncSnapshotRestore => &mut metrics.client_route_sync_snapshot_restore,
         }
     }
 }

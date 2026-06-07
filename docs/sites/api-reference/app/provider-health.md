@@ -6,7 +6,6 @@
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/app/iot-protocol-and-health"><code>IoT</code> IoT access and protocol provider health are documented on a separate page</a>
   <a href="/api-reference/backend/ops"><code>Backend Ops</code> Broader runtime diagnostics and provider-binding views are documented separately</a>
 </div>
 

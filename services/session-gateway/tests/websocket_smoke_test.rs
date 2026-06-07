@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
-use axum::http::Request;
 use craw_chat_ccp_binding_ws::{CCP_WS_SUBPROTOCOL, WsBinding, WsBindingMessage, WsOpcode};
 use craw_chat_ccp_codec::CcpCodec;
 use craw_chat_ccp_codec_json::JsonEnvelopeCodec;
@@ -17,7 +16,6 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::ClientRequestBuilder;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-use tower::ServiceExt;
 
 async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -1103,7 +1101,7 @@ async fn test_realtime_websocket_releases_route_after_ccp_handshake_protocol_clo
     let app = session_gateway::build_app_with_cluster_runtime_and_presence(
         cluster.clone(),
         Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests()),
-        Arc::new(session_gateway::DevicePresenceRuntime::default()),
+        Arc::new(session_gateway::PresenceRuntime::default()),
     );
     let (address, handle) = spawn_server(app).await;
     let request = ClientRequestBuilder::new(
@@ -1149,7 +1147,7 @@ async fn test_realtime_websocket_releases_route_after_ccp_handshake_protocol_clo
     timeout(Duration::from_secs(5), async {
         loop {
             if cluster
-                .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+                .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
                 .is_none()
             {
                 break;
@@ -1162,7 +1160,7 @@ async fn test_realtime_websocket_releases_route_after_ccp_handshake_protocol_clo
 
     assert!(
         cluster
-            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+            .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
             .is_none(),
         "ccp handshake failure must not leave a ghost route bound to the node"
     );
@@ -1215,7 +1213,7 @@ async fn test_realtime_websocket_releases_route_after_client_close() {
     timeout(Duration::from_secs(5), async {
         loop {
             if cluster
-                .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+                .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
                 .is_none()
             {
                 break;
@@ -1228,7 +1226,7 @@ async fn test_realtime_websocket_releases_route_after_client_close() {
 
     assert!(
         cluster
-            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+            .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
             .is_none(),
         "closed websocket must not leave a ghost route bound to the node"
     );
@@ -1274,7 +1272,7 @@ x-sdkwork-device-id: d_pad\r\n\
     timeout(Duration::from_secs(5), async {
         loop {
             if cluster
-                .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+                .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
                 .is_none()
             {
                 break;
@@ -1287,338 +1285,10 @@ x-sdkwork-device-id: d_pad\r\n\
 
     assert!(
         cluster
-            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+            .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
             .is_none(),
         "aborted websocket upgrade must not leave a ghost route bound to the node"
     );
-
-    handle.abort();
-    let _ = handle.await;
-}
-
-#[tokio::test]
-async fn test_realtime_websocket_rejects_stale_session_frames_after_http_resume_takeover() {
-    let app = session_gateway::build_app();
-    let http_app = app.clone();
-    let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_old".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_demo".parse().expect("device header should parse"),
-    );
-
-    let (mut socket, _) = connect_async(request)
-        .await
-        .expect("websocket connection should succeed");
-
-    let connected = next_text_json(&mut socket).await;
-    assert_eq!(connected["type"], "realtime.connected");
-
-    let resume_new = http_app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(axum::body::Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("fresh resume should succeed");
-    assert_eq!(resume_new.status(), axum::http::StatusCode::OK);
-
-    socket
-        .send(Message::Text(
-            json!({
-                "type":"events.pull",
-                "requestId":"req_stale_after_resume_1",
-                "afterSeq":0,
-                "limit":10
-            })
-            .to_string()
-            .into(),
-        ))
-        .await
-        .expect("stale websocket frame should send");
-
-    let error = next_text_json(&mut socket).await;
-    assert_eq!(error["type"], "error");
-    assert_eq!(error["requestId"], "req_stale_after_resume_1");
-    assert_eq!(error["code"], "stale_session");
-
-    let _ = socket.close(None).await;
-    handle.abort();
-    let _ = handle.await;
-}
-
-#[tokio::test]
-async fn test_realtime_websocket_closes_stale_session_before_push_after_http_resume_takeover() {
-    let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
-    let app = session_gateway::build_app_with_cluster_and_runtime(
-        Arc::new(session_gateway::RealtimeClusterBridge::default()),
-        runtime.clone(),
-    );
-    let http_app = app.clone();
-    let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_old".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_demo".parse().expect("device header should parse"),
-    );
-
-    let (mut socket, _) = connect_async(request)
-        .await
-        .expect("websocket connection should succeed");
-
-    let connected = next_text_json(&mut socket).await;
-    assert_eq!(connected["type"], "realtime.connected");
-
-    socket
-        .send(Message::Text(
-            json!({
-                "type":"subscriptions.sync",
-                "requestId":"req_sync_stale_push_1",
-                "items":[
-                    {
-                        "scopeType":"conversation",
-                        "scopeId":"c_demo",
-                        "eventTypes":["message.posted"]
-                    }
-                ]
-            })
-            .to_string()
-            .into(),
-        ))
-        .await
-        .expect("subscription sync frame should send");
-
-    let synced = next_text_json(&mut socket).await;
-    assert_eq!(synced["type"], "subscriptions.synced");
-    assert_eq!(synced["requestId"], "req_sync_stale_push_1");
-
-    let resume_new = http_app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(axum::body::Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("fresh resume should succeed");
-    assert_eq!(resume_new.status(), axum::http::StatusCode::OK);
-
-    runtime
-        .publish_scope_event_for_principal_kind(
-            "t_demo",
-            "u_demo",
-            "user",
-            "conversation",
-            "c_demo",
-            "message.posted",
-            json!({
-                "type": "message.posted",
-                "messageId": "msg_stale_push_1",
-                "summary": "stale websocket must not receive this push"
-            })
-            .to_string(),
-            vec!["d_demo".into()],
-        )
-        .expect("publish after resume takeover should succeed");
-
-    let close = next_message(&mut socket).await;
-    assert_policy_close_with_reason(close, "stale_session");
-
-    handle.abort();
-    let _ = handle.await;
-}
-
-#[tokio::test]
-async fn test_realtime_websocket_closes_idle_stale_session_after_http_resume_takeover() {
-    let app = session_gateway::build_app();
-    let http_app = app.clone();
-    let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_old".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_demo".parse().expect("device header should parse"),
-    );
-
-    let (mut socket, _) = connect_async(request)
-        .await
-        .expect("websocket connection should succeed");
-
-    let connected = next_text_json(&mut socket).await;
-    assert_eq!(connected["type"], "realtime.connected");
-
-    let resume_new = http_app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(axum::body::Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("fresh resume should succeed");
-    assert_eq!(resume_new.status(), axum::http::StatusCode::OK);
-
-    let close = timeout(Duration::from_secs(1), socket.next())
-        .await
-        .expect("stale idle websocket should be closed promptly after takeover")
-        .expect("websocket stream should yield a close frame")
-        .expect("websocket close frame should decode");
-    assert_policy_close_with_reason(close, "stale_session");
-
-    handle.abort();
-    let _ = handle.await;
-}
-
-#[tokio::test]
-async fn test_realtime_websocket_closes_stale_ccp_handshake_after_http_resume_takeover() {
-    let app = session_gateway::build_app();
-    let http_app = app.clone();
-    let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_old")
-    .with_header("x-sdkwork-device-id", "d_demo");
-
-    let (mut socket, _) = connect_async(request)
-        .await
-        .expect("websocket connection should succeed");
-
-    socket
-        .send(encode_ccp_text_frame(
-            "cc.control.hello.v1",
-            "control",
-            serde_json::to_value(ControlFrame::Hello(HelloFrame {
-                protocol: ProtocolVersion::new("ccp", 1, 0),
-                binding: TransportBinding::Ws1,
-                capabilities: CapabilitySet::from_iter(["payload.json"]),
-                trace_id: Some("trace-stale-handshake-takeover".into()),
-            }))
-            .expect("hello frame should serialize"),
-        ))
-        .await
-        .expect("hello frame should send");
-
-    let hello_ack = decode_ccp_envelope(next_message(&mut socket).await);
-    assert_eq!(hello_ack.schema, "cc.control.hello_ack.v1");
-
-    let resume_new = http_app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(axum::body::Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("fresh resume should succeed");
-    assert_eq!(resume_new.status(), axum::http::StatusCode::OK);
-
-    socket
-        .send(encode_ccp_text_frame(
-            "cc.control.auth_bind.v1",
-            "control",
-            serde_json::to_value(ControlFrame::AuthBind(AuthBindFrame {
-                principal_id: "u_demo".into(),
-                device_id: Some("d_demo".into()),
-                session_id: Some("s_old".into()),
-                actor_kind: "user".into(),
-            }))
-            .expect("auth bind frame should serialize"),
-        ))
-        .await
-        .expect("stale auth bind frame should send");
-
-    let close = next_message(&mut socket).await;
-    assert_policy_close_with_reason(close, "stale_session");
 
     handle.abort();
     let _ = handle.await;
@@ -1742,8 +1412,8 @@ async fn test_realtime_websocket_closes_with_policy_after_ccp_handshake_receives
 async fn test_realtime_websocket_pushes_live_business_frames_over_ccp_subprotocol() {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
-        .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
-        .expect("device state should initialize");
+        .ensure_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .expect("client route state should initialize");
 
     let app = session_gateway::build_app_with_cluster_and_runtime(
         Arc::new(session_gateway::RealtimeClusterBridge::default()),
@@ -1963,185 +1633,11 @@ async fn test_realtime_websocket_skips_session_resume_when_capability_not_negoti
 }
 
 #[tokio::test]
-async fn test_realtime_websocket_closes_when_session_disconnects() {
-    let app = session_gateway::build_app();
-    let (address, handle) = spawn_server(app.clone()).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
-
-    let (mut socket, _) = connect_async(request)
-        .await
-        .expect("websocket connection should succeed");
-
-    let connected = next_text_json(&mut socket).await;
-    assert_eq!(connected["type"], "realtime.connected");
-
-    let disconnect = app
-        .oneshot(
-            axum::http::Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/disconnect")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_pad")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("content-type", "application/json")
-                .body(axum::body::Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("disconnect request should succeed");
-    assert_eq!(disconnect.status(), axum::http::StatusCode::OK);
-
-    let close = next_message(&mut socket).await;
-    match close {
-        Message::Close(Some(frame)) => {
-            assert_eq!(
-                frame.code,
-                tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode::Library(
-                    session_gateway::SESSION_DISCONNECT_CLOSE_CODE,
-                )
-            );
-            assert_eq!(
-                frame.reason.as_str(),
-                session_gateway::SESSION_DISCONNECT_CLOSE_REASON
-            );
-        }
-        other => panic!("expected close frame, got {other:?}"),
-    }
-
-    handle.abort();
-    let _ = handle.await;
-}
-
-#[tokio::test]
-async fn test_realtime_websocket_sends_ccp_goaway_before_disconnect_close() {
-    let app = session_gateway::build_app();
-    let (address, handle) = spawn_server(app.clone()).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
-
-    let (mut socket, _) = connect_async(request)
-        .await
-        .expect("websocket connection should succeed");
-
-    socket
-        .send(encode_ccp_text_frame(
-            "cc.control.hello.v1",
-            "control",
-            serde_json::to_value(ControlFrame::Hello(HelloFrame {
-                protocol: ProtocolVersion::new("ccp", 1, 0),
-                binding: TransportBinding::Ws1,
-                capabilities: CapabilitySet::from_iter(["payload.json"]),
-                trace_id: Some("trace-hello-goaway".into()),
-            }))
-            .expect("hello frame should serialize"),
-        ))
-        .await
-        .expect("hello frame should send");
-    let _ = decode_ccp_envelope(next_message(&mut socket).await);
-
-    socket
-        .send(encode_ccp_text_frame(
-            "cc.control.auth_bind.v1",
-            "control",
-            serde_json::to_value(ControlFrame::AuthBind(AuthBindFrame {
-                principal_id: "u_demo".into(),
-                device_id: Some("d_pad".into()),
-                session_id: Some("s_pad".into()),
-                actor_kind: "user".into(),
-            }))
-            .expect("auth bind frame should serialize"),
-        ))
-        .await
-        .expect("auth bind frame should send");
-    let _ = decode_ccp_envelope(next_message(&mut socket).await);
-    let _ = decode_ccp_envelope(next_message(&mut socket).await);
-
-    let disconnect = app
-        .oneshot(
-            axum::http::Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/disconnect")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_pad")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("content-type", "application/json")
-                .body(axum::body::Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("disconnect request should succeed");
-    assert_eq!(disconnect.status(), axum::http::StatusCode::OK);
-
-    let goaway = decode_ccp_envelope(next_message(&mut socket).await);
-    assert_eq!(goaway.kind, "control");
-    assert_eq!(goaway.schema, "cc.control.goaway.v1");
-    let goaway_payload = envelope_payload_json(&goaway);
-    assert_eq!(goaway_payload["type"], "go_away");
-    assert_eq!(goaway_payload["data"]["code"], "SESSION_DISCONNECT");
-    assert_eq!(goaway_payload["data"]["message"], "session.disconnect");
-
-    let close = next_message(&mut socket).await;
-    match close {
-        Message::Close(Some(frame)) => {
-            assert_eq!(
-                frame.code,
-                tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode::Library(
-                    session_gateway::SESSION_DISCONNECT_CLOSE_CODE,
-                )
-            );
-            assert_eq!(
-                frame.reason.as_str(),
-                session_gateway::SESSION_DISCONNECT_CLOSE_REASON
-            );
-        }
-        other => panic!("expected close frame, got {other:?}"),
-    }
-
-    handle.abort();
-    let _ = handle.await;
-}
-
-#[tokio::test]
 async fn test_realtime_websocket_uses_runtime_link_queue_owner_limits_for_catchup_and_pull() {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
-        .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
-        .expect("device state should initialize");
+        .ensure_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .expect("client route state should initialize");
     runtime
         .sync_subscriptions_for_principal_kind(
             "t_demo",
@@ -2249,8 +1745,8 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
  {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
-        .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
-        .expect("device state should initialize");
+        .ensure_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .expect("client route state should initialize");
     runtime
         .sync_subscriptions_for_principal_kind(
             "t_demo",
@@ -2379,8 +1875,8 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
 async fn test_realtime_websocket_clamps_stale_pull_replay_when_backlog_is_still_over_hard_limit() {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
-        .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
-        .expect("device state should initialize");
+        .ensure_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .expect("client route state should initialize");
     runtime
         .sync_subscriptions_for_principal_kind(
             "t_demo",
@@ -2489,8 +1985,8 @@ async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backl
  {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
-        .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
-        .expect("device state should initialize");
+        .ensure_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .expect("client route state should initialize");
     runtime
         .sync_subscriptions_for_principal_kind(
             "t_demo",
@@ -2605,8 +2101,8 @@ async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backl
 async fn test_realtime_websocket_closes_when_runtime_link_detects_extreme_overload_backlog() {
     let runtime = Arc::new(session_gateway::RealtimeDeliveryRuntime::permissive_for_tests());
     runtime
-        .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
-        .expect("device state should initialize");
+        .ensure_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .expect("client route state should initialize");
     runtime
         .sync_subscriptions_for_principal_kind(
             "t_demo",

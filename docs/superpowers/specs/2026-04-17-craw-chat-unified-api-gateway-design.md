@@ -94,7 +94,6 @@ The gateway exposes four contract layers:
 ### 7.1 Primary Service Ownership
 
 - `session-gateway`
-  - `/im/v3/api/device/sessions/*`
   - `/im/v3/api/presence/*`
   - `/im/v3/api/realtime/*`
 - `control-plane-api`
@@ -126,7 +125,7 @@ The gateway exposes four contract layers:
   - sdkwork-appbase IAM/token APIs
   - `/app/v3/api/portal/*`
   - `/backend/v3/api/control/social/*`
-  - `/im/v3/api/devices/{deviceId}/twin*`
+  - `/app/v3/api/iot/*`
   - `/backend/v3/api/iot/*`
   - short-term provider-health routes that have not yet been split
 

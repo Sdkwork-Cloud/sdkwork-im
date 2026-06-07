@@ -1,8 +1,18 @@
 import {
+  getAiotAppSdkClientWithSession,
+  type SdkworkAiotAppClient,
+} from "@sdkwork/clawchat-pc-core/sdk/aiotAppSdkClient";
+import {
   getAppSdkClientWithSession,
   type SdkworkImAppClient,
-} from "@sdkwork/clawchat-pc-core";
-import { resolveSdkworkChatPcDeviceId } from "./DeviceSyncFeedService";
+} from "@sdkwork/clawchat-pc-core/sdk/appSdkClient";
+import {
+  readAppSdkSessionTokens,
+  resolveAppSdkOrganizationId,
+  resolveAppSdkTenantId,
+  resolveAppSdkUserId,
+} from "@sdkwork/clawchat-pc-core/sdk/session";
+import { resolveSdkworkChatPcClientId } from "./ClientIdentityService";
 
 export const ALL_APP_MODULES = [
   "chat",
@@ -99,6 +109,29 @@ export interface SettingsService {
 }
 
 type RecordLike = Record<string, unknown>;
+
+interface AiotAppContext {
+  dataScope?: string;
+  organizationId: string;
+  permissionScope: string;
+  tenantId: string;
+  userId?: string;
+}
+
+interface AiotAppRequestParams {
+  xSdkworkTenantId: string;
+  xSdkworkOrganizationId: string;
+  xSdkworkUserId?: string;
+  xSdkworkDataScope?: string;
+  xSdkworkPermissionScope: string;
+  idempotencyKey?: string;
+}
+
+const DEFAULT_AIOT_CONTEXT: AiotAppContext = {
+  tenantId: "20001",
+  organizationId: "30001",
+  permissionScope: "iot.twins.read",
+};
 
 function isRecord(value: unknown): value is RecordLike {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -218,6 +251,48 @@ function collectDeviceInfo(...states: RecordLike[]): DeviceInfo[] {
   return Array.from(devices.values());
 }
 
+function collectTwinStateRecords(twin: unknown): RecordLike[] {
+  const envelope = isRecord(twin) && "data" in twin ? twin.data : twin;
+  const record = isRecord(envelope) ? envelope : {};
+  return [
+    record.reported,
+    record.reportedState,
+    record.reported_state,
+    parseJsonRecord(pickString(record.reportedStateJson)),
+    parseJsonRecord(pickString(record.reported_state_json)),
+    record.desired,
+    record.desiredState,
+    record.desired_state,
+    parseJsonRecord(pickString(record.desiredStateJson)),
+    parseJsonRecord(pickString(record.desired_state_json)),
+  ].filter(isRecord);
+}
+
+function resolveAiotContext(permissionScope: string): AiotAppContext {
+  const session = readAppSdkSessionTokens();
+  return {
+    ...DEFAULT_AIOT_CONTEXT,
+    tenantId: resolveAppSdkTenantId(session) ?? DEFAULT_AIOT_CONTEXT.tenantId,
+    organizationId: resolveAppSdkOrganizationId(session) ?? DEFAULT_AIOT_CONTEXT.organizationId,
+    ...(resolveAppSdkUserId(session) ? { userId: resolveAppSdkUserId(session) } : {}),
+    permissionScope,
+  };
+}
+
+function toAiotRequestParams(
+  context: AiotAppContext,
+  options: { idempotencyKey?: string } = {},
+): AiotAppRequestParams {
+  return {
+    xSdkworkTenantId: context.tenantId,
+    xSdkworkOrganizationId: context.organizationId,
+    xSdkworkUserId: context.userId,
+    xSdkworkDataScope: context.dataScope,
+    xSdkworkPermissionScope: context.permissionScope,
+    idempotencyKey: options.idempotencyKey,
+  };
+}
+
 class SdkworkSettingsService implements SettingsService {
   private get defaultSettings(): AppSettings {
     return {
@@ -236,7 +311,8 @@ class SdkworkSettingsService implements SettingsService {
 
   constructor(
     private readonly getClient: () => SdkworkImAppClient = getAppSdkClientWithSession,
-    private readonly resolveDeviceId: () => string = resolveSdkworkChatPcDeviceId,
+    private readonly getAiotClient: () => SdkworkAiotAppClient = getAiotAppSdkClientWithSession,
+    private readonly resolveClientId: () => string = resolveSdkworkChatPcClientId,
   ) {
     setTimeout(() => this.initTheme(), 0);
   }
@@ -307,22 +383,34 @@ class SdkworkSettingsService implements SettingsService {
 
   async getDevices(): Promise<DeviceInfo[]> {
     try {
-      const twin = await this.getClient().device.twin.retrieve(this.resolveDeviceId());
-      return collectDeviceInfo(
-        parseJsonRecord(twin.reportedStateJson),
-        parseJsonRecord(twin.desiredStateJson),
+      const twin = await this.getAiotClient().iot.devices.twin.retrieve(
+        this.resolveClientId(),
+        toAiotRequestParams(resolveAiotContext("iot.twins.read")),
       );
+      return collectDeviceInfo(...collectTwinStateRecords(twin));
     } catch {
       return [];
     }
   }
 
   async removeDevice(deviceId: string): Promise<void> {
-    await this.getClient().device.twin.desired.update(this.resolveDeviceId(), {
-      desiredStateJson: JSON.stringify({
-        disabledLoginDeviceIds: [deviceId],
+    const normalizedDeviceId = deviceId.trim();
+    if (!normalizedDeviceId) {
+      throw new Error("Device id is required");
+    }
+    await this.getAiotClient().iot.devices.commands.create(
+      this.resolveClientId(),
+      {
+        capabilityName: "login-sessions",
+        commandName: "disable-login-device",
+        payload: {
+          disabledLoginDeviceIds: [normalizedDeviceId],
+        },
+      },
+      toAiotRequestParams(resolveAiotContext("iot.commands.execute"), {
+        idempotencyKey: `disable-login-device:${normalizedDeviceId}`,
       }),
-    });
+    );
   }
 
   async clearCache(): Promise<void> {
@@ -348,9 +436,10 @@ class SdkworkSettingsService implements SettingsService {
 
 export function createSdkworkSettingsService(
   getClient?: () => SdkworkImAppClient,
-  resolveDeviceId?: () => string,
+  getAiotClient?: () => SdkworkAiotAppClient,
+  resolveClientId?: () => string,
 ): SettingsService {
-  return new SdkworkSettingsService(getClient, resolveDeviceId);
+  return new SdkworkSettingsService(getClient, getAiotClient, resolveClientId);
 }
 
 export const settingsService = createSdkworkSettingsService();

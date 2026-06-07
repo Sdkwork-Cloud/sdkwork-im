@@ -6,11 +6,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const PREFIX = 'sdkwork-im-app-sdk';
 const APP_MODULES = [
   'portal',
-  'device',
   'notification',
   'automation',
   'provider',
-  'iot',
 ];
 
 function fail(message) {

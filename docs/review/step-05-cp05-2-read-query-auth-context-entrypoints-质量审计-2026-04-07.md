@@ -37,7 +37,7 @@
 ### 3.2 Step 05 级风险仍在
 
 - `CP05-3` 尚未完成 direct / group / channel 的统一再验收。
-- `CP05-4` 尚未完成 projection / notification / multi-device sync 的新 owner 收口。
+- `CP05-4` 尚未完成 projection / notification / multi-client-route sync 的新 owner 收口。
 - 因此 `Step 05` 仍不能通过 `91 / 95 / 97`。
 
 ## 4. 证据

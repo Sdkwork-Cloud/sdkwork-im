@@ -8,6 +8,7 @@ namespace Sdkwork.Im.Sdk.Generated.Models
     {
         public string? TenantId { get; set; }
         public string? UserId { get; set; }
+        public string? ChatId { get; set; }
         public string? DisplayName { get; set; }
         public string? RelationshipState { get; set; }
         public string? AvatarUrl { get; set; }

@@ -44,7 +44,6 @@ client.setHeader('X-Custom-Header', 'value');
 
 ## API Modules
 
-- `client.device` - device API
 - `client.presence` - presence API
 - `client.realtime` - realtime API
 - `client.rtc` - rtc API
@@ -53,17 +52,6 @@ client.setHeader('X-Custom-Header', 'value');
 - `client.streams` - streams API
 
 ## Usage Examples
-
-### device
-```dart
-// Resume a device runtime session
-final body = ResumeDeviceSessionRequest(
-  deviceId: '1',
-  lastSeenSyncSeq: 2,
-);
-final result = await client.device.sessionsResume(body);
-print(result);
-```
 
 ### presence
 ```dart

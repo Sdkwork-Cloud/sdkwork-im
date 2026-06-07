@@ -26,7 +26,7 @@ use tokio::time::{Duration, timeout};
 
 use crate::{
     RealtimeDeliveryRuntime, RealtimeRuntimeError, RealtimeSubscriptionItemInput,
-    device_registration::DeviceRouteRegistration, realtime::RealtimeWindowCheckpoint,
+    client_route_registration::ClientRouteRegistration, realtime::RealtimeWindowCheckpoint,
 };
 
 pub const CCP_WEBSOCKET_SUBPROTOCOL: &str = LINK_WEBSOCKET_SUBPROTOCOL;
@@ -102,19 +102,19 @@ impl RealtimeRouteOwnerError {
 }
 
 pub trait RealtimeRouteOwner: Send + Sync {
-    fn ensure_active_device_route_current_session(
+    fn ensure_active_client_route_current_session(
         &self,
         auth: &AppContext,
         device_id: &str,
     ) -> Result<(), RealtimeRouteOwnerError>;
 
-    fn subscribe_active_device_route_epoch(
+    fn subscribe_active_client_route_epoch(
         &self,
         auth: &AppContext,
         device_id: &str,
     ) -> Result<watch::Receiver<u64>, RealtimeRouteOwnerError>;
 
-    fn release_active_device_route_if_current_session(&self, auth: &AppContext, device_id: &str);
+    fn release_active_client_route_if_current_session(&self, auth: &AppContext, device_id: &str);
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -229,27 +229,27 @@ fn ccp_client_route_metadata_error() -> String {
     "client websocket frames must not supply ccp route metadata".into()
 }
 
-impl RealtimeRouteOwner for DeviceRouteRegistration {
-    fn ensure_active_device_route_current_session(
+impl RealtimeRouteOwner for ClientRouteRegistration {
+    fn ensure_active_client_route_current_session(
         &self,
         auth: &AppContext,
         device_id: &str,
     ) -> Result<(), RealtimeRouteOwnerError> {
-        self.ensure_active_device_route_current_session(auth, device_id)
+        self.ensure_active_client_route_current_session(auth, device_id)
             .map_err(|error| RealtimeRouteOwnerError::new(error.code, error.message))
     }
 
-    fn subscribe_active_device_route_epoch(
+    fn subscribe_active_client_route_epoch(
         &self,
         auth: &AppContext,
         device_id: &str,
     ) -> Result<watch::Receiver<u64>, RealtimeRouteOwnerError> {
-        self.subscribe_active_device_route_epoch(auth, device_id)
+        self.subscribe_active_client_route_epoch(auth, device_id)
             .map_err(|error| RealtimeRouteOwnerError::new(error.code, error.message))
     }
 
-    fn release_active_device_route_if_current_session(&self, auth: &AppContext, device_id: &str) {
-        self.release_active_device_route_if_current_session(auth, device_id);
+    fn release_active_client_route_if_current_session(&self, auth: &AppContext, device_id: &str) {
+        self.release_active_client_route_if_current_session(auth, device_id);
     }
 }
 
@@ -381,11 +381,11 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
         return;
     }
     let mut route_epoch_receiver =
-        match route_owner.subscribe_active_device_route_epoch(&auth, device_id.as_str()) {
+        match route_owner.subscribe_active_client_route_epoch(&auth, device_id.as_str()) {
             Ok(receiver) => receiver,
             Err(_) => return,
         };
-    if let Err(error) = runtime.ensure_device_state_for_principal_kind(
+    if let Err(error) = runtime.ensure_client_route_state_for_principal_kind(
         tenant_id.as_str(),
         principal_id.as_str(),
         principal_kind.as_str(),
@@ -427,7 +427,7 @@ pub async fn serve_realtime_websocket<R: RealtimeRouteOwner>(
     let mut resume_after_seq = checkpoint
         .acked_through_seq
         .max(checkpoint.trimmed_through_seq);
-    let mut receiver = match runtime.subscribe_device_for_principal_kind(
+    let mut receiver = match runtime.subscribe_client_route_for_principal_kind(
         tenant_id.as_str(),
         principal_id.as_str(),
         principal_kind.as_str(),
@@ -1065,7 +1065,7 @@ async fn receive_next_control_frame(
                     return Err(());
                 }
                 if route_owner
-                    .ensure_active_device_route_current_session(auth, device_id)
+                    .ensure_active_client_route_current_session(auth, device_id)
                     .is_err()
                 {
                     let _ = timeout(
@@ -1283,7 +1283,7 @@ impl LinkBufferedPushDrainDriver for BufferedPushDrainDriver<'_> {
 impl BufferedPushDrainDriver<'_> {
     fn ensure_current_route_session(&self) -> Result<(), BufferedPushDrainError> {
         self.route_owner
-            .ensure_active_device_route_current_session(self.auth, self.device_id)
+            .ensure_active_client_route_current_session(self.auth, self.device_id)
             .map_err(|error| BufferedPushDrainError::Fence(error.code))
     }
 }
@@ -1762,7 +1762,7 @@ async fn ensure_current_route_session_or_close(
     auth: &AppContext,
     device_id: &str,
 ) -> bool {
-    match route_owner.ensure_active_device_route_current_session(auth, device_id) {
+    match route_owner.ensure_active_client_route_current_session(auth, device_id) {
         Ok(()) => true,
         Err(error) => {
             close_policy_with_reason(socket, error.code).await;
@@ -1782,7 +1782,7 @@ async fn ensure_current_route_session_for_request_or_close(
     route: &CcpRoute,
     request_id: Option<String>,
 ) -> bool {
-    match route_owner.ensure_active_device_route_current_session(auth, device_id) {
+    match route_owner.ensure_active_client_route_current_session(auth, device_id) {
         Ok(()) => true,
         Err(error) => {
             let _ = send_business_error(

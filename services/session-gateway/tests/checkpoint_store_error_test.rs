@@ -83,9 +83,9 @@ async fn test_realtime_events_returns_503_when_checkpoint_store_load_fails() {
     assert_eq!(value["code"], "checkpoint_store_unavailable");
     assert!(
         cluster
-            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+            .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
             .is_none(),
-        "failed realtime events request must not leave a new device route"
+        "failed realtime events request must not leave a new client route"
     );
 }
 
@@ -133,9 +133,9 @@ async fn test_realtime_ack_returns_503_when_checkpoint_store_save_fails() {
     assert_eq!(value["code"], "checkpoint_store_unavailable");
     assert!(
         cluster
-            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+            .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
             .is_none(),
-        "failed realtime ack request must not leave a new device route"
+        "failed realtime ack request must not leave a new client route"
     );
 }
 
@@ -153,7 +153,7 @@ async fn test_realtime_ack_preserves_existing_route_when_checkpoint_store_save_f
     let app = session_gateway::build_app_with_cluster_and_runtime(cluster.clone(), runtime);
 
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -164,7 +164,7 @@ async fn test_realtime_ack_preserves_existing_route_when_checkpoint_store_save_f
         )
         .expect("test setup should bind an existing websocket route");
     let existing_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("test setup should expose the existing route");
 
     let response = app
@@ -186,7 +186,7 @@ async fn test_realtime_ack_preserves_existing_route_when_checkpoint_store_save_f
 
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     let current_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("failed ack must preserve the route that existed before the request");
     assert_eq!(current_route.owner_node_id, existing_route.owner_node_id);
     assert_eq!(current_route.session_id, existing_route.session_id);

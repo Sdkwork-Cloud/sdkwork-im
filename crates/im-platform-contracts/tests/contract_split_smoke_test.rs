@@ -10,7 +10,6 @@ use craw_chat_contract_control::{
 use craw_chat_contract_core::{
     ContractError, MetadataStore, ObjectDescriptor, ObjectPutRequest, ObjectStore,
 };
-use craw_chat_contract_iot::{DeviceTwinRecord, DeviceTwinStore};
 use craw_chat_contract_message::{CommitJournal, CommitPosition, TimelineProjectionStore};
 use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
@@ -29,7 +28,6 @@ struct NullStreamStore;
 struct NullRtcStore;
 struct NullNotificationStore;
 struct NullAutomationStore;
-struct NullIotStore;
 
 impl AdminCapabilityProfileStore for NullAdminStore {
     fn load_profile(
@@ -327,20 +325,6 @@ impl AutomationExecutionStore for NullAutomationStore {
     }
 }
 
-impl DeviceTwinStore for NullIotStore {
-    fn load_twin(
-        &self,
-        _tenant_id: &str,
-        _device_id: &str,
-    ) -> Result<Option<DeviceTwinRecord>, ContractError> {
-        Ok(None)
-    }
-
-    fn save_twin(&self, _record: DeviceTwinRecord) -> Result<(), ContractError> {
-        Ok(())
-    }
-}
-
 #[test]
 fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade() {
     let admin_store = NullAdminStore;
@@ -356,7 +340,6 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
     let rtc_store = NullRtcStore;
     let notification_store = NullNotificationStore;
     let automation_store = NullAutomationStore;
-    let iot_store = NullIotStore;
 
     admin_store
         .save_profile(AdminCapabilityProfileRecord {
@@ -407,10 +390,6 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
     assert_eq!(
         type_name::<CommitPosition>(),
         type_name::<im_platform_contracts::CommitPosition>()
-    );
-    assert_eq!(
-        type_name::<DeviceTwinRecord>(),
-        type_name::<im_platform_contracts::DeviceTwinRecord>()
     );
     assert_eq!(
         type_name::<RealtimeCheckpointRecord>(),
@@ -469,13 +448,4 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
     automation_store
         .load_execution("t_demo", "user", "u_demo", "exec_demo")
         .expect("automation load should succeed");
-    iot_store
-        .save_twin(DeviceTwinRecord {
-            tenant_id: "t_demo".into(),
-            device_id: "device_demo".into(),
-            desired_state_json: "{\"mode\":\"auto\"}".into(),
-            reported_state_json: "{\"mode\":\"auto\"}".into(),
-            updated_at: "2026-04-07T00:00:00Z".into(),
-        })
-        .expect("iot twin save should succeed");
 }

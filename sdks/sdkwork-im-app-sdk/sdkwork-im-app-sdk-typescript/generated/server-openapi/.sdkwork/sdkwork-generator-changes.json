@@ -8,7 +8,7 @@
     "sdkType": "app",
     "packageName": "@sdkwork-internal/im-app-api-generated"
   },
-  "changeFingerprint": "afa4296d9b703f03ea456aea17138c2f02d0f048e3397e2f06061102cf2082e8",
+  "changeFingerprint": "0663d1d3862df00635e14a7dcd6f9b338a271fc79d4961fe1cd97401c90bdc4a",
   "changes": {
     "createdGeneratedFiles": [
       "CHANGELOG.md",
@@ -18,9 +18,7 @@
       "sdkwork-sdk.json",
       "src/api/automation.ts",
       "src/api/base.ts",
-      "src/api/device.ts",
       "src/api/index.ts",
-      "src/api/iot.ts",
       "src/api/notification.ts",
       "src/api/paths.ts",
       "src/api/portal.ts",
@@ -30,7 +28,6 @@
       "src/http/index.ts",
       "src/index.ts",
       "src/sdk.ts",
-      "src/types/access-provider-health-retrieve-response.ts",
       "src/types/agent-subject.ts",
       "src/types/agent-tool-call-state.ts",
       "src/types/agent-tool-call.ts",
@@ -42,7 +39,6 @@
       "src/types/common.ts",
       "src/types/complete-agent-response-request.ts",
       "src/types/complete-agent-tool-call-request.ts",
-      "src/types/device-twin-view.ts",
       "src/types/index.ts",
       "src/types/media-health-retrieve-response.ts",
       "src/types/notification-list-response.ts",
@@ -54,9 +50,6 @@
       "src/types/portal-workspace-view.ts",
       "src/types/principal-profile-health-retrieve-response.ts",
       "src/types/problem-detail.ts",
-      "src/types/protocol-downlink-create-response.ts",
-      "src/types/protocol-provider-health-retrieve-response.ts",
-      "src/types/protocol-uplink-create-response.ts",
       "src/types/request-agent-tool-call-request.ts",
       "src/types/request-automation-execution.ts",
       "src/types/request-notification.ts",
@@ -67,8 +60,6 @@
       "src/types/stream-session-state.ts",
       "src/types/stream-session.ts",
       "src/types/string-map.ts",
-      "src/types/update-device-twin-desired-request.ts",
-      "src/types/update-device-twin-reported-request.ts",
       "tsconfig.json"
     ],
     "updatedGeneratedFiles": [],
@@ -103,9 +94,7 @@
         "paths": [
           "src/api/automation.ts",
           "src/api/base.ts",
-          "src/api/device.ts",
           "src/api/index.ts",
-          "src/api/iot.ts",
           "src/api/notification.ts",
           "src/api/paths.ts",
           "src/api/portal.ts",
@@ -117,7 +106,6 @@
       {
         "area": "models",
         "paths": [
-          "src/types/access-provider-health-retrieve-response.ts",
           "src/types/agent-subject.ts",
           "src/types/agent-tool-call-state.ts",
           "src/types/agent-tool-call.ts",
@@ -129,7 +117,6 @@
           "src/types/common.ts",
           "src/types/complete-agent-response-request.ts",
           "src/types/complete-agent-tool-call-request.ts",
-          "src/types/device-twin-view.ts",
           "src/types/index.ts",
           "src/types/media-health-retrieve-response.ts",
           "src/types/notification-list-response.ts",
@@ -141,9 +128,6 @@
           "src/types/portal-workspace-view.ts",
           "src/types/principal-profile-health-retrieve-response.ts",
           "src/types/problem-detail.ts",
-          "src/types/protocol-downlink-create-response.ts",
-          "src/types/protocol-provider-health-retrieve-response.ts",
-          "src/types/protocol-uplink-create-response.ts",
           "src/types/request-agent-tool-call-request.ts",
           "src/types/request-automation-execution.ts",
           "src/types/request-notification.ts",
@@ -153,9 +137,7 @@
           "src/types/stream-frame.ts",
           "src/types/stream-session-state.ts",
           "src/types/stream-session.ts",
-          "src/types/string-map.ts",
-          "src/types/update-device-twin-desired-request.ts",
-          "src/types/update-device-twin-reported-request.ts"
+          "src/types/string-map.ts"
         ]
       },
       {

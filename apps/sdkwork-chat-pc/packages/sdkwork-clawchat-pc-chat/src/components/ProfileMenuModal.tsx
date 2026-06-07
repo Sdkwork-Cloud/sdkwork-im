@@ -1,7 +1,7 @@
 import React from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { Avatar } from "@sdkwork/clawchat-pc-commons";
-import { Star, Settings } from "lucide-react";
+import { Settings, Star } from "lucide-react";
 import { toast } from "./Toast";
 import type { User } from "@sdkwork/clawchat-pc-types";
 
@@ -20,12 +20,19 @@ export const ProfileMenuModal: React.FC<ProfileMenuModalProps> = ({
   onTabChange,
   onOpenSettings,
 }) => {
+  const currentUserChatId = currentUser.chatId ?? "";
+
   const copyCurrentUserId = async () => {
+    if (!currentUserChatId) {
+      toast("Chat ID is not ready. Please try again.", "error");
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(currentUser.id);
-      toast("已复制ID", "success");
+      await navigator.clipboard.writeText(currentUserChatId);
+      toast("Chat ID copied", "success");
     } catch {
-      toast("复制ID失败", "error");
+      toast("Copy Chat ID failed", "error");
     }
   };
 
@@ -43,78 +50,80 @@ export const ProfileMenuModal: React.FC<ProfileMenuModalProps> = ({
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -20 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="absolute top-12 left-16 w-80 bg-[#1e1e1e] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50"
+        className="absolute left-16 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-white/10 bg-[#1e1e1e] shadow-2xl"
       >
-        <div className="p-5 flex items-center gap-4 border-b border-white/5">
+        <div className="flex items-center gap-4 border-b border-white/5 p-5">
           <Avatar
             src={currentUser.avatar}
             alt={currentUser.name}
-            className="w-16 h-16 rounded-xl bg-[#2b2b2d]"
+            className="h-16 w-16 rounded-xl bg-[#2b2b2d]"
           />
-          <div className="flex flex-col flex-1 min-w-0">
-            <h3 className="text-xl font-bold text-gray-100 truncate">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <h3 className="truncate text-xl font-bold text-gray-100">
               {currentUser.name}
             </h3>
             <button
               type="button"
-              title="复制ID"
+              title="Copy Chat ID"
               onClick={copyCurrentUserId}
-              className="mt-1 text-xs text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1 min-w-0 text-left"
+              disabled={!currentUserChatId}
+              className="mt-1 flex min-w-0 items-center gap-1 text-left text-xs text-gray-500 transition-colors hover:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-500"
             >
-              <span className="shrink-0">ID:</span>
-              <span className="truncate font-mono">{currentUser.id}</span>
+              <span className="shrink-0">Chat ID:</span>
+              <span className="truncate font-mono">{currentUserChatId}</span>
             </button>
-            <div className="text-sm text-gray-400 mt-1 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#00b42a]" /> 在线办公中
+            <div className="mt-1 flex items-center gap-2 text-sm text-gray-400">
+              <div className="h-2 w-2 rounded-full bg-[#00b42a]" />
+              Online
             </div>
           </div>
         </div>
 
-        <div className="p-2 border-b border-white/5 grid grid-cols-2 gap-1 text-center">
+        <div className="grid grid-cols-2 gap-1 border-b border-white/5 p-2 text-center">
           <div
-            className="flex flex-col items-center p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors"
+            className="flex cursor-pointer flex-col items-center rounded-xl p-3 transition-colors hover:bg-white/5"
             onClick={() => {
               onClose();
               onTabChange("favorites");
             }}
           >
-            <Star size={20} className="text-gray-400 mb-1" />
-            <span className="text-xs text-gray-400">收藏</span>
+            <Star size={20} className="mb-1 text-gray-400" />
+            <span className="text-xs text-gray-400">Favorites</span>
           </div>
           <div
-            className="flex flex-col items-center p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-colors"
+            className="flex cursor-pointer flex-col items-center rounded-xl p-3 transition-colors hover:bg-white/5"
             onClick={() => {
               onClose();
-              if (onOpenSettings) onOpenSettings();
+              onOpenSettings?.();
             }}
           >
-            <Settings size={20} className="text-gray-400 mb-1" />
-            <span className="text-xs text-gray-400">设置</span>
+            <Settings size={20} className="mb-1 text-gray-400" />
+            <span className="text-xs text-gray-400">Settings</span>
           </div>
         </div>
 
         <div className="p-2">
-          <button className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors rounded-lg flex items-center gap-3">
-            <span className="w-5 flex justify-center">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-[#1e1e1e]" />
+          <button className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm text-gray-300 transition-colors hover:bg-white/5 hover:text-white">
+            <span className="flex w-5 justify-center">
+              <div className="h-2.5 w-2.5 rounded-full border-2 border-[#1e1e1e] bg-red-500" />
             </span>
-            忙碌
+            Busy
           </button>
-          <button className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors rounded-lg flex items-center gap-3">
-            <span className="w-5 flex justify-center">
-              <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 border-2 border-[#1e1e1e]" />
+          <button className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm text-gray-300 transition-colors hover:bg-white/5 hover:text-white">
+            <span className="flex w-5 justify-center">
+              <div className="h-2.5 w-2.5 rounded-full border-2 border-[#1e1e1e] bg-yellow-500" />
             </span>
-            离开
+            Away
           </button>
-          <div className="h-px bg-white/5 my-2 mx-2" />
+          <div className="mx-2 my-2 h-px bg-white/5" />
           <button
             onClick={() => {
               onClose();
               void onLogout();
             }}
-            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-lg flex items-center gap-3"
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
           >
-            退出登录
+            Log out
           </button>
         </div>
       </motion.div>

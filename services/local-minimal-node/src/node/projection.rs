@@ -1012,7 +1012,7 @@ pub(super) async fn update_read_cursor(
 ) -> Result<Json<ConversationReadCursorView>, ApiError> {
     let auth = resolve_request_app_context(auth, &headers)?;
     access::ensure_conversation_member(&state, &auth, conversation_id.as_str())?;
-    access::ensure_registered_device(&state, &auth)?;
+    access::ensure_client_route_key(&state, &auth)?;
     let cursor = state
         .conversation_runtime
         .update_read_cursor_from_auth_context(

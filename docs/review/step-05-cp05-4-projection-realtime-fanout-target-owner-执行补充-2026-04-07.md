@@ -5,13 +5,13 @@
 - 波次：`Wave B`
 - Step：`Step 05`
 - 子项：`CP05-4`
-- 本轮目标：把 realtime principal -> device fanout target 的 owner，从 `local-minimal-node` 在 side-effect 路径里直接遍历 projection raw `registered_devices(...)`，收口为 `projection-service` 的统一 seam
+- 本轮目标：把 realtime principal -> client route fanout target 的 owner，从 `local-minimal-node` 在 side-effect 路径里直接遍历 projection raw `registered_devices(...)`，收口为 `projection-service` 的统一 seam
 
 ## 2. 本轮为什么做这一项
 
 - `CP05-4` 的第一个真实增量已经把 notification public request access owner 收口到 `notification-service::NotificationRuntime`
-- 当前仓库里，`services/local-minimal-node/src/node/effects.rs` 仍然直接调用 `projection_service.registered_devices(...)`，再自行拼装 principal -> device fanout target
-- 这说明 projection / multi-device fanout owner 仍停留在 service edge 侧，无法继续推进 `CP05-4` 所要求的 projection / notification / multi-device sync 最终收口
+- 当前仓库里，`services/local-minimal-node/src/node/effects.rs` 仍然直接调用 `projection_service.registered_devices(...)`，再自行拼装 principal -> client route fanout target
+- 这说明 projection / multi-client-route fanout owner 仍停留在 service edge 侧，无法继续推进 `CP05-4` 所要求的 projection / notification / multi-client-route sync 最终收口
 
 ## 3. 本轮实际完成
 
@@ -20,11 +20,11 @@
 - `services/projection-service/src/lib.rs`
   - 新增 `TimelineProjectionService::realtime_fanout_targets_for_principals(...)`
   - 由 projection owner 统一负责：
-    - principal 集合到 registered device 集合的解析
+    - principal 集合到 registered client route 集合的解析
     - principal -> device realtime target 的稳定排序输出
 - `services/local-minimal-node/src/node/effects.rs`
   - `publish_realtime_event_to_principals(...)` 改为直接消费 `projection_service.realtime_fanout_targets_for_principals(...)`
-  - 删除本地基于 raw `registered_devices(...)` 的 device target 拼装
+  - 删除本地基于 raw `registered_devices(...)` 的 client route target 拼装
 - 测试新增/更新
   - `services/projection-service/tests/lib_structure_test.rs`
   - `services/projection-service/tests/timeline_projection_test.rs`
@@ -56,7 +56,7 @@
 - 这是 `CP05-4` 的第二个真实增量
 - projection-side principal -> device realtime fanout target owner 已开始收口到 `projection-service`
 - 但 `CP05-4` 仍未闭环：
-  - notification / projection / multi-device sync 的剩余 owner seam 仍未全部清零
+  - notification / projection / multi-client-route sync 的剩余 owner seam 仍未全部清零
   - `Step 05` 仍不能整体判定通过
 - 因此：
   - `CP05-4` 仍未通过

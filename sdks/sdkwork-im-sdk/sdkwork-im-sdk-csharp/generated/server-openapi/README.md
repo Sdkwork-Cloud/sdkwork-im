@@ -50,7 +50,6 @@ client.SetHeader("X-Custom-Header", "value");
 
 ## API Modules
 
-- `client.Device` - device API
 - `client.Presence` - presence API
 - `client.Realtime` - realtime API
 - `client.Rtc` - rtc API
@@ -59,19 +58,6 @@ client.SetHeader("X-Custom-Header", "value");
 - `client.Streams` - streams API
 
 ## Usage Examples
-
-### device
-
-```csharp
-// Resume a device runtime session
-var body = new ResumeDeviceSessionRequest
-{
-    DeviceId = "1",
-    LastSeenSyncSeq = 2,
-};
-var result = await client.Device.SessionsResumeAsync(body);
-Console.WriteLine(result);
-```
 
 ### presence
 

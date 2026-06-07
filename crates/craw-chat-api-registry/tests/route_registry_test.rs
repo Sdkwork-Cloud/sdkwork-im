@@ -97,21 +97,21 @@ fn registry_preserves_visibility_and_sdk_targets() {
     let registry = build_registry(vec![RouteDescriptor {
         service_id: "session-gateway".to_owned(),
         methods: vec![HttpMethod::Post],
-        path_pattern: "/im/v3/api/device/sessions/resume".to_owned(),
+        path_pattern: "/im/v3/api/presence/heartbeat".to_owned(),
         visibility: RouteVisibility::Public,
         sdk_targets: vec![SdkTarget::SdkworkImSdk],
-        operation_group: "session".to_owned(),
+        operation_group: "presence".to_owned(),
         protocol: RouteProtocol::Http,
         websocket_subprotocols: Vec::new(),
     }])
     .expect("public route should build");
 
     let route = registry
-        .resolve(HttpMethod::Post, "/im/v3/api/device/sessions/resume")
-        .expect("session route should exist");
+        .resolve(HttpMethod::Post, "/im/v3/api/presence/heartbeat")
+        .expect("presence route should exist");
     assert_eq!(route.visibility, RouteVisibility::Public);
     assert_eq!(route.sdk_targets, vec![SdkTarget::SdkworkImSdk]);
-    assert_eq!(route.operation_group, "session");
+    assert_eq!(route.operation_group, "presence");
 }
 
 #[test]

@@ -2,7 +2,6 @@ package com.sdkwork.im.sdk.generated
 
 import com.sdkwork.common.core.SdkConfig
 import com.sdkwork.im.sdk.generated.http.HttpClient
-import com.sdkwork.im.sdk.generated.api.DeviceApi
 import com.sdkwork.im.sdk.generated.api.PresenceApi
 import com.sdkwork.im.sdk.generated.api.RealtimeApi
 import com.sdkwork.im.sdk.generated.api.RtcApi
@@ -13,7 +12,6 @@ import com.sdkwork.im.sdk.generated.api.StreamsApi
 open class SdkworkImClient {
     private val httpClient: HttpClient
 
-    lateinit var device: DeviceApi
     lateinit var presence: PresenceApi
     lateinit var realtime: RealtimeApi
     lateinit var rtc: RtcApi
@@ -23,7 +21,6 @@ open class SdkworkImClient {
 
     constructor(baseUrl: String) {
         this.httpClient = HttpClient(baseUrl)
-        device = DeviceApi(httpClient)
         presence = PresenceApi(httpClient)
         realtime = RealtimeApi(httpClient)
         rtc = RtcApi(httpClient)
@@ -34,7 +31,6 @@ open class SdkworkImClient {
 
     constructor(config: SdkConfig) {
         this.httpClient = HttpClient(config)
-        device = DeviceApi(httpClient)
         presence = PresenceApi(httpClient)
         realtime = RealtimeApi(httpClient)
         rtc = RtcApi(httpClient)

@@ -290,23 +290,6 @@ public struct CompleteAgentToolCallRequest: Codable {
     }
 }
 
-public struct DeviceTwinView: Codable {
-    public let tenantId: String?
-    public let deviceId: String?
-    public let desiredStateJson: String?
-    public let reportedStateJson: String?
-    public let updatedAt: String?
-
-
-    public init(tenantId: String? = nil, deviceId: String? = nil, desiredStateJson: String? = nil, reportedStateJson: String? = nil, updatedAt: String? = nil) {
-        self.tenantId = tenantId
-        self.deviceId = deviceId
-        self.desiredStateJson = desiredStateJson
-        self.reportedStateJson = reportedStateJson
-        self.updatedAt = updatedAt
-    }
-}
-
 public struct NotificationTask: Codable {
     public let tenantId: String?
     public let notificationId: String?
@@ -473,23 +456,5 @@ public struct StartAgentResponseRequest: Codable {
         self.schemaRef = schemaRef
         self.memberId = memberId
         self.agent = agent
-    }
-}
-
-public struct UpdateDeviceTwinDesiredRequest: Codable {
-    public let desiredStateJson: String?
-
-
-    public init(desiredStateJson: String? = nil) {
-        self.desiredStateJson = desiredStateJson
-    }
-}
-
-public struct UpdateDeviceTwinReportedRequest: Codable {
-    public let reportedStateJson: String?
-
-
-    public init(reportedStateJson: String? = nil) {
-        self.reportedStateJson = reportedStateJson
     }
 }

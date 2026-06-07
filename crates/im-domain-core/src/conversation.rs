@@ -801,7 +801,7 @@ pub struct ConversationInboxEntry {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DeviceSyncFeedEntry {
+pub struct ClientRouteSyncFeedEntry {
     pub tenant_id: String,
     pub principal_id: String,
     pub device_id: String,

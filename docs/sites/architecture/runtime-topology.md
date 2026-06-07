@@ -11,11 +11,11 @@ Client / SDK / CLI
   local-minimal-node (:18090)
         |
         +-- session / presence / realtime
-        +-- device registration / sync feed
+        +-- presence / realtime route coordination
         +-- inbox / conversations / membership / messages
         +-- media / streams / RTC
         +-- notifications / automation / audit / ops
-        +-- provider health and IoT protocol ingress
+        +-- provider health and sdkwork-aiot bridge routes
         |
         v
   .runtime/local-minimal/
@@ -57,10 +57,8 @@ External Client / Operator / SDK
 
 ### IM open-platform domains
 
-- `/im/v3/api/device/sessions/*`
 - `/im/v3/api/presence/*`
 - `/im/v3/api/realtime/*`
-- `/im/v3/api/devices/*`
 - `/im/v3/api/chat/inbox`
 - `/im/v3/api/chat/conversations/*`
 - `/im/v3/api/chat/messages/*`
@@ -72,9 +70,10 @@ External Client / Operator / SDK
 
 - `/app/v3/api/notifications/*`
 - `/app/v3/api/automation/*`
+- `/app/v3/api/iot/*`
 - `/app/v3/api/principal/profiles/provider_health`
 - `/app/v3/api/media/provider_health`
-- `/app/v3/api/iot/*`
+- `/backend/v3/api/iot/*`
 - `/backend/v3/api/audit/*`
 - `/backend/v3/api/ops/*`
 
@@ -112,8 +111,6 @@ The formal packaged server install flow uses the unified gateway as the operator
 | `rtc` | `rtc-volcengine` | Platform default provider registry |
 | `object-storage` | `object-storage-volcengine` | Platform default provider registry plus media and RTC tests |
 | `principal-profile` | `principal-profile-upstream-context` | Upstream-context default; `principal-profile-external-catalog` is the read-only external catalog mode |
-| `iot-access` | `iot-access-local` | Local node provider wiring and IoT provider-health tests |
-| `iot-protocol` | `iot-mqtt` | Local node adapter wiring and IoT provider-health tests |
 
 ## Profile Matrix
 

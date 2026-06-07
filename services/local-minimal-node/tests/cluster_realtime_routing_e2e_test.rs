@@ -126,7 +126,7 @@ async fn test_local_minimal_profile_routes_realtime_events_to_remote_owner_node(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_other_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -195,7 +195,7 @@ async fn test_local_minimal_profile_routes_realtime_events_to_remote_owner_node(
     let remote_cluster_json: serde_json::Value =
         serde_json::from_slice(&remote_cluster_body).expect("remote cluster should be valid json");
     assert_eq!(remote_cluster_json["nodes"][0]["nodeId"], "node_b");
-    assert_eq!(remote_cluster_json["nodes"][0]["deviceRouteCount"], 1);
+    assert_eq!(remote_cluster_json["nodes"][0]["clientRouteCount"], 1);
 
     let remote_diagnostics = app_b
         .clone()
@@ -224,18 +224,18 @@ async fn test_local_minimal_profile_routes_realtime_events_to_remote_owner_node(
         serde_json::from_slice(&remote_diagnostics_body)
             .expect("remote diagnostics should be valid json");
     assert_eq!(
-        remote_diagnostics_json["deviceRoutes"]
+        remote_diagnostics_json["clientRoutes"]
             .as_array()
             .unwrap()
             .len(),
         1
     );
     assert_eq!(
-        remote_diagnostics_json["deviceRoutes"][0]["deviceId"],
+        remote_diagnostics_json["clientRoutes"][0]["deviceId"],
         "d_remote"
     );
     assert_eq!(
-        remote_diagnostics_json["deviceRoutes"][0]["ownerNodeId"],
+        remote_diagnostics_json["clientRoutes"][0]["ownerNodeId"],
         "node_b"
     );
 
@@ -378,7 +378,7 @@ async fn test_local_minimal_profile_records_remote_realtime_delivery_failure_wit
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_other_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -595,7 +595,7 @@ async fn test_local_minimal_profile_retries_pending_realtime_outbox_after_delive
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_other_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -939,7 +939,7 @@ async fn test_local_minimal_profile_persists_pending_realtime_outbox_across_runt
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_other_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -1180,7 +1180,7 @@ async fn test_local_minimal_profile_continues_realtime_fanout_after_one_target_f
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_a_fail")
                 .header("x-sdkwork-actor-kind", "user")
@@ -1228,7 +1228,7 @@ async fn test_local_minimal_profile_continues_realtime_fanout_after_one_target_f
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_z_ok")
                 .header("x-sdkwork-actor-kind", "user")
@@ -1344,151 +1344,6 @@ async fn test_local_minimal_profile_continues_realtime_fanout_after_one_target_f
 }
 
 #[tokio::test]
-async fn test_local_minimal_profile_rejects_stale_disconnect_after_cross_node_resume_takeover() {
-    let projection_service = Arc::new(projection_service::TimelineProjectionService::default());
-    let realtime_cluster = Arc::new(RealtimeClusterBridge::default());
-
-    let app_a = local_minimal_node::build_app_with_dependencies(
-        "node_a",
-        "127.0.0.1:18111",
-        projection_service.clone(),
-        realtime_cluster.clone(),
-    );
-    let app_b = local_minimal_node::build_app_with_dependencies(
-        "node_b",
-        "127.0.0.1:18112",
-        projection_service.clone(),
-        realtime_cluster.clone(),
-    );
-
-    let resume_old = app_a
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_resume")
-                .header("x-sdkwork-session-id", "s_old")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("old resume should succeed");
-    assert_eq!(resume_old.status(), StatusCode::OK);
-
-    let resume_new = app_b
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_resume")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("new resume should succeed");
-    assert_eq!(resume_new.status(), StatusCode::OK);
-
-    let diagnostics_before = app_b
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/backend/v3/api/ops/diagnostics")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_resume")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("x-sdkwork-permission-scope", "ops.read")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("diagnostics before stale disconnect should succeed");
-    assert_eq!(diagnostics_before.status(), StatusCode::OK);
-    let diagnostics_before_body = diagnostics_before
-        .into_body()
-        .collect()
-        .await
-        .expect("diagnostics before body should collect")
-        .to_bytes();
-    let diagnostics_before_json: serde_json::Value =
-        serde_json::from_slice(&diagnostics_before_body)
-            .expect("diagnostics before should be valid json");
-    assert_eq!(
-        diagnostics_before_json["deviceRoutes"][0]["ownerNodeId"],
-        "node_b"
-    );
-
-    let stale_disconnect = app_a
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/disconnect")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_resume")
-                .header("x-sdkwork-session-id", "s_old")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("stale disconnect should return response");
-    assert_eq!(stale_disconnect.status(), StatusCode::CONFLICT);
-    let stale_disconnect_body = stale_disconnect
-        .into_body()
-        .collect()
-        .await
-        .expect("stale disconnect body should collect")
-        .to_bytes();
-    let stale_disconnect_json: serde_json::Value = serde_json::from_slice(&stale_disconnect_body)
-        .expect("stale disconnect body should be valid json");
-    assert_eq!(stale_disconnect_json["code"], "stale_session");
-
-    let diagnostics_after = app_b
-        .oneshot(
-            Request::builder()
-                .uri("/backend/v3/api/ops/diagnostics")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_resume")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("x-sdkwork-permission-scope", "ops.read")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("diagnostics after stale disconnect should succeed");
-    assert_eq!(diagnostics_after.status(), StatusCode::OK);
-    let diagnostics_after_body = diagnostics_after
-        .into_body()
-        .collect()
-        .await
-        .expect("diagnostics after body should collect")
-        .to_bytes();
-    let diagnostics_after_json: serde_json::Value = serde_json::from_slice(&diagnostics_after_body)
-        .expect("diagnostics after should be valid json");
-    assert_eq!(
-        diagnostics_after_json["deviceRoutes"][0]["ownerNodeId"],
-        "node_b"
-    );
-}
-
-#[tokio::test]
 async fn test_local_minimal_profile_rejects_sessionless_rebind_after_cross_node_resume_takeover() {
     let projection_service = Arc::new(projection_service::TimelineProjectionService::default());
     let realtime_cluster = Arc::new(RealtimeClusterBridge::default());
@@ -1506,50 +1361,35 @@ async fn test_local_minimal_profile_rejects_sessionless_rebind_after_cross_node_
         realtime_cluster.clone(),
     );
 
-    let resume_old = app_a
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_resume")
-                .header("x-sdkwork-session-id", "s_old")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
+    realtime_cluster
+        .bind_client_route_for_principal_kind(
+            "t_demo",
+            "u_demo",
+            "user",
+            "d_resume",
+            "node_a",
+            Some("s_old"),
+            "http",
         )
-        .await
-        .expect("old resume should succeed");
-    assert_eq!(resume_old.status(), StatusCode::OK);
-
-    let resume_new = app_b
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_resume")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
+        .expect("old route bind should seed shared route directory");
+    realtime_cluster
+        .bind_client_route_for_principal_kind(
+            "t_demo",
+            "u_demo",
+            "user",
+            "d_resume",
+            "node_b",
+            Some("s_new"),
+            "http",
         )
-        .await
-        .expect("new resume should succeed");
-    assert_eq!(resume_new.status(), StatusCode::OK);
+        .expect("new route bind should seed takeover state");
 
     let sessionless_register = app_a
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -1597,7 +1437,7 @@ async fn test_local_minimal_profile_rejects_sessionless_rebind_after_cross_node_
     let diagnostics_after_json: serde_json::Value = serde_json::from_slice(&diagnostics_after_body)
         .expect("diagnostics after should be valid json");
     assert_eq!(
-        diagnostics_after_json["deviceRoutes"][0]["ownerNodeId"],
+        diagnostics_after_json["clientRoutes"][0]["ownerNodeId"],
         "node_b"
     );
 }

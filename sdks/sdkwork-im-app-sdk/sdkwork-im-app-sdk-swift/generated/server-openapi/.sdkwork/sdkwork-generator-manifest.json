@@ -35,7 +35,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "5889b80391584e05b555d504bd088e4c9130c557617c8eabde28cc535a678a9d"
+      "sha256": "5b206d9ac4b1b3a491a711224a6024cea35f83b33f38398926c56f4c8abe9a7d"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -43,7 +43,7 @@
     },
     {
       "path": "Sources/API/API.swift",
-      "sha256": "51afcd8d6d4f4195dcee9fe9a235cea38bdb089865ac072790bebbde23d69b8e"
+      "sha256": "195d5b3c94ed38dd435d070200a009209fb7d480ff4049d20ef5f86d5f48f7b6"
     },
     {
       "path": "Sources/API/ApiPaths.swift",
@@ -52,14 +52,6 @@
     {
       "path": "Sources/API/AutomationApi.swift",
       "sha256": "80ade8384a55df2c775fbbdbcde0ab1cbf4776d5f189a560e9b49a9e33752ba6"
-    },
-    {
-      "path": "Sources/API/DeviceApi.swift",
-      "sha256": "afc2a92d6f5dc68c22e04b17ab8b99dc7e83e48e8ff3cb0f958b73fe507c1428"
-    },
-    {
-      "path": "Sources/API/IotApi.swift",
-      "sha256": "1db82210f50fff3e7af353ed9c53f9ce877d0bcb0064918f47050443b8f3b045"
     },
     {
       "path": "Sources/API/NotificationApi.swift",
@@ -79,11 +71,11 @@
     },
     {
       "path": "Sources/Models.swift",
-      "sha256": "26e2d1e50d6f8080ad81f0567d4b8d4ad6b997b9fe341f45f7e7282dcb7ed523"
+      "sha256": "2fa1d98bddd56fd3d6de395223913c1c83ae21fe2851e962bde4465e30a6f0d4"
     },
     {
       "path": "Sources/SdkworkImAppClient.swift",
-      "sha256": "e9eeb219c2d413ebf843a4d99360aa2e50bf0e91d37afb183b850c517dd11186"
+      "sha256": "da90394a3fe5f2887c60ba91e961833992fb122791cd2c3bde6692ec44ff94c6"
     }
   ],
   "scaffoldFiles": [

@@ -1693,59 +1693,6 @@
   - `cargo test -p local-minimal-node --offline --test performance_ha_dr_drill_test -- --nocapture`：`5 passed`
 - 当前可以诚实宣称 `S13 = step_closure`；但不得宣称真实 `capacity-dedicated` 结果、多 cell / 多 region / object storage DR、完整生产级 SLO/告警自动化已闭环。
 
-## v0.0.25 - 2026-04-10
-
-- Loop：`25`
-- 执行 step：`S12`
-- 在 `services/local-minimal-node` 落地 `device_twin` runtime/mainline：
-  - `GET /im/v3/api/devices/{deviceId}/twin`
-  - `POST /im/v3/api/devices/{deviceId}/twin/desired`
-  - `POST /im/v3/api/devices/{deviceId}/twin/reported`
-- 在 `services/local-minimal-node/src/node/access.rs` 冻结 twin 权限边界：
-  - read：bound device 或 registered owner side
-  - desired write：non-device owner side
-  - reported write：bound device actor side
-- 在 `services/local-minimal-node/src/node/build.rs`、`adapters/local-memory/src/lib.rs`、`adapters/local-disk/src/iot.rs` 完成 `MemoryDeviceTwinStore / FileDeviceTwinStore` 装配，并让 runtime-dir 模式持久化到 `device-twin-state.json`。
-- 在 `services/local-minimal-node/src/node/runtime_dir.rs` 把 `device-twin-state.json` 纳入 managed runtime state 文件清单与巡检口径。
-- 新增 `services/local-minimal-node/tests/device_twin_mainline_test.rs`、`services/local-minimal-node/tests/device_twin_persistence_test.rs`，并通过 `runtime_dir_inspection_test` 证明 twin state 已进入 managed runtime-dir 面。
-- 更新 `docs/review/S12-执行卡-2026-04-10.md`，新增 `docs/review/S12-Loop25补充-2026-04-10.md`，把 `S12` 从 `local_closure` 提升为 `step_closure`。
-- 更新 `docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`，新增 `docs/架构/152CJ-Loop25补充-2026-04-10.md`，把 twin runtime/mainline、store、runtime-dir managed state 回写为当前 as-built。
-- 新增 `docs/release/2026-04-10-v0.0.25-loop-25.md`，固化 `Loop-25` 的真实闭环结论与下一轮输入。
-- fresh verification：
-  - `cargo test -p im-platform-contracts --offline --test agent_device_subject_model_test -- --nocapture`：`1 passed`
-  - `cargo test -p session-gateway --offline --test device_access_provider_mainline_test -- --nocapture`：`1 passed`
-  - `cargo test -p local-minimal-node --offline --test device_access_provider_mainline_test -- --nocapture`：`1 passed`
-  - `cargo test -p local-minimal-node --offline --test device_stream_e2e_test -- --nocapture`：`2 passed`
-  - `cargo test -p local-minimal-node --offline --test iot_provider_http_test -- --nocapture`：`2 passed`
-  - `cargo test -p local-minimal-node --offline --test iot_protocol_adapter_mainline_test -- --nocapture`：`8 passed`
-  - `cargo test -p local-minimal-node --offline --test device_twin_mainline_test -- --nocapture`：`1 passed`
-  - `cargo test -p local-minimal-node --offline --test device_twin_persistence_test -- --nocapture`：`1 passed`
-  - `cargo test -p local-minimal-node --offline --test runtime_dir_inspection_test -- --nocapture`：`4 passed`
-- 当前可以诚实宣称 `S12 = step_closure`；`shared` republish/runtime 与 durable repo / tx / outbox / replay 仍属跨 step deferred，不再错误阻塞本 step 收口。
-
-## v0.0.24 - 2026-04-10
-
-- Loop：`24`
-- 执行 step：`S12`
-- 重新核对 `device actor / IoT access-protocol / external collaboration` 的代码与测试真相后，修正 `S12` 闭环口径：
-  - `CPR12-1 = local_closure`
-  - `CPR12-2 = local_closure`
-  - `CPR12-3 = local_closure`
-  - `S12 = local_closure`
-- 更新 `docs/review/S12-执行卡-2026-04-10.md`，不再把 `S12` 写成“仅 `CPR12-3`”。
-- 新增 `docs/review/S12-Loop24补充-2026-04-10.md`，把 device subject、device access、device stream、IoT provider health、uplink/downlink 的证据回写到 review。
-- 更新 `docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`，新增 device / IoT As-Built 口径，并明确 `S12` 当前只能诚实标记为 `local_closure`。
-- 新增 `docs/架构/152CJ-Loop24补充-2026-04-10.md`，记录本轮对 `S12` 真实能力边界的修正。
-- 新增 `docs/release/2026-04-10-v0.0.24-loop-24.md`，沉淀本轮 loop 状态、验证、评分与下轮入口。
-- fresh verification：
-  - `cargo test -p im-platform-contracts --offline --test agent_device_subject_model_test -- --nocapture`：`1 passed`
-  - `cargo test -p session-gateway --offline --test device_access_provider_mainline_test -- --nocapture`：`1 passed`
-  - `cargo test -p local-minimal-node --offline --test device_access_provider_mainline_test -- --nocapture`：`1 passed`
-  - `cargo test -p local-minimal-node --offline --test device_stream_e2e_test -- --nocapture`：`2 passed`
-  - `cargo test -p local-minimal-node --offline --test iot_provider_http_test -- --nocapture`：`2 passed`
-  - `cargo test -p local-minimal-node --offline --test iot_protocol_adapter_mainline_test -- --nocapture`：`8 passed`
-- 当前仍不得宣称 `S12 = step_closure`；`device_twin` 仍主要停留在 contract/provider capability 层，未证明已进入统一 runtime/mainline。
-
 ## v0.0.23 - 2026-04-10
 
 - Loop：`23`
@@ -1759,7 +1706,7 @@
   - `control.external_connection_established / control.external_member_link_bound / control.shared_channel_policy_applied`
 - `services/control-plane-api/tests/social_external_collaboration_test.rs` 与 `crates/im-domain-core/tests/social_domain_contract_test.rs` 完成 TDD 回归，覆盖 cross-tenant、active connection 依赖与 `history_visibility = shared` 边界。
 - 已回写 `docs/review/S12-Loop23补充-2026-04-10.md`、`docs/架构/152CJ-Loop23补充-2026-04-10.md`、`docs/release/2026-04-10-v0.0.23-loop-23.md`。
-- 当前结论：`S12` 仅可宣称 `CPR12-3 local_closure`，不得宣称 `S12 step_closure`；`device actor / IoT / shared republish / shared runtime / durability` 继续 deferred。
+- 当前结论：`S12` 仅可宣称 `CPR12-3 local_closure`，不得宣称 `S12 step_closure`；`AIoT capability / shared republish / shared runtime / durability` 继续 deferred。
 
 ## v0.0.22 - 2026-04-10
 
@@ -1894,7 +1841,7 @@
 - Loop：`15`
 - 影响 step：`S08`、`S10`
 - 在 `services/projection-service` 新增 `reaction/pin summary` 派生面：`src/interactions.rs` 按 `message.reaction_added`、`message.reaction_removed`、`message.pin_added`、`message.pin_removed` 维护 `MessageInteractionSummaryView / pinned_messages`
-- 补齐 `src/http.rs`、`src/access.rs`、`src/snapshot.rs`、`src/scope.rs` 与 `src/lib.rs` 装配，使 `interaction-summary`、`pins`、snapshot restore、device-sync fanout 全部进入同一投影闭环
+- 补齐 `src/http.rs`、`src/access.rs`、`src/snapshot.rs`、`src/scope.rs` 与 `src/lib.rs` 装配，使 `interaction-summary`、`pins`、snapshot restore、client-route sync fanout 全部进入同一投影闭环
 - 以 TDD 扩展 `timeline_projection_test.rs`、`http_smoke_test.rs`、`projection_snapshot_test.rs`、`lib_structure_test.rs`，锁定 interaction summary、pins query、snapshot restore 与 `lib.rs` 红线
 - 更新 `docs/review/S08-Loop15补充-2026-04-10.md`、`docs/review/S10-Loop15补充-2026-04-10.md`、`docs/架构/152CJ-Loop15补充-2026-04-10.md`、`docs/release/2026-04-10-v0.0.15-loop-15.md`，并修正 `152CJ` 主文中过期的“缺 reaction/pin summary”断言
 - fresh verification：

@@ -27,7 +27,7 @@
     },
     {
       "path": "lib/app_client.dart",
-      "sha256": "ec60117b870452146363094f86046f94cfd5a822bd9c8ff2c0666ffd1f8d513d"
+      "sha256": "bf4a1f04abb2a718f5186d4cbfe7fdfe07af250be1823e9155ed1741cd7e22ec"
     },
     {
       "path": "lib/im_app_api_generated.dart",
@@ -35,19 +35,11 @@
     },
     {
       "path": "lib/src/api/api.dart",
-      "sha256": "3d703a331168ebf8fe7bd3446d255ec4a40f220cacba5689da7f312e32b3f529"
+      "sha256": "e8adc1769e39d5287e202c16d63cd8dc44b6067c9b2b115a74e1e2a5a9a9add3"
     },
     {
       "path": "lib/src/api/automation.dart",
       "sha256": "1438c2592d586bf2728a42245f18171a7ccd7240147303fa2c4e923d70f5b3d1"
-    },
-    {
-      "path": "lib/src/api/device.dart",
-      "sha256": "d1128180ed3b410841b4369da604b0fb63829fcd3bb0af399f7e7b2ea07f3cf8"
-    },
-    {
-      "path": "lib/src/api/iot.dart",
-      "sha256": "8a72d10b18b660af877f9dddb0b439c23c96bc30701e72cb5ff1fe2320bf890b"
     },
     {
       "path": "lib/src/api/notification.dart",
@@ -75,7 +67,7 @@
     },
     {
       "path": "lib/src/models.dart",
-      "sha256": "6a385f80b9d64fe7ffcce958d8c68afaf4b64d89d9874f5cf72627f305a5a9c8"
+      "sha256": "7c247fd0527f9cf685f1cbf8aa7bcda10698f9b0027d9d71185e656f51937a78"
     },
     {
       "path": "LICENSE",
@@ -87,7 +79,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "e67367a2c6a9e505839a3f0e9e0d1741afd4f1ed8dc0a9f62b8b21c9d60e347e"
+      "sha256": "873d86d1394dfc029e3ab78c2f7e2ff0cd4f1da598209ebda6b61a66fd977b92"
     },
     {
       "path": "sdkwork-sdk.json",

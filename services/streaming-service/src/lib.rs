@@ -24,13 +24,10 @@ use im_domain_core::message::Sender;
 use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
 };
-use im_platform_contracts::DeviceSubject;
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
-const DEVICE_SCOPE_KIND: &str = "device";
-const DEVICE_TELEMETRY_STREAM_TYPE: &str = "device.telemetry";
 const STREAM_SESSION_DELIVERY_PROOF_VERSION: &str = "stream.session.delivery-proof.v1";
 const STREAM_FRAME_DELIVERY_PROOF_VERSION: &str = "stream.frame.delivery-proof.v1";
 const STREAM_MAX_STREAM_ID_BYTES: usize = 256;
@@ -479,7 +476,7 @@ impl StreamingRuntime {
             });
         }
 
-        let sender = resolve_stream_frame_sender(auth, session);
+        let sender = resolve_stream_frame_sender(auth);
 
         let mut frames = lock_stream_mutex(&self.frames, "stream runtime");
         let stream_frames = frames.entry(scope_key).or_default();
@@ -1440,16 +1437,13 @@ pub fn stream_append_request_key(auth: &AppContext, stream_id: &str, frame_seq: 
 fn ensure_standalone_stream_open_allowed(
     request: &OpenStreamRequest,
 ) -> Result<(), StreamingError> {
-    if request.scope_kind != "conversation" && request.scope_kind != DEVICE_SCOPE_KIND {
+    if request.scope_kind != "conversation" {
         return Ok(());
     }
 
-    let message = if request.scope_kind == DEVICE_SCOPE_KIND {
-        "device-bound streams must be opened through an authorizing IM gateway"
-    } else {
-        "conversation-bound streams must be opened through an authorizing IM gateway"
-    };
-    Err(conversation_gateway_required(message))
+    Err(conversation_gateway_required(
+        "conversation-bound streams must be opened through an authorizing IM gateway",
+    ))
 }
 
 fn ensure_standalone_stream_session_allowed(
@@ -1458,16 +1452,13 @@ fn ensure_standalone_stream_session_allowed(
     stream_id: &str,
 ) -> Result<(), StreamingError> {
     let session = runtime.session(auth, stream_id)?;
-    if session.scope_kind != "conversation" && session.scope_kind != DEVICE_SCOPE_KIND {
+    if session.scope_kind != "conversation" {
         return Ok(());
     }
 
-    let message = if session.scope_kind == DEVICE_SCOPE_KIND {
-        "device-bound streams must be accessed through an authorizing IM gateway"
-    } else {
-        "conversation-bound streams must be accessed through an authorizing IM gateway"
-    };
-    Err(conversation_gateway_required(message))
+    Err(conversation_gateway_required(
+        "conversation-bound streams must be accessed through an authorizing IM gateway",
+    ))
 }
 
 fn conversation_gateway_required(message: &str) -> StreamingError {
@@ -1533,9 +1524,7 @@ fn ensure_stream_session_actor_access(
     auth: &AppContext,
     stream_id: &str,
 ) -> Result<(), StreamingError> {
-    if session.scope_kind != "conversation"
-        && session.scope_kind != DEVICE_SCOPE_KIND
-        && !stream_session_matches_owner_principal(session, auth)
+    if session.scope_kind != "conversation" && !stream_session_matches_owner_principal(session, auth)
     {
         return Err(StreamingError {
             status: axum::http::StatusCode::NOT_FOUND,
@@ -1547,24 +1536,7 @@ fn ensure_stream_session_actor_access(
     Ok(())
 }
 
-fn resolve_stream_frame_sender(auth: &AppContext, session: &StreamSession) -> Sender {
-    if session.scope_kind == DEVICE_SCOPE_KIND
-        && session.stream_type == DEVICE_TELEMETRY_STREAM_TYPE
-        && auth.actor_kind == "device"
-    {
-        let device_id = auth
-            .device_id
-            .clone()
-            .unwrap_or_else(|| session.scope_id.clone());
-        return DeviceSubject {
-            device_id,
-            owner_principal_id: Some(auth.actor_id.clone()),
-            session_id: auth.session_id.clone(),
-            metadata: BTreeMap::new(),
-        }
-        .sender(None);
-    }
-
+fn resolve_stream_frame_sender(auth: &AppContext) -> Sender {
     Sender {
         id: auth.actor_id.clone(),
         kind: auth.actor_kind.clone(),

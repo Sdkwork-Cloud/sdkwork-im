@@ -18,7 +18,6 @@ craw-chat-contract-core = { path = "../../crates/craw-chat-contract-core" }
 craw-chat-runtime-link = { path = "../../crates/craw-chat-runtime-link" }
 craw-chat-runtime-route = { path = "../../crates/craw-chat-runtime-route" }
 futures-util.workspace = true
-im-adapter-iot-access-local = { path = "../../adapters/iot-access-local" }
 im-app-context = { path = "../../crates/im-app-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }

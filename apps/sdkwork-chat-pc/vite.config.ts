@@ -7,7 +7,7 @@ import { handleSdkworkChatLocalApiRequest } from './local-api';
 const repoRoot = path.resolve(__dirname, '../..');
 
 function dependencyRoot(dependencyId: string): string {
-  return path.resolve(repoRoot, '.sdkwork/dependencies', dependencyId);
+  return path.resolve(repoRoot, '..', dependencyId);
 }
 
 const generatedImAppSdkEntry = path.resolve(
@@ -23,16 +23,20 @@ const generatedAgentAppSdkEntry = path.resolve(
   'sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi/src/index.ts',
 );
 const generatedAppbaseAppSdkEntry = path.resolve(
-  dependencyRoot('sdkwork-appbase'),
-  'sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts',
+  repoRoot,
+  '../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts',
 );
 const generatedAppbaseBackendSdkEntry = path.resolve(
-  dependencyRoot('sdkwork-appbase'),
-  'sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts',
+  repoRoot,
+  '../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts',
 );
 const generatedAiotAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-aiot'),
   'sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript/src/index.ts',
+);
+const generatedAiotBackendSdkEntry = path.resolve(
+  dependencyRoot('sdkwork-aiot'),
+  'sdks/sdkwork-aiot-backend-sdk/sdkwork-aiot-backend-sdk-typescript/src/index.ts',
 );
 const generatedImSdkEntry = path.resolve(
   __dirname,
@@ -43,32 +47,32 @@ const generatedRtcSdkEntry = path.resolve(
   'sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/src/index.ts',
 );
 const appbasePcReactEntry = path.resolve(
-  dependencyRoot('sdkwork-appbase'),
-  'packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts',
+  repoRoot,
+  '../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts',
 );
 const authPcReactEntry = path.resolve(
-  dependencyRoot('sdkwork-appbase'),
-  'packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
+  repoRoot,
+  '../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
 );
 const authRuntimePcReactEntry = path.resolve(
-  dependencyRoot('sdkwork-appbase'),
-  'packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts',
+  repoRoot,
+  '../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts',
 );
 const authPcReactAuthEntry = path.resolve(
-  dependencyRoot('sdkwork-appbase'),
-  'packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
+  repoRoot,
+  '../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
 );
 const iamContractsEntry = path.resolve(
-  dependencyRoot('sdkwork-appbase'),
-  'packages/common/iam/sdkwork-iam-contracts/src/index.ts',
+  repoRoot,
+  '../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts/src/index.ts',
 );
 const iamSdkPortsEntry = path.resolve(
-  dependencyRoot('sdkwork-appbase'),
-  'packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts',
+  repoRoot,
+  '../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts',
 );
 const i18nPcReactEntry = path.resolve(
-  dependencyRoot('sdkwork-appbase'),
-  'packages/pc-react/foundation/sdkwork-i18n-pc-react/src/index.ts',
+  repoRoot,
+  '../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react/src/index.ts',
 );
 const corePcReactEntry = path.resolve(
   dependencyRoot('sdkwork-core'),
@@ -79,21 +83,22 @@ const uiPcReactSourceRoot = path.resolve(
   'sdkwork-ui-pc-react/src',
 );
 const uiPcReactEntry = path.resolve(
-  dependencyRoot('sdkwork-ui'),
-  'sdkwork-ui-pc-react/src/index.ts',
+  repoRoot,
+  '../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts',
 );
 const uiPcReactStylesEntry = path.resolve(
-  dependencyRoot('sdkwork-ui'),
-  'sdkwork-ui-pc-react/src/styles/sdkwork-ui.css',
+  repoRoot,
+  '../sdkwork-ui/sdkwork-ui-pc-react/src/styles/sdkwork-ui.css',
 );
 const sdkCommonSourceRoot = path.resolve(
-  dependencyRoot('sdkwork-sdk-commons'),
-  'sdkwork-sdk-common-typescript/src',
+  repoRoot,
+  '../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src',
 );
 const sdkCommonEntry = path.resolve(
   sdkCommonSourceRoot,
   'index.ts',
 );
+const adminCoreSourceRoot = path.resolve(__dirname, './packages/sdkwork-clawchat-admin-core/src');
 const reactEntry = path.resolve(__dirname, 'node_modules/react/index.js');
 const reactJsxRuntimeEntry = path.resolve(__dirname, 'node_modules/react/jsx-runtime.js');
 const reactJsxDevRuntimeEntry = path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime.js');
@@ -138,6 +143,7 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork-internal/im-backend-api-generated', replacement: generatedImBackendSdkEntry },
         { find: '@sdkwork/agent-app-sdk', replacement: generatedAgentAppSdkEntry },
         { find: '@sdkwork/aiot-app-sdk', replacement: generatedAiotAppSdkEntry },
+        { find: '@sdkwork/aiot-backend-sdk', replacement: generatedAiotBackendSdkEntry },
         { find: '@sdkwork/appbase-app-sdk', replacement: generatedAppbaseAppSdkEntry },
         { find: '@sdkwork/appbase-backend-sdk', replacement: generatedAppbaseBackendSdkEntry },
         { find: '@sdkwork/im-sdk', replacement: generatedImSdkEntry },
@@ -179,7 +185,8 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/clawchat-pc-course', replacement: path.resolve(__dirname, './packages/sdkwork-clawchat-pc-course/src') },
         { find: '@sdkwork/clawchat-pc-enterprise', replacement: path.resolve(__dirname, './packages/sdkwork-clawchat-pc-enterprise/src') },
         { find: '@sdkwork/clawchat-console-core', replacement: path.resolve(__dirname, './packages/sdkwork-clawchat-console-core/src') },
-        { find: '@sdkwork/clawchat-admin-core', replacement: path.resolve(__dirname, './packages/sdkwork-clawchat-admin-core/src') },
+        { find: /^@sdkwork\/clawchat-admin-core\/(.+)$/, replacement: `${adminCoreSourceRoot}/$1` },
+        { find: '@sdkwork/clawchat-admin-core', replacement: adminCoreSourceRoot },
         { find: '@sdkwork/clawchat-pc-approvals', replacement: path.resolve(__dirname, './packages/sdkwork-clawchat-pc-approvals/src') },
         { find: '@sdkwork/clawchat-pc-reports', replacement: path.resolve(__dirname, './packages/sdkwork-clawchat-pc-reports/src') },
         { find: '@sdkwork/clawchat-pc-attendance', replacement: path.resolve(__dirname, './packages/sdkwork-clawchat-pc-attendance/src') },
@@ -215,6 +222,7 @@ export default defineConfig(({mode}) => {
         '@sdkwork-internal/im-backend-api-generated',
         '@sdkwork/agent-app-sdk',
         '@sdkwork/aiot-app-sdk',
+        '@sdkwork/aiot-backend-sdk',
         '@sdkwork/appbase-app-sdk',
         '@sdkwork/appbase-backend-sdk',
         '@sdkwork/im-sdk',

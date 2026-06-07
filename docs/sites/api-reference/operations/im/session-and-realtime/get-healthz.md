@@ -1,11 +1,11 @@
 # `GET /healthz`
 
 <p class="api-page-intro">
-  Exact request and response contract for <strong>Device Sessions and Realtime</strong> in the <strong>IM Standard API</strong>.
+  Exact request and response contract for <strong>Realtime Presence</strong> in the <strong>IM Standard API</strong>.
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/im/session-and-realtime"><code>Device Sessions and Realtime</code> Return to the group page for workflow context and related operations</a>
+  <a href="/api-reference/im/session-and-realtime"><code>Realtime Presence</code> Return to the group page for workflow context and related operations</a>
   <a href="/api-reference/im-api"><code>IM Standard API</code> Return to the domain overview</a>
   <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, AppContext projection, and error-envelope rules</a>
 </div>

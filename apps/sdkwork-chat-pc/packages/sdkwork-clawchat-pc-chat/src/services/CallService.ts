@@ -7,14 +7,16 @@ import {
 } from '@sdkwork/rtc-sdk';
 import type { ImSdkClient, RtcSession } from '@sdkwork/im-sdk';
 import {
-  buildSdkworkChatAppContextHeaders,
   getImSdkClientWithSession,
+  resolveImSdkApiBaseUrl,
+} from '@sdkwork/clawchat-pc-core/sdk/imSdkClient';
+import {
+  buildSdkworkChatAppContextHeaders,
   readAppSdkSessionTokens,
   resolveAppSdkAccessToken,
   resolveAppSdkAuthToken,
-  resolveImSdkApiBaseUrl,
   type SdkworkChatSession,
-} from '@sdkwork/clawchat-pc-core';
+} from '@sdkwork/clawchat-pc-core/sdk/session';
 
 export type SdkworkCallType = 'voice' | 'video';
 

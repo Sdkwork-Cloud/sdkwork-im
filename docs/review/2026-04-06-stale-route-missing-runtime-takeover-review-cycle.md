@@ -8,11 +8,11 @@
   - `services/session-gateway`
   - `services/local-minimal-node`
 - Root cause:
-  - the previous review wave made `bind_device_route(...)` perform runtime state handoff for cross-node `latest bind wins`
+  - the previous review wave made `bind_client_route(...)` perform runtime state handoff for cross-node `latest bind wins`
   - that implementation required the previous owner runtime to still exist
-  - if the route directory still pointed to `node_a` but `node_a` runtime had already disappeared, `bind_device_route(...)` returned:
+  - if the route directory still pointed to `node_a` but `node_a` runtime had already disappeared, `bind_client_route(...)` returned:
     - `409 node_runtime_missing`
-  - both gateway stacks call route bind during device registration / resume-related flows:
+  - both gateway stacks call route bind during client route registration / resume-related flows:
     - `services/session-gateway/src/lib.rs`
     - `services/local-minimal-node/src/lib.rs`
 
@@ -61,7 +61,7 @@ Chosen rule:
    - move route ownership to the new active node
    - let the target runtime restore any durable checkpoint truth it already knows about
 3. keep publish semantics unchanged:
-   - `publish_device_event(...)` still stays fail-closed for a resolved route whose target runtime is missing
+   - `publish_scope_event(...)` still stays fail-closed for a resolved route whose target runtime is missing
    - no origin fallback is introduced for resolved stale targets
 
 This preserves availability on bind path without weakening delivery correctness on publish path.
@@ -69,14 +69,14 @@ This preserves availability on bind path without weakening delivery correctness 
 ## 5. Implementation
 
 - `services/session-gateway/src/cluster.rs`
-  - `bind_device_route(...)` now:
+  - `bind_client_route(...)` now:
     - loads the target runtime first for cross-node takeover
     - tries to load the previous owner runtime
     - if the previous owner runtime exists:
-      - performs `take_device_state(...)` + `restore_device_state(...)`
+      - performs `take_client_route_state(...)` + `restore_client_route_state(...)`
     - if the previous owner runtime is missing:
       - treats the route as stale takeover
-      - calls `target_runtime.ensure_device_state(...)`
+      - calls `target_runtime.ensure_client_route_state(...)`
       - continues ownership transfer instead of returning `node_runtime_missing`
   - existing lifecycle reconciliation remains in place, so a draining source node is updated after the stale route departs
 - `services/session-gateway/src/cluster.rs`

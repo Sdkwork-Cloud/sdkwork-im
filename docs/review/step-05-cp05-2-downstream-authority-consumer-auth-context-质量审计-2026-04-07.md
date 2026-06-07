@@ -41,4 +41,4 @@
 - 当前未发现 `CP05-2` 剩余 service-edge raw authority seam
 - 下一风险面已转移到：
   - `CP05-3` direct / group / channel 再收口
-  - `CP05-4` projection / notification / multi-device sync 最终 owner 收口
+  - `CP05-4` projection / notification / multi-client-route sync 最终 owner 收口

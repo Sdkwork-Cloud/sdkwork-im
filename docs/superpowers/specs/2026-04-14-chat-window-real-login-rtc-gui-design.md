@@ -76,7 +76,7 @@ The top section of the window will expose:
 - `Login`
 - `Password`
 - `Session ID`
-- `Device ID`
+- `Client Route ID`
 - `Login` button
 - `Refresh Token` button is out of scope for this iteration
 

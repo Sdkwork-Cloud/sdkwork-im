@@ -74,4 +74,4 @@
 
 - create/member/read-cursor 是否也能收敛到统一 authority owner
 - `tenantId` 是否能从 auth-context 在主链路上统一收口
-- downstream projection / notification / multi-device sync 是否继续消费同一套 authority snapshot
+- downstream projection / notification / multi-client-route sync 是否继续消费同一套 authority snapshot

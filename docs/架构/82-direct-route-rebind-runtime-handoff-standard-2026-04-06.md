@@ -4,15 +4,15 @@
 
 The platform already uses `latest bind wins` for the same logical device.
 
-That rule is only safe if a cross-node owner change also moves the device-scoped realtime truth to the new owner node. Otherwise the directory says one thing while the runtime state still lives somewhere else.
+That rule is only safe if a cross-node owner change also moves the client-route-scoped realtime truth to the new owner node. Otherwise the directory says one thing while the runtime state still lives somewhere else.
 
 ## 2. Device Owner Rule
 
-For a single logical device identified by:
+For a single logical client route identified by:
 
 - `tenantId`
 - `principalId`
-- `deviceId`
+- `clientRouteId`
 
 there must be exactly one logical owner node at a time.
 
@@ -20,12 +20,12 @@ If the same device later binds through another active node, the latest successfu
 
 ## 3. Cross-Node Rebind Rule
 
-When `bind_device_route(tenantId, principalId, deviceId, ownerNodeId, connectionKind)` changes the owner from `node_a` to `node_b`, the bridge must treat that operation as a state-bearing handoff, not as a directory-only overwrite.
+When `bind_client_route(tenantId, principalId, clientRouteId, ownerNodeId, connectionKind)` changes the owner from `node_a` to `node_b`, the bridge must treat that operation as a state-bearing handoff, not as a directory-only overwrite.
 
 The bridge must:
 
 1. confirm the new owner node is still eligible for bind
-2. export the device runtime state from the previous owner
+2. export the client route runtime state from the previous owner
 3. restore that state into the new owner runtime
 4. overwrite the route directory entry only after the handoff inputs are available
 
@@ -89,7 +89,7 @@ Regression coverage must prove all of the following:
 
 ## 8. Design Consequence
 
-After this rule is enforced, the platform can safely keep `latest bind wins` without silently dropping device-scoped realtime truth during reconnects or cross-node ingress changes.
+After this rule is enforced, the platform can safely keep `latest bind wins` without silently dropping client-route-scoped realtime truth during reconnects or cross-node ingress changes.
 
 That gives the cluster a stable baseline for the next commercial waves:
 

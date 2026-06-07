@@ -1,10 +1,7 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
-use im_adapters_local_memory::MemoryRealtimeDisconnectFenceStore;
 use std::sync::Arc;
-use std::thread::sleep;
-use std::time::Duration;
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -62,13 +59,10 @@ async fn test_public_app_exports_live_openapi_json() {
         serde_json::from_slice(&body).expect("body should be valid json");
 
     assert_eq!(value["openapi"], "3.1.0");
-    assert_eq!(
-        value["info"]["title"],
-        "Craw Chat Realtime Device Gateway API"
-    );
+    assert_eq!(value["info"]["title"], "Craw Chat Realtime Gateway API");
     assert_eq!(
         value["paths"]["/im/v3/api/realtime/ws"]["get"]["summary"],
-        "Open realtime websocket device route"
+        "Open realtime websocket client route"
     );
 }
 
@@ -92,7 +86,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
     let html = String::from_utf8(body.to_vec()).expect("docs should be valid utf-8");
 
     assert!(html.contains("OpenAPI 3.1"));
-    assert!(html.contains("Craw Chat Realtime Device Gateway API"));
+    assert!(html.contains("Craw Chat Realtime Gateway API"));
     assert!(html.contains("/openapi.json"));
 }
 
@@ -104,7 +98,7 @@ async fn test_public_app_rejects_missing_access_token_header_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("authorization", "Bearer auth_demo")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
@@ -132,7 +126,7 @@ async fn test_public_app_rejects_missing_access_token_header_over_http() {
 }
 
 #[tokio::test]
-async fn test_device_session_resume_returns_presence_snapshot_for_current_device() {
+async fn test_presence_heartbeat_returns_presence_snapshot_for_current_route() {
     let app = session_gateway::build_app();
 
     let response = app
@@ -140,7 +134,7 @@ async fn test_device_session_resume_returns_presence_snapshot_for_current_device
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -156,7 +150,7 @@ async fn test_device_session_resume_returns_presence_snapshot_for_current_device
                 .unwrap(),
         )
         .await
-        .expect("resume request should succeed");
+        .expect("presence heartbeat should succeed");
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = response
@@ -168,11 +162,9 @@ async fn test_device_session_resume_returns_presence_snapshot_for_current_device
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("body should be valid json");
 
-    assert_eq!(value["deviceId"], "d_demo");
-    assert_eq!(value["resumeRequired"], false);
-    assert_eq!(value["presence"]["currentDeviceId"], "d_demo");
-    assert_eq!(value["presence"]["devices"][0]["deviceId"], "d_demo");
-    assert_eq!(value["presence"]["devices"][0]["status"], "online");
+    assert_eq!(value["currentDeviceId"], "d_demo");
+    assert_eq!(value["devices"][0]["deviceId"], "d_demo");
+    assert_eq!(value["devices"][0]["status"], "online");
 
     let snapshot = app
         .oneshot(
@@ -204,14 +196,14 @@ async fn test_device_session_resume_returns_presence_snapshot_for_current_device
 }
 
 #[tokio::test]
-async fn test_device_session_resume_rejects_mismatched_bound_device_id() {
+async fn test_presence_heartbeat_rejects_mismatched_client_route_id() {
     let app = session_gateway::build_app();
 
     let response = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -251,7 +243,7 @@ async fn test_presence_snapshot_isolated_by_actor_kind_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_dual")
                 .header("x-sdkwork-actor-kind", "user")
@@ -270,7 +262,7 @@ async fn test_presence_snapshot_isolated_by_actor_kind_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_dual")
                 .header("x-sdkwork-actor-kind", "agent")
@@ -353,7 +345,7 @@ async fn test_presence_snapshot_isolated_by_actor_kind_over_http() {
 }
 
 #[tokio::test]
-async fn test_device_session_resume_rejects_same_device_id_with_different_actor_kind_over_http() {
+async fn test_presence_heartbeat_rejects_same_route_id_with_different_actor_kind_over_http() {
     let app = session_gateway::build_app();
 
     let user_resume = app
@@ -361,7 +353,7 @@ async fn test_device_session_resume_rejects_same_device_id_with_different_actor_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_dual")
                 .header("x-sdkwork-actor-kind", "user")
@@ -379,7 +371,7 @@ async fn test_device_session_resume_rejects_same_device_id_with_different_actor_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_dual")
                 .header("x-sdkwork-actor-kind", "agent")
@@ -401,11 +393,11 @@ async fn test_device_session_resume_rejects_same_device_id_with_different_actor_
         .to_bytes();
     let agent_resume_json: serde_json::Value =
         serde_json::from_slice(&agent_resume_body).expect("agent resume should be valid json");
-    assert_eq!(agent_resume_json["code"], "device_scope_conflict");
+    assert_eq!(agent_resume_json["code"], "client_route_scope_conflict");
 }
 
 #[tokio::test]
-async fn test_device_session_resume_rejects_same_device_id_with_different_principal_over_http() {
+async fn test_presence_heartbeat_rejects_same_route_id_with_different_principal_over_http() {
     let app = session_gateway::build_app();
 
     let first_resume = app
@@ -413,7 +405,7 @@ async fn test_device_session_resume_rejects_same_device_id_with_different_princi
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_owner_a")
                 .header("x-sdkwork-actor-kind", "user")
@@ -431,7 +423,7 @@ async fn test_device_session_resume_rejects_same_device_id_with_different_princi
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_owner_b")
                 .header("x-sdkwork-actor-kind", "user")
@@ -453,396 +445,7 @@ async fn test_device_session_resume_rejects_same_device_id_with_different_princi
         .to_bytes();
     let json: serde_json::Value =
         serde_json::from_slice(&body).expect("conflicting owner resume should be valid json");
-    assert_eq!(json["code"], "device_scope_conflict");
-}
-
-#[tokio::test]
-async fn test_presence_heartbeat_and_disconnect_drive_device_offline_transition() {
-    let app = session_gateway::build_app();
-
-    let resume = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("resume request should succeed");
-    assert_eq!(resume.status(), StatusCode::OK);
-
-    let heartbeat = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("heartbeat request should succeed");
-    assert_eq!(heartbeat.status(), StatusCode::OK);
-
-    let disconnect = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/disconnect")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("disconnect request should succeed");
-    assert_eq!(disconnect.status(), StatusCode::OK);
-    let disconnect_body = disconnect
-        .into_body()
-        .collect()
-        .await
-        .expect("disconnect body should collect")
-        .to_bytes();
-    let disconnect_value: serde_json::Value =
-        serde_json::from_slice(&disconnect_body).expect("disconnect should be valid json");
-    assert_eq!(disconnect_value["devices"][0]["status"], "offline");
-
-    let snapshot = app
-        .oneshot(
-            Request::builder()
-                .uri("/im/v3/api/presence/me")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-device-id", "d_demo")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("presence request should succeed");
-    assert_eq!(snapshot.status(), StatusCode::OK);
-    let snapshot_body = snapshot
-        .into_body()
-        .collect()
-        .await
-        .expect("snapshot body should collect")
-        .to_bytes();
-    let snapshot_value: serde_json::Value =
-        serde_json::from_slice(&snapshot_body).expect("snapshot should be valid json");
-    assert_eq!(snapshot_value["devices"][0]["status"], "offline");
-}
-
-#[tokio::test]
-async fn test_session_gateway_requires_fresh_device_resume_after_disconnect() {
-    let app = session_gateway::build_app();
-
-    let resume_old = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_old")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("resume request should succeed");
-    assert_eq!(resume_old.status(), StatusCode::OK);
-
-    let disconnect = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/disconnect")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_old")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("disconnect request should succeed");
-    assert_eq!(disconnect.status(), StatusCode::OK);
-
-    let stale_heartbeat = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_old")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("stale heartbeat should return response");
-    assert_eq!(stale_heartbeat.status(), StatusCode::CONFLICT);
-    let stale_heartbeat_body = stale_heartbeat
-        .into_body()
-        .collect()
-        .await
-        .expect("stale heartbeat body should collect")
-        .to_bytes();
-    let stale_heartbeat_json: serde_json::Value = serde_json::from_slice(&stale_heartbeat_body)
-        .expect("stale heartbeat should be valid json");
-    assert_eq!(stale_heartbeat_json["code"], "reconnect_required");
-
-    let resume_new = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("fresh resume request should succeed");
-    assert_eq!(resume_new.status(), StatusCode::OK);
-
-    let fresh_heartbeat = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("fresh heartbeat should succeed");
-    assert_eq!(fresh_heartbeat.status(), StatusCode::OK);
-}
-
-#[tokio::test]
-async fn test_session_gateway_treats_duplicate_disconnect_as_idempotent_for_same_session() {
-    let app = session_gateway::build_app();
-
-    let resume = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("resume request should succeed");
-    assert_eq!(resume.status(), StatusCode::OK);
-
-    let first_disconnect = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/disconnect")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("first disconnect should succeed");
-    assert_eq!(first_disconnect.status(), StatusCode::OK);
-
-    let duplicate_disconnect = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/disconnect")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("duplicate disconnect should return response");
-    assert_eq!(duplicate_disconnect.status(), StatusCode::OK);
-    let duplicate_disconnect_body = duplicate_disconnect
-        .into_body()
-        .collect()
-        .await
-        .expect("duplicate disconnect body should collect")
-        .to_bytes();
-    let duplicate_disconnect_json: serde_json::Value =
-        serde_json::from_slice(&duplicate_disconnect_body)
-            .expect("duplicate disconnect should be valid json");
-    assert_eq!(duplicate_disconnect_json["devices"][0]["status"], "offline");
-}
-
-#[tokio::test]
-async fn test_session_gateway_rebuild_preserves_reconnect_required_fence_until_fresh_resume() {
-    let shared_store = Arc::new(MemoryRealtimeDisconnectFenceStore::default());
-    let app_before = session_gateway::build_app_with_cluster(Arc::new(
-        session_gateway::RealtimeClusterBridge::with_disconnect_fence_store(shared_store.clone()),
-    ));
-
-    let resume_old = app_before
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_old")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("old resume should succeed before restart");
-    assert_eq!(resume_old.status(), StatusCode::OK);
-
-    let disconnect = app_before
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/disconnect")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_old")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("disconnect should succeed before restart");
-    assert_eq!(disconnect.status(), StatusCode::OK);
-
-    let app_after = session_gateway::build_app_with_cluster(Arc::new(
-        session_gateway::RealtimeClusterBridge::with_disconnect_fence_store(shared_store),
-    ));
-
-    let stale_heartbeat = app_after
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_old")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("stale heartbeat should return response after restart");
-    assert_eq!(stale_heartbeat.status(), StatusCode::CONFLICT);
-    let stale_heartbeat_body = stale_heartbeat
-        .into_body()
-        .collect()
-        .await
-        .expect("stale heartbeat body should collect")
-        .to_bytes();
-    let stale_heartbeat_json: serde_json::Value = serde_json::from_slice(&stale_heartbeat_body)
-        .expect("stale heartbeat should be valid json");
-    assert_eq!(stale_heartbeat_json["code"], "reconnect_required");
-
-    let resume_new = app_after
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("fresh resume should clear restored fence");
-    assert_eq!(resume_new.status(), StatusCode::OK);
-
-    let fresh_heartbeat = app_after
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("fresh heartbeat should succeed after restored fence clears");
-    assert_eq!(fresh_heartbeat.status(), StatusCode::OK);
+    assert_eq!(json["code"], "client_route_scope_conflict");
 }
 
 #[tokio::test]
@@ -854,7 +457,7 @@ async fn test_session_gateway_rejects_sessionless_device_rebind_after_session_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -893,110 +496,6 @@ async fn test_session_gateway_rejects_sessionless_device_rebind_after_session_re
     let heartbeat_json: serde_json::Value =
         serde_json::from_slice(&heartbeat_body).expect("heartbeat should be valid json");
     assert_eq!(heartbeat_json["code"], "session_id_required");
-}
-
-#[tokio::test]
-async fn test_presence_runtime_timestamps_advance_between_resume_heartbeat_and_disconnect() {
-    let app = session_gateway::build_app();
-
-    let resume = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("resume request should succeed");
-    assert_eq!(resume.status(), StatusCode::OK);
-    let resume_body = resume
-        .into_body()
-        .collect()
-        .await
-        .expect("resume body should collect")
-        .to_bytes();
-    let resume_json: serde_json::Value =
-        serde_json::from_slice(&resume_body).expect("resume should be valid json");
-    let resumed_at = resume_json["resumedAt"]
-        .as_str()
-        .expect("resumedAt should be present")
-        .to_owned();
-
-    sleep(Duration::from_millis(20));
-
-    let heartbeat = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("heartbeat request should succeed");
-    assert_eq!(heartbeat.status(), StatusCode::OK);
-    let heartbeat_body = heartbeat
-        .into_body()
-        .collect()
-        .await
-        .expect("heartbeat body should collect")
-        .to_bytes();
-    let heartbeat_json: serde_json::Value =
-        serde_json::from_slice(&heartbeat_body).expect("heartbeat should be valid json");
-    let heartbeat_seen_at = heartbeat_json["devices"][0]["lastSeenAt"]
-        .as_str()
-        .expect("lastSeenAt should be present after heartbeat")
-        .to_owned();
-
-    sleep(Duration::from_millis(20));
-
-    let disconnect = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/disconnect")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_demo")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("disconnect request should succeed");
-    assert_eq!(disconnect.status(), StatusCode::OK);
-    let disconnect_body = disconnect
-        .into_body()
-        .collect()
-        .await
-        .expect("disconnect body should collect")
-        .to_bytes();
-    let disconnect_json: serde_json::Value =
-        serde_json::from_slice(&disconnect_body).expect("disconnect should be valid json");
-    let disconnect_seen_at = disconnect_json["devices"][0]["lastSeenAt"]
-        .as_str()
-        .expect("lastSeenAt should be present after disconnect")
-        .to_owned();
-
-    assert!(resumed_at < heartbeat_seen_at);
-    assert!(heartbeat_seen_at < disconnect_seen_at);
 }
 
 #[tokio::test]
@@ -1126,9 +625,9 @@ async fn test_realtime_subscription_sync_returns_403_when_scope_policy_denies_ov
     assert_eq!(json["code"], "realtime_scope_access_denied");
     assert!(
         cluster
-            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_demo")
+            .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_demo")
             .is_none(),
-        "denied realtime subscription sync must not bind a device route"
+        "denied realtime subscription sync must not bind a client route"
     );
 }
 
@@ -1197,7 +696,7 @@ async fn test_realtime_ack_endpoint_accepts_empty_window_over_http() {
 }
 
 #[tokio::test]
-async fn test_device_session_resume_rejects_oversized_device_id_over_http() {
+async fn test_presence_heartbeat_rejects_oversized_client_route_id_over_http() {
     let app = session_gateway::build_app();
     let oversized_device_id = "d".repeat(1024);
     let request_body = serde_json::json!({
@@ -1210,7 +709,7 @@ async fn test_device_session_resume_rejects_oversized_device_id_over_http() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -1289,9 +788,9 @@ async fn test_realtime_subscription_sync_rejects_oversized_scope_id_over_http() 
     );
     assert!(
         cluster
-            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_demo")
+            .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_demo")
             .is_none(),
-        "invalid realtime subscription sync must not bind a device route"
+        "invalid realtime subscription sync must not bind a client route"
     );
 }
 
@@ -1356,9 +855,9 @@ async fn test_realtime_event_window_rejects_zero_limit_without_binding_route_ove
     assert_eq!(json["code"], "limit_invalid");
     assert!(
         cluster
-            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_demo")
+            .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_demo")
             .is_none(),
-        "invalid realtime event window request must not bind a device route"
+        "invalid realtime event window request must not bind a client route"
     );
 }
 

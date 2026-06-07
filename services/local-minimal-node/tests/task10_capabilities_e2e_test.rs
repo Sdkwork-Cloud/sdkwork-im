@@ -157,7 +157,7 @@ async fn test_local_minimal_profile_retries_pending_message_notification_outbox_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_owner")
                 .header("x-sdkwork-actor-kind", "user")

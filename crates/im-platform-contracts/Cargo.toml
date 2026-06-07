@@ -9,14 +9,13 @@ craw-chat-contract-admin = { path = "../craw-chat-contract-admin" }
 craw-chat-contract-agent = { path = "../craw-chat-contract-agent" }
 craw-chat-contract-control = { path = "../craw-chat-contract-control" }
 craw-chat-contract-core = { path = "../craw-chat-contract-core" }
-craw-chat-contract-iot = { path = "../craw-chat-contract-iot" }
 craw-chat-contract-message = { path = "../craw-chat-contract-message" }
 craw-chat-contract-notification = { path = "../craw-chat-contract-notification" }
 craw-chat-contract-stream = { path = "../craw-chat-contract-stream" }
 im-domain-core = { path = "../im-domain-core" }
 im-domain-events = { path = "../im-domain-events" }
 im-time = { path = "../im-time" }
-sdkwork-rtc-core = { path = "../../../sdkwork-rtc/crates/sdkwork-rtc-core" }
+sdkwork-rtc-core.workspace = true
 serde.workspace = true
 
 [dev-dependencies]

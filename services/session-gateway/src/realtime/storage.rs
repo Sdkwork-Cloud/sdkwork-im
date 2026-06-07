@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use super::{
-    RealtimeDeliveryRuntime, RealtimeRuntimeError, device_scope_key, lock_realtime_mutex,
+    RealtimeDeliveryRuntime, RealtimeRuntimeError, client_route_scope_key, lock_realtime_mutex,
     normalize_checkpoint_fields, realtime_checkpoint_timestamp, subscription_record_from_items,
 };
 
@@ -30,7 +30,10 @@ impl RealtimeCheckpointStore for RuntimeMemoryCheckpointStore {
     ) -> Result<Option<RealtimeCheckpointRecord>, ContractError> {
         Ok(
             lock_realtime_mutex(&self.checkpoints, "runtime checkpoint store")
-                .get(device_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str())
+                .get(
+                    client_route_scope_key(tenant_id, principal_id, principal_kind, device_id)
+                        .as_str(),
+                )
                 .cloned(),
         )
     }
@@ -41,7 +44,7 @@ impl RealtimeCheckpointStore for RuntimeMemoryCheckpointStore {
     ) -> Result<(), ContractError> {
         let mut checkpoints = lock_realtime_mutex(&self.checkpoints, "runtime checkpoint store");
         for record in records {
-            let key = device_scope_key(
+            let key = client_route_scope_key(
                 record.tenant_id.as_str(),
                 record.principal_id.as_str(),
                 record.principal_kind.as_str(),
@@ -77,7 +80,10 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
     ) -> Result<Option<RealtimeSubscriptionRecord>, ContractError> {
         Ok(
             lock_realtime_mutex(&self.subscriptions, "runtime subscription store")
-                .get(device_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str())
+                .get(
+                    client_route_scope_key(tenant_id, principal_id, principal_kind, device_id)
+                        .as_str(),
+                )
                 .cloned(),
         )
     }
@@ -93,7 +99,7 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
             .filter_map(|device_id| {
                 subscriptions
                     .get(
-                        device_scope_key(
+                        client_route_scope_key(
                             query.tenant_id,
                             query.principal_id,
                             query.principal_kind,
@@ -115,7 +121,7 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
 
     fn save_subscriptions(&self, record: RealtimeSubscriptionRecord) -> Result<(), ContractError> {
         lock_realtime_mutex(&self.subscriptions, "runtime subscription store").insert(
-            device_scope_key(
+            client_route_scope_key(
                 record.tenant_id.as_str(),
                 record.principal_id.as_str(),
                 record.principal_kind.as_str(),
@@ -136,7 +142,8 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
         Ok(
             lock_realtime_mutex(&self.subscriptions, "runtime subscription store")
                 .remove(
-                    device_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str(),
+                    client_route_scope_key(tenant_id, principal_id, principal_kind, device_id)
+                        .as_str(),
                 )
                 .is_some(),
         )
@@ -150,7 +157,7 @@ impl RealtimeSubscriptionStore for RuntimeMemorySubscriptionStore {
         device_id: &str,
         cutoff_synced_at: &str,
     ) -> Result<bool, ContractError> {
-        let key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let mut subscriptions =
             lock_realtime_mutex(&self.subscriptions, "runtime subscription store");
         let should_clear = subscriptions
@@ -174,7 +181,10 @@ impl RealtimeEventWindowStore for RuntimeMemoryEventWindowStore {
     ) -> Result<Option<RealtimeEventWindowRecord>, ContractError> {
         Ok(
             lock_realtime_mutex(&self.windows, "runtime event window store")
-                .get(device_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str())
+                .get(
+                    client_route_scope_key(tenant_id, principal_id, principal_kind, device_id)
+                        .as_str(),
+                )
                 .cloned()
                 .map(RealtimeEventWindowRecord::normalized),
         )
@@ -184,7 +194,7 @@ impl RealtimeEventWindowStore for RuntimeMemoryEventWindowStore {
         let mut windows = lock_realtime_mutex(&self.windows, "runtime event window store");
         for record in records {
             windows.insert(
-                device_scope_key(
+                client_route_scope_key(
                     record.tenant_id.as_str(),
                     record.principal_id.as_str(),
                     record.principal_kind.as_str(),
@@ -206,7 +216,8 @@ impl RealtimeEventWindowStore for RuntimeMemoryEventWindowStore {
         Ok(
             lock_realtime_mutex(&self.windows, "runtime event window store")
                 .remove(
-                    device_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str(),
+                    client_route_scope_key(tenant_id, principal_id, principal_kind, device_id)
+                        .as_str(),
                 )
                 .is_some(),
         )
@@ -229,7 +240,7 @@ impl RealtimeEventWindowStore for RuntimeMemoryEventWindowStore {
         device_id: &str,
         acked_through_seq: u64,
     ) -> Result<(), ContractError> {
-        let key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         if let Some(record) =
             lock_realtime_mutex(&self.windows, "runtime event window store").get_mut(key.as_str())
         {
@@ -342,7 +353,7 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> RealtimeCheckpointRecord {
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let latest_realtime_seq =
             lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
                 .get(scope_key.as_str())
@@ -398,7 +409,7 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Option<RealtimeSubscriptionRecord> {
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let items = lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .get(scope_key.as_str())
             .cloned()

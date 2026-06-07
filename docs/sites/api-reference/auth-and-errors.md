@@ -75,8 +75,6 @@ scheme and must not be treated as a replacement for appbase token validation.
 | `audit.read` | Read audit records and export bundles |
 | `audit.write` | Write audit anchors |
 | `ops.read` | Read operator health, cluster, lag, and diagnostics endpoints |
-| `device.telemetry.read` | Read device telemetry streams |
-| `device.command.send` | Send device protocol downlinks or commands |
 | `conversation.shared_channel.sync` | Execute shared-channel linked-member sync. Reserved for system actor `control-plane-sync`. |
 
 ## Security-Specific Error Codes

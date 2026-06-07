@@ -16,7 +16,7 @@ That meant the reconnect contract was correct only while the current bridge proc
 
 ## 2. Impact
 
-- after a process rebuild, restart, or active-passive takeover, a stale pre-disconnect session could attempt device-bound traffic again
+- after a process rebuild, restart, or active-passive takeover, a stale pre-disconnect session could attempt client-route-bound traffic again
 - `session.disconnect` semantics were therefore weaker than route/presence semantics suggested
 - SDKs and operators could see a platform that looked disconnected before restart but silently lost that boundary after recovery
 

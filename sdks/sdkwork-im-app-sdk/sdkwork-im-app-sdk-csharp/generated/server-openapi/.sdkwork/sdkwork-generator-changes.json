@@ -8,14 +8,12 @@
     "sdkType": "app",
     "packageName": "Sdkwork.Im.AppApi.Generated"
   },
-  "changeFingerprint": "e073e6b4e4c47d626e58451dbd6a8927f5ae6540c1d689390a7041d60dc221c3",
+  "changeFingerprint": "3e149a01247252d4e84732ebab59f4190e21fed232d26d5586c63cd6b61c0780",
   "changes": {
     "createdGeneratedFiles": [
       "Api/Api.cs",
       "Api/ApiPaths.cs",
       "Api/AutomationApi.cs",
-      "Api/DeviceApi.cs",
-      "Api/IotApi.cs",
       "Api/NotificationApi.cs",
       "Api/PortalApi.cs",
       "Api/ProviderApi.cs",
@@ -29,7 +27,6 @@
       "Models/AutomationExecutionRequestResponse.cs",
       "Models/CompleteAgentResponseRequest.cs",
       "Models/CompleteAgentToolCallRequest.cs",
-      "Models/DeviceTwinView.cs",
       "Models/NotificationListResponse.cs",
       "Models/NotificationRequestResponse.cs",
       "Models/NotificationTask.cs",
@@ -42,8 +39,6 @@
       "Models/StartAgentResponseRequest.cs",
       "Models/StreamFrame.cs",
       "Models/StreamSession.cs",
-      "Models/UpdateDeviceTwinDesiredRequest.cs",
-      "Models/UpdateDeviceTwinReportedRequest.cs",
       "README.md",
       "sdkwork-sdk.json",
       "Sdkwork.Im.AppApi.Generated.csproj",
@@ -80,8 +75,6 @@
           "Api/Api.cs",
           "Api/ApiPaths.cs",
           "Api/AutomationApi.cs",
-          "Api/DeviceApi.cs",
-          "Api/IotApi.cs",
           "Api/NotificationApi.cs",
           "Api/PortalApi.cs",
           "Api/ProviderApi.cs",
@@ -99,7 +92,6 @@
           "Models/AutomationExecutionRequestResponse.cs",
           "Models/CompleteAgentResponseRequest.cs",
           "Models/CompleteAgentToolCallRequest.cs",
-          "Models/DeviceTwinView.cs",
           "Models/NotificationListResponse.cs",
           "Models/NotificationRequestResponse.cs",
           "Models/NotificationTask.cs",
@@ -111,9 +103,7 @@
           "Models/Sender.cs",
           "Models/StartAgentResponseRequest.cs",
           "Models/StreamFrame.cs",
-          "Models/StreamSession.cs",
-          "Models/UpdateDeviceTwinDesiredRequest.cs",
-          "Models/UpdateDeviceTwinReportedRequest.cs"
+          "Models/StreamSession.cs"
         ]
       },
       {

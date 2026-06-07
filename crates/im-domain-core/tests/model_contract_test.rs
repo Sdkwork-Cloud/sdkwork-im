@@ -1,12 +1,10 @@
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
 use im_domain_core::conversation::{
-    ConversationActorView, ConversationAgentHandoffView, ConversationInboxEntry,
-    ConversationMember, ConversationReadCursor, DeviceSyncFeedEntry, MembershipRole,
+    ClientRouteSyncFeedEntry, ConversationActorView, ConversationAgentHandoffView,
+    ConversationInboxEntry, ConversationMember, ConversationReadCursor, MembershipRole,
     MembershipState,
-};
-use im_domain_core::device_session::{
-    DevicePresenceStatus, DevicePresenceView, DeviceSessionResumeView, PresenceSnapshotView,
 };
 use im_domain_core::media::{DriveReference, MediaKind, MediaResource, MediaSource};
 use im_domain_core::message::{
@@ -17,6 +15,9 @@ use im_domain_core::message::{
     CRAW_CHAT_MESSAGE_SCHEMA_STICKER, CRAW_CHAT_MESSAGE_SCHEMA_VOICE, ContentPart, DataPart,
     MediaPart, Message, MessageBody, MessageEdited, MessageLocatorIndex, MessageRecalled,
     MessageType, Sender,
+};
+use im_domain_core::presence::{
+    PresenceClientView, PresenceResumeView, PresenceSnapshotView, PresenceStatus,
 };
 use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEvent, RealtimeEventWindow, RealtimeSubscription,
@@ -35,7 +36,7 @@ fn test_message_body_serializes_content_parts_with_expected_shape() {
         conversation_id: "c_demo".into(),
         message_id: "m_demo".into(),
         message_seq: 1,
-        sender: RtcSignalSender {
+        sender: Sender {
             id: "u_demo".into(),
             kind: "user".into(),
             member_id: Some("cm_demo".into()),
@@ -423,7 +424,19 @@ fn test_rtc_session_serializes_signal_binding_fields() {
 #[test]
 fn test_stream_and_rtc_session_identity_kind_fields_are_required() {
     let stream_source = include_str!("../src/stream.rs");
-    let rtc_source = include_str!("../src/rtc.rs");
+    let rtc_reexport_source = include_str!("../src/rtc.rs");
+    let rtc_core_source = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("..")
+            .join("sdkwork-rtc")
+            .join("crates")
+            .join("sdkwork-rtc-core")
+            .join("src")
+            .join("lib.rs"),
+    )
+    .expect("sdkwork-rtc-core source should be available as the RTC contract authority");
 
     assert!(
         stream_source.contains("pub owner_principal_id: String,")
@@ -431,7 +444,8 @@ fn test_stream_and_rtc_session_identity_kind_fields_are_required() {
         "stream sessions must persist an explicit owner principal id and kind"
     );
     assert!(
-        rtc_source.contains("pub initiator_kind: String,"),
+        rtc_reexport_source.contains("pub use sdkwork_rtc_core::{")
+            && rtc_core_source.contains("pub initiator_kind: String,"),
         "rtc sessions must persist an explicit initiator kind"
     );
 
@@ -441,7 +455,8 @@ fn test_stream_and_rtc_session_identity_kind_fields_are_required() {
         "pub initiator_kind: Option<String>",
     ] {
         assert!(
-            !stream_source.contains(forbidden_symbol) && !rtc_source.contains(forbidden_symbol),
+            !stream_source.contains(forbidden_symbol)
+                && !rtc_core_source.contains(forbidden_symbol),
             "session identity kind fields must not be optional: {forbidden_symbol}"
         );
     }
@@ -458,7 +473,7 @@ fn test_rtc_signal_event_serializes_signal_transport_shape() {
         signal_type: "rtc.offer".into(),
         schema_ref: Some("webrtc.offer.v1".into()),
         payload: r#"{"sdp":"demo"}"#.into(),
-        sender: Sender {
+        sender: RtcSignalSender {
             id: "u_demo".into(),
             kind: "user".into(),
             member_id: Some("cm_demo".into()),
@@ -688,8 +703,8 @@ fn test_conversation_inbox_entry_serializes_inbox_shape() {
 }
 
 #[test]
-fn test_device_sync_feed_entry_serializes_sync_shape() {
-    let entry = DeviceSyncFeedEntry {
+fn test_client_route_sync_feed_entry_serializes_sync_shape() {
+    let entry = ClientRouteSyncFeedEntry {
         tenant_id: "t_demo".into(),
         principal_id: "u_demo".into(),
         device_id: "d_demo".into(),
@@ -711,7 +726,7 @@ fn test_device_sync_feed_entry_serializes_sync_shape() {
         occurred_at: "2026-04-05T10:00:10Z".into(),
     };
 
-    let value = serde_json::to_value(entry).expect("device sync feed entry should serialize");
+    let value = serde_json::to_value(entry).expect("client route sync feed entry should serialize");
 
     assert_eq!(value["principalId"], Value::String("u_demo".into()));
     assert_eq!(value["deviceId"], Value::String("d_demo".into()));
@@ -735,8 +750,8 @@ fn test_device_sync_feed_entry_serializes_sync_shape() {
 }
 
 #[test]
-fn test_device_session_resume_view_serializes_presence_snapshot_shape() {
-    let view = DeviceSessionResumeView {
+fn test_presence_resume_view_serializes_presence_snapshot_shape() {
+    let view = PresenceResumeView {
         tenant_id: "t_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -751,24 +766,24 @@ fn test_device_session_resume_view_serializes_presence_snapshot_shape() {
             principal_id: "u_demo".into(),
             current_device_id: Some("d_demo".into()),
             devices: vec![
-                DevicePresenceView {
+                PresenceClientView {
                     tenant_id: "t_demo".into(),
                     principal_id: "u_demo".into(),
                     device_id: "d_demo".into(),
                     platform: None,
                     session_id: Some("s_demo".into()),
-                    status: DevicePresenceStatus::Online,
+                    status: PresenceStatus::Online,
                     last_sync_seq: 5,
                     last_resume_at: Some("2026-04-05T10:00:20Z".into()),
                     last_seen_at: Some("2026-04-05T10:00:20Z".into()),
                 },
-                DevicePresenceView {
+                PresenceClientView {
                     tenant_id: "t_demo".into(),
                     principal_id: "u_demo".into(),
                     device_id: "d_pad".into(),
                     platform: None,
                     session_id: Some("s_pad".into()),
-                    status: DevicePresenceStatus::Offline,
+                    status: PresenceStatus::Offline,
                     last_sync_seq: 2,
                     last_resume_at: Some("2026-04-05T09:50:00Z".into()),
                     last_seen_at: Some("2026-04-05T09:51:00Z".into()),

@@ -1,4 +1,3 @@
-mod iot;
 mod journal;
 mod metadata;
 mod ops;
@@ -8,7 +7,6 @@ mod shared;
 mod state;
 mod storage;
 
-pub use iot::{FileDeviceTwinStore, validate_device_twin_store_file};
 pub use journal::{FileCommitJournal, read_commit_journal_file, validate_commit_journal_file};
 pub use metadata::{FileMetadataStore, validate_metadata_store_file};
 pub use ops::{

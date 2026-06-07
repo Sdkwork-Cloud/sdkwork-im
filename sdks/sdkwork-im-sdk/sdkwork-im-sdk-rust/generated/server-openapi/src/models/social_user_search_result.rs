@@ -8,6 +8,9 @@ pub struct SocialUserSearchResult {
     #[serde(rename = "userId")]
     pub user_id: String,
 
+    #[serde(rename = "chatId")]
+    pub chat_id: String,
+
     #[serde(rename = "displayName")]
     pub display_name: String,
 

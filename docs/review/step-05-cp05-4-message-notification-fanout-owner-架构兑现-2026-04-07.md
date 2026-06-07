@@ -22,7 +22,7 @@
 ## 3. 未兑现
 
 - `CP05-4` 仍未闭环
-- projection / notification / multi-device sync 的剩余收口仍待完成
+- projection / notification / multi-client-route sync 的剩余收口仍待完成
 - `Step 05` 仍未闭环
 
 ## 4. 偏离判断

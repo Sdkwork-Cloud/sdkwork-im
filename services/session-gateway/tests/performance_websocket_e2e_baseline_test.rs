@@ -343,7 +343,7 @@ async fn ack_device(device: &mut ConnectedDevice, request_id: &str, acked_seq: u
     started.elapsed().as_secs_f64() * 1000.0
 }
 
-async fn pull_device_window(
+async fn pull_client_route_window(
     device: &mut ConnectedDevice,
     request_id: &str,
     after_seq: u64,
@@ -393,7 +393,7 @@ fn publish_cluster_device_message(
     device_id: &str,
     index: usize,
 ) -> usize {
-    let result = cluster.publish_device_event_for_principal_kind(
+    let result = cluster.publish_client_route_event_for_principal_kind(
         NODE_ID,
         TENANT_ID,
         PRINCIPAL_ID,
@@ -443,7 +443,7 @@ async fn wait_until_routes_released(cluster: &RealtimeClusterBridge, device_ids:
         loop {
             if device_ids.iter().all(|device_id| {
                 cluster
-                    .resolve_device_route_for_principal_kind(
+                    .resolve_client_route_for_principal_kind(
                         TENANT_ID,
                         PRINCIPAL_ID,
                         PRINCIPAL_KIND,
@@ -642,7 +642,7 @@ async fn test_step11_websocket_e2e_quant_gate_emits_thresholded_metrics() {
     append_window_realtime_seqs(&catchup_window, &mut restored_seqs);
 
     let (backlog_tail_window, backlog_pull_ms) =
-        pull_device_window(&mut reconnected, "req_pull_backlog_primary", 0, 1_000).await;
+        pull_client_route_window(&mut reconnected, "req_pull_backlog_primary", 0, 1_000).await;
     let backlog_restore_ms = backlog_restore_started.elapsed().as_secs_f64() * 1000.0;
     append_window_realtime_seqs(&backlog_tail_window, &mut restored_seqs);
     while restored_seqs.last().copied().unwrap_or_default()
@@ -695,7 +695,7 @@ async fn test_step11_websocket_e2e_quant_gate_emits_thresholded_metrics() {
     let cluster_handoff_ms = handoff_started.elapsed().as_secs_f64() * 1000.0;
 
     let route = cluster
-        .resolve_device_route_for_principal_kind(
+        .resolve_client_route_for_principal_kind(
             TENANT_ID,
             PRINCIPAL_ID,
             PRINCIPAL_KIND,

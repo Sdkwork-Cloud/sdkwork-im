@@ -119,7 +119,7 @@ Add real public auth endpoints:
 - `tenantId`
 - `login`
 - `password`
-- `deviceId` optional
+- `clientRouteId` optional
 - `sessionId` optional
 - `clientKind` optional (`im_user` or `portal_operator`)
 
@@ -134,7 +134,7 @@ Add real public auth endpoints:
 `sdkwork-appbase` dual-token refresh request:
 
 - `refreshToken`
-- `deviceId`
+- `clientRouteId`
 - `sessionId`
 
 `sdkwork-appbase` IAM context response:

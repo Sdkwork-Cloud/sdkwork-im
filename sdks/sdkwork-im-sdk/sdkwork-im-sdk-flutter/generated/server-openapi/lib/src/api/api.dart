@@ -1,5 +1,4 @@
 export 'paths.dart';
-export 'device.dart' hide QueryParameterSpec, buildQueryString, appendSerializedParameter, appendArrayParameter, appendObjectParameter, appendDeepObjectParameter, encodeQueryValue, urlEncode, PathParameterSpec, serializePathParameter, serializePathArray, serializePathObject, pathPrefix, pathPrimitivePrefix;
 export 'presence.dart';
 export 'realtime.dart' hide QueryParameterSpec, buildQueryString, appendSerializedParameter, appendArrayParameter, appendObjectParameter, appendDeepObjectParameter, encodeQueryValue, urlEncode;
 export 'rtc.dart' hide PathParameterSpec, serializePathParameter, serializePathArray, serializePathObject, pathPrefix, pathPrimitivePrefix;

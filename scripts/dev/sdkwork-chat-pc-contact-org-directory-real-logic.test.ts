@@ -7,7 +7,7 @@ import {
 } from '../../apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/OrganizationDirectoryService';
 
 const fakeImClient = {
-  chat: {
+  social: {
     contacts: {
       async list() {
         return { items: [], hasMore: false };

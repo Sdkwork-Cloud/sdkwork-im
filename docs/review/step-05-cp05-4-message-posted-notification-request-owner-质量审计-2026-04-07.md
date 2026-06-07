@@ -26,7 +26,7 @@
   - 现有 message notification e2e 行为保持通过。
 - 未完成点
   - `CP05-4` 仍有 projection / sync 与 notification 之间的剩余连接点。
-  - multi-device sync final closure 仍未完成。
+  - multi-client-route sync final closure 仍未完成。
 
 ## 4. 边界与风险
 

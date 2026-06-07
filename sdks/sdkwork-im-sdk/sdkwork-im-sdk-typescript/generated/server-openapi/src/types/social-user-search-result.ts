@@ -1,6 +1,7 @@
 export interface SocialUserSearchResult {
   tenantId: string;
   userId: string;
+  chatId: string;
   displayName: string;
   relationshipState: string;
   avatarUrl?: string | null;

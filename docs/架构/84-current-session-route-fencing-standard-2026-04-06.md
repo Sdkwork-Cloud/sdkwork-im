@@ -11,16 +11,16 @@ This standard applies when all conditions hold:
 - same logical device:
   - `tenantId`
   - `principalId`
-  - `deviceId`
+  - `clientRouteId`
 - route ownership already exists
 - a newer `session_id` has taken over the route
-- an older session later sends another device-bound request
+- an older session later sends another client-route-bound request
 
 The problem is specifically about stale post-resume traffic, not about whether a new resume is allowed to take over ownership.
 
 ## 3. Shared Truth Rule
 
-The current device session must be represented in the shared route directory, not only in node-local presence memory.
+The current client route session must be represented in the shared route directory, not only in node-local presence memory.
 
 Required route metadata:
 
@@ -52,7 +52,7 @@ Required behavior:
 
 ## 5. Non-Resume Fence Rule
 
-Any other device-bound request that can implicitly register or rebind a device must first validate that its `session_id` still matches the current route session.
+Any other client-route-bound request that can implicitly register or rebind a device must first validate that its `session_id` still matches the current route session.
 
 Covered examples:
 
@@ -62,7 +62,7 @@ Covered examples:
 - realtime event polling
 - realtime ack
 - websocket attach
-- gateway-side command helpers that implicitly ensure device registration before business writes
+- gateway-side command helpers that implicitly ensure client route registration before business writes
 
 Required behavior:
 
@@ -84,7 +84,7 @@ Stale session rejection must be explicit and fail-closed:
 
 The rejection must happen before:
 
-- device registration write
+- client route registration write
 - route ownership change
 - presence snapshot change
 - downstream realtime / command side effects

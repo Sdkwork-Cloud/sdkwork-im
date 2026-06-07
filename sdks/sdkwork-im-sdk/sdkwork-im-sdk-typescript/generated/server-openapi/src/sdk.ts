@@ -2,7 +2,6 @@ import { HttpClient, createHttpClient } from './http/client';
 import type { SdkworkImConfig } from './types/common';
 import type { AuthTokenManager } from '@sdkwork/sdk-common';
 
-import { DeviceApi, createDeviceApi } from './api/device';
 import { PresenceApi, createPresenceApi } from './api/presence';
 import { RealtimeApi, createRealtimeApi } from './api/realtime';
 import { RtcApi, createRtcApi } from './api/rtc';
@@ -13,7 +12,6 @@ import { StreamsApi, createStreamsApi } from './api/streams';
 export class SdkworkImClient {
   private httpClient: HttpClient;
 
-  public readonly device: DeviceApi;
   public readonly presence: PresenceApi;
   public readonly realtime: RealtimeApi;
   public readonly rtc: RtcApi;
@@ -23,8 +21,6 @@ export class SdkworkImClient {
 
   constructor(config: SdkworkImConfig) {
     this.httpClient = createHttpClient(config);
-    this.device = createDeviceApi(this.httpClient);
-
     this.presence = createPresenceApi(this.httpClient);
 
     this.realtime = createRealtimeApi(this.httpClient);

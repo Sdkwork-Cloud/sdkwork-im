@@ -43,7 +43,6 @@ client.set_header("X-Custom-Header", "value");
 
 ## API Modules
 
-- `client.device()` - device API
 - `client.presence()` - presence API
 - `client.realtime()` - realtime API
 - `client.rtc()` - rtc API
@@ -52,20 +51,6 @@ client.set_header("X-Custom-Header", "value");
 - `client.streams()` - streams API
 
 ## Usage Examples
-
-### device
-
-```rust
-use im_sdk_generated::*;
-// Resume a device runtime session
-let body = ResumeDeviceSessionRequest {
-    device_id: Some("1".to_string()),
-    last_seen_sync_seq: Some(2_i64),
-    ..Default::default()
-};
-let result = client.device().sessions_resume(&body).await?;
-println!("{result:?}");
-```
 
 ### presence
 

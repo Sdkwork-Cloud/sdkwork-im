@@ -1,4 +1,4 @@
-import { getBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
+import { getBackendSdkClientWithSession } from '@sdkwork/clawchat-admin-core/sdk';
 
 export interface AdminMetrics {
   systemLoad: { value: string; trend: string; isUp: boolean };
@@ -84,7 +84,7 @@ function resolveSystemLoad(health: UnknownRecord, diagnostics: UnknownRecord): n
   if (Number.isFinite(direct)) {
     return direct;
   }
-  const nodes = asRecordArray(diagnostics.deviceRoutes);
+  const nodes = asRecordArray(diagnostics.clientRoutes);
   return nodes.length > 0 ? Math.min(100, nodes.length * 8) : 0;
 }
 
@@ -94,7 +94,7 @@ function resolveActiveConnections(health: UnknownRecord, cluster: UnknownRecord)
     return direct;
   }
   return asRecordArray(cluster.nodes)
-    .reduce((total, node) => total + readNumber(node, ['connectionCount', 'connections', 'deviceRouteCount'], 0), 0);
+    .reduce((total, node) => total + readNumber(node, ['connectionCount', 'connections', 'clientRouteCount'], 0), 0);
 }
 
 function buildThroughput(health: UnknownRecord, diagnostics: UnknownRecord): NetworkThroughput[] {

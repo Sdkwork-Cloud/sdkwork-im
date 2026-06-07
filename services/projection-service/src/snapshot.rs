@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::sync::{Mutex, MutexGuard};
 
-use im_domain_core::conversation::DeviceSyncFeedEntry;
+use im_domain_core::conversation::ClientRouteSyncFeedEntry;
 use im_domain_core::conversation::{ConversationMember, ConversationReadCursor};
 use im_platform_contracts::{
     MetadataSnapshotRecord, MetadataStore, TimelineProjectionBatch, TimelineProjectionRecord,
@@ -16,8 +16,8 @@ use crate::interactions::{
 use crate::observability::ProjectionSnapshotOperation;
 use crate::projection::ProjectionError;
 use crate::scope::{
-    DeviceFeedScopeKey, DevicePrincipalScopeKey, device_feed_scope_key, device_principal_scope_key,
-    encode_projection_key_segments,
+    ClientRouteFeedScopeKey, ClientRoutePrincipalScopeKey, client_route_feed_scope_key,
+    client_route_principal_scope_key, encode_projection_key_segments,
 };
 use crate::{
     ContactView, ConversationSummaryView, TimelineProjectionService, TimelineViewEntry,
@@ -32,14 +32,14 @@ const MESSAGE_INTERACTIONS_KEY: &str = "message-interactions";
 const CONTACTS_KEY: &str = "contacts";
 const CONTACT_OWNERS_KEY: &str = "contact-owners";
 const CONTACT_DIRECT_CHAT_BINDINGS_KEY: &str = "contact-direct-chat-bindings";
-const REGISTERED_DEVICES_KEY: &str = "registered-devices";
-const REGISTERED_DEVICE_PRINCIPALS_KEY: &str = "registered-device-principals";
-const DEVICE_SYNC_SEQUENCE_KEY: &str = "device-sync-sequence";
-const DEVICE_SYNC_SCOPE_CATALOG_KEY: &str = "device-sync-scopes";
+const REGISTERED_CLIENT_ROUTES_KEY: &str = "registered-client-routes";
+const REGISTERED_CLIENT_ROUTE_PRINCIPALS_KEY: &str = "registered-client-route-principals";
+const CLIENT_ROUTE_SYNC_SEQUENCE_KEY: &str = "client-route-sync-sequence";
+const CLIENT_ROUTE_SYNC_SCOPE_CATALOG_KEY: &str = "client-route-sync-scopes";
 const CONTACT_CATALOG_SCOPE: &str = "projection-contacts";
 const PRINCIPAL_SNAPSHOT_SCOPE_PREFIX: &str = "principal";
-const DEVICE_SYNC_SNAPSHOT_SCOPE_PREFIX: &str = "device-sync";
-const DEVICE_SYNC_CATALOG_SCOPE: &str = "projection-device-sync";
+const CLIENT_ROUTE_SYNC_SNAPSHOT_SCOPE_PREFIX: &str = "client-route-sync";
+const CLIENT_ROUTE_SYNC_CATALOG_SCOPE: &str = "projection-client-route-sync";
 
 #[derive(Default)]
 struct ProjectionSnapshotWritePlan {
@@ -132,7 +132,7 @@ impl TimelineSequenceValue for TimelineViewEntry {
     }
 }
 
-impl TimelineSequenceValue for DeviceSyncFeedEntry {
+impl TimelineSequenceValue for ClientRouteSyncFeedEntry {
     fn timeline_sequence(&self) -> u64 {
         self.sync_seq
     }
@@ -148,7 +148,7 @@ struct PrincipalSnapshotCatalogEntry {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
-struct DeviceSyncScopeCatalogEntry {
+struct ClientRouteSyncScopeCatalogEntry {
     tenant_id: String,
     principal_id: String,
     principal_kind: String,
@@ -181,7 +181,7 @@ impl TimelineProjectionService {
         timeline_store: &dyn TimelineProjectionStore,
     ) -> Result<bool, ProjectionError> {
         let scope = conversation_snapshot_scope(tenant_id, conversation_id);
-        let mut persisted_device_sync_snapshot = false;
+        let mut persisted_client_route_sync_snapshot = false;
         let result = (|| {
             let mut write_plan = ProjectionSnapshotWritePlan::default();
             if !self.collect_conversation_snapshot_writes(
@@ -192,13 +192,13 @@ impl TimelineProjectionService {
                 return Ok(false);
             }
             self.collect_contact_snapshot_writes(&mut write_plan)?;
-            match self.collect_device_sync_snapshot_writes(&mut write_plan) {
-                Ok(persisted) => persisted_device_sync_snapshot = persisted,
+            match self.collect_client_route_sync_snapshot_writes(&mut write_plan) {
+                Ok(persisted) => persisted_client_route_sync_snapshot = persisted,
                 Err(error) => {
                     self.record_projection_snapshot_failure(
-                        ProjectionSnapshotOperation::DeviceSyncSnapshotPersist,
-                        "device-sync",
-                        DEVICE_SYNC_CATALOG_SCOPE,
+                        ProjectionSnapshotOperation::ClientRouteSyncSnapshotPersist,
+                        "client-route-sync",
+                        CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
                         &error,
                     );
                     return Err(error);
@@ -210,12 +210,12 @@ impl TimelineProjectionService {
 
         match &result {
             Ok(true) => {
-                if persisted_device_sync_snapshot {
+                if persisted_client_route_sync_snapshot {
                     self.record_projection_snapshot_success(
-                        ProjectionSnapshotOperation::DeviceSyncSnapshotPersist,
-                        "device-sync",
-                        DEVICE_SYNC_CATALOG_SCOPE,
-                        "persisted device sync projection snapshot catalog".to_owned(),
+                        ProjectionSnapshotOperation::ClientRouteSyncSnapshotPersist,
+                        "client-route-sync",
+                        CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
+                        "persisted client route sync projection snapshot catalog".to_owned(),
                     );
                 }
                 self.record_projection_snapshot_success(
@@ -227,11 +227,11 @@ impl TimelineProjectionService {
             }
             Ok(false) => {}
             Err(error) => {
-                if persisted_device_sync_snapshot {
+                if persisted_client_route_sync_snapshot {
                     self.record_projection_snapshot_failure(
-                        ProjectionSnapshotOperation::DeviceSyncSnapshotPersist,
-                        "device-sync",
-                        DEVICE_SYNC_CATALOG_SCOPE,
+                        ProjectionSnapshotOperation::ClientRouteSyncSnapshotPersist,
+                        "client-route-sync",
+                        CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
                         error,
                     );
                 }
@@ -334,7 +334,7 @@ impl TimelineProjectionService {
                 .lock_projection("message interaction store")
                 .insert(scope.clone(), interactions);
             self.restore_contact_snapshot(metadata_store)?;
-            self.restore_device_sync_snapshot(metadata_store, timeline_store)?;
+            self.restore_client_route_sync_snapshot(metadata_store, timeline_store)?;
 
             Ok(true)
         })();
@@ -358,14 +358,14 @@ impl TimelineProjectionService {
         result
     }
 
-    pub fn persist_device_sync_snapshot(
+    pub fn persist_client_route_sync_snapshot(
         &self,
         metadata_store: &dyn MetadataStore,
         timeline_store: &dyn TimelineProjectionStore,
     ) -> Result<bool, ProjectionError> {
         let result = (|| {
             let mut write_plan = ProjectionSnapshotWritePlan::default();
-            if !self.collect_device_sync_snapshot_writes(&mut write_plan)? {
+            if !self.collect_client_route_sync_snapshot_writes(&mut write_plan)? {
                 return Ok(false);
             }
             write_plan.commit(metadata_store, timeline_store)?;
@@ -374,16 +374,16 @@ impl TimelineProjectionService {
 
         match &result {
             Ok(true) => self.record_projection_snapshot_success(
-                ProjectionSnapshotOperation::DeviceSyncSnapshotPersist,
-                "device-sync",
-                DEVICE_SYNC_CATALOG_SCOPE,
-                "persisted device sync projection snapshot catalog".to_owned(),
+                ProjectionSnapshotOperation::ClientRouteSyncSnapshotPersist,
+                "client-route-sync",
+                CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
+                "persisted client route sync projection snapshot catalog".to_owned(),
             ),
             Ok(false) => {}
             Err(error) => self.record_projection_snapshot_failure(
-                ProjectionSnapshotOperation::DeviceSyncSnapshotPersist,
-                "device-sync",
-                DEVICE_SYNC_CATALOG_SCOPE,
+                ProjectionSnapshotOperation::ClientRouteSyncSnapshotPersist,
+                "client-route-sync",
+                CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
                 error,
             ),
         }
@@ -460,13 +460,13 @@ impl TimelineProjectionService {
         Ok(true)
     }
 
-    fn collect_device_sync_snapshot_writes(
+    fn collect_client_route_sync_snapshot_writes(
         &self,
         write_plan: &mut ProjectionSnapshotWritePlan,
     ) -> Result<bool, ProjectionError> {
-        let registered_device_snapshots = self
-            .registered_devices
-            .lock_projection("registered device store")
+        let registered_client_route_snapshots = self
+            .registered_client_routes
+            .lock_projection("registered client route store")
             .iter()
             .map(|(scope, devices)| {
                 let mut items = devices.values().cloned().collect::<Vec<_>>();
@@ -474,34 +474,38 @@ impl TimelineProjectionService {
                 (scope.clone(), items)
             })
             .collect::<Vec<_>>();
-        let device_sync_feeds = self
-            .device_sync_feeds
-            .lock_projection("device sync feed store")
+        let client_route_sync_feeds = self
+            .client_route_sync_feeds
+            .lock_projection("client route sync feed store")
             .clone();
-        let device_sync_sequences = self
-            .device_sync_sequences
-            .lock_projection("device sync sequence store")
+        let client_route_sync_sequences = self
+            .client_route_sync_sequences
+            .lock_projection("client route sync sequence store")
             .clone();
-        if registered_device_snapshots.is_empty()
-            && device_sync_feeds.is_empty()
-            && device_sync_sequences.is_empty()
+        if registered_client_route_snapshots.is_empty()
+            && client_route_sync_feeds.is_empty()
+            && client_route_sync_sequences.is_empty()
         {
             return Ok(false);
         }
 
-        let mut persisted_device_scopes = BTreeSet::new();
+        let mut persisted_client_route_scopes = BTreeSet::new();
         let mut principal_catalog = BTreeSet::new();
-        for (runtime_scope, devices) in &registered_device_snapshots {
+        for (runtime_scope, devices) in &registered_client_route_snapshots {
             principal_catalog.insert(PrincipalSnapshotCatalogEntry {
                 tenant_id: runtime_scope.tenant_id.clone(),
                 principal_id: runtime_scope.principal_id.clone(),
                 principal_kind: runtime_scope.principal_kind.clone(),
             });
-            let snapshot_scope = device_principal_snapshot_scope(runtime_scope);
-            write_plan.push_metadata(snapshot_scope.as_str(), REGISTERED_DEVICES_KEY, devices)?;
+            let snapshot_scope = client_route_principal_snapshot_scope(runtime_scope);
+            write_plan.push_metadata(
+                snapshot_scope.as_str(),
+                REGISTERED_CLIENT_ROUTES_KEY,
+                devices,
+            )?;
 
             for device in devices {
-                persisted_device_scopes.insert(device_feed_scope_key(
+                persisted_client_route_scopes.insert(client_route_feed_scope_key(
                     runtime_scope.tenant_id.as_str(),
                     runtime_scope.principal_id.as_str(),
                     runtime_scope.principal_kind.as_str(),
@@ -509,17 +513,17 @@ impl TimelineProjectionService {
                 ));
             }
         }
-        for runtime_scope in device_sync_feeds.keys() {
-            persisted_device_scopes.insert(runtime_scope.clone());
+        for runtime_scope in client_route_sync_feeds.keys() {
+            persisted_client_route_scopes.insert(runtime_scope.clone());
         }
-        for runtime_scope in device_sync_sequences.keys() {
-            persisted_device_scopes.insert(runtime_scope.clone());
+        for runtime_scope in client_route_sync_sequences.keys() {
+            persisted_client_route_scopes.insert(runtime_scope.clone());
         }
 
         let principal_catalog = principal_catalog.into_iter().collect::<Vec<_>>();
-        let device_scope_catalog = persisted_device_scopes
+        let client_route_scope_catalog = persisted_client_route_scopes
             .iter()
-            .map(|scope| DeviceSyncScopeCatalogEntry {
+            .map(|scope| ClientRouteSyncScopeCatalogEntry {
                 tenant_id: scope.tenant_id.clone(),
                 principal_id: scope.principal_id.clone(),
                 principal_kind: scope.principal_kind.clone(),
@@ -527,23 +531,23 @@ impl TimelineProjectionService {
             })
             .collect::<Vec<_>>();
         write_plan.push_metadata(
-            DEVICE_SYNC_CATALOG_SCOPE,
-            REGISTERED_DEVICE_PRINCIPALS_KEY,
+            CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
+            REGISTERED_CLIENT_ROUTE_PRINCIPALS_KEY,
             &principal_catalog,
         )?;
         write_plan.push_metadata(
-            DEVICE_SYNC_CATALOG_SCOPE,
-            DEVICE_SYNC_SCOPE_CATALOG_KEY,
-            &device_scope_catalog,
+            CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
+            CLIENT_ROUTE_SYNC_SCOPE_CATALOG_KEY,
+            &client_route_scope_catalog,
         )?;
 
-        for runtime_scope in persisted_device_scopes {
-            let snapshot_scope = device_sync_snapshot_scope(&runtime_scope);
-            let feed_entries = device_sync_feeds
+        for runtime_scope in persisted_client_route_scopes {
+            let snapshot_scope = client_route_sync_snapshot_scope(&runtime_scope);
+            let feed_entries = client_route_sync_feeds
                 .get(&runtime_scope)
                 .map(|entries| entries.values().cloned().collect::<Vec<_>>())
                 .unwrap_or_default();
-            let latest_sync_seq = device_sync_sequences
+            let latest_sync_seq = client_route_sync_sequences
                 .get(&runtime_scope)
                 .copied()
                 .unwrap_or_else(|| {
@@ -555,7 +559,7 @@ impl TimelineProjectionService {
                 });
             write_plan.push_metadata(
                 snapshot_scope.as_str(),
-                DEVICE_SYNC_SEQUENCE_KEY,
+                CLIENT_ROUTE_SYNC_SEQUENCE_KEY,
                 &latest_sync_seq,
             )?;
             write_plan.push_timeline_batch(
@@ -660,7 +664,7 @@ impl TimelineProjectionService {
         })()
     }
 
-    pub fn restore_device_sync_snapshot(
+    pub fn restore_client_route_sync_snapshot(
         &self,
         metadata_store: &dyn MetadataStore,
         timeline_store: &dyn TimelineProjectionStore,
@@ -668,38 +672,39 @@ impl TimelineProjectionService {
         let result = (|| {
             let principal_catalog = load_metadata_snapshot::<Vec<PrincipalSnapshotCatalogEntry>>(
                 metadata_store,
-                DEVICE_SYNC_CATALOG_SCOPE,
-                REGISTERED_DEVICE_PRINCIPALS_KEY,
+                CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
+                REGISTERED_CLIENT_ROUTE_PRINCIPALS_KEY,
             )?
             .unwrap_or_default();
-            let device_scope_catalog = load_metadata_snapshot::<Vec<DeviceSyncScopeCatalogEntry>>(
-                metadata_store,
-                DEVICE_SYNC_CATALOG_SCOPE,
-                DEVICE_SYNC_SCOPE_CATALOG_KEY,
-            )?
-            .unwrap_or_default();
-            if principal_catalog.is_empty() && device_scope_catalog.is_empty() {
+            let client_route_scope_catalog =
+                load_metadata_snapshot::<Vec<ClientRouteSyncScopeCatalogEntry>>(
+                    metadata_store,
+                    CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
+                    CLIENT_ROUTE_SYNC_SCOPE_CATALOG_KEY,
+                )?
+                .unwrap_or_default();
+            if principal_catalog.is_empty() && client_route_scope_catalog.is_empty() {
                 return Ok(false);
             }
 
-            let mut restored_device_scopes = BTreeSet::new();
+            let mut restored_client_route_scopes = BTreeSet::new();
             for principal in principal_catalog {
-                let runtime_scope = device_principal_scope_key(
+                let runtime_scope = client_route_principal_scope_key(
                     principal.tenant_id.as_str(),
                     principal.principal_id.as_str(),
                     principal.principal_kind.as_str(),
                 );
-                let snapshot_scope = device_principal_snapshot_scope(&runtime_scope);
-                let devices = load_metadata_snapshot::<Vec<crate::RegisteredDeviceView>>(
+                let snapshot_scope = client_route_principal_snapshot_scope(&runtime_scope);
+                let devices = load_metadata_snapshot::<Vec<crate::RegisteredClientRouteView>>(
                     metadata_store,
                     snapshot_scope.as_str(),
-                    REGISTERED_DEVICES_KEY,
+                    REGISTERED_CLIENT_ROUTES_KEY,
                 )?
                 .unwrap_or_default();
                 let device_map = devices
                     .into_iter()
                     .map(|device| {
-                        restored_device_scopes.insert(device_feed_scope_key(
+                        restored_client_route_scopes.insert(client_route_feed_scope_key(
                             principal.tenant_id.as_str(),
                             principal.principal_id.as_str(),
                             principal.principal_kind.as_str(),
@@ -708,28 +713,28 @@ impl TimelineProjectionService {
                         (device.device_id.clone(), device)
                     })
                     .collect();
-                self.registered_devices
-                    .lock_projection("registered device store")
+                self.registered_client_routes
+                    .lock_projection("registered client route store")
                     .insert(runtime_scope, device_map);
             }
 
-            for device_scope in device_scope_catalog {
-                restored_device_scopes.insert(device_feed_scope_key(
-                    device_scope.tenant_id.as_str(),
-                    device_scope.principal_id.as_str(),
-                    device_scope.principal_kind.as_str(),
-                    device_scope.device_id.as_str(),
+            for client_route_scope in client_route_scope_catalog {
+                restored_client_route_scopes.insert(client_route_feed_scope_key(
+                    client_route_scope.tenant_id.as_str(),
+                    client_route_scope.principal_id.as_str(),
+                    client_route_scope.principal_kind.as_str(),
+                    client_route_scope.device_id.as_str(),
                 ));
             }
 
-            for runtime_scope in restored_device_scopes {
-                let snapshot_scope = device_sync_snapshot_scope(&runtime_scope);
+            for runtime_scope in restored_client_route_scopes {
+                let snapshot_scope = client_route_sync_snapshot_scope(&runtime_scope);
                 let mut feed_entries = timeline_store
                     .load_timeline(runtime_scope.tenant_id.as_str(), snapshot_scope.as_str())
                     .map_err(ProjectionError::StoreFailure)?
                     .into_iter()
                     .map(|(_, payload)| {
-                        serde_json::from_str::<DeviceSyncFeedEntry>(&payload)
+                        serde_json::from_str::<ClientRouteSyncFeedEntry>(&payload)
                             .map_err(ProjectionError::InvalidSnapshot)
                     })
                     .collect::<Result<Vec<_>, _>>()?;
@@ -738,7 +743,7 @@ impl TimelineProjectionService {
                 let restored_latest_sync_seq = load_metadata_snapshot::<u64>(
                     metadata_store,
                     snapshot_scope.as_str(),
-                    DEVICE_SYNC_SEQUENCE_KEY,
+                    CLIENT_ROUTE_SYNC_SEQUENCE_KEY,
                 )?
                 .unwrap_or_else(|| {
                     feed_entries
@@ -747,11 +752,11 @@ impl TimelineProjectionService {
                         .max()
                         .unwrap_or_default()
                 });
-                self.device_sync_sequences
-                    .lock_projection("device sync sequence store")
+                self.client_route_sync_sequences
+                    .lock_projection("client route sync sequence store")
                     .insert(runtime_scope.clone(), restored_latest_sync_seq);
-                self.device_sync_feeds
-                    .lock_projection("device sync feed store")
+                self.client_route_sync_feeds
+                    .lock_projection("client route sync feed store")
                     .insert(
                         runtime_scope,
                         feed_entries
@@ -766,16 +771,16 @@ impl TimelineProjectionService {
 
         match &result {
             Ok(true) => self.record_projection_snapshot_success(
-                ProjectionSnapshotOperation::DeviceSyncSnapshotRestore,
-                "device-sync",
-                DEVICE_SYNC_CATALOG_SCOPE,
-                "restored device sync projection snapshot catalog".to_owned(),
+                ProjectionSnapshotOperation::ClientRouteSyncSnapshotRestore,
+                "client-route-sync",
+                CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
+                "restored client route sync projection snapshot catalog".to_owned(),
             ),
             Ok(false) => {}
             Err(error) => self.record_projection_snapshot_failure(
-                ProjectionSnapshotOperation::DeviceSyncSnapshotRestore,
-                "device-sync",
-                DEVICE_SYNC_CATALOG_SCOPE,
+                ProjectionSnapshotOperation::ClientRouteSyncSnapshotRestore,
+                "client-route-sync",
+                CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
                 error,
             ),
         }
@@ -792,7 +797,7 @@ fn principal_snapshot_scope(tenant_id: &str, principal_id: &str) -> String {
     encode_projection_key_segments([PRINCIPAL_SNAPSHOT_SCOPE_PREFIX, tenant_id, principal_id])
 }
 
-fn device_principal_snapshot_scope(scope: &DevicePrincipalScopeKey) -> String {
+fn client_route_principal_snapshot_scope(scope: &ClientRoutePrincipalScopeKey) -> String {
     encode_projection_key_segments([
         PRINCIPAL_SNAPSHOT_SCOPE_PREFIX,
         "typed",
@@ -802,9 +807,9 @@ fn device_principal_snapshot_scope(scope: &DevicePrincipalScopeKey) -> String {
     ])
 }
 
-fn device_sync_snapshot_scope(scope: &DeviceFeedScopeKey) -> String {
+fn client_route_sync_snapshot_scope(scope: &ClientRouteFeedScopeKey) -> String {
     encode_projection_key_segments([
-        DEVICE_SYNC_SNAPSHOT_SCOPE_PREFIX,
+        CLIENT_ROUTE_SYNC_SNAPSHOT_SCOPE_PREFIX,
         "typed",
         scope.tenant_id.as_str(),
         scope.principal_kind.as_str(),
@@ -1141,7 +1146,7 @@ mod tests {
                 MembershipRole::Owner,
             ))
             .expect("member projection should succeed");
-        projection.register_device("t_demo", "u_member", "d_phone");
+        projection.register_client_route("t_demo", "u_member", "d_phone");
         projection
             .apply(&message_posted_event(
                 "t_demo",
@@ -1197,15 +1202,15 @@ mod tests {
             timeline_store
                 .load_timeline(
                     "t_demo",
-                    device_sync_snapshot_scope(&device_feed_scope_key(
+                    client_route_sync_snapshot_scope(&client_route_feed_scope_key(
                         "t_demo", "u_member", "user", "d_phone"
                     ))
                     .as_str(),
                 )
-                .expect("device sync timeline should load")
+                .expect("client route sync timeline should load")
                 .len(),
             1,
-            "device sync timeline should still persist its feed entries"
+            "client route sync timeline should still persist its feed entries"
         );
     }
 
@@ -1265,23 +1270,24 @@ mod tests {
     }
 
     #[test]
-    fn test_persist_device_sync_snapshot_recovers_from_poisoned_registered_device_store_lock() {
+    fn test_persist_client_route_sync_snapshot_recovers_from_poisoned_registered_client_route_store_lock()
+     {
         let projection = TimelineProjectionService::default();
         let metadata_store = MemoryMetadataStore::default();
         let timeline_store = MemoryTimelineProjectionStore::default();
-        poison_mutex(&projection.registered_devices);
+        poison_mutex(&projection.registered_client_routes);
 
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-            projection.persist_device_sync_snapshot(&metadata_store, &timeline_store)
+            projection.persist_client_route_sync_snapshot(&metadata_store, &timeline_store)
         }));
         assert!(
             result.is_ok(),
-            "persist_device_sync_snapshot should not panic when registered-device lock is poisoned"
+            "persist_client_route_sync_snapshot should not panic when registered-client-route lock is poisoned"
         );
         let persist_result = result.expect("panic status should be captured");
         assert!(
             persist_result.is_ok(),
-            "persist_device_sync_snapshot should recover from poisoned lock"
+            "persist_client_route_sync_snapshot should recover from poisoned lock"
         );
     }
 
@@ -1327,11 +1333,11 @@ mod tests {
     }
 
     #[test]
-    fn test_restore_device_sync_snapshot_recovers_from_poisoned_sequence_store_lock() {
+    fn test_restore_client_route_sync_snapshot_recovers_from_poisoned_sequence_store_lock() {
         let projection = TimelineProjectionService::default();
         let metadata_store = MemoryMetadataStore::default();
         let timeline_store = MemoryTimelineProjectionStore::default();
-        let device_scope = DeviceSyncScopeCatalogEntry {
+        let device_scope = ClientRouteSyncScopeCatalogEntry {
             tenant_id: "t_demo".into(),
             principal_id: "u_demo".into(),
             principal_kind: "user".into(),
@@ -1339,44 +1345,44 @@ mod tests {
         };
         persist_metadata_snapshot(
             &metadata_store,
-            DEVICE_SYNC_CATALOG_SCOPE,
-            REGISTERED_DEVICE_PRINCIPALS_KEY,
+            CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
+            REGISTERED_CLIENT_ROUTE_PRINCIPALS_KEY,
             &Vec::<PrincipalSnapshotCatalogEntry>::new(),
         )
-        .expect("device-sync principal catalog should persist");
+        .expect("client route sync principal catalog should persist");
         persist_metadata_snapshot(
             &metadata_store,
-            DEVICE_SYNC_CATALOG_SCOPE,
-            DEVICE_SYNC_SCOPE_CATALOG_KEY,
+            CLIENT_ROUTE_SYNC_CATALOG_SCOPE,
+            CLIENT_ROUTE_SYNC_SCOPE_CATALOG_KEY,
             &vec![device_scope.clone()],
         )
-        .expect("device-sync scope catalog should persist");
+        .expect("client route sync scope catalog should persist");
         persist_metadata_snapshot(
             &metadata_store,
-            device_sync_snapshot_scope(&device_feed_scope_key(
+            client_route_sync_snapshot_scope(&client_route_feed_scope_key(
                 device_scope.tenant_id.as_str(),
                 device_scope.principal_id.as_str(),
                 device_scope.principal_kind.as_str(),
                 device_scope.device_id.as_str(),
             ))
             .as_str(),
-            DEVICE_SYNC_SEQUENCE_KEY,
+            CLIENT_ROUTE_SYNC_SEQUENCE_KEY,
             &42_u64,
         )
-        .expect("device-sync sequence snapshot should persist");
-        poison_mutex(&projection.device_sync_sequences);
+        .expect("client route sync sequence snapshot should persist");
+        poison_mutex(&projection.client_route_sync_sequences);
 
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-            projection.restore_device_sync_snapshot(&metadata_store, &timeline_store)
+            projection.restore_client_route_sync_snapshot(&metadata_store, &timeline_store)
         }));
         assert!(
             result.is_ok(),
-            "restore_device_sync_snapshot should not panic when sequence lock is poisoned"
+            "restore_client_route_sync_snapshot should not panic when sequence lock is poisoned"
         );
         let restore_result = result.expect("panic status should be captured");
         assert!(
             restore_result.is_ok(),
-            "restore_device_sync_snapshot should recover from poisoned lock"
+            "restore_client_route_sync_snapshot should recover from poisoned lock"
         );
     }
 }

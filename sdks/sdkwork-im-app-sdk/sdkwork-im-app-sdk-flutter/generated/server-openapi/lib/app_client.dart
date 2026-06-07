@@ -1,31 +1,25 @@
 import 'package:sdkwork_common_flutter/sdkwork_common_flutter.dart';
 import 'src/http/client.dart';
 import 'src/api/automation.dart';
-import 'src/api/device.dart';
 import 'src/api/notification.dart';
 import 'src/api/portal.dart';
 import 'src/api/provider.dart';
-import 'src/api/iot.dart';
 
 class SdkworkImAppClient {
   final HttpClient _httpClient;
 
   late final AutomationApi automation;
-  late final DeviceApi device;
   late final NotificationApi notification;
   late final PortalApi portal;
   late final ProviderApi provider;
-  late final IotApi iot;
 
   SdkworkImAppClient({
     required SdkConfig config,
   }) : _httpClient = HttpClient(config: config) {
     automation = AutomationApi(_httpClient);
-    device = DeviceApi(_httpClient);
     notification = NotificationApi(_httpClient);
     portal = PortalApi(_httpClient);
     provider = ProviderApi(_httpClient);
-    iot = IotApi(_httpClient);
   }
 
   factory SdkworkImAppClient.withBaseUrl({

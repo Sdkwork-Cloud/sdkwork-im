@@ -48,7 +48,10 @@ async fn run() -> Result<(), String> {
     let registry = web_gateway::build_gateway_registry()?;
     let embedded_runtime_router =
         if config.runtime_mode == craw_chat_gateway_config::GatewayRuntimeMode::Embedded {
-            Some(local_minimal_node::build_default_app())
+            Some(
+                sdkwork_iam_http::build_sdkwork_appbase_app_api_router()
+                    .merge(local_minimal_node::build_default_app()),
+            )
         } else {
             None
         };
@@ -102,16 +105,12 @@ fn resolve_product_site_dirs() -> ProductSiteDirs {
         .join("..")
         .to_path_buf();
 
-    let admin_site_dir = resolve_site_dir_from_env(&[
-        "SDKWORK_CHAT_ADMIN_SITE_DIR",
-        "CRAW_CHAT_ADMIN_SITE_DIR",
-    ])
-        .unwrap_or_else(|| repo_root.join("apps").join("craw-chat-admin").join("dist"));
-    let portal_site_dir = resolve_site_dir_from_env(&[
-        "SDKWORK_CHAT_PORTAL_SITE_DIR",
-        "CRAW_CHAT_PORTAL_SITE_DIR",
-    ])
-        .unwrap_or_else(|| repo_root.join("apps").join("craw-chat-portal").join("dist"));
+    let admin_site_dir =
+        resolve_site_dir_from_env(&["SDKWORK_CHAT_ADMIN_SITE_DIR", "CRAW_CHAT_ADMIN_SITE_DIR"])
+            .unwrap_or_else(|| repo_root.join("apps").join("craw-chat-admin").join("dist"));
+    let portal_site_dir =
+        resolve_site_dir_from_env(&["SDKWORK_CHAT_PORTAL_SITE_DIR", "CRAW_CHAT_PORTAL_SITE_DIR"])
+            .unwrap_or_else(|| repo_root.join("apps").join("craw-chat-portal").join("dist"));
 
     ProductSiteDirs::new(admin_site_dir, portal_site_dir)
 }
@@ -212,8 +211,10 @@ mod tests {
         let _portal = ScopedEnvVar::remove("CRAW_CHAT_PORTAL_API_BASE_URL");
         let _sdkwork_portal = ScopedEnvVar::remove("SDKWORK_PORTAL_API_BASE_URL");
         let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_CHAT_SERVER_BASE_URL");
-        let _sdkwork_chat_server_api =
-            ScopedEnvVar::set("SDKWORK_CHAT_SERVER_API_BASE_URL", "https://chat.example.com/sdkwork/chat");
+        let _sdkwork_chat_server_api = ScopedEnvVar::set(
+            "SDKWORK_CHAT_SERVER_API_BASE_URL",
+            "https://chat.example.com/sdkwork/chat",
+        );
         let _server_base = ScopedEnvVar::remove("CRAW_CHAT_SERVER_BASE_URL");
         let _server_api = ScopedEnvVar::remove("CRAW_CHAT_SERVER_API_BASE_URL");
         let _bind = ScopedEnvVar::remove("CRAW_CHAT_BIND_ADDR");

@@ -263,7 +263,7 @@ class AutomationExecutionsApi {
     }
     /** Get an automation execution */
     async retrieve(executionId) {
-        return this.client.get(appApiPath(`/automation/executions/${serializePathParameter$2(executionId, { name: 'executionId', style: 'simple', explode: false })}`));
+        return this.client.get(appApiPath(`/automation/executions/${serializePathParameter$1(executionId, { name: 'executionId', style: 'simple', explode: false })}`));
     }
 }
 class AutomationAgentToolCallsApi {
@@ -276,7 +276,7 @@ class AutomationAgentToolCallsApi {
     }
     /** Complete an agent tool call */
     async complete(executionId, toolCallId, body) {
-        return this.client.post(appApiPath(`/automation/executions/${serializePathParameter$2(executionId, { name: 'executionId', style: 'simple', explode: false })}/agent_tool_calls/${serializePathParameter$2(toolCallId, { name: 'toolCallId', style: 'simple', explode: false })}/complete`), body, undefined, undefined, 'application/json');
+        return this.client.post(appApiPath(`/automation/executions/${serializePathParameter$1(executionId, { name: 'executionId', style: 'simple', explode: false })}/agent_tool_calls/${serializePathParameter$1(toolCallId, { name: 'toolCallId', style: 'simple', explode: false })}/complete`), body, undefined, undefined, 'application/json');
     }
 }
 class AutomationAgentResponsesFramesApi {
@@ -285,7 +285,7 @@ class AutomationAgentResponsesFramesApi {
     }
     /** Append a frame to an agent response stream */
     async create(streamId, body) {
-        return this.client.post(appApiPath(`/automation/agent_responses/${serializePathParameter$2(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), body, undefined, undefined, 'application/json');
+        return this.client.post(appApiPath(`/automation/agent_responses/${serializePathParameter$1(streamId, { name: 'streamId', style: 'simple', explode: false })}/frames`), body, undefined, undefined, 'application/json');
     }
 }
 class AutomationAgentResponsesApi {
@@ -299,7 +299,7 @@ class AutomationAgentResponsesApi {
     }
     /** Complete an agent response stream */
     async complete(streamId, body) {
-        return this.client.post(appApiPath(`/automation/agent_responses/${serializePathParameter$2(streamId, { name: 'streamId', style: 'simple', explode: false })}/complete`), body, undefined, undefined, 'application/json');
+        return this.client.post(appApiPath(`/automation/agent_responses/${serializePathParameter$1(streamId, { name: 'streamId', style: 'simple', explode: false })}/complete`), body, undefined, undefined, 'application/json');
     }
 }
 class AutomationApi {
@@ -312,106 +312,6 @@ class AutomationApi {
 }
 function createAutomationApi(client) {
     return new AutomationApi(client);
-}
-function serializePathParameter$2(value, spec) {
-    if (value === undefined || value === null) {
-        return '';
-    }
-    const style = spec.style || 'simple';
-    if (Array.isArray(value)) {
-        return serializePathArray$2(spec.name, value, style, spec.explode);
-    }
-    if (typeof value === 'object') {
-        return serializePathObject$2(spec.name, value, style, spec.explode);
-    }
-    return pathPrefix$2(spec.name, style) + encodePathValue$2(serializePathPrimitive$2(value));
-}
-function serializePathArray$2(name, values, style, explode) {
-    const serialized = values
-        .filter((item) => item !== undefined && item !== null)
-        .map((item) => encodePathValue$2(serializePathPrimitive$2(item)));
-    if (serialized.length === 0) {
-        return pathPrefix$2(name, style);
-    }
-    if (style === 'matrix') {
-        return explode
-            ? serialized.map((item) => `;${name}=${item}`).join('')
-            : `;${name}=${serialized.join(',')}`;
-    }
-    return pathPrefix$2(name, style) + serialized.join(explode ? '.' : ',');
-}
-function serializePathObject$2(name, value, style, explode) {
-    const entries = Object.entries(value).filter(([, entryValue]) => entryValue !== undefined && entryValue !== null);
-    if (entries.length === 0) {
-        return pathPrefix$2(name, style);
-    }
-    if (style === 'matrix') {
-        return explode
-            ? entries.map(([key, entryValue]) => `;${encodePathValue$2(key)}=${encodePathValue$2(serializePathPrimitive$2(entryValue))}`).join('')
-            : `;${name}=${entries.flatMap(([key, entryValue]) => [encodePathValue$2(key), encodePathValue$2(serializePathPrimitive$2(entryValue))]).join(',')}`;
-    }
-    const serialized = explode
-        ? entries.map(([key, entryValue]) => `${encodePathValue$2(key)}=${encodePathValue$2(serializePathPrimitive$2(entryValue))}`).join(style === 'label' ? '.' : ',')
-        : entries.flatMap(([key, entryValue]) => [encodePathValue$2(key), encodePathValue$2(serializePathPrimitive$2(entryValue))]).join(',');
-    return pathPrefix$2(name, style) + serialized;
-}
-function pathPrefix$2(name, style, _objectValue) {
-    if (style === 'label')
-        return '.';
-    if (style === 'matrix')
-        return `;${name}`;
-    return '';
-}
-function encodePathValue$2(value) {
-    return encodeURIComponent(value);
-}
-function serializePathPrimitive$2(value) {
-    if (value instanceof Date) {
-        return value.toISOString();
-    }
-    if (typeof value === 'object') {
-        return JSON.stringify(value);
-    }
-    return String(value);
-}
-
-class DeviceTwinReportedApi {
-    constructor(client) {
-        this.client = client;
-    }
-    /** Update the reported state for a device twin */
-    async update(deviceId, body) {
-        return this.client.post(appApiPath(`/devices/${serializePathParameter$1(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin/reported`), body, undefined, undefined, 'application/json');
-    }
-}
-class DeviceTwinDesiredApi {
-    constructor(client) {
-        this.client = client;
-    }
-    /** Update the desired state for a device twin */
-    async update(deviceId, body) {
-        return this.client.post(appApiPath(`/devices/${serializePathParameter$1(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin/desired`), body, undefined, undefined, 'application/json');
-    }
-}
-class DeviceTwinApi {
-    constructor(client) {
-        this.client = client;
-        this.desired = new DeviceTwinDesiredApi(client);
-        this.reported = new DeviceTwinReportedApi(client);
-    }
-    /** Get the device twin */
-    async retrieve(deviceId) {
-        return this.client.get(appApiPath(`/devices/${serializePathParameter$1(deviceId, { name: 'deviceId', style: 'simple', explode: false })}/twin`));
-    }
-}
-class DeviceApi {
-    constructor(client) {
-        this.client = client;
-        this.twin = new DeviceTwinApi(client);
-    }
-}
-function createDeviceApi(client) {
-    return new DeviceApi(client);
 }
 function serializePathParameter$1(value, spec) {
     if (value === undefined || value === null) {
@@ -674,70 +574,13 @@ function createProviderApi(client) {
     return new ProviderApi(client);
 }
 
-class IotProtocolDownlinkApi {
-    constructor(client) {
-        this.client = client;
-    }
-    /** Ingest IoT protocol downlink */
-    async create() {
-        return this.client.post(appApiPath(`/iot/protocol/downlink`));
-    }
-}
-class IotProtocolUplinkApi {
-    constructor(client) {
-        this.client = client;
-    }
-    /** Ingest IoT protocol uplink */
-    async create() {
-        return this.client.post(appApiPath(`/iot/protocol/uplink`));
-    }
-}
-class IotProtocolApi {
-    constructor(client) {
-        this.client = client;
-        this.uplink = new IotProtocolUplinkApi(client);
-        this.downlink = new IotProtocolDownlinkApi(client);
-    }
-}
-class IotProtocolProviderHealthApi {
-    constructor(client) {
-        this.client = client;
-    }
-    /** Retrieve IoT protocol provider health */
-    async retrieve() {
-        return this.client.get(appApiPath(`/iot/protocol/provider_health`));
-    }
-}
-class IotAccessProviderHealthApi {
-    constructor(client) {
-        this.client = client;
-    }
-    /** Retrieve IoT access provider health */
-    async retrieve() {
-        return this.client.get(appApiPath(`/iot/access/provider_health`));
-    }
-}
-class IotApi {
-    constructor(client) {
-        this.client = client;
-        this.accessProviderHealth = new IotAccessProviderHealthApi(client);
-        this.protocolProviderHealth = new IotProtocolProviderHealthApi(client);
-        this.protocol = new IotProtocolApi(client);
-    }
-}
-function createIotApi(client) {
-    return new IotApi(client);
-}
-
 class SdkworkImAppClient {
     constructor(config) {
         this.httpClient = createHttpClient(config);
         this.automation = createAutomationApi(this.httpClient);
-        this.device = createDeviceApi(this.httpClient);
         this.notification = createNotificationApi(this.httpClient);
         this.portal = createPortalApi(this.httpClient);
         this.provider = createProviderApi(this.httpClient);
-        this.iot = createIotApi(this.httpClient);
     }
     setAuthToken(token) {
         this.httpClient.setAuthToken(token);
@@ -802,9 +645,7 @@ Object.defineProperty(exports, "createTokenManager", {
 });
 exports.AutomationApi = AutomationApi;
 exports.BaseApi = BaseApi;
-exports.DeviceApi = DeviceApi;
 exports.HttpClient = HttpClient;
-exports.IotApi = IotApi;
 exports.NotificationApi = NotificationApi;
 exports.PortalApi = PortalApi;
 exports.ProviderApi = ProviderApi;
@@ -813,9 +654,7 @@ exports.SdkworkImAppClient = SdkworkImAppClient;
 exports.appApiPath = appApiPath;
 exports.createAutomationApi = createAutomationApi;
 exports.createClient = createClient;
-exports.createDeviceApi = createDeviceApi;
 exports.createHttpClient = createHttpClient;
-exports.createIotApi = createIotApi;
 exports.createNotificationApi = createNotificationApi;
 exports.createPortalApi = createPortalApi;
 exports.createProviderApi = createProviderApi;

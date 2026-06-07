@@ -63,12 +63,27 @@ pub(super) async fn list_social_users(
         }));
     }
 
+    let public_chat_id_query = q.to_ascii_lowercase();
     let mut by_user_id = BTreeMap::new();
+    let current_user_chat_id =
+        principal_profile::public_chat_id_for_user(auth.tenant_id.as_str(), auth.actor_id.as_str());
+    if q == auth.actor_id || public_chat_id_query == current_user_chat_id {
+        let profile = principal_profile::ensure_active_user(
+            &state,
+            auth.tenant_id.as_str(),
+            auth.actor_id.as_str(),
+        )?;
+        by_user_id.insert(
+            auth.actor_id.clone(),
+            social_user_search_result_from_profile(&state, &auth, profile),
+        );
+    }
+
     for profile in state
         .principal_profile_provider
         .search_profiles(auth.tenant_id.as_str(), "user", q)?
         .into_iter()
-        .filter(|profile| !profile.inactive && profile.principal_id != auth.actor_id)
+        .filter(|profile| !profile.inactive)
     {
         by_user_id.insert(
             profile.principal_id.clone(),
@@ -80,7 +95,13 @@ pub(super) async fn list_social_users(
         .projection_service
         .contacts(auth.tenant_id.as_str(), auth.actor_id.as_str())
         .into_iter()
-        .filter(|contact| contact_matches_social_user_query(contact.target_user_id.as_str(), q))
+        .filter(|contact| {
+            contact_matches_social_user_query(contact.target_user_id.as_str(), q)
+                || principal_profile::public_chat_id_for_user(
+                    auth.tenant_id.as_str(),
+                    contact.target_user_id.as_str(),
+                ) == public_chat_id_query
+        })
     {
         if contact.target_user_id == auth.actor_id {
             continue;
@@ -94,6 +115,23 @@ pub(super) async fn list_social_users(
             contact.target_user_id.clone(),
             social_user_search_result_from_profile(&state, &auth, profile),
         );
+    }
+
+    if principal_profile::is_public_chat_id_query(q) {
+        for profile in state
+            .principal_profile_provider
+            .search_profiles(auth.tenant_id.as_str(), "user", "")?
+            .into_iter()
+            .filter(|profile| !profile.inactive)
+            .filter(|profile| {
+                principal_profile::public_chat_id_for_profile(profile) == public_chat_id_query
+            })
+        {
+            by_user_id.insert(
+                profile.principal_id.clone(),
+                social_user_search_result_from_profile(&state, &auth, profile),
+            );
+        }
     }
 
     let mut items = by_user_id.into_values().collect::<Vec<_>>();
@@ -2209,7 +2247,13 @@ fn social_user_search_result_from_profile(
         .into_iter()
         .find(|contact| contact.target_user_id == profile.principal_id)
         .map(|contact| contact.relationship_state)
-        .unwrap_or_else(|| "none".into());
+        .unwrap_or_else(|| {
+            if profile.principal_id == auth.actor_id {
+                "self".into()
+            } else {
+                "none".into()
+            }
+        });
     let avatar_url = profile
         .attributes
         .get("avatarUrl")
@@ -2223,6 +2267,7 @@ fn social_user_search_result_from_profile(
         .cloned();
 
     SocialUserSearchResult {
+        chat_id: principal_profile::public_chat_id_for_profile(&profile),
         tenant_id: profile.tenant_id,
         user_id: profile.principal_id,
         display_name: profile.display_name,

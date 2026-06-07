@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client.set_auth_token("your-auth-token");
 client.set_access_token("your-access-token");
 
-    let result = client.iot().access_provider_health_retrieve().await?;
+    let result = client.notification().notifications_list().await?;
     println!("{result:?}");
     Ok(())
 }
@@ -44,11 +44,9 @@ client.set_header("X-Custom-Header", "value");
 ## API Modules
 
 - `client.automation()` - automation API
-- `client.device()` - device API
 - `client.notification()` - notification API
 - `client.portal()` - portal API
 - `client.provider()` - provider API
-- `client.iot()` - iot API
 
 ## Usage Examples
 
@@ -68,15 +66,6 @@ let body = StartAgentResponseRequest {
     ..Default::default()
 };
 let result = client.automation().agent_responses_create(&body).await?;
-println!("{result:?}");
-```
-
-### device
-
-```rust
-// Get the device twin
-let device_id = "1";
-let result = client.device().devices_twin_retrieve(device_id).await?;
 println!("{result:?}");
 ```
 
@@ -104,14 +93,6 @@ let result = client.provider().media_health_retrieve().await?;
 println!("{result:?}");
 ```
 
-### iot
-
-```rust
-// Retrieve IoT access provider health
-let result = client.iot().access_provider_health_retrieve().await?;
-println!("{result:?}");
-```
-
 ## Error Handling
 
 ```rust
@@ -121,7 +102,7 @@ use sdkwork_im_app_api_generated::{SdkworkImAppClient, SdkworkConfig};
 let client = SdkworkImAppClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
 
 let outcome: Result<(), _> = async {
-    client.iot().access_provider_health_retrieve().await?;
+    client.notification().notifications_list().await?;
     Ok(())
 }.await;
 

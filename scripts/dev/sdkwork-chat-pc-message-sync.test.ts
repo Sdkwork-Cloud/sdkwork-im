@@ -127,6 +127,61 @@ const fakeClient = {
   },
 } as unknown as ImSdkClient;
 
+function assertLastMediaPost({
+  content,
+  coverUrl,
+  duration,
+  fileName,
+  fileSize,
+  mediaKind,
+  messageType,
+  sizeBytes,
+}: {
+  content: string;
+  coverUrl?: string;
+  duration?: number;
+  fileName: string;
+  fileSize?: string;
+  mediaKind: string;
+  messageType: 'file' | 'image' | 'video' | 'voice';
+  sizeBytes?: string;
+}): void {
+  const body = calls.at(-1)?.body as Record<string, unknown>;
+  const parts = body.parts as Array<Record<string, unknown>>;
+  const part = parts[0];
+  const drive = part.drive as Record<string, unknown>;
+  const resource = part.resource as Record<string, unknown>;
+  assert.equal(
+    body.text,
+    undefined,
+    'PC media send must not persist local object URLs as plain text message bodies',
+  );
+  assert.equal(part.kind, 'media');
+  assert.equal(part.mediaRole, 'attachment');
+  assert.equal(drive.driveUri, resource.uri);
+  assert.equal(resource.kind, mediaKind);
+  assert.equal(resource.source, 'drive');
+  assert.equal(resource.publicUrl, content);
+  assert.equal(resource.fileName, fileName);
+  if (sizeBytes !== undefined) {
+    assert.equal(resource.sizeBytes, sizeBytes);
+  }
+  if (duration !== undefined) {
+    assert.equal(resource.durationSeconds, duration);
+  }
+  assert.deepEqual(
+    body.renderHints,
+    {
+      ...(coverUrl ? { coverUrl } : {}),
+      ...(duration ? { duration: String(duration) } : {}),
+      ...(fileName ? { fileName } : {}),
+      ...(fileSize ? { fileSize } : {}),
+      sdkworkChatPcType: messageType,
+    },
+    'PC media send must preserve UI metadata through render hints without changing visual components',
+  );
+}
+
 async function main(): Promise<void> {
   const service = createSdkworkChatService(() => fakeClient);
   const messages = await service.getMessages('chat-1');
@@ -191,36 +246,65 @@ async function main(): Promise<void> {
     fileSize: '4.0 KB',
     coverUrl: 'blob://local-image-cover',
   });
-  const imageBody = calls.at(-1)?.body as Record<string, unknown>;
-  const imageParts = imageBody.parts as Array<Record<string, unknown>>;
-  const imagePart = imageParts[0];
-  const imageDrive = imagePart.drive as Record<string, unknown>;
-  const imageResource = imagePart.resource as Record<string, unknown>;
-  assert.equal(
-    imageBody.text,
-    undefined,
-    'PC media send must not persist local object URLs as plain text message bodies',
-  );
-  assert.equal(imagePart.kind, 'media');
-  assert.equal(imagePart.mediaRole, 'attachment');
-  assert.equal(imageDrive.driveUri, imageResource.uri);
-  assert.equal(imageResource.kind, 'image');
-  assert.equal(imageResource.source, 'drive');
-  assert.equal(imageResource.publicUrl, 'blob://local-image-1');
-  assert.equal(imageResource.fileName, 'local-image.png');
-  assert.equal(imageResource.sizeBytes, '4096');
-  assert.deepEqual(
-    imageBody.renderHints,
-    {
-      coverUrl: 'blob://local-image-cover',
-      fileName: 'local-image.png',
-      fileSize: '4.0 KB',
-      sdkworkChatPcType: 'image',
-    },
-    'PC media send must preserve UI metadata through render hints without changing visual components',
-  );
+  assertLastMediaPost({
+    content: 'blob://local-image-1',
+    coverUrl: 'blob://local-image-cover',
+    fileName: 'local-image.png',
+    fileSize: '4.0 KB',
+    mediaKind: 'image',
+    messageType: 'image',
+    sizeBytes: '4096',
+  });
   assert.equal(postedImage.id, 'message-4');
   assert.equal(postedImage.type, 'image');
+
+  const postedVoice = await service.sendMessage('chat-1', 'blob://local-voice-1', 'voice', undefined, {
+    duration: 12,
+    fileName: 'voice-message.ogg',
+    fileSize: '8192',
+  });
+  assertLastMediaPost({
+    content: 'blob://local-voice-1',
+    duration: 12,
+    fileName: 'voice-message.ogg',
+    fileSize: '8192',
+    mediaKind: 'voice',
+    messageType: 'voice',
+    sizeBytes: '8192',
+  });
+  assert.equal(postedVoice.type, 'voice');
+
+  const postedFile = await service.sendMessage('chat-1', 'blob://local-file-1', 'file', undefined, {
+    fileName: 'quarterly-report.pdf',
+    fileSize: '1.5 MB',
+  });
+  assertLastMediaPost({
+    content: 'blob://local-file-1',
+    fileName: 'quarterly-report.pdf',
+    fileSize: '1.5 MB',
+    mediaKind: 'file',
+    messageType: 'file',
+    sizeBytes: '1572864',
+  });
+  assert.equal(postedFile.type, 'file');
+
+  const postedVideo = await service.sendMessage('chat-1', 'blob://local-video-1', 'video', undefined, {
+    coverUrl: 'blob://local-video-cover',
+    duration: 42,
+    fileName: 'demo-video.mp4',
+    fileSize: '3 MB',
+  });
+  assertLastMediaPost({
+    content: 'blob://local-video-1',
+    coverUrl: 'blob://local-video-cover',
+    duration: 42,
+    fileName: 'demo-video.mp4',
+    fileSize: '3 MB',
+    mediaKind: 'video',
+    messageType: 'video',
+    sizeBytes: '3145728',
+  });
+  assert.equal(postedVideo.type, 'video');
 
   await service.deleteMessage('chat-1', 'message-1');
   assert.deepEqual(

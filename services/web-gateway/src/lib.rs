@@ -377,7 +377,7 @@ fn runtime_router_for_missing_embedded_upstream(
     service_id: &str,
 ) -> Option<Router> {
     if service_id == APPBASE_APP_API_SERVICE_ID {
-        return None;
+        return state.embedded_runtime_router.clone();
     }
 
     state
@@ -593,14 +593,6 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     entries.extend(prefix_routes(
         "session-gateway",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/im/v3/api/device/sessions/{*path}"],
-        RouteVisibility::Public,
-        vec![SdkTarget::SdkworkImSdk],
-        "sessions",
-    ));
-    entries.extend(prefix_routes(
-        "session-gateway",
-        vec![HttpMethod::Get, HttpMethod::Post],
         &["/im/v3/api/presence/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::SdkworkImSdk],
@@ -656,22 +648,6 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         RouteVisibility::Public,
         vec![SdkTarget::SdkworkImSdk],
         "conversations",
-    ));
-    entries.extend(exact_routes(
-        "projection-service",
-        vec![HttpMethod::Post],
-        &["/im/v3/api/devices/register"],
-        RouteVisibility::Public,
-        vec![SdkTarget::SdkworkImSdk],
-        "devices",
-    ));
-    entries.extend(exact_routes(
-        "projection-service",
-        vec![HttpMethod::Get],
-        &["/im/v3/api/devices/{device_id}/sync_feed"],
-        RouteVisibility::Public,
-        vec![SdkTarget::SdkworkImSdk],
-        "devices",
     ));
     entries.extend(prefix_routes(
         "projection-service",

@@ -28,7 +28,7 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
         }],
     );
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -101,7 +101,7 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
     assert_eq!(migrate_json["targetDrainStatus"], "active");
 
     let migrated_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("route should exist after migration");
     assert_eq!(migrated_route.owner_node_id, "node_b");
 }

@@ -13,8 +13,8 @@ public class PresenceApi {
         this.client = client;
     }
 
-    /** Publish current device presence heartbeat */
-    public PresenceView heartbeatCreate(DevicePresenceRequest body) throws Exception {
+    /** Publish current client route presence heartbeat */
+    public PresenceView heartbeatCreate(PresenceHeartbeatRequest body) throws Exception {
         Object raw = client.post(ApiPaths.imPath("/presence/heartbeat"), body, null, null, "application/json");
         return client.convertValue(raw, new TypeReference<PresenceView>() {});
     }

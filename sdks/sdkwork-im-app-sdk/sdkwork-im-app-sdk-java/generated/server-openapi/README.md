@@ -25,7 +25,7 @@ implementation 'com.sdkwork:im-app-api-generated:0.1.0'
 ```java
 import com.sdkwork.im.app.api.generated.SdkworkImAppClient;
 import com.sdkwork.common.core.Types;
-import java.util.Map;
+import com.sdkwork.im.app.api.generated.model.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -35,7 +35,7 @@ public class Main {
 client.setAccessToken("your-access-token");
 
         // Use the SDK
-        Map<String, Object> result = client.getIot().accessProviderHealthRetrieve();
+        NotificationListResponse result = client.getNotification().notificationsList();
         System.out.println(result);
     }
 }
@@ -62,11 +62,9 @@ client.getHttpClient().setHeader("X-Custom-Header", "value");
 ## API Modules
 
 - `client.getAutomation()` - automation API
-- `client.getDevice()` - device API
 - `client.getNotification()` - notification API
 - `client.getPortal()` - portal API
 - `client.getProvider()` - provider API
-- `client.getIot()` - iot API
 
 ## Usage Examples
 
@@ -83,15 +81,6 @@ body.setSchemaRef("schemaref");
 body.setMemberId("1");
 body.setAgent(new AgentSubject());
 StreamSession result = client.getAutomation().agentResponsesCreate(body);
-System.out.println(result);
-```
-
-### device
-
-```java
-// Get the device twin
-String deviceId = "1";
-DeviceTwinView result = client.getDevice().devicesTwinRetrieve(deviceId);
 System.out.println(result);
 ```
 
@@ -119,19 +108,11 @@ Map<String, Object> result = client.getProvider().mediaHealthRetrieve();
 System.out.println(result);
 ```
 
-### iot
-
-```java
-// Retrieve IoT access provider health
-Map<String, Object> result = client.getIot().accessProviderHealthRetrieve();
-System.out.println(result);
-```
-
 ## Error Handling
 
 ```java
 try {
-    Map<String, Object> result = client.getIot().accessProviderHealthRetrieve();
+    NotificationListResponse result = client.getNotification().notificationsList();
     System.out.println(result);
 } catch (Exception e) {
     System.err.println("Error: " + e.getMessage());

@@ -9,8 +9,8 @@
 <div class="api-overview-grid">
   <div class="api-card">
     <h3>Transport and Presence</h3>
-    <p>Device route resume, disconnect, heartbeat, realtime subscriptions, event polling, and WebSocket upgrade.</p>
-    <p><a href="/api-reference/im/session-and-realtime">Open Device Sessions and Realtime</a></p>
+    <p>Client route heartbeat, realtime subscriptions, event polling, and WebSocket upgrade.</p>
+    <p><a href="/api-reference/im/session-and-realtime">Open Realtime APIs</a></p>
   </div>
   <div class="api-card">
     <h3>Conversation Runtime</h3>
@@ -40,8 +40,7 @@
 ## IM Standard API Domains
 
 <div class="api-link-list">
-  <a href="/api-reference/im/session-and-realtime"><code>Device Sessions</code> Device route resume, presence, realtime subscriptions, and event delivery</a>
-  <a href="/api-reference/im/device-sync"><code>Device Sync</code> Device registration and sync-feed projection reads</a>
+  <a href="/api-reference/im/session-and-realtime"><code>Realtime Presence</code> Presence heartbeat, realtime subscriptions, and event delivery</a>
   <a href="/api-reference/im/conversations"><code>Conversation</code> Conversation creation, system channels, and agent handoff flows</a>
   <a href="/api-reference/im/membership-and-read-state"><code>Membership</code> Member roster operations and read-cursor updates</a>
   <a href="/api-reference/im/messages"><code>Messages</code> Timeline reads, message send, edit, recall, and system-channel publish</a>

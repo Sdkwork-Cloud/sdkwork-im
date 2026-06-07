@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Optional, List, Dict, Any
 class SocialUserSearchResult:
     tenant_id: str
     user_id: str
+    chat_id: str
     display_name: str
     relationship_state: str
     avatar_url: Optional[str] = None

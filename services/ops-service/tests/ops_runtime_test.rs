@@ -15,7 +15,7 @@ fn test_build_diagnostic_views_from_runtime() {
     assert_eq!(cluster.nodes.len(), 1);
     assert_eq!(cluster.nodes[0].node_id, "node_local_1");
     assert_eq!(cluster.nodes[0].profile, "local-minimal");
-    assert_eq!(cluster.nodes[0].device_route_count, 0);
+    assert_eq!(cluster.nodes[0].client_route_count, 0);
 
     let lag = runtime.lag_view();
     assert_eq!(lag.items[0].lag, 0);
@@ -28,7 +28,7 @@ fn test_build_diagnostic_views_from_runtime() {
     let diagnostics = runtime.diagnostic_bundle();
     assert_eq!(diagnostics.profile, "local-minimal");
     assert_eq!(diagnostics.owned_scopes[0], "conversation:c_demo");
-    assert_eq!(diagnostics.device_routes.len(), 0);
+    assert_eq!(diagnostics.client_routes.len(), 0);
     assert_eq!(diagnostics.side_effect_outboxes.len(), 0);
     assert_eq!(diagnostics.realtime_inbox.status, "ok");
     assert_eq!(diagnostics.realtime_inbox.pending_event_count, 0);
@@ -56,13 +56,13 @@ fn test_runtime_exposes_route_ownership_and_drain_state() {
     let cluster = runtime.cluster_view();
     assert_eq!(cluster.nodes[0].drain_status, "draining");
     assert_eq!(cluster.nodes[0].rebalance_state, "moving_routes");
-    assert_eq!(cluster.nodes[0].device_route_count, 1);
+    assert_eq!(cluster.nodes[0].client_route_count, 1);
 
     let diagnostics = runtime.diagnostic_bundle();
     assert_eq!(diagnostics.drain_status, "draining");
     assert_eq!(diagnostics.rebalance_state, "moving_routes");
-    assert_eq!(diagnostics.device_routes.len(), 1);
-    assert_eq!(diagnostics.device_routes[0].device_id, "d_pad");
+    assert_eq!(diagnostics.client_routes.len(), 1);
+    assert_eq!(diagnostics.client_routes[0].device_id, "d_pad");
 }
 
 #[test]
@@ -231,11 +231,11 @@ fn test_runtime_exposes_realtime_inbox_diagnostics() {
     );
     runtime.update_realtime_inbox(ops_service::RealtimeInboxDiagnosticsView {
         status: "degraded".into(),
-        device_window_count: 2,
+        client_route_window_count: 2,
         pending_event_count: 7,
-        max_device_window_event_count: 5,
-        device_window_capacity: 1000,
-        max_device_window_usage_permille: 5,
+        max_client_route_window_event_count: 5,
+        client_route_window_capacity: 1000,
+        max_client_route_window_usage_permille: 5,
         max_trimmed_through_seq: 11,
         capacity_trimmed_event_count: 3,
         max_capacity_trimmed_through_seq: 11,
@@ -258,12 +258,22 @@ fn test_runtime_exposes_realtime_inbox_diagnostics() {
 
     let diagnostics = runtime.diagnostic_bundle();
     assert_eq!(diagnostics.realtime_inbox.status, "degraded");
-    assert_eq!(diagnostics.realtime_inbox.device_window_count, 2);
+    assert_eq!(diagnostics.realtime_inbox.client_route_window_count, 2);
     assert_eq!(diagnostics.realtime_inbox.pending_event_count, 7);
-    assert_eq!(diagnostics.realtime_inbox.max_device_window_event_count, 5);
-    assert_eq!(diagnostics.realtime_inbox.device_window_capacity, 1000);
     assert_eq!(
-        diagnostics.realtime_inbox.max_device_window_usage_permille,
+        diagnostics
+            .realtime_inbox
+            .max_client_route_window_event_count,
+        5
+    );
+    assert_eq!(
+        diagnostics.realtime_inbox.client_route_window_capacity,
+        1000
+    );
+    assert_eq!(
+        diagnostics
+            .realtime_inbox
+            .max_client_route_window_usage_permille,
         5
     );
     assert_eq!(diagnostics.realtime_inbox.max_trimmed_through_seq, 11);
@@ -308,11 +318,11 @@ fn test_health_view_rolls_up_realtime_inbox_severity() {
     );
     runtime.update_realtime_inbox(ops_service::RealtimeInboxDiagnosticsView {
         status: "critical".into(),
-        device_window_count: 1,
+        client_route_window_count: 1,
         pending_event_count: 1000,
-        max_device_window_event_count: 1000,
-        device_window_capacity: 1000,
-        max_device_window_usage_permille: 1000,
+        max_client_route_window_event_count: 1000,
+        client_route_window_capacity: 1000,
+        max_client_route_window_usage_permille: 1000,
         max_trimmed_through_seq: 0,
         capacity_trimmed_event_count: 1,
         max_capacity_trimmed_through_seq: 1,
@@ -343,11 +353,11 @@ fn test_realtime_inbox_diagnostics_default_is_operationally_valid() {
     let view = ops_service::RealtimeInboxDiagnosticsView::default();
 
     assert_eq!(view.status, "ok");
-    assert_eq!(view.device_window_count, 0);
+    assert_eq!(view.client_route_window_count, 0);
     assert_eq!(view.pending_event_count, 0);
-    assert_eq!(view.max_device_window_event_count, 0);
-    assert_eq!(view.device_window_capacity, 0);
-    assert_eq!(view.max_device_window_usage_permille, 0);
+    assert_eq!(view.max_client_route_window_event_count, 0);
+    assert_eq!(view.client_route_window_capacity, 0);
+    assert_eq!(view.max_client_route_window_usage_permille, 0);
     assert_eq!(view.max_trimmed_through_seq, 0);
     assert_eq!(view.capacity_trimmed_event_count, 0);
     assert_eq!(view.max_capacity_trimmed_through_seq, 0);

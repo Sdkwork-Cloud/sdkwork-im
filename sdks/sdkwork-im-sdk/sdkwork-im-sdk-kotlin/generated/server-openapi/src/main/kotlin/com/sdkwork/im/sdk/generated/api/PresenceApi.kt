@@ -8,8 +8,8 @@ import com.sdkwork.im.sdk.generated.http.HttpClient
 
 class PresenceApi(private val client: HttpClient) {
 
-    /** Publish current device presence heartbeat */
-    suspend fun heartbeatCreate(body: DevicePresenceRequest): PresenceView? {
+    /** Publish current client route presence heartbeat */
+    suspend fun heartbeatCreate(body: PresenceHeartbeatRequest): PresenceView? {
         val raw = client.post(ApiPaths.imPath("/presence/heartbeat"), body, null, null, "application/json")
         return client.convertValue(raw, object : TypeReference<PresenceView>() {})
     }

@@ -40,6 +40,14 @@ function run(step, args, cwd) {
 const argv = process.argv.slice(2);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 
+run('materialize-local-openapi-seed.mjs', [
+  path.join(scriptDir, 'materialize-local-openapi-seed.mjs'),
+], path.resolve(scriptDir, '..'));
+
+run('materialize-im-v3-openapi-boundaries.mjs', [
+  path.resolve(scriptDir, '..', '..', 'materialize-im-v3-openapi-boundaries.mjs'),
+], path.resolve(scriptDir, '..', '..'));
+
 await runGenerateSdkFamily(sdkFamilyConfig, argv);
 
 if (shouldAssembleTypeScriptRoot(argv)) {

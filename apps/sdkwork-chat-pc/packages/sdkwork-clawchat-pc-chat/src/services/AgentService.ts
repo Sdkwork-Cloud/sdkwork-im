@@ -1,7 +1,7 @@
 import {
   getAgentAppSdkClientWithSession,
   type SdkworkAgentAppClient,
-} from '@sdkwork/clawchat-pc-core';
+} from '@sdkwork/clawchat-pc-core/sdk/agentAppSdkClient';
 import type {
   AgentRecord,
   CreateAgentProviderBindingRequest,

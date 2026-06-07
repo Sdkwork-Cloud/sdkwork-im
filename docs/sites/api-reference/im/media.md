@@ -9,8 +9,8 @@
 
 <div class="api-link-list">
   <a href="/api-reference/im/messages"><code>Messages</code> Send media by placing a Drive-backed media part in the message body</a>
-  <a href="/sdk/typescript-sdk"><code>TypeScript SDK</code> Message builders accept Drive references and MediaResource snapshots</a>
-  <a href="/sdk/flutter-sdk"><code>Flutter SDK</code> Flutter consumers use Drive first, then send IM message references</a>
+  <a href="/sdk/typescript-sdk"><code>@sdkwork/im-sdk</code> Message builders accept Drive references and MediaResource snapshots</a>
+  <a href="/sdk/flutter-sdk"><code>im_sdk_generated</code> Flutter consumers use Drive first, then send IM message references</a>
 </div>
 
 ## Authority Boundary

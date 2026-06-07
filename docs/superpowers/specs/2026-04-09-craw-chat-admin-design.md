@@ -48,7 +48,7 @@ The first professional IM admin release will ship these product modules.
 ### Workspace Ops
 
 - `Tenants`: tenant, workspace, organization, and project governance
-- `Users`: portal users, operator users, device posture, activation and ban state
+- `Users`: portal users, operator users, client route posture, activation and ban state
 - `Groups`: groups, channels, membership governance, role posture
 - `Announcements`: announcement templates, broadcast tasks, delivery posture
 
@@ -61,7 +61,7 @@ The first professional IM admin release will ship these product modules.
 ### Automation And Realtime
 
 - `Automation`: bot registry, workflow execution posture, automation run history
-- `Realtime`: connections, device sessions, RTC session posture, gateway health
+- `Realtime`: connections, client route sessions, RTC session posture, gateway health
 
 ### System
 
@@ -175,7 +175,7 @@ Business packages will stay presentation-focused:
 The app should feel operator-grade.
 
 - `Overview` must highlight online users, message throughput, moderation backlog, realtime health, top tenants, and hot conversations
-- `Users` must expose activation, device posture, last active time, and governance actions
+- `Users` must expose activation, client route posture, last active time, and governance actions
 - `Conversations` must expose member posture, handoff state, archive/freeze state, and quick operator actions
 - `Messages` must provide fast search and evidence-style detail views
 - `Moderation` must organize report triage, blocked entities, keyword rules, and outcome tracking

@@ -29,7 +29,7 @@ async fn test_default_local_minimal_profile_restores_presence_runtime_and_requir
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/im/v3/api/devices/register")
+                    .uri("/im/v3/api/presence/heartbeat")
                     .header("x-sdkwork-tenant-id", "t_demo")
                     .header("x-sdkwork-user-id", "u_demo")
                     .header("x-sdkwork-actor-kind", "user")
@@ -48,7 +48,7 @@ async fn test_default_local_minimal_profile_restores_presence_runtime_and_requir
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -158,7 +158,7 @@ async fn test_default_local_minimal_profile_restores_presence_runtime_and_requir
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")

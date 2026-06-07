@@ -23,12 +23,12 @@
 ## 3. 质量判断
 
 - 通过点
-  - realtime principal -> device target owner seam 现在拥有 auth-context capture，consumer 不再自己拼 tenant scope。
+  - realtime principal -> client route target owner seam 现在拥有 auth-context capture，consumer 不再自己拼 tenant scope。
   - message / membership / handoff / stream 四类 realtime caller 都复用同一条 access seam。
   - 全量 `local-minimal-node` 结构套件已与仓库真实 owner seam 保持一致。
 - 未完成点
   - `CP05-4` 仍有 projection / sync 与 notification 之间的剩余连接点。
-  - multi-device sync final closure 仍未完成。
+  - multi-client-route sync final closure 仍未完成。
 
 ## 4. 边界与风险
 

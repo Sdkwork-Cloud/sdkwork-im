@@ -31,7 +31,7 @@ fun main() = runBlocking {
 client.setAccessToken("your-access-token")
 
     // Use the SDK
-    val result = client.iot.accessProviderHealthRetrieve()
+    val result = client.notification.notificationsList()
     println(result)
 }
 ```
@@ -54,11 +54,9 @@ val client = SdkworkImAppClient(config)
 ## API Modules
 
 - `client.automation` - automation API
-- `client.device` - device API
 - `client.notification` - notification API
 - `client.portal` - portal API
 - `client.provider` - provider API
-- `client.iot` - iot API
 
 ## Usage Examples
 
@@ -76,15 +74,6 @@ val body = StartAgentResponseRequest(
     agent = AgentSubject()
 )
 val result = client.automation.agentResponsesCreate(body)
-println(result)
-```
-
-### device
-
-```kotlin
-// Get the device twin
-val deviceId = "1"
-val result = client.device.devicesTwinRetrieve(deviceId)
 println(result)
 ```
 
@@ -112,14 +101,6 @@ val result = client.provider.mediaHealthRetrieve()
 println(result)
 ```
 
-### iot
-
-```kotlin
-// Retrieve IoT access provider health
-val result = client.iot.accessProviderHealthRetrieve()
-println(result)
-```
-
 ## Error Handling
 
 ```kotlin
@@ -127,7 +108,7 @@ import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
     try {
-        val result = client.iot.accessProviderHealthRetrieve()
+        val result = client.notification.notificationsList()
         println(result)
     } catch (e: Exception) {
         println("Error: ${e.message}")

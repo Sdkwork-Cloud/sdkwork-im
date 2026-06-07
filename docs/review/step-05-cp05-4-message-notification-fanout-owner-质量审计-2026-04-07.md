@@ -39,5 +39,5 @@
 - 本轮未发现新的架构偏离
 - 剩余风险仍集中在 `CP05-4` 的其他 owner seam：
   - projection / sync 与 notification side-effect 的剩余衔接点
-  - multi-device sync 最终收口
+  - multi-client-route sync 最终收口
 - 只有这些 seam 继续清零后，`CP05-4` 才能进入通过态

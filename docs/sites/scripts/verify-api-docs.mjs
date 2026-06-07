@@ -35,17 +35,17 @@ const forbiddenApiPathMarkers = [
 ];
 
 const forbiddenMechanicalSessionRenames = [
-  "RtcDevice Sessions",
-  "StreamDevice Sessions",
-  "durableDevice Sessions",
-  "Device SessionsRequest",
-  "Device SessionsId",
-  "operationId: createRtcDevice Sessions",
-  "operationId: inviteRtcDevice Sessions",
-  "operationId: acceptRtcDevice Sessions",
-  "operationId: rejectRtcDevice Sessions",
-  "operationId: endRtcDevice Sessions",
-  "operationId: disconnectDevice Sessions",
+  "RtcRealtime Presence",
+  "StreamRealtime Presence",
+  "durableRealtime Presence",
+  "Realtime PresenceRequest",
+  "Realtime PresenceId",
+  "operationId: createRtcRealtime Presence",
+  "operationId: inviteRtcRealtime Presence",
+  "operationId: acceptRtcRealtime Presence",
+  "operationId: rejectRtcRealtime Presence",
+  "operationId: endRtcRealtime Presence",
+  "operationId: disconnectRealtime Presence",
 ];
 
 const forbiddenRetiredSdkMarkers = [
@@ -391,15 +391,16 @@ for (const marker of [
   "/app/v3/api/*",
   "sdkwork-im-app-sdk",
   "Portal Access",
-  "Device Twin",
   "Notifications",
   "Automation",
   "Provider Health",
-  "IoT Protocol",
 ]) {
   requireIncludes(appApiSource, appApiPath, marker, `must include ${marker}`);
 }
-for (const marker of ["Conversation Runtime", "Media and Streams", "Device Sessions and Realtime"]) {
+for (const marker of ["Device Twin", "IoT Protocol"]) {
+  requireExcludes(appApiSource, appApiPath, marker, `must not include retired AIoT-owned domain ${marker}`);
+}
+for (const marker of ["Conversation Runtime", "Media and Streams", "Realtime Presence"]) {
   requireExcludes(appApiSource, appApiPath, marker, `must not include IM Standard API domain ${marker}`);
 }
 
@@ -418,7 +419,6 @@ for (const marker of [
 
 for (const relativePath of [
   "api-reference/im/conversations.md",
-  "api-reference/im/device-sync.md",
   "api-reference/im/messages.md",
   "api-reference/im/media.md",
   "api-reference/im/rtc.md",
@@ -434,11 +434,9 @@ for (const relativePath of [
 
 for (const relativePath of [
   "api-reference/app/portal-access.md",
-  "api-reference/app/device-twin.md",
   "api-reference/app/notifications.md",
   "api-reference/app/automation.md",
   "api-reference/app/provider-health.md",
-  "api-reference/app/iot-protocol-and-health.md",
 ]) {
   const source = read(relativePath);
   requireIncludes(source, relativePath, "sdkwork-im-app-sdk", "must use the app SDK family");
@@ -451,17 +449,6 @@ const portalAccessSource = read(portalAccessPath);
 requireIncludes(portalAccessSource, portalAccessPath, "/app/v3/api/portal/access", "must document app portal path");
 requireIncludes(portalAccessSource, portalAccessPath, "client.portal.access.retrieve()", "must document generated app portal method");
 requireExcludes(portalAccessSource, portalAccessPath, "sdk.portal.getAccess()", "must not document retired IM portal helper");
-
-const deviceTwinPath = "api-reference/app/device-twin.md";
-const deviceTwinSource = read(deviceTwinPath);
-for (const marker of [
-  "/app/v3/api/devices/{deviceId}/twin",
-  "client.device.twin.list(deviceId)",
-  "client.device.twin.desired.create(deviceId, body)",
-  "client.device.twin.reported.create(deviceId, body)",
-]) {
-  requireIncludes(deviceTwinSource, deviceTwinPath, marker, `must include ${marker}`);
-}
 
 const automationPath = "api-reference/app/automation.md";
 const automationSource = read(automationPath);

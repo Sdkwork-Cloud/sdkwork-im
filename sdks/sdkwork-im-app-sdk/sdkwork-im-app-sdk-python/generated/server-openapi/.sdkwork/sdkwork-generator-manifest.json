@@ -39,7 +39,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "d1e8bd0ee15742fda3809ef91c4aad4db407aeb39712fa99b67829ca44f34e1f"
+      "sha256": "6a1f49be34e81a64732c46ef2799b73a187a22c863fbaf81c214039d2cda628f"
     },
     {
       "path": "requirements.txt",
@@ -51,19 +51,11 @@
     },
     {
       "path": "sdkwork_im_app_api_generated/api/__init__.py",
-      "sha256": "eef35558aef619309e681e0b182be3be4bec815ce016e93491599f5e95299bda"
+      "sha256": "cab300eb5f2f65bd6c22814ad863295d68b5776f59637373ed95ab661d5044f6"
     },
     {
       "path": "sdkwork_im_app_api_generated/api/automation.py",
       "sha256": "1faa92c4c407d5a6d49ca2b93fb2882a3dee968fe18f6b214a7717c892e7e45a"
-    },
-    {
-      "path": "sdkwork_im_app_api_generated/api/device.py",
-      "sha256": "66bf741a1e4faf05dc715bad789bd943ae849dc1b94a40439b27e49c78fb227a"
-    },
-    {
-      "path": "sdkwork_im_app_api_generated/api/iot.py",
-      "sha256": "a5dbf6563c2645a181f4b9de37547c9d32859b10b4fd1d74e93ce2983e7f0a9c"
     },
     {
       "path": "sdkwork_im_app_api_generated/api/notification.py",
@@ -79,7 +71,7 @@
     },
     {
       "path": "sdkwork_im_app_api_generated/client.py",
-      "sha256": "c80140106cec83c6e70bb65242ad88548be0ae2eb85ecd1169bab21b47f6b074"
+      "sha256": "c1a742b217d78eb65c0cf4c4cbb3051dbd39f524335c531a1d22a8a59d4e89b2"
     },
     {
       "path": "sdkwork_im_app_api_generated/http_client.py",
@@ -87,7 +79,7 @@
     },
     {
       "path": "sdkwork_im_app_api_generated/models/__init__.py",
-      "sha256": "b59b0fbff2e4ef0f084f98c367795c9aea096c882b92d636414af4f9b2acb097"
+      "sha256": "dc406fdbf93913ea3ad453d04959868c687c1a33d6a3430b6b402d01c69cf9dc"
     },
     {
       "path": "sdkwork_im_app_api_generated/models/agent_subject.py",
@@ -116,10 +108,6 @@
     {
       "path": "sdkwork_im_app_api_generated/models/complete_agent_tool_call_request.py",
       "sha256": "6862187d3a6a7ac057155e3c357969fa3bbb1b16dbf50ce16b77fbfe41e37c3e"
-    },
-    {
-      "path": "sdkwork_im_app_api_generated/models/device_twin_view.py",
-      "sha256": "d6ae46e42e2b70adf4fbb8aa466bf4f0fd03775adbcd0dbb6e117bffdecc1ac0"
     },
     {
       "path": "sdkwork_im_app_api_generated/models/notification_list_response.py",
@@ -168,14 +156,6 @@
     {
       "path": "sdkwork_im_app_api_generated/models/stream_session.py",
       "sha256": "68717785734abc660fba1b79c66213bf43243010c658f922b527dc88855d4711"
-    },
-    {
-      "path": "sdkwork_im_app_api_generated/models/update_device_twin_desired_request.py",
-      "sha256": "9eff2024fd535532a08a117f7350598884a83da9026cba2943fb1d5e7faf0715"
-    },
-    {
-      "path": "sdkwork_im_app_api_generated/models/update_device_twin_reported_request.py",
-      "sha256": "14b2ff4c9967a3b892c5fcd997400a22d65ca7a9ba71c70e6d00af2f0eaf5260"
     },
     {
       "path": "sdkwork-sdk.json",

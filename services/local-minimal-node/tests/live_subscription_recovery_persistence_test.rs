@@ -68,7 +68,7 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .demo_pad_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_pad","lastSeenSyncSeq":0}"#))
@@ -114,7 +114,7 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
+                .uri("/im/v3/api/presence/heartbeat")
                 .demo_pad_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_pad","lastSeenSyncSeq":0}"#))

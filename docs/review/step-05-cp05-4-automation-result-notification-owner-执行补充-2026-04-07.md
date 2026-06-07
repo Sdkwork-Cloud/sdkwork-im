@@ -11,7 +11,7 @@
 
 - `CP05-4` 的前三个真实增量已经分别处理了：
   - notification public request access owner
-  - projection realtime principal -> device fanout target owner
+  - projection realtime principal -> client route fanout target owner
   - message notification side-effect fanout owner
 - 当前仓库里，`services/local-minimal-node/src/node/platform.rs` 在 `request_automation_execution(...)` 成功后仍然自己拼装：
   - `ntf_automation_{execution_id}` notification id
@@ -64,7 +64,7 @@
 - 这是 `CP05-4` 的第四个真实增量
 - automation result notification orchestration 已开始收口到 `notification-service`
 - 但 `CP05-4` 仍未闭环：
-  - projection / notification / multi-device sync 仍有其他 owner seam 未清零
+  - projection / notification / multi-client-route sync 仍有其他 owner seam 未清零
   - `Step 05` 仍不能整体判定通过
 - 因此：
   - `CP05-4` 仍未通过

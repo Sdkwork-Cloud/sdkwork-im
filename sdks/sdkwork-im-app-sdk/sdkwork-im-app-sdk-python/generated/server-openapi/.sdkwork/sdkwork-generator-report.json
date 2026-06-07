@@ -12,7 +12,7 @@
   "mode": "apply",
   "hasChanges": true,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "da959b836f59ac82be99e1f992a5815acc9a0f72609dfd4d81963c2620e5a955",
+  "changeFingerprint": "079e9ec8f5d0ca235816a2d1442a03f70fc93bea76e155fa6f2954f2f886dbb5",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
@@ -30,8 +30,6 @@
           "sdkwork_im_app_api_generated/__init__.py",
           "sdkwork_im_app_api_generated/api/__init__.py",
           "sdkwork_im_app_api_generated/api/automation.py",
-          "sdkwork_im_app_api_generated/api/device.py",
-          "sdkwork_im_app_api_generated/api/iot.py",
           "sdkwork_im_app_api_generated/api/notification.py",
           "sdkwork_im_app_api_generated/api/portal.py",
           "sdkwork_im_app_api_generated/api/provider.py",
@@ -50,7 +48,6 @@
           "sdkwork_im_app_api_generated/models/automation_execution.py",
           "sdkwork_im_app_api_generated/models/complete_agent_response_request.py",
           "sdkwork_im_app_api_generated/models/complete_agent_tool_call_request.py",
-          "sdkwork_im_app_api_generated/models/device_twin_view.py",
           "sdkwork_im_app_api_generated/models/notification_list_response.py",
           "sdkwork_im_app_api_generated/models/notification_request_response.py",
           "sdkwork_im_app_api_generated/models/notification_task.py",
@@ -62,9 +59,7 @@
           "sdkwork_im_app_api_generated/models/sender.py",
           "sdkwork_im_app_api_generated/models/start_agent_response_request.py",
           "sdkwork_im_app_api_generated/models/stream_frame.py",
-          "sdkwork_im_app_api_generated/models/stream_session.py",
-          "sdkwork_im_app_api_generated/models/update_device_twin_desired_request.py",
-          "sdkwork_im_app_api_generated/models/update_device_twin_reported_request.py"
+          "sdkwork_im_app_api_generated/models/stream_session.py"
         ]
       },
       {
@@ -176,20 +171,20 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 45,
-    "models": 22,
-    "apis": 6,
-    "types": 23
+    "totalFiles": 40,
+    "models": 19,
+    "apis": 4,
+    "types": 20
   },
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 41,
+    "writtenFiles": 36,
     "skippedScaffoldFiles": 1,
     "skippedUnchangedGeneratedFiles": 3,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "da959b836f59ac82be99e1f992a5815acc9a0f72609dfd4d81963c2620e5a955",
+    "changeFingerprint": "079e9ec8f5d0ca235816a2d1442a03f70fc93bea76e155fa6f2954f2f886dbb5",
     "changes": {
       "createdGeneratedFiles": [
         "CHANGELOG.md",
@@ -201,8 +196,6 @@
         "sdkwork_im_app_api_generated/__init__.py",
         "sdkwork_im_app_api_generated/api/__init__.py",
         "sdkwork_im_app_api_generated/api/automation.py",
-        "sdkwork_im_app_api_generated/api/device.py",
-        "sdkwork_im_app_api_generated/api/iot.py",
         "sdkwork_im_app_api_generated/api/notification.py",
         "sdkwork_im_app_api_generated/api/portal.py",
         "sdkwork_im_app_api_generated/api/provider.py",
@@ -216,7 +209,6 @@
         "sdkwork_im_app_api_generated/models/automation_execution.py",
         "sdkwork_im_app_api_generated/models/complete_agent_response_request.py",
         "sdkwork_im_app_api_generated/models/complete_agent_tool_call_request.py",
-        "sdkwork_im_app_api_generated/models/device_twin_view.py",
         "sdkwork_im_app_api_generated/models/notification_list_response.py",
         "sdkwork_im_app_api_generated/models/notification_request_response.py",
         "sdkwork_im_app_api_generated/models/notification_task.py",
@@ -229,8 +221,6 @@
         "sdkwork_im_app_api_generated/models/start_agent_response_request.py",
         "sdkwork_im_app_api_generated/models/stream_frame.py",
         "sdkwork_im_app_api_generated/models/stream_session.py",
-        "sdkwork_im_app_api_generated/models/update_device_twin_desired_request.py",
-        "sdkwork_im_app_api_generated/models/update_device_twin_reported_request.py",
         "sdkwork-sdk.json",
         "setup.py"
       ],
@@ -264,8 +254,6 @@
             "sdkwork_im_app_api_generated/__init__.py",
             "sdkwork_im_app_api_generated/api/__init__.py",
             "sdkwork_im_app_api_generated/api/automation.py",
-            "sdkwork_im_app_api_generated/api/device.py",
-            "sdkwork_im_app_api_generated/api/iot.py",
             "sdkwork_im_app_api_generated/api/notification.py",
             "sdkwork_im_app_api_generated/api/portal.py",
             "sdkwork_im_app_api_generated/api/provider.py",
@@ -284,7 +272,6 @@
             "sdkwork_im_app_api_generated/models/automation_execution.py",
             "sdkwork_im_app_api_generated/models/complete_agent_response_request.py",
             "sdkwork_im_app_api_generated/models/complete_agent_tool_call_request.py",
-            "sdkwork_im_app_api_generated/models/device_twin_view.py",
             "sdkwork_im_app_api_generated/models/notification_list_response.py",
             "sdkwork_im_app_api_generated/models/notification_request_response.py",
             "sdkwork_im_app_api_generated/models/notification_task.py",
@@ -296,9 +283,7 @@
             "sdkwork_im_app_api_generated/models/sender.py",
             "sdkwork_im_app_api_generated/models/start_agent_response_request.py",
             "sdkwork_im_app_api_generated/models/stream_frame.py",
-            "sdkwork_im_app_api_generated/models/stream_session.py",
-            "sdkwork_im_app_api_generated/models/update_device_twin_desired_request.py",
-            "sdkwork_im_app_api_generated/models/update_device_twin_reported_request.py"
+            "sdkwork_im_app_api_generated/models/stream_session.py"
           ]
         },
         {

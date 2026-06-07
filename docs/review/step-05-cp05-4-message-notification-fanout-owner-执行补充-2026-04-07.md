@@ -11,7 +11,7 @@
 
 - `CP05-4` 的前两个真实增量已经分别处理了：
   - notification public request access owner
-  - projection realtime principal -> device fanout target owner
+  - projection realtime principal -> client route fanout target owner
 - 当前仓库里，`services/local-minimal-node/src/node/effects.rs` 仍自己做 message notification side-effect fanout：
   - 自己过滤 sender
   - 自己循环 recipient
@@ -62,7 +62,7 @@
 - 这是 `CP05-4` 的第三个真实增量
 - notification side-effect fanout orchestration 已开始收口到 `notification-service`
 - 但 `CP05-4` 仍未闭环：
-  - notification / projection / multi-device sync 的剩余 seam 仍未全部清零
+  - notification / projection / multi-client-route sync 的剩余 seam 仍未全部清零
   - `Step 05` 仍不能整体判定通过
 - 因此：
   - `CP05-4` 仍未通过

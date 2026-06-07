@@ -1,5 +1,5 @@
 use craw_chat_contract_core::ContractError;
-use im_domain_core::device_session::{DevicePresenceStatus, DevicePresenceView};
+use im_domain_core::presence::{PresenceClientView, PresenceStatus};
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
 use im_time::{
     compare_optional_rfc3339_asc, max_rfc3339_string, rfc3339_gt, rfc3339_le, rfc3339_lt,
@@ -61,9 +61,9 @@ impl RealtimeEventWindowRecord {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RealtimeEventWindowDiagnosticsSnapshot {
-    pub device_window_count: u64,
+    pub client_route_window_count: u64,
     pub pending_event_count: u64,
-    pub max_device_window_event_count: u64,
+    pub max_client_route_window_event_count: u64,
     pub max_trimmed_through_seq: u64,
     pub capacity_trimmed_event_count: u64,
     pub max_capacity_trimmed_through_seq: u64,
@@ -97,12 +97,13 @@ impl RealtimeEventWindowDiagnosticsSnapshot {
                 .iter()
                 .map(|event| event.occurred_at.clone())
                 .min();
-            snapshot.device_window_count = snapshot.device_window_count.saturating_add(1);
+            snapshot.client_route_window_count =
+                snapshot.client_route_window_count.saturating_add(1);
             snapshot.pending_event_count = snapshot
                 .pending_event_count
                 .saturating_add(pending_event_count);
-            snapshot.max_device_window_event_count = snapshot
-                .max_device_window_event_count
+            snapshot.max_client_route_window_event_count = snapshot
+                .max_client_route_window_event_count
                 .max(pending_event_count);
             snapshot.max_trimmed_through_seq = snapshot
                 .max_trimmed_through_seq
@@ -280,14 +281,14 @@ pub struct PresenceStateRecord {
     pub principal_kind: String,
     pub principal_id: String,
     pub device_id: String,
-    pub presence: DevicePresenceView,
+    pub presence: PresenceClientView,
     pub resume_required: bool,
     pub updated_at: String,
 }
 
 impl PresenceStateRecord {
     pub fn online_seen_at(&self) -> Option<&str> {
-        if !matches!(self.presence.status, DevicePresenceStatus::Online) {
+        if !matches!(self.presence.status, PresenceStatus::Online) {
             return None;
         }
         self.presence.last_seen_at.as_deref()
@@ -300,7 +301,7 @@ impl PresenceStateRecord {
     }
 
     pub fn into_expired_offline(mut self, expired_at: &str) -> Self {
-        self.presence.status = DevicePresenceStatus::Offline;
+        self.presence.status = PresenceStatus::Offline;
         self.presence.session_id = None;
         self.presence.last_seen_at = Some(expired_at.to_owned());
         self.resume_required = true;
@@ -644,13 +645,13 @@ mod tests {
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
-            presence: DevicePresenceView {
+            presence: PresenceClientView {
                 tenant_id: "t_demo".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_pad".into(),
                 platform: None,
                 session_id: Some("s_demo".into()),
-                status: DevicePresenceStatus::Online,
+                status: PresenceStatus::Online,
                 last_sync_seq: 42,
                 last_resume_at: None,
                 last_seen_at: Some("2026-05-06T00:00:00.100Z".into()),
@@ -707,9 +708,9 @@ mod tests {
             realtime_window_record("t_demo", "user", "u_demo", "d_five", 2, 0),
         ]);
 
-        assert_eq!(snapshot.device_window_count, 7);
+        assert_eq!(snapshot.client_route_window_count, 7);
         assert_eq!(snapshot.pending_event_count, 27);
-        assert_eq!(snapshot.max_device_window_event_count, 7);
+        assert_eq!(snapshot.max_client_route_window_event_count, 7);
         assert_eq!(snapshot.capacity_trimmed_event_count, 16);
         assert_eq!(snapshot.max_capacity_trimmed_through_seq, 9);
         assert_eq!(

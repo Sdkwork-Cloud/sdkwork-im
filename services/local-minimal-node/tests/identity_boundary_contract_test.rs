@@ -94,7 +94,7 @@ fn test_craw_chat_does_not_keep_local_token_or_iam_context_runtime() {
         "services/local-minimal-node/src/node.rs",
         "services/local-minimal-node/src/node/build.rs",
         "services/session-gateway/src/lib.rs",
-        "services/session-gateway/src/device_session.rs",
+        "services/session-gateway/src/presence_routes.rs",
     ] {
         let content = read_workspace_file(relative_path);
         let forbidden_terms = vec![

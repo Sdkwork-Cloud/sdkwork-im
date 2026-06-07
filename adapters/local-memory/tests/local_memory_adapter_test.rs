@@ -8,9 +8,9 @@ use im_adapters_local_memory::{
 };
 use im_domain_core::{
     automation::{AutomationExecution, AutomationExecutionState},
-    device_session::{DevicePresenceStatus, DevicePresenceView},
     message::Sender,
     notification::{NotificationStatus, NotificationTask},
+    presence::{PresenceClientView, PresenceStatus},
     realtime::RealtimeSubscription,
     stream::{StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState},
 };
@@ -295,24 +295,20 @@ fn test_memory_notification_task_store_rejects_stale_status_regression_writes() 
 fn test_memory_presence_state_store_lists_stale_online_devices_by_seen_at() {
     let store = MemoryPresenceStateStore::default();
     for (device_id, status, last_seen_at) in [
-        (
-            "d_new",
-            DevicePresenceStatus::Online,
-            "2026-05-06T00:00:03.000Z",
-        ),
+        ("d_new", PresenceStatus::Online, "2026-05-06T00:00:03.000Z"),
         (
             "d_old_2",
-            DevicePresenceStatus::Online,
+            PresenceStatus::Online,
             "2026-05-06T00:00:02.000Z",
         ),
         (
             "d_offline",
-            DevicePresenceStatus::Offline,
+            PresenceStatus::Offline,
             "2026-05-06T00:00:01.000Z",
         ),
         (
             "d_old_1",
-            DevicePresenceStatus::Online,
+            PresenceStatus::Online,
             "2026-05-06T00:00:01.000Z",
         ),
     ] {
@@ -322,7 +318,7 @@ fn test_memory_presence_state_store_lists_stale_online_devices_by_seen_at() {
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: device_id.into(),
-                presence: DevicePresenceView {
+                presence: PresenceClientView {
                     tenant_id: "t_demo".into(),
                     principal_id: "u_demo".into(),
                     device_id: device_id.into(),
@@ -370,13 +366,13 @@ fn test_memory_presence_state_store_seen_at_cutoff_compares_rfc3339_by_instant()
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: device_id.into(),
-                presence: DevicePresenceView {
+                presence: PresenceClientView {
                     tenant_id: "t_demo".into(),
                     principal_id: "u_demo".into(),
                     device_id: device_id.into(),
                     platform: None,
                     session_id: Some(format!("s_{device_id}")),
-                    status: DevicePresenceStatus::Online,
+                    status: PresenceStatus::Online,
                     last_sync_seq: 0,
                     last_resume_at: Some(last_seen_at.into()),
                     last_seen_at: Some(last_seen_at.into()),
@@ -409,13 +405,13 @@ fn test_memory_presence_state_store_conditionally_expires_only_stale_online_stat
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
-            presence: DevicePresenceView {
+            presence: PresenceClientView {
                 tenant_id: "t_demo".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_pad".into(),
                 platform: None,
                 session_id: Some("s_old".into()),
-                status: DevicePresenceStatus::Online,
+                status: PresenceStatus::Online,
                 last_sync_seq: 7,
                 last_resume_at: Some("2026-05-06T00:00:00.000Z".into()),
                 last_seen_at: Some("2026-05-06T00:00:00.000Z".into()),

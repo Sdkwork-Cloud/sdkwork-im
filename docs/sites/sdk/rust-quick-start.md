@@ -39,28 +39,16 @@ let inbox = client.inbox().list().await?;
 ## First write call
 
 ```rust
-use im_sdk::RegisterDeviceRequest;
-
 client
-  .devices()
-  .register(RegisterDeviceRequest {
-    device_id: Some("device-rust-01".into()),
-  })
+  .conversations()
+  .post_text("conv-demo-01", "hello from Rust", Default::default())
   .await?;
 ```
 
 ## Common module entrypoints
 
 ```rust
-use im_sdk::{PostTextOptions, ResumeDeviceSessionRequest};
-
-client
-  .device_sessions()
-  .resume(ResumeDeviceSessionRequest {
-    device_id: Some("device-rust-01".into()),
-    last_seen_sync_seq: Some(0),
-  })
-  .await?;
+use im_sdk::PostTextOptions;
 
 client.presence().current().await?;
 client

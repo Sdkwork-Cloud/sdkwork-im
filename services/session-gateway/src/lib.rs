@@ -17,21 +17,19 @@ use craw_chat_openapi::{
     OpenApiServiceSpec, WebsocketRouteMetadata, build_openapi_document,
     extract_routes_from_function, render_docs_html,
 };
-use im_adapter_iot_access_local::LocalDeviceAccessProvider;
 use im_app_context::{AppContext, AppContextError, resolve_app_context};
 use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEventWindow, RealtimeSubscriptionSnapshot,
 };
-use im_platform_contracts::{ContractError, DeviceAccessProvider};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
 mod assembly;
+mod client_route_registration;
+mod client_route_state;
 mod cluster;
-mod device_registration;
-mod device_session;
-mod device_sync_state;
 mod presence;
+mod presence_routes;
 mod principal_scope;
 mod realtime;
 mod websocket;
@@ -39,30 +37,30 @@ mod websocket_route;
 mod websocket_upgrade;
 
 pub use assembly::RealtimePlaneAssembly;
+use client_route_registration::ClientRouteRegistration;
+use client_route_state::ClientRouteState;
 pub use cluster::{
-    RealtimeClusterBridge, RealtimeClusterError, RealtimeDeviceRoute, RealtimeNodeLifecycleView,
+    RealtimeClientRoute, RealtimeClusterBridge, RealtimeClusterError, RealtimeNodeLifecycleView,
     RealtimeRouteDeliveryResult, RealtimeRouteMigrationResult,
 };
-use device_registration::{DeviceRouteRegistration, DisconnectActiveDeviceRouteOutcome};
-use device_sync_state::DeviceSyncState;
-pub use presence::{DevicePresenceRuntime, PresenceRuntimeError};
+pub use presence::{PresenceRuntime, PresenceRuntimeError};
 pub use realtime::{
-    AckRealtimeEventsRequest, ListRealtimeEventsQuery, RealtimeDeliveryRuntime,
-    RealtimeDeviceStateSnapshot, RealtimeInboxDiagnosticsSnapshot, RealtimePostgresAdapterPlan,
+    AckRealtimeEventsRequest, ListRealtimeEventsQuery, RealtimeClientRouteStateSnapshot,
+    RealtimeDeliveryRuntime, RealtimeInboxDiagnosticsSnapshot, RealtimePostgresAdapterPlan,
     RealtimePostgresBindingError, RealtimePostgresBindingValue, RealtimePostgresBoundParameter,
     RealtimePostgresBoundStatement, RealtimePostgresBoundTransaction,
-    RealtimePostgresCheckpointMutation, RealtimePostgresDeviceEventMutation,
+    RealtimePostgresCheckpointMutation, RealtimePostgresClientRouteEventMutation,
     RealtimePostgresMethodAtomicity, RealtimePostgresMethodPlan, RealtimePostgresMethodStep,
     RealtimePostgresParameterBinding, RealtimePostgresRowColumn, RealtimePostgresRowMapping,
     RealtimePostgresSqlContract, RealtimeRuntimeError, RealtimeScopeAccessPolicy,
     RealtimeSubscriptionItemInput, StandaloneRealtimeScopeAccessPolicy,
     SyncRealtimeSubscriptionsRequest, realtime_postgres_adapter_plan,
     realtime_postgres_bind_ack_transaction, realtime_postgres_bind_checkpoint_upsert,
-    realtime_postgres_bind_device_event_upsert, realtime_postgres_bind_publish_transaction,
+    realtime_postgres_bind_client_route_event_upsert, realtime_postgres_bind_publish_transaction,
     realtime_postgres_bind_save_subscription_transaction,
     realtime_postgres_bind_subscription_scope_clear,
     realtime_postgres_bind_subscription_scope_replacements,
-    realtime_postgres_bind_subscription_upsert, realtime_postgres_bind_trim_device_events,
+    realtime_postgres_bind_subscription_upsert, realtime_postgres_bind_trim_client_route_events,
     realtime_postgres_sql_contract_specs, realtime_postgres_sql_contracts,
     realtime_postgres_transaction_plans,
 };
@@ -96,10 +94,10 @@ struct HealthResponse {
 
 #[derive(Clone)]
 struct AppState {
-    presence_runtime: Arc<DevicePresenceRuntime>,
+    presence_runtime: Arc<PresenceRuntime>,
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
-    device_sync_state: DeviceSyncState,
-    device_registration: DeviceRouteRegistration,
+    client_route_state: ClientRouteState,
+    client_route_registration: ClientRouteRegistration,
     websocket_connection_semaphore: Arc<Semaphore>,
 }
 
@@ -109,16 +107,9 @@ struct PublicAppGuardrails {
     require_dual_token_headers: bool,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ResumeDeviceSessionRequest {
-    device_id: Option<String>,
-    last_seen_sync_seq: Option<u64>,
-}
-
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct DevicePresenceRequest {
+struct PresenceHeartbeatRequest {
     device_id: Option<String>,
 }
 
@@ -235,28 +226,6 @@ impl From<PresenceRuntimeError> for ApiError {
     }
 }
 
-impl From<ContractError> for ApiError {
-    fn from(value: ContractError) -> Self {
-        match value {
-            ContractError::UnsupportedCapability(message) => Self {
-                status: axum::http::StatusCode::NOT_IMPLEMENTED,
-                code: "provider_capability_unsupported",
-                message,
-            },
-            ContractError::Conflict(message) => Self {
-                status: axum::http::StatusCode::CONFLICT,
-                code: "provider_conflict",
-                message,
-            },
-            ContractError::Unavailable(message) => Self {
-                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                code: "provider_unavailable",
-                message,
-            },
-        }
-    }
-}
-
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
         let status = self.status;
@@ -283,26 +252,8 @@ pub fn build_app() -> Router {
     build_app_with_state(AppState::default())
 }
 
-pub fn build_app_with_device_access_provider(
-    device_access_provider: Arc<dyn DeviceAccessProvider>,
-) -> Router {
-    build_app_with_state(AppState::with_device_access_provider(
-        device_access_provider,
-    ))
-}
-
 pub fn build_app_with_cluster(realtime_cluster: Arc<RealtimeClusterBridge>) -> Router {
     build_app_with_state(AppState::with_cluster(realtime_cluster))
-}
-
-pub fn build_app_with_cluster_and_device_access_provider(
-    realtime_cluster: Arc<RealtimeClusterBridge>,
-    device_access_provider: Arc<dyn DeviceAccessProvider>,
-) -> Router {
-    build_app_with_state(AppState::with_cluster_and_device_access_provider(
-        realtime_cluster,
-        device_access_provider,
-    ))
 }
 
 pub fn build_app_with_cluster_and_runtime(
@@ -318,7 +269,7 @@ pub fn build_app_with_cluster_and_runtime(
 pub fn build_app_with_cluster_runtime_and_presence(
     realtime_cluster: Arc<RealtimeClusterBridge>,
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
-    presence_runtime: Arc<DevicePresenceRuntime>,
+    presence_runtime: Arc<PresenceRuntime>,
 ) -> Router {
     build_app_with_state(AppState::with_cluster_and_runtime_and_presence(
         realtime_cluster,
@@ -340,30 +291,18 @@ pub fn build_public_app() -> Router {
         ))
 }
 
-fn build_default_device_access_provider() -> Arc<dyn DeviceAccessProvider> {
-    Arc::new(LocalDeviceAccessProvider::default())
-}
-
 fn build_app_with_state(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
         .route(
-            "/im/v3/api/device/sessions/resume",
-            post(device_session::resume_device_session),
-        )
-        .route(
-            "/im/v3/api/device/sessions/disconnect",
-            post(device_session::disconnect_device_session),
-        )
-        .route(
             "/im/v3/api/presence/heartbeat",
-            post(device_session::heartbeat_presence),
+            post(presence_routes::heartbeat_presence),
         )
         .route(
             "/im/v3/api/presence/me",
-            get(device_session::get_presence_me),
+            get(presence_routes::get_presence_me),
         )
         .route(
             "/im/v3/api/realtime/subscriptions/sync",
@@ -449,7 +388,7 @@ async fn sync_realtime_subscriptions(
             auth.actor_kind.as_str(),
             &request.items,
         )?;
-    state.prepare_active_device_route(&auth, device_id.as_str(), "http", false)?;
+    state.prepare_active_client_route(&auth, device_id.as_str(), "http", false)?;
     Ok(Json(
         state
             .realtime_runtime
@@ -473,7 +412,7 @@ async fn list_realtime_events(
     let device_id = resolve_requested_device_id(&auth, None)?;
     let limit = query.limit.unwrap_or(100);
     realtime::validate_realtime_event_limit(limit)?;
-    state.prepare_active_device_route(&auth, device_id.as_str(), "http_poll", false)?;
+    state.prepare_active_client_route(&auth, device_id.as_str(), "http_poll", false)?;
     Ok(Json(
         state.realtime_runtime.list_events_for_principal_kind(
             auth.tenant_id.as_str(),
@@ -494,9 +433,9 @@ async fn ack_realtime_events(
 ) -> Result<Json<RealtimeAckState>, ApiError> {
     let auth = resolve_request_app_context(auth, &headers)?;
     let device_id = resolve_requested_device_id(&auth, request.device_id)?;
-    let previous_route = state.current_active_device_route(&auth, device_id.as_str());
-    state.prepare_active_device_route(&auth, device_id.as_str(), "http", false)?;
-    let bound_route = state.current_active_device_route(&auth, device_id.as_str());
+    let previous_route = state.current_active_client_route(&auth, device_id.as_str());
+    state.prepare_active_client_route(&auth, device_id.as_str(), "http", false)?;
+    let bound_route = state.current_active_client_route(&auth, device_id.as_str());
     let ack = state.realtime_runtime.ack_events_for_principal_kind(
         auth.tenant_id.as_str(),
         auth.actor_id.as_str(),
@@ -509,10 +448,10 @@ async fn ack_realtime_events(
         Err(error) => {
             match (previous_route, bound_route) {
                 (Some(previous_route), Some(bound_route)) => {
-                    state.restore_active_device_route_if_current(&bound_route, previous_route);
+                    state.restore_active_client_route_if_current(&bound_route, previous_route);
                 }
                 (None, _) => {
-                    state.release_active_device_route_if_current_session(&auth, device_id.as_str());
+                    state.release_active_client_route_if_current_session(&auth, device_id.as_str());
                 }
                 _ => {}
             }
@@ -523,33 +462,15 @@ async fn ack_realtime_events(
 
 impl Default for AppState {
     fn default() -> Self {
-        Self::with_device_access_provider(build_default_device_access_provider())
+        Self::with_cluster(Arc::new(RealtimeClusterBridge::default()))
     }
 }
 
 impl AppState {
-    fn with_device_access_provider(device_access_provider: Arc<dyn DeviceAccessProvider>) -> Self {
-        Self::with_cluster_and_device_access_provider(
-            Arc::new(RealtimeClusterBridge::default()),
-            device_access_provider,
-        )
-    }
-
     fn with_cluster(realtime_cluster: Arc<RealtimeClusterBridge>) -> Self {
-        Self::with_cluster_and_device_access_provider(
-            realtime_cluster,
-            build_default_device_access_provider(),
-        )
-    }
-
-    fn with_cluster_and_device_access_provider(
-        realtime_cluster: Arc<RealtimeClusterBridge>,
-        device_access_provider: Arc<dyn DeviceAccessProvider>,
-    ) -> Self {
-        Self::with_cluster_and_runtime_and_device_access_provider(
+        Self::with_cluster_and_runtime(
             realtime_cluster,
             Arc::new(RealtimeDeliveryRuntime::standalone_gateway()),
-            device_access_provider,
         )
     }
 
@@ -557,73 +478,45 @@ impl AppState {
         realtime_cluster: Arc<RealtimeClusterBridge>,
         realtime_runtime: Arc<RealtimeDeliveryRuntime>,
     ) -> Self {
-        Self::with_cluster_and_runtime_and_device_access_provider(
+        Self::with_cluster_and_runtime_and_presence(
             realtime_cluster,
             realtime_runtime,
-            build_default_device_access_provider(),
-        )
-    }
-
-    fn with_cluster_and_runtime_and_device_access_provider(
-        realtime_cluster: Arc<RealtimeClusterBridge>,
-        realtime_runtime: Arc<RealtimeDeliveryRuntime>,
-        device_access_provider: Arc<dyn DeviceAccessProvider>,
-    ) -> Self {
-        Self::with_cluster_and_runtime_and_presence_and_device_access_provider(
-            realtime_cluster,
-            realtime_runtime,
-            Arc::new(DevicePresenceRuntime::default()),
-            device_access_provider,
+            Arc::new(PresenceRuntime::default()),
         )
     }
 
     fn with_cluster_and_runtime_and_presence(
         realtime_cluster: Arc<RealtimeClusterBridge>,
         realtime_runtime: Arc<RealtimeDeliveryRuntime>,
-        presence_runtime: Arc<DevicePresenceRuntime>,
-    ) -> Self {
-        Self::with_cluster_and_runtime_and_presence_and_device_access_provider(
-            realtime_cluster,
-            realtime_runtime,
-            presence_runtime,
-            build_default_device_access_provider(),
-        )
-    }
-
-    fn with_cluster_and_runtime_and_presence_and_device_access_provider(
-        realtime_cluster: Arc<RealtimeClusterBridge>,
-        realtime_runtime: Arc<RealtimeDeliveryRuntime>,
-        presence_runtime: Arc<DevicePresenceRuntime>,
-        device_access_provider: Arc<dyn DeviceAccessProvider>,
+        presence_runtime: Arc<PresenceRuntime>,
     ) -> Self {
         let node_id = "session_gateway_local_1".to_owned();
         realtime_cluster.bind_node_runtime(node_id.as_str(), realtime_runtime.clone());
-        let device_sync_state = DeviceSyncState::default();
+        let client_route_state = ClientRouteState::default();
         let max_connections = resolve_max_websocket_connections();
         Self {
-            device_registration: DeviceRouteRegistration::new(
+            client_route_registration: ClientRouteRegistration::new(
                 node_id.clone(),
                 realtime_cluster.clone(),
                 presence_runtime.clone(),
                 realtime_runtime.clone(),
-                device_sync_state.clone(),
-                device_access_provider,
+                client_route_state.clone(),
             ),
             presence_runtime,
             realtime_runtime,
-            device_sync_state,
+            client_route_state,
             websocket_connection_semaphore: Arc::new(Semaphore::new(max_connections)),
         }
     }
 
-    fn register_device(
+    fn prepare_active_client_route(
         &self,
         auth: &AppContext,
         device_id: &str,
         connection_kind: &str,
         allow_session_takeover: bool,
     ) -> Result<(), ApiError> {
-        self.device_registration.register_device(
+        self.client_route_registration.prepare_active_client_route(
             auth,
             device_id,
             connection_kind,
@@ -631,61 +524,36 @@ impl AppState {
         )
     }
 
-    fn prepare_active_device_route(
+    fn current_active_client_route(
         &self,
         auth: &AppContext,
         device_id: &str,
-        connection_kind: &str,
-        allow_session_takeover: bool,
-    ) -> Result<(), ApiError> {
-        self.device_registration.prepare_active_device_route(
-            auth,
-            device_id,
-            connection_kind,
-            allow_session_takeover,
-        )
+    ) -> Option<RealtimeClientRoute> {
+        self.client_route_registration
+            .current_active_client_route(auth, device_id)
     }
 
-    fn current_active_device_route(
+    fn restore_active_client_route_if_current(
         &self,
-        auth: &AppContext,
-        device_id: &str,
-    ) -> Option<RealtimeDeviceRoute> {
-        self.device_registration
-            .current_active_device_route(auth, device_id)
+        expected_current: &RealtimeClientRoute,
+        restore_to: RealtimeClientRoute,
+    ) -> Option<RealtimeClientRoute> {
+        self.client_route_registration
+            .restore_active_client_route_if_current(expected_current, restore_to)
     }
 
-    fn restore_active_device_route_if_current(
-        &self,
-        expected_current: &RealtimeDeviceRoute,
-        restore_to: RealtimeDeviceRoute,
-    ) -> Option<RealtimeDeviceRoute> {
-        self.device_registration
-            .restore_active_device_route_if_current(expected_current, restore_to)
+    fn release_active_client_route_if_current_session(&self, auth: &AppContext, device_id: &str) {
+        self.client_route_registration
+            .release_active_client_route_if_current_session(auth, device_id);
     }
 
-    fn release_active_device_route_if_current_session(&self, auth: &AppContext, device_id: &str) {
-        self.device_registration
-            .release_active_device_route_if_current_session(auth, device_id);
-    }
-
-    #[rustfmt::skip]
-    fn disconnect_active_device_route(
-        &self,
-        auth: &AppContext,
-        device_id: &str,
-        connection_kind: &str,
-    ) -> Result<DisconnectActiveDeviceRouteOutcome, ApiError> {
-        self.device_registration.disconnect_active_device_route(auth, device_id, connection_kind)
-    }
-
-    fn device_sync_state_snapshot(
+    fn client_route_state_snapshot(
         &self,
         auth: &AppContext,
         requested_device_id: Option<&str>,
-    ) -> Result<device_sync_state::DeviceSyncStateSnapshot, ApiError> {
-        self.device_sync_state
-            .device_sync_state_snapshot(auth, requested_device_id)
+    ) -> Result<client_route_state::ClientRouteStateSnapshot, ApiError> {
+        self.client_route_state
+            .client_route_state_snapshot(auth, requested_device_id)
     }
 }
 
@@ -805,9 +673,9 @@ fn build_session_gateway_openapi_document() -> Result<serde_json::Value, String>
 
 fn session_gateway_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
-        title: "Craw Chat Realtime Device Gateway API",
+        title: "Craw Chat Realtime Gateway API",
         version: env!("CARGO_PKG_VERSION"),
-        description: "Live OpenAPI contract generated from the session-gateway router for device runtime lifecycle, presence, realtime polling, and websocket upgrade flows.",
+        description: "Live OpenAPI contract generated from the session-gateway router for presence, realtime polling, and websocket upgrade flows.",
         openapi_path: "/openapi.json",
         docs_path: "/docs",
     }
@@ -816,7 +684,6 @@ fn session_gateway_openapi_spec() -> OpenApiServiceSpec<'static> {
 fn session_gateway_tag(path: &str, _method: HttpMethod) -> String {
     match path {
         "/healthz" => "system".to_owned(),
-        path if path.starts_with("/im/v3/api/device/sessions/") => "device".to_owned(),
         path if path.starts_with("/im/v3/api/presence/") => "presence".to_owned(),
         path if path.starts_with("/im/v3/api/realtime/") => "realtime".to_owned(),
         _ => "misc".to_owned(),
@@ -830,12 +697,6 @@ fn session_gateway_requires_app_context(path: &str, _method: HttpMethod) -> bool
 fn session_gateway_summary(path: &str, method: HttpMethod) -> String {
     match (path, method) {
         ("/healthz", HttpMethod::Get) => "Check session gateway health".to_owned(),
-        ("/im/v3/api/device/sessions/resume", HttpMethod::Post) => {
-            "Resume device runtime session and return device presence snapshot".to_owned()
-        }
-        ("/im/v3/api/device/sessions/disconnect", HttpMethod::Post) => {
-            "Disconnect current device runtime session".to_owned()
-        }
         ("/im/v3/api/presence/heartbeat", HttpMethod::Post) => {
             "Refresh device presence heartbeat".to_owned()
         }
@@ -846,7 +707,7 @@ fn session_gateway_summary(path: &str, method: HttpMethod) -> String {
             "Sync realtime subscriptions".to_owned()
         }
         ("/im/v3/api/realtime/ws", HttpMethod::Get) => {
-            "Open realtime websocket device route".to_owned()
+            "Open realtime websocket client route".to_owned()
         }
         ("/im/v3/api/realtime/events/ack", HttpMethod::Post) => {
             "Acknowledge realtime events".to_owned()

@@ -5,6 +5,7 @@ import java.util.Map;
 public class SocialUserSearchResult {
     private String tenantId;
     private String userId;
+    private String chatId;
     private String displayName;
     private String relationshipState;
     private String avatarUrl;
@@ -26,6 +27,14 @@ public class SocialUserSearchResult {
     
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public String getChatId() {
+        return this.chatId;
+    }
+    
+    public void setChatId(String chatId) {
+        this.chatId = chatId;
     }
 
     public String getDisplayName() {

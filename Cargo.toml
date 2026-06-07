@@ -3,14 +3,11 @@ members = [
     "adapters/local-disk",
     "adapters/local-memory",
     "adapters/postgres-realtime",
-    "adapters/iot-access-local",
-    "adapters/iot-mqtt",
     "adapters/object-storage-s3",
     "crates/craw-chat-contract-admin",
     "crates/craw-chat-contract-agent",
     "crates/craw-chat-contract-control",
     "crates/craw-chat-contract-core",
-    "crates/craw-chat-contract-iot",
     "crates/craw-chat-contract-message",
     "crates/craw-chat-contract-notification",
     "crates/craw-chat-contract-stream",
@@ -77,7 +74,23 @@ tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread", "net", "s
 tower = { version = "0.5.3", features = ["util"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-sdkwork_id = { path = ".sdkwork/dependencies/sdkwork-appbase/packages/native-rust/foundation/sdkwork-id-rust" }
+# Internal SDKWork workspace members - declared once at workspace root
+im-adapters-local-disk = { path = "adapters/local-disk" }
+im-storage-contracts = { path = "crates/im-storage-contracts" }
+im-storage-runtime = { path = "crates/im-storage-runtime" }
+sdkwork-api-config = { path = "crates/sdkwork-api-config" }
+# Cross-repository SDKWork dependencies
+sdkwork_id = { path = "../sdkwork-appbase/packages/native-rust/foundation/sdkwork-id-rust" }
+sdkwork_iam_http = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-http-rust" }
+sdkwork-rtc-core = { path = "../sdkwork-rtc/crates/sdkwork-rtc-core" }
+sdkwork-rtc-app-context = { path = "../sdkwork-rtc/crates/sdkwork-rtc-app-context" }
+sdkwork-rtc-signaling-service = { path = "../sdkwork-rtc/services/sdkwork-rtc-signaling-service" }
+sdkwork-rtc-state-store = { path = "../sdkwork-rtc/crates/sdkwork-rtc-state-store" }
+sdkwork-agent-business = { path = "../sdkwork-kernel/sdkwork-agent-business", features = ["http-axum"] }
+sdkwork-aiot-contract = { path = "../sdkwork-aiot/crates/sdkwork-aiot-contract" }
+sdkwork-aiot-http-api = { path = "../sdkwork-aiot/crates/sdkwork-aiot-http-api" }
+sdkwork-aiot-runtime = { path = "../sdkwork-aiot/crates/sdkwork-aiot-runtime" }
+sdkwork-aiot-transport = { path = "../sdkwork-aiot/crates/sdkwork-aiot-transport" }
 
 [profile.release]
 lto = true

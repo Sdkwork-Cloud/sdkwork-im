@@ -61,7 +61,6 @@ client.getHttpClient().setHeader("X-Custom-Header", "value");
 
 ## API Modules
 
-- `client.getDevice()` - device API
 - `client.getPresence()` - presence API
 - `client.getRealtime()` - realtime API
 - `client.getRtc()` - rtc API
@@ -70,17 +69,6 @@ client.getHttpClient().setHeader("X-Custom-Header", "value");
 - `client.getStreams()` - streams API
 
 ## Usage Examples
-
-### device
-
-```java
-// Resume a device runtime session
-ResumeDeviceSessionRequest body = new ResumeDeviceSessionRequest();
-body.setDeviceId("1");
-body.setLastSeenSyncSeq(2);
-DeviceSessionView result = client.getDevice().sessionsResume(body);
-System.out.println(result);
-```
 
 ### presence
 

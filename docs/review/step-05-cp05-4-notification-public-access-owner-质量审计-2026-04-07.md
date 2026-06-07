@@ -37,6 +37,6 @@
 
 - 本轮未发现新的架构偏离
 - 剩余风险仍集中在 `CP05-4` 的其他 owner seam：
-  - projection / device fanout
+  - projection / client route fanout
   - notification side-effect 编排
-  - multi-device sync 与新模型的最终衔接
+  - multi-client-route sync 与新模型的最终衔接

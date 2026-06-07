@@ -69,8 +69,7 @@ function inferSuccessLabel(method, route, block) {
 
 function sdkLabel(page, route, method) {
   const labels = {
-    "im/session-and-realtime": "`@sdkwork/im-sdk` / device sessions, presence, and realtime helpers",
-    "im/device-sync": "`@sdkwork/im-sdk` / generated device-sync transport",
+    "im/session-and-realtime": "`@sdkwork/im-sdk` / presence and realtime helpers",
     "im/conversations": isRoute(route, "/chat/inbox") || isRoute(route, "/inbox")
       ? "`@sdkwork/im-sdk` / `sdk.generated.inbox.getInbox()`"
       : "`@sdkwork/im-sdk` / `sdk.conversations`",
@@ -81,9 +80,7 @@ function sdkLabel(page, route, method) {
     "im/rtc": "`@sdkwork/im-sdk` / `sdk.rtc`",
     "app/notifications": "`sdkwork-im-app-sdk` / `client.notification`",
     "app/automation": "`sdkwork-im-app-sdk` / `client.automation`",
-    "app/device-twin": "`sdkwork-im-app-sdk` / `client.device.twin`",
     "app/provider-health": "`sdkwork-im-app-sdk` / provider health",
-    "app/iot-protocol-and-health": "`sdkwork-im-app-sdk` / `client.iot`",
     "backend/audit": "`sdkwork-im-backend-sdk` / audit",
     "backend/ops": "`sdkwork-im-backend-sdk` / ops",
     "control-plane/protocol": "`sdkwork-im-backend-sdk` / control.protocol",
@@ -97,10 +94,10 @@ function sdkLabel(page, route, method) {
       return "Direct HTTP probe";
     }
     if (isRoute(route, "/device/sessions/resume")) {
-      return "`@sdkwork/im-sdk` / `sdk.connect({ deviceId })`, `sdk.device.sessions.resume(...)`";
+      return "`@sdkwork/im-sdk` / `sdk.connect({ clientRouteId })`";
     }
     if (isRoute(route, "/device/sessions/disconnect")) {
-      return "`@sdkwork/im-sdk` / `sdk.device.sessions.disconnect(...)`";
+      return "`@sdkwork/im-sdk` / realtime disconnect";
     }
     if (isRoute(route, "/presence/heartbeat")) {
       return "`@sdkwork/im-sdk` / `sdk.generated.presence.heartbeat(...)`";
@@ -176,25 +173,6 @@ function sdkLabel(page, route, method) {
     }
   }
 
-  if (page === "app/device-twin") {
-    if (routeSuffix(route) === "/devices/{deviceId}/twin") {
-      return "`sdkwork-im-app-sdk` / `client.device.twin.list(deviceId)`";
-    }
-    if (routeSuffix(route) === "/devices/{deviceId}/twin/desired") {
-      return "`sdkwork-im-app-sdk` / `client.device.twin.desired.create(deviceId, body)`";
-    }
-    if (routeSuffix(route) === "/devices/{deviceId}/twin/reported") {
-      return "`sdkwork-im-app-sdk` / `client.device.twin.reported.create(deviceId, body)`";
-    }
-  }
-
-  if (page === "im/device-sync") {
-    if (isRoute(route, "/devices/register")) {
-      return "`@sdkwork/im-sdk` / `sdk.generated.device.register(...)`";
-    }
-    return "`@sdkwork/im-sdk` / `sdk.generated.device.getDeviceSyncFeed(...)`";
-  }
-
   if (page === "im/streams") {
     if (isRoute(route, "/streams")) {
       return "`@sdkwork/im-sdk` / `sdk.generated.stream.open(...)`";
@@ -239,14 +217,9 @@ function permissionLabel(page, method, route) {
   switch (page) {
     case "im/session-and-realtime":
       if (route.endsWith("/ws")) {
-        return "Authenticated principal; active device route is prepared before upgrade.";
+        return "Authenticated principal; active client route is prepared before upgrade.";
       }
-      return "Authenticated principal; device ownership and device route binding are enforced where required.";
-    case "im/device-sync":
-      if (route.endsWith("/sync-feed")) {
-        return "Registered device owner.";
-      }
-      return "Authenticated principal; `deviceId` must match the bound auth context when present.";
+      return "Authenticated principal; Client route ownership and client route binding are enforced where required.";
     case "im/conversations":
       if (isRoute(route, "/chat/inbox") || isRoute(route, "/inbox")) {
         return "Authenticated principal.";
@@ -285,21 +258,21 @@ function permissionLabel(page, method, route) {
       return "Authenticated principal with media asset ownership checks.";
     case "im/streams":
       if (isRoute(route, "/streams")) {
-        return "Conversation `stream.open` capability or device stream permission.";
+        return "Conversation `stream.open` capability.";
       }
       if (method === "GET") {
-        return "Conversation member or registered device read scope.";
+        return "Conversation member or stream owner scope.";
       }
       if (route.endsWith("/checkpoint")) {
-        return "Conversation `stream.checkpoint` capability or device stream permission.";
+        return "Conversation `stream.checkpoint` capability.";
       }
       if (route.endsWith("/complete")) {
-        return "Conversation `stream.complete` capability or device stream permission.";
+        return "Conversation `stream.complete` capability.";
       }
       if (route.endsWith("/abort")) {
-        return "Conversation `stream.abort` capability or device stream permission.";
+        return "Conversation `stream.abort` capability.";
       }
-      return "Conversation `stream.append` capability or device stream permission.";
+      return "Conversation `stream.append` capability.";
     case "im/rtc":
       if (isRoute(route, "/rtc/sessions")) {
         return "Conversation `rtc.create` capability when the session is bound to a conversation.";
@@ -332,22 +305,12 @@ function permissionLabel(page, method, route) {
         : "Current recipient scope.";
     case "app/automation":
       return method === "POST" ? "`automation.execute`" : "`automation.read`";
-    case "app/device-twin":
-      return method === "GET" ? "Registered device owner or authorized device observer." : "Registered device owner or authorized device actor.";
     case "backend/audit":
       return method === "POST" ? "`audit.write`" : "`audit.read`";
     case "backend/ops":
       return "`ops.read`";
     case "app/provider-health":
       return "Authenticated principal.";
-    case "app/iot-protocol-and-health":
-      if (method === "GET") {
-        return "Authenticated principal.";
-      }
-      if (route.endsWith("/uplink")) {
-        return "Registered bound device actor.";
-      }
-      return "Registered device scope with `device.command.send`.";
     case "control-plane/protocol":
     case "control-plane/providers":
     case "control-plane/social":
@@ -385,7 +348,7 @@ function appReadErrors() {
     ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
     [
       "403",
-      "`conversation_permission_denied`, `device_permission_denied`, `permission_denied`",
+      "`conversation_permission_denied`, `permission_denied`",
       "The caller is not allowed to access the target resource.",
     ],
     ["404", "`*_not_found`", "The requested resource does not exist."],
@@ -404,7 +367,7 @@ function appWriteErrors() {
     ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
     [
       "403",
-      "`conversation_permission_denied`, `device_permission_denied`, `permission_denied`",
+      "`conversation_permission_denied`, `permission_denied`",
       "The caller is not allowed to mutate the target resource.",
     ],
     ["404", "`*_not_found`", "The requested resource does not exist."],
@@ -473,43 +436,6 @@ function errorRows(page, method, route) {
         ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
         ["503", "`*_unavailable`", "The provider health source is unavailable."],
       ];
-    case "app/device-twin":
-      return method === "GET"
-        ? [
-            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-            ["403", "`device_permission_denied`, `permission_denied`", "The caller is not allowed to read the device twin."],
-            ["404", "`device_not_found`", "The target device is not registered."],
-            ["503", "`*_unavailable`", "The device twin source is unavailable."],
-          ]
-        : [
-            ["400", "`device_id_missing`, `device_id_mismatch`, `invalid_request`", "The device twin payload or bound device id is invalid."],
-            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-            ["403", "`device_permission_denied`, `permission_denied`", "The caller is not allowed to mutate the device twin."],
-            ["404", "`device_not_found`", "The target device is not registered."],
-            ["409", "`device_twin_conflict`, `conflict`", "Current device twin state blocks the mutation."],
-            ["503", "`*_unavailable`", "The device twin source is unavailable."],
-          ];
-    case "app/iot-protocol-and-health":
-      return method === "GET"
-        ? [
-            ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-            ["503", "`*_unavailable`", "The provider health source is unavailable."],
-          ]
-        : route.endsWith("/uplink")
-          ? [
-              ["400", "`device_id_missing`, `device_id_mismatch`, `invalid_request`", "The uplink payload or bound device id is invalid."],
-              ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-              ["403", "`device_permission_denied`", "The caller is not an authorized device actor."],
-              ["404", "`device_not_found`", "The target device is not registered."],
-              ["503", "`*_unavailable`", "The IoT protocol adapter is unavailable."],
-            ]
-          : [
-              ["400", "`device_id_missing`, `device_id_mismatch`, `invalid_request`", "The downlink payload or device id is invalid."],
-              ["401", "`app_context_missing`, `app_context_invalid`", "AppContext projection is missing or invalid."],
-              ["403", "`device_permission_denied`", "The caller lacks `device.command.send` or device ownership."],
-              ["404", "`device_not_found`", "The target device is not registered."],
-              ["503", "`*_unavailable`", "The IoT protocol adapter is unavailable."],
-            ];
     case "control-plane/protocol":
     case "control-plane/providers":
     case "control-plane/social":

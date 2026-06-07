@@ -15,10 +15,10 @@ fn test_session_gateway_cluster_disconnect_surface_moves_out_of_cluster_impl() {
     for forbidden_symbol in [
         "struct RealtimeDisconnectFence {",
         "struct ClusterMemoryDisconnectFenceStore {",
-        "pub fn mark_device_disconnected(",
-        "pub fn clear_device_disconnect_fence(",
-        "pub fn ensure_device_resume_not_required(",
-        "pub fn disconnect_fence_matches_session(",
+        "pub fn mark_client_route_disconnected(",
+        "pub fn clear_client_route_disconnect_fence(",
+        "pub fn ensure_client_route_resume_not_required(",
+        "pub fn disconnect_fence_matches_client_route_session(",
         "fn load_disconnect_fence(",
         "fn disconnect_fence_store_error(",
     ] {
@@ -40,12 +40,12 @@ fn test_session_gateway_realtime_cluster_rejects_implicit_user_identity_surfaces
         .to_owned();
 
     for forbidden_symbol in [
-        "pub fn bind_device_route(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
-        "pub fn resolve_device_route(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
-        "pub fn release_device_route(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn bind_client_route(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn resolve_client_route(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn release_client_route(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
         "pub fn ensure_route_session_current(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
-        "pub fn ensure_device_route_local(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
-        "pub fn publish_device_event(\n        &self,\n        origin_node_id: &str,\n        tenant_id: &str,\n        principal_id: &str,",
+        "pub fn ensure_client_route_local(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn publish_client_route_event(\n        &self,\n        origin_node_id: &str,\n        tenant_id: &str,\n        principal_id: &str,",
     ] {
         assert!(
             !cluster_source.contains(forbidden_symbol),
@@ -54,10 +54,10 @@ fn test_session_gateway_realtime_cluster_rejects_implicit_user_identity_surfaces
     }
 
     for forbidden_symbol in [
-        "pub fn mark_device_disconnected(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
-        "pub fn clear_device_disconnect_fence(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
-        "pub fn ensure_device_resume_not_required(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
-        "pub fn disconnect_fence_matches_session(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn mark_client_route_disconnected(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn clear_client_route_disconnect_fence(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn ensure_client_route_resume_not_required(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
+        "pub fn disconnect_fence_matches_client_route_session(\n        &self,\n        tenant_id: &str,\n        principal_id: &str,\n        device_id: &str,",
     ] {
         assert!(
             !disconnect_source.contains(forbidden_symbol),
@@ -177,23 +177,23 @@ fn test_session_gateway_realtime_runtime_requires_explicit_principal_kind() {
     let realtime_storage_source = include_str!("../src/realtime/storage.rs").replace("\r\n", "\n");
 
     for forbidden_symbol in [
-        "actor_device_scope_key",
+        "actor_client_route_scope_key",
         "principal_kind: Option<&str>",
         "principal_kind.unwrap_or(\"user\")",
-        "fn device_scope_key(\n    tenant_id: &str,\n    principal_id: &str,\n    principal_kind: Option<&str>,",
-        "pub fn ensure_device_state(",
+        "fn client_route_scope_key(\n    tenant_id: &str,\n    principal_id: &str,\n    principal_kind: Option<&str>,",
+        "pub fn ensure_client_route_state(",
         "pub fn subscribe_device(",
         "pub fn subscribe_disconnect_signal(",
         "pub fn disconnect_generation(",
         "pub fn signal_device_disconnect(",
         "pub fn window_checkpoint(",
         "pub fn sync_subscriptions(",
-        "pub fn clear_device_subscriptions(",
+        "pub fn clear_client_route_subscriptions(",
         "pub fn list_events(",
         "pub fn ack_events(",
-        "pub fn take_device_state(",
+        "pub fn take_client_route_state(",
         "pub fn publish_scope_event(",
-        "restore_device_state_for_principal_kind(",
+        "restore_client_route_state_for_principal_kind(",
     ] {
         assert!(
             !realtime_source.contains(forbidden_symbol),
@@ -215,13 +215,13 @@ fn test_session_gateway_realtime_runtime_requires_explicit_principal_kind() {
 
     assert!(
         realtime_source.contains(
-            "pub struct RealtimeDeviceStateSnapshot {\n    pub tenant_id: String,\n    pub principal_kind: String,\n    pub principal_id: String,"
+            "pub struct RealtimeClientRouteStateSnapshot {\n    pub tenant_id: String,\n    pub principal_kind: String,\n    pub principal_id: String,"
         ),
-        "RealtimeDeviceStateSnapshot must carry principal_kind so route migration cannot restore into an implicit default identity"
+        "RealtimeClientRouteStateSnapshot must carry principal_kind so route migration cannot restore into an implicit default identity"
     );
     assert!(
         realtime_source.contains("pub disconnect_generation: u64,"),
-        "RealtimeDeviceStateSnapshot must carry disconnect_generation so runtime migration preserves websocket disconnect signal epochs"
+        "RealtimeClientRouteStateSnapshot must carry disconnect_generation so runtime migration preserves websocket disconnect signal epochs"
     );
 }
 
@@ -231,12 +231,12 @@ fn test_session_gateway_realtime_window_store_uses_sequence_index() {
 
     assert!(
         !realtime_source.contains("windows: Arc<Mutex<HashMap<String, Vec<RealtimeEvent>>>>"),
-        "realtime delivery windows must not store device events in a Vec; cursor reads need a sequence index"
+        "realtime delivery windows must not store client route events in a Vec; cursor reads need a sequence index"
     );
     assert!(
         realtime_source
             .contains("windows: Arc<Mutex<HashMap<String, BTreeMap<u64, RealtimeEvent>>>>"),
-        "realtime delivery windows should use BTreeMap<u64, RealtimeEvent> per device scope"
+        "realtime delivery windows should use BTreeMap<u64, RealtimeEvent> per client route scope"
     );
     assert!(
         realtime_source.contains("let effective_after_seq = after_seq.max(trimmed_through_seq);"),
@@ -267,17 +267,18 @@ fn test_session_gateway_realtime_subscription_store_uses_scope_index() {
     assert!(
         !realtime_source
             .contains("subscriptions: Arc<Mutex<HashMap<String, Vec<RealtimeSubscription>>>>"),
-        "realtime subscriptions must not store each device's subscriptions as a Vec; fanout needs scope lookup"
+        "realtime subscriptions must not store each client route's subscriptions as a Vec; fanout needs scope lookup"
     );
     assert!(
-        realtime_source
-            .contains("subscriptions: Arc<Mutex<HashMap<String, RealtimeDeviceSubscriptions>>>"),
-        "realtime subscriptions should use an indexed per-device subscription store"
+        realtime_source.contains(
+            "subscriptions: Arc<Mutex<HashMap<String, RealtimeClientRouteSubscriptions>>>"
+        ),
+        "realtime subscriptions should use an indexed per-client-route subscription store"
     );
     assert!(
         realtime_source
             .contains("by_scope: HashMap<RealtimeSubscriptionScopeKey, RealtimeSubscription>"),
-        "per-device realtime subscriptions should index by scope type/id"
+        "per-client-route realtime subscriptions should index by scope type/id"
     );
     assert!(
         realtime_source.contains("fn subscription_matches_event("),
@@ -285,22 +286,22 @@ fn test_session_gateway_realtime_subscription_store_uses_scope_index() {
     );
     assert!(
         realtime_source.contains("candidate_subscriptions\n        .into_iter()"),
-        "realtime fanout should iterate scope-index candidates instead of scanning per-device subscriptions"
+        "realtime fanout should iterate scope-index candidates instead of scanning per-client-route subscriptions"
     );
 }
 
 #[test]
-fn test_session_gateway_realtime_fanout_uses_scope_device_index() {
+fn test_session_gateway_realtime_fanout_uses_scope_client_route_index() {
     let realtime_source = include_str!("../src/realtime.rs").replace("\r\n", "\n");
 
     assert!(
         realtime_source.contains(
             "subscription_scope_index:\n        Arc<Mutex<HashMap<RealtimePrincipalScopeKey, BTreeMap<String, RealtimeSubscription>>>>,"
         ),
-        "realtime runtime should keep a scope -> device index so publish fanout avoids probing every registered device"
+        "realtime runtime should keep a scope -> client route index so publish fanout avoids probing every registered client route"
     );
     assert!(
-        realtime_source.contains("fn index_device_subscriptions("),
+        realtime_source.contains("fn index_client_route_subscriptions("),
         "realtime runtime should centralize subscription scope index maintenance"
     );
     assert!(
@@ -310,13 +311,13 @@ fn test_session_gateway_realtime_fanout_uses_scope_device_index() {
     assert!(
         realtime_source
             .contains("subscription_scope_index\n        .get(&RealtimePrincipalScopeKey::new("),
-        "realtime publish should read candidate devices from the scope index"
+        "realtime publish should read candidate client routes from the scope index"
     );
     let publish_source = realtime_source
         .split("fn publish_scope_event_internal(")
         .nth(1)
         .expect("realtime runtime should keep publish_scope_event_internal")
-        .split("fn index_device_subscriptions(")
+        .split("fn index_client_route_subscriptions(")
         .next()
         .expect("publish implementation should precede subscription index helpers");
     assert!(
@@ -331,22 +332,22 @@ fn test_session_gateway_realtime_fanout_uses_scope_device_index() {
         "realtime publish should re-read the scope fanout index after restoring durable matching devices"
     );
     assert!(
-        publish_source.contains("unmatched_registered_devices"),
-        "realtime publish should only ask durable storage for devices missing from the hot fanout index"
+        publish_source.contains("unmatched_registered_client_routes"),
+        "realtime publish should only ask durable storage for client routes missing from the hot fanout index"
     );
     assert!(
         !publish_source.contains(
-            "for device_id in &registered_devices {\n            self.ensure_device_state_internal("
+            "for device_id in &registered_client_routes {\n            self.ensure_client_route_state_internal("
         ),
-        "realtime publish must not restore every registered device before checking durable scope/event matches"
+        "realtime publish must not restore every registered client route before checking durable scope/event matches"
     );
     assert!(
-        !realtime_source.contains("subscriptions: &HashMap<String, RealtimeDeviceSubscriptions>,\n    tenant_id: &str,\n    principal_id: &str,\n    principal_kind: &str,"),
+        !realtime_source.contains("subscriptions: &HashMap<String, RealtimeClientRouteSubscriptions>,\n    tenant_id: &str,\n    principal_id: &str,\n    principal_kind: &str,"),
         "collect_matched_delivery_targets must not require the full subscription map once a scope fanout index exists"
     );
     assert!(
-        !realtime_source.contains("registered_devices\n        .into_iter()\n        .collect::<BTreeSet<_>>()\n        .into_iter()\n        .filter_map(|device_id|"),
-        "realtime publish must not iterate every registered device to discover subscriptions"
+        !realtime_source.contains("registered_client_routes\n        .into_iter()\n        .collect::<BTreeSet<_>>()\n        .into_iter()\n        .filter_map(|device_id|"),
+        "realtime publish must not iterate every registered client route to discover subscriptions"
     );
 }
 
@@ -377,11 +378,11 @@ fn test_session_gateway_presence_memory_store_uses_principal_index() {
 
     assert!(
         presence_source.contains("by_principal: HashMap<String, BTreeSet<String>>"),
-        "presence memory state store should maintain a tenant/principal -> device-key index"
+        "presence memory state store should maintain a tenant/principal -> client-route-key index"
     );
     assert!(
         presence_source.contains("by_device: HashMap<String, PresenceStateRecord>"),
-        "presence memory state store should keep device records in the same indexed state object"
+        "presence memory state store should keep client route records in the same indexed state object"
     );
     assert!(
         presence_source.contains("online_by_seen_at: BTreeSet<PresenceOnlineSeenAtKey>"),
@@ -393,7 +394,7 @@ fn test_session_gateway_presence_memory_store_uses_principal_index() {
     );
     assert!(
         !presence_source.contains(".values()\n            .filter(|record| record.tenant_id == tenant_id && record.principal_id == principal_id)"),
-        "presence memory state store must not full-scan all device records for principal snapshots"
+        "presence memory state store must not full-scan all client route records for principal snapshots"
     );
 }
 
@@ -420,7 +421,7 @@ fn test_session_gateway_websocket_upgrade_transport_seam_moves_out_of_lib_impl()
 #[test]
 fn test_session_gateway_websocket_route_handler_moves_out_of_lib_impl() {
     let lib_source = include_str!("../src/lib.rs");
-    let upgrade_source = include_str!("../src/websocket_upgrade.rs");
+    let upgrade_source = include_str!("../src/websocket_upgrade.rs").replace("\r\n", "\n");
 
     for forbidden_symbol in [
         "use axum::extract::ws::WebSocketUpgrade;",
@@ -499,7 +500,7 @@ fn test_session_gateway_websocket_upgrade_module_stays_pure_axum_adapter() {
         "pub(crate) fn prepare_realtime_websocket_route(",
         "resolve_request_app_context(",
         "resolve_requested_device_id(&auth, None)?",
-        "state.prepare_active_device_route(",
+        "state.prepare_active_client_route(",
     ] {
         assert!(
             route_source.contains(required_symbol),
@@ -523,71 +524,67 @@ fn test_session_gateway_websocket_upgrade_module_stays_pure_axum_adapter() {
         upgrade_source.contains("websocket_route::prepare_realtime_websocket_route("),
         "services/session-gateway/src/websocket_upgrade.rs should delegate route preflight into websocket_route"
     );
-    assert!(
-        upgrade_source.contains(
-            ".on_upgrade(move |socket| {\n        upgrade.execute(socket, move |socket, context, mode| {"
-        ),
-        "services/session-gateway/src/websocket_upgrade.rs should keep the Axum on_upgrade seam"
-    );
+    for required_symbol in [
+        "ws.on_upgrade(move |socket| {",
+        "upgrade.execute(socket, move |socket, context, mode| {",
+    ] {
+        assert!(
+            upgrade_source.contains(required_symbol),
+            "services/session-gateway/src/websocket_upgrade.rs should keep the Axum on_upgrade seam: {required_symbol}"
+        );
+    }
 }
 
 #[test]
-fn test_session_gateway_session_surface_moves_out_of_lib_impl() {
+fn test_session_gateway_presence_surface_moves_out_of_lib_impl() {
     let lib_source = include_str!("../src/lib.rs");
-    let session_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_session.rs"),
+    let presence_source = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/presence_routes.rs"),
     )
-    .expect("services/session-gateway/src/device_session.rs should exist");
+    .expect("services/session-gateway/src/presence_routes.rs should exist");
 
-    for forbidden_symbol in [
-        "async fn resume_device_session(",
-        "async fn get_presence_me(",
-        "async fn heartbeat_presence(",
-        "async fn disconnect_device_session(",
-    ] {
+    for forbidden_symbol in ["async fn get_presence_me(", "async fn heartbeat_presence("] {
         assert!(
             !lib_source.contains(forbidden_symbol),
-            "services/session-gateway/src/lib.rs should not keep session/presence handler symbol: {forbidden_symbol}"
+            "services/session-gateway/src/lib.rs should not keep presence handler symbol: {forbidden_symbol}"
         );
     }
 
     for required_symbol in [
-        "pub(crate) async fn resume_device_session(",
         "pub(crate) async fn get_presence_me(",
         "pub(crate) async fn heartbeat_presence(",
-        "pub(crate) async fn disconnect_device_session(",
     ] {
         assert!(
-            session_source.contains(required_symbol),
-            "services/session-gateway/src/device_session.rs should host session/presence handler symbol: {required_symbol}"
+            presence_source.contains(required_symbol),
+            "services/session-gateway/src/presence_routes.rs should host presence handler symbol: {required_symbol}"
         );
     }
 }
 
 #[test]
-fn test_session_gateway_session_paths_use_device_sync_state_snapshot_owner_seam() {
-    let session_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_session.rs"),
+fn test_session_gateway_presence_paths_use_client_route_state_snapshot_owner_seam() {
+    let presence_source = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/presence_routes.rs"),
     )
-    .expect("services/session-gateway/src/device_session.rs should exist");
+    .expect("services/session-gateway/src/presence_routes.rs should exist");
 
     for required_symbol in [
-        "fn device_sync_state_snapshot(",
-        "state.device_sync_state_snapshot(",
+        "fn client_route_state_snapshot(",
+        "state.client_route_state_snapshot(",
     ] {
         assert!(
-            session_source.contains(required_symbol),
-            "services/session-gateway/src/device_session.rs should consume the shared session sync-state owner seam: {required_symbol}"
+            presence_source.contains(required_symbol),
+            "services/session-gateway/src/presence_routes.rs should consume the shared route sync-state owner seam: {required_symbol}"
         );
     }
 
     for forbidden_symbol in [
-        "state.registered_devices(auth.tenant_id.as_str(), auth.actor_id.as_str())",
-        "state.latest_device_sync_seq(",
+        "state.registered_route_keys(auth.tenant_id.as_str(), auth.actor_id.as_str())",
+        "state.latest_route_sync_seq(",
     ] {
         assert!(
-            !session_source.contains(forbidden_symbol),
-            "services/session-gateway/src/device_session.rs should not keep raw session sync-state reads once the owner seam exists: {forbidden_symbol}"
+            !presence_source.contains(forbidden_symbol),
+            "services/session-gateway/src/presence_routes.rs should not keep raw route sync-state reads once the owner seam exists: {forbidden_symbol}"
         );
     }
 }
@@ -596,16 +593,16 @@ fn test_session_gateway_session_paths_use_device_sync_state_snapshot_owner_seam(
 fn test_session_gateway_sync_state_owner_moves_out_of_lib_impl() {
     let lib_source = include_str!("../src/lib.rs").replace("\r\n", "\n");
     let owner_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_sync_state.rs"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/client_route_state.rs"),
     )
-    .expect("services/session-gateway/src/device_sync_state.rs should exist")
+    .expect("services/session-gateway/src/client_route_state.rs should exist")
     .replace("\r\n", "\n");
 
     for forbidden_symbol in [
-        "registered_devices: Arc<Mutex<HashMap<String, BTreeSet<String>>>>",
+        "registered_route_keys: Arc<Mutex<HashMap<String, BTreeSet<String>>>>",
         "latest_sync_sequences: Arc<Mutex<HashMap<String, u64>>>",
-        "fn registered_devices(&self, tenant_id: &str, principal_id: &str) -> Vec<String> {",
-        "fn latest_device_sync_seq(&self, tenant_id: &str, principal_id: &str, device_id: &str) -> u64 {",
+        "fn registered_route_keys(&self, tenant_id: &str, principal_id: &str) -> Vec<String> {",
+        "fn latest_route_sync_seq(&self, tenant_id: &str, principal_id: &str, device_id: &str) -> u64 {",
     ] {
         assert!(
             !lib_source.contains(forbidden_symbol),
@@ -614,77 +611,77 @@ fn test_session_gateway_sync_state_owner_moves_out_of_lib_impl() {
     }
 
     for required_symbol in [
-        "mod device_sync_state;",
-        "device_sync_state: DeviceSyncState,",
-        "self.device_sync_state\n            .device_sync_state_snapshot(",
+        "mod client_route_state;",
+        "client_route_state: ClientRouteState,",
+        "self.client_route_state\n            .client_route_state_snapshot(",
     ] {
         assert!(
             lib_source.contains(required_symbol),
-            "services/session-gateway/src/lib.rs should delegate session sync-state ownership through DeviceSyncState: {required_symbol}"
+            "services/session-gateway/src/lib.rs should delegate session sync-state ownership through ClientRouteState: {required_symbol}"
         );
     }
 
     for required_symbol in [
-        "pub(crate) struct DeviceSyncState",
-        "pub(crate) fn ensure_device_kind_available(",
-        "pub(crate) fn register_device(",
-        "pub(crate) fn device_sync_state_snapshot(",
-        "fn registered_devices(&self, tenant_id: &str, principal_id: &str, principal_kind: &str) -> Vec<String> {",
-        "fn latest_device_sync_seq(",
+        "pub(crate) struct ClientRouteState",
+        "pub(crate) fn ensure_route_key_available(",
+        "pub(crate) fn register_route_key(",
+        "pub(crate) fn client_route_state_snapshot(",
+        "fn registered_route_keys(&self, tenant_id: &str, principal_id: &str, principal_kind: &str) -> Vec<String> {",
+        "fn latest_route_sync_seq(",
     ] {
         assert!(
             owner_source.contains(required_symbol),
-            "services/session-gateway/src/device_sync_state.rs should host session sync-state owner implementation: {required_symbol}"
+            "services/session-gateway/src/client_route_state.rs should host session sync-state owner implementation: {required_symbol}"
         );
     }
 }
 
 #[test]
-fn test_session_gateway_device_registration_owner_moves_out_of_lib_impl() {
+fn test_session_gateway_client_route_registration_owner_moves_out_of_lib_impl() {
     let lib_source = include_str!("../src/lib.rs").replace("\r\n", "\n");
     let owner_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_registration.rs"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/client_route_registration.rs"),
     )
-    .expect("services/session-gateway/src/device_registration.rs should exist")
+    .expect("services/session-gateway/src/client_route_registration.rs should exist")
     .replace("\r\n", "\n");
 
     for forbidden_symbol in [
-        "self.presence_runtime\n            .register_device(",
-        "self.realtime_runtime\n            .ensure_device_state(",
-        "self.device_sync_state\n            .register_device(",
-        "self.realtime_cluster.bind_device_route(",
-        "self.realtime_cluster.clear_device_disconnect_fence(",
+        "self.presence_runtime\n            .register_client_route(",
+        "self.realtime_runtime\n            .ensure_client_route_state(",
+        "self.client_route_state\n            .register_route_key(",
+        "self.realtime_cluster.bind_client_route(",
+        "self.realtime_cluster.clear_client_route_disconnect_fence(",
     ] {
         assert!(
             !lib_source.contains(forbidden_symbol),
-            "services/session-gateway/src/lib.rs should not keep device registration owner detail: {forbidden_symbol}"
+            "services/session-gateway/src/lib.rs should not keep legacy route registration owner detail: {forbidden_symbol}"
         );
     }
 
     for required_symbol in [
-        "mod device_registration;",
-        "device_registration: DeviceRouteRegistration,",
-        "self.device_registration.register_device(",
+        "mod client_route_registration;",
+        "client_route_registration: ClientRouteRegistration,",
+        "self.client_route_registration.prepare_active_client_route(",
     ] {
         assert!(
             lib_source.contains(required_symbol),
-            "services/session-gateway/src/lib.rs should delegate device registration ownership through DeviceRouteRegistration: {required_symbol}"
+            "services/session-gateway/src/lib.rs should delegate client route registration ownership through ClientRouteRegistration: {required_symbol}"
         );
     }
 
     for required_symbol in [
-        "pub(crate) struct DeviceRouteRegistration",
+        "pub(crate) struct ClientRouteRegistration",
         "pub(crate) fn new(",
-        "pub(crate) fn register_device(",
-        "pub(crate) fn prepare_active_device_route(",
-        "self.presence_runtime\n            .register_device(",
-        "self.realtime_runtime\n            .ensure_device_state_for_principal_kind(",
-        "self.device_sync_state.register_device(",
-        "self.realtime_cluster.bind_device_route_for_principal_kind(",
+        "pub(crate) fn register_client_route(",
+        "pub(crate) fn prepare_active_client_route(",
+        "self.presence_runtime\n            .register_client_route(",
+        "self.realtime_runtime\n            .ensure_client_route_state_for_principal_kind(",
+        "self.client_route_state.register_route_key(",
+        "self.realtime_cluster.bind_client_route_for_principal_kind(",
     ] {
         assert!(
             owner_source.contains(required_symbol),
-            "services/session-gateway/src/device_registration.rs should host device registration owner implementation: {required_symbol}"
+            "services/session-gateway/src/client_route_registration.rs should host client route registration owner implementation: {required_symbol}"
         );
     }
 }
@@ -692,18 +689,18 @@ fn test_session_gateway_device_registration_owner_moves_out_of_lib_impl() {
 #[test]
 fn test_session_gateway_route_preflight_owner_moves_out_of_entrypoints() {
     let lib_source = include_str!("../src/lib.rs");
-    let session_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_session.rs"),
+    let presence_source = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/presence_routes.rs"),
     )
-    .expect("services/session-gateway/src/device_session.rs should exist");
+    .expect("services/session-gateway/src/presence_routes.rs should exist");
     let route_source = std::fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/websocket_route.rs"),
     )
     .expect("services/session-gateway/src/websocket_route.rs should exist");
     let owner_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_registration.rs"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/client_route_registration.rs"),
     )
-    .expect("services/session-gateway/src/device_registration.rs should exist");
+    .expect("services/session-gateway/src/client_route_registration.rs should exist");
 
     {
         let forbidden_symbol = "state.realtime_cluster.ensure_route_session_current(";
@@ -712,8 +709,8 @@ fn test_session_gateway_route_preflight_owner_moves_out_of_entrypoints() {
             "services/session-gateway/src/lib.rs should not keep raw route preflight glue once the owner seam exists: {forbidden_symbol}"
         );
         assert!(
-            !session_source.contains(forbidden_symbol),
-            "services/session-gateway/src/device_session.rs should not keep raw route preflight glue once the owner seam exists: {forbidden_symbol}"
+            !presence_source.contains(forbidden_symbol),
+            "services/session-gateway/src/presence_routes.rs should not keep raw route preflight glue once the owner seam exists: {forbidden_symbol}"
         );
         assert!(
             !route_source.contains(forbidden_symbol),
@@ -722,13 +719,13 @@ fn test_session_gateway_route_preflight_owner_moves_out_of_entrypoints() {
     }
 
     assert!(
-        !route_source.contains("state.register_device("),
-        "services/session-gateway/src/websocket_route.rs should delegate route preflight instead of calling register_device directly"
+        !route_source.contains("state.register_client_route("),
+        "services/session-gateway/src/websocket_route.rs should delegate route preflight instead of calling register_client_route directly"
     );
 
     for required_symbol in [
-        "fn prepare_active_device_route(",
-        "state.prepare_active_device_route(",
+        "fn prepare_active_client_route(",
+        "state.prepare_active_client_route(",
     ] {
         assert!(
             lib_source.contains(required_symbol),
@@ -737,10 +734,10 @@ fn test_session_gateway_route_preflight_owner_moves_out_of_entrypoints() {
     }
 
     {
-        let required_symbol = "state.prepare_active_device_route(";
+        let required_symbol = "state.prepare_active_client_route(";
         assert!(
-            session_source.contains(required_symbol),
-            "services/session-gateway/src/device_session.rs should consume the shared route preflight owner seam: {required_symbol}"
+            presence_source.contains(required_symbol),
+            "services/session-gateway/src/presence_routes.rs should consume the shared route preflight owner seam: {required_symbol}"
         );
         assert!(
             route_source.contains(required_symbol),
@@ -749,45 +746,45 @@ fn test_session_gateway_route_preflight_owner_moves_out_of_entrypoints() {
     }
 
     for required_symbol in [
-        "pub(crate) fn prepare_active_device_route(",
+        "pub(crate) fn prepare_active_client_route(",
         "fn ensure_route_session_current(",
         "self.ensure_route_session_current(",
-        "self.register_device(",
+        "self.register_client_route(",
     ] {
         assert!(
             owner_source.contains(required_symbol),
-            "services/session-gateway/src/device_registration.rs should host route preflight owner detail: {required_symbol}"
+            "services/session-gateway/src/client_route_registration.rs should host route preflight owner detail: {required_symbol}"
         );
     }
 }
 
 #[test]
-fn test_session_gateway_disconnect_lifecycle_owner_moves_out_of_session_entrypoints() {
+fn test_session_gateway_disconnect_lifecycle_is_not_exposed_by_presence_entrypoints() {
     let lib_source = include_str!("../src/lib.rs");
-    let session_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_session.rs"),
+    let presence_source = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/presence_routes.rs"),
     )
-    .expect("services/session-gateway/src/device_session.rs should exist");
+    .expect("services/session-gateway/src/presence_routes.rs should exist");
     let owner_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/device_registration.rs"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/client_route_registration.rs"),
     )
-    .expect("services/session-gateway/src/device_registration.rs should exist");
+    .expect("services/session-gateway/src/client_route_registration.rs should exist");
 
     for forbidden_symbol in [
-        "state.realtime_cluster.disconnect_fence_matches_session(",
-        "state.realtime_runtime.clear_device_subscriptions(",
-        "state.realtime_cluster.release_device_route(",
-        "state.realtime_cluster.mark_device_disconnected(",
+        "state.realtime_cluster.disconnect_fence_matches_client_route_session(",
+        "state.realtime_runtime.clear_client_route_subscriptions(",
+        "state.realtime_cluster.release_client_route(",
+        "state.realtime_cluster.mark_client_route_disconnected(",
     ] {
         assert!(
-            !session_source.contains(forbidden_symbol),
-            "services/session-gateway/src/device_session.rs should not keep raw disconnect lifecycle glue once the owner seam exists: {forbidden_symbol}"
+            !presence_source.contains(forbidden_symbol),
+            "services/session-gateway/src/presence_routes.rs should not keep raw disconnect lifecycle glue once the owner seam exists: {forbidden_symbol}"
         );
     }
 
     for required_symbol in [
-        "fn disconnect_active_device_route(",
-        "self.device_registration.disconnect_active_device_route(",
+        "fn release_active_client_route_if_current_session(",
+        "self.client_route_registration\n            .release_active_client_route_if_current_session(",
     ] {
         assert!(
             lib_source.contains(required_symbol),
@@ -796,22 +793,59 @@ fn test_session_gateway_disconnect_lifecycle_owner_moves_out_of_session_entrypoi
     }
 
     assert!(
-        session_source.contains("state.disconnect_active_device_route("),
-        "services/session-gateway/src/device_session.rs should consume the shared disconnect lifecycle owner seam"
+        !presence_source.contains("state.disconnect_active_client_route("),
+        "services/session-gateway/src/presence_routes.rs must not expose retired HTTP disconnect behavior"
     );
 
     for required_symbol in [
-        "pub(crate) enum DisconnectActiveDeviceRouteOutcome",
-        "pub(crate) fn disconnect_active_device_route(",
-        "disconnect_fence_matches_session_for_principal_kind(",
-        "clear_device_subscriptions_for_principal_kind(",
-        "release_device_route_for_principal_kind(",
-        "mark_device_disconnected_for_principal_kind(",
+        "pub(crate) fn release_active_client_route_if_current_session(",
+        "ensure_route_session_current(",
+        "release_client_route_for_principal_kind(",
     ] {
         assert!(
             owner_source.contains(required_symbol),
-            "services/session-gateway/src/device_registration.rs should host disconnect lifecycle owner detail: {required_symbol}"
+            "services/session-gateway/src/client_route_registration.rs should host disconnect lifecycle owner detail: {required_symbol}"
         );
+    }
+}
+
+#[test]
+fn test_session_gateway_source_does_not_keep_legacy_device_route_symbols() {
+    let source_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let forbidden_symbols = [
+        "RealtimeDeviceRoute",
+        "RealtimeDeviceStateSnapshot",
+        "RealtimeDeviceSubscriptions",
+        "DeviceRoute",
+        "device_route",
+        "bind_device",
+        "release_device",
+        "ensure_device_state",
+        "ensure_device_resume",
+        "register_device(",
+        "mark_device_disconnected",
+        "clear_device_disconnect",
+        "typed_device_scope_key",
+        "tenant_device_scope_key",
+    ];
+
+    for entry in
+        std::fs::read_dir(&source_dir).expect("services/session-gateway/src should be readable")
+    {
+        let entry = entry.expect("session-gateway src entry should be readable");
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("rs") {
+            continue;
+        }
+        let source =
+            std::fs::read_to_string(&path).expect("session-gateway Rust source should read");
+        for forbidden_symbol in forbidden_symbols {
+            assert!(
+                !source.contains(forbidden_symbol),
+                "{} must use client_route naming instead of legacy route symbol: {forbidden_symbol}",
+                path.display()
+            );
+        }
     }
 }
 

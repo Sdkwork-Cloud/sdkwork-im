@@ -4,30 +4,24 @@ import SDKworkCommon
 public class SdkworkImAppClient {
     private let httpClient: HttpClient
     public let automation: AutomationApi
-    public let device: DeviceApi
     public let notification: NotificationApi
     public let portal: PortalApi
     public let provider: ProviderApi
-    public let iot: IotApi
 
     public init(baseURL: String) {
         self.httpClient = HttpClient(baseURL: baseURL)
         self.automation = AutomationApi(client: httpClient)
-        self.device = DeviceApi(client: httpClient)
         self.notification = NotificationApi(client: httpClient)
         self.portal = PortalApi(client: httpClient)
         self.provider = ProviderApi(client: httpClient)
-        self.iot = IotApi(client: httpClient)
     }
 
     public init(config: SdkConfig) {
         self.httpClient = HttpClient(config: config)
         self.automation = AutomationApi(client: httpClient)
-        self.device = DeviceApi(client: httpClient)
         self.notification = NotificationApi(client: httpClient)
         self.portal = PortalApi(client: httpClient)
         self.provider = ProviderApi(client: httpClient)
-        self.iot = IotApi(client: httpClient)
     }
     public func setAuthToken(_ token: String) -> SdkworkImAppClient {
         httpClient.setAuthToken(token)

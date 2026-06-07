@@ -4,7 +4,7 @@ use im_adapters_postgres_realtime::{
     PostgresRealtimeSubscriptionStore,
 };
 use im_domain_core::{
-    device_session::{DevicePresenceStatus, DevicePresenceView},
+    presence::{PresenceClientView, PresenceStatus},
     realtime::{RealtimeEvent, RealtimeSubscription},
 };
 use im_platform_contracts::{
@@ -303,7 +303,7 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
         principal_id.as_str(),
         realtime_device_id.as_str(),
         Some(session_id.as_str()),
-        DevicePresenceStatus::Online,
+        PresenceStatus::Online,
         7,
         Some("2026-05-09T10:00:04.000Z"),
         Some("2026-05-09T10:00:04.000Z"),
@@ -323,7 +323,7 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
             principal_id.as_str(),
             realtime_device_id.as_str(),
             Some("stale_session"),
-            DevicePresenceStatus::Online,
+            PresenceStatus::Online,
             6,
             Some("2026-05-09T10:00:04.000Z"),
             Some("2026-05-09T10:00:04.000Z"),
@@ -359,7 +359,7 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
         )
         .expect("presence stale expiration should use CAS update")
         .expect("presence state should expire");
-    assert_eq!(expired.presence.status, DevicePresenceStatus::Offline);
+    assert_eq!(expired.presence.status, PresenceStatus::Offline);
     assert!(expired.resume_required);
 }
 
@@ -418,7 +418,7 @@ fn presence_record(
     principal_id: &str,
     device_id: &str,
     session_id: Option<&str>,
-    status: DevicePresenceStatus,
+    status: PresenceStatus,
     last_sync_seq: u64,
     last_resume_at: Option<&str>,
     last_seen_at: Option<&str>,
@@ -430,7 +430,7 @@ fn presence_record(
         principal_kind: principal_kind.into(),
         principal_id: principal_id.into(),
         device_id: device_id.into(),
-        presence: DevicePresenceView {
+        presence: PresenceClientView {
             tenant_id: tenant_id.into(),
             principal_id: principal_id.into(),
             device_id: device_id.into(),

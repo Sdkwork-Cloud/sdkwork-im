@@ -163,7 +163,7 @@ node .\sdks\sdkwork-im-backend-sdk\bin\verify-sdk.mjs
 Use the RTC verifier for the independent provider-standard SDK:
 
 ```powershell
-node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
+node ../../sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
 ```
 
 ## Recommended Reading

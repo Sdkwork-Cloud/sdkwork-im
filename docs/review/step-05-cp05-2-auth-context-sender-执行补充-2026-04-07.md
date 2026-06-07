@@ -118,7 +118,7 @@
 - `CP05-3`
   - direct / group / channel 重新收口未做完
 - `CP05-4`
-  - projection / notification / multi-device sync owner 重新收口未做完
+  - projection / notification / multi-client-route sync owner 重新收口未做完
 
 ## 7. 偏离检查
 

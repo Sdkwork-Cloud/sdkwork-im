@@ -1,4 +1,4 @@
-# Device Sessions Bootstrap
+# Realtime Presence Bootstrap
 
 ## Goal
 

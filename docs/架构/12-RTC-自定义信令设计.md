@@ -67,7 +67,7 @@ RTC 相关能力拆成两层：
     "id": "u_alice",
     "kind": "user",
     "memberId": null,
-    "deviceId": "d_mac_001",
+    "clientRouteId": "d_mac_001",
     "sessionId": "s_demo_001",
     "metadata": {}
   },
@@ -108,7 +108,7 @@ RTC 相关能力拆成两层：
 
 当前实现的处理顺序如下：
 
-1. Gateway/HTTP 层从请求头解析授权上下文，得到 `tenantId`、`actorId`、`actorKind`、`sessionId`、`deviceId`。
+1. Gateway/HTTP 层从请求头解析授权上下文，得到 `tenantId`、`actorId`、`actorKind`、`sessionId`、`clientRouteId`。
 2. `rtc-signaling-service` 校验 `rtc_session_id` 是否存在。
 3. 若会话状态为 `Rejected` 或 `Ended`，拒绝写入自定义信令，返回 `rtc_session_closed`。
 4. 若请求携带 `signalingStreamId`，将其同步挂到 RTC 会话上，形成后续流式信令关联键。

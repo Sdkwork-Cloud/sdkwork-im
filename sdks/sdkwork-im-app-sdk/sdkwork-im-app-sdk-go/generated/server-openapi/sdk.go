@@ -8,11 +8,9 @@ import (
 type SdkworkImAppClient struct {
     http *sdkhttp.Client
     Automation *api.AutomationApi
-    Device *api.DeviceApi
     Notification *api.NotificationApi
     Portal *api.PortalApi
     Provider *api.ProviderApi
-    Iot *api.IotApi
 }
 
 func NewSdkworkImAppClient(baseURL string) *SdkworkImAppClient {
@@ -25,11 +23,9 @@ func NewSdkworkImAppClientWithConfig(config sdkhttp.Config) *SdkworkImAppClient 
     return &SdkworkImAppClient{
         http: client,
         Automation: api.NewAutomationApi(client),
-        Device: api.NewDeviceApi(client),
         Notification: api.NewNotificationApi(client),
         Portal: api.NewPortalApi(client),
         Provider: api.NewProviderApi(client),
-        Iot: api.NewIotApi(client),
     }
 }
 

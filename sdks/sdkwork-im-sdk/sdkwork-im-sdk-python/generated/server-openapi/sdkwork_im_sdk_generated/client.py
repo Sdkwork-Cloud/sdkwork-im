@@ -1,5 +1,4 @@
 from .http_client import HttpClient, SdkConfig
-from .api.device import DeviceApi
 from .api.presence import PresenceApi
 from .api.realtime import RealtimeApi
 from .api.rtc import RtcApi
@@ -13,7 +12,6 @@ class SdkworkImClient:
 
     def __init__(self, config: SdkConfig):
         self._client = HttpClient(config)
-        self.device: DeviceApi
         self.presence: PresenceApi
         self.realtime: RealtimeApi
         self.rtc: RtcApi
@@ -22,7 +20,6 @@ class SdkworkImClient:
         self.streams: StreamsApi
 
         # Initialize API modules
-        self.device = DeviceApi(self._client)
         self.presence = PresenceApi(self._client)
         self.realtime = RealtimeApi(self._client)
         self.rtc = RtcApi(self._client)

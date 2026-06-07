@@ -12,7 +12,7 @@
   "mode": "apply",
   "hasChanges": true,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "ef8ac946f30e3797205326edceaad7fa0600492f38d11dee44527bc408fe1b58",
+  "changeFingerprint": "7c306a31cc5cc6c77f48a2eaf9367ce535eaa6a8df9dcb18652644ffcb5a2ea9",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
@@ -30,8 +30,6 @@
           "lib/app_client.dart",
           "lib/src/api/api.dart",
           "lib/src/api/automation.dart",
-          "lib/src/api/device.dart",
-          "lib/src/api/iot.dart",
           "lib/src/api/notification.dart",
           "lib/src/api/paths.dart",
           "lib/src/api/portal.dart",
@@ -153,20 +151,20 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 22,
-    "models": 22,
-    "apis": 6,
+    "totalFiles": 20,
+    "models": 19,
+    "apis": 4,
     "types": 1
   },
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 18,
+    "writtenFiles": 16,
     "skippedScaffoldFiles": 1,
     "skippedUnchangedGeneratedFiles": 3,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "ef8ac946f30e3797205326edceaad7fa0600492f38d11dee44527bc408fe1b58",
+    "changeFingerprint": "7c306a31cc5cc6c77f48a2eaf9367ce535eaa6a8df9dcb18652644ffcb5a2ea9",
     "changes": {
       "createdGeneratedFiles": [
         "CHANGELOG.md",
@@ -174,8 +172,6 @@
         "lib/im_app_api_generated.dart",
         "lib/src/api/api.dart",
         "lib/src/api/automation.dart",
-        "lib/src/api/device.dart",
-        "lib/src/api/iot.dart",
         "lib/src/api/notification.dart",
         "lib/src/api/paths.dart",
         "lib/src/api/portal.dart",
@@ -218,8 +214,6 @@
             "lib/app_client.dart",
             "lib/src/api/api.dart",
             "lib/src/api/automation.dart",
-            "lib/src/api/device.dart",
-            "lib/src/api/iot.dart",
             "lib/src/api/notification.dart",
             "lib/src/api/paths.dart",
             "lib/src/api/portal.dart",

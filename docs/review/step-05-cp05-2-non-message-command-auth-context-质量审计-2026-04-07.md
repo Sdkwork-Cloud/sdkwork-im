@@ -82,4 +82,4 @@
 
 - 能否继续把 `actor_kind` 从入口独立参数收口到同一 authority owner
 - 能否把读查询 surface 的 `auth.tenant_id / auth.actor_id` 收敛到统一 query boundary
-- downstream projection / notification / multi-device sync 是否继续消费统一 authority snapshot
+- downstream projection / notification / multi-client-route sync 是否继续消费统一 authority snapshot

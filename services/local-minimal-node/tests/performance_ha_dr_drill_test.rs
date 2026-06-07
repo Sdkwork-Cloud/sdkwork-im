@@ -327,7 +327,7 @@ async fn test_step11_local_drain_rebalance_drill_emits_metrics() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_remote")
                 .header("x-sdkwork-actor-kind", "user")
@@ -587,136 +587,6 @@ fn test_step11_local_restore_recovery_drill_emits_metrics() {
 
     let _ = fs::remove_dir_all(runtime_dir);
     let _ = fs::remove_dir_all(backup_dir);
-}
-
-#[tokio::test]
-async fn test_step11_local_failover_drill_emits_metrics() {
-    let baseline = load_local_drill_baseline();
-    let projection_service = Arc::new(projection_service::TimelineProjectionService::default());
-    let realtime_cluster = Arc::new(RealtimeClusterBridge::default());
-
-    let app_a = local_minimal_node::build_app_with_dependencies(
-        "node_a",
-        "127.0.0.1:18211",
-        projection_service.clone(),
-        realtime_cluster.clone(),
-    );
-    let app_b = local_minimal_node::build_app_with_dependencies(
-        "node_b",
-        "127.0.0.1:18212",
-        projection_service.clone(),
-        realtime_cluster.clone(),
-    );
-
-    let resume_old = app_a
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_resume")
-                .header("x-sdkwork-session-id", "s_old")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("old resume should succeed");
-    assert_eq!(resume_old.status(), StatusCode::OK);
-
-    let takeover_started = Instant::now();
-    let resume_new = app_b
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/resume")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_resume")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("new resume should succeed");
-    assert_eq!(resume_new.status(), StatusCode::OK);
-
-    let diagnostics_after_resume = app_b
-        .clone()
-        .oneshot(
-            Request::builder()
-                .uri("/backend/v3/api/ops/diagnostics")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_resume")
-                .header("x-sdkwork-session-id", "s_new")
-                .header("x-sdkwork-permission-scope", "ops.read")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("diagnostics should succeed");
-    assert_eq!(diagnostics_after_resume.status(), StatusCode::OK);
-    let diagnostics_after_resume_body = diagnostics_after_resume
-        .into_body()
-        .collect()
-        .await
-        .expect("diagnostics body should collect")
-        .to_bytes();
-    let diagnostics_after_resume_json: Value =
-        serde_json::from_slice(&diagnostics_after_resume_body)
-            .expect("diagnostics should be valid json");
-
-    let stale_disconnect = app_a
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/device/sessions/disconnect")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_resume")
-                .header("x-sdkwork-session-id", "s_old")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("stale disconnect should return response");
-    assert_eq!(stale_disconnect.status(), StatusCode::CONFLICT);
-    let stale_disconnect_body = stale_disconnect
-        .into_body()
-        .collect()
-        .await
-        .expect("stale disconnect body should collect")
-        .to_bytes();
-    let stale_disconnect_json: Value = serde_json::from_slice(&stale_disconnect_body)
-        .expect("stale disconnect body should be valid json");
-    let takeover_duration_ms = takeover_started.elapsed().as_secs_f64() * 1000.0;
-
-    assert_eq!(stale_disconnect_json["code"], "stale_session");
-    assert_eq!(
-        diagnostics_after_resume_json["deviceRoutes"][0]["ownerNodeId"],
-        baseline.failover.expected_owner_node_id
-    );
-
-    print_metric(json!({
-        "scenario": "failover",
-        "profile": baseline.profile,
-        "tier": baseline.tier,
-        "expectedOwnerNodeId": baseline.failover.expected_owner_node_id,
-        "activeOwnerNodeId": diagnostics_after_resume_json["deviceRoutes"][0]["ownerNodeId"],
-        "takeoverDurationMs": round3(takeover_duration_ms),
-        "staleDisconnectCode": stale_disconnect_json["code"],
-        "staleDisconnectRejected": true
-    }));
 }
 
 #[test]

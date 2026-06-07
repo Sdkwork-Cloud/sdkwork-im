@@ -26,11 +26,11 @@ These names must match the durable conversation event names so downstream consum
 
 ### 3.1 Baseline recipients
 
-The gateway/node layer must publish member governance realtime events to all current conversation members' registered devices.
+The gateway/node layer must publish member governance realtime events to all current conversation members' registered client routes.
 
 ### 3.2 Affected principal rule
 
-For `conversation.member_removed` and `conversation.member_left`, the affected principal must still receive the event on their other registered devices even though they are no longer active after the mutation.
+For `conversation.member_removed` and `conversation.member_left`, the affected principal must still receive the event on their other registered client routes even though they are no longer active after the mutation.
 
 This is mandatory. A post-mutation active-member query alone is insufficient.
 
@@ -105,13 +105,13 @@ Every profile that claims realtime support must include:
 
 1. an HTTP realtime event-window test proving member governance events are delivered
 2. a websocket push test proving at least one member governance event is pushed live
-3. a regression case proving `removed / left` fanout still reaches the affected principal's registered devices or explicitly documenting the chosen delivery boundary
+3. a regression case proving `removed / left` fanout still reaches the affected principal's registered client routes or explicitly documenting the chosen delivery boundary
 
 ## 8. Non-Goals
 
 This standard does not yet require:
 
-- typed `device sync feed` roster delta entries
+- typed `client-route event window` roster delta entries
 - admin roster analytics
 - invite-state workflow beyond current joined/left/removed semantics
 

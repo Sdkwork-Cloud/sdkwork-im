@@ -8,7 +8,7 @@
     "sdkType": "app",
     "packageName": "ImAppApiGenerated"
   },
-  "changeFingerprint": "2a652c7e9296f05f4da416023bd2a25b4822e0dd6a51bf249ff544a4f6aaf068",
+  "changeFingerprint": "7b5d3965079cabbd600e243e3d8572952653366a79e315b4dbe85b86f817a322",
   "changes": {
     "createdGeneratedFiles": [
       "CHANGELOG.md",
@@ -19,8 +19,6 @@
       "Sources/API/API.swift",
       "Sources/API/ApiPaths.swift",
       "Sources/API/AutomationApi.swift",
-      "Sources/API/DeviceApi.swift",
-      "Sources/API/IotApi.swift",
       "Sources/API/NotificationApi.swift",
       "Sources/API/PortalApi.swift",
       "Sources/API/ProviderApi.swift",
@@ -58,8 +56,6 @@
           "Sources/API/API.swift",
           "Sources/API/ApiPaths.swift",
           "Sources/API/AutomationApi.swift",
-          "Sources/API/DeviceApi.swift",
-          "Sources/API/IotApi.swift",
           "Sources/API/NotificationApi.swift",
           "Sources/API/PortalApi.swift",
           "Sources/API/ProviderApi.swift"

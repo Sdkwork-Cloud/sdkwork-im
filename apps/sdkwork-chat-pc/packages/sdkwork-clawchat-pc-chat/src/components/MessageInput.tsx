@@ -9,7 +9,7 @@ import { cn } from '@sdkwork/clawchat-pc-commons';
 import { EmojiPicker } from './EmojiPicker';
 
 export interface MessageInputProps {
-  onSend?: (content: string, type?: 'text'|'image'|'file'|'voice', extraInfo?: any) => void;
+  onSend?: (content: string, type?: 'text'|'image'|'file'|'voice'|'video', extraInfo?: any) => void;
   placeholder?: string;
   disabled?: boolean;
   isTyping?: boolean;
@@ -23,6 +23,31 @@ export interface MessageInputProps {
   };
   onCancelReply?: () => void;
   onHistoryClick?: () => void;
+}
+
+function resolveFileMessageType(file: File): 'image' | 'file' | 'video' {
+  if (file.type.startsWith('image/')) {
+    return 'image';
+  }
+  if (file.type.startsWith('video/')) {
+    return 'video';
+  }
+  return 'file';
+}
+
+function readBlobAsDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error('file read result is not a data URL'));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('failed to read file'));
+    reader.readAsDataURL(blob);
+  });
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
@@ -75,12 +100,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       const reader = new FileReader();
-      const isImage = file.type.startsWith('image/');
+      const type = resolveFileMessageType(file);
       
       reader.onload = (e) => {
         const result = e.target?.result as string;
         if (result && onSend) {
-           onSend(result, isImage ? 'image' : 'file', { fileName: file.name, fileSize: (file.size / 1024).toFixed(1) + ' KB' });
+           onSend(result, type, { fileName: file.name, fileSize: (file.size / 1024).toFixed(1) + ' KB' });
         }
       };
       
@@ -203,18 +228,22 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      const type = file.type.startsWith('image/') ? 'image' : 'file';
-      const url = URL.createObjectURL(file);
+      const type = resolveFileMessageType(file);
       
       const fileSizeStr = file.size > 1024 * 1024 
         ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
         : `${(file.size / 1024).toFixed(1)} KB`;
 
-      if (onSend) {
-        onSend(url, type, { fileName: file.name, fileSize: fileSizeStr });
+      try {
+        const url = await readBlobAsDataUrl(file);
+        if (onSend) {
+          onSend(url, type, { fileName: file.name, fileSize: fileSizeStr });
+        }
+      } catch (error) {
+        console.error('Error reading file:', error);
       }
       
       // Reset input so the same file can be selected again if needed
@@ -271,10 +300,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        const audioUrl = URL.createObjectURL(audioBlob);
         
         // Stop all tracks to release microphone
         stream.getTracks().forEach(track => track.stop());
@@ -289,7 +317,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         
         // Send actual voice message
         if (finalDuration >= 1 && onSend) {
-          onSend(audioUrl, 'voice', { duration: finalDuration });
+          try {
+            const audioUrl = await readBlobAsDataUrl(audioBlob);
+            onSend(audioUrl, 'voice', { duration: finalDuration });
+          } catch (error) {
+            console.error('Error reading voice recording:', error);
+          }
         } else if (finalDuration < 1) {
           toast('说话时间太短', 'error');
         }
@@ -418,17 +451,20 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                   const ctx = canvas.getContext('2d');
                   if (ctx) {
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    canvas.toBlob(blob => {
+                    canvas.toBlob(async blob => {
                       if (blob) {
                         const file = new File([blob], `Screenshot_${new Date().getTime()}.png`, { type: 'image/png' });
-                        // Create URL for preview
-                        const url = URL.createObjectURL(file);
                         const fileSizeStr = file.size > 1024 * 1024 
                           ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
                           : `${(file.size / 1024).toFixed(1)} KB`;
                           
                         if (onSend) {
-                          onSend(url, 'image', { fileName: file.name, fileSize: fileSizeStr });
+                          try {
+                            const url = await readBlobAsDataUrl(file);
+                            onSend(url, 'image', { fileName: file.name, fileSize: fileSizeStr });
+                          } catch (error) {
+                            console.error('Error reading screenshot:', error);
+                          }
                         }
                       }
                       stream.getTracks().forEach(t => t.stop());

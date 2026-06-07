@@ -131,7 +131,7 @@
 
 - `actor_kind` 仍未和 command DTO 形状本体合并为单一 authority object，只是入口 capture 已收口到 runtime。
 - 读查询路径仍大量直接线程化使用 `tenant_id / actor_id`。
-- downstream projection / notification / multi-device sync 仍未围绕同一 authority owner 重新验收。
+- downstream projection / notification / multi-client-route sync 仍未围绕同一 authority owner 重新验收。
 
 ## 7. 偏离检查
 

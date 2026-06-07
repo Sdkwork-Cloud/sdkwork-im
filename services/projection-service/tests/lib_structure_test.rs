@@ -18,7 +18,7 @@ fn test_projection_service_http_surface_moves_out_of_lib_impl() {
         "struct HealthResponse {",
         "struct TimelineResponse {",
         "struct InboxResponse {",
-        "struct DeviceSyncFeedResponse {",
+        "struct ClientRouteSyncFeedResponse {",
         "pub struct ProjectionApiError {",
         "pub fn build_default_app(",
         "pub fn build_public_app(",
@@ -27,8 +27,8 @@ fn test_projection_service_http_surface_moves_out_of_lib_impl() {
         "async fn require_public_bearer_auth(",
         "async fn healthz(",
         "async fn readyz(",
-        "async fn register_device(",
-        "async fn get_device_sync_feed(",
+        "async fn register_client_route(",
+        "async fn get_client_route_sync_feed(",
         "async fn get_timeline(",
         "async fn get_inbox(",
         "async fn get_conversation_summary(",
@@ -70,17 +70,17 @@ fn test_projection_service_access_module_exposes_auth_context_entrypoints() {
 
     for required_symbol in [
         "pub struct ProjectionAccessError {",
-        "pub struct DeviceSyncStateSnapshot {",
+        "pub struct ClientRouteSyncStateSnapshot {",
         "pub fn ensure_active_member_from_auth_context(",
         "pub fn active_conversation_principal_recipients_from_auth_context(",
         "pub fn message_posted_notification_recipients_from_auth_context(",
-        "pub fn register_device_from_auth_context(",
-        "pub fn ensure_device_registration_allowed_from_auth_context(",
-        "pub fn registered_devices_from_auth_context(",
-        "pub fn device_sync_state_snapshot_from_auth_context(",
+        "pub fn register_client_route_from_auth_context(",
+        "pub fn ensure_client_route_registration_allowed_from_auth_context(",
+        "pub fn registered_client_routes_from_auth_context(",
+        "pub fn client_route_sync_state_snapshot_from_auth_context(",
         "pub fn realtime_fanout_targets_for_recipients_from_auth_context(",
-        "pub fn latest_device_sync_seq_from_auth_context(",
-        "pub fn device_sync_feed_window_from_auth_context(",
+        "pub fn latest_client_route_sync_seq_from_auth_context(",
+        "pub fn client_route_sync_feed_window_from_auth_context(",
         "pub fn inbox_from_auth_context(",
         "pub fn contacts_from_auth_context(",
         "pub fn timeline_window_from_auth_context(",
@@ -96,7 +96,7 @@ fn test_projection_service_access_module_exposes_auth_context_entrypoints() {
     }
 
     for forbidden_symbol in [
-        "pub fn device_sync_feed_from_auth_context(",
+        "pub fn client_route_sync_feed_from_auth_context(",
         "pub fn timeline_from_auth_context(",
     ] {
         assert!(
@@ -111,7 +111,7 @@ fn test_projection_service_exposes_realtime_fanout_target_owner_seam() {
     let lib_source = include_str!("../src/lib.rs");
 
     assert!(
-        lib_source.contains("pub fn device_sync_fanout_targets_for_conversation("),
+        lib_source.contains("pub fn client_route_sync_fanout_targets_for_conversation("),
         "services/projection-service/src/lib.rs should expose a projection-owned realtime fanout target seam for typed recipient-to-device resolution"
     );
 }
@@ -166,23 +166,23 @@ fn test_projection_service_principal_identity_queries_are_strictly_typed() {
 }
 
 #[test]
-fn test_projection_service_exposes_conversation_device_sync_target_owner_seam() {
+fn test_projection_service_exposes_conversation_client_route_sync_target_owner_seam() {
     let lib_source = include_str!("../src/lib.rs");
 
     assert!(
-        lib_source.contains("pub fn device_sync_fanout_targets_for_conversation("),
+        lib_source.contains("pub fn client_route_sync_fanout_targets_for_conversation("),
         "services/projection-service/src/lib.rs should expose a projection-owned conversation device-sync target seam for active member plus fallback principal resolution"
     );
     assert!(
         lib_source
-            .matches(".device_sync_fanout_targets_for_conversation(")
+            .matches(".client_route_sync_fanout_targets_for_conversation(")
             .count()
             >= 4,
         "services/projection-service/src/lib.rs should route conversation-scoped device-sync fanout callers through the shared projection owner seam"
     );
     assert!(
         lib_source
-            .matches("for device in self.registered_devices(")
+            .matches("for device in self.registered_client_routes(")
             .count()
             <= 1,
         "services/projection-service/src/lib.rs should not duplicate raw principal-to-device device-sync fanout loops across multiple projection handlers"
@@ -194,10 +194,8 @@ fn test_projection_service_http_surface_uses_auth_context_entrypoints() {
     let http_source = include_str!("../src/http.rs");
 
     for required_symbol in [
-        ".register_device_from_auth_context(",
-        ".device_sync_feed_window_from_auth_context(",
-        ".inbox_from_auth_context(",
-        ".contacts_from_auth_context(",
+        ".inbox_window_from_auth_context(",
+        ".contact_window_from_auth_context(",
         ".timeline_window_from_auth_context(",
         ".conversation_summary_from_auth_context(",
         ".message_interaction_summary_from_auth_context(",
@@ -211,8 +209,14 @@ fn test_projection_service_http_surface_uses_auth_context_entrypoints() {
     }
 
     for forbidden_symbol in [
-        ".register_device(\n        auth.tenant_id.as_str(),",
-        ".device_sync_feed(\n            auth.tenant_id.as_str(),",
+        "/im/v3/api/devices/register",
+        "/im/v3/api/devices/{device_id}/sync_feed",
+        "async fn register_client_route(",
+        "async fn get_client_route_sync_feed(",
+        ".register_client_route_from_auth_context(",
+        ".client_route_sync_feed_window_from_auth_context(",
+        ".register_client_route(\n        auth.tenant_id.as_str(),",
+        ".client_route_sync_feed(\n            auth.tenant_id.as_str(),",
         ".inbox(auth.tenant_id.as_str(), auth.actor_id.as_str())",
         ".timeline(auth.tenant_id.as_str(), conversation_id.as_str())",
         ".conversation_summary(auth.tenant_id.as_str(), conversation_id.as_str())",
@@ -229,72 +233,80 @@ fn test_projection_service_http_surface_uses_auth_context_entrypoints() {
 }
 
 #[test]
-fn test_projection_service_device_sync_entry_assembly_moves_out_of_lib_impl() {
+fn test_projection_service_client_route_sync_entry_assembly_moves_out_of_lib_impl() {
     let lib_source = include_str!("../src/lib.rs");
-    let device_sync_source =
-        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/device_sync.rs"))
-            .expect("services/projection-service/src/device_sync.rs should exist");
+    let client_route_sync_source = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/client_route_sync.rs"
+    ))
+    .expect("services/projection-service/src/client_route_sync.rs should exist");
 
     for required_symbol in [
-        "pub(crate) struct DeviceSyncEntryDraft {",
-        "impl DeviceSyncEntryDraft {",
+        "pub(crate) struct ClientRouteSyncEntryDraft {",
+        "impl ClientRouteSyncEntryDraft {",
         "pub(crate) fn build_for_target(",
     ] {
         assert!(
-            device_sync_source.contains(required_symbol),
+            client_route_sync_source.contains(required_symbol),
             "projection-service device-sync entry owner module should expose shared assembly symbol: {required_symbol}"
         );
     }
 
     assert_eq!(
-        lib_source.matches("DeviceSyncFeedEntry {").count(),
+        lib_source.matches("ClientRouteSyncFeedEntry {").count(),
         0,
         "services/projection-service/src/lib.rs should not keep inline device-sync entry assembly after the shared owner seam is extracted"
     );
     assert!(
-        lib_source.matches(".append_device_sync_draft(").count() >= 5,
+        lib_source
+            .matches(".append_client_route_sync_draft(")
+            .count()
+            >= 5,
         "services/projection-service/src/lib.rs should route message, mutation, read_cursor, handoff, and member-governance sync fanout through the shared device-sync draft owner seam"
     );
 }
 
 #[test]
-fn test_projection_service_device_sync_feed_store_uses_sequence_index() {
+fn test_projection_service_client_route_sync_feed_store_uses_sequence_index() {
     let lib_source = include_str!("../src/lib.rs");
     let model_source =
         std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/model.rs"))
             .expect("services/projection-service/src/model.rs should exist");
-    let device_sync_source =
-        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/device_sync.rs"))
-            .expect("services/projection-service/src/device_sync.rs should exist");
+    let client_route_sync_source = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/client_route_sync.rs"
+    ))
+    .expect("services/projection-service/src/client_route_sync.rs should exist");
 
     assert!(
-        lib_source.contains("HashMap<DeviceFeedScopeKey, BTreeMap<u64, DeviceSyncFeedEntry>>"),
+        lib_source
+            .contains("HashMap<ClientRouteFeedScopeKey, BTreeMap<u64, ClientRouteSyncFeedEntry>>"),
         "projection-service device-sync feed store must be keyed by sync_seq so cursor reads can seek instead of scanning an unindexed Vec"
     );
     assert!(
-        !lib_source.contains("HashMap<DeviceFeedScopeKey, Vec<DeviceSyncFeedEntry>>"),
+        !lib_source.contains("HashMap<ClientRouteFeedScopeKey, Vec<ClientRouteSyncFeedEntry>>"),
         "projection-service device-sync feed store must not keep per-device Vec feeds"
     );
     assert!(
-        device_sync_source.contains(".range((Excluded(min_seq), Unbounded))"),
+        client_route_sync_source.contains(".range((Excluded(min_seq), Unbounded))"),
         "projection-service device-sync feed windows should seek by sync_seq range"
     );
     for forbidden_symbol in [
-        "pub fn device_sync_feed(",
-        "pub fn device_sync_feed_for_principal_kind(",
-        "fn device_sync_feed_for_principal_kind(",
+        "pub fn client_route_sync_feed(",
+        "pub fn client_route_sync_feed_for_principal_kind(",
+        "fn client_route_sync_feed_for_principal_kind(",
     ] {
         assert!(
-            !device_sync_source.contains(forbidden_symbol),
+            !client_route_sync_source.contains(forbidden_symbol),
             "projection-service must not expose unbounded device-sync feed helper: {forbidden_symbol}"
         );
     }
     assert!(
-        !device_sync_source.contains(".iter().filter(|entry| entry.sync_seq > min_seq)"),
+        !client_route_sync_source.contains(".iter().filter(|entry| entry.sync_seq > min_seq)"),
         "projection-service device-sync feed windows should not scan every entry after min_seq with a Vec iterator"
     );
     assert!(
-        lib_source.contains("PROJECTION_DEVICE_SYNC_FEED_MAX_RETAINED_EVENTS"),
+        lib_source.contains("PROJECTION_CLIENT_ROUTE_SYNC_FEED_MAX_RETAINED_EVENTS"),
         "projection-service device-sync feed cache must define a bounded retention contract"
     );
     assert!(
@@ -302,13 +314,13 @@ fn test_projection_service_device_sync_feed_store_uses_sequence_index() {
         "projection-service device-sync feed windows must expose trimmed_through_seq so clients can detect expired cursors"
     );
     assert!(
-        device_sync_source.contains(".pop_first()"),
+        client_route_sync_source.contains(".pop_first()"),
         "projection-service device-sync feed append path must trim the oldest indexed entries when retention is exceeded"
     );
 }
 
 #[test]
-fn test_projection_service_device_sync_identity_is_strictly_typed() {
+fn test_projection_service_client_route_sync_identity_is_strictly_typed() {
     let model_source =
         std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/model.rs"))
             .expect("services/projection-service/src/model.rs should exist");
@@ -318,30 +330,32 @@ fn test_projection_service_device_sync_identity_is_strictly_typed() {
     let snapshot_source =
         std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/snapshot.rs"))
             .expect("services/projection-service/src/snapshot.rs should exist");
-    let device_sync_source =
-        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/device_sync.rs"))
-            .expect("services/projection-service/src/device_sync.rs should exist");
+    let client_route_sync_source = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/client_route_sync.rs"
+    ))
+    .expect("services/projection-service/src/client_route_sync.rs should exist");
 
     for forbidden_symbol in [
         "pub principal_kind: Option<String>,",
         "principal_kind: Option<&str>,",
         "principal_kind: principal_kind.map(str::to_owned)",
         "principal_kind.as_deref()",
-        "device_principal_scope_key(tenant_id, principal_id, None)",
-        "device_feed_scope_key(tenant_id, principal_id, None",
+        "client_route_principal_scope_key(tenant_id, principal_id, None)",
+        "client_route_feed_scope_key(tenant_id, principal_id, None",
     ] {
         assert!(
             !model_source.contains(forbidden_symbol)
                 && !scope_source.contains(forbidden_symbol)
                 && !snapshot_source.contains(forbidden_symbol)
-                && !device_sync_source.contains(forbidden_symbol),
-            "projection-service device sync identity must not keep optional principalKind path: {forbidden_symbol}"
+                && !client_route_sync_source.contains(forbidden_symbol),
+            "projection-service client route sync identity must not keep optional principalKind path: {forbidden_symbol}"
         );
     }
 
     assert!(
         model_source.contains("pub principal_kind: String,"),
-        "RegisteredDeviceView and RealtimeFanoutTarget must carry a required principal_kind"
+        "RegisteredClientRouteView and RealtimeFanoutTarget must carry a required principal_kind"
     );
     assert!(
         scope_source.contains("pub(super) principal_kind: String,"),
@@ -516,4 +530,39 @@ fn test_projection_service_member_store_uses_principal_inbox_index() {
         snapshot_source.contains(".insert_member("),
         "projection-service snapshot restore must rebuild member secondary indexes through the runtime store"
     );
+}
+
+#[test]
+fn test_projection_service_source_does_not_keep_legacy_device_sync_symbols() {
+    let source_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let forbidden_symbols = [
+        "mod device_sync;",
+        "/src/device_sync.rs",
+        "DeviceSync",
+        "device_sync",
+        "RegisteredDevice",
+        "registered_devices",
+        "register_device",
+        "DevicePrincipalScopeKey",
+        "DeviceFeedScopeKey",
+    ];
+
+    for entry in
+        std::fs::read_dir(&source_dir).expect("services/projection-service/src should be readable")
+    {
+        let entry = entry.expect("projection-service src entry should be readable");
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("rs") {
+            continue;
+        }
+        let source =
+            std::fs::read_to_string(&path).expect("projection-service Rust source should read");
+        for forbidden_symbol in forbidden_symbols {
+            assert!(
+                !source.contains(forbidden_symbol),
+                "{} must use client_route_sync naming instead of legacy client route sync symbol: {forbidden_symbol}",
+                path.display()
+            );
+        }
+    }
 }

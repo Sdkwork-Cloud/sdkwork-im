@@ -8,7 +8,7 @@
     "sdkType": "app",
     "packageName": "im_app_api_generated"
   },
-  "changeFingerprint": "ef8ac946f30e3797205326edceaad7fa0600492f38d11dee44527bc408fe1b58",
+  "changeFingerprint": "7c306a31cc5cc6c77f48a2eaf9367ce535eaa6a8df9dcb18652644ffcb5a2ea9",
   "changes": {
     "createdGeneratedFiles": [
       "CHANGELOG.md",
@@ -16,8 +16,6 @@
       "lib/im_app_api_generated.dart",
       "lib/src/api/api.dart",
       "lib/src/api/automation.dart",
-      "lib/src/api/device.dart",
-      "lib/src/api/iot.dart",
       "lib/src/api/notification.dart",
       "lib/src/api/paths.dart",
       "lib/src/api/portal.dart",
@@ -60,8 +58,6 @@
           "lib/app_client.dart",
           "lib/src/api/api.dart",
           "lib/src/api/automation.dart",
-          "lib/src/api/device.dart",
-          "lib/src/api/iot.dart",
           "lib/src/api/notification.dart",
           "lib/src/api/paths.dart",
           "lib/src/api/portal.dart",

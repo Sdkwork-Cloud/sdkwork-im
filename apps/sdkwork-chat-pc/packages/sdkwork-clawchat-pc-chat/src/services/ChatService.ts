@@ -15,27 +15,21 @@ import type {
 } from '@sdkwork/im-sdk';
 import {
   getImSdkClientWithSession,
-  SDKWORK_CHAT_SESSION_CHANGED_EVENT,
-} from '@sdkwork/clawchat-pc-core';
-import { Chat, Message } from '@sdkwork/clawchat-pc-types';
-import { contactService } from './ContactService';
+} from '@sdkwork/clawchat-pc-core/sdk/imSdkClient';
 import {
-  parseDeviceSyncPayload,
-  resolveSdkworkChatPcDeviceId,
-  retrieveDeviceSyncFeedWindow,
-  type DeviceSyncFeedEntry,
-} from './DeviceSyncFeedService';
+  SDKWORK_CHAT_SESSION_CHANGED_EVENT,
+} from '@sdkwork/clawchat-pc-core/sdk/session';
+import type { Chat, Message } from '@sdkwork/clawchat-pc-types';
+import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
+import { contactService } from './ContactService';
 
 type ConversationInboxEntry = InboxResponse['items'][number];
 type TimelineViewEntry = TimelineResponse['items'][number];
 type MessageHandler = (message: Message) => void;
 
-export interface ChatDeviceSyncResult {
+export interface ChatOfflineSyncResult {
   appliedMessages: number;
-  appliedReadCursors: number;
-  deviceId: string;
-  nextAfterSeq: number;
-  trimmedThroughSeq: number;
+  refreshedChats: number;
 }
 
 interface ConversationLiveSubscription {
@@ -74,14 +68,12 @@ export interface ChatService {
   startDirectChat(user: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat>;
   startAgentChat(agent: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat>;
   startEnterpriseChat(enterprise: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat>;
-  syncDeviceFeed(deviceId?: string): Promise<ChatDeviceSyncResult>;
-  syncOfflineMessages(deviceId?: string): Promise<ChatDeviceSyncResult>;
+  syncOfflineMessages(): Promise<ChatOfflineSyncResult>;
 }
 
 type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'isMarkedUnread' | 'isMuted' | 'isPinned' | 'memberCount' | 'members' | 'name' | 'notice' | 'type'>> & {
   isHidden?: boolean;
 };
-const CHAT_DEVICE_SYNC_NAMESPACE = 'chat';
 const INBOX_PAGE_LIMIT = 100;
 const MESSAGE_PAGE_LIMIT = 100;
 const CHAT_MESSAGE_TYPES = new Set<Message['type']>([
@@ -196,11 +188,6 @@ function firstTimelinePart(entry: TimelineViewEntry): Record<string, unknown> {
   return toRecord(parts[0]);
 }
 
-function firstBodyPart(body: Record<string, unknown>): Record<string, unknown> {
-  const parts = Array.isArray(body.parts) ? body.parts : [];
-  return toRecord(parts[0]);
-}
-
 function resolvePartMessageType(part: Record<string, unknown>, renderHints: Record<string, unknown>): Message['type'] {
   const hintedType = resolveChatMessageType(renderHints.sdkworkChatPcType);
   if (hintedType) {
@@ -257,35 +244,6 @@ function resolveTimelineMessageContent(entry: TimelineViewEntry, type: Message['
   }
 }
 
-function resolvePayloadResource(body: Record<string, unknown>): Record<string, unknown> {
-  const part = firstBodyPart(body);
-  return part.kind === 'media' ? toRecord(part.resource) : {};
-}
-
-function resolvePayloadResourceUrl(body: Record<string, unknown>): string | undefined {
-  const resource = resolvePayloadResource(body);
-  return pickString(resource.publicUrl, resource.url, resource.uri);
-}
-
-function resolvePayloadMessageContent(
-  body: Record<string, unknown>,
-  payload: Record<string, unknown>,
-  entry: DeviceSyncFeedEntry,
-  type: Message['type'],
-): string {
-  const part = firstBodyPart(body);
-  const resourceUrl = resolvePayloadResourceUrl(body);
-  switch (type) {
-    case 'image':
-    case 'video':
-    case 'voice':
-    case 'file':
-      return pickString(resourceUrl, body.summary, payload.summary, entry.summary) ?? '';
-    default:
-      return pickString(part.text, body.summary, payload.summary, entry.summary) ?? '';
-  }
-}
-
 function resolveDecodedMessageContent(message: ImDecodedMessage, type: Message['type']): string {
   const content = toRecord(message.content);
   const attachmentUrl = resolveAttachmentUrl(message);
@@ -320,21 +278,6 @@ function mapReplyReferenceToMessageReply(replyTo: MessageReplyReference | undefi
     id: replyTo.messageId,
     senderName: replyTo.senderDisplayName,
     content: replyTo.contentPreview,
-  };
-}
-
-function mapRecordReplyReferenceToMessageReply(replyTo: Record<string, unknown>): Message['replyTo'] | undefined {
-  const messageId = pickString(replyTo.messageId);
-  const senderDisplayName = pickString(replyTo.senderDisplayName);
-  const contentPreview = pickString(replyTo.contentPreview);
-  if (!messageId || !senderDisplayName || !contentPreview) {
-    return undefined;
-  }
-
-  return {
-    id: messageId,
-    senderName: senderDisplayName,
-    content: contentPreview,
   };
 }
 
@@ -420,6 +363,8 @@ function resolveMediaKind(type: Message['type']): MediaKind {
       return 'video';
     case 'voice':
       return 'voice';
+    case 'file':
+      return 'file';
     default:
       return 'document';
   }
@@ -743,58 +688,8 @@ function mergeMessageLists(remoteMessages: Message[], localMessages: Message[]):
   return Array.from(byId.values()).sort((left, right) => left.timestamp - right.timestamp);
 }
 
-function mapDeviceSyncEntryToMessage(entry: DeviceSyncFeedEntry): Message | undefined {
-  if (!entry.conversationId || !entry.messageId) {
-    return undefined;
-  }
-
-  const payload = parseDeviceSyncPayload(entry);
-  const body = toRecord(payload.body);
-  const sender = toRecord(payload.sender);
-  const renderHints = toRecord(body.renderHints);
-  const part = firstBodyPart(body);
-  const resource = resolvePayloadResource(body);
-  const messageType = body.parts ? resolvePartMessageType(part, renderHints) : (
-    resolveChatMessageType(body.messageType)
-      ?? resolveChatMessageType(payload.messageType)
-      ?? 'text'
-  );
-  const replyTo = mapRecordReplyReferenceToMessageReply(toRecord(body.replyTo));
-  const coverUrl = pickString(
-    renderHints.coverUrl,
-    resolveRenditionUrl(resource.poster),
-    resolveRenditionUrl(Array.isArray(resource.thumbnails) ? resource.thumbnails[0] : undefined),
-  );
-  const fileName = pickString(
-    renderHints.fileName,
-    resource.fileName,
-    resource.title,
-  );
-  const duration = pickNumber(renderHints.duration, renderHints.durationSeconds, resource.durationSeconds);
-  const resourceSizeBytes = pickNumber(resource.sizeBytes);
-  const fileSize = pickString(renderHints.fileSize, resource.fileSize)
-    ?? (resourceSizeBytes !== undefined ? String(resourceSizeBytes) : undefined);
-
-  return {
-    id: entry.messageId,
-    chatId: entry.conversationId,
-    senderId: pickString(entry.actorId, sender.id, entry.principalId) ?? 'system',
-    content: body.parts
-      ? resolvePayloadMessageContent(body, payload, entry, messageType)
-      : pickString(entry.summary, body.summary, payload.summary) ?? '',
-    type: messageType,
-    timestamp: parseTimestamp(entry.occurredAt),
-    ...(coverUrl ? { coverUrl } : {}),
-    ...(duration ? { duration } : {}),
-    ...(fileName ? { fileName } : {}),
-    ...(fileSize ? { fileSize } : {}),
-    ...(replyTo ? { replyTo } : {}),
-  };
-}
-
 class SdkworkChatService implements ChatService {
   private conversationViewState = new Map<string, ConversationViewState>();
-  private deviceSyncAfterSeq = new Map<string, number>();
   private liveSubscriptions = new Map<string, ConversationLiveSubscription>();
   private localMessages = new Map<string, Message[]>();
   private latestReadSeq = new Map<string, number>();
@@ -944,7 +839,9 @@ class SdkworkChatService implements ChatService {
       }
     }));
 
-    return mergeMessageLists(remoteMessages, this.localMessages.get(chatId) ?? []);
+    const mergedMessages = mergeMessageLists(remoteMessages, this.localMessages.get(chatId) ?? []);
+    this.localMessages.set(chatId, mergedMessages);
+    return mergedMessages;
   }
 
   subscribeMessages(chatId: string, handler: MessageHandler): () => void {
@@ -1289,54 +1186,21 @@ class SdkworkChatService implements ChatService {
     };
   }
 
-  async syncDeviceFeed(deviceId = resolveSdkworkChatPcDeviceId()): Promise<ChatDeviceSyncResult> {
-    const window = await retrieveDeviceSyncFeedWindow(
-      this.client(),
-      CHAT_DEVICE_SYNC_NAMESPACE,
-      deviceId,
-      this.deviceSyncAfterSeq,
-    );
+  async syncOfflineMessages(): Promise<ChatOfflineSyncResult> {
+    const chats = await this.getChats();
     let appliedMessages = 0;
-    let appliedReadCursors = 0;
+    let refreshedChats = 0;
 
-    for (const entry of window.entries) {
-      if (entry.originEventType === 'message.posted') {
-        const message = mapDeviceSyncEntryToMessage(entry);
-        if (message) {
-          this.upsertLocalMessage(message.chatId, message, true);
-          if (typeof entry.messageSeq === 'number') {
-            this.latestReadSeq.set(message.chatId, Math.max(
-              this.latestReadSeq.get(message.chatId) ?? 0,
-              entry.messageSeq,
-            ));
-          }
-          appliedMessages += 1;
-        }
-        continue;
-      }
-
-      if (entry.originEventType === 'conversation.read_cursor_updated' && entry.conversationId) {
-        if (typeof entry.readSeq === 'number') {
-          this.latestReadSeq.set(entry.conversationId, Math.max(
-            this.latestReadSeq.get(entry.conversationId) ?? 0,
-            entry.readSeq,
-          ));
-          appliedReadCursors += 1;
-        }
-      }
+    for (const chat of chats) {
+      const messages = await this.getMessages(chat.id);
+      appliedMessages += messages.length;
+      refreshedChats += 1;
     }
 
     return {
       appliedMessages,
-      appliedReadCursors,
-      deviceId: window.deviceId,
-      nextAfterSeq: window.nextAfterSeq,
-      trimmedThroughSeq: window.trimmedThroughSeq,
+      refreshedChats,
     };
-  }
-
-  syncOfflineMessages(deviceId?: string): Promise<ChatDeviceSyncResult> {
-    return this.syncDeviceFeed(deviceId);
   }
 
   private getOrCreateLiveSubscription(chatId: string): ConversationLiveSubscription {
@@ -1361,7 +1225,7 @@ class SdkworkChatService implements ChatService {
   ): Promise<void> {
     try {
       const connection = await this.client().connect({
-        deviceId: resolveSdkworkChatPcDeviceId(),
+        deviceId: resolveSdkworkChatPcClientId(),
         subscriptions: {
           conversations: [chatId],
         },

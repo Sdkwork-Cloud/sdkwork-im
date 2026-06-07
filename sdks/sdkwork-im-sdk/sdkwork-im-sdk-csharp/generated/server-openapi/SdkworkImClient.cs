@@ -9,7 +9,6 @@ namespace Sdkwork.Im.Sdk.Generated
     {
         private readonly SdkHttpClient _httpClient;
 
-        public DeviceApi Device { get; }
         public PresenceApi Presence { get; }
         public RealtimeApi Realtime { get; }
         public RtcApi Rtc { get; }
@@ -20,7 +19,6 @@ namespace Sdkwork.Im.Sdk.Generated
         public SdkworkImClient(string baseUrl)
         {
             _httpClient = new SdkHttpClient(baseUrl);
-            Device = new DeviceApi(_httpClient);
             Presence = new PresenceApi(_httpClient);
             Realtime = new RealtimeApi(_httpClient);
             Rtc = new RtcApi(_httpClient);
@@ -32,7 +30,6 @@ namespace Sdkwork.Im.Sdk.Generated
         public SdkworkImClient(SdkConfig config)
         {
             _httpClient = new SdkHttpClient(config);
-            Device = new DeviceApi(_httpClient);
             Presence = new PresenceApi(_httpClient);
             Realtime = new RealtimeApi(_httpClient);
             Rtc = new RtcApi(_httpClient);

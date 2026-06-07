@@ -13,11 +13,6 @@
     <p><a href="/api-reference/app/portal-access">Open Portal Access APIs</a></p>
   </div>
   <div class="api-card">
-    <h3>Device Twin</h3>
-    <p>Read a device twin and update desired or reported state through the app-business device surface.</p>
-    <p><a href="/api-reference/app/device-twin">Open Device Twin APIs</a></p>
-  </div>
-  <div class="api-card">
     <h3>Notifications</h3>
     <p>Create notification requests and inspect dispatched notification tasks.</p>
     <p><a href="/api-reference/app/notifications">Open Notification APIs</a></p>
@@ -32,17 +27,13 @@
     <p>Check media, RTC, and principal-profile provider plugin health from the active node.</p>
     <p><a href="/api-reference/app/provider-health">Open Provider Health APIs</a></p>
   </div>
-  <div class="api-card">
-    <h3>IoT Protocol</h3>
-    <p>Inspect IoT provider health, ingest uplink payloads, and submit downlink payloads.</p>
-    <p><a href="/api-reference/app/iot-protocol-and-health">Open IoT Protocol APIs</a></p>
-  </div>
 </div>
 
 ## SDK Alignment
 
 - App endpoints under `/app/v3/api/*` map to `sdkwork-im-app-sdk`.
 - The generated TypeScript client is `SdkworkAppClient`.
+- AIoT device, twin, command, and event capability belongs to `sdkwork-aiot-app-sdk`, consumed as a dependency SDK.
 - IM standardized endpoints under `/im/v3/api/*` map to [IM Standard API](/api-reference/im-api) and `sdkwork-im-sdk`.
 - Backend management, control, admin, operator, and audit endpoints map to [Backend API](/api-reference/backend-api) and `sdkwork-im-backend-sdk`.
 - App API routes do not own login, account, tenant, organization, or token refresh; those contexts are supplied by the upstream appbase identity system.
@@ -71,9 +62,7 @@ higher-level helper method on top of it.
 
 <div class="api-link-list">
   <a href="/api-reference/app/portal-access"><code>Portal</code> Tenant access snapshots and portal reads</a>
-  <a href="/api-reference/app/device-twin"><code>Device Twin</code> Read twin state and update desired or reported state</a>
   <a href="/api-reference/app/notifications"><code>Notifications</code> Request, list, and inspect notification tasks</a>
   <a href="/api-reference/app/automation"><code>Automation</code> Request executions, drive agent responses, and complete tool calls</a>
   <a href="/api-reference/app/provider-health"><code>Provider Health</code> Media, RTC, and principal-profile provider health snapshots</a>
-  <a href="/api-reference/app/iot-protocol-and-health"><code>IoT</code> Provider health, uplink ingest, and downlink submission</a>
 </div>

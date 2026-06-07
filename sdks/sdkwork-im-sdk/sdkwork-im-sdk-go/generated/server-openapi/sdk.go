@@ -7,7 +7,6 @@ import (
 
 type SdkworkImClient struct {
     http *sdkhttp.Client
-    Device *api.DeviceApi
     Presence *api.PresenceApi
     Realtime *api.RealtimeApi
     Rtc *api.RtcApi
@@ -25,7 +24,6 @@ func NewSdkworkImClientWithConfig(config sdkhttp.Config) *SdkworkImClient {
     client := sdkhttp.NewClient(config)
     return &SdkworkImClient{
         http: client,
-        Device: api.NewDeviceApi(client),
         Presence: api.NewPresenceApi(client),
         Realtime: api.NewRealtimeApi(client),
         Rtc: api.NewRtcApi(client),

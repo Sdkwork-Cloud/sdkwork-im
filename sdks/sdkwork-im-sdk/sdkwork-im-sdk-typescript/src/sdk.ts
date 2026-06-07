@@ -13,7 +13,6 @@ import type {
   SdkworkImConfig,
 } from '@sdkwork/im-sdk-generated';
 import { ImConversationsModule } from './conversations-module';
-import { ImDeviceModule } from './device-module';
 import { ImMessagesModule } from './messages-module';
 import {
   createImLiveConnection,
@@ -64,10 +63,19 @@ function toGeneratedConfig(options: ImSdkClientOptions): SdkworkImConfig {
   };
 }
 
+function createSocialFacade(transportClient: ImTransportClientLike): ImTransportClientLike['social'] {
+  return {
+    ...transportClient.social,
+    contacts: {
+      ...transportClient.social.contacts,
+      list: (params?: QueryParams) => transportClient.chat.contacts.list(params),
+    },
+  };
+}
+
 export class ImSdkClient {
   readonly chat: ImTransportClientLike['chat'];
   readonly conversations: ImConversationsModule;
-  readonly device: ImDeviceModule;
   readonly messages: ImMessagesModule;
   readonly rtc: ImRtcModule;
   readonly social: ImTransportClientLike['social'];
@@ -81,8 +89,7 @@ export class ImSdkClient {
     this.websocketBaseUrl = resolveWebsocketBaseUrl(options);
     this.transportClient = new GeneratedSdkworkImClient(toGeneratedConfig(options)) as unknown as ImTransportClientLike;
     this.chat = this.transportClient.chat;
-    this.social = this.transportClient.social;
-    this.device = new ImDeviceModule(this.transportClient);
+    this.social = createSocialFacade(this.transportClient);
     this.messages = new ImMessagesModule(this.transportClient);
     this.conversations = new ImConversationsModule(this.transportClient);
     this.rtc = new ImRtcModule(this.transportClient);

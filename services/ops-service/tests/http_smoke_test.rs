@@ -105,7 +105,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     assert_eq!(health_json["realtimeInbox"]["status"], "ok");
     assert_eq!(health_json["realtimeInbox"]["pendingEventCount"], 0);
     assert_eq!(
-        health_json["realtimeInbox"]["maxDeviceWindowUsagePermille"],
+        health_json["realtimeInbox"]["maxClientRouteWindowUsagePermille"],
         0
     );
     assert_eq!(health_json["realtimeInbox"]["capacityTrimmedEventCount"], 0);
@@ -139,7 +139,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
     let cluster_json: serde_json::Value =
         serde_json::from_slice(&cluster_body).expect("cluster body should be valid json");
     assert_eq!(cluster_json["nodes"][0]["profile"], "standalone");
-    assert_eq!(cluster_json["nodes"][0]["deviceRouteCount"], 0);
+    assert_eq!(cluster_json["nodes"][0]["clientRouteCount"], 0);
 
     let lag_response = app
         .clone()
@@ -317,7 +317,7 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         serde_json::from_slice(&diagnostics_body).expect("diagnostics body should be valid json");
     assert_eq!(diagnostics_json["profile"], "standalone");
     assert_eq!(
-        diagnostics_json["deviceRoutes"].as_array().unwrap().len(),
+        diagnostics_json["clientRoutes"].as_array().unwrap().len(),
         0
     );
     assert_eq!(diagnostics_json["projectionPlane"]["status"], "idle");

@@ -44,9 +44,11 @@ const sdk = new ImSdkClient({
   authToken: process.env.CRAW_CHAT_TOKEN,
 });
 
-const session = await sdk.device.sessions.resume({
-  deviceId: "device-web-01",
-  lastSeenSyncSeq: 0,
+const live = await sdk.connect({
+  clientRouteId: "device-web-01",
+  subscriptions: {
+    conversations: ["conversation-demo-01"],
+  },
 });
 ```
 
@@ -60,10 +62,12 @@ final client = ImSdkClient.create(
   authToken: token,
 );
 
-final session = await client.device.sessions.resume(
-  ResumeDeviceSessionRequest(
-    deviceId: 'device-mobile-01',
-    lastSeenSyncSeq: 0,
+final live = await client.connect(
+  const ImConnectOptions(
+    clientRouteId: 'device-mobile-01',
+    subscriptions: ImRealtimeSubscriptionGroups(
+      conversations: <String>['conversation-demo-01'],
+    ),
   ),
 );
 ```
@@ -71,18 +75,12 @@ final session = await client.device.sessions.resume(
 ## Rust
 
 ```rust
-use im_sdk::{ImSdkClient, ResumeDeviceSessionRequest};
+use im_sdk::ImSdkClient;
 
 let client = ImSdkClient::new_with_base_url("http://127.0.0.1:18090")?;
 client.set_auth_token(token);
 
-let session = client
-  .device_sessions()
-  .resume(ResumeDeviceSessionRequest {
-    device_id: Some("device-rust-01".into()),
-    last_seen_sync_seq: Some(0),
-  })
-  .await?;
+let presence = client.presence().current().await?;
 ```
 
 ## Ownership Boundary
@@ -97,7 +95,7 @@ let session = client
 
 The current SDK family splits realtime into generated HTTP coordination and manual live runtimes:
 
-- device route resume, subscription sync, catch-up, and event acknowledgement remain exposed directly
+- client route heartbeat, subscription sync, catch-up, and event acknowledgement remain exposed directly
 - TypeScript and Flutter both ship `sdk.connect(...)` from their manual-owned consumer packages
 - TypeScript and Flutter now both keep `ImWebSocketAuthOptions.automatic()` as the standard
   default

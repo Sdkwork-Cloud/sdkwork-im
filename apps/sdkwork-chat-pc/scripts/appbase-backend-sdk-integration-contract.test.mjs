@@ -15,8 +15,11 @@ const packageJsonSource = read('apps/sdkwork-chat-pc/package.json');
 const tsconfigSource = read('apps/sdkwork-chat-pc/tsconfig.json');
 const viteConfigSource = read('apps/sdkwork-chat-pc/vite.config.ts');
 const coreIndexSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/index.ts');
+const adminCoreSdkIndexSource = read(
+  'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-admin-core/src/sdk/index.ts',
+);
 const appbaseBackendSdkClientSource = read(
-  'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appbaseBackendSdkClient.ts',
+  'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-admin-core/src/sdk/appbaseBackendSdkClient.ts',
 );
 const tenantServiceSource = read(
   'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-admin-tenants/src/services/TenantService.ts',
@@ -46,44 +49,47 @@ for (const [label, source] of [
 assert.match(
   appbaseBackendSdkClientSource,
   /from ['"]@sdkwork\/appbase-backend-sdk['"]/u,
-  'PC core appbase backend wrapper must import the generated appbase backend SDK package.',
+  'Admin core appbase backend wrapper must import the generated appbase backend SDK package.',
 );
 assert.match(
   appbaseBackendSdkClientSource,
   /SdkworkBackendClient/u,
-  'PC core appbase backend wrapper must expose the generated SdkworkBackendClient.',
+  'Admin core appbase backend wrapper must expose the generated SdkworkBackendClient.',
 );
 assert.match(
   appbaseBackendSdkClientSource,
   /getSdkworkChatGlobalTokenManager/u,
-  'PC appbase backend wrapper must share the runtime global TokenManager.',
+  'Admin appbase backend wrapper must share the runtime global TokenManager.',
 );
 assert.match(
   appbaseBackendSdkClientSource,
   /createSdkworkChatRequestContextInterceptors/u,
-  'PC appbase backend wrapper must attach dynamic SDKWork AppContext request interceptors.',
+  'Admin appbase backend wrapper must attach dynamic SDKWork AppContext request interceptors.',
 );
 assert.doesNotMatch(
   appbaseBackendSdkClientSource,
   /\bfetch\s*\(|\b(Authorization|Access-Token|X-API-Key)\b/u,
-  'PC appbase backend wrapper must not use raw HTTP or assemble auth headers manually.',
+  'Admin appbase backend wrapper must not use raw HTTP or assemble auth headers manually.',
+);
+assert.doesNotMatch(
+  coreIndexSource,
+  /appbaseBackendSdkClient/u,
+  'PC core package must not export appbase backend SDK wrappers; backend SDK exports belong to admin-core/sdk.',
 );
 assert.match(
-  coreIndexSource,
-  /export \* from '\.\/sdk\/appbaseBackendSdkClient'/u,
-  'PC core package must export the appbase backend SDK wrapper.',
+  adminCoreSdkIndexSource,
+  /export \* from ['"]\.\/appbaseBackendSdkClient['"]/u,
+  'Admin core sdk subpath must export the appbase backend SDK wrapper.',
 );
 
 for (const [label, source] of [
   ['tenant service', tenantServiceSource],
   ['global user service', globalUserServiceSource],
-  ['console user service', consoleUserServiceSource],
-  ['console role service', consoleRoleServiceSource],
 ]) {
   assert.match(
     source,
-    /getAppbaseBackendSdkClientWithSession/u,
-    `${label} must consume IAM admin data through the appbase backend SDK wrapper.`,
+    /@sdkwork\/clawchat-admin-core\/sdk[\s\S]*getAppbaseBackendSdkClientWithSession/u,
+    `${label} must consume IAM admin data through the admin-core appbase backend SDK wrapper.`,
   );
   assert.doesNotMatch(
     source,
@@ -92,13 +98,27 @@ for (const [label, source] of [
   );
 }
 
+for (const [label, source] of [
+  ['console user service', consoleUserServiceSource],
+  ['console role service', consoleRoleServiceSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /getAppbaseBackendSdkClientWithSession|\.iam\.users\.(?:list|delete)\s*\(|\.iam\.roles\.(?:list|update)\s*\(/u,
+    `${label} must not consume appbase backend IAM administration resources from a user-facing console package.`,
+  );
+  assert.match(
+    source,
+    /getAppbaseAppSdkClientWithSession/u,
+    `${label} must use the appbase app SDK wrapper when a user-facing console IAM read surface exists.`,
+  );
+}
+
 assert.match(tenantServiceSource, /\.iam\.tenants\.list\s*\(/u);
 assert.match(globalUserServiceSource, /\.iam\.users\.list\s*\(/u);
 assert.match(globalUserServiceSource, /\.iam\.users\.update\s*\(/u);
 assert.match(globalUserServiceSource, /\.iam\.users\.delete\s*\(/u);
-assert.match(consoleUserServiceSource, /\.iam\.users\.list\s*\(/u);
-assert.match(consoleUserServiceSource, /\.iam\.users\.delete\s*\(/u);
-assert.match(consoleRoleServiceSource, /\.iam\.roles\.list\s*\(/u);
-assert.match(consoleRoleServiceSource, /\.iam\.roles\.update\s*\(/u);
+assert.match(consoleUserServiceSource, /\.iam\.organizationMemberships\.list\s*\(/u);
+assert.match(consoleRoleServiceSource, /\.iam\.roleBindings\.list\s*\(/u);
 
 console.log('sdkwork chat pc appbase backend SDK integration contract passed.');

@@ -43,7 +43,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "4af1eaa23d14c8e229acdfcf598355aa1588c069a77c72eadb1db2d736c2082f"
+      "sha256": "c7cb87fef7c3a23e0ad228fee0d1a18884aac5eda1d6def92271b3257edf1997"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -58,16 +58,8 @@
       "sha256": "02ad25e6bf331ff241ba387c2947ddf1900dd849038e08c2757416a3aa788a04"
     },
     {
-      "path": "src/api/device.ts",
-      "sha256": "bb629c88283014b3c5d517cd32061072e62ec93ee0f8a1ed4ba64232f6e4df4d"
-    },
-    {
       "path": "src/api/index.ts",
-      "sha256": "96645e589af4ccfdc74ec58525d61808f4441e434b2a50fd5bb07ce4c368ba7d"
-    },
-    {
-      "path": "src/api/iot.ts",
-      "sha256": "40f79734babd8b070dfffea2fd39e985bf37938d0bfcf126beafab4a73bbe531"
+      "sha256": "7cb9cbdc554f4dbf57f37d1da3ef6fce1b5f9a26e478fcbad7084989e36bad22"
     },
     {
       "path": "src/api/notification.ts",
@@ -103,11 +95,7 @@
     },
     {
       "path": "src/sdk.ts",
-      "sha256": "6a8ec0aa3db9140cf8cae4aa34cd94af65876b5e3149b2ecbc8c8c4e2aad3bbd"
-    },
-    {
-      "path": "src/types/access-provider-health-retrieve-response.ts",
-      "sha256": "8a8280396e343db15d1539cdd3cbb6bd9f8ccc6009498189a0cd7fd246c0fed3"
+      "sha256": "0602d8ab971ecafbd528158d45cad91950a70914c40ab2028d0f90d3ff0cb84d"
     },
     {
       "path": "src/types/agent-subject.ts",
@@ -154,12 +142,8 @@
       "sha256": "2cea0d63438a1b1c541a733307e4b9794f29321f0ae164cb11585b9f87c0a47d"
     },
     {
-      "path": "src/types/device-twin-view.ts",
-      "sha256": "8a49794f2ed26dbc5fafdf09370066c981d41a180fdb4df829cfacc9c5446488"
-    },
-    {
       "path": "src/types/index.ts",
-      "sha256": "f7e295e27e9fa0ba34b185a1f1444344a5b29f238f2bfd437c72d2926a3db2f7"
+      "sha256": "b1a1da501779077e1b5987d022c582cbb63ed320e9c7658612e1d3aaa604db85"
     },
     {
       "path": "src/types/media-health-retrieve-response.ts",
@@ -202,18 +186,6 @@
       "sha256": "01755d5296ffd3657421ccbe80aab40bafaa6d5b273c7882a642f279f1112bb8"
     },
     {
-      "path": "src/types/protocol-downlink-create-response.ts",
-      "sha256": "b2949c0662d28df1e175efac2077e877d4d37ea518c66449962405f85bd0308c"
-    },
-    {
-      "path": "src/types/protocol-provider-health-retrieve-response.ts",
-      "sha256": "8d8e17ccd1e05c0e3d079379d231f4b30af3d1c85da447640e513ff3d5048883"
-    },
-    {
-      "path": "src/types/protocol-uplink-create-response.ts",
-      "sha256": "ddb933908738689fbb44a50bd890577bd12d5b58f67a856b832e271867d116e7"
-    },
-    {
       "path": "src/types/request-agent-tool-call-request.ts",
       "sha256": "33611cc7ab4d6f8992a02f869c560c9357569ec0fee825007653304c989cee27"
     },
@@ -252,14 +224,6 @@
     {
       "path": "src/types/string-map.ts",
       "sha256": "543236e5e862c6cd062812235e091dc5bd1894b6b507facf4bfa70f88b68a1b2"
-    },
-    {
-      "path": "src/types/update-device-twin-desired-request.ts",
-      "sha256": "eb79f4bcd153170b9c47fc4917e8f5b61667b849ef78b375a85e4631196835ed"
-    },
-    {
-      "path": "src/types/update-device-twin-reported-request.ts",
-      "sha256": "7fbdf1844504d03123f9e2aab0c02bc810b48722ffe493713f11e90a1cb07764"
     },
     {
       "path": "tsconfig.json",

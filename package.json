@@ -18,8 +18,6 @@
     "release:package": "node scripts/release/build-craw-chat-install-package.mjs",
     "release:package:check": "node scripts/release/build-craw-chat-install-package.mjs --check --dry-run --all",
     "release:validate": "node scripts/release/validate-craw-chat-install-artifacts.mjs",
-    "deps:local:link": "node scripts/prepare-local-dependencies.mjs --apply",
-    "deps:local:check": "node scripts/prepare-local-dependencies.mjs --check",
     "check:dependency-management": "node scripts/dependency-management-standard.test.mjs",
     "release:desktop": "node scripts/release/build-craw-chat-production.mjs --target desktop",
     "tauri:dev": "node ./scripts/dev/run-sdkwork-chat-pc-dev.mjs --target desktop",

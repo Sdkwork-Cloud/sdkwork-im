@@ -2,7 +2,7 @@
 
 ## 1. Goal
 
-If route ownership still points to an old node but that node runtime is already gone, the platform must not let stale route metadata block device recovery through another healthy active node.
+If route ownership still points to an old node but that node runtime is already gone, the platform must not let stale route metadata block client route recovery through another healthy active node.
 
 ## 2. Problem Boundary
 
@@ -11,7 +11,7 @@ This standard applies to:
 - same logical device:
   - `tenantId`
   - `principalId`
-  - `deviceId`
+  - `clientRouteId`
 - route ownership exists
 - previous owner runtime is missing
 - new target node is active and can accept binds
@@ -20,7 +20,7 @@ This is a bind-path recovery problem, not a publish-path routing fallback proble
 
 ## 3. Bind Recovery Rule
 
-When `bind_device_route(...)` detects a cross-node takeover and the previous owner runtime is missing, it must treat the old route as stale takeover state.
+When `bind_client_route(...)` detects a cross-node takeover and the previous owner runtime is missing, it must treat the old route as stale takeover state.
 
 Required behavior:
 
@@ -58,7 +58,7 @@ Those require stronger later architecture:
 
 This standard does not weaken the existing publish-path fail-closed rule.
 
-If `publish_device_event(...)` resolves a route but the resolved target runtime is missing, delivery still returns a missing-target outcome instead of falling back to origin runtime.
+If `publish_scope_event(...)` resolves a route but the resolved target runtime is missing, delivery still returns a missing-target outcome instead of falling back to origin runtime.
 
 Reason:
 

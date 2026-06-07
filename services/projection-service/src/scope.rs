@@ -2,14 +2,14 @@ use im_domain_events::CommitEnvelope;
 use im_time::utc_now_rfc3339_millis;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub(super) struct DevicePrincipalScopeKey {
+pub(super) struct ClientRoutePrincipalScopeKey {
     pub(super) tenant_id: String,
     pub(super) principal_id: String,
     pub(super) principal_kind: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub(super) struct DeviceFeedScopeKey {
+pub(super) struct ClientRouteFeedScopeKey {
     pub(super) tenant_id: String,
     pub(super) principal_id: String,
     pub(super) principal_kind: String,
@@ -26,25 +26,25 @@ pub(super) fn scope_key(tenant_id: &str, conversation_id: &str) -> String {
     encode_projection_key_segments([tenant_id, conversation_id])
 }
 
-pub(super) fn device_principal_scope_key(
+pub(super) fn client_route_principal_scope_key(
     tenant_id: &str,
     principal_id: &str,
     principal_kind: &str,
-) -> DevicePrincipalScopeKey {
-    DevicePrincipalScopeKey {
+) -> ClientRoutePrincipalScopeKey {
+    ClientRoutePrincipalScopeKey {
         tenant_id: tenant_id.into(),
         principal_id: principal_id.into(),
         principal_kind: principal_kind.into(),
     }
 }
 
-pub(super) fn device_feed_scope_key(
+pub(super) fn client_route_feed_scope_key(
     tenant_id: &str,
     principal_id: &str,
     principal_kind: &str,
     device_id: &str,
-) -> DeviceFeedScopeKey {
-    DeviceFeedScopeKey {
+) -> ClientRouteFeedScopeKey {
+    ClientRouteFeedScopeKey {
         tenant_id: tenant_id.into(),
         principal_id: principal_id.into(),
         principal_kind: principal_kind.into(),
@@ -62,7 +62,7 @@ pub(super) fn contact_owner_scope_key(
     }
 }
 
-pub(super) fn registered_device_at() -> String {
+pub(super) fn registered_client_route_at() -> String {
     utc_now_rfc3339_millis()
 }
 

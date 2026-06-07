@@ -86,7 +86,7 @@ on conflict (tenant_id, device_scope_key) do update set
     updated_at = greatest(im_realtime_checkpoints.updated_at, excluded.updated_at)
 "#;
 
-pub const UPSERT_REALTIME_DEVICE_EVENT_SQL: &str = r#"
+pub const UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL: &str = r#"
 insert into im_realtime_device_events (
     tenant_id,
     device_scope_key,
@@ -110,7 +110,7 @@ insert into im_realtime_device_events (
 on conflict (tenant_id, device_scope_key, realtime_seq) do nothing
 "#;
 
-pub const LIST_REALTIME_DEVICE_EVENTS_SQL: &str = r#"
+pub const LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL: &str = r#"
 select
     tenant_id,
     principal_kind,
@@ -131,14 +131,14 @@ order by realtime_seq asc
 limit $4
 "#;
 
-pub const TRIM_REALTIME_DEVICE_EVENTS_SQL: &str = r#"
+pub const TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL: &str = r#"
 delete from im_realtime_device_events
 where tenant_id = $1
   and device_scope_key = $2
   and realtime_seq <= $3
 "#;
 
-pub const CLEAR_REALTIME_DEVICE_EVENTS_SQL: &str = r#"
+pub const CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL: &str = r#"
 delete from im_realtime_device_events
 where tenant_id = $1 and device_scope_key = $2
 "#;
@@ -153,9 +153,9 @@ with window_counts as (
     group by tenant_id, device_scope_key
 )
 select
-    count(distinct c.tenant_id || ':' || c.device_scope_key) as device_window_count,
+    count(distinct c.tenant_id || ':' || c.device_scope_key) as client_route_window_count,
     count(e.realtime_seq) as pending_event_count,
-    coalesce(max(window_counts.pending_event_count), 0) as max_device_window_event_count,
+    coalesce(max(window_counts.pending_event_count), 0) as max_client_route_window_event_count,
     coalesce(max(c.trimmed_through_seq), 0) as max_trimmed_through_seq,
     coalesce(sum(c.capacity_trimmed_event_count), 0) as capacity_trimmed_event_count,
     coalesce(max(c.capacity_trimmed_through_seq), 0) as max_capacity_trimmed_through_seq,
@@ -200,7 +200,7 @@ order by pending_event_count desc, oldest_pending_occurred_at asc, c.tenant_id a
 limit 5
 "#;
 
-pub const LIST_ORPHANED_REALTIME_DEVICE_EVENTS_SQL: &str = r#"
+pub const LIST_ORPHANED_REALTIME_CLIENT_ROUTE_EVENTS_SQL: &str = r#"
 select
     e.tenant_id,
     e.device_scope_key,
@@ -418,8 +418,8 @@ where tenant_id = $1
 
 pub const PUBLISH_REALTIME_EVENTS_TRANSACTION_PLAN: &str = r#"
 Begin transaction.
-1. UPSERT_REALTIME_DEVICE_EVENT_SQL for each delivered device event.
-2. UPSERT_REALTIME_CHECKPOINT_SQL for each affected device checkpoint.
+1. UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL for each delivered client route event.
+2. UPSERT_REALTIME_CHECKPOINT_SQL for each affected client route checkpoint.
 Commit transaction.
 Rollback transaction on any error.
 Event window rows and checkpoint rows must never be committed separately.
@@ -427,31 +427,31 @@ Event window rows and checkpoint rows must never be committed separately.
 
 pub const ACK_REALTIME_EVENTS_TRANSACTION_PLAN: &str = r#"
 Begin transaction.
-1. TRIM_REALTIME_DEVICE_EVENTS_SQL.
+1. TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL.
 2. UPSERT_REALTIME_CHECKPOINT_SQL.
 Commit transaction.
 Rollback transaction on any error.
 Trimmed event rows and checkpoint rows must never be committed separately.
 "#;
 
-pub const RESTORE_REALTIME_DEVICE_STATE_TRANSACTION_PLAN: &str = r#"
+pub const RESTORE_REALTIME_CLIENT_ROUTE_STATE_TRANSACTION_PLAN: &str = r#"
 Begin transaction.
 1. UPSERT_REALTIME_SUBSCRIPTION_SQL or CLEAR_REALTIME_SUBSCRIPTION_SQL.
 2. CLEAR_REALTIME_SUBSCRIPTION_SCOPES_SQL when replacing subscriptions.
 3. REPLACE_REALTIME_SUBSCRIPTION_SCOPES_SQL for each derived scope row.
 4. UPSERT_REALTIME_CHECKPOINT_SQL.
-5. CLEAR_REALTIME_DEVICE_EVENTS_SQL.
-6. UPSERT_REALTIME_DEVICE_EVENT_SQL for each restored event.
+5. CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL.
+6. UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL for each restored event.
 Commit transaction.
 Rollback transaction on any error.
 "#;
 
-pub const TAKE_REALTIME_DEVICE_STATE_TRANSACTION_PLAN: &str = r#"
+pub const TAKE_REALTIME_CLIENT_ROUTE_STATE_TRANSACTION_PLAN: &str = r#"
 Begin transaction.
 1. LOAD_REALTIME_CHECKPOINT_SQL.
-2. LIST_REALTIME_DEVICE_EVENTS_SQL.
+2. LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL.
 3. LOAD_REALTIME_SUBSCRIPTION_SQL.
-4. CLEAR_REALTIME_DEVICE_EVENTS_SQL.
+4. CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL.
 5. CLEAR_REALTIME_SUBSCRIPTION_SCOPES_SQL.
 6. CLEAR_REALTIME_SUBSCRIPTION_SQL.
 Commit transaction.
@@ -571,7 +571,7 @@ pub struct RealtimePostgresBoundTransaction {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RealtimePostgresDeviceEventMutation {
+pub struct RealtimePostgresClientRouteEventMutation {
     pub event: RealtimeEvent,
     pub principal_kind: String,
     pub device_scope_key: String,
@@ -665,7 +665,7 @@ pub fn realtime_postgres_bind_checkpoint_upsert(
     )
 }
 
-pub fn realtime_postgres_bind_device_event_upsert<'a>(
+pub fn realtime_postgres_bind_client_route_event_upsert<'a>(
     event: &RealtimeEvent,
     principal_kind: &str,
     device_scope_key: &str,
@@ -678,9 +678,9 @@ pub fn realtime_postgres_bind_device_event_upsert<'a>(
     })?;
 
     build_bound_statement(
-        "UPSERT_REALTIME_DEVICE_EVENT_SQL",
-        UPSERT_REALTIME_DEVICE_EVENT_SQL,
-        UPSERT_REALTIME_DEVICE_EVENT_BINDINGS,
+        "UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL",
+        UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL,
+        UPSERT_REALTIME_CLIENT_ROUTE_EVENT_BINDINGS,
         vec![
             text(event.tenant_id.as_str()),
             text(device_scope_key),
@@ -701,15 +701,15 @@ pub fn realtime_postgres_bind_device_event_upsert<'a>(
     )
 }
 
-pub fn realtime_postgres_bind_trim_device_events(
+pub fn realtime_postgres_bind_trim_client_route_events(
     tenant_id: &str,
     device_scope_key: &str,
     acked_through_seq: u64,
 ) -> Result<RealtimePostgresBoundStatement, RealtimePostgresBindingError> {
     build_bound_statement(
-        "TRIM_REALTIME_DEVICE_EVENTS_SQL",
-        TRIM_REALTIME_DEVICE_EVENTS_SQL,
-        TRIM_REALTIME_DEVICE_EVENTS_BINDINGS,
+        "TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
+        TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
+        TRIM_REALTIME_CLIENT_ROUTE_EVENTS_BINDINGS,
         vec![
             text(tenant_id),
             text(device_scope_key),
@@ -803,13 +803,13 @@ pub fn realtime_postgres_bind_subscription_scope_replacements(
 }
 
 pub fn realtime_postgres_bind_publish_transaction(
-    events: Vec<RealtimePostgresDeviceEventMutation>,
+    events: Vec<RealtimePostgresClientRouteEventMutation>,
     checkpoints: Vec<RealtimePostgresCheckpointMutation>,
     statement_timestamp: &str,
 ) -> Result<RealtimePostgresBoundTransaction, RealtimePostgresBindingError> {
     let mut statements = Vec::with_capacity(events.len() + checkpoints.len());
     for event in events {
-        statements.push(realtime_postgres_bind_device_event_upsert(
+        statements.push(realtime_postgres_bind_client_route_event_upsert(
             &event.event,
             event.principal_kind.as_str(),
             event.device_scope_key.as_str(),
@@ -844,7 +844,7 @@ pub fn realtime_postgres_bind_ack_transaction(
         transaction_plan_name: "ACK_REALTIME_EVENTS_TRANSACTION_PLAN",
         transaction_plan: ACK_REALTIME_EVENTS_TRANSACTION_PLAN,
         statements: vec![
-            realtime_postgres_bind_trim_device_events(
+            realtime_postgres_bind_trim_client_route_events(
                 tenant_id,
                 device_scope_key,
                 acked_through_seq,
@@ -1073,7 +1073,7 @@ const UPSERT_REALTIME_CHECKPOINT_BINDINGS: &[RealtimePostgresParameterBinding] =
     binding(13, "updated_at", "&str", "timestamptz", ""),
 ];
 
-const UPSERT_REALTIME_DEVICE_EVENT_BINDINGS: &[RealtimePostgresParameterBinding] = &[
+const UPSERT_REALTIME_CLIENT_ROUTE_EVENT_BINDINGS: &[RealtimePostgresParameterBinding] = &[
     binding(1, "tenant_id", "&str", "text", ""),
     binding(2, "device_scope_key", "String", "text", ""),
     binding(3, "realtime_seq", "u64", "bigint", ""),
@@ -1097,14 +1097,14 @@ const UPSERT_REALTIME_DEVICE_EVENT_BINDINGS: &[RealtimePostgresParameterBinding]
     binding(15, "retention_until", "Option<&str>", "timestamptz", ""),
 ];
 
-const LIST_REALTIME_DEVICE_EVENTS_BINDINGS: &[RealtimePostgresParameterBinding] = &[
+const LIST_REALTIME_CLIENT_ROUTE_EVENTS_BINDINGS: &[RealtimePostgresParameterBinding] = &[
     binding(1, "tenant_id", "&str", "text", ""),
     binding(2, "device_scope_key", "String", "text", ""),
     binding(3, "after_seq", "u64", "bigint", ""),
     binding(4, "limit", "usize", "bigint", ""),
 ];
 
-const LIST_REALTIME_DEVICE_EVENTS_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
+const LIST_REALTIME_CLIENT_ROUTE_EVENTS_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
     row_column("tenant_id", "tenant_id", "String", ""),
     row_column("principal_kind", "principal_kind", "String", ""),
     row_column("principal_id", "principal_id", "String", ""),
@@ -1123,7 +1123,7 @@ const LIST_REALTIME_DEVICE_EVENTS_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
     ),
 ];
 
-const TRIM_REALTIME_DEVICE_EVENTS_BINDINGS: &[RealtimePostgresParameterBinding] = &[
+const TRIM_REALTIME_CLIENT_ROUTE_EVENTS_BINDINGS: &[RealtimePostgresParameterBinding] = &[
     binding(1, "tenant_id", "&str", "text", ""),
     binding(2, "device_scope_key", "String", "text", ""),
     binding(3, "acked_through_seq", "u64", "bigint", ""),
@@ -1133,11 +1133,16 @@ const ORPHANED_LIMIT_BINDINGS: &[RealtimePostgresParameterBinding] =
     &[binding(1, "limit", "usize", "bigint", "")];
 
 const REALTIME_EVENT_WINDOW_DIAGNOSTICS_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
-    row_column("device_window_count", "device_window_count", "u64", ""),
+    row_column(
+        "client_route_window_count",
+        "client_route_window_count",
+        "u64",
+        "",
+    ),
     row_column("pending_event_count", "pending_event_count", "u64", ""),
     row_column(
-        "max_device_window_event_count",
-        "max_device_window_event_count",
+        "max_client_route_window_event_count",
+        "max_client_route_window_event_count",
         "u64",
         "",
     ),
@@ -1206,7 +1211,7 @@ const REALTIME_EVENT_WINDOW_HIGH_RISK_ROW_COLUMNS: &[RealtimePostgresRowColumn] 
     ),
 ];
 
-const ORPHANED_REALTIME_DEVICE_EVENTS_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
+const ORPHANED_REALTIME_CLIENT_ROUTE_EVENTS_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
     row_column("tenant_id", "tenant_id", "String", ""),
     row_column("device_scope_key", "device_scope_key", "String", ""),
     row_column("orphaned_event_count", "orphaned_event_count", "u64", ""),
@@ -1365,13 +1370,13 @@ const CLEAR_REALTIME_DISCONNECT_FENCE_AT_OR_BEFORE_BINDINGS: &[RealtimePostgresP
 pub const ALL_REALTIME_POSTGRES_SQL_CONTRACTS: &[&str] = &[
     LOAD_REALTIME_CHECKPOINT_SQL,
     UPSERT_REALTIME_CHECKPOINT_SQL,
-    UPSERT_REALTIME_DEVICE_EVENT_SQL,
-    LIST_REALTIME_DEVICE_EVENTS_SQL,
-    TRIM_REALTIME_DEVICE_EVENTS_SQL,
-    CLEAR_REALTIME_DEVICE_EVENTS_SQL,
+    UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL,
+    LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
+    TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
+    CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
     LOAD_REALTIME_EVENT_WINDOW_DIAGNOSTICS_SQL,
     LIST_REALTIME_EVENT_WINDOW_HIGH_RISK_WINDOWS_SQL,
-    LIST_ORPHANED_REALTIME_DEVICE_EVENTS_SQL,
+    LIST_ORPHANED_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
     LOAD_REALTIME_SUBSCRIPTION_SQL,
     UPSERT_REALTIME_SUBSCRIPTION_SQL,
     CLEAR_REALTIME_SUBSCRIPTION_SQL,
@@ -1389,8 +1394,8 @@ pub const ALL_REALTIME_POSTGRES_SQL_CONTRACTS: &[&str] = &[
 pub const ALL_REALTIME_POSTGRES_TRANSACTION_PLANS: &[&str] = &[
     PUBLISH_REALTIME_EVENTS_TRANSACTION_PLAN,
     ACK_REALTIME_EVENTS_TRANSACTION_PLAN,
-    RESTORE_REALTIME_DEVICE_STATE_TRANSACTION_PLAN,
-    TAKE_REALTIME_DEVICE_STATE_TRANSACTION_PLAN,
+    RESTORE_REALTIME_CLIENT_ROUTE_STATE_TRANSACTION_PLAN,
+    TAKE_REALTIME_CLIENT_ROUTE_STATE_TRANSACTION_PLAN,
     SAVE_REALTIME_SUBSCRIPTIONS_TRANSACTION_PLAN,
     DISCONNECT_FENCE_TRANSACTION_PLAN,
 ];
@@ -1412,29 +1417,29 @@ pub const REALTIME_POSTGRES_SQL_CONTRACT_SPECS: &[RealtimePostgresSqlContract] =
         row_mapping: None,
     },
     RealtimePostgresSqlContract {
-        name: "UPSERT_REALTIME_DEVICE_EVENT_SQL",
-        sql: UPSERT_REALTIME_DEVICE_EVENT_SQL,
-        parameter_bindings: UPSERT_REALTIME_DEVICE_EVENT_BINDINGS,
+        name: "UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL",
+        sql: UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL,
+        parameter_bindings: UPSERT_REALTIME_CLIENT_ROUTE_EVENT_BINDINGS,
         row_mapping: None,
     },
     RealtimePostgresSqlContract {
-        name: "LIST_REALTIME_DEVICE_EVENTS_SQL",
-        sql: LIST_REALTIME_DEVICE_EVENTS_SQL,
-        parameter_bindings: LIST_REALTIME_DEVICE_EVENTS_BINDINGS,
+        name: "LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
+        sql: LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
+        parameter_bindings: LIST_REALTIME_CLIENT_ROUTE_EVENTS_BINDINGS,
         row_mapping: Some(RealtimePostgresRowMapping {
             target: "RealtimeEvent",
-            columns: LIST_REALTIME_DEVICE_EVENTS_ROW_COLUMNS,
+            columns: LIST_REALTIME_CLIENT_ROUTE_EVENTS_ROW_COLUMNS,
         }),
     },
     RealtimePostgresSqlContract {
-        name: "TRIM_REALTIME_DEVICE_EVENTS_SQL",
-        sql: TRIM_REALTIME_DEVICE_EVENTS_SQL,
-        parameter_bindings: TRIM_REALTIME_DEVICE_EVENTS_BINDINGS,
+        name: "TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
+        sql: TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
+        parameter_bindings: TRIM_REALTIME_CLIENT_ROUTE_EVENTS_BINDINGS,
         row_mapping: None,
     },
     RealtimePostgresSqlContract {
-        name: "CLEAR_REALTIME_DEVICE_EVENTS_SQL",
-        sql: CLEAR_REALTIME_DEVICE_EVENTS_SQL,
+        name: "CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
+        sql: CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
         parameter_bindings: DEVICE_SCOPE_BINDINGS,
         row_mapping: None,
     },
@@ -1457,12 +1462,12 @@ pub const REALTIME_POSTGRES_SQL_CONTRACT_SPECS: &[RealtimePostgresSqlContract] =
         }),
     },
     RealtimePostgresSqlContract {
-        name: "LIST_ORPHANED_REALTIME_DEVICE_EVENTS_SQL",
-        sql: LIST_ORPHANED_REALTIME_DEVICE_EVENTS_SQL,
+        name: "LIST_ORPHANED_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
+        sql: LIST_ORPHANED_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
         parameter_bindings: ORPHANED_LIMIT_BINDINGS,
         row_mapping: Some(RealtimePostgresRowMapping {
-            target: "RealtimePostgresOrphanedDeviceEventsDiagnostic",
-            columns: ORPHANED_REALTIME_DEVICE_EVENTS_ROW_COLUMNS,
+            target: "RealtimePostgresOrphanedClientRouteEventsDiagnostic",
+            columns: ORPHANED_REALTIME_CLIENT_ROUTE_EVENTS_ROW_COLUMNS,
         }),
     },
     RealtimePostgresSqlContract {
@@ -1567,7 +1572,7 @@ const LOAD_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
         "Provides principal/device identity and trim metadata.",
     ),
     step(
-        "LIST_REALTIME_DEVICE_EVENTS_SQL",
+        "LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
         "tenant_id, derived device_scope_key, checkpoint.trimmed_through_seq, and bounded limit.",
         "Map rows to RealtimeEvent values ordered by realtime_seq.",
     ),
@@ -1575,12 +1580,12 @@ const LOAD_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
 
 const SAVE_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
-        "CLEAR_REALTIME_DEVICE_EVENTS_SQL",
+        "CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
         "RealtimeEventWindowRecord tenant_id and derived device_scope_key.",
         "Clears previous durable window before inserting replacement rows in the same transaction.",
     ),
     step(
-        "UPSERT_REALTIME_DEVICE_EVENT_SQL",
+        "UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL",
         "Each RealtimeEventWindowRecord event plus payload_hash, created_at, and retention_until.",
         "No rows returned.",
     ),
@@ -1592,7 +1597,7 @@ const SAVE_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
 ];
 
 const CLEAR_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[step(
-    "CLEAR_REALTIME_DEVICE_EVENTS_SQL",
+    "CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
     "tenant_id and derived device_scope_key.",
     "Return true when at least one event row was deleted.",
 )];
@@ -1612,7 +1617,7 @@ const DIAGNOSTICS_STEPS: &[RealtimePostgresMethodStep] = &[
 
 const TRIM_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
-        "TRIM_REALTIME_DEVICE_EVENTS_SQL",
+        "TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
         "tenant_id, derived device_scope_key, and acked_through_seq.",
         "No rows returned.",
     ),
@@ -1695,7 +1700,7 @@ const CLEAR_FENCE_IF_MATCHES_STEPS: &[RealtimePostgresMethodStep] = &[step(
     "Return true when the expected fence was deleted.",
 )];
 
-const RESTORE_DEVICE_STATE_STEPS: &[RealtimePostgresMethodStep] = &[
+const RESTORE_CLIENT_ROUTE_STATE_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
         "UPSERT_REALTIME_SUBSCRIPTION_SQL",
         "Optional restored RealtimeSubscriptionRecord.",
@@ -1717,35 +1722,35 @@ const RESTORE_DEVICE_STATE_STEPS: &[RealtimePostgresMethodStep] = &[
         "No rows returned.",
     ),
     step(
-        "CLEAR_REALTIME_DEVICE_EVENTS_SQL",
+        "CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
         "tenant_id and derived device_scope_key.",
         "Clears previous event window before restored rows are inserted.",
     ),
     step(
-        "UPSERT_REALTIME_DEVICE_EVENT_SQL",
+        "UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL",
         "Each restored event.",
         "No rows returned.",
     ),
 ];
 
-const TAKE_DEVICE_STATE_STEPS: &[RealtimePostgresMethodStep] = &[
+const TAKE_CLIENT_ROUTE_STATE_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
         "LOAD_REALTIME_CHECKPOINT_SQL",
         "tenant_id and derived device_scope_key.",
-        "Maps checkpoint portion of RealtimeDeviceStateSnapshot.",
+        "Maps checkpoint portion of RealtimeClientRouteStateSnapshot.",
     ),
     step(
-        "LIST_REALTIME_DEVICE_EVENTS_SQL",
+        "LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
         "tenant_id, derived device_scope_key, after_seq=0, and bounded limit.",
-        "Maps events portion of RealtimeDeviceStateSnapshot.",
+        "Maps events portion of RealtimeClientRouteStateSnapshot.",
     ),
     step(
         "LOAD_REALTIME_SUBSCRIPTION_SQL",
         "tenant_id and derived device_scope_key.",
-        "Maps subscriptions portion of RealtimeDeviceStateSnapshot.",
+        "Maps subscriptions portion of RealtimeClientRouteStateSnapshot.",
     ),
     step(
-        "CLEAR_REALTIME_DEVICE_EVENTS_SQL",
+        "CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
         "tenant_id and derived device_scope_key.",
         "Deletes source event window after snapshot rows are read.",
     ),
@@ -1763,8 +1768,8 @@ const TAKE_DEVICE_STATE_STEPS: &[RealtimePostgresMethodStep] = &[
 
 const PUBLISH_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
-        "UPSERT_REALTIME_DEVICE_EVENT_SQL",
-        "Each delivered device event mutation.",
+        "UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL",
+        "Each delivered client route event mutation.",
         "No rows returned.",
     ),
     step(
@@ -1776,7 +1781,7 @@ const PUBLISH_STEPS: &[RealtimePostgresMethodStep] = &[
 
 const ACK_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
-        "TRIM_REALTIME_DEVICE_EVENTS_SQL",
+        "TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
         "tenant_id, derived device_scope_key, and effective acked_through_seq.",
         "No rows returned.",
     ),
@@ -1922,17 +1927,17 @@ pub const REALTIME_POSTGRES_METHOD_PLANS: &[RealtimePostgresMethodPlan] = &[
         notes: &["Compare-and-delete by fence_token to avoid clearing a newer fence."],
     },
     RealtimePostgresMethodPlan {
-        name: "RealtimeDeliveryRuntime::restore_device_state",
+        name: "RealtimeDeliveryRuntime::restore_client_route_state",
         atomicity: RealtimePostgresMethodAtomicity::Transaction,
-        transaction_plan_name: Some("RESTORE_REALTIME_DEVICE_STATE_TRANSACTION_PLAN"),
-        steps: RESTORE_DEVICE_STATE_STEPS,
+        transaction_plan_name: Some("RESTORE_REALTIME_CLIENT_ROUTE_STATE_TRANSACTION_PLAN"),
+        steps: RESTORE_CLIENT_ROUTE_STATE_STEPS,
         notes: &["Restore must not expose partial subscription/checkpoint/event-window state."],
     },
     RealtimePostgresMethodPlan {
-        name: "RealtimeDeliveryRuntime::take_device_state",
+        name: "RealtimeDeliveryRuntime::take_client_route_state",
         atomicity: RealtimePostgresMethodAtomicity::Transaction,
-        transaction_plan_name: Some("TAKE_REALTIME_DEVICE_STATE_TRANSACTION_PLAN"),
-        steps: TAKE_DEVICE_STATE_STEPS,
+        transaction_plan_name: Some("TAKE_REALTIME_CLIENT_ROUTE_STATE_TRANSACTION_PLAN"),
+        steps: TAKE_CLIENT_ROUTE_STATE_STEPS,
         notes: &[
             "Take must read source state and delete source durable windows in one transaction.",
         ],

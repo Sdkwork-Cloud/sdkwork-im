@@ -436,7 +436,7 @@ fn run_cluster_handoff_drill_ms() -> f64 {
         subscription(CONVERSATION_ID),
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             TENANT_ID,
             PRINCIPAL_ID,
             PRINCIPAL_KIND,
@@ -477,7 +477,7 @@ fn run_cluster_handoff_drill_ms() -> f64 {
     cluster
         .migrate_node_routes("node_a", "node_b")
         .expect("draining node should migrate route");
-    let routed = cluster.publish_device_event_for_principal_kind(
+    let routed = cluster.publish_client_route_event_for_principal_kind(
         "node_a",
         TENANT_ID,
         PRINCIPAL_ID,

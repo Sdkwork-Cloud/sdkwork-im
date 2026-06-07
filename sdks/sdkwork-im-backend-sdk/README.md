@@ -22,7 +22,7 @@ authority explicitly owns:
 
 Identity, token refresh, account, tenant, and organization context are supplied by the upstream
 platform. This SDK only consumes propagated backend context and does not expose login or client
-device route lifecycle APIs.
+client-route lifecycle APIs.
 
 ## SDK Dependency Contract
 

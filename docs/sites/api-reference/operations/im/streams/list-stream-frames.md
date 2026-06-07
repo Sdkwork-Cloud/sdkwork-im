@@ -24,7 +24,7 @@ Reads a paged window of frames for a stream.
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.stream.listStreamFrames(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Conversation member or registered device read scope.</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Conversation member or client route read scope.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 StreamFrameWindow`</span></div>
 </div>
 
@@ -51,7 +51,7 @@ Reads a paged window of frames for a stream.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |

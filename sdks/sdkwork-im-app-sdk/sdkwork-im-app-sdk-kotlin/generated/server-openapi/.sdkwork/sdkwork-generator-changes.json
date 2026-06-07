@@ -8,7 +8,7 @@
     "sdkType": "app",
     "packageName": "com.sdkwork:im-app-api-generated"
   },
-  "changeFingerprint": "7f4407976689ede24220b8045a549a5e327e5144d6eb729ac33b41c02b1953e9",
+  "changeFingerprint": "d44f57b1988d9de36c5ad6ca252575abeae94df4a0d5fce4a35f1843828adf37",
   "changes": {
     "createdGeneratedFiles": [
       "build.gradle.kts",
@@ -22,8 +22,6 @@
       "src/main/kotlin/com/sdkwork/im/app/api/generated/api/Api.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ApiPaths.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/api/AutomationApi.kt",
-      "src/main/kotlin/com/sdkwork/im/app/api/generated/api/DeviceApi.kt",
-      "src/main/kotlin/com/sdkwork/im/app/api/generated/api/IotApi.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/api/NotificationApi.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/api/PortalApi.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ProviderApi.kt",
@@ -32,7 +30,6 @@
       "src/main/kotlin/com/sdkwork/im/app/api/generated/AutomationExecutionRequestResponse.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/CompleteAgentResponseRequest.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/CompleteAgentToolCallRequest.kt",
-      "src/main/kotlin/com/sdkwork/im/app/api/generated/DeviceTwinView.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/http/HttpClient.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationListResponse.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationRequestResponse.kt",
@@ -47,9 +44,7 @@
       "src/main/kotlin/com/sdkwork/im/app/api/generated/Sender.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/StartAgentResponseRequest.kt",
       "src/main/kotlin/com/sdkwork/im/app/api/generated/StreamFrame.kt",
-      "src/main/kotlin/com/sdkwork/im/app/api/generated/StreamSession.kt",
-      "src/main/kotlin/com/sdkwork/im/app/api/generated/UpdateDeviceTwinDesiredRequest.kt",
-      "src/main/kotlin/com/sdkwork/im/app/api/generated/UpdateDeviceTwinReportedRequest.kt"
+      "src/main/kotlin/com/sdkwork/im/app/api/generated/StreamSession.kt"
     ],
     "updatedGeneratedFiles": [],
     "unchangedGeneratedFiles": [
@@ -82,8 +77,6 @@
           "src/main/kotlin/com/sdkwork/im/app/api/generated/api/Api.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ApiPaths.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/api/AutomationApi.kt",
-          "src/main/kotlin/com/sdkwork/im/app/api/generated/api/DeviceApi.kt",
-          "src/main/kotlin/com/sdkwork/im/app/api/generated/api/IotApi.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/api/NotificationApi.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/api/PortalApi.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/api/ProviderApi.kt",
@@ -92,7 +85,6 @@
           "src/main/kotlin/com/sdkwork/im/app/api/generated/AutomationExecutionRequestResponse.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/CompleteAgentResponseRequest.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/CompleteAgentToolCallRequest.kt",
-          "src/main/kotlin/com/sdkwork/im/app/api/generated/DeviceTwinView.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/http/HttpClient.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationListResponse.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/NotificationRequestResponse.kt",
@@ -107,9 +99,7 @@
           "src/main/kotlin/com/sdkwork/im/app/api/generated/Sender.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/StartAgentResponseRequest.kt",
           "src/main/kotlin/com/sdkwork/im/app/api/generated/StreamFrame.kt",
-          "src/main/kotlin/com/sdkwork/im/app/api/generated/StreamSession.kt",
-          "src/main/kotlin/com/sdkwork/im/app/api/generated/UpdateDeviceTwinDesiredRequest.kt",
-          "src/main/kotlin/com/sdkwork/im/app/api/generated/UpdateDeviceTwinReportedRequest.kt"
+          "src/main/kotlin/com/sdkwork/im/app/api/generated/StreamSession.kt"
         ]
       },
       {

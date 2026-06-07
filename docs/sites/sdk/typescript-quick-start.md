@@ -76,7 +76,7 @@ console.log(inbox.items.length);
 await sdk.sync.catchUp({ limit: 20 });
 
 const live = await sdk.connect({
-  deviceId: "device-web-01",
+  clientRouteId: "device-web-01",
 });
 
 live.messages.on((message, context) => {

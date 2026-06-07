@@ -77,6 +77,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Prepare SDKWork source dependencies
+        env:
+          SDKWORK_RELEASE_TOKEN: ${{ secrets.SDKWORK_RELEASE_TOKEN || github.token }}
+        run: node scripts/prepare-ci-dependencies.mjs
+
       - name: Run commercial gates governance node tests
         run: node scripts/run-commercial-gates-governance-node-tests.mjs
 
@@ -140,10 +145,10 @@ jobs:
         run: cargo test -p session-gateway --tests
 
       - name: Test session-gateway device registration actor-kind conflict
-        run: cargo test -p session-gateway --test http_smoke_test test_device_session_resume_rejects_same_device_id_with_different_actor_kind_over_http -- --exact
+        run: cargo test -p session-gateway --test http_smoke_test test_presence_heartbeat_rejects_same_route_id_with_different_actor_kind_over_http -- --exact
 
       - name: Test session-gateway device registration principal conflict
-        run: cargo test -p session-gateway --test http_smoke_test test_device_session_resume_rejects_same_device_id_with_different_principal_over_http -- --exact
+        run: cargo test -p session-gateway --test http_smoke_test test_presence_heartbeat_rejects_same_route_id_with_different_principal_over_http -- --exact
 
       - name: Test session-gateway oversized realtime event types payload
         run: cargo test -p session-gateway --test http_smoke_test test_realtime_subscription_sync_rejects_oversized_event_types_payload_over_http -- --exact
@@ -156,9 +161,6 @@ jobs:
 
       - name: Test session-gateway websocket oversized frame type
         run: cargo test -p session-gateway --test websocket_smoke_test test_realtime_websocket_rejects_oversized_frame_type -- --exact
-
-      - name: Test session-gateway device registration suppresses conflicting provider side effects
-        run: cargo test -p session-gateway --test device_access_provider_mainline_test test_conflicting_device_session_resume_does_not_call_provider_for_second_owner -- --exact
 
       - name: Test PostgreSQL realtime SQL contracts
         run: cargo test -p im-postgres-realtime-contracts --test postgres_realtime_contracts_test
@@ -218,15 +220,6 @@ jobs:
       - name: Test projection contacts actor-kind isolation
         run: cargo test -p projection-service --test http_smoke_test test_contacts_query_rejects_same_actor_id_with_different_actor_kind_over_http -- --exact
 
-      - name: Test projection device registration actor-kind conflict
-        run: cargo test -p projection-service --test http_smoke_test test_device_registration_rejects_same_device_id_with_different_actor_kind_over_http -- --exact
-
-      - name: Test projection device registration principal conflict
-        run: cargo test -p projection-service --test http_smoke_test test_device_registration_rejects_same_device_id_with_different_principal_over_http -- --exact
-
-      - name: Test projection device sync actor-kind isolation
-        run: cargo test -p projection-service --test http_smoke_test test_device_sync_feed_isolated_by_actor_kind_over_http -- --exact
-
       - name: Test local-minimal end-to-end flow
         run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact
 
@@ -257,9 +250,6 @@ jobs:
       - name: Test commercial readiness CLI gate
         run: cargo test -p local-minimal-node --test runtime_cli_error_handling_test
 
-      - name: Test local-minimal device registration suppresses conflicting provider side effects
-        run: cargo test -p local-minimal-node --test device_access_provider_mainline_test test_conflicting_device_register_does_not_call_provider_for_second_owner -- --exact
-
       - name: Test local-minimal principal-profile oversized creator attributes
         run: cargo test -p local-minimal-node --test principal_profile_provider_mainline_test test_local_principal_profile_provider_rejects_oversized_creator_attributes_on_create_conversation -- --exact
 
@@ -283,6 +273,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Prepare SDKWork source dependencies
+        env:
+          SDKWORK_RELEASE_TOKEN: ${{ secrets.SDKWORK_RELEASE_TOKEN || github.token }}
+        run: node scripts/prepare-ci-dependencies.mjs
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -292,7 +292,7 @@ jobs:
         uses: swatinem/rust-cache@v2
 
       - name: Test sdkwork-rtc-signaling-service
-        run: cargo test --manifest-path ../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --tests
+        run: cargo test --manifest-path ../../../../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --tests
 
       - name: Test media-service
         run: cargo test -p media-service --tests
@@ -304,13 +304,13 @@ jobs:
         run: cargo test -p audit-service --tests
 
       - name: Test rtc duplicate session create
-        run: cargo test --manifest-path ../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_is_rejected -- --exact
+        run: cargo test --manifest-path ../../../../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_is_rejected -- --exact
 
       - name: Test rtc duplicate session create actor-kind scope
-        run: cargo test --manifest-path ../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_with_same_actor_id_but_different_actor_kind_is_conflict -- --exact
+        run: cargo test --manifest-path ../../../../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_with_same_actor_id_but_different_actor_kind_is_conflict -- --exact
 
       - name: Test rtc provider callback oversized payload json
-        run: cargo test --manifest-path ../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_map_rtc_provider_callback_rejects_oversized_payload_json_over_http -- --exact
+        run: cargo test --manifest-path ../../../../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_map_rtc_provider_callback_rejects_oversized_payload_json_over_http -- --exact
 
       - name: Test local-minimal duplicate rtc create
         run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idempotent -- --exact
@@ -405,7 +405,7 @@ jobs:
       - name: Strict clippy downstream exactly-once scope
         run: |
           cargo clippy --no-deps -p media-service -p streaming-service -p audit-service -p local-minimal-node --tests -- -D warnings
-          cargo clippy --manifest-path ../sdkwork-rtc/Cargo.toml --no-deps -p sdkwork-rtc-signaling-service --tests -- -D warnings
+          cargo clippy --manifest-path ../../../../sdkwork-rtc/Cargo.toml --no-deps -p sdkwork-rtc-signaling-service --tests -- -D warnings
 
   windows-commercial-smoke:
     name: Windows Commercial Smoke
@@ -417,6 +417,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Prepare SDKWork source dependencies
+        env:
+          SDKWORK_RELEASE_TOKEN: ${{ secrets.SDKWORK_RELEASE_TOKEN || github.token }}
+        run: node scripts/prepare-ci-dependencies.mjs
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -462,12 +472,6 @@ jobs:
       - name: Test local-minimal contacts actor-kind isolation
         run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_same_actor_id_with_different_actor_kind_on_contacts_query -- --exact
 
-      - name: Test local-minimal device stream actor-kind isolation
-        run: cargo test -p local-minimal-node --test device_stream_e2e_test test_local_minimal_profile_device_stream_rejects_same_actor_id_different_actor_kind -- --exact
-
-      - name: Test local-minimal user actor cannot inherit system device command access
-        run: cargo test -p local-minimal-node --test device_stream_e2e_test test_local_minimal_profile_user_actor_cannot_inherit_system_device_command_access -- --exact
-
       - name: Test local-minimal public auth
         run: cargo test -p local-minimal-node --test public_auth_e2e_test
 
@@ -491,6 +495,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Prepare SDKWork source dependencies
+        env:
+          SDKWORK_RELEASE_TOKEN: ${{ secrets.SDKWORK_RELEASE_TOKEN || github.token }}
+        run: node scripts/prepare-ci-dependencies.mjs
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -513,6 +527,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Prepare SDKWork source dependencies
+        env:
+          SDKWORK_RELEASE_TOKEN: ${{ secrets.SDKWORK_RELEASE_TOKEN || github.token }}
+        run: node scripts/prepare-ci-dependencies.mjs
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable

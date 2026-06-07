@@ -48,7 +48,6 @@ client.set_header('X-Custom-Header', 'value')
 
 ## API Modules
 
-- `client.device` - device API
 - `client.presence` - presence API
 - `client.realtime` - realtime API
 - `client.rtc` - rtc API
@@ -57,18 +56,6 @@ client.set_header('X-Custom-Header', 'value')
 - `client.streams` - streams API
 
 ## Usage Examples
-
-### device
-
-```python
-# Resume a device runtime session
-body = {
-    'deviceId': 'deviceId',
-    'lastSeenSyncSeq': 1,
-}
-result = client.device.sessions.resume(body)
-print(result)
-```
 
 ### presence
 

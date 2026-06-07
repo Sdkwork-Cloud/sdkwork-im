@@ -1,8 +1,5 @@
 use super::*;
 
-const DEVICE_SCOPE_KIND: &str = "device";
-const DEVICE_TELEMETRY_STREAM_TYPE: &str = "device.telemetry";
-const DEVICE_COMMAND_STREAM_TYPE: &str = "device.command";
 const LOCAL_NODE_MAX_DEVICE_ID_BYTES: usize = 256;
 
 pub(super) fn ensure_audit_read_access(auth: &AppContext) -> Result<(), ApiError> {
@@ -38,11 +35,8 @@ pub(super) fn ensure_ops_read_access(auth: &AppContext) -> Result<(), ApiError> 
     ))
 }
 
-pub(super) fn ensure_registered_device(
-    state: &AppState,
-    auth: &AppContext,
-) -> Result<(), ApiError> {
-    state.require_registered_device_binding(auth)
+pub(super) fn ensure_client_route_key(state: &AppState, auth: &AppContext) -> Result<(), ApiError> {
+    state.require_client_route_key_binding(auth)
 }
 
 fn ensure_conversation_not_archived(
@@ -282,13 +276,17 @@ pub(super) fn ensure_stream_open_access(
     auth: &AppContext,
     request: &OpenStreamRequest,
 ) -> Result<(), ApiError> {
-    ensure_device_stream_shape(request)?;
+    reject_aiot_owned_stream_scope(request.scope_kind.as_str(), request.stream_type.as_str())?;
 
     match state
         .streaming_runtime
         .session(auth, request.stream_id.as_str())
     {
         Ok(session) => {
+            reject_aiot_owned_stream_scope(
+                session.scope_kind.as_str(),
+                session.stream_type.as_str(),
+            )?;
             if session.scope_kind == "conversation" {
                 ensure_conversation_bound_write_access(
                     state,
@@ -296,8 +294,6 @@ pub(super) fn ensure_stream_open_access(
                     session.scope_id.as_str(),
                     "stream.open",
                 )?;
-            } else if session.scope_kind == DEVICE_SCOPE_KIND {
-                ensure_device_stream_write_access(state, auth, &session)?;
             }
         }
         Err(error) if error.code() == "stream_not_found" => {
@@ -308,8 +304,6 @@ pub(super) fn ensure_stream_open_access(
                     request.scope_id.as_str(),
                     "stream.open",
                 )?;
-            } else if request.scope_kind == DEVICE_SCOPE_KIND {
-                ensure_device_stream_open_access(state, auth, request)?;
             }
         }
         Err(error) => return Err(error.into()),
@@ -324,10 +318,9 @@ pub(super) fn ensure_stream_session_conversation_member(
     stream_id: &str,
 ) -> Result<(), ApiError> {
     let session = state.streaming_runtime.session(auth, stream_id)?;
+    reject_aiot_owned_stream_scope(session.scope_kind.as_str(), session.stream_type.as_str())?;
     if session.scope_kind == "conversation" {
         ensure_conversation_member(state, auth, session.scope_id.as_str())?;
-    } else if session.scope_kind == DEVICE_SCOPE_KIND {
-        ensure_device_stream_read_access(state, auth, &session)?;
     }
 
     Ok(())
@@ -340,211 +333,23 @@ pub(super) fn ensure_stream_session_write_access(
     capability: &str,
 ) -> Result<(), ApiError> {
     let session = state.streaming_runtime.session(auth, stream_id)?;
+    reject_aiot_owned_stream_scope(session.scope_kind.as_str(), session.stream_type.as_str())?;
     if session.scope_kind == "conversation" {
         ensure_conversation_bound_write_access(state, auth, session.scope_id.as_str(), capability)?;
-    } else if session.scope_kind == DEVICE_SCOPE_KIND {
-        ensure_device_stream_write_access(state, auth, &session)?;
     }
 
     Ok(())
 }
 
-fn ensure_device_stream_shape(request: &OpenStreamRequest) -> Result<(), ApiError> {
-    let is_device_stream = matches!(
-        request.stream_type.as_str(),
-        DEVICE_TELEMETRY_STREAM_TYPE | DEVICE_COMMAND_STREAM_TYPE
-    );
-
-    if is_device_stream && request.scope_kind != DEVICE_SCOPE_KIND {
+fn reject_aiot_owned_stream_scope(scope_kind: &str, stream_type: &str) -> Result<(), ApiError> {
+    if scope_kind == "device" || stream_type.starts_with("device.") {
         return Err(ApiError::bad_request(
-            "device_scope_invalid",
-            "device streams must use device scope",
-        ));
-    }
-
-    if request.scope_kind == DEVICE_SCOPE_KIND && !is_device_stream {
-        return Err(ApiError::bad_request(
-            "device_stream_type_invalid",
-            "device scope currently supports only device.telemetry and device.command streams",
+            "aiot_stream_scope_unsupported",
+            "AIoT stream scopes are owned by sdkwork-aiot",
         ));
     }
 
     Ok(())
-}
-
-fn ensure_device_stream_open_access(
-    state: &AppState,
-    auth: &AppContext,
-    request: &OpenStreamRequest,
-) -> Result<(), ApiError> {
-    ensure_device_stream_registration(state, auth, request.scope_id.as_str())?;
-    ensure_device_stream_permission(
-        auth,
-        request.scope_id.as_str(),
-        request.stream_type.as_str(),
-        true,
-    )
-}
-
-fn ensure_device_stream_read_access(
-    state: &AppState,
-    auth: &AppContext,
-    session: &im_domain_core::stream::StreamSession,
-) -> Result<(), ApiError> {
-    ensure_device_stream_registration(state, auth, session.scope_id.as_str())?;
-    ensure_device_stream_permission(
-        auth,
-        session.scope_id.as_str(),
-        session.stream_type.as_str(),
-        false,
-    )
-}
-
-fn ensure_device_stream_write_access(
-    state: &AppState,
-    auth: &AppContext,
-    session: &im_domain_core::stream::StreamSession,
-) -> Result<(), ApiError> {
-    ensure_device_stream_registration(state, auth, session.scope_id.as_str())?;
-    ensure_device_stream_permission(
-        auth,
-        session.scope_id.as_str(),
-        session.stream_type.as_str(),
-        true,
-    )
-}
-
-fn ensure_device_stream_registration(
-    state: &AppState,
-    auth: &AppContext,
-    device_id: &str,
-) -> Result<(), ApiError> {
-    validate_device_id(device_id)?;
-
-    if let Some(bound_device_id) = auth.device_id.as_deref() {
-        validate_device_id(bound_device_id)?;
-    }
-
-    if auth.device_id.as_deref() == Some(device_id) {
-        state.require_registered_device_binding(auth)?;
-    }
-
-    if auth.actor_kind == "device" {
-        if auth.device_id.as_deref() == Some(device_id) {
-            return Ok(());
-        }
-
-        return Err(ApiError::forbidden(
-            "device_permission_denied",
-            format!("device is not registered for principal: {device_id}"),
-        ));
-    }
-
-    if auth.actor_kind != "user" {
-        return Err(ApiError::forbidden(
-            "device_permission_denied",
-            format!("device is not registered for principal: {device_id}"),
-        ));
-    }
-
-    let owns_device = state
-        .projection_service
-        .registered_devices_for_principal_kind(
-            auth.tenant_id.as_str(),
-            auth.actor_id.as_str(),
-            auth.actor_kind.as_str(),
-        )
-        .into_iter()
-        .any(|item| item.device_id == device_id);
-
-    if owns_device {
-        return Ok(());
-    }
-
-    Err(ApiError::forbidden(
-        "device_permission_denied",
-        format!("device is not registered for principal: {device_id}"),
-    ))
-}
-
-fn ensure_device_stream_permission(
-    auth: &AppContext,
-    device_id: &str,
-    stream_type: &str,
-    write: bool,
-) -> Result<(), ApiError> {
-    match stream_type {
-        DEVICE_TELEMETRY_STREAM_TYPE => {
-            if write {
-                ensure_bound_device_actor(auth, device_id)?;
-                return Ok(());
-            }
-
-            if auth.actor_kind == "device" {
-                ensure_bound_device_actor(auth, device_id)?;
-                return Ok(());
-            }
-
-            if auth.has_permission("device.telemetry.read") {
-                return Ok(());
-            }
-
-            Err(ApiError::forbidden(
-                "device_permission_denied",
-                "missing required permission: device.telemetry.read",
-            ))
-        }
-        DEVICE_COMMAND_STREAM_TYPE => {
-            if auth.actor_kind == "device" {
-                ensure_bound_device_actor(auth, device_id)?;
-                return Ok(());
-            }
-
-            if auth.has_permission("device.command.send") {
-                return Ok(());
-            }
-
-            Err(ApiError::forbidden(
-                "device_permission_denied",
-                "missing required permission: device.command.send",
-            ))
-        }
-        _ => Err(ApiError::bad_request(
-            "device_stream_type_invalid",
-            format!("unsupported device stream type: {stream_type}"),
-        )),
-    }
-}
-
-fn ensure_bound_device_actor(auth: &AppContext, device_id: &str) -> Result<(), ApiError> {
-    validate_device_id(device_id)?;
-
-    if auth.actor_kind != "device" {
-        return Err(ApiError::forbidden(
-            "device_permission_denied",
-            "device telemetry writes must come from a bound device actor",
-        ));
-    }
-
-    match auth.device_id.as_deref() {
-        Some(bound_device_id) => {
-            validate_device_id(bound_device_id)?;
-            if bound_device_id == device_id {
-                return Ok(());
-            }
-
-            Err(ApiError::bad_request(
-                "device_id_mismatch",
-                format!(
-                    "device stream scope does not match auth context device: expected {bound_device_id}, got {device_id}"
-                ),
-            ))
-        }
-        None => Err(ApiError::bad_request(
-            "device_id_missing",
-            "device stream access requires an auth context device id",
-        )),
-    }
 }
 
 fn validate_device_id(device_id: &str) -> Result<(), ApiError> {

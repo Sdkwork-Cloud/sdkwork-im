@@ -4,7 +4,7 @@ use craw_chat_contract_control::{PresenceStateRecord, PresenceStateStore};
 use craw_chat_contract_core::ContractError;
 use im_adapters_local_memory::MemoryPresenceStateStore;
 use im_app_context::AppContext;
-use im_domain_core::device_session::{DevicePresenceStatus, DevicePresenceView};
+use im_domain_core::presence::{PresenceClientView, PresenceStatus};
 
 fn demo_auth(actor_kind: &str, session_id: &str, device_id: &str) -> AppContext {
     AppContext {
@@ -26,7 +26,7 @@ fn demo_auth(actor_kind: &str, session_id: &str, device_id: &str) -> AppContext 
 
 fn presence_record(
     session_id: &str,
-    status: DevicePresenceStatus,
+    status: PresenceStatus,
     last_seen_at: &str,
 ) -> PresenceStateRecord {
     PresenceStateRecord {
@@ -34,7 +34,7 @@ fn presence_record(
         principal_kind: "user".into(),
         principal_id: "u_demo".into(),
         device_id: "d_cold".into(),
-        presence: DevicePresenceView {
+        presence: PresenceClientView {
             tenant_id: "t_demo".into(),
             principal_id: "u_demo".into(),
             device_id: "d_cold".into(),
@@ -61,7 +61,7 @@ impl HeartbeatAfterStaleListStore {
         inner
             .save_state(presence_record(
                 "s_old",
-                DevicePresenceStatus::Online,
+                PresenceStatus::Online,
                 "2026-05-06T00:00:00.000Z",
             ))
             .expect("seed stale online presence should succeed");
@@ -108,7 +108,7 @@ impl PresenceStateStore for HeartbeatAfterStaleListStore {
             .list_online_states_seen_at_or_before(cutoff_seen_at, limit)?;
         self.inner.save_state(presence_record(
             "s_fresh",
-            DevicePresenceStatus::Online,
+            PresenceStatus::Online,
             self.refreshed_at,
         ))?;
         Ok(stale)
@@ -137,12 +137,12 @@ impl PresenceStateStore for HeartbeatAfterStaleListStore {
 #[test]
 fn test_runtime_restores_presence_as_offline_and_requires_fresh_resume_after_rebuild() {
     let presence_store = Arc::new(MemoryPresenceStateStore::default());
-    let runtime_before = session_gateway::DevicePresenceRuntime::with_store(presence_store.clone());
+    let runtime_before = session_gateway::PresenceRuntime::with_store(presence_store.clone());
     runtime_before
-        .register_device(&demo_auth("user", "s_before", "d_phone"), "d_phone")
+        .register_client_route(&demo_auth("user", "s_before", "d_phone"), "d_phone")
         .expect("phone registration should persist presence inventory");
     runtime_before
-        .register_device(&demo_auth("user", "s_before", "d_pad"), "d_pad")
+        .register_client_route(&demo_auth("user", "s_before", "d_pad"), "d_pad")
         .expect("pad registration should persist presence inventory");
 
     let resumed = runtime_before
@@ -156,7 +156,7 @@ fn test_runtime_restores_presence_as_offline_and_requires_fresh_resume_after_reb
         .expect("initial resume should succeed");
     assert_eq!(resumed.presence.devices[0].status.as_str(), "online");
 
-    let runtime_after = session_gateway::DevicePresenceRuntime::with_store(presence_store);
+    let runtime_after = session_gateway::PresenceRuntime::with_store(presence_store);
 
     let restored = runtime_after
         .presence_snapshot(
@@ -200,10 +200,10 @@ fn test_runtime_restores_presence_as_offline_and_requires_fresh_resume_after_reb
 
 #[test]
 fn test_presence_runtime_resume_returns_incremental_sync_window_from_runtime_link_owner() {
-    let runtime = session_gateway::DevicePresenceRuntime::default();
+    let runtime = session_gateway::PresenceRuntime::default();
     runtime
-        .register_device(&demo_auth("user", "s_demo", "d_pad"), "d_pad")
-        .expect("device registration should seed presence state");
+        .register_client_route(&demo_auth("user", "s_demo", "d_pad"), "d_pad")
+        .expect("client route registration should seed presence state");
 
     let resumed = runtime
         .resume(
@@ -223,10 +223,10 @@ fn test_presence_runtime_resume_returns_incremental_sync_window_from_runtime_lin
 #[test]
 fn test_presence_runtime_expires_stale_online_devices_and_requires_fresh_resume() {
     let presence_store = Arc::new(MemoryPresenceStateStore::default());
-    let runtime = session_gateway::DevicePresenceRuntime::with_store(presence_store.clone());
+    let runtime = session_gateway::PresenceRuntime::with_store(presence_store.clone());
     runtime
-        .register_device(&demo_auth("user", "s_old", "d_pad"), "d_pad")
-        .expect("device registration should seed presence state");
+        .register_client_route(&demo_auth("user", "s_old", "d_pad"), "d_pad")
+        .expect("client route registration should seed presence state");
     runtime
         .resume(
             &demo_auth("user", "s_old", "d_pad"),
@@ -284,13 +284,13 @@ fn test_presence_runtime_expires_stale_online_devices_loaded_only_from_store() {
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_cold".into(),
-            presence: DevicePresenceView {
+            presence: PresenceClientView {
                 tenant_id: "t_demo".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_cold".into(),
                 platform: None,
                 session_id: Some("s_old".into()),
-                status: DevicePresenceStatus::Online,
+                status: PresenceStatus::Online,
                 last_sync_seq: 17,
                 last_resume_at: Some("2026-05-06T00:00:00.000Z".into()),
                 last_seen_at: Some("2026-05-06T00:00:00.000Z".into()),
@@ -301,7 +301,7 @@ fn test_presence_runtime_expires_stale_online_devices_loaded_only_from_store() {
         .expect("seeded online presence should be persisted");
 
     let runtime_after_restart =
-        session_gateway::DevicePresenceRuntime::with_store(presence_store.clone());
+        session_gateway::PresenceRuntime::with_store(presence_store.clone());
 
     let expired = runtime_after_restart
         .expire_stale_online_devices("2026-05-06T00:00:01.000Z", "2026-05-06T00:00:02.000Z")
@@ -339,7 +339,7 @@ fn test_presence_runtime_does_not_expire_device_refreshed_after_stale_scan() {
     let presence_store = Arc::new(HeartbeatAfterStaleListStore::new(
         "2026-05-06T00:00:03.000Z",
     ));
-    let runtime = session_gateway::DevicePresenceRuntime::with_store(presence_store.clone());
+    let runtime = session_gateway::PresenceRuntime::with_store(presence_store.clone());
 
     let expired = runtime
         .expire_stale_online_devices("2026-05-06T00:00:01.000Z", "2026-05-06T00:00:02.000Z")

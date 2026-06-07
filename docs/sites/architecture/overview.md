@@ -29,7 +29,7 @@ documentation is easiest to understand through five architectural lenses:
 `services/local-minimal-node` is the current default business runtime. It assembles the following
 domains into one HTTP process:
 
-- device route recovery, presence, and realtime delivery
+- client route recovery, presence, and realtime delivery
 - conversation lifecycle, inbox projection, membership, and read state
 - messages, media, streams, and RTC
 - notifications, automation, audit, and operator diagnostics
@@ -93,8 +93,6 @@ The platform-default provider registry currently selects these defaults:
 | `rtc` | `rtc-volcengine` |
 | `object-storage` | `object-storage-volcengine` |
 | `principal-profile` | `principal-profile-upstream-context` (default), `principal-profile-external-catalog` (read-only catalog mode) |
-| `iot-access` | `iot-access-local` |
-| `iot-protocol` | `iot-mqtt` |
 
 These defaults come from the platform provider registry contract and are surfaced through runtime
 tests for app, ops, and control-plane endpoints.

@@ -44,7 +44,7 @@ export const MobileLinkModal: React.FC<MobileLinkModalProps> = ({ onClose }) => 
 
           <div className="w-48 h-48 bg-white mx-auto rounded-2xl p-3 mb-8 shadow-xl relative z-10">
             <img
-              src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=clawchat://login/device_sync&color=000000&bgcolor=ffffff"
+              src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=clawchat://login/client_route_sync&color=000000&bgcolor=ffffff"
               alt="QR Code"
               className="w-full h-full"
             />

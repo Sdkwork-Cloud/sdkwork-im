@@ -4,10 +4,7 @@ use axum::extract::{DefaultBodyLimit, Extension, Path, Query, State};
 use axum::http::{HeaderMap, Request, StatusCode, header::CONTENT_TYPE};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
-use axum::{
-    Json, Router,
-    routing::{get, post},
-};
+use axum::{Json, Router, routing::get};
 use craw_chat_api_registry::HttpMethod;
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
@@ -19,22 +16,9 @@ use tokio::sync::Semaphore;
 
 use super::{
     ContactWindowView, ConversationMemberDirectoryEntry, ConversationSummaryView, InboxWindowView,
-    MessageInteractionSummaryView, ProjectionAccessError, RegisteredDeviceView,
-    TimelineProjectionService, TimelineWindowView,
+    MessageInteractionSummaryView, ProjectionAccessError, TimelineProjectionService,
+    TimelineWindowView,
 };
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RegisterDeviceRequest {
-    device_id: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct SyncFeedQuery {
-    after_seq: Option<u64>,
-    limit: Option<usize>,
-}
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -72,8 +56,6 @@ struct MemberDirectoryResponse {
 struct PinnedMessagesResponse {
     items: Vec<MessageInteractionSummaryView>,
 }
-
-type DeviceSyncFeedResponse = super::DeviceSyncFeedWindowView;
 
 const PROJECTION_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "CRAW_CHAT_PROJECTION_MAX_IN_FLIGHT_REQUESTS";
 const PROJECTION_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
@@ -185,11 +167,6 @@ pub fn build_app(service: Arc<TimelineProjectionService>) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
-        .route("/im/v3/api/devices/register", post(register_device))
-        .route(
-            "/im/v3/api/devices/{device_id}/sync_feed",
-            get(get_device_sync_feed),
-        )
         .route("/im/v3/api/chat/contacts", get(get_contacts))
         .route("/im/v3/api/chat/inbox", get(get_inbox))
         .route(
@@ -302,7 +279,7 @@ fn projection_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
         title: "Craw Chat Projection Service API",
         version: env!("CARGO_PKG_VERSION"),
-        description: "Live OpenAPI contract generated from the projection-service router for inbox, timeline, contacts, read cursor, sync_feed, and interaction summary queries.",
+        description: "Live OpenAPI contract generated from the projection-service router for inbox, timeline, contacts, read cursor, and interaction summary queries.",
         openapi_path: "/openapi.json",
         docs_path: "/docs",
     }
@@ -311,7 +288,6 @@ fn projection_service_openapi_spec() -> OpenApiServiceSpec<'static> {
 fn projection_service_tag(path: &str, _method: HttpMethod) -> String {
     match path {
         "/healthz" | "/readyz" => "system".to_owned(),
-        path if path.starts_with("/im/v3/api/devices/") => "devices".to_owned(),
         "/im/v3/api/chat/contacts" => "contacts".to_owned(),
         "/im/v3/api/chat/inbox" => "inbox".to_owned(),
         _ => "conversations".to_owned(),
@@ -344,35 +320,6 @@ fn projection_service_method_display(method: HttpMethod) -> &'static str {
         HttpMethod::Post => "Post",
         HttpMethod::Put => "Put",
     }
-}
-
-async fn register_device(
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
-    State(service): State<Arc<TimelineProjectionService>>,
-    Json(request): Json<RegisterDeviceRequest>,
-) -> Result<Json<RegisteredDeviceView>, ProjectionApiError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    Ok(Json(service.register_device_from_auth_context(
-        &auth,
-        request.device_id,
-    )?))
-}
-
-async fn get_device_sync_feed(
-    Path(device_id): Path<String>,
-    Query(query): Query<SyncFeedQuery>,
-    auth: Option<Extension<AppContext>>,
-    headers: HeaderMap,
-    State(service): State<Arc<TimelineProjectionService>>,
-) -> Result<Json<DeviceSyncFeedResponse>, ProjectionApiError> {
-    let auth = resolve_request_app_context(auth, &headers)?;
-    Ok(Json(service.device_sync_feed_window_from_auth_context(
-        &auth,
-        device_id.as_str(),
-        query.after_seq,
-        query.limit,
-    )?))
 }
 
 async fn get_timeline(

@@ -9,9 +9,9 @@
 
 ## 2. 本轮为什么做这个增量
 
-前面已经把 realtime principal -> device fanout target 的 owner 收口到 `projection-service`，但 `services/local-minimal-node/src/node/effects.rs` 里公共 helper `publish_realtime_event_to_principals(...)` 仍然在 edge 侧自己抓取 `auth.tenant_id`，再直接调用 `realtime_fanout_targets_for_principals(tenant_id, principal_ids)`。
+前面已经把 realtime principal -> client route fanout target 的 owner 收口到 `projection-service`，但 `services/local-minimal-node/src/node/effects.rs` 里公共 helper `publish_realtime_event_to_principals(...)` 仍然在 edge 侧自己抓取 `auth.tenant_id`，再直接调用 `realtime_fanout_targets_for_principals(tenant_id, principal_ids)`。
 
-这说明 `CP05-4` 里 projection realtime fanout seam 还差最后一层 auth-context capture owner：message / membership / handoff / stream 四类 realtime side-effect 虽然已经不再本地重建 device target，但仍保留了一层 duplicated projection access glue。为避免把这层 edge glue 误当成已经完全 owner 化，本轮继续停留在 `Wave B / Step 05 / CP05-4`，只收这条 seam。
+这说明 `CP05-4` 里 projection realtime fanout seam 还差最后一层 auth-context capture owner：message / membership / handoff / stream 四类 realtime side-effect 虽然已经不再本地重建 client route target，但仍保留了一层 duplicated projection access glue。为避免把这层 edge glue 误当成已经完全 owner 化，本轮继续停留在 `Wave B / Step 05 / CP05-4`，只收这条 seam。
 
 ## 3. 本轮实际完成
 

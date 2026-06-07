@@ -3,7 +3,6 @@ import SDKworkCommon
 
 public class SdkworkImClient {
     private let httpClient: HttpClient
-    public let device: DeviceApi
     public let presence: PresenceApi
     public let realtime: RealtimeApi
     public let rtc: RtcApi
@@ -13,7 +12,6 @@ public class SdkworkImClient {
 
     public init(baseURL: String) {
         self.httpClient = HttpClient(baseURL: baseURL)
-        self.device = DeviceApi(client: httpClient)
         self.presence = PresenceApi(client: httpClient)
         self.realtime = RealtimeApi(client: httpClient)
         self.rtc = RtcApi(client: httpClient)
@@ -24,7 +22,6 @@ public class SdkworkImClient {
 
     public init(config: SdkConfig) {
         self.httpClient = HttpClient(config: config)
-        self.device = DeviceApi(client: httpClient)
         self.presence = PresenceApi(client: httpClient)
         self.realtime = RealtimeApi(client: httpClient)
         self.rtc = RtcApi(client: httpClient)

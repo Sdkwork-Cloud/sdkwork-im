@@ -1,1 +1,0 @@
-{"version":3,"file":"device-twin-view.d.ts","sourceRoot":"","sources":["../../src/types/device-twin-view.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,cAAc;IAC7B,QAAQ,EAAE,MAAM,CAAC;IACjB,QAAQ,EAAE,MAAM,CAAC;IACjB,gBAAgB,EAAE,MAAM,CAAC;IACzB,iBAAiB,EAAE,MAAM,CAAC;IAC1B,SAAS,EAAE,MAAM,CAAC;CACnB"}

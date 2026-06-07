@@ -6,6 +6,7 @@ import type {
   CreateAgentDialogRequest,
   CreateConversationRequest,
   CreateConversationResult,
+  InboxResponse,
   ListMembersResponse,
   MessageInteractionSummaryView,
   PinnedMessagesResponse,
@@ -24,6 +25,10 @@ export class ImConversationsModule {
 
   create(body: CreateConversationRequest): Promise<CreateConversationResult> {
     return this.transportClient.chat.conversations.create(body);
+  }
+
+  list(params?: QueryParams): Promise<InboxResponse> {
+    return this.transportClient.chat.inbox.retrieve(params);
   }
 
   createAgentDialog(body: CreateAgentDialogRequest): Promise<CreateConversationResult> {

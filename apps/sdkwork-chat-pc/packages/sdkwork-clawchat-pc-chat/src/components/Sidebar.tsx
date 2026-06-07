@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from "motion/react";
 import { Avatar, IconButton } from "@sdkwork/clawchat-pc-commons";
@@ -23,6 +23,7 @@ import {
   Cloud,
 } from "lucide-react";
 import { toast } from "./Toast";
+import { SDKWORK_CHAT_SESSION_CHANGED_EVENT } from "@sdkwork/clawchat-pc-core";
 import { contactService } from "../services/ContactService";
 import {
   settingsService,
@@ -51,10 +52,65 @@ export const Sidebar: React.FC<SidebarProps> = ({
   chatUnreadCount = 0,
 }) => {
   const { t } = useTranslation();
-  const currentUser = contactService.getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(() => contactService.getCurrentUser());
   const [showLinkMobile, setShowLinkMobile] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [sidebarModules, setSidebarModules] = useState<string[]>(DEFAULT_SIDEBAR_MODULES);
+
+  const refreshCurrentUser = useCallback(async () => {
+    const sessionUser = contactService.getCurrentUser();
+    setCurrentUser(contactService.getCurrentUser());
+    try {
+      const hydratedUser = await contactService.getUserById(sessionUser.id);
+      if (hydratedUser?.chatId) {
+        setCurrentUser({
+          ...sessionUser,
+          ...hydratedUser,
+          id: sessionUser.id,
+          chatId: hydratedUser.chatId,
+          name: hydratedUser.name || sessionUser.name,
+          avatar: hydratedUser.avatar ?? sessionUser.avatar,
+          status: sessionUser.status ?? hydratedUser.status,
+        });
+        return hydratedUser;
+      }
+      return sessionUser;
+    } catch {
+      setCurrentUser(sessionUser);
+      return sessionUser;
+    }
+  }, []);
+
+  const openProfileMenu = useCallback(async () => {
+    const refreshedUser = await refreshCurrentUser();
+    if (!refreshedUser.chatId) {
+      toast("Chat ID is not ready. Please try again.", "error");
+      return;
+    }
+    setShowProfileMenu(true);
+  }, [refreshCurrentUser]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    const handleCurrentUserRefresh = () => {
+      void refreshCurrentUser().catch(() => {
+        if (!disposed) {
+          setCurrentUser(contactService.getCurrentUser());
+        }
+      });
+    };
+
+    handleCurrentUserRefresh();
+    window.addEventListener("focus", handleCurrentUserRefresh);
+    window.addEventListener(SDKWORK_CHAT_SESSION_CHANGED_EVENT, handleCurrentUserRefresh);
+
+    return () => {
+      disposed = true;
+      window.removeEventListener("focus", handleCurrentUserRefresh);
+      window.removeEventListener(SDKWORK_CHAT_SESSION_CHANGED_EVENT, handleCurrentUserRefresh);
+    };
+  }, [refreshCurrentUser]);
 
   useEffect(() => {
     let disposed = false;
@@ -123,7 +179,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="h-[64px] w-full flex items-center justify-center shrink-0">
           <div
             className="relative group cursor-pointer"
-            onClick={() => setShowProfileMenu(true)}
+            onClick={() => {
+              void openProfileMenu();
+            }}
           >
             <Avatar
               src={currentUser.avatar}

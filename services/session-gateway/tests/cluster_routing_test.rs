@@ -16,7 +16,7 @@ fn expect_ok<T>(result: Result<T, RealtimeRuntimeError>) -> T {
 }
 
 #[test]
-fn test_cluster_bridge_routes_device_event_to_owner_node_runtime() {
+fn test_cluster_bridge_routes_client_route_event_to_owner_node_runtime() {
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let runtime_a = Arc::new(RealtimeDeliveryRuntime::permissive_for_tests());
     let runtime_b = Arc::new(RealtimeDeliveryRuntime::permissive_for_tests());
@@ -35,7 +35,7 @@ fn test_cluster_bridge_routes_device_event_to_owner_node_runtime() {
         }],
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -46,7 +46,7 @@ fn test_cluster_bridge_routes_device_event_to_owner_node_runtime() {
         )
         .expect("route bind should succeed");
 
-    let result = cluster.publish_device_event_for_principal_kind(
+    let result = cluster.publish_client_route_event_for_principal_kind(
         "node_a",
         "t_demo",
         "u_demo",
@@ -97,7 +97,7 @@ fn test_cluster_publish_surfaces_runtime_delivery_error_without_overwriting_rout
         }],
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -109,7 +109,7 @@ fn test_cluster_publish_surfaces_runtime_delivery_error_without_overwriting_rout
         .expect("route bind should succeed");
 
     checkpoint_store.fail_saves();
-    let result = cluster.publish_device_event_for_principal_kind(
+    let result = cluster.publish_client_route_event_for_principal_kind(
         "node_a",
         "t_demo",
         "u_demo",
@@ -158,7 +158,7 @@ fn test_cluster_bridge_falls_back_to_origin_node_when_route_is_missing() {
         }],
     ));
 
-    let result = cluster.publish_device_event_for_principal_kind(
+    let result = cluster.publish_client_route_event_for_principal_kind(
         "node_a",
         "t_demo",
         "u_demo",
@@ -187,7 +187,7 @@ fn test_cluster_bridge_rejects_new_route_binds_when_node_is_draining() {
     cluster.bind_node_runtime("node_a", runtime_a);
 
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -207,7 +207,7 @@ fn test_cluster_bridge_rejects_new_route_binds_when_node_is_draining() {
     assert_eq!(drain.owned_route_count, 1);
 
     let error = cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo", "u_demo", "user", "d_new", "node_a", None, "http",
         )
         .expect_err("draining node should reject new route bind");
@@ -216,7 +216,7 @@ fn test_cluster_bridge_rejects_new_route_binds_when_node_is_draining() {
     assert_eq!(error.drain_status, "draining");
 
     let preserved = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_existing")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_existing")
         .expect("existing route should remain");
     assert_eq!(preserved.owner_node_id, "node_a");
 }
@@ -228,7 +228,7 @@ fn test_cluster_bridge_release_route_reconciles_draining_node_to_drained() {
     cluster.bind_node_runtime("node_a", runtime_a);
 
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -247,14 +247,14 @@ fn test_cluster_bridge_release_route_reconciles_draining_node_to_drained() {
     assert_eq!(draining.owned_route_count, 1);
 
     let released = cluster
-        .release_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_existing", "node_a")
+        .release_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_existing", "node_a")
         .expect("route should be released");
     assert_eq!(released.owner_node_id, "node_a");
     assert_eq!(released.session_id.as_deref(), Some("s_demo"));
 
     assert!(
         cluster
-            .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_existing")
+            .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_existing")
             .is_none(),
         "released route should be removed from the directory"
     );
@@ -287,7 +287,7 @@ fn test_cluster_bridge_migrates_route_and_realtime_state_to_target_node() {
         }],
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -325,7 +325,7 @@ fn test_cluster_bridge_migrates_route_and_realtime_state_to_target_node() {
     assert_eq!(migration.target_rebalance_state, "stable");
 
     let migrated_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("route should exist after migration");
     assert_eq!(migrated_route.owner_node_id, "node_b");
 
@@ -347,7 +347,7 @@ fn test_cluster_bridge_migrates_route_and_realtime_state_to_target_node() {
     assert_eq!(target_checkpoint.acked_through_seq, 0);
     assert_eq!(target_checkpoint.trimmed_through_seq, 0);
 
-    let publish_result = cluster.publish_device_event_for_principal_kind(
+    let publish_result = cluster.publish_client_route_event_for_principal_kind(
         "node_a",
         "t_demo",
         "u_demo",
@@ -403,7 +403,7 @@ fn test_cluster_bridge_isolates_same_actor_id_across_principal_kinds_for_routes_
         }],
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -414,7 +414,7 @@ fn test_cluster_bridge_isolates_same_actor_id_across_principal_kinds_for_routes_
         )
         .expect("user route bind should succeed");
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "agent",
@@ -426,15 +426,15 @@ fn test_cluster_bridge_isolates_same_actor_id_across_principal_kinds_for_routes_
         .expect("agent route bind should succeed");
 
     let user_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("user route should exist");
     let agent_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "agent", "d_pad")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "agent", "d_pad")
         .expect("agent route should exist");
     assert_eq!(user_route.owner_node_id, "node_a");
     assert_eq!(agent_route.owner_node_id, "node_b");
 
-    let user_publish = cluster.publish_device_event_for_principal_kind(
+    let user_publish = cluster.publish_client_route_event_for_principal_kind(
         "node_b",
         "t_demo",
         "u_demo",
@@ -445,7 +445,7 @@ fn test_cluster_bridge_isolates_same_actor_id_across_principal_kinds_for_routes_
         "message.posted",
         r#"{"messageId":"msg_user"}"#.into(),
     );
-    let agent_publish = cluster.publish_device_event_for_principal_kind(
+    let agent_publish = cluster.publish_client_route_event_for_principal_kind(
         "node_a",
         "t_demo",
         "u_demo",
@@ -482,7 +482,7 @@ fn test_cluster_disconnect_fence_isolated_by_principal_kind() {
     cluster.bind_node_runtime("node_a", runtime);
 
     cluster
-        .mark_device_disconnected_for_principal_kind(
+        .mark_client_route_disconnected_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -493,12 +493,16 @@ fn test_cluster_disconnect_fence_isolated_by_principal_kind() {
         .expect("user disconnect fence should persist");
 
     let user_error = cluster
-        .ensure_device_resume_not_required_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .ensure_client_route_resume_not_required_for_principal_kind(
+            "t_demo", "u_demo", "user", "d_pad",
+        )
         .expect_err("user principal kind should require reconnect");
     assert_eq!(user_error.code, "reconnect_required");
 
     cluster
-        .ensure_device_resume_not_required_for_principal_kind("t_demo", "u_demo", "agent", "d_pad")
+        .ensure_client_route_resume_not_required_for_principal_kind(
+            "t_demo", "u_demo", "agent", "d_pad",
+        )
         .expect("agent principal kind should remain isolated from user disconnect fence");
 }
 
@@ -522,7 +526,7 @@ fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
         }],
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -563,7 +567,7 @@ fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
     assert_eq!(delivered_pending, 1);
 
     let rebound_route = cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -602,7 +606,7 @@ fn test_cluster_bridge_rebind_latest_owner_transfers_realtime_state() {
     );
     assert_eq!(target_window_after_rebind.items[0].realtime_seq, 2);
 
-    let publish_result = cluster.publish_device_event_for_principal_kind(
+    let publish_result = cluster.publish_client_route_event_for_principal_kind(
         "node_a",
         "t_demo",
         "u_demo",
@@ -684,7 +688,7 @@ fn test_cluster_bridge_migration_restores_lazy_checkpoint_state_from_source_runt
     cluster.bind_node_runtime("node_a", runtime_a);
     cluster.bind_node_runtime("node_b", runtime_b.clone());
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -832,7 +836,7 @@ fn test_cluster_bridge_rebind_surfaces_checkpoint_store_failures_as_controlled_e
     cluster.bind_node_runtime("node_b", runtime_b);
 
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -844,7 +848,7 @@ fn test_cluster_bridge_rebind_surfaces_checkpoint_store_failures_as_controlled_e
         .expect("initial route bind should succeed");
 
     let error = cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -887,7 +891,7 @@ fn test_cluster_bridge_rebind_reports_source_compensation_failure() {
         }],
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -900,7 +904,7 @@ fn test_cluster_bridge_rebind_reports_source_compensation_failure() {
 
     source_checkpoint_store.fail_saves();
     let error = cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -928,7 +932,7 @@ fn test_cluster_bridge_rebind_reports_source_compensation_failure() {
     );
 
     let current_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("failed rebind must keep the previous route");
     assert_eq!(current_route.owner_node_id, "node_a");
     assert_eq!(current_route.session_id.as_deref(), Some("s_old"));
@@ -958,7 +962,7 @@ fn test_cluster_bridge_rebind_route_commit_failure_rolls_runtime_state_back() {
         }],
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -970,7 +974,7 @@ fn test_cluster_bridge_rebind_route_commit_failure_rolls_runtime_state_back() {
         .expect("initial route bind should succeed");
 
     let error = cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -984,12 +988,12 @@ fn test_cluster_bridge_rebind_route_commit_failure_rolls_runtime_state_back() {
     assert_eq!(error.node_id, "node_b");
 
     let current_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("failed rebind commit must keep previous route");
     assert_eq!(current_route.owner_node_id, "node_a");
     assert_eq!(current_route.session_id.as_deref(), Some("s_old"));
 
-    let publish_result = cluster.publish_device_event_for_principal_kind(
+    let publish_result = cluster.publish_client_route_event_for_principal_kind(
         "node_b",
         "t_demo",
         "u_demo",
@@ -1031,7 +1035,7 @@ fn test_cluster_bridge_failed_rebind_keeps_source_runtime_state() {
         }],
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -1043,7 +1047,7 @@ fn test_cluster_bridge_failed_rebind_keeps_source_runtime_state() {
         .expect("initial route bind should succeed");
 
     let error = cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -1056,12 +1060,12 @@ fn test_cluster_bridge_failed_rebind_keeps_source_runtime_state() {
     assert_eq!(error.code, "checkpoint_store_unavailable");
 
     let current_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("failed rebind must keep the previous route");
     assert_eq!(current_route.owner_node_id, "node_a");
     assert_eq!(current_route.session_id.as_deref(), Some("s_old"));
 
-    let publish_result = cluster.publish_device_event_for_principal_kind(
+    let publish_result = cluster.publish_client_route_event_for_principal_kind(
         "node_b",
         "t_demo",
         "u_demo",
@@ -1103,7 +1107,7 @@ fn test_cluster_bridge_migration_route_commit_failure_rolls_runtime_state_back()
         }],
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -1124,11 +1128,11 @@ fn test_cluster_bridge_migration_route_commit_failure_rolls_runtime_state_back()
     assert_eq!(error.node_id, "node_b");
 
     let current_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("failed migration commit must keep previous route");
     assert_eq!(current_route.owner_node_id, "node_a");
 
-    let publish_result = cluster.publish_device_event_for_principal_kind(
+    let publish_result = cluster.publish_client_route_event_for_principal_kind(
         "node_b",
         "t_demo",
         "u_demo",
@@ -1170,7 +1174,7 @@ fn test_cluster_bridge_failed_migration_keeps_source_runtime_state() {
         }],
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -1190,11 +1194,11 @@ fn test_cluster_bridge_failed_migration_keeps_source_runtime_state() {
     assert_eq!(error.code, "checkpoint_store_unavailable");
 
     let current_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
         .expect("failed migration must keep the previous route");
     assert_eq!(current_route.owner_node_id, "node_a");
 
-    let publish_result = cluster.publish_device_event_for_principal_kind(
+    let publish_result = cluster.publish_client_route_event_for_principal_kind(
         "node_b",
         "t_demo",
         "u_demo",
@@ -1234,7 +1238,7 @@ fn test_cluster_bridge_rejects_route_bind_for_unknown_node() {
     let cluster = Arc::new(RealtimeClusterBridge::default());
 
     let error = cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -1248,7 +1252,7 @@ fn test_cluster_bridge_rejects_route_bind_for_unknown_node() {
     assert_eq!(error.node_id, "node_missing");
 
     let route =
-        cluster.resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_missing");
+        cluster.resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_missing");
     assert!(
         route.is_none(),
         "failed bind must not create route ownership"
@@ -1270,7 +1274,7 @@ fn test_cluster_route_bound_at_advances_between_distinct_bind_and_migration_oper
     cluster.bind_node_runtime("node_b", runtime_b);
 
     let first_route = cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -1284,7 +1288,7 @@ fn test_cluster_route_bound_at_advances_between_distinct_bind_and_migration_oper
     sleep(Duration::from_millis(20));
 
     let second_route = cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo", "u_demo", "user", "d_two", "node_a", None, "http",
         )
         .expect("second route bind should succeed");
@@ -1300,7 +1304,7 @@ fn test_cluster_route_bound_at_advances_between_distinct_bind_and_migration_oper
         .expect("route migration should succeed");
 
     let migrated_route = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_one")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_one")
         .expect("migrated route should exist");
     assert_eq!(migrated_route.owner_node_id, "node_b");
     assert!(second_route.bound_at < migrated_route.bound_at);
@@ -1315,7 +1319,7 @@ fn test_cluster_bridge_public_route_models_use_runtime_route_owner_types() {
     cluster.bind_node_runtime("node_b", runtime_b);
 
     let first_bind: RouteBinding = cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -1345,7 +1349,7 @@ fn test_cluster_bridge_public_route_models_use_runtime_route_owner_types() {
     assert_eq!(migration.target_drain_status, "active");
 
     let migrated: RouteBinding = cluster
-        .resolve_device_route_for_principal_kind("t_demo", "u_demo", "user", "d_runtime_owner")
+        .resolve_client_route_for_principal_kind("t_demo", "u_demo", "user", "d_runtime_owner")
         .expect("migrated route should remain present");
     assert_eq!(migrated.owner_node_id, "node_b");
     assert_eq!(migrated.route_epoch, 2);

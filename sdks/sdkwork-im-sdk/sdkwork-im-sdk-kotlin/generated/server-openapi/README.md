@@ -53,7 +53,6 @@ val client = SdkworkImClient(config)
 
 ## API Modules
 
-- `client.device` - device API
 - `client.presence` - presence API
 - `client.realtime` - realtime API
 - `client.rtc` - rtc API
@@ -62,18 +61,6 @@ val client = SdkworkImClient(config)
 - `client.streams` - streams API
 
 ## Usage Examples
-
-### device
-
-```kotlin
-// Resume a device runtime session
-val body = ResumeDeviceSessionRequest(
-    deviceId = "1",
-    lastSeenSyncSeq = 2
-)
-val result = client.device.sessionsResume(body)
-println(result)
-```
 
 ### presence
 

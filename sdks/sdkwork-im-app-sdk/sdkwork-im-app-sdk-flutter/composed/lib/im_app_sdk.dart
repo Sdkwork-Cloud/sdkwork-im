@@ -4,8 +4,6 @@ export 'package:im_app_api_generated/im_app_api_generated.dart';
 
 export 'src/automation_module.dart';
 export 'src/context.dart';
-export 'src/device_module.dart';
-export 'src/iot_module.dart';
 export 'src/notification_module.dart';
 export 'src/portal_module.dart';
 export 'src/provider_module.dart';
@@ -17,8 +15,6 @@ import 'package:rtc_sdk/rtc_sdk.dart';
 
 import 'src/automation_module.dart';
 import 'src/context.dart';
-import 'src/device_module.dart';
-import 'src/iot_module.dart';
 import 'src/notification_module.dart';
 import 'src/portal_module.dart';
 import 'src/provider_module.dart';
@@ -30,11 +26,9 @@ class ImAppSdkClient {
   final SdkworkAppClient transportClient;
 
   late final ImAppPortalModule portal;
-  late final ImAppDeviceModule device;
   late final ImAppNotificationModule notification;
   late final ImAppAutomationModule automation;
   late final ImAppProviderModule provider;
-  late final ImAppIotModule iot;
   late final ImAppRtcModule rtc;
 
   ImAppSdkClient(ImAppSdkClientOptions options)
@@ -47,20 +41,16 @@ class ImAppSdkClient {
         accessToken: options.accessToken,
       ) {
     portal = ImAppPortalModule(_context);
-    device = ImAppDeviceModule(_context);
     notification = ImAppNotificationModule(_context);
     automation = ImAppAutomationModule(_context);
     provider = ImAppProviderModule(_context);
-    iot = ImAppIotModule(_context);
     rtc = ImAppRtcModule(_context);
   }
 
   PortalApi get portalApi => transportClient.portal;
-  DeviceApi get deviceApi => transportClient.device;
   NotificationApi get notificationApi => transportClient.notification;
   AutomationApi get automationApi => transportClient.automation;
   ProviderApi get providerApi => transportClient.provider;
-  IotApi get iotApi => transportClient.iot;
   RtcDataSource get rtcDataSource => _context.rtcDataSource;
   RtcDriverManager get rtcDriverManager => _context.rtcDataSource.driverManager;
 

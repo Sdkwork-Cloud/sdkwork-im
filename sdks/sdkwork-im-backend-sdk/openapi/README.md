@@ -15,7 +15,7 @@ control-plane, and admin-console routes.
 
 - `/backend/v3/openapi.json` is the live service schema export.
 - `CRAW_CHAT_BACKEND_API_OPENAPI_SCHEMA_PATH` can override the runtime schema export source.
-- Login, account, tenant, organization, token, and client device route lifecycle APIs stay outside
+- Login, account, tenant, organization, token, and client client-route lifecycle APIs stay outside
   this backend SDK.
 - Non-management provider, IoT, RTC, and app-business HTTP APIs stay in the app SDK family.
 - `/backend/v3/api/control/*` and `/backend/v3/api/admin/*` are backend modules in this workspace,

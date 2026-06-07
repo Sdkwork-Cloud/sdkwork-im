@@ -1,10 +1,44 @@
 {
   "name": "@sdkwork/clawchat-pc-core",
   "version": "1.0.0",
-  "main": "./src/index.tsx",
-  "types": "./src/index.tsx",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./runtime/desktopEnvironment": {
+      "types": "./src/runtime/desktopEnvironment.ts",
+      "default": "./src/runtime/desktopEnvironment.ts"
+    },
+    "./sdk/agentAppSdkClient": {
+      "types": "./src/sdk/agentAppSdkClient.ts",
+      "default": "./src/sdk/agentAppSdkClient.ts"
+    },
+    "./sdk/aiotAppSdkClient": {
+      "types": "./src/sdk/aiotAppSdkClient.ts",
+      "default": "./src/sdk/aiotAppSdkClient.ts"
+    },
+    "./sdk/appSdkClient": {
+      "types": "./src/sdk/appSdkClient.ts",
+      "default": "./src/sdk/appSdkClient.ts"
+    },
+    "./sdk/appbaseAppSdkClient": {
+      "types": "./src/sdk/appbaseAppSdkClient.ts",
+      "default": "./src/sdk/appbaseAppSdkClient.ts"
+    },
+    "./sdk/imSdkClient": {
+      "types": "./src/sdk/imSdkClient.ts",
+      "default": "./src/sdk/imSdkClient.ts"
+    },
+    "./sdk/session": {
+      "types": "./src/sdk/session.ts",
+      "default": "./src/sdk/session.ts"
+    }
+  },
   "dependencies": {
     "@sdkwork/aiot-app-sdk": "workspace:*",
-    "@sdkwork/auth-runtime-pc-react": "link:../../../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react"
+    "@sdkwork/auth-runtime-pc-react": "workspace:*"
   }
 }

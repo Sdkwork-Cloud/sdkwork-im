@@ -14,7 +14,7 @@
   - No realtime business event was published into `/im/v3/api/realtime/events` or websocket push.
 - Impact:
   - roster UIs could not react in real time to member joins, role changes, removals, or leaves
-  - multi-device clients of the same principal would miss their own membership changes while online
+  - multi-client-route clients of the same principal would miss their own membership changes while online
 
 ### 1.2 High: `removed / left` transitions would silently drop the affected principal if fanout only used current active members
 
@@ -22,7 +22,7 @@
   - after `remove_member` or `leave_conversation`, the affected principal is no longer active
   - a naive fanout based only on `conversation_runtime.list_members(...)` would exclude the removed or leaving principal
 - Impact:
-  - the affected principal's other registered devices would not receive the event that explains why the conversation disappeared or became inaccessible
+  - the affected principal's other registered client routes would not receive the event that explains why the conversation disappeared or became inaccessible
 
 ## 2. Scope Freeze
 
@@ -31,7 +31,7 @@ This wave fixes only realtime propagation for member governance events in `local
 - HTTP realtime event window
 - websocket push
 
-It does not expand `device sync feed` schema in this wave.
+It does not expand `client-route event window` schema in this wave.
 
 ## 3. Design Decision
 
@@ -46,7 +46,7 @@ Member governance mutations are now treated as first-class business realtime eve
   - `conversation.member_removed`
   - `conversation.member_left`
 - recipient rule:
-  - all current conversation members' registered devices
+  - all current conversation members' registered client routes
   - plus the affected principal for `removed / left`
 
 ## 4. Implementation
@@ -94,11 +94,11 @@ Member governance mutations are now treated as first-class business realtime eve
 
 ## 7. Remaining Risks
 
-- `projection-service` still does not emit member governance entries into `device sync feed`, so offline multi-device compensation for roster changes still depends on higher-level refetch.
+- `projection-service` still does not emit member governance entries into `client-route event window`, so offline multi-client-route compensation for roster changes still depends on higher-level refetch.
 - create-time special conversation topology changes such as `agent_dialog` / `system_channel` dedicated create still rely on read-model visibility rather than a dedicated sync delta contract.
 
 ## 8. Next Wave
 
-1. Review whether member governance changes need a typed `device sync feed` contract instead of realtime-only propagation.
-2. Audit special conversation creation flows for create-time multi-device compensation gaps.
+1. Review whether member governance changes need a typed `client-route event window` contract instead of realtime-only propagation.
+2. Audit special conversation creation flows for create-time multi-client-route compensation gaps.
 3. Continue freezing dedicated lifecycle commands for `agent_dialog` and dedicated publish orchestration for `system_channel`.

@@ -21,7 +21,7 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::{
     Json, Router,
-    routing::{delete, get, patch, post},
+    routing::{any, delete, get, patch, post},
 };
 use control_plane_api::SocialControlQuery;
 use conversation_runtime::{
@@ -48,17 +48,17 @@ use im_app_context::{AppContext, AppContextError};
 use im_domain_core::conversation::{
     ConversationInboxEntry, ConversationMember, ConversationReadCursorView, MembershipRole,
 };
-use im_domain_core::device_session::{DeviceSessionResumeView, PresenceSnapshotView};
 use im_domain_core::message::{ContentPart, MessageBody, MessageType, SignalPart};
+use im_domain_core::presence::PresenceSnapshotView;
 use im_domain_core::realtime::RealtimeSubscription;
 use im_domain_core::social::{DirectChat, FriendRequest, Friendship};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{
-    CommitJournal, CommitPosition, ContractError, DeviceAccessProvider, EffectiveProviderBinding,
-    IotProtocolAdapter, MetadataStore, PROVIDER_REGISTRY_INTERFACE_VERSION,
-    PrincipalProfileProvider, ProviderDomain, ProviderPluginDescriptor, ProviderRegistry,
-    RealtimeCheckpointRecord, RealtimeDisconnectFenceRecord, RealtimeEventWindowRecord,
-    RealtimeSubscriptionRecord, StaticProviderRegistry, StreamStateRecord,
+    CommitJournal, CommitPosition, ContractError, EffectiveProviderBinding, MetadataStore,
+    PROVIDER_REGISTRY_INTERFACE_VERSION, PrincipalProfileProvider, ProviderDomain,
+    ProviderPluginDescriptor, ProviderRegistry, RealtimeCheckpointRecord,
+    RealtimeDisconnectFenceRecord, RealtimeEventWindowRecord, RealtimeSubscriptionRecord,
+    StaticProviderRegistry, StreamStateRecord,
 };
 use notification_service::NotificationRuntime;
 use ops_service::{
@@ -70,8 +70,10 @@ use projection_service::{
     ContactView, ConversationMemberDirectoryEntry, MessageInteractionSummaryView,
     NotificationRecipientView, ProjectionAccessError, TimelineProjectionService,
 };
-use sdkwork_rtc_core::{ProviderHealthSnapshot, RtcCallbackEvent, RtcCallbackRequest, RtcStateRecord};
 use sdkwork_rtc_app_context::AppContext as RtcAppContext;
+use sdkwork_rtc_core::{
+    ProviderHealthSnapshot, RtcCallbackEvent, RtcCallbackRequest, RtcStateRecord,
+};
 use sdkwork_rtc_signaling_service::{
     CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest,
     PostRtcSignalRequest, RtcRuntime, RtcSessionMutationResponse, UpdateRtcSessionRequest,
@@ -81,7 +83,7 @@ use sdkwork_rtc_state_store::{FileRtcStateStore, validate_rtc_state_store_file};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use session_gateway::{
-    AckRealtimeEventsRequest, DevicePresenceRuntime, ListRealtimeEventsQuery, PresenceRuntimeError,
+    AckRealtimeEventsRequest, ListRealtimeEventsQuery, PresenceRuntime, PresenceRuntimeError,
     RealtimeClusterBridge, RealtimeClusterError, RealtimeDeliveryRuntime, RealtimePlaneAssembly,
     RealtimeRuntimeError, RealtimeScopeAccessPolicy, SyncRealtimeSubscriptionsRequest,
     serve_realtime_websocket,
@@ -97,16 +99,17 @@ use streaming_service::{
 use tokio::sync::Semaphore;
 
 mod access;
+mod aiot_bridge;
 mod build;
+mod client_route_registration;
 mod commercial_readiness;
 mod conversation;
-mod device_registration;
-mod device_session;
 mod effects;
 mod handoff;
 mod membership;
 mod message;
 mod platform;
+mod presence_routes;
 mod principal_profile;
 mod projection;
 mod realtime_policy;
@@ -116,7 +119,7 @@ mod side_effect_outbox;
 mod social;
 mod stream;
 
-use self::device_registration::{DisconnectActiveDeviceRouteOutcome, LocalNodeDeviceRegistration};
+use self::client_route_registration::LocalNodeClientRouteRegistration;
 
 fn rtc_app_context_from_auth(auth: &AppContext) -> RtcAppContext {
     RtcAppContext {
@@ -140,10 +143,7 @@ pub use build::{
     build_app_with_dependencies, build_app_with_dependencies_and_runtime,
     build_app_with_dependencies_and_runtime_dir,
     build_app_with_dependencies_realtime_and_notification_runtime, build_default_app,
-    build_default_app_with_device_access_provider, build_default_app_with_iot_protocol_adapter,
     build_default_app_with_principal_profile_provider, build_default_app_with_runtime_dir,
-    build_default_app_with_runtime_dir_and_device_access_provider,
-    build_default_app_with_runtime_dir_and_iot_protocol_adapter,
     build_default_app_with_runtime_dir_and_principal_profile_provider, build_public_app,
     build_public_app_with_runtime_dir, try_build_public_app,
 };
@@ -179,10 +179,11 @@ struct AppState {
     conversation_runtime: Arc<ConversationRuntime<ProjectionJournal>>,
     principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
     projection_service: Arc<TimelineProjectionService>,
-    device_presence_runtime: Arc<DevicePresenceRuntime>,
+    presence_runtime: Arc<PresenceRuntime>,
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
-    device_registration: LocalNodeDeviceRegistration,
-    iot_protocol_adapter: Arc<dyn IotProtocolAdapter>,
+    client_route_registration: LocalNodeClientRouteRegistration,
+    aiot_app_api_server: Arc<sdkwork_aiot_http_api::AiotApiServer>,
+    aiot_backend_api_server: Arc<sdkwork_aiot_http_api::AiotApiServer>,
     streaming_runtime: Arc<StreamingRuntime>,
     rtc_runtime: Arc<RtcRuntime>,
     notification_runtime: Arc<NotificationRuntime>,
@@ -239,7 +240,7 @@ struct ProjectionSnapshotStores {
 #[derive(Default)]
 struct ProjectionSnapshotRestoreSummary {
     restored_checkpoints: BTreeMap<String, u64>,
-    restored_device_sync: bool,
+    restored_client_route_sync: bool,
 }
 
 #[derive(Default)]
@@ -316,48 +317,20 @@ fn stable_local_audit_record_id(prefix: &str, business_id: &str) -> String {
 
 impl AppState {
     #[rustfmt::skip]
-    fn require_registered_device_binding(&self, auth: &AppContext) -> Result<(), ApiError> {
-        self.device_registration.ensure_registered_device(self, auth)
-    }
-
-    fn bind_device_registration(
-        &self,
-        auth: &AppContext,
-        device_id: &str,
-        connection_kind: &str,
-        allow_session_takeover: bool,
-    ) -> Result<projection_service::RegisteredDeviceView, ApiError> {
-        self.device_registration.bind_registered_device(
-            self,
-            auth,
-            device_id,
-            connection_kind,
-            allow_session_takeover,
-        )
+    fn require_client_route_key_binding(&self, auth: &AppContext) -> Result<(), ApiError> {
+        self.client_route_registration
+            .ensure_client_route_key(self, auth)
     }
 
     #[rustfmt::skip]
-    fn prepare_active_device_route(
+    fn prepare_active_client_route(
         &self,
         auth: &AppContext,
         device_id: &str,
         connection_kind: &str,
-    ) -> Result<projection_service::RegisteredDeviceView, ApiError> {
-        self.device_registration.prepare_active_device_route(self, auth, device_id, connection_kind)
-    }
-
-    fn disconnect_active_device_route(
-        &self,
-        auth: &AppContext,
-        device_id: &str,
-        connection_kind: &str,
-    ) -> Result<DisconnectActiveDeviceRouteOutcome, ApiError> {
-        self.device_registration.disconnect_active_device_route(
-            self,
-            auth,
-            device_id,
-            connection_kind,
-        )
+    ) -> Result<projection_service::RegisteredClientRouteView, ApiError> {
+        self.client_route_registration
+            .prepare_active_client_route(self, auth, device_id, connection_kind)
     }
 
     fn provider_binding_snapshots(&self) -> Vec<ProviderBindingSnapshotView> {
@@ -376,14 +349,6 @@ impl AppState {
         bindings.insert(
             ProviderDomain::PrincipalProfile,
             binding_from_descriptor(&registry, self.principal_profile_provider.descriptor()),
-        );
-        bindings.insert(
-            ProviderDomain::IotAccess,
-            binding_from_descriptor(&registry, self.device_registration.provider_descriptor()),
-        );
-        bindings.insert(
-            ProviderDomain::IotProtocol,
-            binding_from_descriptor(&registry, self.iot_protocol_adapter.descriptor()),
         );
 
         vec![ProviderBindingSnapshotView {
@@ -510,7 +475,8 @@ impl ProjectionJournal {
         let Some(snapshot_stores) = self.snapshot_stores.as_ref() else {
             return ProjectionSnapshotRestoreSummary::default();
         };
-        let restored_device_sync = snapshot_stores.restore_device_sync_snapshot(projection_service);
+        let restored_client_route_sync =
+            snapshot_stores.restore_client_route_sync_snapshot(projection_service);
 
         let mut scopes = BTreeMap::new();
         for envelope in recorded
@@ -551,7 +517,7 @@ impl ProjectionJournal {
 
         ProjectionSnapshotRestoreSummary {
             restored_checkpoints,
-            restored_device_sync,
+            restored_client_route_sync,
         }
     }
 
@@ -768,13 +734,17 @@ impl ProjectionSnapshotStores {
         }
     }
 
-    fn persist_device_sync_snapshot(&self, projection_service: &TimelineProjectionService) {
-        let _ = projection_service.persist_device_sync_snapshot(&self.metadata, &self.timeline);
+    fn persist_client_route_sync_snapshot(&self, projection_service: &TimelineProjectionService) {
+        let _ =
+            projection_service.persist_client_route_sync_snapshot(&self.metadata, &self.timeline);
     }
 
-    fn restore_device_sync_snapshot(&self, projection_service: &TimelineProjectionService) -> bool {
+    fn restore_client_route_sync_snapshot(
+        &self,
+        projection_service: &TimelineProjectionService,
+    ) -> bool {
         projection_service
-            .restore_device_sync_snapshot(&self.metadata, &self.timeline)
+            .restore_client_route_sync_snapshot(&self.metadata, &self.timeline)
             .unwrap_or(false)
     }
 }
@@ -1198,6 +1168,7 @@ struct SocialFriendRequestAcceptanceResponse {
 struct SocialUserSearchResult {
     tenant_id: String,
     user_id: String,
+    chat_id: String,
     display_name: String,
     relationship_state: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1326,31 +1297,9 @@ struct ConversationProfileView {
     updated_by_principal_id: Option<String>,
 }
 
-type DeviceSyncFeedResponse = projection_service::DeviceSyncFeedWindowView;
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RegisterDeviceRequest {
-    device_id: Option<String>,
-}
-
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct SyncFeedQuery {
-    after_seq: Option<u64>,
-    limit: Option<usize>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ResumeDeviceSessionRequest {
-    device_id: Option<String>,
-    last_seen_sync_seq: Option<u64>,
-}
-
-#[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct DevicePresenceRequest {
+struct PresenceHeartbeatRequest {
     device_id: Option<String>,
 }
 

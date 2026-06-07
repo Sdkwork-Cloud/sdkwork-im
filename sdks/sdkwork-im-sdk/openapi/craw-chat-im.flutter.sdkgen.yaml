@@ -6,123 +6,25 @@ info:
     IM standardized development OpenAPI contract for conversations, messages, realtime, media, streams, and social IM
     flows.
 tags:
-  - name: device
   - name: presence
   - name: realtime
   - name: rtc
   - name: social
   - name: chat
   - name: streams
-  - name: devices
 paths:
-  /im/v3/api/device/sessions/resume:
-    post:
-      tags:
-        - device
-      operationId: device.sessions.resume
-      summary: Resume a device runtime session
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ResumeDeviceSessionRequest'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeviceSessionView'
-        '400':
-          description: HTTP 400 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '401':
-          description: HTTP 401 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '403':
-          description: HTTP 403 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '404':
-          description: HTTP 404 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-      security:
-        - AuthToken: []
-          AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.im
-  /im/v3/api/device/sessions/disconnect:
-    post:
-      tags:
-        - device
-      operationId: device.sessions.disconnect
-      summary: Disconnect a device runtime session
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RegisterDeviceRequest'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeviceSessionDisconnectResponse'
-        '400':
-          description: HTTP 400 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '401':
-          description: HTTP 401 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '403':
-          description: HTTP 403 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '404':
-          description: HTTP 404 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-      security:
-        - AuthToken: []
-          AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.im
   /im/v3/api/presence/heartbeat:
     post:
       tags:
         - presence
       operationId: presence.heartbeat.create
-      summary: Publish current device presence heartbeat
+      summary: Publish current client route presence heartbeat
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DevicePresenceRequest'
+              $ref: '#/components/schemas/PresenceHeartbeatRequest'
       responses:
         '200':
           description: OK
@@ -313,102 +215,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RealtimeEventsResponse'
-        '400':
-          description: HTTP 400 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '401':
-          description: HTTP 401 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '403':
-          description: HTTP 403 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '404':
-          description: HTTP 404 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-      security:
-        - AuthToken: []
-          AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.im
-  /im/v3/api/devices/register:
-    post:
-      tags:
-        - device
-      operationId: device.registrations.create
-      summary: Register a device for sync feed delivery
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RegisterDeviceRequest'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RegisteredDeviceView'
-        '400':
-          description: HTTP 400 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '401':
-          description: HTTP 401 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '403':
-          description: HTTP 403 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-        '404':
-          description: HTTP 404 problem
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-      security:
-        - AuthToken: []
-          AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.im
-  /im/v3/api/devices/{deviceId}/sync_feed:
-    parameters:
-      - $ref: '#/components/parameters/DeviceIdPath'
-    get:
-      tags:
-        - device
-      operationId: device.syncFeed.retrieve
-      summary: Retrieve bounded device sync feed entries
-      parameters:
-        - $ref: '#/components/parameters/DeviceIdPath'
-        - $ref: '#/components/parameters/AfterSeqQuery'
-        - $ref: '#/components/parameters/LimitQuery'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeviceSyncFeedResponse'
         '400':
           description: HTTP 400 problem
           content:
@@ -3450,12 +3256,6 @@ components:
       required: true
       schema:
         type: string
-    DeviceIdPath:
-      name: deviceId
-      in: path
-      required: true
-      schema:
-        type: string
     FavoriteIdPath:
       name: favoriteId
       in: path
@@ -3576,51 +3376,7 @@ components:
           type: boolean
       required:
         - ok
-    DeviceSessionView:
-      type: object
-      additionalProperties: false
-      properties:
-        tenantId:
-          type: string
-        principalId:
-          type: string
-        principalKind:
-          type: string
-        deviceId:
-          type: string
-        resumedAt:
-          type: string
-          format: date-time
-      required:
-        - tenantId
-        - principalId
-        - principalKind
-        - deviceId
-        - resumedAt
-    DeviceSessionDisconnectResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        deviceId:
-          type: string
-        disconnected:
-          type: boolean
-      required:
-        - deviceId
-        - disconnected
-    ResumeDeviceSessionRequest:
-      type: object
-      additionalProperties: false
-      properties:
-        deviceId:
-          type: string
-          nullable: true
-        lastSeenSyncSeq:
-          type: integer
-          format: int32
-          minimum: 0
-          nullable: true
-    DevicePresenceRequest:
+    PresenceHeartbeatRequest:
       type: object
       additionalProperties: false
       properties:
@@ -3722,114 +3478,6 @@ components:
       required:
         - items
         - hasMore
-    RegisterDeviceRequest:
-      type: object
-      additionalProperties: false
-      properties:
-        deviceId:
-          type: string
-          nullable: true
-    RegisteredDeviceView:
-      type: object
-      additionalProperties: false
-      properties:
-        tenantId:
-          type: string
-        principalId:
-          type: string
-        principalKind:
-          type: string
-        deviceId:
-          type: string
-        registeredAt:
-          type: string
-          format: date-time
-      required:
-        - tenantId
-        - principalId
-        - principalKind
-        - deviceId
-        - registeredAt
-    DeviceSyncFeedEntry:
-      type: object
-      additionalProperties: false
-      properties:
-        tenantId:
-          type: string
-        principalId:
-          type: string
-        principalKind:
-          type: string
-        deviceId:
-          type: string
-          nullable: true
-        syncSeq:
-          type: integer
-          format: int32
-          minimum: 0
-        eventId:
-          type: string
-        originEventType:
-          type: string
-        actorId:
-          type: string
-          nullable: true
-        conversationId:
-          type: string
-          nullable: true
-        messageId:
-          type: string
-          nullable: true
-        messageSeq:
-          type: integer
-          format: int32
-          minimum: 0
-          nullable: true
-        payload:
-          type: string
-          nullable: true
-        readSeq:
-          type: integer
-          format: int32
-          minimum: 0
-          nullable: true
-        summary:
-          type: string
-          nullable: true
-        occurredAt:
-          type: string
-          format: date-time
-      required:
-        - tenantId
-        - principalId
-        - principalKind
-        - syncSeq
-        - eventId
-        - originEventType
-        - occurredAt
-    DeviceSyncFeedResponse:
-      type: object
-      additionalProperties: false
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/DeviceSyncFeedEntry'
-        nextAfterSeq:
-          type: integer
-          format: int32
-          minimum: 0
-          nullable: true
-        hasMore:
-          type: boolean
-        trimmedThroughSeq:
-          type: integer
-          format: int32
-          minimum: 0
-      required:
-        - items
-        - hasMore
-        - trimmedThroughSeq
     RtcSession:
       type: object
       additionalProperties: false
@@ -4852,6 +4500,11 @@ components:
           type: string
         userId:
           type: string
+        chatId:
+          type: string
+          minLength: 6
+          maxLength: 24
+          pattern: ^[a-z][a-z0-9]{5,23}$
         displayName:
           type: string
         relationshipState:
@@ -4871,6 +4524,7 @@ components:
       required:
         - tenantId
         - userId
+        - chatId
         - displayName
         - relationshipState
     SocialUserSearchResponse:

@@ -12,7 +12,7 @@ use craw_chat_runtime_link::{
 use im_app_context::AppContext;
 use tokio::sync::OwnedSemaphorePermit;
 
-use crate::device_registration::DeviceRouteRegistration;
+use crate::client_route_registration::ClientRouteRegistration;
 use crate::websocket::{RealtimeWebsocketMode, serve_realtime_websocket};
 use crate::websocket_route;
 use crate::{ApiError, AppState, RealtimeDeliveryRuntime};
@@ -24,7 +24,7 @@ pub(crate) struct RealtimeWebsocketUpgradeContext {
     auth: AppContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
-    route_owner: DeviceRouteRegistration,
+    route_owner: ClientRouteRegistration,
 }
 
 pub(crate) async fn realtime_websocket(
@@ -58,7 +58,7 @@ pub(crate) fn upgrade_realtime_websocket(
     auth: AppContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
-    route_owner: DeviceRouteRegistration,
+    route_owner: ClientRouteRegistration,
     semaphore_permit: OwnedSemaphorePermit,
 ) -> Response {
     let ws = ws
@@ -106,7 +106,7 @@ pub(crate) fn prepare_realtime_websocket_upgrade(
     auth: AppContext,
     device_id: String,
     runtime: Arc<RealtimeDeliveryRuntime>,
-    route_owner: DeviceRouteRegistration,
+    route_owner: ClientRouteRegistration,
 ) -> LinkWebsocketUpgradeHandoff<RealtimeWebsocketUpgradeContext> {
     prepare_websocket_upgrade(
         selected_protocol,
@@ -143,7 +143,7 @@ async fn serve_realtime_websocket_upgrade(
     )
     .await;
     route_owner
-        .release_active_device_route_if_current_session(&cleanup_auth, cleanup_device_id.as_str());
+        .release_active_client_route_if_current_session(&cleanup_auth, cleanup_device_id.as_str());
 }
 
 #[cfg(test)]
@@ -201,13 +201,12 @@ mod tests {
             },
             "d_pad".into(),
             runtime.clone(),
-            crate::device_registration::DeviceRouteRegistration::new(
+            crate::client_route_registration::ClientRouteRegistration::new(
                 "node_a".into(),
                 Arc::new(crate::RealtimeClusterBridge::default()),
-                Arc::new(crate::DevicePresenceRuntime::default()),
+                Arc::new(crate::PresenceRuntime::default()),
                 runtime,
-                crate::device_sync_state::DeviceSyncState::default(),
-                Arc::new(im_adapter_iot_access_local::LocalDeviceAccessProvider::default()),
+                crate::client_route_state::ClientRouteState::default(),
             ),
         );
 

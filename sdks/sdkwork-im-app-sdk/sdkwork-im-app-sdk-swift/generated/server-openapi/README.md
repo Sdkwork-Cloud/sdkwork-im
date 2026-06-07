@@ -24,7 +24,7 @@ client.setAuthToken("your-auth-token")
 client.setAccessToken("your-access-token")
 
 // Use the SDK
-let result = try await client.iot.accessProviderHealthRetrieve()
+let result = try await client.notification.notificationsList()
 print(result)
 ```
 
@@ -49,11 +49,9 @@ client.setHeader("X-Custom-Header", value: "value")
 ## API Modules
 
 - `client.automation` - automation API
-- `client.device` - device API
 - `client.notification` - notification API
 - `client.portal` - portal API
 - `client.provider` - provider API
-- `client.iot` - iot API
 
 ## Usage Examples
 
@@ -71,15 +69,6 @@ let body = StartAgentResponseRequest(
     agent: AgentSubject()
 )
 let result = try await client.automation.agentResponsesCreate(body: body)
-print(result)
-```
-
-### device
-
-```swift
-// Get the device twin
-let deviceId = "1"
-let result = try await client.device.devicesTwinRetrieve(deviceId: deviceId)
 print(result)
 ```
 
@@ -107,19 +96,11 @@ let result = try await client.provider.mediaHealthRetrieve()
 print(result)
 ```
 
-### iot
-
-```swift
-// Retrieve IoT access provider health
-let result = try await client.iot.accessProviderHealthRetrieve()
-print(result)
-```
-
 ## Error Handling
 
 ```swift
 do {
-    try await client.iot.accessProviderHealthRetrieve()
+    try await client.notification.notificationsList()
 } catch {
     print("Error: \(error)")
 }

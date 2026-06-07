@@ -13,8 +13,8 @@ func NewPresenceApi(client *sdkhttp.Client) *PresenceApi {
     return &PresenceApi{client: client}
 }
 
-// Publish current device presence heartbeat
-func (a *PresenceApi) HeartbeatCreate(body sdktypes.DevicePresenceRequest) (sdktypes.PresenceView, error) {
+// Publish current client route presence heartbeat
+func (a *PresenceApi) HeartbeatCreate(body sdktypes.PresenceHeartbeatRequest) (sdktypes.PresenceView, error) {
     raw, err := a.client.Post(ImApiPath("/presence/heartbeat"), body, nil, nil, "application/json")
     if err != nil {
         var zero sdktypes.PresenceView

@@ -7,8 +7,8 @@ public class PresenceApi {
         self.client = client
     }
 
-    /// Publish current device presence heartbeat
-    public func heartbeatCreate(body: DevicePresenceRequest) async throws -> PresenceView? {
+    /// Publish current client route presence heartbeat
+    public func heartbeatCreate(body: PresenceHeartbeatRequest) async throws -> PresenceView? {
         return try await client.post(ApiPaths.imPath("/presence/heartbeat"), body: body, params: nil, headers: nil, contentType: "application/json", responseType: PresenceView.self)
     }
 

@@ -22,7 +22,7 @@ use im_time::utc_now_rfc3339_millis;
 use serde::Deserialize;
 use tokio::sync::watch;
 
-use crate::principal_scope::typed_device_scope_key;
+use crate::principal_scope::typed_client_route_scope_key;
 use crate::realtime::storage::checkpoint_record_from_sequences;
 
 pub mod postgres_sql;
@@ -32,15 +32,15 @@ pub use postgres_sql::{
     RealtimePostgresAdapterPlan, RealtimePostgresBindingError, RealtimePostgresBindingValue,
     RealtimePostgresBoundParameter, RealtimePostgresBoundStatement,
     RealtimePostgresBoundTransaction, RealtimePostgresCheckpointMutation,
-    RealtimePostgresDeviceEventMutation, RealtimePostgresMethodAtomicity,
+    RealtimePostgresClientRouteEventMutation, RealtimePostgresMethodAtomicity,
     RealtimePostgresMethodPlan, RealtimePostgresMethodStep, RealtimePostgresParameterBinding,
     RealtimePostgresRowColumn, RealtimePostgresRowMapping, RealtimePostgresSqlContract,
     realtime_postgres_bind_ack_transaction, realtime_postgres_bind_checkpoint_upsert,
-    realtime_postgres_bind_device_event_upsert, realtime_postgres_bind_publish_transaction,
+    realtime_postgres_bind_client_route_event_upsert, realtime_postgres_bind_publish_transaction,
     realtime_postgres_bind_save_subscription_transaction,
     realtime_postgres_bind_subscription_scope_clear,
     realtime_postgres_bind_subscription_scope_replacements,
-    realtime_postgres_bind_subscription_upsert, realtime_postgres_bind_trim_device_events,
+    realtime_postgres_bind_subscription_upsert, realtime_postgres_bind_trim_client_route_events,
 };
 use storage::{
     RealtimeCheckpointRecordParts, RuntimeMemoryCheckpointStore, RuntimeMemoryEventWindowStore,
@@ -54,8 +54,8 @@ const REALTIME_MAX_EVENT_TYPES_TOTAL_BYTES: usize = 16 * 1024;
 const REALTIME_MAX_SUBSCRIPTION_ITEMS: usize = 256;
 const REALTIME_MAX_SUBSCRIPTION_ITEMS_TOTAL_BYTES: usize = 256 * 1024;
 pub(crate) const REALTIME_EVENT_WINDOW_MAX_LIMIT: usize = 1000;
-const REALTIME_DEVICE_WINDOW_MAX_RETAINED_EVENTS: usize = REALTIME_EVENT_WINDOW_MAX_LIMIT;
-const REALTIME_DEVICE_WINDOW_CRITICAL_USAGE_PERMILLE: u64 = 950;
+const REALTIME_CLIENT_ROUTE_WINDOW_MAX_RETAINED_EVENTS: usize = REALTIME_EVENT_WINDOW_MAX_LIMIT;
+const REALTIME_CLIENT_ROUTE_WINDOW_CRITICAL_USAGE_PERMILLE: u64 = 950;
 const REALTIME_MUTATION_LOCK_SHARDS: usize = 256;
 
 #[derive(Debug, Deserialize)]
@@ -240,7 +240,7 @@ impl RealtimeScopeAccessPolicy for StandaloneRealtimeScopeAccessPolicy {
 
 #[derive(Clone)]
 pub struct RealtimeDeliveryRuntime {
-    subscriptions: Arc<Mutex<HashMap<String, RealtimeDeviceSubscriptions>>>,
+    subscriptions: Arc<Mutex<HashMap<String, RealtimeClientRouteSubscriptions>>>,
     subscription_scope_index:
         Arc<Mutex<HashMap<RealtimePrincipalScopeKey, BTreeMap<String, RealtimeSubscription>>>>,
     windows: Arc<Mutex<HashMap<String, BTreeMap<u64, RealtimeEvent>>>>,
@@ -253,7 +253,7 @@ pub struct RealtimeDeliveryRuntime {
     notifiers: Arc<Mutex<HashMap<String, watch::Sender<u64>>>>,
     disconnect_generations: Arc<Mutex<HashMap<String, u64>>>,
     disconnect_notifiers: Arc<Mutex<HashMap<String, watch::Sender<u64>>>>,
-    migrated_out_device_scopes: Arc<Mutex<HashSet<String>>>,
+    migrated_out_client_route_scopes: Arc<Mutex<HashSet<String>>>,
     mutation_locks: Arc<Vec<Mutex<()>>>,
     checkpoint_store: Arc<dyn RealtimeCheckpointStore>,
     subscription_store: Arc<dyn RealtimeSubscriptionStore>,
@@ -302,12 +302,12 @@ impl RealtimePrincipalScopeKey {
 }
 
 #[derive(Clone, Debug, Default)]
-struct RealtimeDeviceSubscriptions {
+struct RealtimeClientRouteSubscriptions {
     by_scope: HashMap<RealtimeSubscriptionScopeKey, RealtimeSubscription>,
     scope_order: Vec<RealtimeSubscriptionScopeKey>,
 }
 
-impl RealtimeDeviceSubscriptions {
+impl RealtimeClientRouteSubscriptions {
     fn from_items(items: Vec<RealtimeSubscription>) -> Self {
         let mut indexed = Self::default();
         for item in items {
@@ -336,7 +336,7 @@ impl RealtimeDeviceSubscriptions {
 }
 
 #[derive(Clone, Debug)]
-struct RealtimePublishDeviceMutation {
+struct RealtimePublishClientRouteMutation {
     scope_key: String,
     next_seq: u64,
     next_window: BTreeMap<u64, RealtimeEvent>,
@@ -389,7 +389,7 @@ pub struct RealtimeWindowCheckpoint {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RealtimeDeviceStateSnapshot {
+pub struct RealtimeClientRouteStateSnapshot {
     pub tenant_id: String,
     pub principal_kind: String,
     pub principal_id: String,
@@ -408,11 +408,11 @@ pub struct RealtimeDeviceStateSnapshot {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RealtimeInboxDiagnosticsSnapshot {
     pub status: String,
-    pub device_window_count: u64,
+    pub client_route_window_count: u64,
     pub pending_event_count: u64,
-    pub max_device_window_event_count: u64,
-    pub device_window_capacity: u64,
-    pub max_device_window_usage_permille: u64,
+    pub max_client_route_window_event_count: u64,
+    pub client_route_window_capacity: u64,
+    pub max_client_route_window_usage_permille: u64,
     pub max_trimmed_through_seq: u64,
     pub capacity_trimmed_event_count: u64,
     pub max_capacity_trimmed_through_seq: u64,
@@ -438,24 +438,27 @@ pub struct RealtimeInboxHighRiskWindow {
 
 impl From<RealtimeEventWindowDiagnosticsSnapshot> for RealtimeInboxDiagnosticsSnapshot {
     fn from(value: RealtimeEventWindowDiagnosticsSnapshot) -> Self {
-        let device_window_capacity = REALTIME_DEVICE_WINDOW_MAX_RETAINED_EVENTS as u64;
-        let max_device_window_usage_permille =
-            value.max_device_window_event_count.saturating_mul(1000) / device_window_capacity;
-        let status =
-            if max_device_window_usage_permille >= REALTIME_DEVICE_WINDOW_CRITICAL_USAGE_PERMILLE {
-                "critical"
-            } else if value.pending_event_count > 0 {
-                "degraded"
-            } else {
-                "ok"
-            };
+        let client_route_window_capacity = REALTIME_CLIENT_ROUTE_WINDOW_MAX_RETAINED_EVENTS as u64;
+        let max_client_route_window_usage_permille = value
+            .max_client_route_window_event_count
+            .saturating_mul(1000)
+            / client_route_window_capacity;
+        let status = if max_client_route_window_usage_permille
+            >= REALTIME_CLIENT_ROUTE_WINDOW_CRITICAL_USAGE_PERMILLE
+        {
+            "critical"
+        } else if value.pending_event_count > 0 {
+            "degraded"
+        } else {
+            "ok"
+        };
         Self {
             status: status.into(),
-            device_window_count: value.device_window_count,
+            client_route_window_count: value.client_route_window_count,
             pending_event_count: value.pending_event_count,
-            max_device_window_event_count: value.max_device_window_event_count,
-            device_window_capacity,
-            max_device_window_usage_permille,
+            max_client_route_window_event_count: value.max_client_route_window_event_count,
+            client_route_window_capacity,
+            max_client_route_window_usage_permille,
             max_trimmed_through_seq: value.max_trimmed_through_seq,
             capacity_trimmed_event_count: value.capacity_trimmed_event_count,
             max_capacity_trimmed_through_seq: value.max_capacity_trimmed_through_seq,
@@ -467,7 +470,7 @@ impl From<RealtimeEventWindowDiagnosticsSnapshot> for RealtimeInboxDiagnosticsSn
                 .map(|window| {
                     RealtimeInboxHighRiskWindow::from_event_window_record(
                         window,
-                        device_window_capacity,
+                        client_route_window_capacity,
                     )
                 })
                 .collect(),
@@ -478,7 +481,7 @@ impl From<RealtimeEventWindowDiagnosticsSnapshot> for RealtimeInboxDiagnosticsSn
 impl RealtimeInboxHighRiskWindow {
     fn from_event_window_record(
         value: RealtimeEventWindowHighRiskRecord,
-        device_window_capacity: u64,
+        client_route_window_capacity: u64,
     ) -> Self {
         Self {
             tenant_id: value.tenant_id,
@@ -490,7 +493,8 @@ impl RealtimeInboxHighRiskWindow {
             capacity_trimmed_event_count: value.capacity_trimmed_event_count,
             capacity_trimmed_through_seq: value.capacity_trimmed_through_seq,
             last_capacity_trimmed_at: value.last_capacity_trimmed_at,
-            usage_permille: value.pending_event_count.saturating_mul(1000) / device_window_capacity,
+            usage_permille: value.pending_event_count.saturating_mul(1000)
+                / client_route_window_capacity,
             oldest_pending_occurred_at: value.oldest_pending_occurred_at,
         }
     }
@@ -639,7 +643,7 @@ impl RealtimeDeliveryRuntime {
             notifiers: Arc::new(Mutex::new(HashMap::new())),
             disconnect_generations: Arc::new(Mutex::new(HashMap::new())),
             disconnect_notifiers: Arc::new(Mutex::new(HashMap::new())),
-            migrated_out_device_scopes: Arc::new(Mutex::new(HashSet::new())),
+            migrated_out_client_route_scopes: Arc::new(Mutex::new(HashSet::new())),
             mutation_locks: Arc::new(
                 (0..REALTIME_MUTATION_LOCK_SHARDS)
                     .map(|_| Mutex::new(()))
@@ -652,14 +656,14 @@ impl RealtimeDeliveryRuntime {
         }
     }
 
-    pub fn ensure_device_state_for_principal_kind(
+    pub fn ensure_client_route_state_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
-        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)
+        self.ensure_client_route_state_internal(tenant_id, principal_id, principal_kind, device_id)
     }
 
     pub fn realtime_inbox_diagnostics(
@@ -671,16 +675,16 @@ impl RealtimeDeliveryRuntime {
             .map_err(RealtimeRuntimeError::event_window_store)
     }
 
-    fn ensure_device_state_internal(
+    fn ensure_client_route_state_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         if lock_realtime_mutex(
-            &self.migrated_out_device_scopes,
+            &self.migrated_out_client_route_scopes,
             "realtime migrated-out device scope store",
         )
         .contains(scope_key.as_str())
@@ -802,7 +806,7 @@ impl RealtimeDeliveryRuntime {
             restored_subscriptions.filter(|record| !record.items.is_empty())
         {
             let restored_subscriptions =
-                RealtimeDeviceSubscriptions::from_items(restored_subscriptions.items);
+                RealtimeClientRouteSubscriptions::from_items(restored_subscriptions.items);
             let inserted = {
                 let mut subscriptions =
                     lock_realtime_mutex(&self.subscriptions, "realtime subscription store");
@@ -814,7 +818,7 @@ impl RealtimeDeliveryRuntime {
                 }
             };
             if inserted {
-                self.index_device_subscriptions(
+                self.index_client_route_subscriptions(
                     tenant_id,
                     principal_kind,
                     principal_id,
@@ -894,7 +898,7 @@ impl RealtimeDeliveryRuntime {
         Ok(())
     }
 
-    pub fn subscribe_device_for_principal_kind(
+    pub fn subscribe_client_route_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -911,8 +915,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<watch::Receiver<u64>, RealtimeRuntimeError> {
-        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        self.ensure_client_route_state_internal(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )?;
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let sender = lock_realtime_mutex(&self.notifiers, "realtime notifier store")
             .entry(scope_key)
             .or_insert_with(|| {
@@ -946,8 +955,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<watch::Receiver<u64>, RealtimeRuntimeError> {
-        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        self.ensure_client_route_state_internal(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )?;
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let sender = lock_realtime_mutex(
             &self.disconnect_notifiers,
             "realtime disconnect notifier store",
@@ -981,12 +995,17 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<u64, RealtimeRuntimeError> {
-        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
+        self.ensure_client_route_state_internal(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )?;
         Ok(lock_realtime_mutex(
             &self.disconnect_generations,
             "realtime disconnect generation store",
         )
-        .get(device_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str())
+        .get(client_route_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str())
         .copied()
         .unwrap_or(0))
     }
@@ -1008,8 +1027,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
-        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        self.ensure_client_route_state_internal(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )?;
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let next_generation = {
             let mut disconnect_generations = lock_realtime_mutex(
                 &self.disconnect_generations,
@@ -1049,8 +1073,13 @@ impl RealtimeDeliveryRuntime {
         principal_kind: &str,
         device_id: &str,
     ) -> Result<RealtimeWindowCheckpoint, RealtimeRuntimeError> {
-        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        self.ensure_client_route_state_internal(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )?;
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let latest_realtime_seq =
             lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
                 .get(scope_key.as_str())
@@ -1117,11 +1146,18 @@ impl RealtimeDeliveryRuntime {
         self.validate_subscriptions_internal(tenant_id, principal_id, principal_kind, &items)?;
         let synced_at = realtime_timestamp();
         lock_realtime_mutex(
-            &self.migrated_out_device_scopes,
+            &self.migrated_out_client_route_scopes,
             "realtime migrated-out device scope store",
         )
-        .remove(device_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str());
-        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
+        .remove(
+            client_route_scope_key(tenant_id, principal_id, principal_kind, device_id).as_str(),
+        );
+        self.ensure_client_route_state_internal(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )?;
         let subscriptions = items
             .into_iter()
             .map(|item| RealtimeSubscription {
@@ -1131,22 +1167,23 @@ impl RealtimeDeliveryRuntime {
                 subscribed_at: synced_at.clone(),
             })
             .collect::<Vec<_>>();
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let previous_subscriptions =
             lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
                 .get(scope_key.as_str())
                 .cloned();
 
-        let device_subscriptions = RealtimeDeviceSubscriptions::from_items(subscriptions.clone());
+        let client_route_subscriptions =
+            RealtimeClientRouteSubscriptions::from_items(subscriptions.clone());
         self.remove_device_subscription_index(tenant_id, principal_kind, principal_id, device_id);
         lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
-            .insert(scope_key.clone(), device_subscriptions.clone());
-        self.index_device_subscriptions(
+            .insert(scope_key.clone(), client_route_subscriptions.clone());
+        self.index_client_route_subscriptions(
             tenant_id,
             principal_kind,
             principal_id,
             device_id,
-            &device_subscriptions,
+            &client_route_subscriptions,
         );
         if let Err(error) =
             self.persist_subscriptions_internal(tenant_id, principal_id, principal_kind, device_id)
@@ -1160,7 +1197,7 @@ impl RealtimeDeliveryRuntime {
             if let Some(previous_subscriptions) = previous_subscriptions {
                 lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
                     .insert(scope_key, previous_subscriptions.clone());
-                self.index_device_subscriptions(
+                self.index_client_route_subscriptions(
                     tenant_id,
                     principal_kind,
                     principal_id,
@@ -1203,17 +1240,22 @@ impl RealtimeDeliveryRuntime {
         Ok(())
     }
 
-    pub fn clear_device_subscriptions_for_principal_kind(
+    pub fn clear_client_route_subscriptions_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
-        self.clear_device_subscriptions_internal(tenant_id, principal_id, principal_kind, device_id)
+        self.clear_client_route_subscriptions_internal(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )
     }
 
-    fn clear_device_subscriptions_internal(
+    fn clear_client_route_subscriptions_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -1227,7 +1269,7 @@ impl RealtimeDeliveryRuntime {
         )];
         let mutation_scope = RealtimeMutationScopeGuards::new(self, &mutation_keys);
         let _mutation_guards = mutation_scope.lock();
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let removed = lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .remove(scope_key.as_str());
         if removed.is_some() {
@@ -1254,7 +1296,7 @@ impl RealtimeDeliveryRuntime {
                 if let Some(removed) = removed.as_ref() {
                     lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
                         .insert(scope_key, removed.clone());
-                    self.index_device_subscriptions(
+                    self.index_client_route_subscriptions(
                         tenant_id,
                         principal_kind,
                         principal_id,
@@ -1296,8 +1338,13 @@ impl RealtimeDeliveryRuntime {
         limit: usize,
     ) -> Result<RealtimeEventWindow, RealtimeRuntimeError> {
         validate_realtime_event_limit(limit)?;
-        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        self.ensure_client_route_state_internal(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )?;
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let acked_through_seq = lock_realtime_mutex(&self.acked_sequences, "realtime ack store")
             .get(scope_key.as_str())
             .copied()
@@ -1386,8 +1433,13 @@ impl RealtimeDeliveryRuntime {
         )];
         let mutation_scope = RealtimeMutationScopeGuards::new(self, &mutation_keys);
         let _mutation_guards = mutation_scope.lock();
-        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        self.ensure_client_route_state_internal(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )?;
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let latest_seq = lock_realtime_mutex(&self.latest_sequences, "realtime sequence store")
             .get(scope_key.as_str())
             .copied()
@@ -1489,23 +1541,23 @@ impl RealtimeDeliveryRuntime {
         })
     }
 
-    pub fn take_device_state_for_principal_kind(
+    pub fn take_client_route_state_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
-    ) -> Result<RealtimeDeviceStateSnapshot, RealtimeRuntimeError> {
-        self.take_device_state_internal(tenant_id, principal_id, principal_kind, device_id)
+    ) -> Result<RealtimeClientRouteStateSnapshot, RealtimeRuntimeError> {
+        self.take_client_route_state_internal(tenant_id, principal_id, principal_kind, device_id)
     }
 
-    fn take_device_state_internal(
+    fn take_client_route_state_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
-    ) -> Result<RealtimeDeviceStateSnapshot, RealtimeRuntimeError> {
+    ) -> Result<RealtimeClientRouteStateSnapshot, RealtimeRuntimeError> {
         let mutation_keys = [realtime_mutation_principal_key(
             tenant_id,
             principal_kind,
@@ -1513,8 +1565,13 @@ impl RealtimeDeliveryRuntime {
         )];
         let mutation_scope = RealtimeMutationScopeGuards::new(self, &mutation_keys);
         let _mutation_guards = mutation_scope.lock();
-        self.ensure_device_state_internal(tenant_id, principal_id, principal_kind, device_id)?;
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        self.ensure_client_route_state_internal(
+            tenant_id,
+            principal_id,
+            principal_kind,
+            device_id,
+        )?;
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let subscriptions = lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
             .remove(scope_key.as_str())
             .map(|subscriptions| subscriptions.ordered_items())
@@ -1572,12 +1629,12 @@ impl RealtimeDeliveryRuntime {
         )
         .remove(scope_key.as_str());
         lock_realtime_mutex(
-            &self.migrated_out_device_scopes,
+            &self.migrated_out_client_route_scopes,
             "realtime migrated-out device scope store",
         )
         .insert(scope_key.clone());
 
-        Ok(RealtimeDeviceStateSnapshot {
+        Ok(RealtimeClientRouteStateSnapshot {
             tenant_id: tenant_id.into(),
             principal_kind: principal_kind.into(),
             principal_id: principal_id.into(),
@@ -1594,9 +1651,9 @@ impl RealtimeDeliveryRuntime {
         })
     }
 
-    pub fn restore_device_state(
+    pub fn restore_client_route_state(
         &self,
-        snapshot: RealtimeDeviceStateSnapshot,
+        snapshot: RealtimeClientRouteStateSnapshot,
     ) -> Result<(), RealtimeRuntimeError> {
         let mutation_keys = [realtime_mutation_principal_key(
             snapshot.tenant_id.as_str(),
@@ -1633,19 +1690,20 @@ impl RealtimeDeliveryRuntime {
             snapshot.last_capacity_trimmed_at,
         );
         let normalized_events_for_store = normalized_events.values().cloned().collect::<Vec<_>>();
-        let scope_key = device_scope_key(
+        let scope_key = client_route_scope_key(
             snapshot.tenant_id.as_str(),
             snapshot.principal_id.as_str(),
             snapshot.principal_kind.as_str(),
             snapshot.device_id.as_str(),
         );
         lock_realtime_mutex(
-            &self.migrated_out_device_scopes,
+            &self.migrated_out_client_route_scopes,
             "realtime migrated-out device scope store",
         )
         .remove(scope_key.as_str());
-        let device_subscriptions = RealtimeDeviceSubscriptions::from_items(snapshot.subscriptions);
-        let subscription_items = device_subscriptions.ordered_items();
+        let client_route_subscriptions =
+            RealtimeClientRouteSubscriptions::from_items(snapshot.subscriptions);
+        let subscription_items = client_route_subscriptions.ordered_items();
         let subscription_record = subscription_record_from_items(
             snapshot.tenant_id.as_str(),
             snapshot.principal_id.as_str(),
@@ -1758,13 +1816,13 @@ impl RealtimeDeliveryRuntime {
             snapshot.device_id.as_str(),
         );
         lock_realtime_mutex(&self.subscriptions, "realtime subscription store")
-            .insert(scope_key.clone(), device_subscriptions.clone());
-        self.index_device_subscriptions(
+            .insert(scope_key.clone(), client_route_subscriptions.clone());
+        self.index_client_route_subscriptions(
             snapshot.tenant_id.as_str(),
             snapshot.principal_kind.as_str(),
             snapshot.principal_id.as_str(),
             snapshot.device_id.as_str(),
-            &device_subscriptions,
+            &client_route_subscriptions,
         );
         lock_realtime_mutex(&self.windows, "realtime window store")
             .insert(scope_key.clone(), normalized_events);
@@ -1797,7 +1855,7 @@ impl RealtimeDeliveryRuntime {
         }
         lock_realtime_mutex(&self.notifiers, "realtime notifier store")
             .insert(scope_key, watch::channel(latest_realtime_seq).0);
-        let scope_key = device_scope_key(
+        let scope_key = client_route_scope_key(
             snapshot.tenant_id.as_str(),
             snapshot.principal_id.as_str(),
             snapshot.principal_kind.as_str(),
@@ -1885,7 +1943,7 @@ impl RealtimeDeliveryRuntime {
         scope_id: &str,
         event_type: &str,
         payload: String,
-        registered_devices: Vec<String>,
+        registered_client_routes: Vec<String>,
     ) -> Result<usize, RealtimeRuntimeError> {
         self.publish_scope_event_internal(
             tenant_id,
@@ -1895,7 +1953,7 @@ impl RealtimeDeliveryRuntime {
             scope_id,
             event_type,
             payload,
-            registered_devices,
+            registered_client_routes,
         )
     }
 
@@ -1909,7 +1967,7 @@ impl RealtimeDeliveryRuntime {
         scope_id: &str,
         event_type: &str,
         payload: String,
-        registered_devices: Vec<String>,
+        registered_client_routes: Vec<String>,
     ) -> Result<usize, RealtimeRuntimeError> {
         let mutation_keys = [realtime_mutation_principal_key(
             tenant_id,
@@ -1918,9 +1976,9 @@ impl RealtimeDeliveryRuntime {
         )];
         let mutation_scope = RealtimeMutationScopeGuards::new(self, &mutation_keys);
         let _mutation_guards = mutation_scope.lock();
-        let mut registered_devices = registered_devices;
-        registered_devices.sort_unstable();
-        registered_devices.dedup();
+        let mut registered_client_routes = registered_client_routes;
+        registered_client_routes.sort_unstable();
+        registered_client_routes.dedup();
         let mut matched_targets = {
             let subscription_scope_index = lock_realtime_mutex(
                 &self.subscription_scope_index,
@@ -1934,19 +1992,19 @@ impl RealtimeDeliveryRuntime {
                 scope_type,
                 scope_id,
                 event_type,
-                registered_devices.clone(),
+                registered_client_routes.clone(),
             )
         };
         let matched_device_ids = matched_targets
             .iter()
             .map(|(_, device_id)| device_id.as_str())
             .collect::<BTreeSet<_>>();
-        let unmatched_registered_devices = registered_devices
+        let unmatched_registered_client_routes = registered_client_routes
             .iter()
             .filter(|device_id| !matched_device_ids.contains(device_id.as_str()))
             .cloned()
             .collect::<Vec<_>>();
-        if !unmatched_registered_devices.is_empty() {
+        if !unmatched_registered_client_routes.is_empty() {
             let mut durable_matched_devices = self
                 .subscription_store
                 .load_matching_subscriptions(RealtimeMatchingSubscriptionQuery {
@@ -1956,7 +2014,7 @@ impl RealtimeDeliveryRuntime {
                     scope_type,
                     scope_id,
                     event_type,
-                    candidate_device_ids: &unmatched_registered_devices,
+                    candidate_device_ids: &unmatched_registered_client_routes,
                 })
                 .map_err(RealtimeRuntimeError::subscription_store)?
                 .into_iter()
@@ -1965,7 +2023,7 @@ impl RealtimeDeliveryRuntime {
             durable_matched_devices.sort_unstable();
             durable_matched_devices.dedup();
             for device_id in &durable_matched_devices {
-                self.ensure_device_state_internal(
+                self.ensure_client_route_state_internal(
                     tenant_id,
                     principal_id,
                     principal_kind,
@@ -1985,7 +2043,7 @@ impl RealtimeDeliveryRuntime {
                     scope_type,
                     scope_id,
                     event_type,
-                    registered_devices,
+                    registered_client_routes,
                 );
             }
         }
@@ -2088,7 +2146,7 @@ impl RealtimeDeliveryRuntime {
                             capacity_trimmed_through_seq,
                             last_capacity_trimmed_at: last_capacity_trimmed_at.clone(),
                         });
-                    RealtimePublishDeviceMutation {
+                    RealtimePublishClientRouteMutation {
                         scope_key,
                         next_seq: latest_realtime_seq,
                         next_window,
@@ -2198,13 +2256,13 @@ impl RealtimeDeliveryRuntime {
         Ok(delivered)
     }
 
-    fn index_device_subscriptions(
+    fn index_client_route_subscriptions(
         &self,
         tenant_id: &str,
         principal_kind: &str,
         principal_id: &str,
         device_id: &str,
-        subscriptions: &RealtimeDeviceSubscriptions,
+        subscriptions: &RealtimeClientRouteSubscriptions,
     ) {
         let mut subscription_scope_index = lock_realtime_mutex(
             &self.subscription_scope_index,
@@ -2263,13 +2321,13 @@ pub(super) fn lock_realtime_mutex<'a, T>(
     }
 }
 
-fn device_scope_key(
+fn client_route_scope_key(
     tenant_id: &str,
     principal_id: &str,
     principal_kind: &str,
     device_id: &str,
 ) -> String {
-    typed_device_scope_key(tenant_id, principal_id, principal_kind, device_id)
+    typed_client_route_scope_key(tenant_id, principal_id, principal_kind, device_id)
 }
 
 fn validate_payload_size(
@@ -2455,12 +2513,12 @@ fn trim_window_to_capacity(
     capacity_trimmed_through_seq: &mut u64,
     last_capacity_trimmed_at: &mut Option<String>,
 ) {
-    let trim_started_at = if events.len() > REALTIME_DEVICE_WINDOW_MAX_RETAINED_EVENTS {
+    let trim_started_at = if events.len() > REALTIME_CLIENT_ROUTE_WINDOW_MAX_RETAINED_EVENTS {
         Some(realtime_timestamp())
     } else {
         None
     };
-    while events.len() > REALTIME_DEVICE_WINDOW_MAX_RETAINED_EVENTS {
+    while events.len() > REALTIME_CLIENT_ROUTE_WINDOW_MAX_RETAINED_EVENTS {
         if let Some((trimmed_seq, _)) = events.pop_first() {
             *trimmed_through_seq = (*trimmed_through_seq).max(trimmed_seq);
             *capacity_trimmed_event_count = capacity_trimmed_event_count.saturating_add(1);
@@ -2561,9 +2619,11 @@ fn collect_matched_delivery_targets(
     scope_type: &str,
     scope_id: &str,
     event_type: &str,
-    registered_devices: Vec<String>,
+    registered_client_routes: Vec<String>,
 ) -> Vec<(String, String)> {
-    let registered_devices = registered_devices.into_iter().collect::<BTreeSet<_>>();
+    let registered_client_routes = registered_client_routes
+        .into_iter()
+        .collect::<BTreeSet<_>>();
     let candidate_subscriptions = subscription_scope_index
         .get(&RealtimePrincipalScopeKey::new(
             tenant_id,
@@ -2578,14 +2638,14 @@ fn collect_matched_delivery_targets(
     candidate_subscriptions
         .into_iter()
         .filter_map(|(device_id, subscription)| {
-            if !registered_devices.contains(device_id.as_str()) {
+            if !registered_client_routes.contains(device_id.as_str()) {
                 return None;
             }
             if !subscription_matches_event(&subscription, event_type) {
                 return None;
             }
             let scope_key =
-                device_scope_key(tenant_id, principal_id, principal_kind, device_id.as_str());
+                client_route_scope_key(tenant_id, principal_id, principal_kind, device_id.as_str());
             Some((scope_key, device_id))
         })
         .collect()
@@ -2650,24 +2710,24 @@ mod tests {
     fn test_collect_matched_delivery_targets_filters_to_registered_matching_devices() {
         let mut subscriptions = HashMap::new();
         subscriptions.insert(
-            device_scope_key("t_demo", "u_demo", "user", "d_match"),
-            RealtimeDeviceSubscriptions::from_items(vec![subscription(
+            client_route_scope_key("t_demo", "u_demo", "user", "d_match"),
+            RealtimeClientRouteSubscriptions::from_items(vec![subscription(
                 "conversation",
                 "c_demo",
                 vec!["message.posted"],
             )]),
         );
         subscriptions.insert(
-            device_scope_key("t_demo", "u_demo", "user", "d_other_scope"),
-            RealtimeDeviceSubscriptions::from_items(vec![subscription(
+            client_route_scope_key("t_demo", "u_demo", "user", "d_other_scope"),
+            RealtimeClientRouteSubscriptions::from_items(vec![subscription(
                 "conversation",
                 "c_other",
                 vec!["message.posted"],
             )]),
         );
         subscriptions.insert(
-            device_scope_key("t_demo", "u_demo", "user", "d_other_event"),
-            RealtimeDeviceSubscriptions::from_items(vec![subscription(
+            client_route_scope_key("t_demo", "u_demo", "user", "d_other_event"),
+            RealtimeClientRouteSubscriptions::from_items(vec![subscription(
                 "conversation",
                 "c_demo",
                 vec!["message.read"],
@@ -2677,19 +2737,25 @@ mod tests {
             (
                 "d_match",
                 subscriptions
-                    .get(device_scope_key("t_demo", "u_demo", "user", "d_match").as_str())
+                    .get(client_route_scope_key("t_demo", "u_demo", "user", "d_match").as_str())
                     .expect("matching subscription should exist"),
             ),
             (
                 "d_other_scope",
                 subscriptions
-                    .get(device_scope_key("t_demo", "u_demo", "user", "d_other_scope").as_str())
+                    .get(
+                        client_route_scope_key("t_demo", "u_demo", "user", "d_other_scope")
+                            .as_str(),
+                    )
                     .expect("other scope subscription should exist"),
             ),
             (
                 "d_other_event",
                 subscriptions
-                    .get(device_scope_key("t_demo", "u_demo", "user", "d_other_event").as_str())
+                    .get(
+                        client_route_scope_key("t_demo", "u_demo", "user", "d_other_event")
+                            .as_str(),
+                    )
                     .expect("other event subscription should exist"),
             ),
         ]);
@@ -2714,7 +2780,7 @@ mod tests {
         assert_eq!(
             matched,
             vec![(
-                device_scope_key("t_demo", "u_demo", "user", "d_match"),
+                client_route_scope_key("t_demo", "u_demo", "user", "d_match"),
                 "d_match".into()
             )]
         );
@@ -2724,8 +2790,8 @@ mod tests {
     fn test_collect_matched_delivery_targets_accepts_wildcard_event_subscriptions() {
         let mut subscriptions = HashMap::new();
         subscriptions.insert(
-            device_scope_key("t_demo", "u_demo", "user", "d_wildcard"),
-            RealtimeDeviceSubscriptions::from_items(vec![subscription(
+            client_route_scope_key("t_demo", "u_demo", "user", "d_wildcard"),
+            RealtimeClientRouteSubscriptions::from_items(vec![subscription(
                 "conversation",
                 "c_demo",
                 vec![],
@@ -2734,7 +2800,7 @@ mod tests {
         let subscription_scope_index = subscription_scope_index_from_subscriptions(&[(
             "d_wildcard",
             subscriptions
-                .get(device_scope_key("t_demo", "u_demo", "user", "d_wildcard").as_str())
+                .get(client_route_scope_key("t_demo", "u_demo", "user", "d_wildcard").as_str())
                 .expect("wildcard subscription should exist"),
         )]);
 
@@ -2752,7 +2818,7 @@ mod tests {
         assert_eq!(
             matched,
             vec![(
-                device_scope_key("t_demo", "u_demo", "user", "d_wildcard"),
+                client_route_scope_key("t_demo", "u_demo", "user", "d_wildcard"),
                 "d_wildcard".into()
             )]
         );
@@ -2762,7 +2828,7 @@ mod tests {
     fn test_persist_checkpoint_normalizes_transient_inconsistent_sequence_state() {
         let checkpoint_store = Arc::new(MemoryRealtimeCheckpointStore::default());
         let runtime = RealtimeDeliveryRuntime::with_checkpoint_store(checkpoint_store.clone());
-        let scope_key = device_scope_key("t_demo", "u_demo", "user", "d_pad");
+        let scope_key = client_route_scope_key("t_demo", "u_demo", "user", "d_pad");
 
         runtime
             .latest_sequences
@@ -2795,7 +2861,7 @@ mod tests {
     #[test]
     fn test_window_checkpoint_normalizes_transient_inconsistent_sequence_state() {
         let runtime = RealtimeDeliveryRuntime::permissive_for_tests();
-        let scope_key = device_scope_key("t_demo", "u_demo", "user", "d_pad");
+        let scope_key = client_route_scope_key("t_demo", "u_demo", "user", "d_pad");
         runtime
             .latest_sequences
             .lock()
@@ -2822,7 +2888,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ensure_device_state_recovers_from_poisoned_sequence_store_lock() {
+    fn test_ensure_client_route_state_recovers_from_poisoned_sequence_store_lock() {
         let runtime = RealtimeDeliveryRuntime::default();
         let _ = std::panic::catch_unwind({
             let latest_sequences = runtime.latest_sequences.clone();
@@ -2835,7 +2901,7 @@ mod tests {
         });
 
         runtime
-            .ensure_device_state_for_principal_kind("t_demo", "u_demo", "user", "d_poison")
+            .ensure_client_route_state_for_principal_kind("t_demo", "u_demo", "user", "d_poison")
             .expect("poisoned lock should be recovered");
         let checkpoint = runtime
             .window_checkpoint_for_principal_kind("t_demo", "u_demo", "user", "d_poison")
@@ -2875,7 +2941,7 @@ mod tests {
             Arc::new(MemoryRealtimeCheckpointStore::default()),
             Arc::new(ArchivedConversationPolicy),
         );
-        let scope_key = device_scope_key("t_demo", "u_demo", "user", "d_pad");
+        let scope_key = client_route_scope_key("t_demo", "u_demo", "user", "d_pad");
         lock_realtime_mutex(&runtime.windows, "realtime window store").insert(
             scope_key.clone(),
             [
@@ -2932,7 +2998,7 @@ mod tests {
             Arc::new(MemoryRealtimeCheckpointStore::default()),
             Arc::new(StandaloneRealtimeScopeAccessPolicy),
         );
-        let scope_key = device_scope_key("t_demo", "u_demo", "user", "d_pad");
+        let scope_key = client_route_scope_key("t_demo", "u_demo", "user", "d_pad");
         lock_realtime_mutex(&runtime.windows, "realtime window store").insert(
             scope_key.clone(),
             [
@@ -3031,13 +3097,13 @@ mod tests {
     }
 
     fn subscription_scope_index_from_subscriptions(
-        subscriptions: &[(&str, &RealtimeDeviceSubscriptions)],
+        subscriptions: &[(&str, &RealtimeClientRouteSubscriptions)],
     ) -> HashMap<RealtimePrincipalScopeKey, BTreeMap<String, RealtimeSubscription>> {
         let mut index: HashMap<RealtimePrincipalScopeKey, BTreeMap<String, RealtimeSubscription>> =
             HashMap::new();
-        for (device_id, device_subscriptions) in subscriptions {
-            for subscription_scope in &device_subscriptions.scope_order {
-                let subscription = device_subscriptions
+        for (device_id, client_route_subscriptions) in subscriptions {
+            for subscription_scope in &client_route_subscriptions.scope_order {
+                let subscription = client_route_subscriptions
                     .by_scope
                     .get(subscription_scope)
                     .expect("test subscription should exist for scope");

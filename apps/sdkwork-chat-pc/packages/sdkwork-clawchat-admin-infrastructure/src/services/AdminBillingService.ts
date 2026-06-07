@@ -1,4 +1,4 @@
-import { getBackendSdkClientWithSession } from '@sdkwork/clawchat-pc-core';
+import { getBackendSdkClientWithSession } from '@sdkwork/clawchat-admin-core/sdk';
 
 export interface BillingStatItem {
   title: string;

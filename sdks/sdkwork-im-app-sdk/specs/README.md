@@ -64,6 +64,7 @@ The `sdkDependencies` contract is mandatory for this app SDK family:
 
 - `sdkwork-appbase-app-sdk`: role `appbase-identity-and-session-capability`, `dependencyMode: consumer-sdk`, `generatedTransportImportPolicy: forbidden`
 - `sdkwork-im-sdk`: role `standardized-im-capability`, `dependencyMode: consumer-sdk`, `generatedTransportImportPolicy: forbidden`
+- `sdkwork-aiot-app-sdk`: role `device-aiot-app-capability`, `dependencyMode: consumer-sdk`, `generatedTransportImportPolicy: forbidden`
 - `sdkwork-rtc-sdk`: role `provider-standard-rtc-runtime`, `dependencyMode: consumer-sdk`, `generatedTransportImportPolicy: forbidden`
 
 ## Local Extension Specs

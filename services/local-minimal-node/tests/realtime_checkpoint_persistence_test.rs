@@ -131,7 +131,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -231,7 +231,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -406,7 +406,7 @@ async fn test_default_local_minimal_profile_restores_unacked_realtime_events_aft
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -481,7 +481,7 @@ async fn test_default_local_minimal_profile_restores_unacked_realtime_events_aft
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -618,7 +618,7 @@ async fn test_default_local_minimal_ops_diagnostics_exposes_durable_realtime_inb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/im/v3/api/devices/register")
+                .uri("/im/v3/api/presence/heartbeat")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -723,7 +723,7 @@ async fn test_default_local_minimal_ops_diagnostics_exposes_durable_realtime_inb
         1
     );
     assert_eq!(
-        diagnostics_with_backlog_json["realtimeInbox"]["maxDeviceWindowEventCount"],
+        diagnostics_with_backlog_json["realtimeInbox"]["maxClientRouteWindowEventCount"],
         1
     );
     assert_eq!(
@@ -731,7 +731,7 @@ async fn test_default_local_minimal_ops_diagnostics_exposes_durable_realtime_inb
         1000
     );
     assert_eq!(
-        diagnostics_with_backlog_json["realtimeInbox"]["maxDeviceWindowUsagePermille"],
+        diagnostics_with_backlog_json["realtimeInbox"]["maxClientRouteWindowUsagePermille"],
         1
     );
     assert_eq!(
@@ -821,7 +821,7 @@ async fn test_default_local_minimal_ops_diagnostics_exposes_durable_realtime_inb
         1
     );
     assert_eq!(
-        health_with_backlog_json["realtimeInbox"]["maxDeviceWindowUsagePermille"],
+        health_with_backlog_json["realtimeInbox"]["maxClientRouteWindowUsagePermille"],
         1
     );
 
@@ -878,7 +878,7 @@ async fn test_default_local_minimal_ops_diagnostics_exposes_durable_realtime_inb
         0
     );
     assert_eq!(
-        diagnostics_after_ack_json["realtimeInbox"]["maxDeviceWindowEventCount"],
+        diagnostics_after_ack_json["realtimeInbox"]["maxClientRouteWindowEventCount"],
         0
     );
     assert_eq!(
@@ -886,7 +886,7 @@ async fn test_default_local_minimal_ops_diagnostics_exposes_durable_realtime_inb
         1000
     );
     assert_eq!(
-        diagnostics_after_ack_json["realtimeInbox"]["maxDeviceWindowUsagePermille"],
+        diagnostics_after_ack_json["realtimeInbox"]["maxClientRouteWindowUsagePermille"],
         0
     );
     assert_eq!(

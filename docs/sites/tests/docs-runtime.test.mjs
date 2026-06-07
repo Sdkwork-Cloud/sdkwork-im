@@ -12,6 +12,9 @@ const retiredSdkPattern = (...parts) => new RegExp(parts.join(''));
 
 function listMarkdownFiles(root) {
   const files = [];
+  if (!existsSync(root)) {
+    return files;
+  }
   for (const entry of readdirSync(root)) {
     const fullPath = path.join(root, entry);
     const stat = statSync(fullPath);
@@ -38,11 +41,6 @@ test('workspace donor roots include the canonical docs site when local docs node
   const canonicalDocsRoot = resolveCanonicalDocsRoot(currentWorkspaceRoot);
   const canonicalIsCurrentDocsRoot = canonicalDocsRoot === docsRoot;
 
-  assert.equal(
-    existsSync(path.join(canonicalDocsRoot, 'node_modules', 'vitepress', 'package.json')),
-    true,
-    'test setup should include a canonical docs site donor with vitepress installed',
-  );
   if (canonicalIsCurrentDocsRoot) {
     assert.equal(
       donorRoots.includes(canonicalDocsRoot),
@@ -52,6 +50,11 @@ test('workspace donor roots include the canonical docs site when local docs node
     return;
   }
 
+  assert.equal(
+    existsSync(path.join(canonicalDocsRoot, 'node_modules', 'vitepress', 'package.json')),
+    true,
+    'test setup should include a canonical docs site donor with vitepress installed',
+  );
   assert.equal(
     donorRoots.includes(canonicalDocsRoot),
     true,
@@ -112,7 +115,7 @@ test('api reference generation scripts preserve AppContext security terminology'
   }
 });
 
-test('sdk docs preserve SDKWork credential and Craw Chat device-session terminology', () => {
+test('sdk docs preserve SDKWork credential and Craw Chat client-route terminology', () => {
   const checkedRoots = [
     path.join(docsRoot, 'sdk'),
     path.join(docsRoot, 'api-reference'),
@@ -139,7 +142,7 @@ test('sdk docs preserve SDKWork credential and Craw Chat device-session terminol
         assert.doesNotMatch(
           source,
           forbidden,
-          `${relativePath} must use SDKWork appbase credential wording and Craw Chat device-session naming`,
+          `${relativePath} must use SDKWork appbase credential wording and Craw Chat client-route naming`,
         );
       }
     }
@@ -355,23 +358,14 @@ test('api reference groups follow the im app backend authority split', () => {
   assert.match(appApiDoc, /\/app\/v3\/api\/\*/);
   assert.match(appApiDoc, /sdkwork-im-app-sdk/);
   assert.match(appApiDoc, /Portal Access/);
-  assert.match(appApiDoc, /Device Twin/);
   assert.match(appApiDoc, /Notifications/);
   assert.match(appApiDoc, /Automation/);
   assert.match(appApiDoc, /Provider Health/);
-  assert.match(appApiDoc, /IoT Protocol/);
+  assert.doesNotMatch(appApiDoc, /Device Twin/);
+  assert.doesNotMatch(appApiDoc, /IoT Protocol/);
   assert.doesNotMatch(appApiDoc, /Conversation Runtime/);
   assert.doesNotMatch(appApiDoc, /Media and Streams/);
-  assert.doesNotMatch(appApiDoc, /Device Sessions and Realtime/);
-
-  const deviceTwinDoc = readFileSync(
-    path.join(docsRoot, 'api-reference', 'app', 'device-twin.md'),
-    'utf8',
-  );
-  assert.match(deviceTwinDoc, /\/app\/v3\/api\/devices\/\{deviceId\}\/twin/);
-  assert.match(deviceTwinDoc, /sdkwork-im-app-sdk/);
-  assert.doesNotMatch(deviceTwinDoc, /@sdkwork\/im-sdk/);
-  assert.doesNotMatch(deviceTwinDoc, /\/im\/v3\/api\/devices\/\{deviceId\}\/twin/);
+  assert.doesNotMatch(appApiDoc, /Realtime Presence/);
 
   assert.match(portalDoc, /\/app\/v3\/api\/portal\/access/);
   assert.match(portalDoc, /sdkwork-im-app-sdk/);

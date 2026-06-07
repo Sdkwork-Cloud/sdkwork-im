@@ -12,7 +12,7 @@
   "mode": "apply",
   "hasChanges": true,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "2a652c7e9296f05f4da416023bd2a25b4822e0dd6a51bf249ff544a4f6aaf068",
+  "changeFingerprint": "7b5d3965079cabbd600e243e3d8572952653366a79e315b4dbe85b86f817a322",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
@@ -30,8 +30,6 @@
           "Sources/API/API.swift",
           "Sources/API/ApiPaths.swift",
           "Sources/API/AutomationApi.swift",
-          "Sources/API/DeviceApi.swift",
-          "Sources/API/IotApi.swift",
           "Sources/API/NotificationApi.swift",
           "Sources/API/PortalApi.swift",
           "Sources/API/ProviderApi.swift"
@@ -150,20 +148,20 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 20,
-    "models": 22,
-    "apis": 6,
+    "totalFiles": 18,
+    "models": 19,
+    "apis": 4,
     "types": 0
   },
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
-    "writtenFiles": 16,
+    "writtenFiles": 14,
     "skippedScaffoldFiles": 1,
     "skippedUnchangedGeneratedFiles": 3,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "2a652c7e9296f05f4da416023bd2a25b4822e0dd6a51bf249ff544a4f6aaf068",
+    "changeFingerprint": "7b5d3965079cabbd600e243e3d8572952653366a79e315b4dbe85b86f817a322",
     "changes": {
       "createdGeneratedFiles": [
         "CHANGELOG.md",
@@ -174,8 +172,6 @@
         "Sources/API/API.swift",
         "Sources/API/ApiPaths.swift",
         "Sources/API/AutomationApi.swift",
-        "Sources/API/DeviceApi.swift",
-        "Sources/API/IotApi.swift",
         "Sources/API/NotificationApi.swift",
         "Sources/API/PortalApi.swift",
         "Sources/API/ProviderApi.swift",
@@ -213,8 +209,6 @@
             "Sources/API/API.swift",
             "Sources/API/ApiPaths.swift",
             "Sources/API/AutomationApi.swift",
-            "Sources/API/DeviceApi.swift",
-            "Sources/API/IotApi.swift",
             "Sources/API/NotificationApi.swift",
             "Sources/API/PortalApi.swift",
             "Sources/API/ProviderApi.swift"

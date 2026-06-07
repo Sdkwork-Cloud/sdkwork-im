@@ -5,8 +5,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::*;
 use im_domain_core::automation::{AutomationExecution, AutomationExecutionState};
-use im_domain_core::device_session::{DevicePresenceStatus, DevicePresenceView};
 use im_domain_core::notification::{NotificationStatus, NotificationTask};
+use im_domain_core::presence::{PresenceClientView, PresenceStatus};
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
 use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
@@ -1552,13 +1552,13 @@ fn test_file_presence_state_store_persists_across_reopen() {
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
-            presence: DevicePresenceView {
+            presence: PresenceClientView {
                 tenant_id: "t_demo".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_pad".into(),
                 platform: None,
                 session_id: None,
-                status: DevicePresenceStatus::Offline,
+                status: PresenceStatus::Offline,
                 last_sync_seq: 7,
                 last_resume_at: Some("2026-04-06T00:00:00.000Z".into()),
                 last_seen_at: Some("2026-04-06T00:00:01.000Z".into()),
@@ -1573,13 +1573,13 @@ fn test_file_presence_state_store_persists_across_reopen() {
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_phone".into(),
-            presence: DevicePresenceView {
+            presence: PresenceClientView {
                 tenant_id: "t_demo".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_phone".into(),
                 platform: None,
                 session_id: None,
-                status: DevicePresenceStatus::Offline,
+                status: PresenceStatus::Offline,
                 last_sync_seq: 0,
                 last_resume_at: None,
                 last_seen_at: None,
@@ -1613,24 +1613,20 @@ fn test_file_presence_state_store_lists_stale_online_devices_by_seen_at() {
     let file_path = unique_presence_state_store_file();
     let store = FilePresenceStateStore::new(&file_path);
     for (device_id, status, last_seen_at) in [
-        (
-            "d_new",
-            DevicePresenceStatus::Online,
-            "2026-05-06T00:00:03.000Z",
-        ),
+        ("d_new", PresenceStatus::Online, "2026-05-06T00:00:03.000Z"),
         (
             "d_old_2",
-            DevicePresenceStatus::Online,
+            PresenceStatus::Online,
             "2026-05-06T00:00:02.000Z",
         ),
         (
             "d_offline",
-            DevicePresenceStatus::Offline,
+            PresenceStatus::Offline,
             "2026-05-06T00:00:01.000Z",
         ),
         (
             "d_old_1",
-            DevicePresenceStatus::Online,
+            PresenceStatus::Online,
             "2026-05-06T00:00:01.000Z",
         ),
     ] {
@@ -1640,7 +1636,7 @@ fn test_file_presence_state_store_lists_stale_online_devices_by_seen_at() {
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: device_id.into(),
-                presence: DevicePresenceView {
+                presence: PresenceClientView {
                     tenant_id: "t_demo".into(),
                     principal_id: "u_demo".into(),
                     device_id: device_id.into(),
@@ -1691,13 +1687,13 @@ fn test_file_presence_state_store_seen_at_cutoff_compares_rfc3339_by_instant() {
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: device_id.into(),
-                presence: DevicePresenceView {
+                presence: PresenceClientView {
                     tenant_id: "t_demo".into(),
                     principal_id: "u_demo".into(),
                     device_id: device_id.into(),
                     platform: None,
                     session_id: Some(format!("s_{device_id}")),
-                    status: DevicePresenceStatus::Online,
+                    status: PresenceStatus::Online,
                     last_sync_seq: 0,
                     last_resume_at: Some(last_seen_at.into()),
                     last_seen_at: Some(last_seen_at.into()),
@@ -1733,13 +1729,13 @@ fn test_file_presence_state_store_conditionally_expires_only_stale_online_state(
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
-            presence: DevicePresenceView {
+            presence: PresenceClientView {
                 tenant_id: "t_demo".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_pad".into(),
                 platform: None,
                 session_id: Some("s_old".into()),
-                status: DevicePresenceStatus::Online,
+                status: PresenceStatus::Online,
                 last_sync_seq: 7,
                 last_resume_at: Some("2026-05-06T00:00:00.000Z".into()),
                 last_seen_at: Some("2026-05-06T00:00:00.000Z".into()),

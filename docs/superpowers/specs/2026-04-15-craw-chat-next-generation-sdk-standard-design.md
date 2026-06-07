@@ -306,7 +306,7 @@ const sdk = new ImSdkClient({
 });
 
 const live = await sdk.connect({
-  deviceId: 'web-chrome-01',
+  clientRouteId: 'web-chrome-01',
   subscriptions: {
     conversations: ['conversation-support-001'],
     rtcSessions: ['rtc-support-001'],
@@ -317,7 +317,7 @@ const live = await sdk.connect({
 `connect()` should orchestrate:
 
 1. token availability validation
-2. device registration when needed
+2. client route registration when needed
 3. session resume
 4. optional durable catch-up before going live
 5. WebSocket connection establishment
@@ -610,7 +610,7 @@ const sdk = new ImSdkClient({
 });
 
 const live = await sdk.connect({
-  deviceId: 'web-chrome-01',
+  clientRouteId: 'web-chrome-01',
   subscriptions: {
     conversations: ['conversation-support-001'],
   },

@@ -18,10 +18,10 @@ This section answers two practical questions:
 
 ### Realtime and session delivery
 
-- device route resume and disconnect
+- client route resume and disconnect
 - presence heartbeat and current-presence reads
 - realtime subscription sync, poll windows, ack flow, and websocket upgrade
-- device registration and sync-feed reads
+- client route registration and client-route event window reads
 
 ### Media, streaming, and RTC
 
@@ -37,8 +37,8 @@ This section answers two practical questions:
 
 ### Governance and extension
 
-- provider health for media, RTC, principal-profile, IoT access, and IoT protocol
-- IoT uplink and downlink ingestion
+- provider health for media, RTC, principal-profile, and AIoT integration
+- AIoT uplink and downlink ingestion through sdkwork-aiot
 - protocol registry and governance
 - provider registry and policy lifecycle
 - node drain, activate, and route migration

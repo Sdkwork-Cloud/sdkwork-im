@@ -13,7 +13,7 @@
 - 当前仓库在以下两个 service edge 上重复维护相同通知访问控制：
   - `services/notification-service/src/lib.rs`
   - `services/local-minimal-node/src/node/platform.rs`
-- 这种 duplicated permission seam 会让 notification owner 漂移继续留在 service entrypoint，无法把 projection / notification / multi-device sync 最终 owner 收口推进到 `CP05-4`
+- 这种 duplicated permission seam 会让 notification owner 漂移继续留在 service entrypoint，无法把 projection / notification / multi-client-route sync 最终 owner 收口推进到 `CP05-4`
 
 ## 3. 本轮实际完成
 
@@ -57,7 +57,7 @@
 - 这是 `CP05-4` 的第一个真实增量
 - notification public access owner 漂移已开始收口到 `notification-service`
 - 但 `CP05-4` 仍未闭环：
-  - projection / multi-device sync 最终 owner 收口仍未完成
+  - projection / multi-client-route sync 最终 owner 收口仍未完成
   - notification side-effect 与 fanout 仍有后续收口空间
 - 因此：
   - `CP05-4` 仍未通过

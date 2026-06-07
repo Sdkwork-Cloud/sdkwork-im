@@ -35,7 +35,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "98d6c1de34a8b6dd9cd69bc38be53f8b3e75526f22ad78f49d29277b52c256d2"
+      "sha256": "855b50acdd2ea016a6135b24ca8aef821168775623e58e1b23c68af4d45f9daa"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -50,16 +50,8 @@
       "sha256": "69ec31a1e73f40a0185789f36ea94e95fafbffc22734f4ad5493161c6cc639f9"
     },
     {
-      "path": "src/api/device.rs",
-      "sha256": "12555477710604f38df321f105af9cf98b2f2a7351ab57eebfe978ff6bc74bc5"
-    },
-    {
-      "path": "src/api/iot.rs",
-      "sha256": "74e457bf54af8ed97cacedf823b146d727c57ae28e0c12a9f309affb0b7510ee"
-    },
-    {
       "path": "src/api/mod.rs",
-      "sha256": "e75094c8df82d3a4a2da2881adbc0f61c92306c9f4108dad4d2898638131e2c8"
+      "sha256": "6aa2cddcf40d5fe981b5e873e5da8581172f4536902c896d501bc3c5f3e36de5"
     },
     {
       "path": "src/api/notification.rs",
@@ -79,7 +71,7 @@
     },
     {
       "path": "src/client.rs",
-      "sha256": "d4c41a79bf3d4e10cd37060e58025dc7df41066ba39e0a5713b84b537c4d434e"
+      "sha256": "49b35483688e9766e44ae87aa8b51ca45ee7640e29f6ea4d2e14b212f30760bf"
     },
     {
       "path": "src/http/client.rs",
@@ -126,12 +118,8 @@
       "sha256": "46b6c134954e53103b4b03338af2818f523c85e2c9f51e4b89e680b53a621b48"
     },
     {
-      "path": "src/models/device_twin_view.rs",
-      "sha256": "627439dba2827cb216e50f0362810cd08c00c78d3d9fba983eed49e8fc7e0fa6"
-    },
-    {
       "path": "src/models/mod.rs",
-      "sha256": "b17e0e0071c72c80b324336426f60692e6842e3e4feb53d1609f58070f9ab293"
+      "sha256": "79184fcdf4b358563230d581f652a72139655b472fac8d6331e3bb49908315f5"
     },
     {
       "path": "src/models/notification_list_response.rs",
@@ -180,14 +168,6 @@
     {
       "path": "src/models/stream_session.rs",
       "sha256": "61cfce74f2a95ae885ef10b9c2b3f254472132532218c07e229008f6ffd5b387"
-    },
-    {
-      "path": "src/models/update_device_twin_desired_request.rs",
-      "sha256": "55fbeffac1725cf26d0207e365d2489e095b818e04d52cc0876150077a830f1e"
-    },
-    {
-      "path": "src/models/update_device_twin_reported_request.rs",
-      "sha256": "3288d7db99f5de3cff87332d5df6c703caea88f96ec99980934512527735ff31"
     }
   ],
   "scaffoldFiles": [

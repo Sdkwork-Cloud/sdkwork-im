@@ -8,7 +8,7 @@ pub(super) fn post_message_with_side_effects(
     message_type: MessageType,
     body: MessageBody,
 ) -> Result<PostMessageResult, ApiError> {
-    access::ensure_registered_device(state, auth)?;
+    access::ensure_client_route_key(state, auth)?;
     access::ensure_conversation_member(state, auth, conversation_id.as_str())?;
     let summary = body.summary.clone();
     let message_type_name = match &message_type {
@@ -45,7 +45,7 @@ pub(super) fn publish_system_channel_message_with_side_effects(
     client_msg_id: Option<String>,
     body: MessageBody,
 ) -> Result<PostMessageResult, ApiError> {
-    access::ensure_registered_device(state, auth)?;
+    access::ensure_client_route_key(state, auth)?;
     let summary = body.summary.clone();
     let result = state.conversation_runtime.publish_system_channel_message(
         PublishSystemChannelMessageCommand {
@@ -581,7 +581,7 @@ fn publish_realtime_event_to_recipients(
     {
         let delivery = state
             .realtime_cluster
-            .publish_device_event_for_principal_kind(
+            .publish_client_route_event_for_principal_kind(
                 state.node_id.as_str(),
                 auth.tenant_id.as_str(),
                 target.principal_id.as_str(),

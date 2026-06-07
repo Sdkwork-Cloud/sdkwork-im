@@ -8,14 +8,12 @@
     "sdkType": "app",
     "packageName": "github.com/sdkwork/im-app-api-generated"
   },
-  "changeFingerprint": "e9865143f6eda86181bf5a4d5826b677004bd40dbdb6d9f724909742353d3dc4",
+  "changeFingerprint": "d0c78614dceb9424702f3d0ce39d96cebc001699965b155eccafca0f4606d864",
   "changes": {
     "createdGeneratedFiles": [
       "api/automation.go",
       "api/base.go",
-      "api/device.go",
       "api/doc.go",
-      "api/iot.go",
       "api/notification.go",
       "api/paths.go",
       "api/portal.go",
@@ -29,7 +27,6 @@
       "README.md",
       "sdk.go",
       "sdkwork-sdk.json",
-      "types/access_provider_health_retrieve_response.go",
       "types/agent_subject.go",
       "types/agent_tool_call_state.go",
       "types/agent_tool_call.go",
@@ -41,7 +38,6 @@
       "types/common.go",
       "types/complete_agent_response_request.go",
       "types/complete_agent_tool_call_request.go",
-      "types/device_twin_view.go",
       "types/doc.go",
       "types/media_health_retrieve_response.go",
       "types/notification_list_response.go",
@@ -53,9 +49,6 @@
       "types/portal_workspace_view.go",
       "types/principal_profile_health_retrieve_response.go",
       "types/problem_detail.go",
-      "types/protocol_downlink_create_response.go",
-      "types/protocol_provider_health_retrieve_response.go",
-      "types/protocol_uplink_create_response.go",
       "types/request_agent_tool_call_request.go",
       "types/request_automation_execution.go",
       "types/request_notification.go",
@@ -65,9 +58,7 @@
       "types/stream_frame.go",
       "types/stream_session_state.go",
       "types/stream_session.go",
-      "types/string_map.go",
-      "types/update_device_twin_desired_request.go",
-      "types/update_device_twin_reported_request.go"
+      "types/string_map.go"
     ],
     "updatedGeneratedFiles": [],
     "unchangedGeneratedFiles": [
@@ -98,9 +89,7 @@
         "paths": [
           "api/automation.go",
           "api/base.go",
-          "api/device.go",
           "api/doc.go",
-          "api/iot.go",
           "api/notification.go",
           "api/paths.go",
           "api/portal.go",
@@ -111,7 +100,6 @@
       {
         "area": "models",
         "paths": [
-          "types/access_provider_health_retrieve_response.go",
           "types/agent_subject.go",
           "types/agent_tool_call_state.go",
           "types/agent_tool_call.go",
@@ -123,7 +111,6 @@
           "types/common.go",
           "types/complete_agent_response_request.go",
           "types/complete_agent_tool_call_request.go",
-          "types/device_twin_view.go",
           "types/doc.go",
           "types/media_health_retrieve_response.go",
           "types/notification_list_response.go",
@@ -135,9 +122,6 @@
           "types/portal_workspace_view.go",
           "types/principal_profile_health_retrieve_response.go",
           "types/problem_detail.go",
-          "types/protocol_downlink_create_response.go",
-          "types/protocol_provider_health_retrieve_response.go",
-          "types/protocol_uplink_create_response.go",
           "types/request_agent_tool_call_request.go",
           "types/request_automation_execution.go",
           "types/request_notification.go",
@@ -147,9 +131,7 @@
           "types/stream_frame.go",
           "types/stream_session_state.go",
           "types/stream_session.go",
-          "types/string_map.go",
-          "types/update_device_twin_desired_request.go",
-          "types/update_device_twin_reported_request.go"
+          "types/string_map.go"
         ]
       },
       {

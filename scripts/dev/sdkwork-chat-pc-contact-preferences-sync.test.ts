@@ -98,16 +98,6 @@ const contactTags = new Map<string, ContactTagView>([
 ]);
 
 const fakeClient = {
-  chat: {
-    contacts: {
-      async list() {
-        return {
-          hasMore: false,
-          items: contactItems,
-        };
-      },
-    },
-  },
   social: {
     users: {
       async list(params: { limit?: number; q?: string }) {
@@ -147,6 +137,12 @@ const fakeClient = {
       },
     },
     contacts: {
+      async list() {
+        return {
+          hasMore: false,
+          items: contactItems,
+        };
+      },
       recommendations: {
         async create(targetUserId: string, body: CreateContactRecommendationRequest) {
           recommendationCreates.push({ targetUserId, body });

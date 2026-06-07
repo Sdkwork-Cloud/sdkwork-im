@@ -5,23 +5,16 @@ import { createSdkworkContactService } from '../../apps/sdkwork-chat-pc/packages
 const calls: Array<{ body?: Record<string, unknown>; method: string; params?: Record<string, unknown> }> = [];
 
 const fakeClient = {
-  chat: {
-    contacts: {
-      async list() {
-        calls.push({ method: 'chat.contacts.list' });
-        return { items: [], hasMore: false };
-      },
-    },
-  },
   social: {
     users: {
       async list(params: Record<string, unknown>) {
         calls.push({ method: 'social.users.list', params });
-        if (params.q === 'alice') {
+        if (params.q === 'alice' || params.q === 'alice@example.com' || params.q === '+12025550100') {
           return {
             items: [
               {
                 userId: 'u_alice',
+                chatId: 'cc8k2m7q4x9p',
                 displayName: 'Alice',
                 avatarUrl: 'https://example.com/alice.png',
                 email: 'alice@example.com',
@@ -32,10 +25,29 @@ const fakeClient = {
             hasMore: false,
           };
         }
+        if (params.q === 'cc8k2m7q4x9p') {
+          return {
+            items: [
+              {
+                userId: 'u_alice',
+                chatId: 'cc8k2m7q4x9p',
+                displayName: 'Alice',
+                relationshipState: 'none',
+              },
+            ],
+            hasMore: false,
+          };
+        }
         return {
           items: [],
           hasMore: false,
         };
+      },
+    },
+    contacts: {
+      async list() {
+        calls.push({ method: 'social.contacts.list' });
+        return { items: [], hasMore: false };
       },
     },
     friendRequests: {
@@ -68,9 +80,14 @@ async function main(): Promise<void> {
     'add-friend search must query the generated IM SDK social user search endpoint',
   );
   assert.deepEqual(
-    results.map((user) => [user.id, user.name, user.email, user.phone]),
-    [['u_alice', 'Alice', 'alice@example.com', '+12025550100']],
-    'add-friend search must map backend user search results into selectable contacts',
+    results.map((user) => [user.id, user.chatId, user.name, user.email, user.phone]),
+    [['u_alice', 'cc8k2m7q4x9p', 'Alice', 'alice@example.com', '+12025550100']],
+    'add-friend search must map backend user search results into selectable contacts with a public chat id',
+  );
+  assert.notEqual(
+    results[0]?.chatId,
+    results[0]?.id,
+    'public chat id must be distinct from the internal user id used for friend request targets',
   );
 
   const missing = await service.searchContacts('does-not-exist');
@@ -111,6 +128,61 @@ async function main(): Promise<void> {
     () => service.addFriendBySearchQuery('does-not-exist'),
     /not found/i,
     'direct add-by-input must reject missing users instead of treating the raw input as a target user id',
+  );
+
+  calls.length = 0;
+  const addedByChatId = await service.addFriendBySearchQuery(' cc8k2m7q4x9p ');
+  assert.equal(addedByChatId.id, 'u_alice', 'direct add-by-public-id must resolve the real internal target user id');
+  assert.equal(addedByChatId.chatId, 'cc8k2m7q4x9p', 'direct add-by-public-id must preserve the public chat id');
+  assert.deepEqual(
+    calls,
+    [
+      {
+        method: 'social.users.list',
+        params: { q: 'cc8k2m7q4x9p', limit: 20 },
+      },
+      {
+        method: 'social.friendRequests.create',
+        body: { targetUserId: 'u_alice' },
+      },
+    ],
+    'direct add-by-public-id must search by chat id but submit the real internal target user id',
+  );
+
+  calls.length = 0;
+  const addedByEmail = await service.addFriendBySearchQuery(' alice@example.com ');
+  assert.equal(addedByEmail.id, 'u_alice', 'direct add-by-email must resolve the real internal target user id');
+  assert.deepEqual(
+    calls,
+    [
+      {
+        method: 'social.users.list',
+        params: { q: 'alice@example.com', limit: 20 },
+      },
+      {
+        method: 'social.friendRequests.create',
+        body: { targetUserId: 'u_alice' },
+      },
+    ],
+    'direct add-by-email must search by email but submit the real internal target user id',
+  );
+
+  calls.length = 0;
+  const addedByPhone = await service.addFriendBySearchQuery(' +12025550100 ');
+  assert.equal(addedByPhone.id, 'u_alice', 'direct add-by-phone must resolve the real internal target user id');
+  assert.deepEqual(
+    calls,
+    [
+      {
+        method: 'social.users.list',
+        params: { q: '+12025550100', limit: 20 },
+      },
+      {
+        method: 'social.friendRequests.create',
+        body: { targetUserId: 'u_alice' },
+      },
+    ],
+    'direct add-by-phone must search by phone but submit the real internal target user id',
   );
 
   console.log('sdkwork-chat-pc add-friend search contract passed');

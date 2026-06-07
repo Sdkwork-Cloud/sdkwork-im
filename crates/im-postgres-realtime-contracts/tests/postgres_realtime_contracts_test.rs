@@ -1,8 +1,8 @@
 use im_postgres_realtime_contracts::{
     ALL_REALTIME_POSTGRES_SQL_CONTRACTS, ALL_REALTIME_POSTGRES_TRANSACTION_PLANS,
-    LIST_REALTIME_DEVICE_EVENTS_SQL, LOAD_MATCHING_REALTIME_SUBSCRIPTIONS_SQL,
+    LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL, LOAD_MATCHING_REALTIME_SUBSCRIPTIONS_SQL,
     REALTIME_POSTGRES_ADAPTER_PLAN, REALTIME_POSTGRES_SQL_CONTRACT_SPECS,
-    UPSERT_REALTIME_CHECKPOINT_SQL, UPSERT_REALTIME_DEVICE_EVENT_SQL,
+    UPSERT_REALTIME_CHECKPOINT_SQL, UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL,
 };
 
 const POSTGRES_CORE_SCHEMA: &str =
@@ -29,8 +29,8 @@ fn test_postgres_realtime_contract_crate_exports_complete_executable_contract_se
 #[test]
 fn test_postgres_realtime_contract_crate_keeps_runtime_safe_sql_shape() {
     let checkpoint_upsert = UPSERT_REALTIME_CHECKPOINT_SQL.to_lowercase();
-    let event_upsert = UPSERT_REALTIME_DEVICE_EVENT_SQL.to_lowercase();
-    let event_list = LIST_REALTIME_DEVICE_EVENTS_SQL.to_lowercase();
+    let event_upsert = UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL.to_lowercase();
+    let event_list = LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL.to_lowercase();
     let matching_subscriptions = LOAD_MATCHING_REALTIME_SUBSCRIPTIONS_SQL.to_lowercase();
 
     assert!(checkpoint_upsert.contains("on conflict (tenant_id, device_scope_key) do update"));
@@ -58,7 +58,7 @@ fn test_postgres_realtime_schema_enforces_event_window_checkpoint_parentage() {
         schema.contains("foreign key (tenant_id, device_scope_key)")
             && schema.contains("references im_realtime_checkpoints (tenant_id, device_scope_key)")
             && schema.contains("on delete cascade"),
-        "event-window rows must be tied to checkpoint rows so orphaned device windows cannot survive checkpoint cleanup"
+        "event-window rows must be tied to checkpoint rows so orphaned client route windows cannot survive checkpoint cleanup"
     );
     assert!(
         schema.contains("deferrable initially deferred"),

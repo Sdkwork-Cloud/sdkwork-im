@@ -12,8 +12,8 @@ use tokio::sync::watch;
 
 use crate::{
     RealtimeDeliveryRuntime,
-    principal_scope::typed_device_scope_key,
-    realtime::{RealtimeDeviceStateSnapshot, RealtimeRuntimeError},
+    principal_scope::typed_client_route_scope_key,
+    realtime::{RealtimeClientRouteStateSnapshot, RealtimeRuntimeError},
 };
 
 mod disconnect;
@@ -30,7 +30,7 @@ fn lock_cluster_mutex<'a, T>(mutex: &'a Mutex<T>, label: &'static str) -> MutexG
     }
 }
 
-pub type RealtimeDeviceRoute = RouteBinding;
+pub type RealtimeClientRoute = RouteBinding;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RealtimeRouteDeliveryResult {
@@ -95,7 +95,7 @@ impl RealtimeClusterBridge {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn bind_device_route_for_principal_kind(
+    pub fn bind_client_route_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -104,8 +104,8 @@ impl RealtimeClusterBridge {
         owner_node_id: &str,
         session_id: Option<&str>,
         connection_kind: &str,
-    ) -> Result<RealtimeDeviceRoute, RealtimeClusterError> {
-        self.bind_device_route_internal(
+    ) -> Result<RealtimeClientRoute, RealtimeClusterError> {
+        self.bind_client_route_internal(
             tenant_id,
             principal_id,
             principal_kind,
@@ -117,7 +117,7 @@ impl RealtimeClusterBridge {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn bind_device_route_internal(
+    fn bind_client_route_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -126,10 +126,10 @@ impl RealtimeClusterBridge {
         owner_node_id: &str,
         session_id: Option<&str>,
         connection_kind: &str,
-    ) -> Result<RealtimeDeviceRoute, RealtimeClusterError> {
+    ) -> Result<RealtimeClientRoute, RealtimeClusterError> {
         self.require_known_node(owner_node_id)?;
         let previous_route =
-            self.resolve_device_route_internal(tenant_id, principal_id, principal_kind, device_id);
+            self.resolve_client_route_internal(tenant_id, principal_id, principal_kind, device_id);
         let mut moved_state: Option<(
             Arc<RealtimeDeliveryRuntime>,
             Arc<RealtimeDeliveryRuntime>,
@@ -141,7 +141,7 @@ impl RealtimeClusterBridge {
             let target_runtime = self.require_runtime(owner_node_id)?;
             match self.require_runtime(previous_route.owner_node_id.as_str()) {
                 Ok(source_runtime) => {
-                    self.move_device_state_between_runtimes(
+                    self.move_client_route_state_between_runtimes(
                         &source_runtime,
                         &target_runtime,
                         tenant_id,
@@ -164,7 +164,7 @@ impl RealtimeClusterBridge {
                     // new active node and let the target restore any durable checkpoint
                     // state it knows about.
                     target_runtime
-                        .ensure_device_state_for_principal_kind(
+                        .ensure_client_route_state_for_principal_kind(
                             tenant_id,
                             principal_id,
                             principal_kind,
@@ -198,18 +198,20 @@ impl RealtimeClusterBridge {
                 let route_error = self.route_error(error);
                 if let Some((source_runtime, target_runtime, source_node_id)) = moved_state.as_ref()
                 {
-                    return Err(self.rollback_moved_device_states_after_route_commit_error(
-                        source_runtime,
-                        target_runtime,
-                        &[previous_route
-                            .as_ref()
-                            .expect("moved runtime state should have previous route")
-                            .clone()],
-                        source_node_id.as_str(),
-                        owner_node_id,
-                        "route rebind",
-                        route_error,
-                    ));
+                    return Err(
+                        self.rollback_moved_client_route_states_after_route_commit_error(
+                            source_runtime,
+                            target_runtime,
+                            &[previous_route
+                                .as_ref()
+                                .expect("moved runtime state should have previous route")
+                                .clone()],
+                            source_node_id.as_str(),
+                            owner_node_id,
+                            "route rebind",
+                            route_error,
+                        ),
+                    );
                 }
                 return Err(route_error);
             }
@@ -250,7 +252,7 @@ impl RealtimeClusterBridge {
         session_id: Option<&str>,
     ) -> Result<(), RealtimeClusterError> {
         let Some(route) =
-            self.resolve_device_route_internal(tenant_id, principal_id, principal_kind, device_id)
+            self.resolve_client_route_internal(tenant_id, principal_id, principal_kind, device_id)
         else {
             return Ok(());
         };
@@ -262,7 +264,7 @@ impl RealtimeClusterBridge {
                 "session_id_required",
                 route.owner_node_id.as_str(),
                 format!(
-                    "device session id is required because the route is currently owned by node {}",
+                    "client route session id is required because the route is currently owned by node {}",
                     route.owner_node_id
                 ),
             ));
@@ -275,13 +277,13 @@ impl RealtimeClusterBridge {
             "stale_session",
             route.owner_node_id.as_str(),
             format!(
-                "device session is owned by a newer session on node {}",
+                "client route session is owned by a newer session on node {}",
                 route.owner_node_id
             ),
         ))
     }
 
-    pub fn ensure_device_route_local_for_principal_kind(
+    pub fn ensure_client_route_local_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -289,7 +291,7 @@ impl RealtimeClusterBridge {
         device_id: &str,
         local_node_id: &str,
     ) -> Result<(), RealtimeClusterError> {
-        self.ensure_device_route_local_internal(
+        self.ensure_client_route_local_internal(
             tenant_id,
             principal_id,
             principal_kind,
@@ -298,7 +300,7 @@ impl RealtimeClusterBridge {
         )
     }
 
-    fn ensure_device_route_local_internal(
+    fn ensure_client_route_local_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
@@ -307,7 +309,7 @@ impl RealtimeClusterBridge {
         local_node_id: &str,
     ) -> Result<(), RealtimeClusterError> {
         let Some(route) =
-            self.resolve_device_route_internal(tenant_id, principal_id, principal_kind, device_id)
+            self.resolve_client_route_internal(tenant_id, principal_id, principal_kind, device_id)
         else {
             return Ok(());
         };
@@ -323,7 +325,7 @@ impl RealtimeClusterBridge {
                 "node_draining",
                 local_node_id,
                 format!(
-                    "node {local_node_id} cannot rebind a device route currently owned by node {} while draining",
+                    "node {local_node_id} cannot rebind a client route currently owned by node {} while draining",
                     route.owner_node_id
                 ),
             ));
@@ -333,41 +335,41 @@ impl RealtimeClusterBridge {
             "route_owned_by_other_node",
             route.owner_node_id.as_str(),
             format!(
-                "device route is currently owned by node {}",
+                "client route is currently owned by node {}",
                 route.owner_node_id
             ),
         ))
     }
 
-    pub fn resolve_device_route_for_principal_kind(
+    pub fn resolve_client_route_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
-    ) -> Option<RealtimeDeviceRoute> {
-        self.resolve_device_route_internal(tenant_id, principal_id, principal_kind, device_id)
+    ) -> Option<RealtimeClientRoute> {
+        self.resolve_client_route_internal(tenant_id, principal_id, principal_kind, device_id)
     }
 
-    fn resolve_device_route_internal(
+    fn resolve_client_route_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
-    ) -> Option<RealtimeDeviceRoute> {
+    ) -> Option<RealtimeClientRoute> {
         self.route_directory
             .lookup(tenant_id, principal_id, principal_kind, device_id)
     }
 
-    pub fn subscribe_device_route_epoch_for_principal_kind(
+    pub fn subscribe_client_route_epoch_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
     ) -> watch::Receiver<u64> {
-        self.subscribe_device_route_epoch_internal(
+        self.subscribe_client_route_epoch_internal(
             tenant_id,
             principal_id,
             principal_kind,
@@ -375,16 +377,16 @@ impl RealtimeClusterBridge {
         )
     }
 
-    fn subscribe_device_route_epoch_internal(
+    fn subscribe_client_route_epoch_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
     ) -> watch::Receiver<u64> {
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let current_epoch = self
-            .resolve_device_route_internal(tenant_id, principal_id, principal_kind, device_id)
+            .resolve_client_route_internal(tenant_id, principal_id, principal_kind, device_id)
             .map(|route| route.route_epoch)
             .unwrap_or(0);
         let sender = lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers")
@@ -400,15 +402,15 @@ impl RealtimeClusterBridge {
         sender.subscribe()
     }
 
-    pub fn release_device_route_for_principal_kind(
+    pub fn release_client_route_for_principal_kind(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
         owner_node_id: &str,
-    ) -> Option<RealtimeDeviceRoute> {
-        self.release_device_route_internal(
+    ) -> Option<RealtimeClientRoute> {
+        self.release_client_route_internal(
             tenant_id,
             principal_id,
             principal_kind,
@@ -417,11 +419,11 @@ impl RealtimeClusterBridge {
         )
     }
 
-    pub fn restore_device_route_if_current(
+    pub fn restore_client_route_if_current(
         &self,
-        expected_current: &RealtimeDeviceRoute,
-        restore_to: RealtimeDeviceRoute,
-    ) -> Option<RealtimeDeviceRoute> {
+        expected_current: &RealtimeClientRoute,
+        restore_to: RealtimeClientRoute,
+    ) -> Option<RealtimeClientRoute> {
         let restored = self
             .route_directory
             .restore_if_current(expected_current, restore_to);
@@ -437,14 +439,14 @@ impl RealtimeClusterBridge {
         restored
     }
 
-    fn release_device_route_internal(
+    fn release_client_route_internal(
         &self,
         tenant_id: &str,
         principal_id: &str,
         principal_kind: &str,
         device_id: &str,
         owner_node_id: &str,
-    ) -> Option<RealtimeDeviceRoute> {
+    ) -> Option<RealtimeClientRoute> {
         self.route_directory.release(
             tenant_id,
             principal_id,
@@ -455,7 +457,7 @@ impl RealtimeClusterBridge {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn move_device_state_between_runtimes(
+    fn move_client_route_state_between_runtimes(
         &self,
         source_runtime: &Arc<RealtimeDeliveryRuntime>,
         target_runtime: &Arc<RealtimeDeliveryRuntime>,
@@ -468,25 +470,25 @@ impl RealtimeClusterBridge {
         operation: &'static str,
     ) -> Result<(), RealtimeClusterError> {
         let take_context = match operation {
-            "route rebind" => "take device state for route rebind",
-            "route migration" => "take device state for route migration",
-            _ => "take device state",
+            "route rebind" => "take client route state for route rebind",
+            "route migration" => "take client route state for route migration",
+            _ => "take client route state",
         };
         let restore_context = match operation {
-            "route rebind" => "restore device state for route rebind",
-            "route migration" => "restore device state for route migration",
-            _ => "restore device state",
+            "route rebind" => "restore client route state for route rebind",
+            "route migration" => "restore client route state for route migration",
+            _ => "restore client route state",
         };
-        let snapshot: RealtimeDeviceStateSnapshot = source_runtime
-            .take_device_state_for_principal_kind(
+        let snapshot: RealtimeClientRouteStateSnapshot = source_runtime
+            .take_client_route_state_for_principal_kind(
                 tenant_id,
                 principal_id,
                 principal_kind,
                 device_id,
             )
             .map_err(|error| self.runtime_store_error(take_context, source_node_id, error))?;
-        if let Err(target_error) = target_runtime.restore_device_state(snapshot.clone()) {
-            if let Err(source_error) = source_runtime.restore_device_state(snapshot) {
+        if let Err(target_error) = target_runtime.restore_client_route_state(snapshot.clone()) {
+            if let Err(source_error) = source_runtime.restore_client_route_state(snapshot) {
                 return Err(self.node_error(
                     "runtime_state_compensation_failed",
                     source_node_id,
@@ -502,11 +504,11 @@ impl RealtimeClusterBridge {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn rollback_moved_device_states_after_route_commit_error(
+    fn rollback_moved_client_route_states_after_route_commit_error(
         &self,
         source_runtime: &Arc<RealtimeDeliveryRuntime>,
         target_runtime: &Arc<RealtimeDeliveryRuntime>,
-        moved_routes: &[RealtimeDeviceRoute],
+        moved_routes: &[RealtimeClientRoute],
         source_node_id: &str,
         target_node_id: &str,
         operation: &'static str,
@@ -514,7 +516,7 @@ impl RealtimeClusterBridge {
     ) -> RealtimeClusterError {
         let mut rollback_errors = Vec::new();
         for route in moved_routes.iter().rev() {
-            if let Err(error) = self.move_device_state_between_runtimes(
+            if let Err(error) = self.move_client_route_state_between_runtimes(
                 target_runtime,
                 source_runtime,
                 route.tenant_id.as_str(),
@@ -552,7 +554,7 @@ impl RealtimeClusterBridge {
         )
     }
 
-    pub fn routes_for_node(&self, owner_node_id: &str) -> Vec<RealtimeDeviceRoute> {
+    pub fn routes_for_node(&self, owner_node_id: &str) -> Vec<RealtimeClientRoute> {
         self.route_directory.routes_for_node(owner_node_id)
     }
 
@@ -630,7 +632,7 @@ impl RealtimeClusterBridge {
             let target_runtime = self.require_runtime(target_node_id)?;
 
             for route in &routes {
-                if let Err(error) = self.move_device_state_between_runtimes(
+                if let Err(error) = self.move_client_route_state_between_runtimes(
                     &source_runtime,
                     &target_runtime,
                     route.tenant_id.as_str(),
@@ -644,15 +646,17 @@ impl RealtimeClusterBridge {
                     if moved_routes.is_empty() {
                         return Err(error);
                     }
-                    return Err(self.rollback_moved_device_states_after_route_commit_error(
-                        &source_runtime,
-                        &target_runtime,
-                        &moved_routes,
-                        source_node_id,
-                        target_node_id,
-                        "route migration",
-                        error,
-                    ));
+                    return Err(
+                        self.rollback_moved_client_route_states_after_route_commit_error(
+                            &source_runtime,
+                            &target_runtime,
+                            &moved_routes,
+                            source_node_id,
+                            target_node_id,
+                            "route migration",
+                            error,
+                        ),
+                    );
                 }
                 moved_routes.push(route.clone());
             }
@@ -668,21 +672,23 @@ impl RealtimeClusterBridge {
             Err(error) => {
                 let route_error = self.route_error(error);
                 if let Some((source_runtime, target_runtime)) = runtime_pair.as_ref() {
-                    return Err(self.rollback_moved_device_states_after_route_commit_error(
-                        source_runtime,
-                        target_runtime,
-                        &moved_routes,
-                        source_node_id,
-                        target_node_id,
-                        "route migration",
-                        route_error,
-                    ));
+                    return Err(
+                        self.rollback_moved_client_route_states_after_route_commit_error(
+                            source_runtime,
+                            target_runtime,
+                            &moved_routes,
+                            source_node_id,
+                            target_node_id,
+                            "route migration",
+                            route_error,
+                        ),
+                    );
                 }
                 return Err(route_error);
             }
         };
         for route in routes {
-            if let Some(current_route) = self.resolve_device_route_internal(
+            if let Some(current_route) = self.resolve_client_route_internal(
                 route.tenant_id.as_str(),
                 route.principal_id.as_str(),
                 route.principal_kind.as_str(),
@@ -701,7 +707,7 @@ impl RealtimeClusterBridge {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn publish_device_event_for_principal_kind(
+    pub fn publish_client_route_event_for_principal_kind(
         &self,
         origin_node_id: &str,
         tenant_id: &str,
@@ -713,7 +719,7 @@ impl RealtimeClusterBridge {
         event_type: &str,
         payload: String,
     ) -> RealtimeRouteDeliveryResult {
-        self.publish_device_event_internal(
+        self.publish_client_route_event_internal(
             origin_node_id,
             tenant_id,
             principal_id,
@@ -727,7 +733,7 @@ impl RealtimeClusterBridge {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn publish_device_event_internal(
+    fn publish_client_route_event_internal(
         &self,
         origin_node_id: &str,
         tenant_id: &str,
@@ -740,7 +746,7 @@ impl RealtimeClusterBridge {
         payload: String,
     ) -> RealtimeRouteDeliveryResult {
         let route =
-            self.resolve_device_route_internal(tenant_id, principal_id, principal_kind, device_id);
+            self.resolve_client_route_internal(tenant_id, principal_id, principal_kind, device_id);
         let runtimes = lock_cluster_mutex(&self.node_runtimes, "node_runtimes");
         let (target_node_id, route_state, runtime) = match route {
             Some(route) => {
@@ -872,7 +878,7 @@ impl RealtimeClusterBridge {
         device_id: &str,
         route_epoch: u64,
     ) {
-        let scope_key = device_scope_key(tenant_id, principal_id, principal_kind, device_id);
+        let scope_key = client_route_scope_key(tenant_id, principal_id, principal_kind, device_id);
         let sender = lock_cluster_mutex(&self.route_epoch_notifiers, "route_epoch_notifiers")
             .entry(scope_key)
             .or_insert_with(|| {
@@ -886,13 +892,13 @@ impl RealtimeClusterBridge {
     }
 }
 
-fn device_scope_key(
+fn client_route_scope_key(
     tenant_id: &str,
     principal_id: &str,
     principal_kind: &str,
     device_id: &str,
 ) -> String {
-    typed_device_scope_key(tenant_id, principal_id, principal_kind, device_id)
+    typed_client_route_scope_key(tenant_id, principal_id, principal_kind, device_id)
 }
 
 fn cluster_timestamp() -> String {
@@ -953,7 +959,7 @@ mod tests {
             Arc::new(RealtimeDeliveryRuntime::permissive_for_tests()),
         );
         cluster
-            .bind_device_route_for_principal_kind(
+            .bind_client_route_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -967,7 +973,7 @@ mod tests {
         poison_mutex(&cluster.node_runtimes);
 
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-            cluster.bind_device_route_for_principal_kind(
+            cluster.bind_client_route_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -1008,7 +1014,7 @@ mod tests {
         poison_mutex(&cluster.node_runtimes);
 
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-            cluster.publish_device_event_for_principal_kind(
+            cluster.publish_client_route_event_for_principal_kind(
                 "node_a",
                 "t_demo",
                 "u_demo",
@@ -1050,7 +1056,7 @@ mod tests {
             }],
         ));
         cluster
-            .bind_device_route_for_principal_kind(
+            .bind_client_route_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -1067,7 +1073,7 @@ mod tests {
             .expect("realtime cluster runtime registry should lock")
             .remove("node_b");
 
-        let result = cluster.publish_device_event_for_principal_kind(
+        let result = cluster.publish_client_route_event_for_principal_kind(
             "node_a",
             "t_demo",
             "u_demo",
@@ -1098,7 +1104,7 @@ mod tests {
         cluster.bind_node_runtime("node_b", runtime_b.clone());
 
         cluster
-            .bind_device_route_for_principal_kind(
+            .bind_client_route_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -1119,7 +1125,7 @@ mod tests {
             .remove("node_a");
 
         let rebound = cluster
-            .bind_device_route_for_principal_kind(
+            .bind_client_route_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -1152,7 +1158,7 @@ mod tests {
             }],
         ));
 
-        let publish = cluster.publish_device_event_for_principal_kind(
+        let publish = cluster.publish_client_route_event_for_principal_kind(
             "node_a",
             "t_demo",
             "u_demo",
@@ -1184,7 +1190,7 @@ mod tests {
         cluster.bind_node_runtime("node_b", runtime_b);
 
         cluster
-            .bind_device_route_for_principal_kind(
+            .bind_client_route_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -1195,7 +1201,7 @@ mod tests {
             )
             .expect("initial route bind should succeed");
         cluster
-            .bind_device_route_for_principal_kind(
+            .bind_client_route_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -1236,7 +1242,7 @@ mod tests {
         cluster.bind_node_runtime("node_a", runtime);
 
         cluster
-            .bind_device_route_for_principal_kind(
+            .bind_client_route_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -1263,7 +1269,7 @@ mod tests {
         cluster.bind_node_runtime("node_a", runtime);
 
         cluster
-            .mark_device_disconnected_for_principal_kind(
+            .mark_client_route_disconnected_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -1274,7 +1280,7 @@ mod tests {
             .expect("disconnect fence should persist");
 
         let error = cluster
-            .ensure_device_resume_not_required_for_principal_kind(
+            .ensure_client_route_resume_not_required_for_principal_kind(
                 "t_demo", "u_demo", "user", "d_pad",
             )
             .expect_err("disconnect fence should require an explicit resume");
@@ -1282,7 +1288,7 @@ mod tests {
         assert_eq!(error.node_id, "node_a");
         assert!(
             cluster
-                .disconnect_fence_matches_session_for_principal_kind(
+                .disconnect_fence_matches_client_route_session_for_principal_kind(
                     "t_demo",
                     "u_demo",
                     "user",
@@ -1293,7 +1299,7 @@ mod tests {
         );
         assert!(
             !cluster
-                .disconnect_fence_matches_session_for_principal_kind(
+                .disconnect_fence_matches_client_route_session_for_principal_kind(
                     "t_demo",
                     "u_demo",
                     "user",
@@ -1305,13 +1311,13 @@ mod tests {
 
         assert!(
             cluster
-                .clear_device_disconnect_fence_for_principal_kind(
+                .clear_client_route_disconnect_fence_for_principal_kind(
                     "t_demo", "u_demo", "user", "d_pad"
                 )
                 .expect("disconnect fence clear should succeed")
         );
         cluster
-            .ensure_device_resume_not_required_for_principal_kind(
+            .ensure_client_route_resume_not_required_for_principal_kind(
                 "t_demo", "u_demo", "user", "d_pad",
             )
             .expect("fresh resume should clear the disconnect fence");
@@ -1324,7 +1330,7 @@ mod tests {
         let runtime_a = Arc::new(RealtimeDeliveryRuntime::permissive_for_tests());
         cluster_a.bind_node_runtime("node_a", runtime_a);
         cluster_a
-            .mark_device_disconnected_for_principal_kind(
+            .mark_client_route_disconnected_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -1339,14 +1345,14 @@ mod tests {
         cluster_b.bind_node_runtime("node_b", runtime_b);
 
         let error = cluster_b
-            .ensure_device_resume_not_required_for_principal_kind(
+            .ensure_client_route_resume_not_required_for_principal_kind(
                 "t_demo", "u_demo", "user", "d_pad",
             )
             .expect_err("persisted disconnect fence should still require a fresh resume");
         assert_eq!(error.code, "reconnect_required");
         assert!(
             cluster_b
-                .disconnect_fence_matches_session_for_principal_kind(
+                .disconnect_fence_matches_client_route_session_for_principal_kind(
                     "t_demo",
                     "u_demo",
                     "user",
@@ -1358,13 +1364,13 @@ mod tests {
 
         assert!(
             cluster_b
-                .clear_device_disconnect_fence_for_principal_kind(
+                .clear_client_route_disconnect_fence_for_principal_kind(
                     "t_demo", "u_demo", "user", "d_pad"
                 )
                 .expect("restored fence clear should succeed")
         );
         cluster_b
-            .ensure_device_resume_not_required_for_principal_kind(
+            .ensure_client_route_resume_not_required_for_principal_kind(
                 "t_demo", "u_demo", "user", "d_pad",
             )
             .expect("clearing the restored fence should allow traffic again");
@@ -1389,7 +1395,7 @@ mod tests {
         let cluster = RealtimeClusterBridge::with_disconnect_fence_store(store.clone());
 
         let cleared = cluster
-            .clear_device_disconnect_fence_for_current_session(
+            .clear_client_route_disconnect_fence_for_current_session(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -1400,7 +1406,7 @@ mod tests {
 
         assert!(!cleared);
         let error = cluster
-            .ensure_device_resume_not_required_for_principal_kind(
+            .ensure_client_route_resume_not_required_for_principal_kind(
                 "t_demo", "u_demo", "user", "d_pad",
             )
             .expect_err("current session disconnect fence must still require a fresh resume");
@@ -1473,7 +1479,7 @@ mod tests {
         cluster.bind_node_runtime("node_a", runtime);
 
         let save_error = cluster
-            .mark_device_disconnected_for_principal_kind(
+            .mark_client_route_disconnected_for_principal_kind(
                 "t_demo",
                 "u_demo",
                 "user",
@@ -1485,14 +1491,16 @@ mod tests {
         assert_eq!(save_error.code, "disconnect_fence_store_unavailable");
 
         let load_error = cluster
-            .ensure_device_resume_not_required_for_principal_kind(
+            .ensure_client_route_resume_not_required_for_principal_kind(
                 "t_demo", "u_demo", "user", "d_pad",
             )
             .expect_err("load failure should surface as a controlled error");
         assert_eq!(load_error.code, "disconnect_fence_store_unavailable");
 
         let clear_error = cluster
-            .clear_device_disconnect_fence_for_principal_kind("t_demo", "u_demo", "user", "d_pad")
+            .clear_client_route_disconnect_fence_for_principal_kind(
+                "t_demo", "u_demo", "user", "d_pad",
+            )
             .expect_err("clear failure should not panic");
         assert_eq!(clear_error.code, "disconnect_fence_store_unavailable");
     }

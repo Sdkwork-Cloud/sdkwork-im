@@ -167,8 +167,8 @@ async fn gateway_routes_im_app_iam_requests_to_appbase_app_api() {
 }
 
 #[tokio::test]
-async fn embedded_gateway_rejects_im_app_iam_requests_when_appbase_upstream_is_absent() {
-    let embedded_runtime = Router::new();
+async fn embedded_gateway_delegates_appbase_iam_to_embedded_router_without_upstream() {
+    let embedded_runtime = sdkwork_iam_http::build_sdkwork_appbase_app_api_router();
     let product_runtime = Router::new()
         .route(
             "/app/v3/api/open_platform/qr_auth/sessions",
@@ -201,7 +201,7 @@ async fn embedded_gateway_rejects_im_app_iam_requests_when_appbase_upstream_is_a
         .await
         .expect("gateway request should succeed");
 
-    assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+    assert_eq!(response.status(), StatusCode::OK);
     let value: serde_json::Value = serde_json::from_slice(
         &response
             .into_body()
@@ -211,9 +211,16 @@ async fn embedded_gateway_rejects_im_app_iam_requests_when_appbase_upstream_is_a
             .to_bytes(),
     )
     .expect("response body should be valid json");
-    assert_eq!(
-        value["message"],
-        "upstream target is not configured for sdkwork-appbase-app-api"
+    assert_eq!(value["code"], "2000");
+    assert_eq!(value["data"]["status"], "pending");
+    assert!(
+        value["data"]["sessionKey"]
+            .as_str()
+            .is_some_and(|value| value.starts_with("sdkwork-local-qr-"))
+    );
+    assert!(
+        value.get("serviceId").is_none(),
+        "appbase-owned IAM routes must not fall through to product runtime: {value}"
     );
 }
 
@@ -324,7 +331,10 @@ async fn embedded_gateway_rejects_product_runtime_auth_registration_instead_of_s
             upstreams: Vec::new(),
         },
         web_gateway::build_gateway_registry().expect("gateway registry should build"),
-        Some(local_minimal_node::build_default_app()),
+        Some(
+            sdkwork_iam_http::build_sdkwork_appbase_app_api_router()
+                .merge(local_minimal_node::build_default_app()),
+        ),
         Some(product_runtime),
     );
 
@@ -337,9 +347,12 @@ async fn embedded_gateway_rejects_product_runtime_auth_registration_instead_of_s
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
-                        "username": "target-user@sdkwork-iam.local",
-                        "displayName": "Target Local User",
-                        "password": "dev123456"
+                        "channel": "EMAIL",
+                        "confirmPassword": "dev123456",
+                        "email": "target-user@sdkwork-iam.local",
+                        "name": "Target User",
+                        "password": "dev123456",
+                        "username": "target-user"
                     })
                     .to_string(),
                 ))
@@ -347,11 +360,47 @@ async fn embedded_gateway_rejects_product_runtime_auth_registration_instead_of_s
         )
         .await
         .expect("appbase-owned registration request should return response");
-    assert_eq!(target_registration.status(), StatusCode::BAD_GATEWAY);
+    assert_eq!(target_registration.status(), StatusCode::OK);
     let target_registration = read_json_body(target_registration).await;
+    assert_eq!(target_registration["code"], "2000");
     assert_eq!(
-        target_registration["message"],
-        "upstream target is not configured for sdkwork-appbase-app-api"
+        target_registration["data"]["user"]["email"],
+        "target-user@sdkwork-iam.local"
+    );
+    assert_eq!(target_registration["data"]["user"]["name"], "Target User");
+    assert!(
+        target_registration.get("serviceId").is_none(),
+        "appbase registration must be served by embedded appbase, not product runtime: {target_registration}"
+    );
+
+    let searcher_registration = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/app/v3/api/auth/registrations")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "channel": "EMAIL",
+                        "confirmPassword": "dev123456",
+                        "email": "searcher-user@sdkwork-iam.local",
+                        "name": "Searcher User",
+                        "password": "dev123456",
+                        "username": "searcher-user"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("appbase-owned searcher registration request should return response");
+    assert_eq!(searcher_registration.status(), StatusCode::OK);
+    let searcher_registration = read_json_body(searcher_registration).await;
+    assert_eq!(searcher_registration["code"], "2000");
+    assert!(
+        searcher_registration.get("serviceId").is_none(),
+        "appbase searcher registration must be served by embedded appbase, not product runtime: {searcher_registration}"
     );
 
     let searcher_session = app
@@ -363,7 +412,8 @@ async fn embedded_gateway_rejects_product_runtime_auth_registration_instead_of_s
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
-                        "username": "searcher-user@sdkwork-iam.local",
+                        "grantType": "password",
+                        "email": "searcher-user@sdkwork-iam.local",
                         "password": "dev123456"
                     })
                     .to_string(),
@@ -372,7 +422,22 @@ async fn embedded_gateway_rejects_product_runtime_auth_registration_instead_of_s
         )
         .await
         .expect("appbase-owned login request should return response");
-    assert_eq!(searcher_session.status(), StatusCode::BAD_GATEWAY);
+    let searcher_session_status = searcher_session.status();
+    let searcher_session = read_json_body(searcher_session).await;
+    assert_eq!(
+        searcher_session_status,
+        StatusCode::OK,
+        "appbase-owned login should succeed: {searcher_session}"
+    );
+    assert_eq!(searcher_session["code"], "2000");
+    assert_eq!(
+        searcher_session["data"]["user"]["email"],
+        "searcher-user@sdkwork-iam.local"
+    );
+    assert!(
+        searcher_session.get("serviceId").is_none(),
+        "appbase login must be served by embedded appbase, not product runtime: {searcher_session}"
+    );
 
     let search_response = app
         .oneshot(

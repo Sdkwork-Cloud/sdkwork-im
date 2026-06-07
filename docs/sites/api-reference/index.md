@@ -14,7 +14,7 @@
   </div>
   <div class="api-card">
     <h3>IM Standard API</h3>
-    <p><code>/im/v3/api</code> runtime routes for device sessions, realtime delivery, chat, media, streams, and RTC.</p>
+    <p><code>/im/v3/api</code> runtime routes for Realtime Presence, realtime delivery, chat, media, streams, and RTC.</p>
     <p><a href="/api-reference/im-api">Open IM Standard API overview</a></p>
   </div>
   <div class="api-card">
@@ -74,7 +74,7 @@ That split keeps HTTP semantics and consumer package surfaces from being mixed t
 <div class="api-link-list">
   <a href="/api-reference/gateway-openapi"><code>Gateway</code> Aggregate schema, schema index, and service-level docs discovery</a>
   <a href="/api-reference/auth-and-errors"><code>Auth</code> Authentication, AppContext projection headers, and the error envelope</a>
-  <a href="/api-reference/im/session-and-realtime"><code>IM</code> Device sessions and realtime transport semantics</a>
+  <a href="/api-reference/im/session-and-realtime"><code>IM</code> Realtime Presence transport semantics</a>
   <a href="/api-reference/im/conversations"><code>IM</code> Conversation creation and handoff flows</a>
   <a href="/api-reference/app/portal-access"><code>App</code> Portal sign-in and tenant portal snapshot endpoints</a>
   <a href="/api-reference/app/notifications"><code>App</code> Notification request and task inspection</a>

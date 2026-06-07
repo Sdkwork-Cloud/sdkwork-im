@@ -27,7 +27,7 @@ client.setAuthToken('your-auth-token');
 client.setAccessToken('your-access-token');
 
 // Use the SDK
-const result = await client.iot.accessProviderHealth.retrieve();
+const result = await client.notification.list();
 ```
 
 ## Authentication
@@ -55,11 +55,9 @@ const client = new SdkworkImAppClient({
 ## API Modules
 
 - `client.automation` - automation API
-- `client.device` - device API
 - `client.notification` - notification API
 - `client.portal` - portal API
 - `client.provider` - provider API
-- `client.iot` - iot API
 
 ## Usage Examples
 
@@ -83,14 +81,6 @@ const body = {
 const result = await client.automation.agentResponses.create(body);
 ```
 
-### device
-
-```typescript
-// Get the device twin
-const deviceId = '1';
-const result = await client.device.twin.retrieve(deviceId);
-```
-
 ### notification
 
 ```typescript
@@ -112,20 +102,13 @@ const result = await client.portal.access.retrieve();
 const result = await client.provider.mediaHealth.retrieve();
 ```
 
-### iot
-
-```typescript
-// Retrieve IoT access provider health
-const result = await client.iot.accessProviderHealth.retrieve();
-```
-
 ## Error Handling
 
 ```typescript
 import { SdkworkImAppClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork-internal/im-app-api-generated';
 
 try {
-  const result = await client.iot.accessProviderHealth.retrieve();
+  const result = await client.notification.list();
 } catch (error) {
   if (error instanceof AuthenticationError) {
     console.error('Authentication failed:', error.message);

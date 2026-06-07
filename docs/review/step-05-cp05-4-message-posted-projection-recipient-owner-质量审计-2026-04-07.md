@@ -22,6 +22,6 @@
 ## 3. 剩余问题
 
 - 该增量只解决 `CP05-4` 中一条 projection -> notification 剩余连接点，不能据此结束 `CP05-4`。
-- 从当前代码搜索看，`projection / sync` 的剩余闭环已经进一步收敛到 multi-device sync final closure。
+- 从当前代码搜索看，`projection / sync` 的剩余闭环已经进一步收敛到 multi-client-route sync final closure。
 - 可见的下一处高概率 blocker 是 `services/session-gateway/src/lib.rs` 仍在 session/presence 路径本地组装 `registered_devices` 与 `latest_sync_seq`，尚未共享 projection-owned session sync state seam。
 - 因此 `Step 05 / 91 / 95 / 97 / Wave B / 93` 仍未闭环。

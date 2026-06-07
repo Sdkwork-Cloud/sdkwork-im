@@ -38,5 +38,5 @@
 
 - 当前未发现 `CP05-3` 范围内新的架构偏离
 - 剩余风险已转移到：
-  - `CP05-4` projection / notification / multi-device sync 与新模型的最终 owner 收口
+  - `CP05-4` projection / notification / multi-client-route sync 与新模型的最终 owner 收口
   - `Step 05` 整体 `91 / 95 / 97` 闭环

@@ -1106,72 +1106,6 @@ class CompleteAgentToolCallRequest {
   }
 }
 
-class DeviceTwinView {
-  final String tenantId;
-  final String deviceId;
-  final String desiredStateJson;
-  final String reportedStateJson;
-  final String updatedAt;
-
-  DeviceTwinView({
-    required this.tenantId,
-    required this.deviceId,
-    required this.desiredStateJson,
-    required this.reportedStateJson,
-    required this.updatedAt
-  });
-
-  factory DeviceTwinView.fromJson(Map<String, dynamic> json) {
-    return DeviceTwinView(
-      tenantId: (() {
-        final value = json['tenantId']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceTwinView.tenantId is required');
-        }
-        return value;
-      })(),
-      deviceId: (() {
-        final value = json['deviceId']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceTwinView.deviceId is required');
-        }
-        return value;
-      })(),
-      desiredStateJson: (() {
-        final value = json['desiredStateJson']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceTwinView.desiredStateJson is required');
-        }
-        return value;
-      })(),
-      reportedStateJson: (() {
-        final value = json['reportedStateJson']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceTwinView.reportedStateJson is required');
-        }
-        return value;
-      })(),
-      updatedAt: (() {
-        final value = json['updatedAt']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceTwinView.updatedAt is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'tenantId': tenantId,
-      'deviceId': deviceId,
-      'desiredStateJson': desiredStateJson,
-      'reportedStateJson': reportedStateJson,
-      'updatedAt': updatedAt,
-    };
-  }
-}
-
 class NotificationTask {
   final String tenantId;
   final String notificationId;
@@ -1790,58 +1724,6 @@ class StartAgentResponseRequest {
       'schemaRef': schemaRef,
       'memberId': memberId,
       'agent': agent.toJson(),
-    };
-  }
-}
-
-class UpdateDeviceTwinDesiredRequest {
-  final String desiredStateJson;
-
-  UpdateDeviceTwinDesiredRequest({
-    required this.desiredStateJson
-  });
-
-  factory UpdateDeviceTwinDesiredRequest.fromJson(Map<String, dynamic> json) {
-    return UpdateDeviceTwinDesiredRequest(
-      desiredStateJson: (() {
-        final value = json['desiredStateJson']?.toString();
-        if (value == null) {
-          throw FormatException('UpdateDeviceTwinDesiredRequest.desiredStateJson is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'desiredStateJson': desiredStateJson,
-    };
-  }
-}
-
-class UpdateDeviceTwinReportedRequest {
-  final String reportedStateJson;
-
-  UpdateDeviceTwinReportedRequest({
-    required this.reportedStateJson
-  });
-
-  factory UpdateDeviceTwinReportedRequest.fromJson(Map<String, dynamic> json) {
-    return UpdateDeviceTwinReportedRequest(
-      reportedStateJson: (() {
-        final value = json['reportedStateJson']?.toString();
-        if (value == null) {
-          throw FormatException('UpdateDeviceTwinReportedRequest.reportedStateJson is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'reportedStateJson': reportedStateJson,
     };
   }
 }

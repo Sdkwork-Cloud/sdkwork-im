@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from ..http_client import HttpClient
-from ..models import DevicePresenceRequest, PresenceView
+from ..models import PresenceHeartbeatRequest, PresenceView
 
 def _append_query_string(path: str, raw_query_string: str) -> str:
     query = raw_query_string.lstrip('?')
@@ -29,8 +29,8 @@ class PresenceHeartbeatApi:
         self._client = client
 
 
-    def create(self, body: DevicePresenceRequest) -> PresenceView:
-        """Publish current device presence heartbeat"""
+    def create(self, body: PresenceHeartbeatRequest) -> PresenceView:
+        """Publish current client route presence heartbeat"""
         return self._client.post(f"/im/v3/api/presence/heartbeat", json=body)
 
 class PresenceMeApi:

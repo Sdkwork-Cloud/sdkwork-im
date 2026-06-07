@@ -90,7 +90,6 @@ function pathItem(pathSuffix, item) {
 
 const pathParameters = {
   ConversationIdPath: parameter('conversationId', 'path', stringSchema()),
-  DeviceIdPath: parameter('deviceId', 'path', stringSchema()),
   FavoriteIdPath: parameter('favoriteId', 'path', stringSchema()),
   FriendshipIdPath: parameter('friendshipId', 'path', stringSchema()),
   MessageIdPath: parameter('messageId', 'path', stringSchema()),
@@ -117,22 +116,7 @@ const schemas = {
   AckResponse: objectSchema({
     ok: boolSchema(),
   }, ['ok']),
-  DeviceSessionView: objectSchema({
-    tenantId: stringSchema(),
-    principalId: stringSchema(),
-    principalKind: stringSchema(),
-    deviceId: stringSchema(),
-    resumedAt: stringSchema({ format: 'date-time' }),
-  }, ['tenantId', 'principalId', 'principalKind', 'deviceId', 'resumedAt']),
-  DeviceSessionDisconnectResponse: objectSchema({
-    deviceId: stringSchema(),
-    disconnected: boolSchema(),
-  }, ['deviceId', 'disconnected']),
-  ResumeDeviceSessionRequest: objectSchema({
-    deviceId: nullable(stringSchema()),
-    lastSeenSyncSeq: nullable(sequenceSchema()),
-  }),
-  DevicePresenceRequest: objectSchema({
+  PresenceHeartbeatRequest: objectSchema({
     deviceId: nullable(stringSchema()),
   }),
   PresenceView: objectSchema({
@@ -170,39 +154,6 @@ const schemas = {
     nextCursor: nullable(stringSchema()),
     hasMore: boolSchema(),
   }, ['items', 'hasMore']),
-  RegisterDeviceRequest: objectSchema({
-    deviceId: nullable(stringSchema()),
-  }),
-  RegisteredDeviceView: objectSchema({
-    tenantId: stringSchema(),
-    principalId: stringSchema(),
-    principalKind: stringSchema(),
-    deviceId: stringSchema(),
-    registeredAt: stringSchema({ format: 'date-time' }),
-  }, ['tenantId', 'principalId', 'principalKind', 'deviceId', 'registeredAt']),
-  DeviceSyncFeedEntry: objectSchema({
-    tenantId: stringSchema(),
-    principalId: stringSchema(),
-    principalKind: stringSchema(),
-    deviceId: nullable(stringSchema()),
-    syncSeq: sequenceSchema(),
-    eventId: stringSchema(),
-    originEventType: stringSchema(),
-    actorId: nullable(stringSchema()),
-    conversationId: nullable(stringSchema()),
-    messageId: nullable(stringSchema()),
-    messageSeq: nullable(sequenceSchema()),
-    payload: nullable(stringSchema()),
-    readSeq: nullable(sequenceSchema()),
-    summary: nullable(stringSchema()),
-    occurredAt: stringSchema({ format: 'date-time' }),
-  }, ['tenantId', 'principalId', 'principalKind', 'syncSeq', 'eventId', 'originEventType', 'occurredAt']),
-  DeviceSyncFeedResponse: objectSchema({
-    items: arrayOf(ref('DeviceSyncFeedEntry')),
-    nextAfterSeq: nullable(sequenceSchema()),
-    hasMore: boolSchema(),
-    trimmedThroughSeq: sequenceSchema(),
-  }, ['items', 'hasMore', 'trimmedThroughSeq']),
   RtcSession: objectSchema({
     tenantId: stringSchema(),
     rtcSessionId: stringSchema(),
@@ -553,13 +504,14 @@ const schemas = {
   SocialUserSearchResult: objectSchema({
     tenantId: stringSchema(),
     userId: stringSchema(),
+    chatId: stringSchema({ minLength: 6, maxLength: 24, pattern: '^[a-z][a-z0-9]{5,23}$' }),
     displayName: stringSchema(),
     relationshipState: stringSchema(),
     avatarUrl: nullable(stringSchema()),
     email: nullable(stringSchema()),
     phone: nullable(stringSchema()),
     metadata: mapSchema(),
-  }, ['tenantId', 'userId', 'displayName', 'relationshipState']),
+  }, ['tenantId', 'userId', 'chatId', 'displayName', 'relationshipState']),
   SocialUserSearchResponse: objectSchema({
     items: arrayOf(ref('SocialUserSearchResult')),
     nextCursor: nullable(stringSchema()),
@@ -717,14 +669,8 @@ const schemas = {
 };
 
 const paths = Object.fromEntries([
-  pathItem('/device/sessions/resume', {
-    post: operation({ tag: 'device', operationId: 'device.sessions.resume', summary: 'Resume a device runtime session', request: 'ResumeDeviceSessionRequest', response: 'DeviceSessionView' }),
-  }),
-  pathItem('/device/sessions/disconnect', {
-    post: operation({ tag: 'device', operationId: 'device.sessions.disconnect', summary: 'Disconnect a device runtime session', request: 'RegisterDeviceRequest', response: 'DeviceSessionDisconnectResponse' }),
-  }),
   pathItem('/presence/heartbeat', {
-    post: operation({ tag: 'presence', operationId: 'presence.heartbeat.create', summary: 'Publish current device presence heartbeat', request: 'DevicePresenceRequest', response: 'PresenceView' }),
+    post: operation({ tag: 'presence', operationId: 'presence.heartbeat.create', summary: 'Publish current client route presence heartbeat', request: 'PresenceHeartbeatRequest', response: 'PresenceView' }),
   }),
   pathItem('/presence/me', {
     get: operation({ tag: 'presence', operationId: 'presence.me.retrieve', summary: 'Retrieve current principal presence', response: 'PresenceView' }),
@@ -740,13 +686,6 @@ const paths = Object.fromEntries([
   }),
   pathItem('/realtime/events', {
     get: operation({ tag: 'realtime', operationId: 'realtime.events.list', summary: 'List pending realtime events', parameters: [p('LimitQuery'), p('CursorQuery')], response: 'RealtimeEventsResponse' }),
-  }),
-  pathItem('/devices/register', {
-    post: operation({ tag: 'device', operationId: 'device.registrations.create', summary: 'Register a device for sync feed delivery', request: 'RegisterDeviceRequest', response: 'RegisteredDeviceView' }),
-  }),
-  pathItem('/devices/{deviceId}/sync_feed', {
-    parameters: [p('DeviceIdPath')],
-    get: operation({ tag: 'device', operationId: 'device.syncFeed.retrieve', summary: 'Retrieve bounded device sync feed entries', parameters: [p('DeviceIdPath'), p('AfterSeqQuery'), p('LimitQuery')], response: 'DeviceSyncFeedResponse' }),
   }),
   pathItem('/rtc/sessions', {
     post: operation({ tag: 'rtc', operationId: 'rtc.sessions.create', summary: 'Create an IM-backed RTC session', request: 'CreateRtcSessionRequest', response: 'RtcSession' }),
@@ -969,7 +908,6 @@ const document = {
     description: 'IM standardized development OpenAPI contract for conversations, messages, realtime, media, streams, RTC session state, and social IM flows.',
   },
   tags: [
-    { name: 'device' },
     { name: 'presence' },
     { name: 'realtime' },
     { name: 'rtc' },

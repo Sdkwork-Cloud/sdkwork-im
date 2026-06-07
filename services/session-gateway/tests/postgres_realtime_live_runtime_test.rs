@@ -103,20 +103,20 @@ fn test_session_gateway_realtime_runtime_uses_postgres_stores_for_rebuild_ack_an
     assert_eq!(trimmed_window.trimmed_through_seq, 1);
 
     let snapshot = after_ack_rebuild
-        .take_device_state_for_principal_kind(
+        .take_client_route_state_for_principal_kind(
             tenant_id.as_str(),
             principal_id.as_str(),
             "user",
             source_device_id.as_str(),
         )
-        .expect("source runtime should take PostgreSQL-backed device state for migration");
+        .expect("source runtime should take PostgreSQL-backed client route state for migration");
     assert_eq!(snapshot.subscriptions.len(), 1);
     assert!(snapshot.events.is_empty());
     assert_eq!(snapshot.acked_through_seq, 1);
 
     let target_runtime = runtime_for_pool(pool.clone());
     target_runtime
-        .restore_device_state(session_gateway::RealtimeDeviceStateSnapshot {
+        .restore_client_route_state(session_gateway::RealtimeClientRouteStateSnapshot {
             device_id: target_device_id.clone(),
             ..snapshot
         })
@@ -159,7 +159,7 @@ fn test_session_gateway_realtime_runtime_uses_postgres_stores_for_rebuild_ack_an
             1,
             10,
         )
-        .expect("target runtime should expose the restored device window");
+        .expect("target runtime should expose the restored client route window");
     assert_eq!(target_window.items.len(), 1);
     assert_eq!(target_window.items[0].device_id, target_device_id);
     assert_eq!(target_window.items[0].realtime_seq, 2);

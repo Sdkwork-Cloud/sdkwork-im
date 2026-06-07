@@ -12,9 +12,12 @@ function read(relativePath) {
 }
 
 const backendSdkClientSource = read(
-  'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/backendSdkClient.ts',
+  'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-admin-core/src/sdk/backendSdkClient.ts',
 );
 const coreIndexSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/index.ts');
+const adminCoreSdkIndexSource = read(
+  'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-admin-core/src/sdk/index.ts',
+);
 const adminDashboardServiceSource = read(
   'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-admin-dashboard/src/services/AdminDashboardService.ts',
 );
@@ -34,37 +37,42 @@ const messageAuditServiceSource = read(
 assert.match(
   backendSdkClientSource,
   /from ['"]@sdkwork-internal\/im-backend-api-generated['"]/u,
-  'PC core backend SDK wrapper must import the generated IM backend SDK package.',
+  'Admin core backend SDK wrapper must import the generated IM backend SDK package.',
 );
 assert.match(
   backendSdkClientSource,
   /SdkworkImBackendClient/u,
-  'PC core backend SDK wrapper must expose the product-scoped SdkworkImBackendClient.',
+  'Admin core backend SDK wrapper must expose the product-scoped SdkworkImBackendClient.',
 );
 assert.match(
   backendSdkClientSource,
   /getSdkworkChatGlobalTokenManager/u,
-  'PC backend SDK wrapper must share the runtime global TokenManager.',
+  'Admin backend SDK wrapper must share the runtime global TokenManager.',
 );
 assert.match(
   backendSdkClientSource,
   /createSdkworkChatRequestContextInterceptors/u,
-  'PC backend SDK wrapper must attach dynamic SDKWork AppContext request interceptors.',
+  'Admin backend SDK wrapper must attach dynamic SDKWork AppContext request interceptors.',
 );
 assert.match(
   backendSdkClientSource,
   /VITE_CRAW_CHAT_BACKEND_API_BASE_URL/u,
-  'PC backend SDK wrapper must resolve a backend API base URL surface explicitly.',
+  'Admin backend SDK wrapper must resolve a backend API base URL surface explicitly.',
 );
 assert.doesNotMatch(
   backendSdkClientSource,
   /\bfetch\s*\(|\b(Authorization|Access-Token|X-API-Key)\b/u,
-  'PC backend SDK wrapper must not use raw HTTP or assemble auth headers manually.',
+  'Admin backend SDK wrapper must not use raw HTTP or assemble auth headers manually.',
+);
+assert.doesNotMatch(
+  coreIndexSource,
+  /backendSdkClient/u,
+  'PC core package must not export backend SDK wrappers; backend SDK exports belong to admin-core/sdk.',
 );
 assert.match(
-  coreIndexSource,
-  /export \* from '\.\/sdk\/backendSdkClient'/u,
-  'PC core package must export the backend SDK wrapper.',
+  adminCoreSdkIndexSource,
+  /export \* from ['"]\.\/backendSdkClient['"]/u,
+  'Admin core sdk subpath must export the product backend SDK wrapper.',
 );
 
 for (const [label, source] of [
@@ -72,12 +80,11 @@ for (const [label, source] of [
   ['infrastructure status service', infraStatusServiceSource],
   ['admin billing service', adminBillingServiceSource],
   ['admin compliance service', adminComplianceServiceSource],
-  ['message audit service', messageAuditServiceSource],
 ]) {
   assert.match(
     source,
-    /getBackendSdkClientWithSession/u,
-    `${label} must receive backend/operator data through the generated IM backend SDK wrapper.`,
+    /@sdkwork\/clawchat-admin-core\/sdk[\s\S]*getBackendSdkClientWithSession/u,
+    `${label} must receive backend/operator data through the admin-core generated IM backend SDK wrapper.`,
   );
   assert.doesNotMatch(
     source,
@@ -85,6 +92,12 @@ for (const [label, source] of [
     `${label} must not keep mock data, fake delay, raw HTTP, or manual auth header logic.`,
   );
 }
+
+assert.doesNotMatch(
+  messageAuditServiceSource,
+  /getBackendSdkClientWithSession|\.audit\.records\.list\s*\(/u,
+  'User-facing console message audit service must not consume backend audit records; move audit workflows to admin or add an app-api console contract.',
+);
 
 assert.match(adminDashboardServiceSource, /\.ops\.health\.retrieve\s*\(/u);
 assert.match(adminDashboardServiceSource, /\.ops\.cluster\.retrieve\s*\(/u);
@@ -97,6 +110,5 @@ assert.match(adminBillingServiceSource, /\.admin\.billing\.events\.summary\.retr
 assert.match(adminBillingServiceSource, /\.admin\.billing\.events\.list\s*\(/u);
 assert.match(adminComplianceServiceSource, /\.ops\.health\.retrieve\s*\(/u);
 assert.match(adminComplianceServiceSource, /\.audit\.records\.list\s*\(/u);
-assert.match(messageAuditServiceSource, /\.audit\.records\.list\s*\(/u);
 
 console.log('sdkwork chat pc backend SDK integration contract passed.');

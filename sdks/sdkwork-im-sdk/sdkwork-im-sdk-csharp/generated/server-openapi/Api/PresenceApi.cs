@@ -16,9 +16,9 @@ namespace Sdkwork.Im.Sdk.Generated.Api
         }
 
         /// <summary>
-        /// Publish current device presence heartbeat
+        /// Publish current client route presence heartbeat
         /// </summary>
-        public async Task<Sdkwork.Im.Sdk.Generated.Models.PresenceView?> HeartbeatCreateAsync(Sdkwork.Im.Sdk.Generated.Models.DevicePresenceRequest body)
+        public async Task<Sdkwork.Im.Sdk.Generated.Models.PresenceView?> HeartbeatCreateAsync(Sdkwork.Im.Sdk.Generated.Models.PresenceHeartbeatRequest body)
         {
             return await _client.PostAsync<Sdkwork.Im.Sdk.Generated.Models.PresenceView>(ApiPaths.ImPath("/presence/heartbeat"), body, null, null, "application/json");
         }

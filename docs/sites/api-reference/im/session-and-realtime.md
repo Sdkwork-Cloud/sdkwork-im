@@ -1,8 +1,8 @@
-# Device Sessions and Realtime
+# Realtime And Presence
 
 <p class="api-page-intro">
-  Device Sessions and realtime endpoints cover health probes, device route resume and disconnect, presence
-  heartbeats, realtime subscription sync, event polling, ACK tracking, and WebSocket upgrade. The
+  Realtime endpoints cover health probes, client route presence heartbeats, realtime subscription
+  sync, event polling, ACK tracking, and WebSocket upgrade. The
   recommended TypeScript SDK model separates live push from durable replay: use
   <code>sdk.connect(...)</code> for live push and <code>sdk.sync.catchUp(...)</code> for durable
   catch-up.
@@ -15,8 +15,7 @@
 </div>
 
 <div class="api-link-list">
-  <a href="/api-reference/im/device-sync"><code>Device Sync</code> Device registration and projection sync-feed reads are documented separately</a>
-  <a href="/sdk/typescript-sdk"><code>SDK</code> <code>@sdkwork/im-sdk</code> and Flutter package <code>im_sdk</code> are the official app-consumer SDKs for device-session bootstrap, live receive, replay, and SDKWork appbase credential pass-through</a>
+  <a href="/sdk/typescript-sdk"><code>SDK</code> <code>@sdkwork/im-sdk</code> and Flutter package <code>im_sdk</code> are the official app-consumer SDKs for realtime bootstrap, live receive, replay, and SDKWork appbase credential pass-through</a>
 </div>
 
 ## Recommended SDK Mapping
@@ -26,8 +25,7 @@
 | SDKWork appbase credential pass-through | constructor `authToken`; generated transport `setAuthToken(...)` when working at transport level |
 | Live push receive | `sdk.connect(...)` |
 | Durable replay and ACK | `sdk.sync.catchUp(...)`, `sdk.sync.ack(...)` |
-| Device route bootstrap before connect | `sdk.connect({ deviceId, subscriptions })` or `sdk.device.sessions.resume(...)` |
-| Disconnect the current routed device | `sdk.device.sessions.disconnect(...)` |
+| Client route bootstrap before connect | `sdk.connect({ clientRouteId, subscriptions })` |
 | Presence heartbeat and snapshot | `sdk.generated.presence.heartbeat(...)`, `sdk.generated.presence.getPresenceMe()` |
 | Route-level subscription sync and polling | `sdk.generated.realtime.syncRealtimeSubscriptions(...)`, `sdk.generated.realtime.listRealtimeEvents(...)`, `sdk.generated.realtime.ackRealtimeEvents(...)` |
 | Health probes | Direct HTTP `GET /healthz` and `GET /readyz` when you need infrastructure probes |
@@ -47,12 +45,15 @@ When you need exact transport-level control, the semantic runtime and the genera
 designed to coexist:
 
 ```ts
-await sdk.device.sessions.resume({
-  deviceId: 'web-chrome-01',
+const live = await sdk.connect({
+  clientRouteId: 'web-chrome-01',
+  subscriptions: {
+    conversations: ['conversation-1'],
+  },
 });
 
 await sdk.generated.realtime.syncRealtimeSubscriptions({
-  deviceId: 'web-chrome-01',
+  clientRouteId: 'web-chrome-01',
   items: [
     {
       scopeType: 'conversation',
@@ -125,117 +126,6 @@ Returns process readiness for the app runtime.
 
 </section>
 
-<a id="resume-session"></a>
-<section class="api-op">
-
-## `POST /im/v3/api/device/sessions/resume`
-
-<div class="api-op-header">
-  <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/im/v3/api/device/sessions/resume</code>
-  <span class="api-op-id">operationId: resumeDeviceSession</span>
-</div>
-
-Resumes the current device session and returns the active presence snapshot with replay cursors.
-
-<div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect({ deviceId })`, `sdk.device.sessions.resume(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 DeviceSessionResumeView`</span></div>
-</div>
-
-### Request Body
-
-<ApiSchemaTable schema="ResumeDeviceSessionRequest" />
-
-### Response `200`
-
-<ApiSchemaTable schema="DeviceSessionResumeView" />
-
-### Example Request
-
-```json
-{
-  "deviceId": "device-web-01",
-  "lastSeenSyncSeq": 128
-}
-```
-
-### Example Response
-
-```json
-{
-  "tenantId": "tenant-demo",
-  "actorId": "user-alice",
-  "actorKind": "user",
-  "sessionId": "sess_web_01",
-  "deviceId": "device-web-01",
-  "resumeRequired": false,
-  "resumeFromSyncSeq": 128,
-  "latestSyncSeq": 132,
-  "resumedAt": "2026-04-09T10:00:00Z",
-  "presence": {
-    "tenantId": "tenant-demo",
-    "principalId": "user-alice",
-    "currentDeviceId": "device-web-01",
-    "devices": []
-  }
-}
-```
-
-### Error Responses
-
-| HTTP | `code` | Description |
-| --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection could not be resolved. |
-| `403` | `device_permission_denied` | The device does not belong to the current principal. |
-| `409` | `reconnect_required` | The session must be re-established instead of resumed. |
-
-</section>
-
-<a id="disconnect-session"></a>
-<section class="api-op">
-
-## `POST /im/v3/api/device/sessions/disconnect`
-
-<div class="api-op-header">
-  <span class="endpoint-tag endpoint-post">POST</span>
-  <code>/im/v3/api/device/sessions/disconnect</code>
-  <span class="api-op-id">operationId: disconnectDeviceSession</span>
-</div>
-
-Disconnects the current device session.
-
-
-<div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.device.sessions.disconnect(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
-</div>
-
-### Request Body
-
-<ApiSchemaTable schema="PresenceDeviceRequest" />
-
-### Response `200`
-
-<ApiSchemaTable schema="PresenceSnapshotView" />
-
-
-### Error Responses
-
-| HTTP | `code` | Description |
-| --- | --- | --- |
-| `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
-| `404` | `*_not_found` | The requested resource does not exist. |
-| `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
-| `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
-
-</section>
 <a id="heartbeat-presence"></a>
 <section class="api-op">
 
@@ -247,19 +137,19 @@ Disconnects the current device session.
   <span class="api-op-id">operationId: heartbeatPresence</span>
 </div>
 
-Refreshes the presence heartbeat for the current device.
+Refreshes the presence heartbeat for the current client route.
 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.generated.presence.heartbeat(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; Client route ownership and client route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
 </div>
 
 ### Request Body
 
-<ApiSchemaTable schema="PresenceDeviceRequest" />
+<ApiSchemaTable schema="PresenceHeartbeatRequest" />
 
 ### Response `200`
 
@@ -272,7 +162,7 @@ Refreshes the presence heartbeat for the current device.
 | --- | --- | --- |
 | `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -295,7 +185,7 @@ Reads the current principal's presence snapshot.
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.presence.getPresenceMe()`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; Client route ownership and client route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 PresenceSnapshotView`</span></div>
 </div>
 
@@ -309,7 +199,7 @@ Reads the current principal's presence snapshot.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -326,13 +216,13 @@ Reads the current principal's presence snapshot.
   <span class="api-op-id">operationId: syncRealtimeSubscriptions</span>
 </div>
 
-Replaces the realtime subscription set for the current device.
+Replaces the realtime subscription set for the current client route.
 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect(...)`, `sdk.generated.realtime.syncRealtimeSubscriptions(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; Client route ownership and client route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeSubscriptionSnapshot`</span></div>
 </div>
 
@@ -351,7 +241,7 @@ Replaces the realtime subscription set for the current device.
 | --- | --- | --- |
 | `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -368,13 +258,13 @@ Replaces the realtime subscription set for the current device.
   <span class="api-op-id">operationId: listRealtimeEvents</span>
 </div>
 
-Fetches realtime events from the device event window.
+Fetches realtime events from the realtime event window.
 
 
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.sync.catchUp(...)`, `sdk.generated.realtime.listRealtimeEvents(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; Client route ownership and client route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeEventWindow`</span></div>
 </div>
 
@@ -395,7 +285,7 @@ Fetches realtime events from the device event window.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to access the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the read or handshake flow. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -418,7 +308,7 @@ Acknowledges the highest realtime event sequence consumed by the client.
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.sync.ack(...)`, `context.ack()`, `sdk.generated.realtime.ackRealtimeEvents(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; device ownership and device route binding are enforced where required.</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; Client route ownership and client route binding are enforced where required.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`200 RealtimeAckState`</span></div>
 </div>
 
@@ -437,7 +327,7 @@ Acknowledges the highest realtime event sequence consumed by the client.
 | --- | --- | --- |
 | `400` | `invalid_request`, `validation_error` | The request payload or parameters are invalid. |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `conversation_permission_denied`, `device_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
+| `403` | `conversation_permission_denied`, `permission_denied` | The caller is not allowed to mutate the target resource. |
 | `404` | `*_not_found` | The requested resource does not exist. |
 | `409` | `reconnect_required`, `disconnect_fence_conflict`, `conflict` | Current runtime state blocks the mutation. |
 | `503` | `*_unavailable` | A required subsystem or provider is unavailable. |
@@ -461,14 +351,14 @@ not expand the full realtime frame protocol.
 <div class="api-meta-grid">
   <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
   <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; active device route is prepared before upgrade.</span></div>
+  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; active client route is prepared before upgrade.</span></div>
   <div class="api-meta-card"><strong>Success</strong><span>`101 Switching Protocols`</span></div>
 </div>
 
 ### Security
 
 - SDKWork dual token validated at the appbase boundary, then AppContext projection headers
-- Device ownership and device route binding are validated before upgrade
+- Client route ownership and client route binding are validated before upgrade
 - Browser runtimes that cannot send upgrade headers should prefer a gateway-issued short-lived
   realtime ticket or pre-signed `wss://` URL instead of a long-lived query credential
 
@@ -500,7 +390,7 @@ not expand the full realtime frame protocol.
 | HTTP | `code` | Description |
 | --- | --- | --- |
 | `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `403` | `device_permission_denied` | The device is not authorized for the current principal. |
+| `409` | `client_route_scope_conflict` | The client route key is already bound to another principal. |
 | `409` | `disconnect_fence_conflict` | Routing or session state blocks the upgrade. |
 
 </section>

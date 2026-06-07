@@ -72,7 +72,4 @@ In short: this family must not contain backend, admin, or control routes.
 ## Related API Docs
 
 - [App API Overview](/api-reference/app-api)
-- [App API Overview](/api-reference/app-api)
-- [Device Twin](/api-reference/app/device-twin)
-- [IoT Protocol and Health](/api-reference/app/iot-protocol-and-health)
 - [SDK Overview](/sdk/index)

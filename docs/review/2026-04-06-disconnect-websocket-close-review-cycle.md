@@ -58,7 +58,7 @@ This is a transport-layer complement to Standards 86, 87, 88, and 89.
 ## 5. Implementation
 
 - `services/session-gateway/src/realtime.rs`
-  - added per-device websocket disconnect generations and watch notifiers
+  - added per-client-route websocket disconnect generations and watch notifiers
   - added:
     - `subscribe_disconnect_signal(...)`
     - `disconnect_generation(...)`

@@ -50,13 +50,50 @@ function listFiles(rootRelativePath, predicate) {
   return result;
 }
 
+function assertNoImDeviceApiUsage(source, label) {
+  for (const forbidden of [
+    /client\.device/u,
+    /\.device\.registrations/u,
+    /\.device\.syncFeed/u,
+    /DeviceSyncFeedService/u,
+    /retrieveDeviceSyncFeedWindow/u,
+    /syncDeviceFeed/u,
+    /syncContactsFromDeviceFeed/u,
+    /syncGroupMembersFromDeviceFeed/u,
+    /DeviceSyncFeed/u,
+    /RegisterDevice/u,
+    /RegisteredDevice/u,
+    /DeviceSession/u,
+    /\/im\/v3\/api\/device/u,
+    /\/im\/v3\/api\/devices/u,
+  ]) {
+    assert.doesNotMatch(source, forbidden, `${label} must not consume retired IM device API surface: ${forbidden}`);
+  }
+}
+
 const appPackageJson = readJson('apps/sdkwork-chat-pc/package.json');
 const retiredGenericAppSdkPackage = `@sdkwork/${'app'}-sdk`;
 const retiredGenericBackendSdkPackage = `@sdkwork/${'backend'}-sdk`;
 
 assert.equal(appPackageJson.name, '@sdkwork/chat-pc', 'desktop app package must use a standard SDKWork package name');
-assert.equal(appPackageJson.scripts.dev, 'vite --host 127.0.0.1 --port 1620 --strictPort');
-assert.equal(appPackageJson.scripts['dev:tauri'], 'vite --host 127.0.0.1 --port 1620 --strictPort');
+assert.equal(
+  appPackageJson.scripts.dev,
+  'node ../../scripts/dev/run-vite-cli.mjs --host 127.0.0.1 --port 1620 --strictPort',
+);
+assert.equal(
+  appPackageJson.scripts['dev:tauri'],
+  'node ../../scripts/dev/run-vite-cli.mjs --host 127.0.0.1 --port 1620 --strictPort',
+);
+assert.match(
+  appPackageJson.scripts.build,
+  /^node \.\.\/\.\.\/scripts\/dev\/run-vite-cli\.mjs build/u,
+  'desktop app build must prepare linked SDKWork UI dependencies before Vite build',
+);
+assert.equal(
+  appPackageJson.scripts.lint,
+  'node ../../scripts/dev/run-tsc-cli.mjs --noEmit',
+  'desktop app lint must prepare linked SDKWork UI dependencies before TypeScript checks',
+);
 assert.equal(appPackageJson.scripts['desktop:dev:local'], 'pnpm --filter @sdkwork/clawchat-pc-desktop desktop:dev:local');
 assert.equal(appPackageJson.scripts['desktop:build:local'], 'pnpm --filter @sdkwork/clawchat-pc-desktop desktop:build:local');
 assert.ok(
@@ -173,18 +210,22 @@ assert.match(
   'TypeScript must resolve generated IM SDK from source for live development',
 );
 assert.match(viteConfig, /@sdkwork\/rtc-sdk/u, 'Vite must alias generated RTC SDK source');
-assert.match(viteConfig, /sdkwork-rtc[\\\/]sdks[\\\/]sdkwork-rtc-sdk[\\\/]sdkwork-rtc-sdk-typescript[\\\/]src[\\\/]index\.ts/u);
+assert.match(
+  viteConfig,
+  /dependencyRoot\('sdkwork-rtc'\)[\s\S]*sdks[\\\/]sdkwork-rtc-sdk[\\\/]sdkwork-rtc-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'Vite must resolve RTC SDK through the sibling workspace dependency for portable local development',
+);
 assert.match(
   tsconfig,
-  /sdkwork-rtc[\\\/]sdks[\\\/]sdkwork-rtc-sdk[\\\/]sdkwork-rtc-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-rtc[\\\/]sdks[\\\/]sdkwork-rtc-sdk[\\\/]sdkwork-rtc-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
   'TypeScript must resolve generated RTC SDK from source for live development',
 );
 assert.match(viteConfig, /@sdkwork\/appbase-pc-react/u, 'Vite must alias appbase PC package source');
 assert.match(viteConfig, /@sdkwork\/core-pc-react/u, 'Vite must alias SDKWork core PC React package');
 assert.match(
   viteConfig,
-  /sdkwork-core[\\\/]sdkwork-core-pc-react[\\\/]src/u,
-  'Vite must alias SDKWork core PC React to source for live development',
+  /dependencyRoot\('sdkwork-core'\)[\s\S]*sdkwork-core-pc-react[\\\/]src/u,
+  'Vite must alias SDKWork core PC React through the sibling workspace dependency for portable live development',
 );
 assert.doesNotMatch(
   viteConfig,
@@ -199,8 +240,8 @@ assert.doesNotMatch(
 assert.match(viteConfig, /@sdkwork\/ui-pc-react/u, 'Vite must alias SDKWork UI PC React package');
 assert.match(
   viteConfig,
-  /sdkwork-ui[\\\/]sdkwork-ui-pc-react[\\\/]src/u,
-  'Vite must alias SDKWork UI PC React to source for live development',
+  /dependencyRoot\('sdkwork-ui'\)[\s\S]*sdkwork-ui-pc-react[\\\/]src/u,
+  'Vite must alias SDKWork UI PC React through the sibling workspace dependency for portable live development',
 );
 assert.doesNotMatch(
   viteConfig,
@@ -746,6 +787,26 @@ assert.doesNotMatch(
   /mock to work|Sending message:|console\.log\s*\(/u,
   'message input must not keep mock-send branches or console-only fake delivery paths',
 );
+assert.match(
+  messageInputSource,
+  /type\?:\s*'text'\|'image'\|'file'\|'voice'\|'video'/u,
+  'message input send contract must expose video as a first-class chat message type',
+);
+assert.match(
+  messageInputSource,
+  /file\.type\.startsWith\('video\/'\)/u,
+  'message input must classify selected or dropped video files as video messages before calling ChatService',
+);
+assert.match(
+  messageInputSource,
+  /readBlobAsDataUrl/u,
+  'message input must convert selected files, screenshots, and voice recordings into serializable message resources',
+);
+assert.doesNotMatch(
+  messageInputSource,
+  /URL\.createObjectURL/u,
+  'message input must not send browser-local blob URLs that other clients cannot read',
+);
 const voiceRecorderFailureStart = messageInputSource.indexOf('} catch (err)');
 assert.notEqual(voiceRecorderFailureStart, -1, 'message input voice recorder failure path must remain auditable');
 const voiceRecorderFailureSource = messageInputSource.slice(voiceRecorderFailureStart, messageInputSource.indexOf('  return (', voiceRecorderFailureStart));
@@ -767,67 +828,38 @@ assert.match(
 );
 assert.match(
   settingsServiceSource,
-  /\.device\.twin\.retrieve\s*\(/u,
-  'settings service device list must read the generated app SDK device twin',
+  /getAiotAppSdkClientWithSession/u,
+  'settings service device capability must use the sdkwork-aiot app SDK wrapper',
 );
 assert.match(
   settingsServiceSource,
-  /\.device\.twin\.desired\.update\s*\(/u,
-  'settings service device removal must write desired device state through the generated app SDK',
+  /\.iot\.devices\.twin\.retrieve\s*\(/u,
+  'settings service device list must read device state through sdkwork-aiot iot.devices.twin.retrieve',
+);
+assertNoImDeviceApiUsage(settingsServiceSource, 'settings service');
+assert.doesNotMatch(
+  settingsServiceSource,
+  /\.device\.twin|\.device\.twin\.desired|getClient\(\)\.device/u,
+  'settings service must not consume Craw Chat app SDK device twin after device ownership moves to sdkwork-aiot',
 );
 assert.doesNotMatch(settingsServiceSource, /class\s+MockSettingsService/u, 'settings service must not be mock-backed');
 assert.doesNotMatch(settingsServiceSource, /\bfetch\s*\(/u, 'settings service must not use raw fetch');
 assert.doesNotMatch(settingsServiceSource, /\/api\/config\/modules/u, 'settings service must not hand-code module config paths');
-assertFile('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/DeviceSyncFeedService.ts');
-const deviceSyncFeedServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/DeviceSyncFeedService.ts');
-assert.match(
-  deviceSyncFeedServiceSource,
-  /DEVICE_SYNC_PAGE_LIMIT\s*=\s*100/u,
-  'device sync feed helper must use the standard bounded page size',
+assert.ok(
+  !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/DeviceSyncFeedService.ts')),
+  'DeviceSyncFeedService must be removed because IM no longer owns device registration or device sync feed APIs',
 );
-assert.match(
-  deviceSyncFeedServiceSource,
-  /client\.device\.syncFeed\.retrieve\s*\(/u,
-  'device sync feed helper must retrieve windows through the generated IM SDK',
-);
-assert.match(
-  deviceSyncFeedServiceSource,
-  /nextAfterSeq/u,
-  'device sync feed helper must persist nextAfterSeq for incremental sync',
-);
-assert.doesNotMatch(deviceSyncFeedServiceSource, /\bfetch\s*\(/u, 'device sync feed helper must not use raw fetch');
-assert.doesNotMatch(deviceSyncFeedServiceSource, /\/im\/v3/u, 'device sync feed helper must not hand-code IM HTTP paths');
-assert.match(
-  chatServiceSource,
-  /DeviceSyncFeedService/u,
-  'chat service must share the standard device sync feed helper instead of keeping local polling logic',
-);
-assert.match(chatServiceSource, /syncDeviceFeed/u, 'chat service must expose device sync feed consumption');
+assertNoImDeviceApiUsage(chatServiceSource, 'chat service');
 assert.match(chatServiceSource, /syncOfflineMessages/u, 'chat service must expose offline message window sync');
 assert.match(
   chatServiceSource,
-  /originEventType\s*===\s*['"]message\.posted['"]/u,
-  'chat service device sync must consume offline message.posted feed entries',
+  /\.chat\.inbox\.retrieve\s*\(/u,
+  'chat service offline sync must refresh the IM inbox through the generated SDK',
 );
 assert.match(
   chatServiceSource,
-  /function\s+mapDeviceSyncEntryToMessage[\s\S]*parseDeviceSyncPayload[\s\S]*firstBodyPart[\s\S]*resolvePartMessageType/u,
-  'chat service device sync must restore message type from standard message.posted body parts',
-);
-assert.match(
-  chatServiceSource,
-  /mapRecordReplyReferenceToMessageReply\s*\(\s*toRecord\s*\(\s*body\.replyTo\s*\)\s*\)/u,
-  'chat service device sync must restore reply references from standard message.posted payload',
-);
-assert.match(
-  chatServiceSource,
-  /resolvePayloadMessageContent\s*\(\s*body\s*,\s*payload\s*,\s*entry\s*,\s*messageType\s*\)/u,
-  'chat service device sync must restore media/file content from standard message.posted payload',
-);
-assert.match(
-  chatServiceSource,
-  /originEventType\s*===\s*['"]conversation\.read_cursor_updated['"]/u,
-  'chat service device sync must consume read cursor feed entries',
+  /\.conversations\.listMessages\s*\(/u,
+  'chat service offline sync must refresh message windows through generated IM conversation messages APIs',
 );
 assert.doesNotMatch(chatServiceSource, /class MockChatService/u, 'chat service must not be mock-backed');
 assert.doesNotMatch(chatServiceSource, /mockChats|mockMessages/u, 'chat service must not keep mock branches');
@@ -1658,8 +1690,8 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
-  /\.chat\.contacts\.list\s*\(/u,
-  'contact service getContacts must list contacts through the generated IM SDK',
+  /\.social\.contacts\.list\s*\(/u,
+  'contact service getContacts must list contacts through the generated IM social contacts SDK',
 );
 assert.match(
   contactServiceSource,
@@ -1836,25 +1868,11 @@ assert.match(
   /isStarred|isBlocked|remark/u,
   'contact service must map PC star, blacklist, and remark state through ContactPreferencesView',
 );
+assertNoImDeviceApiUsage(contactServiceSource, 'contact service');
 assert.match(
   contactServiceSource,
-  /DeviceSyncFeedService/u,
-  'contact service must share the standard device sync feed helper for contact incremental sync',
-);
-assert.match(
-  contactServiceSource,
-  /syncContactsFromDeviceFeed/u,
-  'contact service must expose contact sync from the standard device feed',
-);
-assert.match(
-  contactServiceSource,
-  /originEventType\s*===\s*['"]friendship\.activated['"]/u,
-  'contact service device sync must consume friendship.activated feed entries',
-);
-assert.match(
-  contactServiceSource,
-  /originEventType\s*===\s*['"]friendship\.removed['"]/u,
-  'contact service device sync must consume friendship.removed feed entries',
+  /\.social\.contacts\.list\s*\(/u,
+  'contact service sync must refresh contacts through the generated IM social contacts SDK',
 );
 assert.doesNotMatch(contactServiceSource, /class\s+MockContactService/u, 'contact service must not be mock-backed');
 assert.doesNotMatch(contactServiceSource, /mockUsers|mockFriendRequests/u, 'contact service must not keep mock contacts or friend requests');
@@ -2120,20 +2138,11 @@ assert.match(
   /\.conversations\.leave\s*\(/u,
   'group service deleteGroup must leave group conversations through the IM SDK',
 );
+assertNoImDeviceApiUsage(groupServiceSource, 'group service');
 assert.match(
   groupServiceSource,
-  /DeviceSyncFeedService/u,
-  'group service must share the standard device sync feed helper for group member incremental sync',
-);
-assert.match(
-  groupServiceSource,
-  /syncGroupMembersFromDeviceFeed/u,
-  'group service must expose group member sync from the standard device feed',
-);
-assert.match(
-  groupServiceSource,
-  /originEventType\.startsWith\s*\(\s*['"]conversation\.member_['"]\s*\)/u,
-  'group service device sync must consume conversation.member_* feed entries',
+  /\.conversations\.list\s*\(/u,
+  'group service sync must refresh group conversations through the generated IM SDK',
 );
 assert.doesNotMatch(groupServiceSource, /class\s+MockGroupService/u, 'group service must not be mock-backed');
 assert.doesNotMatch(groupServiceSource, /mockGroups|setTimeout|console\.log/u, 'group service must not keep mock group branches');
@@ -2274,29 +2283,20 @@ assert.match(
 );
 assert.match(
   imSyncCoordinatorServiceSource,
-  /syncOfflineMessages\s*\(\s*deviceId\s*\)/u,
+  /syncOfflineMessages\s*\(\s*\)/u,
   'IM sync coordinator startup sync must run offline message window synchronization',
 );
 assert.match(
   imSyncCoordinatorServiceSource,
-  /syncContactsFromDeviceFeed\s*\(\s*deviceId\s*\)/u,
-  'IM sync coordinator startup sync must run friend/contact incremental synchronization',
+  /syncContacts\s*\(\s*\)/u,
+  'IM sync coordinator startup sync must run friend/contact refresh synchronization',
 );
 assert.match(
   imSyncCoordinatorServiceSource,
-  /syncGroupMembersFromDeviceFeed\s*\(\s*deviceId\s*\)/u,
-  'IM sync coordinator startup sync must run group member incremental synchronization',
+  /syncGroupMembers\s*\(\s*\)/u,
+  'IM sync coordinator startup sync must run group member refresh synchronization',
 );
-assert.match(
-  imSyncCoordinatorServiceSource,
-  /retrieveDeviceSyncFeedWindow\s*\(/u,
-  'IM sync coordinator must inspect the standard device sync feed for RTC backfill hints',
-);
-assert.match(
-  imSyncCoordinatorServiceSource,
-  /recoverRtcSession\s*\(\s*hint\.rtcSessionId/u,
-  'IM sync coordinator must recover RTC sessions from offline device sync signal entries',
-);
+assertNoImDeviceApiUsage(imSyncCoordinatorServiceSource, 'IM sync coordinator');
 assert.doesNotMatch(imSyncCoordinatorServiceSource, /\bfetch\s*\(/u, 'IM sync coordinator must not use raw fetch');
 assert.doesNotMatch(imSyncCoordinatorServiceSource, /\/im\/v3/u, 'IM sync coordinator must not hand-code IM HTTP paths');
 assert.doesNotMatch(imSyncCoordinatorServiceSource, /\b(Authorization|Access-Token|X-API-Key)\b/u, 'IM sync coordinator must not assemble auth headers manually');

@@ -50,7 +50,8 @@ fn publish_message(
 }
 
 #[test]
-fn test_commercial_realtime_core_survives_multi_device_pressure_trim_restore_and_compensation() {
+fn test_commercial_realtime_core_survives_multi_client_route_pressure_trim_restore_and_compensation()
+ {
     let checkpoint_store = Arc::new(MemoryRealtimeCheckpointStore::default());
     let subscription_store = Arc::new(MemoryRealtimeSubscriptionStore::default());
     let event_window_store = Arc::new(MemoryRealtimeEventWindowStore::default());
@@ -186,10 +187,10 @@ fn test_commercial_realtime_core_survives_multi_device_pressure_trim_restore_and
 
     let diagnostics = expect_ok(rebuilt_runtime.realtime_inbox_diagnostics());
     assert_eq!(diagnostics.status, "critical");
-    assert_eq!(diagnostics.device_window_count, 3);
+    assert_eq!(diagnostics.client_route_window_count, 3);
     assert_eq!(diagnostics.pending_event_count, 2_250);
-    assert_eq!(diagnostics.max_device_window_event_count, 1_000);
-    assert_eq!(diagnostics.max_device_window_usage_permille, 1_000);
+    assert_eq!(diagnostics.max_client_route_window_event_count, 1_000);
+    assert_eq!(diagnostics.max_client_route_window_usage_permille, 1_000);
     assert_eq!(diagnostics.capacity_trimmed_event_count, 150);
     assert_eq!(diagnostics.max_capacity_trimmed_through_seq, 50);
     assert_eq!(diagnostics.max_trimmed_through_seq, 800);
@@ -199,7 +200,7 @@ fn test_commercial_realtime_core_survives_multi_device_pressure_trim_restore_and
             .high_risk_windows
             .iter()
             .any(|window| window.device_id == "d_mobile" && window.usage_permille == 1_000),
-        "diagnostics should identify saturated device windows"
+        "diagnostics should identify saturated client route windows"
     );
 
     let failing_checkpoint_store = Arc::new(ToggleRealtimeCheckpointStore::with_seed(
@@ -251,7 +252,7 @@ fn test_commercial_realtime_cluster_handoff_preserves_checkpoint_and_pending_win
         subscription(CONVERSATION_ID),
     ));
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             TENANT_ID,
             PRINCIPAL_ID,
             PRINCIPAL_KIND,
@@ -286,7 +287,7 @@ fn test_commercial_realtime_cluster_handoff_preserves_checkpoint_and_pending_win
         .expect("draining node should migrate routes");
 
     let route = cluster
-        .resolve_device_route_for_principal_kind(
+        .resolve_client_route_for_principal_kind(
             TENANT_ID,
             PRINCIPAL_ID,
             PRINCIPAL_KIND,
@@ -325,7 +326,7 @@ fn test_commercial_realtime_cluster_handoff_preserves_checkpoint_and_pending_win
     assert_eq!(target_window.acked_through_seq, 12);
     assert_eq!(target_window.trimmed_through_seq, 12);
 
-    let publish_after_migration = cluster.publish_device_event_for_principal_kind(
+    let publish_after_migration = cluster.publish_client_route_event_for_principal_kind(
         "node_a",
         TENANT_ID,
         PRINCIPAL_ID,

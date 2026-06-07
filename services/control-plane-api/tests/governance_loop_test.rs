@@ -51,7 +51,7 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
         }],
     );
     cluster
-        .bind_device_route_for_principal_kind(
+        .bind_client_route_for_principal_kind(
             "t_demo",
             "u_demo",
             "user",
@@ -98,7 +98,7 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
     assert_eq!(drain_cluster.nodes[0].node_id, "node_a");
     assert_eq!(drain_cluster.nodes[0].drain_status, "draining");
     assert_eq!(drain_cluster.nodes[0].rebalance_state, "moving_routes");
-    assert_eq!(drain_cluster.nodes[0].device_route_count, 1);
+    assert_eq!(drain_cluster.nodes[0].client_route_count, 1);
 
     let migrate_response = app
         .oneshot(
@@ -129,7 +129,7 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
 
     let migrated_cluster = ops_runtime.cluster_view();
     assert_eq!(migrated_cluster.nodes[0].drain_status, "drained");
-    assert_eq!(migrated_cluster.nodes[0].device_route_count, 0);
+    assert_eq!(migrated_cluster.nodes[0].client_route_count, 0);
 
     let audit_auth = audit_app_context();
     let audit_export = audit_runtime.export_bundle(&audit_auth);

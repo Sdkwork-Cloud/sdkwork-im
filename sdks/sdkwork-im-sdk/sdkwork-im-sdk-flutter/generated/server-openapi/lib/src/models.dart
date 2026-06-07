@@ -38,141 +38,15 @@ class AckResponse {
   }
 }
 
-class DeviceSessionView {
-  final String tenantId;
-  final String principalId;
-  final String principalKind;
-  final String deviceId;
-  final String resumedAt;
-
-  DeviceSessionView({
-    required this.tenantId,
-    required this.principalId,
-    required this.principalKind,
-    required this.deviceId,
-    required this.resumedAt
-  });
-
-  factory DeviceSessionView.fromJson(Map<String, dynamic> json) {
-    return DeviceSessionView(
-      tenantId: (() {
-        final value = json['tenantId']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSessionView.tenantId is required');
-        }
-        return value;
-      })(),
-      principalId: (() {
-        final value = json['principalId']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSessionView.principalId is required');
-        }
-        return value;
-      })(),
-      principalKind: (() {
-        final value = json['principalKind']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSessionView.principalKind is required');
-        }
-        return value;
-      })(),
-      deviceId: (() {
-        final value = json['deviceId']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSessionView.deviceId is required');
-        }
-        return value;
-      })(),
-      resumedAt: (() {
-        final value = json['resumedAt']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSessionView.resumedAt is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'tenantId': tenantId,
-      'principalId': principalId,
-      'principalKind': principalKind,
-      'deviceId': deviceId,
-      'resumedAt': resumedAt,
-    };
-  }
-}
-
-class DeviceSessionDisconnectResponse {
-  final String deviceId;
-  final bool disconnected;
-
-  DeviceSessionDisconnectResponse({
-    required this.deviceId,
-    required this.disconnected
-  });
-
-  factory DeviceSessionDisconnectResponse.fromJson(Map<String, dynamic> json) {
-    return DeviceSessionDisconnectResponse(
-      deviceId: (() {
-        final value = json['deviceId']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSessionDisconnectResponse.deviceId is required');
-        }
-        return value;
-      })(),
-      disconnected: (() {
-        final value = json['disconnected'];
-        if (value is! bool) {
-          throw FormatException('DeviceSessionDisconnectResponse.disconnected is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'deviceId': deviceId,
-      'disconnected': disconnected,
-    };
-  }
-}
-
-class ResumeDeviceSessionRequest {
-  final String? deviceId;
-  final int? lastSeenSyncSeq;
-
-  ResumeDeviceSessionRequest({
-    this.deviceId,
-    this.lastSeenSyncSeq
-  });
-
-  factory ResumeDeviceSessionRequest.fromJson(Map<String, dynamic> json) {
-    return ResumeDeviceSessionRequest(
-      deviceId: json['deviceId']?.toString(),
-      lastSeenSyncSeq: json['lastSeenSyncSeq'] is int ? json['lastSeenSyncSeq'] : null
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'deviceId': deviceId,
-      'lastSeenSyncSeq': lastSeenSyncSeq,
-    };
-  }
-}
-
-class DevicePresenceRequest {
+class PresenceHeartbeatRequest {
   final String? deviceId;
 
-  DevicePresenceRequest({
+  PresenceHeartbeatRequest({
     this.deviceId
   });
 
-  factory DevicePresenceRequest.fromJson(Map<String, dynamic> json) {
-    return DevicePresenceRequest(
+  factory PresenceHeartbeatRequest.fromJson(Map<String, dynamic> json) {
+    return PresenceHeartbeatRequest(
       deviceId: json['deviceId']?.toString()
     );
   }
@@ -463,266 +337,6 @@ class RealtimeEventsResponse {
       'items': items.map((item) => item.toJson()).toList(),
       'nextCursor': nextCursor,
       'hasMore': hasMore,
-    };
-  }
-}
-
-class RegisterDeviceRequest {
-  final String? deviceId;
-
-  RegisterDeviceRequest({
-    this.deviceId
-  });
-
-  factory RegisterDeviceRequest.fromJson(Map<String, dynamic> json) {
-    return RegisterDeviceRequest(
-      deviceId: json['deviceId']?.toString()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'deviceId': deviceId,
-    };
-  }
-}
-
-class RegisteredDeviceView {
-  final String tenantId;
-  final String principalId;
-  final String principalKind;
-  final String deviceId;
-  final String registeredAt;
-
-  RegisteredDeviceView({
-    required this.tenantId,
-    required this.principalId,
-    required this.principalKind,
-    required this.deviceId,
-    required this.registeredAt
-  });
-
-  factory RegisteredDeviceView.fromJson(Map<String, dynamic> json) {
-    return RegisteredDeviceView(
-      tenantId: (() {
-        final value = json['tenantId']?.toString();
-        if (value == null) {
-          throw FormatException('RegisteredDeviceView.tenantId is required');
-        }
-        return value;
-      })(),
-      principalId: (() {
-        final value = json['principalId']?.toString();
-        if (value == null) {
-          throw FormatException('RegisteredDeviceView.principalId is required');
-        }
-        return value;
-      })(),
-      principalKind: (() {
-        final value = json['principalKind']?.toString();
-        if (value == null) {
-          throw FormatException('RegisteredDeviceView.principalKind is required');
-        }
-        return value;
-      })(),
-      deviceId: (() {
-        final value = json['deviceId']?.toString();
-        if (value == null) {
-          throw FormatException('RegisteredDeviceView.deviceId is required');
-        }
-        return value;
-      })(),
-      registeredAt: (() {
-        final value = json['registeredAt']?.toString();
-        if (value == null) {
-          throw FormatException('RegisteredDeviceView.registeredAt is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'tenantId': tenantId,
-      'principalId': principalId,
-      'principalKind': principalKind,
-      'deviceId': deviceId,
-      'registeredAt': registeredAt,
-    };
-  }
-}
-
-class DeviceSyncFeedEntry {
-  final String tenantId;
-  final String principalId;
-  final String principalKind;
-  final String? deviceId;
-  final int syncSeq;
-  final String eventId;
-  final String originEventType;
-  final String? actorId;
-  final String? conversationId;
-  final String? messageId;
-  final int? messageSeq;
-  final String? payload;
-  final int? readSeq;
-  final String? summary;
-  final String occurredAt;
-
-  DeviceSyncFeedEntry({
-    required this.tenantId,
-    required this.principalId,
-    required this.principalKind,
-    this.deviceId,
-    required this.syncSeq,
-    required this.eventId,
-    required this.originEventType,
-    this.actorId,
-    this.conversationId,
-    this.messageId,
-    this.messageSeq,
-    this.payload,
-    this.readSeq,
-    this.summary,
-    required this.occurredAt
-  });
-
-  factory DeviceSyncFeedEntry.fromJson(Map<String, dynamic> json) {
-    return DeviceSyncFeedEntry(
-      tenantId: (() {
-        final value = json['tenantId']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSyncFeedEntry.tenantId is required');
-        }
-        return value;
-      })(),
-      principalId: (() {
-        final value = json['principalId']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSyncFeedEntry.principalId is required');
-        }
-        return value;
-      })(),
-      principalKind: (() {
-        final value = json['principalKind']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSyncFeedEntry.principalKind is required');
-        }
-        return value;
-      })(),
-      deviceId: json['deviceId']?.toString(),
-      syncSeq: (() {
-        final value = json['syncSeq'];
-        if (value is! int) {
-          throw FormatException('DeviceSyncFeedEntry.syncSeq is required');
-        }
-        return value;
-      })(),
-      eventId: (() {
-        final value = json['eventId']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSyncFeedEntry.eventId is required');
-        }
-        return value;
-      })(),
-      originEventType: (() {
-        final value = json['originEventType']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSyncFeedEntry.originEventType is required');
-        }
-        return value;
-      })(),
-      actorId: json['actorId']?.toString(),
-      conversationId: json['conversationId']?.toString(),
-      messageId: json['messageId']?.toString(),
-      messageSeq: json['messageSeq'] is int ? json['messageSeq'] : null,
-      payload: json['payload']?.toString(),
-      readSeq: json['readSeq'] is int ? json['readSeq'] : null,
-      summary: json['summary']?.toString(),
-      occurredAt: (() {
-        final value = json['occurredAt']?.toString();
-        if (value == null) {
-          throw FormatException('DeviceSyncFeedEntry.occurredAt is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'tenantId': tenantId,
-      'principalId': principalId,
-      'principalKind': principalKind,
-      'deviceId': deviceId,
-      'syncSeq': syncSeq,
-      'eventId': eventId,
-      'originEventType': originEventType,
-      'actorId': actorId,
-      'conversationId': conversationId,
-      'messageId': messageId,
-      'messageSeq': messageSeq,
-      'payload': payload,
-      'readSeq': readSeq,
-      'summary': summary,
-      'occurredAt': occurredAt,
-    };
-  }
-}
-
-class DeviceSyncFeedResponse {
-  final List<DeviceSyncFeedEntry> items;
-  final int? nextAfterSeq;
-  final bool hasMore;
-  final int trimmedThroughSeq;
-
-  DeviceSyncFeedResponse({
-    required this.items,
-    this.nextAfterSeq,
-    required this.hasMore,
-    required this.trimmedThroughSeq
-  });
-
-  factory DeviceSyncFeedResponse.fromJson(Map<String, dynamic> json) {
-    return DeviceSyncFeedResponse(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('DeviceSyncFeedResponse.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : DeviceSyncFeedEntry.fromJson(map);
-      })())
-            .whereType<DeviceSyncFeedEntry>()
-            .toList();
-      })(),
-      nextAfterSeq: json['nextAfterSeq'] is int ? json['nextAfterSeq'] : null,
-      hasMore: (() {
-        final value = json['hasMore'];
-        if (value is! bool) {
-          throw FormatException('DeviceSyncFeedResponse.hasMore is required');
-        }
-        return value;
-      })(),
-      trimmedThroughSeq: (() {
-        final value = json['trimmedThroughSeq'];
-        if (value is! int) {
-          throw FormatException('DeviceSyncFeedResponse.trimmedThroughSeq is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'nextAfterSeq': nextAfterSeq,
-      'hasMore': hasMore,
-      'trimmedThroughSeq': trimmedThroughSeq,
     };
   }
 }
@@ -3373,6 +2987,7 @@ class CreateContactRecommendationRequest {
 class SocialUserSearchResult {
   final String tenantId;
   final String userId;
+  final String chatId;
   final String displayName;
   final String relationshipState;
   final String? avatarUrl;
@@ -3383,6 +2998,7 @@ class SocialUserSearchResult {
   SocialUserSearchResult({
     required this.tenantId,
     required this.userId,
+    required this.chatId,
     required this.displayName,
     required this.relationshipState,
     this.avatarUrl,
@@ -3404,6 +3020,13 @@ class SocialUserSearchResult {
         final value = json['userId']?.toString();
         if (value == null) {
           throw FormatException('SocialUserSearchResult.userId is required');
+        }
+        return value;
+      })(),
+      chatId: (() {
+        final value = json['chatId']?.toString();
+        if (value == null) {
+          throw FormatException('SocialUserSearchResult.chatId is required');
         }
         return value;
       })(),
@@ -3432,6 +3055,7 @@ class SocialUserSearchResult {
     return <String, dynamic>{
       'tenantId': tenantId,
       'userId': userId,
+      'chatId': chatId,
       'displayName': displayName,
       'relationshipState': relationshipState,
       'avatarUrl': avatarUrl,

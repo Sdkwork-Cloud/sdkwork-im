@@ -36,10 +36,11 @@ pub(super) async fn invite_rtc_session(
     let request_key =
         rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "invite");
     let rtc_auth = rtc_app_context_from_auth(&auth);
-    let outcome =
-        state
-            .rtc_runtime
-            .invite_session_with_outcome(&rtc_auth, rtc_session_id.as_str(), request)?;
+    let outcome = state.rtc_runtime.invite_session_with_outcome(
+        &rtc_auth,
+        rtc_session_id.as_str(),
+        request,
+    )?;
     if outcome.applied {
         effects::emit_rtc_signal_message(&state, &auth, &outcome.session, "rtc.invite")?;
     }
@@ -57,7 +58,9 @@ pub(super) async fn get_rtc_session(
 ) -> Result<Json<sdkwork_rtc_core::RtcSession>, ApiError> {
     let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let rtc_auth = rtc_app_context_from_auth(&auth);
-    let session = state.rtc_runtime.session(&rtc_auth, rtc_session_id.as_str())?;
+    let session = state
+        .rtc_runtime
+        .session(&rtc_auth, rtc_session_id.as_str())?;
     if let Some(conversation_id) = session.conversation_id.as_deref() {
         access::ensure_conversation_read_access(&state, &auth, conversation_id)?;
     }
@@ -81,10 +84,11 @@ pub(super) async fn accept_rtc_session(
     let request_key =
         rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "accept");
     let rtc_auth = rtc_app_context_from_auth(&auth);
-    let outcome =
-        state
-            .rtc_runtime
-            .accept_session_with_outcome(&rtc_auth, rtc_session_id.as_str(), request)?;
+    let outcome = state.rtc_runtime.accept_session_with_outcome(
+        &rtc_auth,
+        rtc_session_id.as_str(),
+        request,
+    )?;
     if outcome.applied {
         effects::emit_rtc_signal_message(&state, &auth, &outcome.session, "rtc.accept")?;
     }
@@ -111,10 +115,11 @@ pub(super) async fn reject_rtc_session(
     let request_key =
         rtc_session_action_request_key(auth.tenant_id.as_str(), rtc_session_id.as_str(), "reject");
     let rtc_auth = rtc_app_context_from_auth(&auth);
-    let outcome =
-        state
-            .rtc_runtime
-            .reject_session_with_outcome(&rtc_auth, rtc_session_id.as_str(), request)?;
+    let outcome = state.rtc_runtime.reject_session_with_outcome(
+        &rtc_auth,
+        rtc_session_id.as_str(),
+        request,
+    )?;
     if outcome.applied {
         effects::emit_rtc_signal_message(&state, &auth, &outcome.session, "rtc.reject")?;
     }
@@ -227,7 +232,11 @@ pub(super) async fn map_rtc_provider_callback(
 ) -> Result<Json<RtcCallbackEvent>, ApiError> {
     let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let rtc_auth = rtc_app_context_from_auth(&auth);
-    Ok(Json(state.rtc_runtime.map_provider_callback(&rtc_auth, request)?))
+    Ok(Json(
+        state
+            .rtc_runtime
+            .map_provider_callback(&rtc_auth, request)?,
+    ))
 }
 
 pub(super) async fn get_rtc_provider_health(
