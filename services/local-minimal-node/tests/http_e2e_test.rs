@@ -15242,6 +15242,46 @@ async fn test_local_minimal_profile_rejects_direct_chat_realtime_subscription_wh
 }
 
 #[tokio::test]
+async fn test_local_minimal_profile_rejects_self_friend_request_with_stable_error() {
+    let app = local_minimal_node::build_default_app();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/social/friend_requests")
+                .demo_app_context()
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "targetUserId":"u_demo",
+                        "requestMessage":"please add me"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("self friend request should return response");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("self friend request body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("self friend request body should be valid json");
+    assert_eq!(json["code"], "friend_request_self_not_allowed");
+    assert!(
+        !json["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("IdenticalPair"),
+        "self friend request error must not expose domain debug internals"
+    );
+}
+
+#[tokio::test]
 async fn test_local_minimal_profile_can_resubmit_friend_request_after_decline() {
     let app = local_minimal_node::build_default_app();
 

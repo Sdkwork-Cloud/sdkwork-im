@@ -273,13 +273,18 @@ class SdkworkContactService implements ContactService {
       q: normalizedQuery,
       limit: SOCIAL_USER_SEARCH_LIMIT,
     });
-    return response.items.map((item) => this.mapSocialUserSearchResultToUser(item));
+    return response.items
+      .filter((item) => !this.isCurrentUserSearchResult(item))
+      .map((item) => this.mapSocialUserSearchResultToUser(item));
   }
 
   async addFriend(userId: string): Promise<void> {
     const targetUserId = userId.trim();
     if (!targetUserId) {
       throw new Error('Friend user id is required');
+    }
+    if (this.isCurrentUserIdentifier(targetUserId)) {
+      throw new Error('Cannot add yourself as a friend');
     }
     await this.client().social.friendRequests.create({ targetUserId });
   }
@@ -640,6 +645,17 @@ class SdkworkContactService implements ContactService {
     };
     this.cacheUser(user);
     return user;
+  }
+
+  private isCurrentUserIdentifier(userId: string): boolean {
+    const currentUser = this.getCurrentUser();
+    return userId === currentUser.id || (Boolean(currentUser.chatId) && userId === currentUser.chatId);
+  }
+
+  private isCurrentUserSearchResult(result: SocialUserSearchResult): boolean {
+    return result.relationshipState === 'self'
+      || this.isCurrentUserIdentifier(result.userId)
+      || this.isCurrentUserIdentifier(result.chatId);
   }
 
   private createUserFromId(userId: string, preferences = this.preferenceByUserId.get(userId)): User {

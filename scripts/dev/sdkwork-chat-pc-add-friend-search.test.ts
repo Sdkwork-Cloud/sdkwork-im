@@ -5,10 +5,31 @@ import { createSdkworkContactService } from '../../apps/sdkwork-chat-pc/packages
 const calls: Array<{ body?: Record<string, unknown>; method: string; params?: Record<string, unknown> }> = [];
 
 const fakeClient = {
+  chat: {
+    contacts: {
+      async list() {
+        calls.push({ method: 'chat.contacts.list' });
+        return { items: [], hasMore: false };
+      },
+    },
+  },
   social: {
     users: {
       async list(params: Record<string, unknown>) {
         calls.push({ method: 'social.users.list', params });
+        if (params.q === 'current-user' || params.q === 'current-chat-id') {
+          return {
+            items: [
+              {
+                userId: 'current-user',
+                chatId: 'current-chat-id',
+                displayName: 'Current User',
+                relationshipState: 'self',
+              },
+            ],
+            hasMore: false,
+          };
+        }
         if (params.q === 'alice' || params.q === 'alice@example.com' || params.q === '+12025550100') {
           return {
             items: [
@@ -105,6 +126,29 @@ async function main(): Promise<void> {
     calls.filter((call) => call.method === 'social.friendRequests.create').length,
     0,
     'searching for a missing user must not create a friend request',
+  );
+
+  calls.length = 0;
+  const selfResults = await service.searchContacts(' current-user ');
+  assert.deepEqual(
+    selfResults,
+    [],
+    'add-friend search must not return the current user as an addable friend target',
+  );
+  await assert.rejects(
+    () => service.addFriend(' current-user '),
+    /yourself|current user/i,
+    'addFriend must reject the current user locally before creating a friend request',
+  );
+  await assert.rejects(
+    () => service.addFriendBySearchQuery(' current-chat-id '),
+    /not found|yourself|current user/i,
+    'direct add-by-public-id must not submit a friend request when the search target is the current user',
+  );
+  assert.equal(
+    calls.filter((call) => call.method === 'social.friendRequests.create').length,
+    0,
+    'current-user add attempts must not call social.friendRequests.create',
   );
 
   const added = await service.addFriendBySearchQuery(' alice ');

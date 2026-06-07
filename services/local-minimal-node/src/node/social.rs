@@ -208,6 +208,12 @@ pub(super) async fn submit_friend_request(
 ) -> Result<Json<SocialFriendRequestMutationResponse>, ApiError> {
     let auth = resolve_request_app_context(auth, &headers)?;
     ensure_social_user_actor(&auth)?;
+    if request.target_user_id == auth.actor_id {
+        return Err(ApiError::bad_request(
+            "friend_request_self_not_allowed",
+            "cannot send a friend request to yourself",
+        ));
+    }
     maybe_repair_pending_friend_request_acceptances(&state).await?;
     ensure_social_friend_request_users_active(
         &state,
