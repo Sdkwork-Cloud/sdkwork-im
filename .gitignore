@@ -35,6 +35,7 @@ Thumbs.db
 **/node_modules/
 **/node_modules.codex-filter/
 **/node_modules.codex-fresh/
+target-codex-test/
 **/.pnpm-store/
 **/.dart_tool/
 **/.sdkwork/manual-backups/

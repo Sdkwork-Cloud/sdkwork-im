@@ -333,8 +333,20 @@ impl AppState {
             .prepare_active_client_route(self, auth, device_id, connection_kind)
     }
 
+    #[rustfmt::skip]
+    fn prepare_resumed_client_route(
+        &self,
+        auth: &AppContext,
+        device_id: &str,
+        connection_kind: &str,
+    ) -> Result<projection_service::RegisteredClientRouteView, ApiError> {
+        self.client_route_registration
+            .bind_client_route_key(self, auth, device_id, connection_kind, true)
+    }
+
     fn provider_binding_snapshots(&self) -> Vec<ProviderBindingSnapshotView> {
-        let registry = StaticProviderRegistry::platform_default();
+        let registry = StaticProviderRegistry::platform_default()
+            .with_deployment_profile(ProviderDomain::ObjectStorage, "object-storage-volcengine");
         let mut bindings = BTreeMap::new();
 
         for domain in ProviderDomain::ALL {
@@ -1301,6 +1313,7 @@ struct ConversationProfileView {
 #[serde(rename_all = "camelCase")]
 struct PresenceHeartbeatRequest {
     device_id: Option<String>,
+    last_seen_sync_seq: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1693,12 +1706,16 @@ fn load_im_openapi_schema_json() -> Result<Value, ApiError> {
 }
 
 fn load_app_api_openapi_schema_json() -> Result<Value, ApiError> {
-    load_openapi_schema_json(
+    let mut schema = load_openapi_schema_json(
         "im-app-api",
         APP_API_OPENAPI_SCHEMA_PATH_ENV,
         "../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml",
         APP_API_OPENAPI_SCHEMA_EMBEDDED_YAML,
-    )
+    )?;
+    if env::var(APP_API_OPENAPI_SCHEMA_PATH_ENV).is_err() {
+        compose_app_api_dependency_openapi_paths(&mut schema);
+    }
+    Ok(schema)
 }
 
 fn load_backend_api_openapi_schema_json() -> Result<Value, ApiError> {
@@ -1708,6 +1725,194 @@ fn load_backend_api_openapi_schema_json() -> Result<Value, ApiError> {
         "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml",
         BACKEND_API_OPENAPI_SCHEMA_EMBEDDED_YAML,
     )
+}
+
+fn compose_app_api_dependency_openapi_paths(schema: &mut Value) {
+    ensure_openapi_schema_component(schema, "AppbaseApiResult");
+    let Some(paths) = schema.get_mut("paths").and_then(Value::as_object_mut) else {
+        return;
+    };
+
+    for (path, method, operation_id, summary) in [
+        (
+            "/app/v3/api/auth/registrations",
+            "post",
+            "appbase.auth.registrations.create",
+            "Create an appbase registration",
+        ),
+        (
+            "/app/v3/api/auth/sessions",
+            "post",
+            "appbase.auth.sessions.create",
+            "Create an appbase session",
+        ),
+        (
+            "/app/v3/api/auth/sessions/current",
+            "get",
+            "appbase.auth.sessions.current.retrieve",
+            "Get the current appbase session",
+        ),
+        (
+            "/app/v3/api/auth/sessions/current",
+            "patch",
+            "appbase.auth.sessions.current.update",
+            "Update the current appbase session",
+        ),
+        (
+            "/app/v3/api/auth/sessions/current",
+            "delete",
+            "appbase.auth.sessions.current.delete",
+            "Delete the current appbase session",
+        ),
+        (
+            "/app/v3/api/auth/sessions/refresh",
+            "post",
+            "appbase.auth.sessions.refresh",
+            "Refresh an appbase session",
+        ),
+        (
+            "/app/v3/api/auth/verification_codes",
+            "post",
+            "appbase.auth.verificationCodes.create",
+            "Create an appbase verification code",
+        ),
+        (
+            "/app/v3/api/auth/verification_codes/verify",
+            "post",
+            "appbase.auth.verificationCodes.verify",
+            "Verify an appbase verification code",
+        ),
+        (
+            "/app/v3/api/iam/users/current",
+            "get",
+            "appbase.iam.users.current.retrieve",
+            "Get the current IAM user",
+        ),
+        (
+            "/app/v3/api/system/iam/runtime",
+            "get",
+            "appbase.system.iam.runtime.retrieve",
+            "Get appbase IAM runtime metadata",
+        ),
+        (
+            "/app/v3/api/system/iam/verification_policy",
+            "get",
+            "appbase.system.iam.verificationPolicy.retrieve",
+            "Get appbase verification policy",
+        ),
+        (
+            "/app/v3/api/open_platform/qr_auth/sessions",
+            "post",
+            "appbase.openPlatform.qrAuth.sessions.create",
+            "Create a QR auth session",
+        ),
+        (
+            "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}",
+            "get",
+            "appbase.openPlatform.qrAuth.sessions.retrieve",
+            "Get a QR auth session",
+        ),
+        (
+            "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans",
+            "post",
+            "appbase.openPlatform.qrAuth.sessions.scans.create",
+            "Scan a QR auth session",
+        ),
+        (
+            "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords",
+            "post",
+            "appbase.openPlatform.qrAuth.sessions.passwords.create",
+            "Approve a QR auth session with a password",
+        ),
+    ] {
+        insert_app_api_dependency_operation(paths, path, method, operation_id, summary);
+    }
+}
+
+fn ensure_openapi_schema_component(schema: &mut Value, name: &str) {
+    if !schema.get("components").is_some_and(Value::is_object) {
+        schema["components"] = serde_json::json!({});
+    }
+    let components = schema
+        .get_mut("components")
+        .and_then(Value::as_object_mut)
+        .expect("components should be an object after initialization");
+    let schemas = components
+        .entry("schemas".to_owned())
+        .or_insert_with(|| serde_json::json!({}));
+    if !schemas.is_object() {
+        *schemas = serde_json::json!({});
+    }
+    schemas
+        .as_object_mut()
+        .expect("schemas should be an object after initialization")
+        .entry(name.to_owned())
+        .or_insert_with(|| {
+            serde_json::json!({
+                "type": "object",
+                "additionalProperties": true
+            })
+        });
+}
+
+fn insert_app_api_dependency_operation(
+    paths: &mut serde_json::Map<String, Value>,
+    path: &str,
+    method: &str,
+    operation_id: &str,
+    summary: &str,
+) {
+    let path_item = paths
+        .entry(path.to_owned())
+        .or_insert_with(|| serde_json::json!({}));
+    if !path_item.is_object() {
+        *path_item = serde_json::json!({});
+    }
+    let operation = if path.contains("{sessionKey}") {
+        serde_json::json!({
+            "tags": ["appbase"],
+            "operationId": operation_id,
+            "summary": summary,
+            "parameters": [
+                {
+                    "name": "sessionKey",
+                    "in": "path",
+                    "required": true,
+                    "schema": {
+                        "type": "string"
+                    }
+                }
+            ],
+            "responses": appbase_dependency_openapi_responses()
+        })
+    } else {
+        serde_json::json!({
+            "tags": ["appbase"],
+            "operationId": operation_id,
+            "summary": summary,
+            "responses": appbase_dependency_openapi_responses()
+        })
+    };
+    path_item
+        .as_object_mut()
+        .expect("path item should be an object after initialization")
+        .entry(method.to_owned())
+        .or_insert(operation);
+}
+
+fn appbase_dependency_openapi_responses() -> Value {
+    serde_json::json!({
+        "200": {
+            "description": "Appbase dependency SDK response",
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/AppbaseApiResult"
+                    }
+                }
+            }
+        }
+    })
 }
 
 pub fn resolve_public_browser_origins() -> Vec<String> {
@@ -1903,7 +2108,7 @@ fn resolve_require_dual_token_headers() -> bool {
     std::env::var(LOCAL_MINIMAL_NODE_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
         .ok()
         .map(|value| parse_truthy_env_flag(Some(value)))
-        .unwrap_or(true)
+        .unwrap_or(false)
 }
 
 fn parse_truthy_env_flag(raw: Option<String>) -> bool {
@@ -1976,6 +2181,41 @@ fn resolve_request_app_context(
 mod tests {
     use super::*;
     use axum::http::{HeaderMap, HeaderValue};
+    use std::sync::{Mutex, OnceLock};
+
+    struct ScopedEnvVar {
+        name: &'static str,
+        previous: Option<String>,
+    }
+
+    impl ScopedEnvVar {
+        fn remove(name: &'static str) -> Self {
+            let previous = std::env::var(name).ok();
+            unsafe {
+                std::env::remove_var(name);
+            }
+            Self { name, previous }
+        }
+    }
+
+    impl Drop for ScopedEnvVar {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.previous {
+                    Some(value) => std::env::set_var(self.name, value),
+                    None => std::env::remove_var(self.name),
+                }
+            }
+        }
+    }
+
+    fn env_test_lock<'a>() -> std::sync::MutexGuard<'a, ()> {
+        static GUARD: OnceLock<Mutex<()>> = OnceLock::new();
+        GUARD
+            .get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("env lock")
+    }
 
     fn invalid_message_posted_envelope(event_id: &str) -> CommitEnvelope {
         CommitEnvelope::minimal(
@@ -2042,6 +2282,17 @@ mod tests {
         headers.insert("access-token", HeaderValue::from_static("access"));
         assert!(has_access_token_header(&headers));
         require_dual_token_headers(&headers).expect("dual token headers should pass");
+    }
+
+    #[test]
+    fn dual_token_guardrail_defaults_to_app_context_projection() {
+        let _guard = env_test_lock();
+        let _env = ScopedEnvVar::remove(LOCAL_MINIMAL_NODE_REQUIRE_DUAL_TOKEN_HEADERS_ENV);
+
+        assert!(
+            !resolve_require_dual_token_headers(),
+            "local-minimal public app should default to SDKWork AppContext projection without legacy bearer/access-token headers"
+        );
     }
 
     #[test]

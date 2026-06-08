@@ -37,7 +37,7 @@ assert.match(
 );
 assert.match(
   messageListSource,
-  /catch\s*\{[\s\S]*?toast\(['"]删除消息失败['"],\s*['"]error['"]\)/u,
+  /catch\s*\{[\s\S]*?toast\(['"]\u5220\u9664\u6d88\u606f\u5931\u8d25['"],\s*['"]error['"]\)/u,
   'MessageList delete must surface SDK deletion failures',
 );
 assert.match(
@@ -47,7 +47,7 @@ assert.match(
 );
 assert.match(
   messageListSource,
-  /toast\(['"]收藏失败['"],\s*['"]error['"]\)/u,
+  /toast\(['"]\u6536\u85cf\u5931\u8d25['"],\s*['"]error['"]\)/u,
   'MessageList favorite action must surface SDK favorite failures',
 );
 assert.match(
@@ -57,7 +57,7 @@ assert.match(
 );
 assert.match(
   messageListSource,
-  /toast\(['"]表情回应失败['"],\s*['"]error['"]\)/u,
+  /toast\(['"]\u8868\u60c5\u56de\u5e94\u5931\u8d25['"],\s*['"]error['"]\)/u,
   'MessageList reactions must surface SDK reaction failures',
 );
 
@@ -79,7 +79,7 @@ assert.match(
 );
 assert.match(
   chatHistoryModalSource,
-  /chatService\.getMessages\(chatId\)[\s\S]*?\.catch\s*\(\s*\(\)\s*=>\s*\{[\s\S]*?toast\(['"]加载聊天记录失败['"],\s*['"]error['"]\)/u,
+  /chatService\.getMessages\(chatId\)[\s\S]*?\.catch\s*\(\s*\(\)\s*=>\s*\{[\s\S]*?toast\(['"]\u52a0\u8f7d\u804a\u5929\u8bb0\u5f55\u5931\u8d25['"],\s*['"]error['"]\)/u,
   'ChatHistoryModal must surface history load failures instead of logging only to console',
 );
 
@@ -90,18 +90,18 @@ assert.match(
 );
 assert.match(
   chatListSource,
-  /catch\s*\{[\s\S]*?toast\(['"]会话操作失败['"],\s*['"]error['"]\)/u,
-  'ChatList context menu actions must surface SDK failures',
+  /catch\s*\{[\s\S]*?toast\(t\(['"]chat\.list\.toast\.operationFailed['"]\),\s*['"]error['"]\)/u,
+  'ChatList context menu actions must surface localized SDK failures',
 );
 assert.match(
   chatListSource,
-  /void\s+chatService\.markAsRead\(chat\.id\)\.then/u,
+  /void\s+chatService\.markAsRead\(chat\.id\)\s*\.then/u,
   'ChatList click read cursor update must be explicitly fire-and-forget',
 );
 assert.match(
   chatListSource,
-  /markAsRead\(chat\.id\)\.then\([\s\S]*?\.catch\s*\(\s*\(\)\s*=>\s*toast\(['"]标记已读失败['"],\s*['"]error['"]\)/u,
-  'ChatList click read cursor update must surface failures instead of leaving unhandled promises',
+  /markAsRead\(chat\.id\)\s*\.then\([\s\S]*?\.catch\s*\(\s*\(\)\s*=>\s*toast\(t\(['"]chat\.list\.toast\.markReadFailed['"]\),\s*['"]error['"]\)/u,
+  'ChatList click read cursor update must surface localized failures instead of leaving unhandled promises',
 );
 
 console.log('sdkwork-chat-pc message UI failure handling contract passed');

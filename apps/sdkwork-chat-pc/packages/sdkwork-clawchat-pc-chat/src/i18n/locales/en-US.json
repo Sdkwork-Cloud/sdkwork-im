@@ -22,5 +22,350 @@
   },
   "agent": {
     "greeting": "Hello! I am {{name}}, how can I help you?"
+  },
+  "profile": {
+    "chatIdLabel": "Chat ID",
+    "copyChatId": "Copy Chat ID",
+    "actions": {
+      "favorites": "Favorites",
+      "logout": "Log out",
+      "settings": "Settings"
+    },
+    "status": {
+      "away": "Away",
+      "busy": "Busy",
+      "online": "Online"
+    },
+    "toast": {
+      "chatIdCopied": "Chat ID copied",
+      "chatIdNotReady": "Chat ID is not ready. Please try again.",
+      "copyChatIdFailed": "Copy Chat ID failed"
+    }
+  },
+  "contacts": {
+    "menu": {
+      "all": "All friends",
+      "new": "New friends",
+      "groups": "My groups",
+      "organization": "Organization",
+      "tags": "Tags"
+    },
+    "starred": {
+      "title": "Starred contacts",
+      "loading": "Loading...",
+      "emptyTitle": "Starred contacts",
+      "emptyDescription": "Select a starred contact on the left to view details",
+      "loadFailed": "Failed to load contacts"
+    },
+    "addFriend": {
+      "add": "Add",
+      "placeholder": "Email, Chat ID, or phone",
+      "searchAction": "Search",
+      "searchingAction": "Searching...",
+      "title": "Add Friend",
+      "notice": {
+        "noResults": "No contact found for {{query}}",
+        "searching": "Searching contacts..."
+      },
+      "toast": {
+        "requestFailed": "Friend request failed",
+        "requestSent": "Friend request sent to {{name}}",
+        "searchFailed": "Search failed"
+      }
+    },
+    "groups": {
+      "title": "My groups",
+      "description": "Manage all groups you have joined",
+      "promptName": "Enter a new group name:",
+      "startGroup": "Start group",
+      "loading": "Loading...",
+      "memberStats": "{{count}} members · {{activeCount}} active",
+      "toast": {
+        "loadFailed": "Failed to load groups",
+        "createSucceeded": "Group created",
+        "createFailed": "Failed to create group"
+      }
+    },
+    "detail": {
+      "addToBlacklist": "Add to blacklist",
+      "basicInfo": "Basic Info",
+      "chatId": "Chat ID",
+      "company": "Company",
+      "copyChatId": "Copy Chat ID",
+      "delete": "Delete",
+      "department": "Department",
+      "email": "Email",
+      "location": "Location",
+      "message": "Message",
+      "more": "More",
+      "phone": "Phone",
+      "recommend": "Recommend",
+      "setRemark": "Set remark",
+      "signature": "Signature",
+      "starContact": "Star contact",
+      "unknownPosition": "Unknown position",
+      "unstarContact": "Unstar contact",
+      "videoCall": "Video call",
+      "voiceCall": "Voice call",
+      "toast": {
+        "blacklisted": "Added to blacklist",
+        "blacklistFailed": "Blacklist update failed",
+        "chatIdCopied": "Chat ID copied",
+        "chatIdNotReady": "Chat ID is not ready. Please try again.",
+        "deleted": "Contact deleted",
+        "deleteFailed": "Delete contact failed",
+        "mailSelected": "Mail app selected",
+        "messagingUnavailable": "Messaging is unavailable",
+        "recommendationFailed": "Recommendation failed",
+        "recommendationSent": "Recommendation sent",
+        "remarkUpdated": "Remark updated",
+        "remarkUpdateFailed": "Remark update failed",
+        "starred": "Contact starred",
+        "unstarred": "Contact unstarred",
+        "updateFailed": "Contact update failed",
+        "videoUnavailable": "Video calling is unavailable",
+        "voiceUnavailable": "Voice calling is unavailable"
+      }
+    },
+    "emptyDetail": "Select a contact to view details",
+    "unknownContent": "No content selected",
+    "missingView": "No view is available for this module",
+    "organizationDirectory": {
+      "treeTitle": "Organization",
+      "searchPlaceholder": "Search organizations, departments, members",
+      "loading": "Loading...",
+      "emptyTree": "No organization data",
+      "membersTitle": "Members",
+      "emptyMembers": "No members",
+      "loadingMembers": "Loading members...",
+      "addMember": "Add member",
+      "inviteMember": "Invite member",
+      "close": "Close",
+      "add": "Add",
+      "invite": "Invite",
+      "selectDepartment": "Select department",
+      "assignmentType": "Assignment type",
+      "userIdPlaceholder": "User ID",
+      "displayNamePlaceholder": "Name",
+      "emailPlaceholder": "Email",
+      "positionIdPlaceholder": "Position ID",
+      "roleCodesPlaceholder": "Role codes",
+      "submitting": "Submitting",
+      "submit": "Submit",
+      "managementUnavailable": "Organization member management is not connected",
+      "unknownOrganization": "Unknown organization",
+      "sendMessage": "Send message",
+      "positionCount": "{{count}} positions",
+      "assignment": {
+        "primary": "Primary",
+        "secondary": "Secondary",
+        "acting": "Acting"
+      },
+      "boundary": {
+        "operatingSubject": "Independent entity",
+        "organizationIsolated": "Organization data domain",
+        "regulatedIsolated": "Regulated data domain",
+        "appBoundary": "App boundary"
+      },
+      "toast": {
+        "loadTreeFailed": "Failed to load organization directory",
+        "loadMembersFailed": "Failed to load department members",
+        "selectOrganization": "Select an organization",
+        "managementUnavailable": "Organization member management is not connected",
+        "noManagePermission": "No permission to manage organization members",
+        "inviteUnavailable": "Organization member invitation is not connected",
+        "selectDepartment": "Select a department",
+        "enterUserId": "Enter a user ID",
+        "memberSubmitted": "Member management submitted",
+        "memberSubmitFailed": "Member management submission failed",
+        "chatUnavailable": "Chat is not connected, so a conversation cannot be started"
+      }
+    }
+  },
+  "chat": {
+    "emptyHome": {
+      "eyebrow": "Inbox ready",
+      "title": "Start a conversation",
+      "description": "Use contacts, groups, or the assistant to begin. New conversations will appear in the list automatically.",
+      "chatIdLabel": "Your Chat ID",
+      "copyChatId": "Copy Chat ID",
+      "status": {
+        "preparing": "Preparing inbox...",
+        "fallbackLoadError": "Some conversations could not load.",
+        "retry": "Retry"
+      },
+      "actions": {
+        "addFriend": {
+          "title": "Add friend",
+          "description": "Find a teammate by Chat ID, email, or phone."
+        },
+        "createGroup": {
+          "title": "Create group",
+          "description": "Create a focused conversation for a team or project."
+        },
+        "openAssistant": {
+          "title": "Open assistant",
+          "description": "Open the built-in AI conversation for setup, search, and workspace help.",
+          "unavailableDescription": "Assistant conversation is not available yet."
+        },
+        "openContacts": {
+          "title": "Open contacts",
+          "description": "Browse contacts, organizations, and pending requests."
+        },
+        "createAgent": {
+          "title": "Create AI assistant",
+          "description": "Build a private AI assistant for repeated workflows."
+        }
+      }
+    },
+    "list": {
+      "empty": {
+        "noMatches": "No matching conversations",
+        "noConversations": "No conversations yet",
+        "searchHint": "Try another keyword",
+        "startHint": "Start from contacts or assistant"
+      },
+      "context": {
+        "pin": "Pin conversation",
+        "unpin": "Unpin conversation",
+        "markRead": "Mark as read",
+        "markUnread": "Mark as unread",
+        "mute": "Mute notifications",
+        "unmute": "Unmute notifications",
+        "delete": "Delete conversation"
+      },
+      "toast": {
+        "pinned": "Conversation pinned",
+        "unpinned": "Conversation unpinned",
+        "markedRead": "Marked as read",
+        "markedUnread": "Marked as unread",
+        "muted": "Notifications muted",
+        "unmuted": "Notifications unmuted",
+        "deleted": "Conversation deleted",
+        "operationFailed": "Conversation action failed",
+        "markReadFailed": "Mark as read failed"
+      },
+      "time": {
+        "yesterday": "Yesterday"
+      },
+      "item": {
+        "openConversation": "Open conversation with {{name}}",
+        "muted": "Notifications muted",
+        "unreadCount": "{{count}} unread messages"
+      }
+    },
+    "searchInput": {
+      "placeholder": "Search conversations",
+      "ariaLabel": "Search conversations",
+      "title": "Search conversations"
+    },
+    "systemAssistant": {
+      "displayName": "System Assistant",
+      "welcomeMessage": "Hi, I am your system assistant. I can help you find conversations, set up contacts, create groups, and handle workspace questions. Tell me what you want to do first.",
+      "inputPlaceholder": "Ask the system assistant or describe what you want to do..."
+    },
+    "window": {
+      "inputPlaceholder": "Send a message...",
+      "typing": "The other side is typing...",
+      "toast": {
+        "sendFailed": "Send failed"
+      }
+    },
+    "startup": {
+      "assistantUnavailable": "Assistant is not available yet. You can keep using conversations and retry later.",
+      "assistantToastUnavailable": "Assistant is not available yet",
+      "syncWarning": "Startup sync did not finish. Conversations may still be available.",
+      "conversationsUnavailable": "Conversations could not load. Retry when the network is ready."
+    },
+    "toast": {
+      "chatIdCopied": "Chat ID copied",
+      "copyChatIdFailed": "Copy Chat ID failed",
+      "startAgentFailed": "Failed to start AI assistant chat",
+      "rtcCallWatchFailed": "RTC call watch failed",
+      "signedOut": "Signed out",
+      "localSessionCleared": "Local session cleared",
+      "voiceLoading": "Loading voice: {{name}}",
+      "voiceCloneSoon": "Voice cloning will be available soon",
+      "workspaceAppUnavailable": "App [{{appId}}] is not registered in this host environment.",
+      "enterpriseChatFailed": "Failed to start enterprise chat",
+      "enterpriseCalling": "Calling enterprise {{name}}...",
+      "directChatFailed": "Failed to start chat"
+    },
+    "call": {
+      "incoming": "Incoming call"
+    },
+    "header": {
+      "search": "Search",
+      "voiceCall": "Voice call",
+      "videoCall": "Video call",
+      "more": "More"
+    },
+    "menu": {
+      "moreActions": "New conversation",
+      "startGroup": "Start group",
+      "addFriend": "Add friend",
+      "createAssistant": "Create assistant"
+    },
+    "rightPanel": {
+      "actions": {
+        "searchChat": "Search chat",
+        "addMember": "Add member",
+        "leaveGroup": "Leave group",
+        "deleteChat": "Delete chat"
+      },
+      "fields": {
+        "groupName": "Group name",
+        "remark": "Remark",
+        "groupNotice": "Group notice",
+        "mute": "Mute notifications",
+        "pin": "Pin chat"
+      },
+      "emptyNotice": "No notice",
+      "toast": {
+        "muted": "Notifications muted",
+        "unmuted": "Notifications unmuted",
+        "muteFailed": "Failed to update notification settings",
+        "pinned": "Chat pinned",
+        "unpinned": "Chat unpinned",
+        "pinFailed": "Failed to update pin setting",
+        "groupLeft": "Group left",
+        "chatDeleted": "Chat deleted",
+        "deleteFailed": "Failed to delete chat"
+      }
+    },
+    "modal": {
+      "title": {
+        "searchMessages": "Search chat history",
+        "addMember": "Add group members",
+        "editGroupName": "Edit group name",
+        "editRemark": "Set remark",
+        "editNotice": "Edit group notice"
+      },
+      "placeholder": {
+        "searchMessages": "Search messages...",
+        "memberSearch": "Enter member account, phone, or email...",
+        "groupName": "Group name",
+        "remarkName": "Remark name",
+        "groupNotice": "Write a group notice..."
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "search": "Search",
+        "invite": "Invite",
+        "save": "Save",
+        "publish": "Publish notice"
+      },
+      "toast": {
+        "searching": "Searching: {{query}}",
+        "invitedMembers": "Invited {{count}} members",
+        "inviteFailed": "Invite members failed",
+        "inviteMissing": "Enter member information to invite",
+        "groupNameUpdated": "Group name changed to: {{name}}",
+        "remarkUpdated": "Remark changed to: {{name}}",
+        "saveNameFailed": "Failed to save name",
+        "noticeUpdated": "Group notice updated",
+        "updateNoticeFailed": "Failed to update group notice"
+      }
+    }
   }
 }

@@ -46,6 +46,21 @@ export interface OrgDepartmentNode extends OrgDepartment {
   children: OrgDepartmentNode[];
 }
 
+export type OrganizationDirectoryTreeNodeKind = 'organization' | 'department';
+
+export interface OrganizationDirectoryTreeNode {
+  children: OrganizationDirectoryTreeNode[];
+  department?: OrgDepartment;
+  departmentId?: string;
+  id: string;
+  kind: OrganizationDirectoryTreeNodeKind;
+  name: string;
+  order: number;
+  organization?: OrgOrganization;
+  organizationId?: string;
+  parentId: string | null;
+}
+
 export interface OrganizationDirectoryClient {
   iam?: {
     departmentAssignments?: {
@@ -162,10 +177,11 @@ export interface OrganizationDirectoryService {
   getDepartments(organizationId?: string): Promise<OrgDepartment[]>;
   getDepartmentTree(organizationId?: string): Promise<OrgDepartmentNode[]>;
   getCurrentUser(): Promise<User | null>;
+  getOrganizationDirectoryTree(): Promise<OrganizationDirectoryTreeNode[]>;
   getOrganizationPermissions(organizationId: string): Promise<OrganizationDirectoryPermission>;
   getOrganizations(): Promise<OrgOrganization[]>;
   getOrganizationTree(): Promise<OrgOrganizationNode[]>;
-  getUsersByDepartment(departmentId: string): Promise<User[]>;
+  getUsersByDepartment(departmentId: string, organizationId?: string): Promise<User[]>;
   inviteOrganizationMember(input: InviteOrganizationMemberInput): Promise<OrganizationMemberManagementResult>;
 }
 
@@ -578,6 +594,110 @@ function buildDepartmentTree(departments: OrgDepartment[]): OrgDepartmentNode[] 
   return sortRecursively(roots);
 }
 
+function flattenOrganizationNodes(nodes: OrgOrganizationNode[]): OrgOrganizationNode[] {
+  return nodes.flatMap((node) => [node, ...flattenOrganizationNodes(node.children)]);
+}
+
+function flattenDepartmentNodes(nodes: OrgDepartmentNode[]): OrgDepartmentNode[] {
+  return nodes.flatMap((node) => [node, ...flattenDepartmentNodes(node.children)]);
+}
+
+function hasUnscopedDepartmentNodes(nodes: OrgDepartmentNode[]): boolean {
+  return flattenDepartmentNodes(nodes).some((node) => !node.organizationId);
+}
+
+function sortOrganizationDirectoryNodes(nodes: OrganizationDirectoryTreeNode[]): OrganizationDirectoryTreeNode[] {
+  const kindOrder = (node: OrganizationDirectoryTreeNode): number => (node.kind === 'organization' ? 0 : 1);
+  return [...nodes].sort((left, right) => (
+    left.order - right.order
+    || kindOrder(left) - kindOrder(right)
+    || left.name.localeCompare(right.name)
+  ));
+}
+
+function toOrganizationValue(node: OrgOrganizationNode): OrgOrganization {
+  const { children: _children, ...organization } = node;
+  return organization;
+}
+
+function toDepartmentValue(node: OrgDepartmentNode): OrgDepartment {
+  const { children: _children, ...department } = node;
+  return department;
+}
+
+function withDepartmentOrganization(
+  node: OrgDepartmentNode,
+  fallbackOrganizationId?: string,
+): OrgDepartmentNode {
+  const organizationId = node.organizationId ?? fallbackOrganizationId;
+  return {
+    ...node,
+    ...(organizationId ? { organizationId } : {}),
+    children: node.children.map((child) => withDepartmentOrganization(child, organizationId)),
+  };
+}
+
+function departmentDirectoryNode(node: OrgDepartmentNode): OrganizationDirectoryTreeNode {
+  const departmentId = node.id;
+  const organizationScope = node.organizationId ?? 'unscoped';
+  return {
+    children: sortOrganizationDirectoryNodes(node.children.map(departmentDirectoryNode)),
+    department: toDepartmentValue(node),
+    departmentId,
+    id: `department:${organizationScope}:${departmentId}`,
+    kind: 'department',
+    name: node.name,
+    order: node.order,
+    organizationId: node.organizationId,
+    parentId: node.parentId,
+  };
+}
+
+function organizationDirectoryNode(
+  node: OrgOrganizationNode,
+  departmentRootsByOrganizationId: Map<string, OrgDepartmentNode[]>,
+): OrganizationDirectoryTreeNode {
+  const organizationId = node.organizationId;
+  const organizationChildren = node.children.map((child) => organizationDirectoryNode(child, departmentRootsByOrganizationId));
+  const departmentChildren = (departmentRootsByOrganizationId.get(organizationId) ?? []).map(departmentDirectoryNode);
+  return {
+    children: sortOrganizationDirectoryNodes([...organizationChildren, ...departmentChildren]),
+    id: `organization:${organizationId}`,
+    kind: 'organization',
+    name: node.name,
+    order: node.order,
+    organization: toOrganizationValue(node),
+    organizationId,
+    parentId: node.parentOrganizationId,
+  };
+}
+
+function buildOrganizationDirectoryTree(
+  organizationTree: OrgOrganizationNode[],
+  departmentTree: OrgDepartmentNode[],
+): OrganizationDirectoryTreeNode[] {
+  const organizations = flattenOrganizationNodes(organizationTree);
+  const knownOrganizationIds = new Set(organizations.map((organization) => organization.organizationId));
+  const departmentRootsByOrganizationId = new Map<string, OrgDepartmentNode[]>();
+  const orphanDepartmentRoots: OrgDepartmentNode[] = [];
+
+  for (const departmentRoot of departmentTree) {
+    const departmentWithOrganization = withDepartmentOrganization(departmentRoot);
+    const organizationId = departmentWithOrganization.organizationId;
+    if (organizationId && knownOrganizationIds.has(organizationId)) {
+      const roots = departmentRootsByOrganizationId.get(organizationId) ?? [];
+      roots.push(departmentWithOrganization);
+      departmentRootsByOrganizationId.set(organizationId, roots);
+    } else {
+      orphanDepartmentRoots.push(departmentWithOrganization);
+    }
+  }
+
+  const organizationNodes = organizationTree.map((node) => organizationDirectoryNode(node, departmentRootsByOrganizationId));
+  const orphanDepartmentNodes = orphanDepartmentRoots.map(departmentDirectoryNode);
+  return sortOrganizationDirectoryNodes([...organizationNodes, ...orphanDepartmentNodes]);
+}
+
 function uniqueById<T extends { id: string }>(items: T[]): T[] {
   const byId = new Map<string, T>();
   for (const item of items) {
@@ -767,15 +887,20 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
     const departments = extractRecordArray(response)
       .map(mapDepartmentRecord)
       .filter(Boolean) as OrgDepartment[];
+    const scopedDepartments = explicitOrganizationId
+      ? departments.map((department) => ({
+          ...department,
+          organizationId: department.organizationId ?? explicitOrganizationId,
+        }))
+      : departments;
     if (explicitOrganizationId) {
-      for (const department of departments) {
-        const departmentOrganizationId = department.organizationId ?? explicitOrganizationId;
-        if (departmentOrganizationId) {
-          this.explicitDepartmentOrganizationById.set(department.id, departmentOrganizationId);
+      for (const department of scopedDepartments) {
+        if (department.organizationId) {
+          this.explicitDepartmentOrganizationById.set(department.id, department.organizationId);
         }
       }
     }
-    return sortDepartments(uniqueById(departments));
+    return sortDepartments(uniqueById(scopedDepartments));
   }
 
   async getDepartmentTree(organizationId?: string): Promise<OrgDepartmentNode[]> {
@@ -804,20 +929,39 @@ class SdkworkOrganizationDirectoryService implements OrganizationDirectoryServic
         for (const node of nodes) {
           register(node);
         }
-        return sortDepartmentNodes(nodes);
+        const scopedNodes = explicitOrganizationId
+          ? nodes.map((node) => withDepartmentOrganization(node, explicitOrganizationId))
+          : nodes;
+        return sortDepartmentNodes(scopedNodes);
       }
     }
 
     return buildDepartmentTree(await this.getDepartments(explicitOrganizationId));
   }
 
-  async getUsersByDepartment(departmentId: string): Promise<User[]> {
+  async getOrganizationDirectoryTree(): Promise<OrganizationDirectoryTreeNode[]> {
+    const organizationTree = await this.getOrganizationTree();
+    let departmentTree = await this.getDepartmentTree();
+    const organizations = flattenOrganizationNodes(organizationTree);
+    if (organizations.length > 1 && hasUnscopedDepartmentNodes(departmentTree)) {
+      const scopedDepartmentTrees = await Promise.all(
+        organizations.map(async (organization) => this.getDepartmentTree(organization.organizationId).catch(() => [])),
+      );
+      const scopedDepartmentTree = scopedDepartmentTrees.flat();
+      if (scopedDepartmentTree.length > 0) {
+        departmentTree = scopedDepartmentTree;
+      }
+    }
+    return buildOrganizationDirectoryTree(organizationTree, departmentTree);
+  }
+
+  async getUsersByDepartment(departmentId: string, organizationId?: string): Promise<User[]> {
     const normalizedDepartmentId = departmentId.trim();
     if (!normalizedDepartmentId) {
       return [];
     }
 
-    const explicitOrganizationId = this.explicitDepartmentOrganizationById.get(normalizedDepartmentId);
+    const explicitOrganizationId = pickString(organizationId) ?? this.explicitDepartmentOrganizationById.get(normalizedDepartmentId);
     const params = {
       departmentId: normalizedDepartmentId,
       ...(explicitOrganizationId ? { organizationId: explicitOrganizationId } : {}),

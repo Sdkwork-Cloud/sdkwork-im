@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Users, Building2, Search, Tag, UserPlus, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { Avatar } from '@sdkwork/clawchat-pc-commons';
 import { cn } from '@sdkwork/clawchat-pc-commons';
 import { toast } from '../components/Toast';
@@ -15,11 +16,11 @@ import { OrgContainer } from '../components/contacts/OrgContainer';
 import { AllContactsContainer } from '../components/contacts/AllContactsContainer';
 
 const menuItems = [
-  { id: 'all', name: '全部好友', icon: <User size={18} />, color: 'bg-indigo-500' },
-  { id: 'new', name: '新的朋友', icon: <UserPlus size={18} />, color: 'bg-orange-500' },
-  { id: 'groups', name: '我的群组', icon: <Users size={18} />, color: 'bg-green-500' },
-  { id: 'org', name: '组织架构', icon: <Building2 size={18} />, color: 'bg-blue-500' },
-  { id: 'tags', name: '标签', icon: <Tag size={18} />, color: 'bg-purple-500' },
+  { id: 'all', labelKey: 'contacts.menu.all', icon: <User size={18} />, color: 'bg-indigo-500' },
+  { id: 'new', labelKey: 'contacts.menu.new', icon: <UserPlus size={18} />, color: 'bg-orange-500' },
+  { id: 'groups', labelKey: 'contacts.menu.groups', icon: <Users size={18} />, color: 'bg-green-500' },
+  { id: 'org', labelKey: 'contacts.menu.organization', icon: <Building2 size={18} />, color: 'bg-blue-500' },
+  { id: 'tags', labelKey: 'contacts.menu.tags', icon: <Tag size={18} />, color: 'bg-purple-500' },
 ];
 
 export const ContactsView: React.FC<{
@@ -30,6 +31,7 @@ export const ContactsView: React.FC<{
   onOpenGroup?: (group: Chat) => void;
   searchQuery?: string;
 }> = ({ onSendMessage, onStartCall, onAddFriend, onAppSelect, onOpenGroup, searchQuery = '' }) => {
+  const { t } = useTranslation();
   const [activeId, setActiveId] = useState('all');
   const [starredContacts, setStarredContacts] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,7 @@ export const ContactsView: React.FC<{
         const contacts = await contactService.getStarredContacts();
         setStarredContacts(contacts);
       } catch (error) {
-        toast('加载联系人失败', 'error');
+        toast(t('contacts.starred.loadFailed'), 'error');
       } finally {
         setLoading(false);
       }
@@ -76,15 +78,15 @@ export const ContactsView: React.FC<{
               <div className={cn("w-[36px] h-[36px] rounded-lg flex items-center justify-center text-white shrink-0 mr-3", item.color)}>
                 {item.icon}
               </div>
-              <span className="text-[14px] text-gray-200">{item.name}</span>
+              <span className="text-[14px] text-gray-200">{t(item.labelKey)}</span>
             </div>
           ))}
           
           <div className="px-4 py-2 mt-4 text-xs text-gray-500 font-medium flex items-center justify-between">
-             星标联系人
+             {t('contacts.starred.title')}
           </div>
           {loading ? (
-            <div className="px-4 py-3 text-sm text-gray-500">加载中...</div>
+            <div className="px-4 py-3 text-sm text-gray-500">{t('contacts.starred.loading')}</div>
           ) : (
             starredContacts.map(contact => (
               <div 
@@ -95,7 +97,7 @@ export const ContactsView: React.FC<{
                 )}
                 onClick={() => {
                   setActiveId('_starred');
-                  setSelectedUser({ user: contact, deptName: '星标联系人' });
+                  setSelectedUser({ user: contact, deptName: t('contacts.starred.title') });
                 }}
               >
                 <Avatar src={contact.avatar} alt={contact.name} className="w-[36px] h-[36px] rounded-lg mr-3 bg-[#2b2b2d]" />
@@ -131,9 +133,11 @@ export const ContactsView: React.FC<{
               <div className="flex-1 flex flex-col min-w-0 items-center justify-center">
                 <Building2 size={64} className="text-gray-600 mb-4" />
                 <h3 className="text-xl text-gray-300 font-medium mb-2">
-                  {menuItems.find(m => m.id === activeId)?.name || '未选定内容'}
+                  {menuItems.find(m => m.id === activeId)?.labelKey
+                    ? t(menuItems.find(m => m.id === activeId)?.labelKey as string)
+                    : t('contacts.unknownContent')}
                 </h3>
-                <p className="text-gray-500 text-sm">此功能模块无对应视图</p>
+                <p className="text-gray-500 text-sm">{t('contacts.missingView')}</p>
               </div>
             )}
           </motion.div>
@@ -151,8 +155,8 @@ export const ContactsView: React.FC<{
             className="flex-1 flex flex-col bg-[#1e1e1e] min-w-0 items-center justify-center"
          >
             <User size={64} className="text-gray-600 mb-4 opacity-50" />
-            <h3 className="text-xl text-gray-300 font-medium mb-2">星标联系人</h3>
-            <p className="text-gray-500 text-sm">请从左侧选择一个星标联系人查看</p>
+            <h3 className="text-xl text-gray-300 font-medium mb-2">{t('contacts.starred.emptyTitle')}</h3>
+            <p className="text-gray-500 text-sm">{t('contacts.starred.emptyDescription')}</p>
          </motion.div>
       ) : activeId === 'org' || activeId === 'all' ? (
          <motion.div 
@@ -162,7 +166,7 @@ export const ContactsView: React.FC<{
             className="w-[360px] lg:w-[420px] flex-shrink-0 bg-[#1e1e1e] flex flex-col items-center justify-center border-l border-white/5 border-dashed hidden md:flex"
          >
             <User size={64} className="text-gray-700 mx-auto mb-4 opacity-50" />
-            <p className="text-gray-500 text-sm font-medium">请选择一个联系人以查看详细信息</p>
+            <p className="text-gray-500 text-sm font-medium">{t('contacts.emptyDetail')}</p>
          </motion.div>
       ) : null}
     </div>

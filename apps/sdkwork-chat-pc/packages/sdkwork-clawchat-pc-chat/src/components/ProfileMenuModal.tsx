@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { Avatar } from "@sdkwork/clawchat-pc-commons";
 import { Settings, Star } from "lucide-react";
 import { toast } from "./Toast";
@@ -20,19 +21,20 @@ export const ProfileMenuModal: React.FC<ProfileMenuModalProps> = ({
   onTabChange,
   onOpenSettings,
 }) => {
+  const { t } = useTranslation();
   const currentUserChatId = currentUser.chatId ?? "";
 
   const copyCurrentUserId = async () => {
     if (!currentUserChatId) {
-      toast("Chat ID is not ready. Please try again.", "error");
+      toast(t("profile.toast.chatIdNotReady"), "error");
       return;
     }
 
     try {
       await navigator.clipboard.writeText(currentUserChatId);
-      toast("Chat ID copied", "success");
+      toast(t("profile.toast.chatIdCopied"), "success");
     } catch {
-      toast("Copy Chat ID failed", "error");
+      toast(t("profile.toast.copyChatIdFailed"), "error");
     }
   };
 
@@ -64,17 +66,17 @@ export const ProfileMenuModal: React.FC<ProfileMenuModalProps> = ({
             </h3>
             <button
               type="button"
-              title="Copy Chat ID"
+              title={t("profile.copyChatId")}
               onClick={copyCurrentUserId}
               disabled={!currentUserChatId}
               className="mt-1 flex min-w-0 items-center gap-1 text-left text-xs text-gray-500 transition-colors hover:text-gray-300 disabled:cursor-not-allowed disabled:hover:text-gray-500"
             >
-              <span className="shrink-0">Chat ID:</span>
+              <span className="shrink-0">{t("profile.chatIdLabel")}:</span>
               <span className="truncate font-mono">{currentUserChatId}</span>
             </button>
             <div className="mt-1 flex items-center gap-2 text-sm text-gray-400">
               <div className="h-2 w-2 rounded-full bg-[#00b42a]" />
-              Online
+              {t("profile.status.online")}
             </div>
           </div>
         </div>
@@ -88,7 +90,7 @@ export const ProfileMenuModal: React.FC<ProfileMenuModalProps> = ({
             }}
           >
             <Star size={20} className="mb-1 text-gray-400" />
-            <span className="text-xs text-gray-400">Favorites</span>
+            <span className="text-xs text-gray-400">{t("profile.actions.favorites")}</span>
           </div>
           <div
             className="flex cursor-pointer flex-col items-center rounded-xl p-3 transition-colors hover:bg-white/5"
@@ -98,7 +100,7 @@ export const ProfileMenuModal: React.FC<ProfileMenuModalProps> = ({
             }}
           >
             <Settings size={20} className="mb-1 text-gray-400" />
-            <span className="text-xs text-gray-400">Settings</span>
+            <span className="text-xs text-gray-400">{t("profile.actions.settings")}</span>
           </div>
         </div>
 
@@ -107,13 +109,13 @@ export const ProfileMenuModal: React.FC<ProfileMenuModalProps> = ({
             <span className="flex w-5 justify-center">
               <div className="h-2.5 w-2.5 rounded-full border-2 border-[#1e1e1e] bg-red-500" />
             </span>
-            Busy
+            {t("profile.status.busy")}
           </button>
           <button className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-left text-sm text-gray-300 transition-colors hover:bg-white/5 hover:text-white">
             <span className="flex w-5 justify-center">
               <div className="h-2.5 w-2.5 rounded-full border-2 border-[#1e1e1e] bg-yellow-500" />
             </span>
-            Away
+            {t("profile.status.away")}
           </button>
           <div className="mx-2 my-2 h-px bg-white/5" />
           <button
@@ -123,7 +125,7 @@ export const ProfileMenuModal: React.FC<ProfileMenuModalProps> = ({
             }}
             className="flex w-full items-center gap-3 rounded-lg px-4 py-2 text-left text-sm text-red-400 transition-colors hover:bg-red-500/10"
           >
-            Log out
+            {t("profile.actions.logout")}
           </button>
         </div>
       </motion.div>

@@ -156,6 +156,38 @@ fn display_listener_addr(addr: SocketAddr) -> String {
     format!("{host}:{}", addr.port())
 }
 
+fn resolve_startup_mode() -> Result<StartupMode, String> {
+    let mut args = std::env::args().skip(1);
+    let mut config_path: Option<PathBuf> = None;
+
+    while let Some(argument) = args.next() {
+        match argument.as_str() {
+            "--config" => {
+                let Some(path) = args.next() else {
+                    return Err("missing value for --config".to_owned());
+                };
+                config_path = Some(PathBuf::from(path));
+            }
+            "-h" | "--help" => {
+                println!("Usage: craw-chat-server [--config <chat.toml>]");
+                println!(
+                    "Start the Craw Chat unified gateway using env defaults or a chat.toml file."
+                );
+                return Ok(StartupMode::ExitSuccess);
+            }
+            unknown => {
+                return Err(format!("unsupported argument: {unknown}"));
+            }
+        }
+    }
+
+    let config = match config_path {
+        Some(path) => WebGatewayConfig::from_server_config_file(path)?,
+        None => WebGatewayConfig::from_env(),
+    };
+    Ok(StartupMode::Run(config))
+}
+
 #[cfg(test)]
 mod tests {
     use super::has_explicit_portal_api_base_url;
@@ -221,36 +253,4 @@ mod tests {
 
         assert!(has_explicit_portal_api_base_url());
     }
-}
-
-fn resolve_startup_mode() -> Result<StartupMode, String> {
-    let mut args = std::env::args().skip(1);
-    let mut config_path: Option<PathBuf> = None;
-
-    while let Some(argument) = args.next() {
-        match argument.as_str() {
-            "--config" => {
-                let Some(path) = args.next() else {
-                    return Err("missing value for --config".to_owned());
-                };
-                config_path = Some(PathBuf::from(path));
-            }
-            "-h" | "--help" => {
-                println!("Usage: craw-chat-server [--config <chat.toml>]");
-                println!(
-                    "Start the Craw Chat unified gateway using env defaults or a chat.toml file."
-                );
-                return Ok(StartupMode::ExitSuccess);
-            }
-            unknown => {
-                return Err(format!("unsupported argument: {unknown}"));
-            }
-        }
-    }
-
-    let config = match config_path {
-        Some(path) => WebGatewayConfig::from_server_config_file(path)?,
-        None => WebGatewayConfig::from_env(),
-    };
-    Ok(StartupMode::Run(config))
 }

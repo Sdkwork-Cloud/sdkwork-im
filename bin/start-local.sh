@@ -335,10 +335,24 @@ resolved_friend_request_cursor_secret="$(resolve_config_value_from_profile "$ROO
 if [[ -z "$resolved_friend_request_cursor_secret" ]]; then
   resolved_friend_request_cursor_secret="${CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET:-}"
 fi
+resolved_app_context_require_signature="$(resolve_config_value_from_profile "$ROOT_DIR" "$profile_name" "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE" || true)"
+if [[ -z "$resolved_app_context_require_signature" ]]; then
+  resolved_app_context_require_signature="${CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE:-}"
+fi
+resolved_app_context_signature_secret="$(resolve_config_value_from_profile "$ROOT_DIR" "$profile_name" "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET" || true)"
+if [[ -z "$resolved_app_context_signature_secret" ]]; then
+  resolved_app_context_signature_secret="${CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET:-}"
+fi
 
 if [[ "$foreground" -eq 1 ]]; then
   echo "Starting local-minimal-node in foreground on http://${resolved_bind_addr}"
-  exec env CRAW_CHAT_BIND_ADDR="$resolved_bind_addr" CRAW_CHAT_RUNTIME_DIR="$resolved_runtime_dir" CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="$resolved_friend_request_cursor_secret" "$EXE_PATH"
+  exec env \
+    CRAW_CHAT_BIND_ADDR="$resolved_bind_addr" \
+    CRAW_CHAT_RUNTIME_DIR="$resolved_runtime_dir" \
+    CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="$resolved_friend_request_cursor_secret" \
+    CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE="$resolved_app_context_require_signature" \
+    CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET="$resolved_app_context_signature_secret" \
+    "$EXE_PATH"
 fi
 
 if ! has_health_probe_tool; then
@@ -347,7 +361,13 @@ if ! has_health_probe_tool; then
 fi
 
 echo "Starting local-minimal-node in background on http://${resolved_bind_addr}"
-nohup env CRAW_CHAT_BIND_ADDR="$resolved_bind_addr" CRAW_CHAT_RUNTIME_DIR="$resolved_runtime_dir" CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="$resolved_friend_request_cursor_secret" "$EXE_PATH" >>"$STDOUT_LOG" 2>>"$STDERR_LOG" &
+nohup env \
+  CRAW_CHAT_BIND_ADDR="$resolved_bind_addr" \
+  CRAW_CHAT_RUNTIME_DIR="$resolved_runtime_dir" \
+  CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="$resolved_friend_request_cursor_secret" \
+  CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE="$resolved_app_context_require_signature" \
+  CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET="$resolved_app_context_signature_secret" \
+  "$EXE_PATH" >>"$STDOUT_LOG" 2>>"$STDERR_LOG" &
 pid=$!
 echo "$pid" >"$PID_FILE"
 

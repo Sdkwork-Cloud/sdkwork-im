@@ -170,6 +170,7 @@ fn write_valid_backup_snapshot(root: &Path, owner_node_id: &str) {
     write_state_file(root, "commit-journal.json", "");
     for file_name in [
         "realtime-checkpoints.json",
+        "realtime-event-windows.json",
         "realtime-subscriptions.json",
         "stream-state.json",
         "rtc-state.json",

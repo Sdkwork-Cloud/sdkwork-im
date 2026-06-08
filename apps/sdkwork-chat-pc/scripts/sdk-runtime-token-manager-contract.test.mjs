@@ -49,6 +49,36 @@ assert.match(
   'clearAppSdkSessionTokens must clear the shared TokenManager.',
 );
 
+assert.match(
+  sessionSource,
+  /return\s+session\.authToken\s*&&\s*session\.accessToken\s*\?\s*session\s*:\s*null/u,
+  'Session normalization must fail closed unless both authToken and accessToken are present.',
+);
+
+assert.match(
+  sessionSource,
+  /SDKWork Chat session requires authToken and accessToken\./u,
+  'Session persistence must reject single-token sessions instead of accepting token fallbacks.',
+);
+
+assert.match(
+  sessionSource,
+  /export function resolveAppSdkAccessToken[\s\S]*return\s+session\?\.accessToken;/u,
+  'Access-Token resolution must never fall back to authToken.',
+);
+
+assert.match(
+  sessionSource,
+  /export function resolveAppSdkAuthToken[\s\S]*return\s+session\?\.authToken;/u,
+  'Authorization token resolution must never fall back to accessToken.',
+);
+
+assert.match(
+  sessionSource,
+  /isAppSdkSessionAuthenticated[\s\S]*Boolean\(session\?\.authToken\s*&&\s*session\?\.accessToken\)/u,
+  'Authenticated app sessions require both SDKWork tokens.',
+);
+
 for (const fileName of sdkClientFiles) {
   const source = readSdkSource(fileName);
   assert.match(

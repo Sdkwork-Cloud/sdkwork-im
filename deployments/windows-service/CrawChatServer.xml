@@ -4,7 +4,7 @@
   <description>Craw Chat Server Windows Service wrapper</description>
 
   <executable>__INSTALL_ROOT__\bin\craw-chat-server.exe</executable>
-  <arguments>--config &quot;__CONFIG_DIR__\chat.toml&quot;</arguments>
+  <arguments>--config &quot;__CONFIG_DIR__\server.yaml&quot;</arguments>
 
   <logpath>__LOG_DIR__</logpath>
   <log mode="roll" />

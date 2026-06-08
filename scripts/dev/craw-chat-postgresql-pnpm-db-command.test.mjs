@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
+const workspaceRoot = path.resolve(repoRoot, '..');
 
 function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
@@ -20,6 +21,65 @@ const configIndex = read('docs/部署/postgresql-database-configuration.md');
 const ubuntuWslGuide = read('docs/部署/Ubuntu与WSL-PostgreSQL初始化建库授权手册.md');
 const devGuide = read('docs/部署/开发环境PostgreSQL数据库配置教程.md');
 const productionGuide = read('docs/部署/线上环境PostgreSQL数据库配置教程.md');
+const appbaseIamMigrationsDir = path.join(
+  workspaceRoot,
+  'sdkwork-appbase',
+  'packages',
+  'native-rust',
+  'iam',
+  'sdkwork-iam-storage-sqlx-rust',
+  'migrations',
+);
+const appbaseIamMigrationFiles = fs
+  .readdirSync(appbaseIamMigrationsDir)
+  .filter((entry) => entry.endsWith('.sql'))
+  .sort((left, right) => left.localeCompare(right));
+const appbaseIamMigrations = appbaseIamMigrationFiles
+  .map((entry) => fs.readFileSync(path.join(appbaseIamMigrationsDir, entry), 'utf8'))
+  .join('\n');
+
+assert.deepEqual(
+  appbaseIamMigrationFiles,
+  ['0001_iam_foundation.sql', '0002_drop_legacy_organization_member.sql'],
+  'appbase IAM migration catalog must include foundation and legacy cleanup migrations',
+);
+
+assert.match(
+  appbaseIamMigrations,
+  /CREATE TABLE IF NOT EXISTS iam_organization_membership \(/u,
+  'appbase IAM migration must create the canonical organization membership table',
+);
+assert.match(
+  appbaseIamMigrations,
+  /CREATE TABLE IF NOT EXISTS iam_tenant_member \(/u,
+  'appbase IAM migration must create the canonical tenant member table',
+);
+assert.match(
+  appbaseIamMigrations,
+  /CREATE TABLE IF NOT EXISTS iam_tenant_signing_key \(/u,
+  'appbase IAM migration must create tenant-bound signing key table',
+);
+for (const requiredSessionColumn of [
+  'login_scope',
+  'auth_token_kid',
+  'access_token_kid',
+  'refresh_token_kid',
+]) {
+  assert.ok(
+    appbaseIamMigrations.includes(requiredSessionColumn),
+    `appbase IAM session migration must include ${requiredSessionColumn}`,
+  );
+}
+assert.doesNotMatch(
+  appbaseIamMigrations,
+  /CREATE TABLE IF NOT EXISTS iam_organization_member \(/u,
+  'appbase IAM migration must not create the non-canonical iam_organization_member table',
+);
+assert.match(
+  appbaseIamMigrations,
+  /DROP TABLE IF EXISTS iam_organization_member/u,
+  'appbase IAM migration must explicitly drop the non-canonical iam_organization_member table',
+);
 
 assert.equal(
   packageJson.scripts['db:postgres:plan'],
@@ -230,8 +290,12 @@ const migratePlan = createPostgresDbPlan({
 });
 assert.deepEqual(
   migratePlan.steps.map((step) => step.label),
-  ['apply PostgreSQL migration 001_im_core_schema.sql'],
-  'migrate mode must apply the current IM core schema migration',
+  [
+    'apply PostgreSQL migration 001_im_core_schema.sql',
+    'apply appbase IAM PostgreSQL migration 0001_iam_foundation.sql',
+    'apply appbase IAM PostgreSQL migration 0002_drop_legacy_organization_member.sql',
+  ],
+  'migrate mode must apply the IM schema and appbase IAM schema migrations',
 );
 assert.ok(
   migratePlan.steps[0].args.includes('-f')
@@ -239,11 +303,33 @@ assert.ok(
   'migrate mode must execute the repository PostgreSQL migration SQL file',
 );
 assert.ok(
+  migratePlan.steps[1].args.includes('-f')
+    && migratePlan.steps[1].args.some((arg) => arg.endsWith('sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust/migrations/0001_iam_foundation.sql')),
+  'migrate mode must execute the appbase IAM PostgreSQL migration SQL file so iam_organization_membership exists',
+);
+assert.ok(
+  migratePlan.steps[2].args.includes('-f')
+    && migratePlan.steps[2].args.some((arg) => arg.endsWith('sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust/migrations/0002_drop_legacy_organization_member.sql')),
+  'migrate mode must execute the appbase IAM cleanup migration SQL file so iam_organization_member is removed',
+);
+assert.ok(
   migratePlan.steps[0].args.includes('--set')
     && migratePlan.steps[0].args.includes('search_path=sdkwork_ai_dev, public'),
   'migrate mode must set the configured schema search_path before running migration SQL',
 );
+assert.ok(
+  migratePlan.steps[1].args.includes('--set')
+    && migratePlan.steps[1].args.includes('search_path=sdkwork_ai_dev, public'),
+  'appbase IAM migration must use the configured schema search_path before running migration SQL',
+);
+assert.ok(
+  migratePlan.steps[2].args.includes('--set')
+    && migratePlan.steps[2].args.includes('search_path=sdkwork_ai_dev, public'),
+  'appbase IAM cleanup migration must use the configured schema search_path before running migration SQL',
+);
 assert.equal(migratePlan.steps[0].env.PGPASSWORD, '***', 'serialized migration plan must redact app password');
+assert.equal(migratePlan.steps[1].env.PGPASSWORD, '***', 'serialized appbase IAM migration plan must redact app password');
+assert.equal(migratePlan.steps[2].env.PGPASSWORD, '***', 'serialized appbase IAM cleanup migration plan must redact app password');
 
 const wslMigratePlan = createPostgresDbPlan({
   config: parsedWslPsqlConfig,
@@ -264,6 +350,11 @@ assert.match(
   wslMigratePlan.steps[0].args.at(-1),
   /\/mnt\/[a-z]\//u,
   'WSL psql migration file arguments must use /mnt/<drive>/ paths',
+);
+assert.match(
+  wslMigratePlan.steps[2].args.at(-1),
+  /\/mnt\/[a-z]\//u,
+  'WSL psql appbase IAM migration file arguments must use /mnt/<drive>/ paths',
 );
 assert.equal(
   wslMigratePlan.steps[0].env.WSLENV,
@@ -291,8 +382,10 @@ assert.deepEqual(
     'initialize PostgreSQL role and database',
     'initialize PostgreSQL schema and grants',
     'apply PostgreSQL migration 001_im_core_schema.sql',
+    'apply appbase IAM PostgreSQL migration 0001_iam_foundation.sql',
+    'apply appbase IAM PostgreSQL migration 0002_drop_legacy_organization_member.sql',
   ],
-  'plan mode must show both initialization and migration actions',
+  'plan mode must show initialization, IM migration, and appbase IAM migration actions',
 );
 
 for (const required of [

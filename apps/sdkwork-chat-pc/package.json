@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node ../../scripts/dev/run-vite-cli.mjs --host 127.0.0.1 --port 1620 --strictPort",
-    "dev:tauri": "node ../../scripts/dev/run-vite-cli.mjs --host 127.0.0.1 --port 1620 --strictPort",
+    "dev": "node ../../scripts/dev/run-sdkwork-chat-pc-vite-dev.mjs",
+    "dev:tauri": "node ../../scripts/dev/run-sdkwork-chat-pc-vite-dev.mjs",
     "desktop:dev:local": "pnpm --filter @sdkwork/clawchat-pc-desktop desktop:dev:local",
     "desktop:build:local": "pnpm --filter @sdkwork/clawchat-pc-desktop desktop:build:local",
     "build": "node ../../scripts/dev/run-vite-cli.mjs build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
@@ -27,6 +27,7 @@
     "@sdkwork/auth-pc-react": "workspace:*",
     "@sdkwork/auth-runtime-pc-react": "workspace:*",
     "@sdkwork/core-pc-react": "workspace:*",
+    "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/iam-contracts": "workspace:*",
     "@sdkwork/iam-sdk-ports": "workspace:*",
     "@sdkwork/im-sdk": "workspace:*",
@@ -88,6 +89,7 @@
       "@sdkwork/aiot-backend-sdk": "workspace:*",
       "@sdkwork/appbase-app-sdk": "workspace:*",
       "@sdkwork/appbase-backend-sdk": "workspace:*",
+      "@sdkwork/drive-app-sdk": "workspace:*",
       "@sdkwork/im-sdk": "workspace:*",
       "@sdkwork/rtc-sdk": "workspace:*"
     }

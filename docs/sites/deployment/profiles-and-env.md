@@ -20,6 +20,8 @@ startup, AppContext projection, and shared-channel sync behavior.
 | `CRAW_CHAT_BIND_ADDR` | Listener bind address |
 | `CRAW_CHAT_RUNTIME_DIR` | Managed runtime directory |
 | `CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET` | Domain signing secret for friend-request pagination cursors |
+| `CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE` | Requires signed SDKWork AppContext projections on protected local service routes. |
+| `CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET` | Shared secret used by the trusted gateway to sign AppContext projections and by local services to verify them. |
 
 ## Production Domain Variables
 
@@ -38,13 +40,17 @@ as the source of truth.
 
 `sdkwork-appbase` owns login, IAM sessions, dual-token validation, users, tenants, organizations,
 and the authoritative IAM context. `craw-chat` consumes the verified AppContext projection only.
-The local smoke scripts therefore send these headers instead of generating local Craw Chat tokens:
+The trusted gateway validates appbase dual tokens, rewrites any inbound `x-sdkwork-*` headers, and
+signs the forwarded projection with `CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET`. Local direct-service
+smoke scripts may still send these projection headers for controlled local checks, but protected
+service routes should run with `CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true`:
 
 - `x-sdkwork-tenant-id`
 - `x-sdkwork-user-id`
 - `x-sdkwork-session-id`
 - `x-sdkwork-device-id`
 - `x-sdkwork-permission-scope`
+- `x-sdkwork-context-signature`
 
 ## Security Hardening Variables
 
@@ -53,6 +59,8 @@ For public or commercial deployments, keep these enabled and explicit:
 | Variable | Purpose |
 | --- | --- |
 | `CRAW_CHAT_BROWSER_ORIGINS` | Comma-separated explicit browser origins allowed to call the public app routes. Defaults to the local portal preview origins only when unset. |
+| `CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE` | Set to `true` so standalone services reject unsigned or spoofed AppContext projection headers. |
+| `CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET` | Non-public HMAC secret shared only between the trusted gateway and internal services. Use secret-manager injection outside local development. |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS` | Per-tenant request ceiling for `/im/v3/api/chat/conversations/shared_channel_links/sync` inside each process (clamped to `1..10000`). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS` | Sliding window used by the shared-channel sync per-tenant limiter (clamped to `1..3600`). |
 | `CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS` | Maximum active tenant buckets retained by the in-process shared-channel sync limiter (default `10000`, clamped to `1..200000`). |
@@ -136,6 +144,8 @@ CRAW_CHAT_RUNTIME_DIR=.runtime/local-minimal
 CRAW_CHAT_RUNTIME_PROFILE=local-minimal
 CRAW_CHAT_BROWSER_ORIGINS=http://127.0.0.1:4176,http://localhost:4176
 CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=replace-with-local-minimal-friend-request-cursor-secret
+CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true
+CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET=replace-with-local-minimal-app-context-signature-secret
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=120
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=60
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS=10000
@@ -159,6 +169,8 @@ CRAW_CHAT_RUNTIME_DIR=.runtime/local-minimal
 CRAW_CHAT_RUNTIME_PROFILE=local-default
 CRAW_CHAT_BROWSER_ORIGINS=http://127.0.0.1:4176,http://localhost:4176
 CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=replace-with-local-default-friend-request-cursor-secret
+CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true
+CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET=replace-with-local-default-app-context-signature-secret
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=120
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=60
 CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS=10000

@@ -1,3 +1,6 @@
+instance:
+  name: default
+
 runtime:
   environment: production
   deploymentMode: server
@@ -5,9 +8,12 @@ runtime:
   configDirectory: /etc/sdkwork/chat
   configFile: /etc/sdkwork/chat/chat.toml
   dataDirectory: /var/lib/sdkwork/chat
+  dataDir: /var/lib/sdkwork/chat
   logDirectory: /var/log/sdkwork/chat
+  logDir: /var/log/sdkwork/chat
   cacheDirectory: /var/cache/sdkwork/chat
   runtimeDirectory: /run/sdkwork/chat
+  runDir: /run/sdkwork/chat
 
 network:
   bindAddress: 0.0.0.0:18080

@@ -263,6 +263,20 @@ $resolvedFriendRequestCursorSecret = if ([string]::IsNullOrWhiteSpace($configFri
 else {
     $configFriendRequestCursorSecret
 }
+$configAppContextRequireSignature = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE"
+$resolvedAppContextRequireSignature = if ([string]::IsNullOrWhiteSpace($configAppContextRequireSignature)) {
+    $env:CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE
+}
+else {
+    $configAppContextRequireSignature
+}
+$configAppContextSignatureSecret = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET"
+$resolvedAppContextSignatureSecret = if ([string]::IsNullOrWhiteSpace($configAppContextSignatureSecret)) {
+    $env:CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET
+}
+else {
+    $configAppContextSignatureSecret
+}
 
 $previousBindAddress = $env:CRAW_CHAT_BIND_ADDR
 $hadPreviousBindAddress = $null -ne $previousBindAddress
@@ -270,9 +284,15 @@ $previousRuntimeDir = $env:CRAW_CHAT_RUNTIME_DIR
 $hadPreviousRuntimeDir = $null -ne $previousRuntimeDir
 $previousFriendRequestCursorSecret = $env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET
 $hadPreviousFriendRequestCursorSecret = $null -ne $previousFriendRequestCursorSecret
+$previousAppContextRequireSignature = $env:CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE
+$hadPreviousAppContextRequireSignature = $null -ne $previousAppContextRequireSignature
+$previousAppContextSignatureSecret = $env:CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET
+$hadPreviousAppContextSignatureSecret = $null -ne $previousAppContextSignatureSecret
 $env:CRAW_CHAT_BIND_ADDR = $resolvedBindAddress
 $env:CRAW_CHAT_RUNTIME_DIR = $resolvedRuntimeDir
 $env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET = $resolvedFriendRequestCursorSecret
+$env:CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE = $resolvedAppContextRequireSignature
+$env:CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET = $resolvedAppContextSignatureSecret
 
 try {
     if ($Foreground) {
@@ -349,5 +369,19 @@ finally {
     }
     else {
         Remove-Item Env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET -ErrorAction SilentlyContinue
+    }
+
+    if ($hadPreviousAppContextRequireSignature) {
+        $env:CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE = $previousAppContextRequireSignature
+    }
+    else {
+        Remove-Item Env:CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE -ErrorAction SilentlyContinue
+    }
+
+    if ($hadPreviousAppContextSignatureSecret) {
+        $env:CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET = $previousAppContextSignatureSecret
+    }
+    else {
+        Remove-Item Env:CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET -ErrorAction SilentlyContinue
     }
 }

@@ -5,7 +5,7 @@ use axum::{
         Path, Request, State,
         ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade},
     },
-    http::{Method, StatusCode, header},
+    http::{HeaderMap, HeaderValue, Method, StatusCode, header},
     response::Html,
     response::{IntoResponse, Response},
     routing::get,
@@ -22,6 +22,7 @@ use craw_chat_gateway_observability::{
 use craw_chat_openapi::{OpenApiServiceSpec, render_docs_html};
 use craw_chat_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
 use futures_util::{SinkExt, StreamExt};
+use im_app_context::sign_app_context_headers;
 use reqwest::Client;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
@@ -36,6 +37,7 @@ use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
 const BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
 const APPBASE_APP_API_SERVICE_ID: &str = "sdkwork-appbase-app-api";
+const APP_CONTEXT_SIGNATURE_SECRET_ENV: &str = "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET";
 
 #[derive(Clone)]
 struct GatewayState {
@@ -201,7 +203,7 @@ async fn proxy_get_request(
 
 async fn proxy_websocket_request(
     ws: WebSocketUpgrade,
-    request: Request,
+    mut request: Request,
     state: &GatewayState,
     service_id: &str,
     websocket_subprotocols: &[String],
@@ -212,6 +214,12 @@ async fn proxy_websocket_request(
             format!("upstream target is not configured for {service_id}").as_str(),
         );
     };
+    if should_resolve_proxied_context_from_appbase_session(service_id, request.uri().path())
+        && let Err(response) =
+            inject_appbase_session_context_for_configured_upstream(state, &mut request).await
+    {
+        return response;
+    }
     let Ok(upstream_url) = upstream_websocket_url(
         upstream_base_url,
         request
@@ -262,39 +270,51 @@ async fn proxy_websocket_request(
     }
 }
 
-async fn proxy_request(State(state): State<GatewayState>, request: Request) -> Response {
-    let (parts, body) = request.into_parts();
-    let Some(registry_method) = map_http_method(&parts.method) else {
+async fn proxy_request(State(state): State<GatewayState>, mut request: Request) -> Response {
+    let Some(registry_method) = map_http_method(request.method()) else {
         return json_error_response(
             StatusCode::METHOD_NOT_ALLOWED,
             "gateway does not support proxying this method",
         );
     };
-    let Some(route) = state.registry.resolve(registry_method, parts.uri.path()) else {
+    let Some(route) = state
+        .registry
+        .resolve(registry_method, request.uri().path())
+    else {
+        let (parts, body) = request.into_parts();
         return delegate_to_runtime_router(
             runtime_router_for_path(&state, parts.uri.path()),
             Request::from_parts(parts, body),
         )
         .await;
     };
-    let Some(upstream_base_url) = state.config.upstream_base_url(route.service_id.as_str()) else {
+    let service_id = route.service_id.clone();
+    let Some(upstream_base_url) = state.config.upstream_base_url(service_id.as_str()) else {
         if state.config.runtime_mode == GatewayRuntimeMode::Embedded {
-            let request = Request::from_parts(parts, body);
             let Some(runtime_router) =
-                runtime_router_for_missing_embedded_upstream(&state, route.service_id.as_str())
+                runtime_router_for_missing_embedded_upstream(&state, service_id.as_str())
             else {
                 return json_error_response(
                     StatusCode::BAD_GATEWAY,
-                    format!("upstream target is not configured for {}", route.service_id).as_str(),
+                    format!("upstream target is not configured for {service_id}").as_str(),
                 );
             };
             return delegate_to_runtime_router(Some(runtime_router), request).await;
         }
         return json_error_response(
             StatusCode::BAD_GATEWAY,
-            format!("upstream target is not configured for {}", route.service_id).as_str(),
+            format!("upstream target is not configured for {service_id}").as_str(),
         );
     };
+    if should_resolve_proxied_context_from_appbase_session(
+        service_id.as_str(),
+        request.uri().path(),
+    ) && let Err(response) =
+        inject_appbase_session_context_for_configured_upstream(&state, &mut request).await
+    {
+        return response;
+    }
+    let (parts, body) = request.into_parts();
     let method = parts.method;
     let headers = parts.headers;
     let uri = parts.uri;
@@ -324,16 +344,10 @@ async fn proxy_request(State(state): State<GatewayState>, request: Request) -> R
     };
 
     match request_builder.body(body).send().await {
-        Ok(upstream_response) => {
-            build_proxy_response(route.service_id.as_str(), upstream_response).await
-        }
+        Ok(upstream_response) => build_proxy_response(service_id.as_str(), upstream_response).await,
         Err(error) => json_error_response(
             StatusCode::BAD_GATEWAY,
-            format!(
-                "gateway upstream request to {} failed: {error}",
-                route.service_id
-            )
-            .as_str(),
+            format!("gateway upstream request to {service_id} failed: {error}").as_str(),
         ),
     }
 }
@@ -347,11 +361,303 @@ async fn delegate_to_runtime_router(
     };
 
     request.extensions_mut().clear();
+    if should_resolve_im_runtime_context_from_appbase_session(request.uri().path())
+        && let Err(response) =
+            inject_appbase_session_context_for_embedded_runtime(router.clone(), &mut request).await
+    {
+        return response;
+    }
 
     match router.oneshot(request).await {
         Ok(response) => response,
         Err(error) => match error {},
     }
+}
+
+async fn inject_appbase_session_context_for_embedded_runtime(
+    router: Router,
+    request: &mut Request,
+) -> Result<(), Response> {
+    let session_response = router
+        .oneshot(build_current_session_request(request.headers()))
+        .await
+        .map_err(|error| match error {})?;
+    let status = session_response.status();
+    let (parts, body) = session_response.into_parts();
+    let body = axum::body::to_bytes(body, usize::MAX)
+        .await
+        .map_err(|error| {
+            json_error_response(
+                StatusCode::BAD_GATEWAY,
+                format!("gateway failed to read appbase current-session response: {error}")
+                    .as_str(),
+            )
+        })?;
+
+    if !status.is_success() {
+        return Err(Response::from_parts(parts, Body::from(body)));
+    }
+
+    let session: Value = serde_json::from_slice(&body).map_err(|error| {
+        json_error_response(
+            StatusCode::BAD_GATEWAY,
+            format!("gateway failed to decode appbase current-session response: {error}").as_str(),
+        )
+    })?;
+    let context_headers = appbase_session_context_headers(&session).ok_or_else(|| {
+        json_error_response(
+            StatusCode::UNAUTHORIZED,
+            "appbase current-session response is missing tenant/user context",
+        )
+    })?;
+    replace_sdkwork_context_headers(request.headers_mut(), context_headers)?;
+    Ok(())
+}
+
+async fn inject_appbase_session_context_for_configured_upstream(
+    state: &GatewayState,
+    request: &mut Request,
+) -> Result<(), Response> {
+    let Some(appbase_base_url) = state.config.upstream_base_url(APPBASE_APP_API_SERVICE_ID) else {
+        return Err(json_error_response(
+            StatusCode::BAD_GATEWAY,
+            "upstream target is not configured for sdkwork-appbase-app-api",
+        ));
+    };
+    let current_session_url = format!(
+        "{}/app/v3/api/auth/sessions/current",
+        appbase_base_url.trim_end_matches('/')
+    );
+    let mut request_builder = state.client.get(current_session_url);
+    if let Some(value) = request.headers().get(header::AUTHORIZATION) {
+        request_builder = request_builder.header(header::AUTHORIZATION, value);
+    }
+    if let Some(value) = request.headers().get("access-token") {
+        request_builder = request_builder.header("access-token", value);
+    }
+
+    let response = request_builder.send().await.map_err(|error| {
+        json_error_response(
+            StatusCode::BAD_GATEWAY,
+            format!("gateway appbase current-session upstream request failed: {error}").as_str(),
+        )
+    })?;
+    let status = response.status();
+    let headers = response.headers().clone();
+    let body = response.bytes().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(build_raw_response(status, &headers, Body::from(body)));
+    }
+    let session: Value = serde_json::from_slice(&body).map_err(|error| {
+        json_error_response(
+            StatusCode::BAD_GATEWAY,
+            format!("gateway failed to decode appbase current-session response: {error}").as_str(),
+        )
+    })?;
+    let context_headers = appbase_session_context_headers(&session).ok_or_else(|| {
+        json_error_response(
+            StatusCode::UNAUTHORIZED,
+            "appbase current-session response is missing tenant/user context",
+        )
+    })?;
+    replace_sdkwork_context_headers(request.headers_mut(), context_headers)?;
+    Ok(())
+}
+
+fn build_current_session_request(headers: &HeaderMap) -> Request {
+    let mut request = Request::builder()
+        .method(Method::GET)
+        .uri("/app/v3/api/auth/sessions/current")
+        .body(Body::empty())
+        .expect("gateway current-session request should build");
+    if let Some(value) = headers.get(header::AUTHORIZATION) {
+        request
+            .headers_mut()
+            .insert(header::AUTHORIZATION, value.clone());
+    }
+    if let Some(value) = headers.get("access-token") {
+        request.headers_mut().insert("access-token", value.clone());
+    }
+    request
+}
+
+fn should_resolve_im_runtime_context_from_appbase_session(path: &str) -> bool {
+    path.starts_with("/im/v3/api/")
+}
+
+fn should_resolve_proxied_context_from_appbase_session(service_id: &str, path: &str) -> bool {
+    match service_id {
+        "session-gateway" => {
+            path.starts_with("/im/v3/api/realtime/") || path.starts_with("/im/v3/api/presence/")
+        }
+        "conversation-runtime" => path.starts_with("/im/v3/api/chat/"),
+        "projection-service" => path.starts_with("/im/v3/api/chat/"),
+        "streaming-service" => path.starts_with("/im/v3/api/streams"),
+        "media-service" => path.starts_with("/im/v3/api/media/"),
+        "sdkwork-rtc-signaling-service" => path.starts_with("/app/v3/api/rtc/"),
+        "notification-service" => path.starts_with("/app/v3/api/notifications"),
+        "automation-service" => path.starts_with("/app/v3/api/automation/"),
+        _ => false,
+    }
+}
+
+fn remove_sdkwork_context_headers(headers: &mut HeaderMap) {
+    for name in [
+        "x-sdkwork-app-id",
+        "x-sdkwork-tenant-id",
+        "x-sdkwork-organization-id",
+        "x-sdkwork-user-id",
+        "x-sdkwork-session-id",
+        "x-sdkwork-environment",
+        "x-sdkwork-deployment-mode",
+        "x-sdkwork-auth-level",
+        "x-sdkwork-data-scope",
+        "x-sdkwork-permission-scope",
+        "x-sdkwork-actor-id",
+        "x-sdkwork-actor-kind",
+        "x-sdkwork-device-id",
+        "x-sdkwork-context-signature",
+    ] {
+        headers.remove(name);
+    }
+}
+
+fn replace_sdkwork_context_headers(
+    headers: &mut HeaderMap,
+    context_headers: Vec<(&'static str, HeaderValue)>,
+) -> Result<(), Response> {
+    remove_sdkwork_context_headers(headers);
+    for (name, value) in context_headers {
+        headers.insert(name, value);
+    }
+    sign_sdkwork_context_headers_if_configured(headers)
+}
+
+fn sign_sdkwork_context_headers_if_configured(headers: &mut HeaderMap) -> Result<(), Response> {
+    let Some(secret) = std::env::var(APP_CONTEXT_SIGNATURE_SECRET_ENV)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(());
+    };
+    let signature = sign_app_context_headers(headers, secret.as_str()).map_err(|error| {
+        json_error_response(
+            StatusCode::BAD_GATEWAY,
+            format!("gateway failed to sign app context projection: {error}").as_str(),
+        )
+    })?;
+    let signature = HeaderValue::from_str(signature.as_str()).map_err(|error| {
+        json_error_response(
+            StatusCode::BAD_GATEWAY,
+            format!("gateway produced invalid app context signature header: {error}").as_str(),
+        )
+    })?;
+    headers.insert("x-sdkwork-context-signature", signature);
+    Ok(())
+}
+
+fn appbase_session_context_headers(session: &Value) -> Option<Vec<(&'static str, HeaderValue)>> {
+    let context = session
+        .get("data")
+        .and_then(|data| data.get("context"))
+        .or_else(|| session.get("context"))?;
+    let tenant_id = json_string(context, &["tenantId", "tenant_id"])?;
+    let user_id = json_string(context, &["userId", "user_id"])?;
+
+    let mut headers = Vec::new();
+    push_context_header(&mut headers, "x-sdkwork-tenant-id", tenant_id);
+    push_context_header(&mut headers, "x-sdkwork-user-id", user_id);
+    if let Some(value) = json_string(context, &["appId", "app_id"]) {
+        push_context_header(&mut headers, "x-sdkwork-app-id", value);
+    }
+    if let Some(value) = json_string(context, &["organizationId", "organization_id"]) {
+        push_context_header(&mut headers, "x-sdkwork-organization-id", value);
+    }
+    if let Some(value) = json_string(context, &["sessionId", "session_id"]) {
+        push_context_header(&mut headers, "x-sdkwork-session-id", value);
+    }
+    if let Some(value) = json_string(context, &["environment", "env"]) {
+        push_context_header(&mut headers, "x-sdkwork-environment", value);
+    }
+    if let Some(value) = json_string(context, &["deploymentMode", "deployment_mode"]) {
+        push_context_header(&mut headers, "x-sdkwork-deployment-mode", value);
+    }
+    if let Some(value) = json_string(context, &["authLevel", "auth_level"]) {
+        push_context_header(&mut headers, "x-sdkwork-auth-level", value);
+    }
+    if let Some(value) = json_string(context, &["actorId", "actor_id"]) {
+        push_context_header(&mut headers, "x-sdkwork-actor-id", value);
+    }
+    if let Some(value) = json_string(context, &["actorKind", "actor_kind"]) {
+        push_context_header(&mut headers, "x-sdkwork-actor-kind", value);
+    }
+    if let Some(value) = json_string(context, &["deviceId", "device_id"]) {
+        push_context_header(&mut headers, "x-sdkwork-device-id", value);
+    }
+    if let Some(value) = json_string_array(context, &["dataScope", "data_scope"]) {
+        push_context_header(&mut headers, "x-sdkwork-data-scope", value);
+    }
+    if let Some(value) = json_string_array(context, &["permissionScope", "permission_scope"]) {
+        push_context_header(&mut headers, "x-sdkwork-permission-scope", value);
+    }
+
+    Some(headers)
+}
+
+fn push_context_header(
+    headers: &mut Vec<(&'static str, HeaderValue)>,
+    name: &'static str,
+    value: String,
+) {
+    if let Ok(value) = HeaderValue::from_str(value.as_str()) {
+        headers.push((name, value));
+    }
+}
+
+fn json_string(value: &Value, names: &[&str]) -> Option<String> {
+    names.iter().find_map(|name| {
+        value.get(*name).and_then(|raw| {
+            raw.as_str()
+                .map(str::trim)
+                .filter(|value| !value.is_empty() && *value != "0")
+                .map(str::to_owned)
+                .or_else(|| {
+                    raw.as_i64()
+                        .filter(|value| *value != 0)
+                        .map(|value| value.to_string())
+                })
+                .or_else(|| {
+                    raw.as_u64()
+                        .filter(|value| *value != 0)
+                        .map(|value| value.to_string())
+                })
+        })
+    })
+}
+
+fn json_string_array(value: &Value, names: &[&str]) -> Option<String> {
+    names.iter().find_map(|name| {
+        value.get(*name).and_then(|raw| {
+            raw.as_array()
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty())
+                        .collect::<Vec<_>>()
+                })
+                .filter(|items| !items.is_empty())
+                .map(|items| items.join(","))
+                .or_else(|| {
+                    raw.as_str()
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty())
+                        .map(str::to_owned)
+                })
+        })
+    })
 }
 
 fn runtime_router_for_path(state: &GatewayState, path: &str) -> Option<Router> {
@@ -454,9 +760,17 @@ async fn build_proxy_response(service_id: &str, upstream_response: reqwest::Resp
     let status = upstream_response.status();
     let headers = upstream_response.headers().clone();
     let body = upstream_response.bytes().await.unwrap_or_default();
-    let mut response_builder = Response::builder()
-        .status(status)
-        .header("x-craw-chat-upstream-service", service_id);
+    let mut response = build_raw_response(status, &headers, Body::from(body));
+    response.headers_mut().insert(
+        "x-craw-chat-upstream-service",
+        HeaderValue::from_str(service_id)
+            .expect("static gateway upstream service id should be a valid header value"),
+    );
+    response
+}
+
+fn build_raw_response(status: StatusCode, headers: &HeaderMap, body: Body) -> Response {
+    let mut response_builder = Response::builder().status(status);
 
     for (name, value) in headers.iter() {
         if *name == header::TRANSFER_ENCODING || *name == header::CONNECTION {
@@ -466,7 +780,7 @@ async fn build_proxy_response(service_id: &str, upstream_response: reqwest::Resp
     }
 
     response_builder
-        .body(Body::from(body))
+        .body(body)
         .expect("proxied gateway response should build")
 }
 

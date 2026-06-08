@@ -8,6 +8,8 @@ export { callService } from './services/CallService';
 export type { CallService, SdkworkCallSnapshot, SdkworkCallState } from './services/CallService';
 export { imSyncCoordinatorService } from './services/ImSyncCoordinatorService';
 export type { ImStartupSyncResult, ImSyncCoordinatorService } from './services/ImSyncCoordinatorService';
+export { systemAssistantService } from './services/SystemAssistantService';
+export type { SystemAssistantService, SystemAssistantStartupResult } from './services/SystemAssistantService';
 export { agentService } from './services/AgentService';
 export type { AgentConfig, AgentService } from './services/AgentService';
 export { CreateAgentView } from './pages/CreateAgentView';

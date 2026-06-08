@@ -371,6 +371,12 @@ assert.match(
 );
 
 assert.doesNotMatch(
+  appAuthServiceSource,
+  /data\.accessToken\s*\?\?\s*data\.authToken|data\.authToken\s*\?\?\s*data\.accessToken/u,
+  'SDKWork Chat auth service must not synthesize one SDKWork token from the other.',
+);
+
+assert.doesNotMatch(
   authRuntimeSource,
   /refreshToken:\s*session\.refreshToken\s*\?\?\s*existingSession\?\.refreshToken/u,
   'SDKWork Chat IAM runtime must not own refresh-token continuation rules; the appbase session bridge owns token merge semantics.',
@@ -386,6 +392,24 @@ assert.match(
   authGateSource,
   /isAuthenticatedSession\(\s*session\s*\)\s*&&\s*isAuthenticatedSession\(\s*readAppSdkSessionTokens\(\)\s*\)/u,
   'AuthGate must treat the user as authenticated only when both in-memory state and persisted session storage are still authenticated.',
+);
+
+assert.match(
+  authGateSource,
+  /SDKWORK_CHAT_SESSION_CHANGED_EVENT/u,
+  'AuthGate must subscribe to the shared auth-session changed event so logout, refresh failure, and account switch update route state immediately.',
+);
+
+assert.match(
+  authGateSource,
+  /window\.addEventListener\(\s*SDKWORK_CHAT_SESSION_CHANGED_EVENT/u,
+  'AuthGate must listen for app-owned session changes instead of waiting for a later route transition.',
+);
+
+assert.match(
+  authGateSource,
+  /return\s+Boolean\(session\?\.authToken\s*&&\s*session\?\.accessToken\)/u,
+  'AuthGate must require both SDKWork authToken and accessToken before rendering protected routes.',
 );
 
 assert.match(

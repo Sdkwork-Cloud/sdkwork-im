@@ -16,6 +16,7 @@ craw-chat-gateway-config = { path = "../../crates/craw-chat-gateway-config" }
 craw-chat-gateway-observability = { path = "../../crates/craw-chat-gateway-observability" }
 craw-chat-runtime-link = { path = "../../crates/craw-chat-runtime-link" }
 futures-util.workspace = true
+im-app-context = { path = "../../crates/im-app-context" }
 local-minimal-node = { path = "../local-minimal-node" }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde.workspace = true

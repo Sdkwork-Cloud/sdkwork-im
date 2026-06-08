@@ -111,7 +111,7 @@ assert.doesNotMatch(
 );
 assert.match(
   contactDetailSource,
-  /if\s*\(onStartCall\)\s*onStartCall\('voice',\s*user\);[\s\S]*else\s+toast\(['"][^'"]*RTC/u,
+  /const\s+startVoiceCall\s*=\s*\(\)\s*=>\s*\{[\s\S]*?if\s*\(onStartCall\)\s*\{[\s\S]*?onStartCall\('voice',\s*user\);[\s\S]*?return;[\s\S]*?toast\(t\('contacts\.detail\.toast\.voiceUnavailable'\),\s*'error'\);[\s\S]*?\};/u,
   'Contact phone row must fail-close when RTC start-call wiring is unavailable',
 );
 assert.match(

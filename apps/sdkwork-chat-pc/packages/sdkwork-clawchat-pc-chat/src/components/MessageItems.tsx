@@ -17,7 +17,7 @@ import ReactMarkdown from 'react-markdown';
 export const TextMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => (
   <div className={cn(
     "text-[14px] leading-relaxed whitespace-pre-wrap break-words px-4 py-2.5 shadow-sm max-w-[500px] xl:max-w-[700px]",
-    isMe ? "bg-[#00b42a] text-white rounded-2xl rounded-tr-sm" : "bg-[#2b2b2d] text-gray-200 rounded-2xl rounded-tl-sm border border-white/5"
+    isMe ? "bg-[#00b42a] text-white rounded-2xl rounded-tr-sm" : "bg-[#2b2b2d] text-gray-200 rounded-2xl rounded-tl-sm"
   )}>
     <div className={cn("prose prose-sm prose-p:leading-snug prose-p:my-1 prose-headings:my-2 prose-ul:my-1", isMe ? "prose-invert prose-p:text-white" : "prose-invert")}>
       <ReactMarkdown>{msg.content}</ReactMarkdown>

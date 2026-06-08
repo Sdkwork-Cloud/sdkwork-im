@@ -188,7 +188,7 @@ test('craw-chat local-minimal runner invokes the shared command sequence with ro
       '--bind-addr',
       '127.0.0.1:28080',
       '--browser-origins',
-      'http://127.0.0.1:1620,http://localhost:1620',
+      'http://127.0.0.1:4176,http://localhost:4176',
     ],
     baseEnv: {
       PATH: 'demo-path',
@@ -217,7 +217,7 @@ test('craw-chat local-minimal runner invokes the shared command sequence with ro
   assert.equal(receivedSequenceArgument.env.CRAW_CHAT_BIND_ADDR, '127.0.0.1:28080');
   assert.equal(
     receivedSequenceArgument.env.CRAW_CHAT_BROWSER_ORIGINS,
-    'http://127.0.0.1:1620,http://localhost:1620',
+    'http://127.0.0.1:4176,http://localhost:4176',
   );
   assert.deepEqual(receivedSequenceArgument.commands, [
     {

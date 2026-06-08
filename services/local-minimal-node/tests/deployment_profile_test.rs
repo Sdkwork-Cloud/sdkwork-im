@@ -3,7 +3,14 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use axum::Router;
+use axum::{
+    Json, Router,
+    extract::Path as AxumPath,
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
+    routing::{get, post},
+};
+use im_app_context::{AppContextSignatureConfig, resolve_app_context_with_signature_config};
 use tokio::net::TcpListener;
 
 fn workspace_root() -> PathBuf {
@@ -60,6 +67,59 @@ async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
         axum::serve(listener, app).await.expect("server should run");
     });
     (format!("http://127.0.0.1:{}", address.port()), handle)
+}
+
+fn signed_app_context_smoke_app(secret: &'static str) -> Router {
+    Router::new()
+        .route("/healthz", get(|| async { "ok" }))
+        .route(
+            "/im/v3/api/chat/conversations",
+            post(move |headers: HeaderMap| async move {
+                require_signed_app_context(headers, secret).map(|_| Json(serde_json::json!({})))
+            }),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/messages",
+            post(
+                move |headers: HeaderMap, AxumPath(_conversation_id): AxumPath<String>| async move {
+                    require_signed_app_context(headers, secret).map(|_| Json(serde_json::json!({})))
+                },
+            ),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}",
+            get(
+                move |headers: HeaderMap, AxumPath(conversation_id): AxumPath<String>| async move {
+                    require_signed_app_context(headers, secret).map(|_| {
+                        Json(serde_json::json!({
+                            "conversationId": conversation_id,
+                            "lastSummary": "smoke"
+                        }))
+                    })
+                },
+            ),
+        )
+}
+
+fn require_signed_app_context(headers: HeaderMap, secret: &str) -> Result<(), Response> {
+    resolve_app_context_with_signature_config(
+        &headers,
+        AppContextSignatureConfig {
+            require_signature: true,
+            shared_secret: Some(secret.to_owned()),
+        },
+    )
+    .map(|_| ())
+    .map_err(|error| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({
+                "code": error.code(),
+                "message": error.message()
+            })),
+        )
+            .into_response()
+    })
 }
 
 #[test]
@@ -287,6 +347,8 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         assert!(template_content.contains("CRAW_CHAT_BROWSER_ORIGINS="));
         assert!(!template_content.contains("CRAW_CHAT_PUBLIC_BEARER"));
         assert!(template_content.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
+        assert!(template_content.contains("CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true"));
+        assert!(template_content.contains("CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET="));
         assert!(
             template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=")
         );
@@ -342,6 +404,8 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         "CRAW_CHAT_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS",
         "CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP",
         "CRAW_CHAT_RUNTIME_PROFILE",
+        "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE",
+        "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
     ] {
         assert!(
             site_profiles_env_doc.contains(env_name),
@@ -514,8 +578,9 @@ fn test_local_default_post_release_verification_samples_are_documented_and_archi
     }
 
     assert!(
-        deployment_doc
-            .contains("当前 `local-default` 仍复用 `local-minimal` �?compose 服务合同�?smoke 链路"),
+        deployment_doc.contains(
+            "当前 `local-default` 仍复用 `local-minimal` 的 compose 服务合同与 smoke 链路"
+        ),
         "local-default发布后验证样本.md must keep the current local-default boundary explicit"
     );
     assert!(
@@ -1899,6 +1964,112 @@ async fn test_local_stack_smoke_sh_executes_against_public_app_with_app_context_
     assert!(
         String::from_utf8_lossy(&output.stdout).contains("local stack smoke check passed."),
         "local_stack_smoke.sh should report a successful smoke run"
+    );
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn test_local_stack_smoke_ps1_executes_against_signed_app_context_service() {
+    let root = workspace_root();
+    let app = signed_app_context_smoke_app("signed-smoke-secret");
+    let (base_url, handle) = spawn_server(app).await;
+    let root_for_command = root.clone();
+    let base_url_for_command = base_url.clone();
+
+    let output = tokio::time::timeout(
+        tokio::time::Duration::from_secs(30),
+        tokio::task::spawn_blocking(move || {
+            Command::new("powershell")
+                .current_dir(&root_for_command)
+                .env("CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE", "true")
+                .env(
+                    "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
+                    "signed-smoke-secret",
+                )
+                .args([
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    "tools\\smoke\\local_stack_smoke.ps1",
+                    "-BaseUrl",
+                    base_url_for_command.as_str(),
+                ])
+                .output()
+        }),
+    )
+    .await
+    .expect("signed local_stack_smoke.ps1 should finish before timeout")
+    .expect("signed local_stack_smoke.ps1 should execute task")
+    .expect("signed local_stack_smoke.ps1 should execute");
+
+    handle.abort();
+    let _ = handle.await;
+
+    assert!(
+        output.status.success(),
+        "local_stack_smoke.ps1 should sign AppContext headers accepted by the service. stdout: {} stderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("local stack smoke check passed."),
+        "signed local_stack_smoke.ps1 should report a successful smoke run"
+    );
+}
+
+#[tokio::test]
+async fn test_local_stack_smoke_sh_executes_against_signed_app_context_service() {
+    let root = workspace_root();
+    let app = signed_app_context_smoke_app("signed-smoke-secret");
+    let (base_url, handle) = spawn_server(app).await;
+
+    let Some(bash_path) = resolve_usable_bash() else {
+        eprintln!(
+            "skipping signed local_stack_smoke.sh execution regression because no usable bash runtime is available"
+        );
+        handle.abort();
+        let _ = handle.await;
+        return;
+    };
+    let root_for_command = root.clone();
+    let base_url_for_command = base_url.clone();
+
+    let output = tokio::time::timeout(
+        tokio::time::Duration::from_secs(30),
+        tokio::task::spawn_blocking(move || {
+            Command::new(&bash_path)
+                .current_dir(&root_for_command)
+                .env("CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE", "true")
+                .env(
+                    "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
+                    "signed-smoke-secret",
+                )
+                .args([
+                    "tools/smoke/local_stack_smoke.sh",
+                    "--base-url",
+                    base_url_for_command.as_str(),
+                ])
+                .output()
+        }),
+    )
+    .await
+    .expect("signed local_stack_smoke.sh should finish before timeout")
+    .expect("signed local_stack_smoke.sh should execute task")
+    .expect("signed local_stack_smoke.sh should execute");
+
+    handle.abort();
+    let _ = handle.await;
+
+    assert!(
+        output.status.success(),
+        "local_stack_smoke.sh should sign AppContext headers accepted by the service. stdout: {} stderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("local stack smoke check passed."),
+        "signed local_stack_smoke.sh should report a successful smoke run"
     );
 }
 
@@ -5663,6 +5834,8 @@ fn test_server_templates_freeze_cross_platform_contract() {
         "CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=",
         "CRAW_CHAT_BROWSER_ORIGINS=",
         "CRAW_CHAT_PC_API_UPSTREAM=",
+        "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true",
+        "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET=",
     ] {
         assert!(
             server_env_template.contains(contract),

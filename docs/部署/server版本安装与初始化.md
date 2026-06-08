@@ -154,7 +154,15 @@ The gateway also exposes upstream operational service schemas at `/openapi/servi
 
 ## Release audit commands
 
-`verify-server`, `plan-release-server`, and `status-server` can audit release bundle contracts with a release gate manifest:
+`verify-server`, `plan-release-server`, and `status-server` can audit release bundle contracts with a release gate manifest.
+
+The same server release bundle freezes these machine-readable manifests:
+
+- `artifacts/releases/wave-d-2026-04-08/server/package-catalog.json`
+- `artifacts/releases/wave-d-2026-04-08/server/release-execution.json`
+- `artifacts/releases/wave-d-2026-04-08/server/release-provenance.json`
+- `artifacts/releases/wave-d-2026-04-08/server/release-gate.json`
+- platform staging acceptance manifests named `acceptance-manifest.json`
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\bin\verify-server.ps1 `

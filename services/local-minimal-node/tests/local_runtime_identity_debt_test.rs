@@ -64,11 +64,61 @@ fn test_local_runtime_configs_keep_only_domain_cursor_secret() {
 }
 
 #[test]
+fn test_runtime_configs_require_signed_app_context_projection() {
+    let root = workspace_root();
+    for relative_path in [
+        "deployments/templates/local-minimal.env.example",
+        "deployments/templates/local-default.env.example",
+        "deployments/templates/server.env.example",
+        "deployments/templates/quickstart-server-compose.env.example",
+        "deployments/docker-compose/local-minimal.yml",
+    ] {
+        let path = root.join(relative_path);
+        let content = fs::read_to_string(&path)
+            .unwrap_or_else(|_| panic!("missing runtime config: {}", path.display()));
+        assert!(
+            content.contains("CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true")
+                || content.contains("CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE: \"true\""),
+            "{relative_path} must require signed SDKWork AppContext projections"
+        );
+        assert!(
+            content.contains("CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET"),
+            "{relative_path} must configure the shared gateway/service AppContext signing secret"
+        );
+    }
+}
+
+#[test]
+fn test_local_runtime_scripts_materialize_and_forward_signed_app_context_config() {
+    let root = workspace_root();
+    for relative_path in [
+        "bin/init-config-local.sh",
+        "bin/init-config-local.ps1",
+        "bin/start-local.sh",
+        "bin/start-local.ps1",
+    ] {
+        let path = root.join(relative_path);
+        let script = fs::read_to_string(&path)
+            .unwrap_or_else(|_| panic!("missing local runtime script: {}", path.display()));
+        for required_contract in [
+            "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE",
+            "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
+        ] {
+            assert!(
+                script.contains(required_contract),
+                "{relative_path} must materialize and forward signed AppContext config `{required_contract}`"
+            );
+        }
+    }
+}
+
+#[test]
 fn test_smoke_scripts_use_app_context_projection_headers() {
     let root = workspace_root();
     for relative_path in [
         "tools/smoke/local_stack_smoke.sh",
         "tools/smoke/local_stack_smoke.ps1",
+        "tools/smoke/end_to_end_smoke.ps1",
     ] {
         let path = root.join(relative_path);
         let script = fs::read_to_string(&path)
@@ -83,6 +133,16 @@ fn test_smoke_scripts_use_app_context_projection_headers() {
             assert!(
                 script.contains(required_header),
                 "{relative_path} must send sdkwork AppContext projection header `{required_header}`"
+            );
+        }
+        for required_signature_contract in [
+            "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
+            "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE",
+            "x-sdkwork-context-signature",
+        ] {
+            assert!(
+                script.contains(required_signature_contract),
+                "{relative_path} must support signed SDKWork AppContext projection contract `{required_signature_contract}`"
             );
         }
         for legacy_token in [
@@ -106,9 +166,11 @@ fn test_backend_regression_tests_do_not_use_legacy_local_bearer_fixtures() {
     for relative_path in [
         "services/local-minimal-node/tests/access_control_e2e_test.rs",
         "services/local-minimal-node/tests/chat_runtime_session_namespace_test.rs",
-        "services/local-minimal-node/tests/disconnect_fence_persistence_test.rs",
+        "services/local-minimal-node/tests/domain_recovery_persistence_test.rs",
         "services/local-minimal-node/tests/http_e2e_test.rs",
         "services/local-minimal-node/tests/live_subscription_recovery_persistence_test.rs",
+        "services/local-minimal-node/tests/presence_runtime_persistence_test.rs",
+        "services/local-minimal-node/tests/realtime_checkpoint_persistence_test.rs",
         "services/local-minimal-node/tests/performance_quant_baseline_test.rs",
         "services/local-minimal-node/tests/task10_capabilities_e2e_test.rs",
         "tools/smoke/end_to_end_smoke.ps1",

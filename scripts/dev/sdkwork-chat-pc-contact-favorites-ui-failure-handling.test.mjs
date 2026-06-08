@@ -17,13 +17,13 @@ const tagsContainerSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat
 
 assert.match(
   orgContainerSource,
-  /const\s+loadRoot\s*=\s*async\s*\(\)\s*=>\s*\{[\s\S]*?try\s*\{[\s\S]*?await\s+organizationDirectoryService\.getOrganizations\(\)/u,
-  'OrgContainer root organization loading must handle backend failures instead of leaving loading stuck',
+  /const\s+loadRoot\s*=\s*async\s*\(\)\s*=>\s*\{[\s\S]*?try\s*\{[\s\S]*?await\s+organizationDirectoryService\.getOrganizationDirectoryTree\(\)/u,
+  'OrgContainer root organization-directory loading must handle backend failures instead of leaving loading stuck',
 );
 assert.match(
   orgContainerSource,
-  /const\s+loadRoot\s*=\s*async\s*\(\)\s*=>\s*\{[\s\S]*?catch\s*\{[\s\S]*?toast\(['"]加载部门数据失败['"],\s*['"]error['"]\)/u,
-  'OrgContainer root organization loading must surface backend failures',
+  /const\s+loadRoot\s*=\s*async\s*\(\)\s*=>\s*\{[\s\S]*?catch\s*\{[\s\S]*?toast\(t\(['"]contacts\.organizationDirectory\.toast\.loadTreeFailed['"]\),\s*['"]error['"]\)/u,
+  'OrgContainer root organization-directory loading must surface backend failures',
 );
 assert.match(
   orgContainerSource,
@@ -37,8 +37,8 @@ assert.match(
 );
 assert.match(
   orgContainerSource,
-  /void\s+loadDepartmentData\(dept\.id\)/u,
-  'OrgContainer breadcrumb navigation must not create unhandled promises',
+  /const\s+handleNavigate\s*=\s*\(\s*node:[\s\S]*?\)\s*=>\s*\{[\s\S]*?void\s+selectDirectoryNode\(node\)/u,
+  'OrgContainer tree navigation must not create unhandled promises',
 );
 
 assert.match(

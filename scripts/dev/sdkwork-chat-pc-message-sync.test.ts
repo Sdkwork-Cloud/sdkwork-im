@@ -2,6 +2,15 @@ import assert from 'node:assert/strict';
 import type { ImSdkClient } from '@sdkwork/im-sdk';
 import { createSdkworkChatService } from '../../apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/ChatService';
 
+class TestBlobLike extends Blob {
+  readonly name: string;
+
+  constructor(content: BlobPart[], name: string, options: BlobPropertyBag = {}) {
+    super(content, options);
+    this.name = name;
+  }
+}
+
 const calls: Array<{
   body?: Record<string, unknown>;
   conversationId?: string;
@@ -12,6 +21,8 @@ const calls: Array<{
     limit?: number;
   };
 }> = [];
+
+const driveUploadCalls: Array<Record<string, unknown>> = [];
 
 const timelinePages = [
   {
@@ -127,6 +138,59 @@ const fakeClient = {
   },
 } as unknown as ImSdkClient;
 
+const fakeDriveUploader = {
+  async uploadImage(request: Record<string, unknown>) {
+    driveUploadCalls.push({ method: 'uploadImage', ...request });
+    return buildDriveUploadResult('space-im-chat-1', 'node-image-1', request);
+  },
+  async uploadAudio(request: Record<string, unknown>) {
+    driveUploadCalls.push({ method: 'uploadAudio', ...request });
+    return buildDriveUploadResult('space-im-chat-1', 'node-voice-1', request);
+  },
+  async uploadAttachment(request: Record<string, unknown>) {
+    driveUploadCalls.push({ method: 'uploadAttachment', ...request });
+    return buildDriveUploadResult('space-im-chat-1', 'node-file-1', request);
+  },
+  async uploadVideo(request: Record<string, unknown>) {
+    driveUploadCalls.push({ method: 'uploadVideo', ...request });
+    return buildDriveUploadResult('space-im-chat-1', 'node-video-1', request);
+  },
+};
+
+function buildDriveUploadResult(
+  spaceId: string,
+  nodeId: string,
+  request: Record<string, unknown>,
+) {
+  return {
+    uploadItem: {
+      id: `upload-${nodeId}`,
+      tenantId: request.tenantId,
+      organizationId: request.organizationId,
+      userId: request.userId,
+      appId: request.appId,
+      appResourceType: request.appResourceType,
+      appResourceId: request.appResourceId,
+      scene: request.scene,
+      source: request.source,
+      uploadProfileCode: request.uploadProfileCode,
+      spaceId,
+      nodeId,
+      originalFileName: request.originalFileName,
+      contentType: request.contentType,
+      contentLength: String((request.file as Blob).size),
+    },
+    uploadSession: {
+      id: `session-${nodeId}`,
+      tenantId: request.tenantId,
+      spaceId,
+      nodeId,
+      state: 'completed',
+    },
+    parts: [],
+  };
+}
+
 function assertLastMediaPost({
   content,
   coverUrl,
@@ -136,6 +200,7 @@ function assertLastMediaPost({
   mediaKind,
   messageType,
   sizeBytes,
+  driveNodeId,
 }: {
   content: string;
   coverUrl?: string;
@@ -145,6 +210,7 @@ function assertLastMediaPost({
   mediaKind: string;
   messageType: 'file' | 'image' | 'video' | 'voice';
   sizeBytes?: string;
+  driveNodeId: string;
 }): void {
   const body = calls.at(-1)?.body as Record<string, unknown>;
   const parts = body.parts as Array<Record<string, unknown>>;
@@ -159,9 +225,25 @@ function assertLastMediaPost({
   assert.equal(part.kind, 'media');
   assert.equal(part.mediaRole, 'attachment');
   assert.equal(drive.driveUri, resource.uri);
+  assert.equal(drive.spaceId, 'space-im-chat-1');
+  assert.equal(drive.nodeId, driveNodeId);
   assert.equal(resource.kind, mediaKind);
   assert.equal(resource.source, 'drive');
-  assert.equal(resource.publicUrl, content);
+  assert.equal(
+    resource.publicUrl,
+    undefined,
+    'PC media send must not persist local preview URLs as Drive delivery URLs',
+  );
+  assert.equal(
+    resource.url,
+    undefined,
+    'PC media send must not persist local preview URLs as Drive delivery URLs',
+  );
+  assert.equal(
+    resource.uri,
+    drive.driveUri,
+    'PC media send must persist the stable Drive URI as the media resource identity',
+  );
   assert.equal(resource.fileName, fileName);
   if (sizeBytes !== undefined) {
     assert.equal(resource.sizeBytes, sizeBytes);
@@ -172,7 +254,6 @@ function assertLastMediaPost({
   assert.deepEqual(
     body.renderHints,
     {
-      ...(coverUrl ? { coverUrl } : {}),
       ...(duration ? { duration: String(duration) } : {}),
       ...(fileName ? { fileName } : {}),
       ...(fileSize ? { fileSize } : {}),
@@ -180,10 +261,48 @@ function assertLastMediaPost({
     },
     'PC media send must preserve UI metadata through render hints without changing visual components',
   );
+  if (coverUrl) {
+    assert.equal(
+      body.renderHints.coverUrl,
+      undefined,
+      'PC media send must not persist local preview cover URLs as message render hints',
+    );
+  }
+}
+
+function assertLastDriveUpload({
+  contentType,
+  fileName,
+  method,
+}: {
+  contentType: string;
+  fileName: string;
+  method: string;
+}): void {
+  const upload = driveUploadCalls.at(-1);
+  assert.equal(upload?.method, method);
+  assert.equal(upload?.tenantId, 't_session');
+  assert.equal(upload?.organizationId, 'org_session');
+  assert.equal(upload?.userId, 'u_session');
+  assert.equal(upload?.appId, 'chat');
+  assert.equal(upload?.appResourceType, 'im_conversation');
+  assert.equal(upload?.appResourceId, 'chat-1');
+  assert.equal(upload?.scene, 'im');
+  assert.equal(upload?.source, 'chat_message');
+  assert.equal(upload?.uploadProfileCode, method === 'uploadAttachment' ? 'attachment' : undefined);
+  assert.equal(upload?.originalFileName, fileName);
+  assert.equal(upload?.contentType, contentType);
 }
 
 async function main(): Promise<void> {
-  const service = createSdkworkChatService(() => fakeClient);
+  const service = createSdkworkChatService({
+    getClient: () => fakeClient,
+    getDriveUploader: () => fakeDriveUploader,
+    getSession: () => ({
+      accessToken: 'header.eyJ0ZW5hbnRJZCI6InRfc2Vzc2lvbiIsIm9yZ2FuaXphdGlvbklkIjoib3JnX3Nlc3Npb24iLCJ1c2VySWQiOiJ1X3Nlc3Npb24ifQ.signature',
+      authToken: 'header.eyJ0ZW5hbnRJZCI6InRfc2Vzc2lvbiIsIm9yZ2FuaXphdGlvbklkIjoib3JnX3Nlc3Npb24iLCJ1c2VySWQiOiJ1X3Nlc3Npb24ifQ.signature',
+    }),
+  });
   const messages = await service.getMessages('chat-1');
 
   assert.equal(calls.length, 2, 'chat message history must continue until the IM SDK timeline window is exhausted');
@@ -241,70 +360,158 @@ async function main(): Promise<void> {
     'PC sendMessage must keep reply preview in the local optimistic message',
   );
 
+  await assert.rejects(
+    () => service.sendMessage('chat-1', 'data:image/png;base64,local-preview', 'image', undefined, {
+      fileName: 'missing-upload-file.png',
+      fileSize: '4 KB',
+    }),
+    /require a File or Blob/u,
+    'PC media send must fail closed when no real file/blob is available for Drive upload',
+  );
+  assert.equal(
+    (calls.at(-1)?.body as Record<string, unknown>).summary,
+    'reply text',
+    'PC media send without a Drive upload source must not post a fake IM media message',
+  );
+
   const postedImage = await service.sendMessage('chat-1', 'blob://local-image-1', 'image', undefined, {
     fileName: 'local-image.png',
     fileSize: '4.0 KB',
     coverUrl: 'blob://local-image-cover',
+    file: new TestBlobLike(['image'], 'local-image.png', { type: 'image/png' }),
+  });
+  assertLastDriveUpload({
+    contentType: 'image/png',
+    fileName: 'local-image.png',
+    method: 'uploadImage',
   });
   assertLastMediaPost({
     content: 'blob://local-image-1',
     coverUrl: 'blob://local-image-cover',
+    driveNodeId: 'node-image-1',
     fileName: 'local-image.png',
     fileSize: '4.0 KB',
     mediaKind: 'image',
     messageType: 'image',
-    sizeBytes: '4096',
+    sizeBytes: '5',
   });
   assert.equal(postedImage.id, 'message-4');
   assert.equal(postedImage.type, 'image');
 
   const postedVoice = await service.sendMessage('chat-1', 'blob://local-voice-1', 'voice', undefined, {
     duration: 12,
+    file: new TestBlobLike(['voice-data'], 'voice-message.ogg', { type: 'audio/ogg' }),
     fileName: 'voice-message.ogg',
     fileSize: '8192',
   });
+  assertLastDriveUpload({
+    contentType: 'audio/ogg',
+    fileName: 'voice-message.ogg',
+    method: 'uploadAudio',
+  });
   assertLastMediaPost({
     content: 'blob://local-voice-1',
+    driveNodeId: 'node-voice-1',
     duration: 12,
     fileName: 'voice-message.ogg',
     fileSize: '8192',
     mediaKind: 'voice',
     messageType: 'voice',
-    sizeBytes: '8192',
+    sizeBytes: '10',
   });
   assert.equal(postedVoice.type, 'voice');
 
   const postedFile = await service.sendMessage('chat-1', 'blob://local-file-1', 'file', undefined, {
+    file: new TestBlobLike(['report-data'], 'quarterly-report.pdf', { type: 'application/pdf' }),
     fileName: 'quarterly-report.pdf',
     fileSize: '1.5 MB',
   });
+  assertLastDriveUpload({
+    contentType: 'application/pdf',
+    fileName: 'quarterly-report.pdf',
+    method: 'uploadAttachment',
+  });
   assertLastMediaPost({
     content: 'blob://local-file-1',
+    driveNodeId: 'node-file-1',
     fileName: 'quarterly-report.pdf',
     fileSize: '1.5 MB',
     mediaKind: 'file',
     messageType: 'file',
-    sizeBytes: '1572864',
+    sizeBytes: '11',
   });
   assert.equal(postedFile.type, 'file');
 
   const postedVideo = await service.sendMessage('chat-1', 'blob://local-video-1', 'video', undefined, {
     coverUrl: 'blob://local-video-cover',
     duration: 42,
+    file: new TestBlobLike(['video-data'], 'demo-video.mp4', { type: 'video/mp4' }),
     fileName: 'demo-video.mp4',
     fileSize: '3 MB',
+  });
+  assertLastDriveUpload({
+    contentType: 'video/mp4',
+    fileName: 'demo-video.mp4',
+    method: 'uploadVideo',
   });
   assertLastMediaPost({
     content: 'blob://local-video-1',
     coverUrl: 'blob://local-video-cover',
+    driveNodeId: 'node-video-1',
     duration: 42,
     fileName: 'demo-video.mp4',
     fileSize: '3 MB',
     mediaKind: 'video',
     messageType: 'video',
-    sizeBytes: '3145728',
+    sizeBytes: '10',
   });
   assert.equal(postedVideo.type, 'video');
+
+  await assert.rejects(
+    () => service.forwardMessages(['chat-2'], [postedImage]),
+    /requires a reusable Drive reference/u,
+    'PC media forwarding must fail closed until the original Drive reference can be reused or copied through a real backend capability',
+  );
+  assert.equal(
+    driveUploadCalls.length,
+    4,
+    'PC media forwarding without a file must not start a fake Drive upload',
+  );
+
+  await service.sendMessage('chat-1', 'https://example.com/promo', 'link', undefined, {
+    coverUrl: 'https://example.com/promo.png',
+    desc: 'Promotion',
+    fileName: 'Promo',
+  });
+  const linkBody = calls.at(-1)?.body as Record<string, unknown>;
+  assert.equal(
+    linkBody.text,
+    undefined,
+    'structured link messages should be sent as typed data parts rather than plain text bodies',
+  );
+  assert.deepEqual(
+    linkBody.parts,
+    [
+      {
+        kind: 'data',
+        schemaRef: 'urn:sdkwork:craw-chat:message:link',
+        encoding: 'application/json',
+        payload: JSON.stringify({
+          title: 'Promo',
+          url: 'https://example.com/promo',
+          description: 'Promotion',
+          coverUrl: 'https://example.com/promo.png',
+        }),
+      },
+    ],
+    'structured link messages must not be wrapped as Drive media attachments',
+  );
+  assert.deepEqual(linkBody.renderHints, {
+    coverUrl: 'https://example.com/promo.png',
+    desc: 'Promotion',
+    fileName: 'Promo',
+    sdkworkChatPcType: 'link',
+  });
 
   await service.deleteMessage('chat-1', 'message-1');
   assert.deepEqual(

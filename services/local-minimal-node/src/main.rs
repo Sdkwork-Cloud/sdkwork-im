@@ -14,6 +14,7 @@ async fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             tracing::error!("{error}");
+            eprintln!("{error}");
             ExitCode::FAILURE
         }
     }

@@ -8,6 +8,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultRepoRoot = path.resolve(__dirname, '..', '..');
 const defaultMigrationsDir = path.join(defaultRepoRoot, 'deployments', 'database', 'postgres', 'migrations');
+const defaultAppbaseIamMigrationsDir = path.resolve(
+  defaultRepoRoot,
+  '..',
+  'sdkwork-appbase',
+  'packages',
+  'native-rust',
+  'iam',
+  'sdkwork-iam-storage-sqlx-rust',
+  'migrations',
+);
 const CANONICAL_DATABASE_PREFIX = 'SDKWORK_CHAT_DATABASE_';
 const LEGACY_DATABASE_PREFIX = 'SDKWORK_CLAW_DATABASE_';
 
@@ -536,6 +546,7 @@ function createStep({
 }
 
 export function createPostgresDbPlan({
+  appbaseIamMigrationsDir = defaultAppbaseIamMigrationsDir,
   config,
   migrationsDir = defaultMigrationsDir,
   mode = 'plan',
@@ -583,7 +594,16 @@ export function createPostgresDbPlan({
     }));
   }
   if (normalizedMode === 'migrate' || normalizedMode === 'plan') {
-    const migrations = migrationFilesFor(migrationsDir);
+    const migrations = [
+      ...migrationFilesFor(migrationsDir).map((migration) => ({
+        label: `apply PostgreSQL migration ${path.basename(migration)}`,
+        path: migration,
+      })),
+      ...migrationFilesFor(appbaseIamMigrationsDir).map((migration) => ({
+        label: `apply appbase IAM PostgreSQL migration ${path.basename(migration)}`,
+        path: migration,
+      })),
+    ];
     for (const migration of migrations) {
       steps.push(createStep({
         args: psqlStepArgs(config, [
@@ -593,13 +613,13 @@ export function createPostgresDbPlan({
           '-c',
           `SET search_path TO ${sqlIdentifier(config.database.schema)}, public;`,
           '-f',
-          normalizePathForPsql(migration, psqlPathStyle(config)),
+          normalizePathForPsql(migration.path, psqlPathStyle(config)),
         ]),
         command,
         cwd: repoRoot,
         env: psqlStepEnv(config, config.database, redactSecrets),
         input: '',
-        label: `apply PostgreSQL migration ${path.basename(migration)}`,
+        label: migration.label,
         shell,
       }));
     }

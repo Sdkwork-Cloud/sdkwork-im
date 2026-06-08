@@ -35,18 +35,28 @@ function resolveFileMessageType(file: File): 'image' | 'file' | 'video' {
   return 'file';
 }
 
-function readBlobAsDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result);
-        return;
-      }
-      reject(new Error('file read result is not a data URL'));
-    };
-    reader.onerror = () => reject(reader.error ?? new Error('failed to read file'));
-    reader.readAsDataURL(blob);
+function formatFileSize(size: number): string {
+  return size > 1024 * 1024
+    ? `${(size / (1024 * 1024)).toFixed(1)} MB`
+    : `${(size / 1024).toFixed(1)} KB`;
+}
+
+function createLocalPreviewUrl(file: Blob): string {
+  return URL.createObjectURL(file);
+}
+
+function sendFileMessage(
+  file: File,
+  onSend: NonNullable<MessageInputProps['onSend']>,
+  type: 'file' | 'image' | 'video' | 'voice' = resolveFileMessageType(file),
+  extraInfo: Record<string, unknown> = {},
+): void {
+  onSend(createLocalPreviewUrl(file), type, {
+    ...extraInfo,
+    file,
+    fileName: file.name,
+    fileSize: formatFileSize(file.size),
+    mimeType: file.type,
   });
 }
 
@@ -99,17 +109,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
-      const reader = new FileReader();
-      const type = resolveFileMessageType(file);
-      
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        if (result && onSend) {
-           onSend(result, type, { fileName: file.name, fileSize: (file.size / 1024).toFixed(1) + ' KB' });
-        }
-      };
-      
-      reader.readAsDataURL(file);
+      if (onSend) {
+        sendFileMessage(file, onSend);
+      }
     }
   };
 
@@ -177,8 +179,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   }, [editor, disabled, isTyping]);
 
   const onStickerClick = React.useCallback((url: string) => {
+    void url;
     if (onSend) {
-      onSend(url, 'image', { fileName: 'sticker.webp' });
+      toast('表情图片需要本地文件或 Drive 资源后才能发送', 'error');
     }
     setShowEmojiPicker(false);
   }, [onSend]);
@@ -213,15 +216,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
             const file = items[i].getAsFile();
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const result = e.target?.result as string;
-                    if (result && onSend) {
-                        onSend(result, 'image', { fileName: file.name, fileSize: (file.size / 1024).toFixed(1) + ' KB' });
-                    }
-                };
-                reader.readAsDataURL(file);
+            if (file && onSend) {
+                sendFileMessage(file, onSend, 'image');
                 e.preventDefault();
             }
         }
@@ -231,19 +227,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      const type = resolveFileMessageType(file);
-      
-      const fileSizeStr = file.size > 1024 * 1024 
-        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-        : `${(file.size / 1024).toFixed(1)} KB`;
-
-      try {
-        const url = await readBlobAsDataUrl(file);
-        if (onSend) {
-          onSend(url, type, { fileName: file.name, fileSize: fileSizeStr });
-        }
-      } catch (error) {
-        console.error('Error reading file:', error);
+      if (onSend) {
+        sendFileMessage(file, onSend);
       }
       
       // Reset input so the same file can be selected again if needed
@@ -267,7 +252,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         setIsRecording(false);
         const finalDuration = voiceDurationRef.current;
         if (finalDuration >= 1 && onSend) {
-          onSend('', 'voice', { duration: finalDuration });
+          toast('璇煶鏂囦欢鐢熸垚澶辫触锛岃閲嶈瘯', 'error');
         } else if (finalDuration < 1) {
           toast('说话时间太短', 'error');
         }
@@ -317,12 +302,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         
         // Send actual voice message
         if (finalDuration >= 1 && onSend) {
-          try {
-            const audioUrl = await readBlobAsDataUrl(audioBlob);
-            onSend(audioUrl, 'voice', { duration: finalDuration });
-          } catch (error) {
-            console.error('Error reading voice recording:', error);
-          }
+          const file = new File([audioBlob], `voice-${Date.now()}.webm`, { type: mimeType });
+          sendFileMessage(file, onSend, 'voice', { duration: finalDuration, mimeType });
         } else if (finalDuration < 1) {
           toast('说话时间太短', 'error');
         }
@@ -367,7 +348,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       )}
 
       {/* AI Style Input Container */}
-      <div className={`bg-[#2b2b2d] rounded-2xl border border-white/10 flex flex-col shadow-sm transition-all focus-within:border-white/20 focus-within:bg-[#2f2f33] h-full relative ${disabled || isTyping ? 'opacity-70' : ''}`}>
+      <div className={`bg-[#2b2b2d] rounded-2xl flex flex-col shadow-sm transition-all focus-within:bg-[#2f2f33] h-full relative ${disabled || isTyping ? 'opacity-70' : ''}`}>
         
         {/* Reply Preview */}
         {replyingTo && (
@@ -454,17 +435,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                     canvas.toBlob(async blob => {
                       if (blob) {
                         const file = new File([blob], `Screenshot_${new Date().getTime()}.png`, { type: 'image/png' });
-                        const fileSizeStr = file.size > 1024 * 1024 
-                          ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-                          : `${(file.size / 1024).toFixed(1)} KB`;
-                          
                         if (onSend) {
-                          try {
-                            const url = await readBlobAsDataUrl(file);
-                            onSend(url, 'image', { fileName: file.name, fileSize: fileSizeStr });
-                          } catch (error) {
-                            console.error('Error reading screenshot:', error);
-                          }
+                          sendFileMessage(file, onSend, 'image');
                         }
                       }
                       stream.getTracks().forEach(t => t.stop());

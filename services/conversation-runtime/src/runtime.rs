@@ -1426,6 +1426,60 @@ fn validate_media_resource_drive_snapshot(
         )));
     }
 
+    validate_media_resource_delivery_urls(part_index, "resource", resource)?;
+
+    Ok(())
+}
+
+fn is_local_preview_url(value: &str) -> bool {
+    let trimmed = value.trim();
+    trimmed.get(..5).is_some_and(|prefix| {
+        prefix.eq_ignore_ascii_case("blob:") || prefix.eq_ignore_ascii_case("data:")
+    })
+}
+
+fn validate_media_resource_delivery_urls(
+    part_index: usize,
+    field_prefix: &str,
+    resource: &MediaResource,
+) -> Result<(), RuntimeError> {
+    for (field, value) in [
+        ("url", resource.url.as_deref()),
+        ("publicUrl", resource.public_url.as_deref()),
+    ] {
+        if value.is_some_and(is_local_preview_url) {
+            return Err(RuntimeError::InvalidInput(format!(
+                "message body parts[{part_index}].{field_prefix}.{field} must not be a local preview URL"
+            )));
+        }
+    }
+
+    if let Some(poster) = resource.poster.as_deref() {
+        validate_media_resource_delivery_urls(
+            part_index,
+            format!("{field_prefix}.poster").as_str(),
+            poster,
+        )?;
+    }
+    if let Some(thumbnails) = &resource.thumbnails {
+        for (index, thumbnail) in thumbnails.iter().enumerate() {
+            validate_media_resource_delivery_urls(
+                part_index,
+                format!("{field_prefix}.thumbnails[{index}]").as_str(),
+                thumbnail,
+            )?;
+        }
+    }
+    if let Some(variants) = &resource.variants {
+        for (index, variant) in variants.iter().enumerate() {
+            validate_media_resource_delivery_urls(
+                part_index,
+                format!("{field_prefix}.variants[{index}]").as_str(),
+                variant,
+            )?;
+        }
+    }
+
     Ok(())
 }
 
@@ -2864,6 +2918,97 @@ where
 mod tests {
     use super::*;
     use std::panic::{self, AssertUnwindSafe};
+
+    fn drive_reference_for_test() -> DriveReference {
+        DriveReference {
+            drive_uri: "drive://spaces/space-im/nodes/node-image-1".into(),
+            space_id: "space-im".into(),
+            node_id: "node-image-1".into(),
+            node_version: None,
+        }
+    }
+
+    fn drive_media_resource_for_test(drive: &DriveReference) -> MediaResource {
+        MediaResource {
+            id: Some(drive.node_id.clone()),
+            kind: im_domain_core::media::MediaKind::Image,
+            source: MediaSource::Drive,
+            url: None,
+            public_url: None,
+            uri: Some(drive.drive_uri.clone()),
+            object_blob_id: None,
+            file_name: Some("image.png".into()),
+            mime_type: Some("image/png".into()),
+            size_bytes: Some("42".into()),
+            checksum: None,
+            width: None,
+            height: None,
+            duration_seconds: None,
+            alt_text: None,
+            title: None,
+            poster: None,
+            thumbnails: None,
+            variants: None,
+            access: None,
+            ai: None,
+            metadata: None,
+        }
+    }
+
+    fn media_message_body_for_test(resource: MediaResource, drive: DriveReference) -> MessageBody {
+        MessageBody {
+            summary: Some("image".into()),
+            parts: vec![ContentPart::media(im_domain_core::message::MediaPart {
+                resource,
+                drive,
+                media_role: Some("attachment".into()),
+            })],
+            render_hints: BTreeMap::new(),
+            reply_to: None,
+        }
+    }
+
+    #[test]
+    fn test_message_body_rejects_local_preview_urls_in_drive_media_resource() {
+        let drive = drive_reference_for_test();
+        let mut resource = drive_media_resource_for_test(&drive);
+        resource.url = Some("blob://local-image".into());
+        let body = media_message_body_for_test(resource, drive);
+
+        let result = validate_message_body_contract(&body);
+
+        assert!(
+            matches!(
+                result,
+                Err(RuntimeError::InvalidInput(message))
+                    if message.contains("resource.url")
+                        && message.contains("local preview URL")
+            ),
+            "local preview URLs must be rejected before IM message persistence"
+        );
+    }
+
+    #[test]
+    fn test_message_body_rejects_nested_local_preview_urls_in_drive_media_resource() {
+        let drive = drive_reference_for_test();
+        let mut resource = drive_media_resource_for_test(&drive);
+        let mut poster = drive_media_resource_for_test(&drive);
+        poster.url = Some("data:image/png;base64,local-preview".into());
+        resource.poster = Some(Box::new(poster));
+        let body = media_message_body_for_test(resource, drive);
+
+        let result = validate_message_body_contract(&body);
+
+        assert!(
+            matches!(
+                result,
+                Err(RuntimeError::InvalidInput(message))
+                    if message.contains("resource.poster.url")
+                        && message.contains("local preview URL")
+            ),
+            "nested local preview URLs must be rejected before IM message persistence"
+        );
+    }
 
     fn poison_mutex<T>(mutex: &Mutex<T>) {
         let _ = panic::catch_unwind(AssertUnwindSafe(|| {

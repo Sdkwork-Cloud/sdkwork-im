@@ -238,7 +238,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .header("x-sdkwork-device-id", "d_pad")
                 .header("x-sdkwork-session-id", "s_pad_new")
                 .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
+                .body(Body::from(r#"{"lastSeenSyncSeq":1}"#))
                 .unwrap(),
         )
         .await
@@ -488,7 +488,7 @@ async fn test_default_local_minimal_profile_restores_unacked_realtime_events_aft
                 .header("x-sdkwork-device-id", "d_pad")
                 .header("x-sdkwork-session-id", "s_pad_restarted")
                 .header("content-type", "application/json")
-                .body(Body::from(r#"{}"#))
+                .body(Body::from(r#"{"lastSeenSyncSeq":0}"#))
                 .unwrap(),
         )
         .await
@@ -715,7 +715,7 @@ async fn test_default_local_minimal_ops_diagnostics_exposes_durable_realtime_inb
         "degraded"
     );
     assert_eq!(
-        diagnostics_with_backlog_json["realtimeInbox"]["deviceWindowCount"],
+        diagnostics_with_backlog_json["realtimeInbox"]["clientRouteWindowCount"],
         1
     );
     assert_eq!(
@@ -727,7 +727,7 @@ async fn test_default_local_minimal_ops_diagnostics_exposes_durable_realtime_inb
         1
     );
     assert_eq!(
-        diagnostics_with_backlog_json["realtimeInbox"]["deviceWindowCapacity"],
+        diagnostics_with_backlog_json["realtimeInbox"]["clientRouteWindowCapacity"],
         1000
     );
     assert_eq!(
@@ -870,7 +870,7 @@ async fn test_default_local_minimal_ops_diagnostics_exposes_durable_realtime_inb
             .expect("diagnostics after ack should be valid json");
     assert_eq!(diagnostics_after_ack_json["realtimeInbox"]["status"], "ok");
     assert_eq!(
-        diagnostics_after_ack_json["realtimeInbox"]["deviceWindowCount"],
+        diagnostics_after_ack_json["realtimeInbox"]["clientRouteWindowCount"],
         1
     );
     assert_eq!(
@@ -882,7 +882,7 @@ async fn test_default_local_minimal_ops_diagnostics_exposes_durable_realtime_inb
         0
     );
     assert_eq!(
-        diagnostics_after_ack_json["realtimeInbox"]["deviceWindowCapacity"],
+        diagnostics_after_ack_json["realtimeInbox"]["clientRouteWindowCapacity"],
         1000
     );
     assert_eq!(

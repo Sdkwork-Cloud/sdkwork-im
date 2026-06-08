@@ -86,13 +86,40 @@ Local development and release use different source materialization strategies bu
 Rules:
 
 - Local `apps/sdkwork-chat-pc/package.json` dependencies for SDKWork packages use relative `link:` specifiers.
-- Vite and TypeScript aliases resolve generated IM app/backend SDKs, `@sdkwork/im-sdk`, appbase IAM packages, core PC React, and UI PC React to source entries, not prebuilt `dist`.
+- Vite and TypeScript aliases resolve generated IM app/backend SDKs, `@sdkwork/im-sdk`, `@sdkwork/drive-app-sdk`, appbase IAM packages, core PC React, and UI PC React to source entries, not prebuilt `dist`.
 - Vite `optimizeDeps.exclude` must include linked SDKWork source packages so live source edits are not hidden by dependency pre-bundling.
 - Local PC development exposes one public backend entrypoint, `http://127.0.0.1:18079`, through the unified Craw Chat gateway. The appbase IAM App API may still run on an internal upstream such as `127.0.0.1:18090`, but the renderer must not depend on that port directly.
 - The chat-pc `pnpm-workspace.yaml` must not register sibling `sdkwork-appbase`, `sdkwork-core`, or `sdkwork-ui` packages as workspace importers. They remain source-linked dependencies; otherwise pnpm install rewrites sibling `node_modules` and breaks isolated local builds.
-- Release builds set `SDKWORK_SHARED_SDK_MODE=git`, run `prepare:shared-sdk`, materialize `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `sdkwork-im-sdk`, `sdkwork-appbase`, `sdkwork-core`, `sdkwork-ui`, `sdkwork-claw-router`, and `sdkwork-birdcoder` from git-backed source checkouts, then build Craw Chat PC from those source links.
+- Release builds set `SDKWORK_SHARED_SDK_MODE=git`, run `prepare:shared-sdk`, materialize `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `sdkwork-im-sdk`, `sdkwork-drive-app-sdk`, `sdkwork-appbase`, `sdkwork-core`, `sdkwork-ui`, `sdkwork-claw-router`, and `sdkwork-birdcoder` from git-backed source checkouts, then build Craw Chat PC from those source links.
 
-## 6. Backend Capability Planning
+## 6. IM Media Upload And Drive Attribution
+
+Craw Chat owns IM conversation semantics, but SDKWork Drive owns all chat file upload, storage, Drive space, node, upload session, download grant, provider, and media lifecycle behavior.
+
+Standard upload attribution for chat message attachments:
+
+| Field | Value |
+| --- | --- |
+| Drive SDK package | `@sdkwork/drive-app-sdk` |
+| Drive app API prefix | `/app/v3/api/drive` |
+| `appId` | `chat` |
+| `appResourceType` | `im_conversation` |
+| `appResourceId` | backend conversation id |
+| `scene` | `im` |
+| `source` | `chat_message` |
+| file upload profile | `attachment` for generic files; image, voice, and video use the Drive SDK media upload methods and Drive profile defaults |
+| IM persisted reference | `driveUri`, `spaceId`, `nodeId`, and Drive-backed `MediaResource` |
+
+Rules:
+
+- Chat images, voice messages, videos, and files must be uploaded through `sdkwork-drive-app-sdk` uploader methods before the IM message is posted.
+- UI-local `File`, `Blob`, `blob:` object URLs, `data:` URLs, recorder buffers, screenshot buffers, and picker previews are transient UI state only. They must not be stored in IM message bodies, render hints, `MediaResource.url`, `MediaResource.publicUrl`, or backend persistence.
+- IM message content parts for uploaded media must use `kind = media`, a canonical Drive reference `drive://spaces/{spaceId}/nodes/{nodeId}`, and a Drive-backed `MediaResource` with `source = drive`.
+- Chat services must not construct fake Drive URIs from conversation ids, local content, file names, timestamps, or browser preview URLs.
+- Chat services must not call raw `/app/v3/api/drive/*`, `/drive/uploader/*`, `/upload_sessions/*`, provider presign URLs, S3, OSS, MinIO, or local object-storage endpoints directly.
+- Backend IM validation must reject Drive-backed media snapshots that contain local preview delivery URLs, including nested posters, thumbnails, or variants.
+
+## 7. Backend Capability Planning
 
 When the front end needs a capability that is not present in the backend:
 
@@ -114,7 +141,7 @@ Current local-only shell endpoints under `apps/sdkwork-chat-pc/server.ts` and `l
 
 These endpoints are not IM API endpoints and must not move under `/im/v3/api`. When promoted beyond local shell support, they must be classified under `im-app-api`, added to `/app/v3/api` OpenAPI, regenerated through `sdkwork-im-app-sdk`, and consumed through the product app SDK instead of frontend raw `fetch`.
 
-## 7. Verification
+## 8. Verification
 
 Minimum verification for this standard:
 

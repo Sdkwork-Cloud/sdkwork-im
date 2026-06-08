@@ -18,6 +18,8 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const BACKGROUND_LAUNCH_ENV = 'SDKWORK_ROUTER_BACKGROUND';
+const SDKWORK_CHAT_PC_DEV_HOST_ENV = 'SDKWORK_CHAT_PC_DEV_HOST';
+const SDKWORK_CHAT_PC_DEV_PORT_ENV = 'SDKWORK_CHAT_PC_DEV_PORT';
 const WIX_UI_EXTENSION = 'WixUIExtension';
 const WIX_PDB_NAME = 'output.wixpdb';
 const WINDOWS_WIX_ARTIFACT_CLOCK_SKEW_MS = 10_000;
@@ -27,6 +29,45 @@ const REQUIRED_TAURI_CLI_PACKAGES = [
 
 function normalizeCliArgs(args = []) {
   return args.filter((arg) => arg !== '--');
+}
+
+function normalizeTcpPort(value) {
+  const normalized = String(value ?? '').trim();
+  if (!/^\d+$/u.test(normalized)) {
+    return null;
+  }
+  const port = Number.parseInt(normalized, 10);
+  return Number.isInteger(port) && port >= 1 && port <= 65535 ? port : null;
+}
+
+function createSdkworkChatPcDevConfigArgs({
+  args = [],
+  commandName,
+  env = process.env,
+} = {}) {
+  if (commandName !== 'dev') {
+    return [];
+  }
+  const normalizedArgs = normalizeCliArgs(args);
+  if (
+    normalizedArgs.includes('--config')
+    || normalizedArgs.some((arg) => String(arg).startsWith('--config='))
+  ) {
+    return [];
+  }
+  const port = normalizeTcpPort(env[SDKWORK_CHAT_PC_DEV_PORT_ENV]);
+  if (!port) {
+    return [];
+  }
+  const host = String(env[SDKWORK_CHAT_PC_DEV_HOST_ENV] ?? '').trim() || '127.0.0.1';
+  return [
+    '--config',
+    JSON.stringify({
+      build: {
+        devUrl: `http://${host}:${port}`,
+      },
+    }),
+  ];
 }
 
 function shouldLaunchInBackground(commandName, args = [], env = process.env) {
@@ -423,7 +464,12 @@ export function createTauriCliPlan({
 
   return {
     command: process.execPath,
-    args: [tauriCliPath, commandName, ...args],
+    args: [
+      tauriCliPath,
+      commandName,
+      ...createSdkworkChatPcDevConfigArgs({ args, commandName, env: resolvedEnv }),
+      ...args,
+    ],
     cwd,
     env: withSupportedWindowsCmakeGenerator(
       withStableWindowsNativeBuildConcurrency(

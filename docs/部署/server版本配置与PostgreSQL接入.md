@@ -87,6 +87,10 @@ pool:
   maxLifetimeSeconds: 1800
 ```
 
+## External configuration file contract
+
+`postgresql.yaml` is the server-side external configuration file for PostgreSQL install modes. It freezes the connection secret reference `passwordFile`, schema lifecycle field `migrationMode`, and lifecycle modes `verify-only`, `bootstrap-schema`, and `create-db-and-schema`.
+
 ## 初始化模式
 
 - `verify-only`: 外部已建库、已建账号、已建 schema，只校验配置和连接。

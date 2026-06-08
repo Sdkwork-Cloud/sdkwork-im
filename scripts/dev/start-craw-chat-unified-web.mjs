@@ -5,16 +5,15 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { resolveCrawChatSharedDatabaseConfig } from './craw-chat-shared-database.mjs';
+import {
+  createSdkworkChatBrowserOrigins,
+  resolveSdkworkChatPcDevServer,
+} from './run-sdkwork-chat-pc-dev.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..', '..');
 const runtimeSiteRoot = path.join(repoRoot, '.runtime', 'dev-sites');
-const defaultBrowserOrigins = [
-  'http://127.0.0.1:1620',
-  'http://localhost:1620',
-  'http://127.0.0.1:4176',
-  'http://localhost:4176',
-].join(',');
+const defaultBrowserOrigins = createSdkworkChatBrowserOrigins(resolveSdkworkChatPcDevServer());
 const serverBinaryPath = path.join(
   repoRoot,
   'target',

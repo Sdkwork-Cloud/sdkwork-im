@@ -601,7 +601,8 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
         "ops health should expose conversation snapshot persist metrics"
     );
     assert!(
-        ops_health_json["projectionPlane"]["metrics"]["deviceSyncSnapshotPersist"]["successCount"]
+        ops_health_json["projectionPlane"]["metrics"]["clientRouteSyncSnapshotPersist"]
+            ["successCount"]
             .as_u64()
             .unwrap()
             >= 1,
@@ -704,7 +705,8 @@ async fn test_default_local_minimal_profile_surfaces_projection_plane_observabil
         "ops diagnostics should expose conversation snapshot restore metrics"
     );
     assert!(
-        diagnostics_json["projectionPlane"]["metrics"]["deviceSyncSnapshotRestore"]["successCount"]
+        diagnostics_json["projectionPlane"]["metrics"]["clientRouteSyncSnapshotRestore"]
+            ["successCount"]
             .as_u64()
             .unwrap()
             >= 1,

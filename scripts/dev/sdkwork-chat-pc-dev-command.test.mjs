@@ -66,7 +66,9 @@ const sharedDatabaseSource = fs.readFileSync(
   'utf8',
 );
 const {
+  createSdkworkChatBrowserOrigins,
   createSdkworkChatPcDevPlan,
+  resolveAvailableSdkworkChatPcDevPort,
   runSdkworkChatPcDev,
 } = await import(pathToFileURL(path.join(repoRoot, 'scripts/dev/run-sdkwork-chat-pc-dev.mjs')).href);
 const {
@@ -549,6 +551,15 @@ const browserPlan = createSdkworkChatPcDevPlan({
 });
 assert.equal(browserPlan.target, 'browser');
 assert.deepEqual(
+  browserPlan.devServer,
+  {
+    host: '127.0.0.1',
+    port: 4176,
+    url: 'http://127.0.0.1:4176',
+  },
+  'browser dev must default to the SDKWork Chat PC dev port instead of the retired legacy port',
+);
+assert.deepEqual(
   browserPlan.processes.map((entry) => entry.label),
   ['craw-chat-server', 'sdkwork-chat-pc-browser'],
   'browser dev must start one unified Craw Chat server process and the browser renderer only',
@@ -576,8 +587,18 @@ assert.equal(
 );
 assert.equal(
   browserPlan.processes[0].env.CRAW_CHAT_BROWSER_ORIGINS,
-  'http://127.0.0.1:1620,http://localhost:1620,http://127.0.0.1:4176,http://localhost:4176',
-  'unified Rust server must allow the desktop Vite origins at the gateway CORS layer',
+  'http://127.0.0.1:4176,http://localhost:4176',
+  'unified Rust server must allow the selected desktop Vite origin at the gateway CORS layer',
+);
+assert.equal(
+  browserPlan.processes[0].env.SDKWORK_CHAT_PC_DEV_PORT,
+  '4176',
+  'unified Rust server must receive the selected PC renderer dev port',
+);
+assert.equal(
+  browserPlan.processes[1].env.SDKWORK_CHAT_PC_DEV_PORT,
+  '4176',
+  'browser renderer must receive the selected PC renderer dev port',
 );
 assert.deepEqual(browserPlan.processes[0], {
   args: ['server:dev'],
@@ -614,6 +635,38 @@ assert.equal(
   browserPlan.processes[1].env.VITE_CRAW_CHAT_IM_WEBSOCKET_BASE_URL,
   'ws://127.0.0.1:18079',
   'browser renderer must point IM websocket traffic at the Craw Chat gateway/server',
+);
+assert.equal(
+  createSdkworkChatBrowserOrigins({ port: 4188 }),
+  'http://127.0.0.1:4188,http://localhost:4188',
+  'browser origin helper must derive CORS origins from the selected dev port',
+);
+
+const shiftedDevPort = await resolveAvailableSdkworkChatPcDevPort({
+  env: { SDKWORK_CHAT_PC_DEV_PORT: '4176' },
+  isPortAvailable: async (port) => port >= 4178,
+});
+assert.equal(
+  shiftedDevPort,
+  4178,
+  'dev port resolver must skip occupied ports and return the next available port',
+);
+
+const shiftedPortPlan = createSdkworkChatPcDevPlan({
+  argv: ['--target', 'browser'],
+  devServerPort: shiftedDevPort,
+  env: {},
+  repoRoot,
+});
+assert.equal(
+  shiftedPortPlan.processes[0].env.CRAW_CHAT_BROWSER_ORIGINS,
+  'http://127.0.0.1:4178,http://localhost:4178',
+  'unified Rust server CORS origins must follow the resolved fallback dev port',
+);
+assert.equal(
+  shiftedPortPlan.processes[1].env.SDKWORK_CHAT_PC_DEV_PORT,
+  '4178',
+  'browser renderer env must follow the resolved fallback dev port',
 );
 
 const postgresDatabaseConfig = resolveCrawChatSharedDatabaseConfig({
@@ -871,9 +924,10 @@ function createFakeChild() {
   return child;
 }
 
-runSdkworkChatPcDev({
+await runSdkworkChatPcDev({
   argv: ['--target', 'desktop'],
   env: {},
+  findAvailableDevPort: async () => 4179,
   repoRoot,
   spawnImpl(command, args, options) {
     spawned.push({ command, args, options });
@@ -884,6 +938,16 @@ runSdkworkChatPcDev({
 });
 
 assert.equal(spawned.length, 2, 'desktop dev runner must spawn unified server and desktop processes only');
+assert.equal(
+  spawned[0].options.env.CRAW_CHAT_BROWSER_ORIGINS,
+  'http://127.0.0.1:4179,http://localhost:4179',
+  'dev runner must pass the resolved available port to the unified server CORS origins',
+);
+assert.equal(
+  spawned[1].options.env.SDKWORK_CHAT_PC_DEV_PORT,
+  '4179',
+  'dev runner must pass the resolved available port to the selected renderer target',
+);
 assert.deepEqual(
   spawned.map((entry) => entry.options.shell),
   [pnpmShell, pnpmShell],

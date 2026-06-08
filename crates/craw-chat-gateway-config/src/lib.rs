@@ -37,7 +37,7 @@ impl WebGatewayConfig {
             "CRAW_CHAT_WEB_GATEWAY_BIND",
             "CRAW_CHAT_SERVER_BIND_ADDRESS",
         ])
-            .unwrap_or_else(|| DEFAULT_GATEWAY_BIND_ADDR.to_owned());
+        .unwrap_or_else(|| DEFAULT_GATEWAY_BIND_ADDR.to_owned());
         let runtime_mode = resolve_runtime_mode_from_env();
         Self::with_bind_addr_and_runtime_mode(bind_addr, runtime_mode)
     }
@@ -87,13 +87,13 @@ fn resolve_runtime_mode_from_env() -> GatewayRuntimeMode {
         "SDKWORK_CHAT_WEB_GATEWAY_RUNTIME_MODE",
         "CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE",
     ])
-        .map(|value| value.trim().to_ascii_lowercase())
-        .filter(|value| !value.is_empty())
-        .map(|value| match value.as_str() {
-            "embedded" | "unified" | "local" => GatewayRuntimeMode::Embedded,
-            _ => GatewayRuntimeMode::Split,
-        })
-        .unwrap_or(GatewayRuntimeMode::Split)
+    .map(|value| value.trim().to_ascii_lowercase())
+    .filter(|value| !value.is_empty())
+    .map(|value| match value.as_str() {
+        "embedded" | "unified" | "local" => GatewayRuntimeMode::Embedded,
+        _ => GatewayRuntimeMode::Split,
+    })
+    .unwrap_or(GatewayRuntimeMode::Split)
 }
 
 fn first_env_value(names: &[&str]) -> Option<String> {
@@ -128,7 +128,9 @@ fn parse_server_config_bind_addr(content: &str) -> Option<String> {
                 in_server_block = false;
                 continue;
             }
-            if let Some(value) = parse_toml_key_value(trimmed, &["bind_address", "bind", "bindAddress"]) {
+            if let Some(value) =
+                parse_toml_key_value(trimmed, &["bind_address", "bind", "bindAddress"])
+            {
                 return Some(value);
             }
             in_network_block = false;
@@ -145,10 +147,11 @@ fn parse_server_config_bind_addr(content: &str) -> Option<String> {
             }
         }
 
-        if in_server_block {
-            if let Some(value) = parse_toml_key_value(trimmed, &["bind_address", "bind", "bindAddress"]) {
-                return Some(value);
-            }
+        if in_server_block
+            && let Some(value) =
+                parse_toml_key_value(trimmed, &["bind_address", "bind", "bindAddress"])
+        {
+            return Some(value);
         }
     }
 

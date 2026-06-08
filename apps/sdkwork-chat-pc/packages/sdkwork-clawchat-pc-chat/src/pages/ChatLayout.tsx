@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { Sidebar } from "../components/Sidebar";
 import { ChatList } from "../components/ChatList";
 import { ChatWindow } from "../components/ChatWindow";
+import { ChatEmptyHome } from "../components/ChatEmptyHome";
 import { ChatRightPanel } from "../components/ChatRightPanel";
 import { WindowControls } from "../components/WindowControls";
 import { CallOverlay, CallType } from "../components/CallOverlay";
@@ -41,9 +42,10 @@ import { chatService } from "../services/ChatService";
 import { callService } from "../services/CallService";
 import { groupService } from "../services/GroupService";
 import { imSyncCoordinatorService } from "../services/ImSyncCoordinatorService";
+import { systemAssistantService } from "../services/SystemAssistantService";
 import { appAuthService, isSdkworkChatDesktopRuntime } from "@sdkwork/clawchat-pc-core";
 import { Chat } from "@sdkwork/clawchat-pc-types";
-import { Avatar, IconButton } from "@sdkwork/clawchat-pc-commons";
+import { IconButton } from "@sdkwork/clawchat-pc-commons";
 import {
   Search,
   Plus,
@@ -68,6 +70,9 @@ const ChatLayoutComponent: React.FC = () => {
   const [activeTab, setActiveTab] = useState("chat");
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
+  const [isChatStartupLoading, setIsChatStartupLoading] = useState(true);
+  const [chatStartupError, setChatStartupError] = useState<string | null>(null);
+  const [isAssistantAvailable, setIsAssistantAvailable] = useState(false);
 
   // Call State
   const [isCallOpen, setIsCallOpen] = useState(false);
@@ -95,36 +100,95 @@ const ChatLayoutComponent: React.FC = () => {
     "search" | "editName" | "editNotice" | "addMember" | null
   >(null);
   const [modalInput, setModalInput] = useState("");
+  const localizedChats = useMemo(
+    () => chats.map((chat) => (
+      systemAssistantService.isSystemAssistantChat(chat)
+        ? { ...chat, name: t("chat.systemAssistant.displayName") }
+        : chat
+    )),
+    [chats, t],
+  );
+  const localizedActiveChat = useMemo(() => {
+    if (!activeChat) {
+      return null;
+    }
+
+    return systemAssistantService.isSystemAssistantChat(activeChat)
+      ? { ...activeChat, name: t("chat.systemAssistant.displayName") }
+      : activeChat;
+  }, [activeChat, t]);
+
+  const mergeChatIntoList = (sourceChats: Chat[], nextChat: Chat | null): Chat[] => {
+    if (!nextChat) {
+      return sourceChats;
+    }
+    return sourceChats.some((chat) => chat.id === nextChat.id)
+      ? sourceChats.map((chat) => chat.id === nextChat.id ? { ...chat, ...nextChat } : chat)
+      : [nextChat, ...sourceChats];
+  };
+
+  const refreshChats = async (shouldApply: () => boolean = () => true): Promise<Chat[]> => {
+    const data = await chatService.getChats();
+    const knownAssistantChat = chats.find((chat) => systemAssistantService.isSystemAssistantChat(chat));
+    const assistantLookupChats = knownAssistantChat && !data.some((chat) => chat.id === knownAssistantChat.id)
+      ? [knownAssistantChat, ...data]
+      : data;
+    const assistantResult = await systemAssistantService.ensureSystemAssistantChat(assistantLookupChats);
+    const nextChats = mergeChatIntoList(data, assistantResult.chat);
+    if (!shouldApply()) {
+      return nextChats;
+    }
+
+    setChats(nextChats);
+    setIsAssistantAvailable(assistantResult.available);
+    setActiveChat((previousActiveChat) => {
+      if (previousActiveChat) {
+        return nextChats.find((chat) => chat.id === previousActiveChat.id)
+          ?? systemAssistantService.selectInitialChat(nextChats);
+      }
+      return systemAssistantService.selectInitialChat(nextChats);
+    });
+    if (assistantResult.error) {
+      setChatStartupError("chat.startup.assistantUnavailable");
+    } else {
+      setChatStartupError(null);
+    }
+    return nextChats;
+  };
+
+  const loadChatStartup = async (shouldApply: () => boolean = () => true) => {
+    setIsChatStartupLoading(true);
+    setChatStartupError(null);
+    let startupWarning: string | null = null;
+
+    try {
+      await imSyncCoordinatorService.syncStartup();
+    } catch {
+      startupWarning = "chat.startup.syncWarning";
+    }
+
+    try {
+      await refreshChats(shouldApply);
+      if (shouldApply() && startupWarning) {
+        setChatStartupError(startupWarning);
+      }
+    } catch {
+      if (shouldApply()) {
+        setChatStartupError("chat.startup.conversationsUnavailable");
+        setChats([]);
+        setActiveChat(null);
+        setIsAssistantAvailable(false);
+      }
+    } finally {
+      if (shouldApply()) {
+        setIsChatStartupLoading(false);
+      }
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
-    const loadChats = async () => {
-      await imSyncCoordinatorService.syncStartup();
-      const data = await chatService.getChats();
-      if (!isMounted) {
-        return;
-      }
-      setChats(data);
-      if (data.length > 0) {
-        setActiveChat(data[0]);
-      }
-    };
-
-    void loadChats().catch(() => {
-      if (!isMounted) {
-        return;
-      }
-      chatService.getChats().then((data) => {
-        if (!isMounted) {
-          return;
-        }
-        setChats(data);
-        if (data.length > 0) {
-          setActiveChat(data[0]);
-        }
-      });
-    });
-
+    void loadChatStartup(() => isMounted);
     return () => {
       isMounted = false;
     };
@@ -187,9 +251,9 @@ const ChatLayoutComponent: React.FC = () => {
       .filter((conversationId): conversationId is string => Boolean(conversationId));
 
     void callService.watchIncomingCalls(conversationIds).catch((error) => {
-      toast(error instanceof Error ? error.message : "RTC call watch failed", "error");
+      toast(error instanceof Error ? error.message : t("chat.toast.rtcCallWatchFailed"), "error");
     });
-  }, [chats]);
+  }, [chats, t]);
 
   useEffect(() => {
     return callService.subscribe((snapshot) => {
@@ -201,13 +265,13 @@ const ChatLayoutComponent: React.FC = () => {
         setCallType(snapshot.type ?? 'voice');
         setCallTarget({
           id: snapshot.conversationId ?? activeChat?.id ?? snapshot.rtcSessionId,
-          name: snapshot.targetName ?? incomingChat?.name ?? activeChat?.name ?? 'Incoming call',
+          name: snapshot.targetName ?? incomingChat?.name ?? activeChat?.name ?? t("chat.call.incoming"),
           avatar: incomingChat?.avatar ?? activeChat?.avatar ?? '',
         });
         setIsCallOpen(true);
       }
     });
-  }, [activeChat?.avatar, activeChat?.id, activeChat?.name, chats]);
+  }, [activeChat?.avatar, activeChat?.id, activeChat?.name, chats, t]);
 
   const handleStartAgentChat = async (agent: Agent) => {
     try {
@@ -220,16 +284,36 @@ const ChatLayoutComponent: React.FC = () => {
       setActiveChat(nextChats.find((chat) => chat.id === agentChat.id) ?? agentChat);
       setActiveTab("chat");
     } catch {
-      toast("发起智能体聊天失败", "error");
+      toast(t("chat.toast.startAgentFailed"), "error");
     }
+  };
+
+  const handleOpenAssistant = async () => {
+    setActiveTab("chat");
+    const existingAssistantChat = chats.find((chat) => systemAssistantService.isSystemAssistantChat(chat));
+    if (existingAssistantChat) {
+      setActiveChat(existingAssistantChat);
+      return;
+    }
+
+    const assistantResult = await systemAssistantService.ensureSystemAssistantChat(chats);
+    setIsAssistantAvailable(assistantResult.available);
+    if (!assistantResult.chat) {
+      toast(t("chat.startup.assistantToastUnavailable"), "error");
+      return;
+    }
+
+    const nextChats = mergeChatIntoList(chats, assistantResult.chat);
+    setChats(nextChats);
+    setActiveChat(nextChats.find((chat) => chat.id === assistantResult.chat?.id) ?? assistantResult.chat);
   };
 
   const handleLogout = async () => {
     try {
       await appAuthService.logout();
-      toast("已退出登录", "success");
+      toast(t("chat.toast.signedOut"), "success");
     } catch {
-      toast("已清除本地登录状态", "success");
+      toast(t("chat.toast.localSessionCleared"), "success");
     } finally {
       setIsSettingsOpen(false);
       navigate("/auth/login?redirect=%2F", { replace: true });
@@ -254,7 +338,9 @@ const ChatLayoutComponent: React.FC = () => {
             </div>
             <input
               type="text"
-              placeholder="搜索"
+              placeholder={t("chat.searchInput.placeholder")}
+              aria-label={t("chat.searchInput.ariaLabel")}
+              title={t("chat.searchInput.title")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-[#181818] text-[13px] text-gray-200 rounded py-1.5 pl-7 pr-3 outline-none placeholder:text-gray-500 border border-white/5 focus:border-white/10"
@@ -265,6 +351,8 @@ const ChatLayoutComponent: React.FC = () => {
             <button
               className={`w-[28px] h-[28px] flex items-center justify-center rounded border transition-colors ${isPlusMenuOpen ? "bg-white/10 border-white/10 text-gray-200" : "bg-[#181818] border-white/5 text-gray-400 hover:text-gray-200 hover:bg-white/5"}`}
               onClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
+              title={t("chat.menu.moreActions")}
+              aria-label={t("chat.menu.moreActions")}
             >
               <Plus size={16} />
             </button>
@@ -286,7 +374,7 @@ const ChatLayoutComponent: React.FC = () => {
                     }}
                   >
                     <MessageSquarePlus size={16} className="text-gray-400" />
-                    <span>发起群聊</span>
+                    <span>{t("chat.menu.startGroup")}</span>
                   </button>
                   <button
                     className="w-full px-4 py-2.5 flex items-center gap-3 text-[14px] text-gray-200 hover:bg-white/5 transition-colors"
@@ -296,7 +384,7 @@ const ChatLayoutComponent: React.FC = () => {
                     }}
                   >
                     <UserPlus size={16} className="text-gray-400" />
-                    <span>添加朋友</span>
+                    <span>{t("chat.menu.addFriend")}</span>
                   </button>
                   <button
                     className="w-full px-4 py-2.5 flex items-center gap-3 text-[14px] text-gray-200 hover:bg-white/5 transition-colors"
@@ -306,7 +394,7 @@ const ChatLayoutComponent: React.FC = () => {
                     }}
                   >
                     <Bot size={16} className="text-gray-400" />
-                    <span>创建智能体</span>
+                    <span>{t("chat.menu.createAssistant")}</span>
                   </button>
                 </motion.div>
               )}
@@ -315,17 +403,17 @@ const ChatLayoutComponent: React.FC = () => {
         </div>
 
         <div className="flex-1 h-full flex items-center justify-between pl-6 pr-0 bg-[#1e1e1e]">
-          {activeTab === "chat" && activeChat ? (
+          {activeTab === "chat" && localizedActiveChat ? (
             <>
               <div className="flex items-center gap-3">
                 <div className="text-[18px] text-gray-200 font-medium tracking-wide">
-                  {activeChat.name}
+                  {localizedActiveChat.name}
                 </div>
               </div>
 
               <div className="flex items-center gap-1 text-gray-400 mr-4">
                 <IconButton
-                  title="搜索"
+                  title={t("chat.header.search")}
                   className="w-[36px] h-[36px] hover:bg-white/5"
                   onClick={() => {
                     setActiveModal("search");
@@ -335,21 +423,21 @@ const ChatLayoutComponent: React.FC = () => {
                   <Search size={18} />
                 </IconButton>
                 <IconButton
-                  title="语音通话"
+                  title={t("chat.header.voiceCall")}
                   className="w-[36px] h-[36px] hover:bg-white/5"
                   onClick={() => handleStartCall("voice")}
                 >
                   <Phone size={18} />
                 </IconButton>
                 <IconButton
-                  title="视频通话"
+                  title={t("chat.header.videoCall")}
                   className="w-[36px] h-[36px] hover:bg-white/5"
                   onClick={() => handleStartCall("video")}
                 >
                   <Video size={18} />
                 </IconButton>
                 <IconButton
-                  title="更多"
+                  title={t("chat.header.more")}
                   className="w-[36px] h-[36px] hover:bg-white/5"
                   onClick={() => setShowRHSPanel(!showRHSPanel)}
                 >
@@ -389,10 +477,10 @@ const ChatLayoutComponent: React.FC = () => {
         return (
           <VoiceMarketView
             onSelectVoice={(voice) => {
-              toast(`正在加载声音: ${voice.name}`, "success");
+              toast(t("chat.toast.voiceLoading", { name: voice.name }), "success");
             }}
             onCreateVoice={() => {
-              toast("即将开启声音克隆功能", "success");
+              toast(t("chat.toast.voiceCloneSoon"), "success");
             }}
           />
         );
@@ -415,7 +503,7 @@ const ChatLayoutComponent: React.FC = () => {
               else if (appId === "voicegen") setActiveTab("voicegen");
               else if (appId === "musicgen") setActiveTab("musicgen");
               else if (appId === "writing") setActiveTab("writing");
-              else toast(`应用 [${appId}] 未在当前宿主环境注册。`, "error");
+              else toast(t("chat.toast.workspaceAppUnavailable", { appId }), "error");
             }}
           />
         );
@@ -457,11 +545,11 @@ const ChatLayoutComponent: React.FC = () => {
               setActiveChat(nextChats.find((chat) => chat.id === enterpriseChat.id) ?? enterpriseChat);
               setActiveTab("chat");
             } catch {
-              toast("发起企业聊天失败", "error");
+              toast(t("chat.toast.enterpriseChatFailed"), "error");
             }
           }}
           onCall={(id, name) => {
-            toast(`正在拨打企业 ${name} 电话...`, "success");
+            toast(t("chat.toast.enterpriseCalling", { name }), "success");
           }}
         />;
       case "devices":
@@ -496,7 +584,7 @@ const ChatLayoutComponent: React.FC = () => {
                 setActiveChat(nextChats.find((chat) => chat.id === directChat.id) ?? directChat);
                 setActiveTab("chat");
               } catch {
-                toast("发起聊天失败", "error");
+                toast(t("chat.toast.directChatFailed"), "error");
               }
             }}
             onStartCall={(type, user) =>
@@ -594,38 +682,33 @@ const ChatLayoutComponent: React.FC = () => {
             {activeTab === "chat" ? (
               <>
                 <ChatList
-                  chats={chats}
+                  chats={localizedChats}
                   activeChatId={activeChat?.id}
-                  onChatSelect={setActiveChat}
+                  onChatSelect={(chat) => setActiveChat(chats.find((item) => item.id === chat.id) ?? chat)}
                   searchQuery={searchQuery}
                   onChatsChange={() => {
-                    chatService.getChats().then((data) => {
-                      setChats(data);
-                      if (activeChat) {
-                        const updated = data.find(
-                          (c) => c.id === activeChat.id,
-                        );
-                        if (updated) setActiveChat(updated);
-                      }
-                    });
+                    void refreshChats();
                   }}
                 />
-                {activeChat ? (
-                  <ChatWindow chat={activeChat} />
+                {localizedActiveChat ? (
+                  <ChatWindow chat={localizedActiveChat} />
                 ) : (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex-1 flex flex-col items-center justify-center bg-[#1e1e1e] gap-4"
-                  >
-                    <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center">
-                      <MessageSquarePlus size={36} className="text-gray-500" />
-                    </div>
-                    <div className="text-gray-500 text-sm">
-                      选择一个会话开始聊天
-                    </div>
-                  </motion.div>
+                  <ChatEmptyHome
+                    assistantAvailable={isAssistantAvailable}
+                    isStartupLoading={isChatStartupLoading}
+                    onAddFriend={() => setIsAddFriendOpen(true)}
+                    onCreateAgent={() => {
+                      setEditAgentId(undefined);
+                      setIsCreateAgentModalOpen(true);
+                    }}
+                    onCreateGroup={() => setIsCreateGroupOpen(true)}
+                    onOpenAssistant={handleOpenAssistant}
+                    onOpenContacts={() => setActiveTab("contacts")}
+                    onRetryStartup={() => {
+                      void loadChatStartup();
+                    }}
+                    startupError={chatStartupError ? t(chatStartupError) : null}
+                  />
                 )}
               </>
             ) : (
@@ -634,9 +717,9 @@ const ChatLayoutComponent: React.FC = () => {
 
             {/* RHS Chat Panel */}
             <AnimatePresence>
-              {activeTab === "chat" && showRHSPanel && activeChat && (
+              {activeTab === "chat" && showRHSPanel && activeChat && localizedActiveChat && (
                 <ChatRightPanel
-                  activeChat={activeChat}
+                  activeChat={localizedActiveChat}
                   onSetModal={(modal, inputVal) => {
                     setActiveModal(modal);
                     setModalInput(inputVal);
@@ -652,11 +735,11 @@ const ChatLayoutComponent: React.FC = () => {
                       );
                       setActiveChat({ ...activeChat, isMuted: nextMuted });
                       toast(
-                        nextMuted ? "已开启免打扰" : "已取消免打扰",
+                        t(nextMuted ? "chat.rightPanel.toast.muted" : "chat.rightPanel.toast.unmuted"),
                         "success",
                       );
                     } catch {
-                      toast("设置免打扰失败", "error");
+                      toast(t("chat.rightPanel.toast.muteFailed"), "error");
                     }
                   }}
                   onTogglePin={async () => {
@@ -670,11 +753,11 @@ const ChatLayoutComponent: React.FC = () => {
                       );
                       setActiveChat({ ...activeChat, isPinned: nextPinned });
                       toast(
-                        nextPinned ? "已置顶聊天" : "已取消置顶",
+                        t(nextPinned ? "chat.rightPanel.toast.pinned" : "chat.rightPanel.toast.unpinned"),
                         "success",
                       );
                     } catch {
-                      toast("设置置顶失败", "error");
+                      toast(t("chat.rightPanel.toast.pinFailed"), "error");
                     }
                   }}
                   onDeleteChat={async () => {
@@ -683,9 +766,9 @@ const ChatLayoutComponent: React.FC = () => {
                       setChats(chats.filter((c) => c.id !== activeChat.id));
                       setActiveChat(null);
                       setShowRHSPanel(false);
-                      toast("已退出群聊", "success");
+                      toast(t(activeChat.type === "group" ? "chat.rightPanel.toast.groupLeft" : "chat.rightPanel.toast.chatDeleted"), "success");
                     } catch {
-                      toast("删除聊天失败", "error");
+                      toast(t("chat.rightPanel.toast.deleteFailed"), "error");
                     }
                   }}
                 />
@@ -757,13 +840,13 @@ const ChatLayoutComponent: React.FC = () => {
               >
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-medium text-gray-100">
-                    {activeModal === "search" && "查找聊天记录"}
-                    {activeModal === "addMember" && "添加群成员"}
+                    {activeModal === "search" && t("chat.modal.title.searchMessages")}
+                    {activeModal === "addMember" && t("chat.modal.title.addMember")}
                     {activeModal === "editName" &&
                       (activeChat.type === "group"
-                        ? "修改群聊名称"
-                        : "设置备注")}
-                    {activeModal === "editNotice" && "编辑群公告"}
+                        ? t("chat.modal.title.editGroupName")
+                        : t("chat.modal.title.editRemark"))}
+                    {activeModal === "editNotice" && t("chat.modal.title.editNotice")}
                   </h3>
                   <button
                     onClick={() => setActiveModal(null)}
@@ -777,7 +860,7 @@ const ChatLayoutComponent: React.FC = () => {
                   <div>
                     <input
                       type="text"
-                      placeholder="搜索消息..."
+                      placeholder={t("chat.modal.placeholder.searchMessages")}
                       className="w-full bg-[#181818] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all mb-4"
                       value={modalInput}
                       onChange={(e) => setModalInput(e.target.value)}
@@ -785,7 +868,7 @@ const ChatLayoutComponent: React.FC = () => {
                         if (e.key === "Enter") {
                           if (!modalInput.trim()) return;
                           setActiveModal(null);
-                          toast(`正在搜索: ${modalInput}`, "success");
+                          toast(t("chat.modal.toast.searching", { query: modalInput }), "success");
                         }
                       }}
                       autoFocus
@@ -795,18 +878,18 @@ const ChatLayoutComponent: React.FC = () => {
                         onClick={() => setActiveModal(null)}
                         className="px-5 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors"
                       >
-                        取消
+                        {t("chat.modal.actions.cancel")}
                       </button>
                       <button
                         onClick={() => {
                           if (!modalInput.trim()) return;
                           setActiveModal(null);
-                          toast(`正在搜索: ${modalInput}`, "success");
+                          toast(t("chat.modal.toast.searching", { query: modalInput }), "success");
                         }}
                         disabled={!modalInput.trim()}
                         className="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/10 disabled:text-gray-500 text-white rounded-xl transition-colors font-medium"
                       >
-                        搜索
+                        {t("chat.modal.actions.search")}
                       </button>
                     </div>
                   </div>
@@ -816,7 +899,7 @@ const ChatLayoutComponent: React.FC = () => {
                   <div>
                     <input
                       type="text"
-                      placeholder="输入成员账号、手机号或邮箱..."
+                      placeholder={t("chat.modal.placeholder.memberSearch")}
                       className="w-full bg-[#181818] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all mb-4"
                       value={modalInput}
                       onChange={(e) => setModalInput(e.target.value)}
@@ -826,7 +909,7 @@ const ChatLayoutComponent: React.FC = () => {
                         onClick={() => setActiveModal(null)}
                         className="px-5 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-xl transition-colors"
                       >
-                        取消
+                        {t("chat.modal.actions.cancel")}
                       </button>
                       <button
                         onClick={async () => {
@@ -850,19 +933,19 @@ const ChatLayoutComponent: React.FC = () => {
                               );
                               setActiveChat(nextChat);
                               toast(
-                                `已邀请 ${resolvedMemberIds.length} 名成员`,
+                                t("chat.modal.toast.invitedMembers", { count: resolvedMemberIds.length }),
                                 "success",
                               );
                             } catch {
-                              toast(`邀请成员失败`, "error");
+                              toast(t("chat.modal.toast.inviteFailed"), "error");
                             }
                           } else {
-                            toast(`请填写邀请成员信息`, "error");
+                            toast(t("chat.modal.toast.inviteMissing"), "error");
                           }
                         }}
                         className="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-colors font-medium"
                       >
-                        邀请
+                        {t("chat.modal.actions.invite")}
                       </button>
                     </div>
                   </div>
@@ -873,7 +956,9 @@ const ChatLayoutComponent: React.FC = () => {
                     <input
                       type="text"
                       placeholder={
-                        activeChat.type === "group" ? "群聊名称" : "备注名称"
+                        activeChat.type === "group"
+                          ? t("chat.modal.placeholder.groupName")
+                          : t("chat.modal.placeholder.remarkName")
                       }
                       className="w-full bg-[#181818] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all mb-4"
                       value={modalInput}
@@ -884,7 +969,7 @@ const ChatLayoutComponent: React.FC = () => {
                         onClick={() => setActiveModal(null)}
                         className="px-5 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-xl transition-colors"
                       >
-                        取消
+                        {t("chat.modal.actions.cancel")}
                       </button>
                       <button
                         onClick={async () => {
@@ -903,17 +988,17 @@ const ChatLayoutComponent: React.FC = () => {
                             setActiveChat({ ...activeChat, name: modalInput });
                             toast(
                               activeChat.type === "group"
-                                ? `已修改群名称为: ${modalInput}`
-                                : `已修改备注为: ${modalInput}`,
+                                ? t("chat.modal.toast.groupNameUpdated", { name: modalInput })
+                                : t("chat.modal.toast.remarkUpdated", { name: modalInput }),
                               "success",
                             );
                           } catch {
-                            toast("保存名称失败", "error");
+                            toast(t("chat.modal.toast.saveNameFailed"), "error");
                           }
                         }}
                         className="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-colors font-medium"
                       >
-                        保存
+                        {t("chat.modal.actions.save")}
                       </button>
                     </div>
                   </div>
@@ -922,9 +1007,9 @@ const ChatLayoutComponent: React.FC = () => {
                 {activeModal === "editNotice" && (
                   <div>
                     <textarea
-                      placeholder="填写群公告..."
+                      placeholder={t("chat.modal.placeholder.groupNotice")}
                       className="w-full bg-[#181818] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all mb-4 min-h-[120px] resize-none"
-                      value={modalInput === "暂无公告" ? "" : modalInput}
+                      value={modalInput === t("chat.rightPanel.emptyNotice") ? "" : modalInput}
                       onChange={(e) => setModalInput(e.target.value)}
                     />
                     <div className="flex justify-end gap-3 mt-6">
@@ -932,7 +1017,7 @@ const ChatLayoutComponent: React.FC = () => {
                         onClick={() => setActiveModal(null)}
                         className="px-5 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-xl transition-colors"
                       >
-                        取消
+                        {t("chat.modal.actions.cancel")}
                       </button>
                       <button
                         onClick={async () => {
@@ -949,14 +1034,14 @@ const ChatLayoutComponent: React.FC = () => {
                               ),
                             );
                             setActiveChat({ ...activeChat, notice: modalInput });
-                            toast(`群公告已更新`, "success");
+                            toast(t("chat.modal.toast.noticeUpdated"), "success");
                           } catch {
-                            toast("更新群公告失败", "error");
+                            toast(t("chat.modal.toast.updateNoticeFailed"), "error");
                           }
                         }}
                         className="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-colors font-medium"
                       >
-                        发布群公告
+                        {t("chat.modal.actions.publish")}
                       </button>
                     </div>
                   </div>

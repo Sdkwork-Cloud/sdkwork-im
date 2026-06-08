@@ -29,9 +29,23 @@ pub(super) async fn heartbeat_presence(
     auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
     Json(request): Json<PresenceHeartbeatRequest>,
-) -> Result<Json<PresenceSnapshotView>, ApiError> {
+) -> Result<Response, ApiError> {
     let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
     let device_id = access::resolve_requested_device_id(&auth, request.device_id)?;
+    if let Some(last_seen_sync_seq) = request.last_seen_sync_seq {
+        state.prepare_resumed_client_route(&auth, device_id.as_str(), "http")?;
+        let sync_state = client_route_state_snapshot(&state, &auth, Some(device_id.as_str()))?;
+
+        return Ok(Json(state.presence_runtime.resume(
+            &auth,
+            device_id.clone(),
+            last_seen_sync_seq,
+            sync_state.latest_sync_seq.unwrap_or_default(),
+            sync_state.registered_client_routes,
+        )?)
+        .into_response());
+    }
+
     state.prepare_active_client_route(&auth, device_id.as_str(), "http")?;
     let sync_state = client_route_state_snapshot(&state, &auth, Some(device_id.as_str()))?;
 
@@ -40,7 +54,8 @@ pub(super) async fn heartbeat_presence(
         device_id.clone(),
         sync_state.latest_sync_seq.unwrap_or_default(),
         sync_state.registered_client_routes,
-    )?))
+    )?)
+    .into_response())
 }
 
 pub(super) async fn sync_realtime_subscriptions(

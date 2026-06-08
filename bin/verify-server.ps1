@@ -44,24 +44,115 @@ function Get-ReleaseContractReport {
     return $json | ConvertFrom-Json
 }
 
-$serverYamlPath = Join-Path $ConfigDir "chat.toml"
-$postgresqlPath = Join-Path $ConfigDir "postgresql.yaml"
-$passwordFilePath = Join-Path $ConfigDir "database.secret"
+function Get-FirstExistingPath {
+    param([string[]]$Paths)
+
+    foreach ($path in $Paths) {
+        if (Test-Path $path) {
+            return $path
+        }
+    }
+
+    return $null
+}
+
+function Get-YamlScalarValue {
+    param(
+        [string]$Content,
+        [string]$Key
+    )
+
+    foreach ($line in ($Content -split "\r?\n")) {
+        $trimmed = $line.Trim()
+        if ($trimmed.StartsWith("#")) {
+            continue
+        }
+        $prefix = "$Key`:"
+        if ($trimmed.StartsWith($prefix)) {
+            return $trimmed.Substring($prefix.Length).Trim().Trim('"').Trim("'")
+        }
+    }
+
+    return $null
+}
+
+function Test-PasswordFileExists {
+    param(
+        [string]$PasswordFile,
+        [string]$ConfigRoot,
+        [string]$StorageConfigPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($PasswordFile)) {
+        return $false
+    }
+
+    if ([System.IO.Path]::IsPathRooted($PasswordFile)) {
+        return Test-Path $PasswordFile
+    }
+
+    $storageRoot = Split-Path -Parent $StorageConfigPath
+    foreach ($candidate in @(
+            (Join-Path $ConfigRoot $PasswordFile),
+            (Join-Path $storageRoot $PasswordFile)
+        )) {
+        if (Test-Path $candidate) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 $missing = New-Object System.Collections.Generic.List[string]
+$configMissing = New-Object System.Collections.Generic.List[string]
+$storageMissing = New-Object System.Collections.Generic.List[string]
 
-if (-not (Test-Path $serverYamlPath)) { $missing.Add("chat.toml") }
-if (-not (Test-Path $postgresqlPath)) { $missing.Add("postgresql.yaml") }
-if (-not (Test-Path $passwordFilePath)) { $missing.Add("database.secret") }
+$serverConfigPath = Get-FirstExistingPath @(
+    (Join-Path $ConfigDir "server.yaml"),
+    (Join-Path $ConfigDir "chat.toml")
+)
+$postgresqlPath = Get-FirstExistingPath @(
+    (Join-Path $ConfigDir "postgresql.yaml"),
+    (Join-Path $ConfigDir "storage\postgresql.yaml")
+)
 
-$serverContent = if (Test-Path $serverYamlPath) { Get-Content -Path $serverYamlPath -Raw } else { "" }
-$storageContent = if (Test-Path $postgresqlPath) { Get-Content -Path $postgresqlPath -Raw } else { "" }
-
-foreach ($contract in @("[runtime]", "deployment_mode = ""server""", "app_code = ""chat""", "[server]", "bind_address =")) {
-    if (-not $serverContent.Contains($contract)) { $missing.Add($contract) }
+if ([string]::IsNullOrWhiteSpace($serverConfigPath)) {
+    $configMissing.Add("server.yaml")
 }
-foreach ($contract in @("provider: postgresql", "passwordFile:", "migrationMode:")) {
-    if (-not $storageContent.Contains($contract)) { $missing.Add($contract) }
+if ([string]::IsNullOrWhiteSpace($postgresqlPath)) {
+    $storageMissing.Add("postgresql.yaml")
 }
+
+$serverContent = if (-not [string]::IsNullOrWhiteSpace($serverConfigPath)) { Get-Content -Path $serverConfigPath -Raw } else { "" }
+$storageContent = if (-not [string]::IsNullOrWhiteSpace($postgresqlPath)) { Get-Content -Path $postgresqlPath -Raw } else { "" }
+
+if (-not [string]::IsNullOrWhiteSpace($serverConfigPath)) {
+    if ((Split-Path -Leaf $serverConfigPath) -eq "server.yaml") {
+        foreach ($contract in @("instance:", "name:", "network:", "bindAddress:", "publicEndpoints:", "baseUrl:", "runtime:", "dataRoot:")) {
+            if (-not $serverContent.Contains($contract)) { $configMissing.Add($contract) }
+        }
+    }
+    else {
+        foreach ($contract in @("[runtime]", "deployment_mode = ""server""", "app_code = ""chat""", "[server]", "bind_address =")) {
+            if (-not $serverContent.Contains($contract)) { $configMissing.Add($contract) }
+        }
+    }
+}
+
+if (-not [string]::IsNullOrWhiteSpace($postgresqlPath)) {
+    foreach ($contract in @("provider: postgresql", "passwordFile:", "migrationMode:")) {
+        if (-not $storageContent.Contains($contract)) { $storageMissing.Add($contract) }
+    }
+
+    $passwordFile = Get-YamlScalarValue -Content $storageContent -Key "passwordFile"
+    if (-not (Test-PasswordFileExists -PasswordFile $passwordFile -ConfigRoot $ConfigDir -StorageConfigPath $postgresqlPath)) {
+        $storageMissing.Add("passwordFile target")
+    }
+}
+
+foreach ($item in $configMissing) { $missing.Add($item) }
+foreach ($item in $storageMissing) { $missing.Add($item) }
 
 $releaseContracts = [ordered]@{
     enabled = $false
@@ -71,7 +162,9 @@ if (-not [string]::IsNullOrWhiteSpace($ReleaseGatePath)) {
     $releaseContracts = Get-ReleaseContractReport -GatePath $ReleaseGatePath
 }
 
-$ready = ($missing.Count -eq 0)
+$configValid = ($configMissing.Count -eq 0)
+$storageValid = ($storageMissing.Count -eq 0)
+$ready = ($configValid -and $storageValid)
 if ($releaseContracts.enabled) {
     $ready = $ready -and [bool]$releaseContracts.contractsValid
 }
@@ -80,8 +173,8 @@ $result = [ordered]@{
     product = "craw-chat-server"
     instance = $InstanceName
     config = $ConfigDir
-    configValid = ($missing.Count -eq 0)
-    storageValid = ($missing.Count -eq 0)
+    configValid = $configValid
+    storageValid = $storageValid
     ready = $ready
     output = $OutputFormat
     missing = @($missing)

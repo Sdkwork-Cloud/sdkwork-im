@@ -1,7 +1,7 @@
 import {
   getAppSdkClientWithSession,
   type SdkworkImAppClient,
-} from '@sdkwork/clawchat-pc-core';
+} from '@sdkwork/clawchat-pc-core/sdk/appSdkClient';
 import type { EnterpriseData } from '../components/EnterpriseDetail';
 
 type RecordLike = Record<string, unknown>;

@@ -72,17 +72,18 @@ function assertNoImDeviceApiUsage(source, label) {
 }
 
 const appPackageJson = readJson('apps/sdkwork-chat-pc/package.json');
+const runTauriCliSource = read('scripts/run-tauri-cli.mjs');
 const retiredGenericAppSdkPackage = `@sdkwork/${'app'}-sdk`;
 const retiredGenericBackendSdkPackage = `@sdkwork/${'backend'}-sdk`;
 
 assert.equal(appPackageJson.name, '@sdkwork/chat-pc', 'desktop app package must use a standard SDKWork package name');
 assert.equal(
   appPackageJson.scripts.dev,
-  'node ../../scripts/dev/run-vite-cli.mjs --host 127.0.0.1 --port 1620 --strictPort',
+  'node ../../scripts/dev/run-sdkwork-chat-pc-vite-dev.mjs',
 );
 assert.equal(
   appPackageJson.scripts['dev:tauri'],
-  'node ../../scripts/dev/run-vite-cli.mjs --host 127.0.0.1 --port 1620 --strictPort',
+  'node ../../scripts/dev/run-sdkwork-chat-pc-vite-dev.mjs',
 );
 assert.match(
   appPackageJson.scripts.build,
@@ -116,6 +117,7 @@ assert.ok(appPackageJson.dependencies['@sdkwork/im-sdk'], 'PC app must depend on
 assert.ok(appPackageJson.dependencies['@sdkwork/rtc-sdk'], 'PC app must depend on standard @sdkwork/rtc-sdk for call capability');
 assert.ok(appPackageJson.dependencies['@sdkwork/appbase-pc-react'], 'PC app must depend on sdkwork-appbase PC wrapper');
 assert.ok(appPackageJson.dependencies['@sdkwork/auth-runtime-pc-react'], 'PC app must depend on the appbase high-level auth runtime');
+assert.ok(appPackageJson.dependencies['@sdkwork/drive-app-sdk'], 'PC app must depend on sdkwork-drive app SDK for chat media uploads');
 assert.equal(
   appPackageJson.dependencies['@sdkwork/iam-sdk-adapter'],
   undefined,
@@ -154,8 +156,18 @@ assert.match(tauriCargoToml, /\n\[workspace\]\s*$/u, 'Tauri crate must be an ind
 const tauriConfig = readJson('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-desktop/src-tauri/tauri.conf.json');
 assert.equal(tauriConfig.productName, 'SDKWork Chat PC');
 assert.equal(tauriConfig.identifier, 'com.sdkwork.chatpc');
-assert.equal(tauriConfig.build.devUrl, 'http://127.0.0.1:1620');
+assert.equal(tauriConfig.build.devUrl, 'http://127.0.0.1:4176');
 assert.equal(tauriConfig.build.frontendDist, '../../../dist');
+assert.match(
+  runTauriCliSource,
+  /SDKWORK_CHAT_PC_DEV_PORT/u,
+  'Tauri dev launcher must read the resolved SDKWork Chat PC dev port',
+);
+assert.match(
+  runTauriCliSource,
+  /devUrl/u,
+  'Tauri dev launcher must be able to merge the selected devUrl into Tauri dev config',
+);
 assert.equal(tauriConfig.app.windows[0].decorations, false, 'Tauri shell must preserve the current custom titlebar');
 assert.equal(tauriConfig.app.windows[0].minWidth, 1200);
 assert.equal(tauriConfig.app.windows[0].minHeight, 760);
@@ -220,6 +232,17 @@ assert.match(
   /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-rtc[\\\/]sdks[\\\/]sdkwork-rtc-sdk[\\\/]sdkwork-rtc-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
   'TypeScript must resolve generated RTC SDK from source for live development',
 );
+assert.match(viteConfig, /@sdkwork\/drive-app-sdk/u, 'Vite must alias generated Drive app SDK source for chat media upload');
+assert.match(
+  viteConfig,
+  /dependencyRoot\('sdkwork-drive'\)[\s\S]*sdks[\\\/]sdkwork-drive-app-sdk[\\\/]sdkwork-drive-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'Vite must resolve Drive app SDK through the sibling sdkwork-drive workspace for portable media upload development',
+);
+assert.match(
+  tsconfig,
+  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-drive[\\\/]sdks[\\\/]sdkwork-drive-app-sdk[\\\/]sdkwork-drive-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'TypeScript must resolve generated Drive app SDK from sibling source for chat media uploads',
+);
 assert.match(viteConfig, /@sdkwork\/appbase-pc-react/u, 'Vite must alias appbase PC package source');
 assert.match(viteConfig, /@sdkwork\/core-pc-react/u, 'Vite must alias SDKWork core PC React package');
 assert.match(
@@ -264,6 +287,7 @@ for (const localSdkPackageName of [
   '@sdkwork-internal/im-app-api-generated',
   '@sdkwork-internal/im-backend-api-generated',
   '@sdkwork/appbase-app-sdk',
+  '@sdkwork/drive-app-sdk',
   '@sdkwork/im-sdk',
   '@sdkwork/rtc-sdk',
   '@sdkwork/appbase-pc-react',
@@ -559,6 +583,39 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(appSdkClientSource, /\bfetch\s*\(/u, 'app SDK wrapper must not use raw fetch');
 
+const driveAppSdkClientSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/driveAppSdkClient.ts');
+assert.match(
+  driveAppSdkClientSource,
+  /from ['"]@sdkwork\/drive-app-sdk['"]/u,
+  'Drive app SDK wrapper must use the generated sdkwork-drive app SDK client',
+);
+assert.match(
+  driveAppSdkClientSource,
+  /createDriveAppClient/u,
+  'Drive app SDK wrapper must construct the generated Drive app SDK client',
+);
+assert.match(
+  driveAppSdkClientSource,
+  /createSdkworkChatRequestContextInterceptors/u,
+  'Drive app SDK wrapper must install the shared request Context interceptor so Drive uploads receive fresh AppContext headers',
+);
+assert.match(
+  driveAppSdkClientSource,
+  /getSdkworkChatGlobalTokenManager/u,
+  'Drive app SDK wrapper must share the same global TokenManager as appbase and IM clients',
+);
+assert.doesNotMatch(
+  driveAppSdkClientSource,
+  /headers:\s*buildSdkworkChatAppContextHeaders/u,
+  'Drive app SDK wrapper must not keep stale static AppContext headers after token refresh; request Context belongs in the interceptor',
+);
+assert.doesNotMatch(
+  driveAppSdkClientSource,
+  /tenantId:\s*resolveAppSdkTenantId|organizationId:\s*resolveAppSdkOrganizationId/u,
+  'Drive app SDK wrapper must not pass current tenantId/organizationId as static config; current scope belongs in the request Context interceptor',
+);
+assert.doesNotMatch(driveAppSdkClientSource, /\bfetch\s*\(/u, 'Drive app SDK wrapper must not use raw fetch');
+
 assert.match(
   agentAppSdkClientSource,
   /from ['"]@sdkwork\/agent-app-sdk['"]/u,
@@ -758,13 +815,58 @@ assert.match(
 );
 assert.match(
   chatServiceSource,
-  /const\s+driveUri\s*=\s*`drive:\/\/spaces\/\$\{spaceId\}\/nodes\/\$\{nodeId\}`/u,
-  'chat service media ContentPart must include canonical Drive references for backend sync',
+  /driveUri:[\s\r\n]*`drive:\/\/spaces\/\$\{spaceId\}\/nodes\/\$\{nodeId\}`/u,
+  'chat service media ContentPart must include canonical Drive references returned by Drive upload',
 );
 assert.match(
   chatServiceSource,
-  /parts:\s*buildMediaMessageParts\s*\(\s*chatId\s*,\s*content\s*,\s*type\s*,\s*extraInfo\s*\)/u,
-  'chat service rich send path must send standard media parts through the IM SDK postMessage request',
+  /uploadChatMediaFile\s*\([\s\S]*?getDriveUploader:[\s\S]*?this\.getDriveUploader[\s\S]*?type,[\s\S]*?\)/u,
+  'chat service rich send path must upload media through Drive before building IM message parts',
+);
+assert.match(
+  chatServiceSource,
+  /buildMessageParts\s*\([\s\S]*?mediaUpload\?\.content\s*\?\?\s*content[\s\S]*?mediaUpload[\s\S]*?\)/u,
+  'chat service rich send path must send Drive-backed media parts through the IM SDK postMessage request',
+);
+assert.match(
+  chatServiceSource,
+  /getDriveAppSdkClientWithSession/u,
+  'chat service default uploader must consume the Drive app SDK bootstrap from PC core instead of constructing SDK clients locally',
+);
+assert.match(
+  chatServiceSource,
+  /from ['"]@sdkwork\/drive-app-sdk['"]/u,
+  'chat service media upload types must come from @sdkwork/drive-app-sdk',
+);
+assert.match(chatServiceSource, /const CHAT_DRIVE_SCENE = ['"]im['"]/u, 'chat service Drive uploads must use scene=im');
+assert.match(
+  chatServiceSource,
+  /const CHAT_DRIVE_SOURCE = ['"]chat_message['"]/u,
+  'chat service Drive uploads must tag source=chat_message for uploader statistics',
+);
+assert.match(
+  chatServiceSource,
+  /const CHAT_DRIVE_APP_RESOURCE_TYPE = ['"]im_conversation['"]/u,
+  'chat service Drive uploads must bind files to IM conversation resources',
+);
+assert.match(
+  chatServiceSource,
+  /appResourceType:\s*CHAT_DRIVE_APP_RESOURCE_TYPE[\s\S]*appResourceId:\s*chatId[\s\S]*scene:\s*CHAT_DRIVE_SCENE[\s\S]*source:\s*CHAT_DRIVE_SOURCE/u,
+  'chat service Drive uploader request must include IM conversation attribution with scene=im and source=chat_message',
+);
+assert.match(chatServiceSource, /uploadImage\s*\(/u, 'chat service image messages must upload through Drive uploader image flow');
+assert.match(chatServiceSource, /uploadAudio\s*\(/u, 'chat service voice messages must upload through Drive uploader audio flow');
+assert.match(chatServiceSource, /uploadVideo\s*\(/u, 'chat service video messages must upload through Drive uploader video flow');
+assert.match(chatServiceSource, /uploadAttachment\s*\(/u, 'chat service file messages must upload through Drive uploader attachment flow');
+assert.doesNotMatch(
+  chatServiceSource,
+  /drive:\/\/spaces\/\$\{[^}]*chatId|drive:\/\/spaces\/\$\{[^}]*content|normalizeResourceNodeSegment\(chatId|normalizeResourceNodeSegment\(content/u,
+  'chat service must not synthesize Drive URIs from chat ids, content, or local previews',
+);
+assert.doesNotMatch(
+  chatServiceSource,
+  /\/app\/v3\/api\/drive|\/drive\/uploader|upload_sessions|download_grants/u,
+  'chat service must not hand-code Drive HTTP paths or upload-session routes; it must use sdkwork-drive-app-sdk',
 );
 assert.doesNotMatch(
   chatServiceSource,
@@ -797,15 +899,30 @@ assert.match(
   /file\.type\.startsWith\('video\/'\)/u,
   'message input must classify selected or dropped video files as video messages before calling ChatService',
 );
-assert.match(
+assert.doesNotMatch(
   messageInputSource,
-  /readBlobAsDataUrl/u,
-  'message input must convert selected files, screenshots, and voice recordings into serializable message resources',
+  /readBlobAsDataUrl|readAsDataURL|new\s+FileReader/u,
+  'message input must not serialize attachments as data URLs; it must pass real File/Blob objects to ChatService for Drive upload',
 );
 assert.doesNotMatch(
   messageInputSource,
+  /\bfetch\s*\(/u,
+  'message input must not use browser raw fetch to turn remote sticker URLs into fake upload files',
+);
+assert.match(
+  messageInputSource,
+  /onSend\([^,]+,\s*type,\s*\{[^}]*file,/u,
+  'message input file send path must pass the selected File object through extraInfo for Drive upload',
+);
+assert.match(
+  messageInputSource,
+  /sendFileMessage\s*\(\s*file\s*,\s*onSend\s*,\s*['"]voice['"]/u,
+  'message input voice send path must pass the recorded voice Blob/File through extraInfo for Drive upload',
+);
+assert.match(
+  messageInputSource,
   /URL\.createObjectURL/u,
-  'message input must not send browser-local blob URLs that other clients cannot read',
+  'message input may create browser-local blob URLs only as transient local previews while ChatService uploads the real File to Drive',
 );
 const voiceRecorderFailureStart = messageInputSource.indexOf('} catch (err)');
 assert.notEqual(voiceRecorderFailureStart, -1, 'message input voice recorder failure path must remain auditable');
@@ -1947,23 +2064,23 @@ const orgContainerSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-
 const contactsPageSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/pages/ContactsView.tsx');
 assert.match(
   orgContainerSource,
-  /organizationDirectoryService\.getOrganizations\s*\(\s*\)/u,
-  'organization contacts view must load organizations through the independent SDK-backed organization directory service before departments',
+  /organizationDirectoryService\.getOrganizationDirectoryTree\s*\(\s*\)/u,
+  'organization contacts view must load one unified organization/department tree through the SDK-backed organization directory service',
 );
 assert.match(
   orgContainerSource,
-  /organizationDirectoryService\.getOrganizationTree\s*\(\s*\)/u,
-  'organization contacts view must render the organization hierarchy instead of a flat organization picker',
+  /renderDirectoryTreeNode/u,
+  'organization contacts view must render one unified organization-directory tree',
+);
+assert.doesNotMatch(
+  orgContainerSource,
+  /organizationDirectoryService\.getOrganizations\s*\(\s*\)|organizationDirectoryService\.getOrganizationTree\s*\(\s*\)|organizationDirectoryService\.getDepartments\s*\(|organizationDirectoryService\.getDepartmentTree\s*\(/u,
+  'organization contacts view must not keep separate organization and department loading paths',
 );
 assert.match(
   orgContainerSource,
-  /organizationDirectoryService\.getDepartments\s*\(\s*organization\.organizationId\s*\)/u,
-  'organization contacts view must load departments for the selected organization instead of tenant-wide departments',
-);
-assert.match(
-  orgContainerSource,
-  /organizationDirectoryService\.getDepartmentTree\s*\(\s*organization\.organizationId\s*\)/u,
-  'organization contacts view must render the independent department hierarchy through /departments/tree',
+  /flattenDirectoryOrganizations[\s\S]*flattenDirectoryDepartments/u,
+  'organization contacts view must derive organizations and departments from the unified directory tree',
 );
 assert.match(
   orgContainerSource,
@@ -1979,6 +2096,21 @@ assert.match(
   orgContainerSource,
   /organizationDirectoryService\.getOrganizationPermissions\s*\(\s*organization\.organizationId\s*\)/u,
   'organization contacts view must evaluate scoped organization permissions for the selected organization',
+);
+assert.match(
+  orgContainerSource,
+  /currentOrganizationDepartments\s*=\s*useMemo[\s\S]*department\.organizationId\s*===\s*currentOrganization\.organizationId/u,
+  'organization contacts member management must scope selectable departments to the selected organization',
+);
+assert.match(
+  orgContainerSource,
+  /currentOrganizationDepartments\.map\s*\(\s*\(department\)/u,
+  'organization contacts member management must render department options from the current organization only',
+);
+assert.doesNotMatch(
+  orgContainerSource,
+  /allDepartments\.map\s*\(\s*\(department\)/u,
+  'organization contacts member management must not render every department across organizations',
 );
 assert.doesNotMatch(
   orgContainerSource,

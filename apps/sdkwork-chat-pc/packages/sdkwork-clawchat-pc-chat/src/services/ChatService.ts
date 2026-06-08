@@ -1,4 +1,6 @@
 import type {
+  ContentPart,
+  DriveReference,
   InboxResponse,
   ConversationProfileView,
   ImDecodedMessage,
@@ -13,11 +15,24 @@ import type {
   TimelineResponse,
   UpdateConversationProfileRequest,
 } from '@sdkwork/im-sdk';
+import type {
+  DriveUploaderBlobLike,
+  DriveUploaderClient,
+  DriveUploaderProfile,
+  DriveUploaderRequest,
+  DriveUploaderUploadResult,
+} from '@sdkwork/drive-app-sdk';
+import { getDriveAppSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/driveAppSdkClient';
 import {
   getImSdkClientWithSession,
 } from '@sdkwork/clawchat-pc-core/sdk/imSdkClient';
 import {
   SDKWORK_CHAT_SESSION_CHANGED_EVENT,
+  readAppSdkSessionTokens,
+  resolveAppSdkOrganizationId,
+  resolveAppSdkTenantId,
+  resolveAppSdkUserId,
+  type SdkworkChatSession,
 } from '@sdkwork/clawchat-pc-core/sdk/session';
 import type { Chat, Message } from '@sdkwork/clawchat-pc-types';
 import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
@@ -26,6 +41,28 @@ import { contactService } from './ContactService';
 type ConversationInboxEntry = InboxResponse['items'][number];
 type TimelineViewEntry = TimelineResponse['items'][number];
 type MessageHandler = (message: Message) => void;
+type SendableMediaMessageType = Extract<Message['type'], 'file' | 'image' | 'video' | 'voice'>;
+type SendableStructuredMessageType = Extract<Message['type'], 'applet' | 'card' | 'link' | 'music' | 'system' | 'video_call'>;
+
+type ChatMessageExtraInfo = Partial<Message> & {
+  file?: DriveUploaderBlobLike;
+  mimeType?: string;
+};
+
+interface ChatMediaUploadResult {
+  content: string;
+  drive: DriveReference;
+  resource: MediaResource;
+}
+
+interface ChatServiceDependencies {
+  getClient?: () => ImSdkClient;
+  getDriveUploader?: () => Pick<
+    DriveUploaderClient,
+    'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
+  >;
+  getSession?: () => SdkworkChatSession | null;
+}
 
 export interface ChatOfflineSyncResult {
   appliedMessages: number;
@@ -52,7 +89,7 @@ export interface ChatService {
     content: string,
     type?: Message['type'],
     replyTo?: Message['replyTo'],
-    extraInfo?: Partial<Message>
+    extraInfo?: ChatMessageExtraInfo
   ): Promise<Message>;
   forwardMessages(targetChatIds: string[], messages: Message[]): Promise<void>;
   markAsRead(chatId: string): Promise<void>;
@@ -76,6 +113,10 @@ type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'isMa
 };
 const INBOX_PAGE_LIMIT = 100;
 const MESSAGE_PAGE_LIMIT = 100;
+const CHAT_APP_ID = 'chat';
+const CHAT_DRIVE_SCENE = 'im';
+const CHAT_DRIVE_SOURCE = 'chat_message';
+const CHAT_DRIVE_APP_RESOURCE_TYPE = 'im_conversation';
 const CHAT_MESSAGE_TYPES = new Set<Message['type']>([
   'applet',
   'card',
@@ -89,6 +130,20 @@ const CHAT_MESSAGE_TYPES = new Set<Message['type']>([
   'video_call',
   'voice',
 ]);
+const MEDIA_MESSAGE_TYPES = new Set<Message['type']>(['file', 'image', 'video', 'voice']);
+const STRUCTURED_MESSAGE_SCHEMA_BY_TYPE: Record<SendableStructuredMessageType, string> = {
+  applet: 'urn:sdkwork:craw-chat:message:applet',
+  card: 'urn:sdkwork:craw-chat:message:card',
+  link: 'urn:sdkwork:craw-chat:message:link',
+  music: 'urn:sdkwork:craw-chat:message:music',
+  system: 'urn:sdkwork:craw-chat:message:system',
+  video_call: 'urn:sdkwork:craw-chat:message:video_call',
+};
+
+let driveUploaderClient: Pick<
+  DriveUploaderClient,
+  'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
+> | null = null;
 
 function parseTimestamp(value: string | undefined): number {
   if (!value) {
@@ -136,10 +191,26 @@ function pickNumber(...values: unknown[]): number | undefined {
   return undefined;
 }
 
+function isLocalPreviewUrl(value: string | undefined): boolean {
+  return Boolean(value && /^(?:blob:|data:)/iu.test(value.trim()));
+}
+
+function pickDurableDeliveryUrl(value: string | undefined): string | undefined {
+  return value && !isLocalPreviewUrl(value) ? value : undefined;
+}
+
 function resolveChatMessageType(value: unknown): Message['type'] | undefined {
   return typeof value === 'string' && CHAT_MESSAGE_TYPES.has(value as Message['type'])
     ? value as Message['type']
     : undefined;
+}
+
+function isMediaMessageType(value: Message['type']): value is SendableMediaMessageType {
+  return MEDIA_MESSAGE_TYPES.has(value);
+}
+
+function isStructuredMessageType(value: Message['type']): value is SendableStructuredMessageType {
+  return Object.prototype.hasOwnProperty.call(STRUCTURED_MESSAGE_SCHEMA_BY_TYPE, value);
 }
 
 function resolveDecodedMessageType(message: ImDecodedMessage): Message['type'] {
@@ -370,6 +441,39 @@ function resolveMediaKind(type: Message['type']): MediaKind {
   }
 }
 
+function createDefaultDriveUploaderClient(
+  session: SdkworkChatSession | null = readAppSdkSessionTokens(),
+): Pick<DriveUploaderClient, 'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'> {
+  const client = getDriveAppSdkClientWithSession(session ?? readAppSdkSessionTokens());
+  return client.uploader;
+}
+
+function getDefaultDriveUploader(): Pick<
+  DriveUploaderClient,
+  'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
+> {
+  if (!driveUploaderClient) {
+    driveUploaderClient = createDefaultDriveUploaderClient();
+  }
+  return driveUploaderClient;
+}
+
+function resolveChatUploadTenantId(session: SdkworkChatSession | null | undefined): string {
+  const tenantId = resolveAppSdkTenantId(session ?? null);
+  if (!tenantId) {
+    throw new Error('Chat media upload requires tenant_id in the authenticated session.');
+  }
+  return tenantId;
+}
+
+function resolveChatUploadUserId(session: SdkworkChatSession | null | undefined): string {
+  const userId = resolveAppSdkUserId(session ?? null);
+  if (!userId) {
+    throw new Error('Chat media upload requires user_id in the authenticated session.');
+  }
+  return userId;
+}
+
 function parseFileSizeBytes(value: string | undefined): string | undefined {
   const normalized = value?.trim();
   if (!normalized) {
@@ -402,56 +506,215 @@ function parseFileSizeBytes(value: string | undefined): string | undefined {
   return String(Math.max(0, Math.round(amount * multiplier)));
 }
 
-function buildMediaMessageParts(
-  chatId: string,
-  content: string,
-  type: Message['type'],
-  extraInfo: Partial<Message> | undefined,
-) {
-  const nodeSeed = [
-    chatId,
-    type,
-    extraInfo?.fileName,
-    content,
-    Date.now().toString(36),
-  ]
-    .filter(Boolean)
-    .join('-');
-  const nodeId = normalizeResourceNodeSegment(nodeSeed).slice(0, 96);
-  const spaceId = normalizeResourceNodeSegment(chatId).slice(0, 64);
-  const driveUri = `drive://spaces/${spaceId}/nodes/${nodeId}`;
+function normalizeDriveUploadResult(result: DriveUploaderUploadResult): DriveReference {
+  const spaceId = result.uploadItem.spaceId || result.uploadSession.spaceId;
+  const nodeId = result.uploadItem.nodeId || result.uploadSession.nodeId;
+  if (!spaceId || !nodeId) {
+    throw new Error('Drive uploader result is missing spaceId or nodeId.');
+  }
+  return {
+    driveUri: `drive://spaces/${spaceId}/nodes/${nodeId}`,
+    spaceId,
+    nodeId,
+  };
+}
+
+function buildDriveMediaResource(
+  drive: DriveReference,
+  type: SendableMediaMessageType,
+  extraInfo: ChatMessageExtraInfo | undefined,
+  uploadResult?: DriveUploaderUploadResult,
+): MediaResource {
   const mediaKind = resolveMediaKind(type);
-  const resource: MediaResource = {
-    id: nodeId,
+  const uploadItem = uploadResult?.uploadItem;
+  return {
+    id: drive.nodeId,
     kind: mediaKind,
     source: 'drive',
-    uri: driveUri,
-    publicUrl: content || undefined,
-    url: content || undefined,
-    fileName: extraInfo?.fileName,
-    sizeBytes: parseFileSizeBytes(extraInfo?.fileSize),
+    uri: drive.driveUri,
+    fileName: uploadItem?.originalFileName ?? extraInfo?.fileName,
+    mimeType: uploadItem?.contentType ?? extraInfo?.mimeType,
+    sizeBytes: uploadItem?.contentLength ?? parseFileSizeBytes(extraInfo?.fileSize),
     durationSeconds: extraInfo?.duration,
-    poster: extraInfo?.coverUrl
-      ? {
-          kind: 'image',
-          source: 'drive',
-          uri: driveUri,
-          publicUrl: extraInfo.coverUrl,
-          url: extraInfo.coverUrl,
-        }
-      : undefined,
   };
+}
 
+function buildMediaMessageParts(
+  upload: ChatMediaUploadResult,
+): ContentPart[] {
   return [{
     kind: 'media' as const,
-    drive: {
-      driveUri,
-      spaceId,
-      nodeId,
-    },
-    resource,
+    drive: upload.drive,
+    resource: upload.resource,
     mediaRole: 'attachment',
   }];
+}
+
+function buildStructuredMessagePayload(
+  content: string,
+  type: SendableStructuredMessageType,
+  extraInfo: ChatMessageExtraInfo | undefined,
+): Record<string, unknown> {
+  return {
+    ...(extraInfo?.fileName ? { title: extraInfo.fileName } : {}),
+    ...(type === 'video_call' ? { state: content } : { url: content }),
+    ...(extraInfo?.desc ? { description: extraInfo.desc } : {}),
+    ...(extraInfo?.appIcon ? { iconUrl: extraInfo.appIcon } : {}),
+    ...(extraInfo?.coverUrl ? { coverUrl: extraInfo.coverUrl } : {}),
+    ...(extraInfo?.duration ? { durationSeconds: extraInfo.duration } : {}),
+  };
+}
+
+function buildStructuredMessageParts(
+  content: string,
+  type: SendableStructuredMessageType,
+  extraInfo: ChatMessageExtraInfo | undefined,
+): ContentPart[] {
+  return [{
+    kind: 'data' as const,
+    schemaRef: STRUCTURED_MESSAGE_SCHEMA_BY_TYPE[type],
+    encoding: 'application/json',
+    payload: JSON.stringify(buildStructuredMessagePayload(content, type, extraInfo)),
+  }];
+}
+
+function buildFallbackTextMessageParts(
+  content: string,
+): ContentPart[] {
+  return [{
+    kind: 'text' as const,
+    text: content,
+  }];
+}
+
+function buildMessageParts(
+  content: string,
+  type: Message['type'],
+  extraInfo: ChatMessageExtraInfo | undefined,
+  mediaUpload?: ChatMediaUploadResult,
+): ContentPart[] | undefined {
+  if (isMediaMessageType(type)) {
+    if (!mediaUpload) {
+      throw new Error('Chat media messages require Drive upload result before IM send.');
+    }
+    return buildMediaMessageParts(mediaUpload);
+  }
+  if (isStructuredMessageType(type)) {
+    return buildStructuredMessageParts(content, type, extraInfo);
+  }
+  return buildFallbackTextMessageParts(content);
+}
+
+function buildMessageRenderHints(
+  type: Message['type'],
+  extraInfo: ChatMessageExtraInfo | undefined,
+) {
+  const coverUrl = type === 'link'
+    ? pickDurableDeliveryUrl(extraInfo?.coverUrl)
+    : undefined;
+  return {
+    sdkworkChatPcType: type,
+    ...(coverUrl ? { coverUrl } : {}),
+    ...(extraInfo?.fileName ? { fileName: extraInfo.fileName } : {}),
+    ...(extraInfo?.fileSize ? { fileSize: extraInfo.fileSize } : {}),
+    ...(type === 'link' && extraInfo?.desc ? { desc: extraInfo.desc } : {}),
+    ...(extraInfo?.duration ? { duration: String(extraInfo.duration) } : {}),
+  };
+}
+
+function resolveMediaUploadProfile(type: SendableMediaMessageType): DriveUploaderProfile | undefined {
+  switch (type) {
+    case 'file':
+      return 'attachment';
+    default:
+      return undefined;
+  }
+}
+
+function resolveMediaUploadContentType(
+  type: SendableMediaMessageType,
+  file: DriveUploaderBlobLike,
+  extraInfo: ChatMessageExtraInfo | undefined,
+): string | undefined {
+  return extraInfo?.mimeType
+    ?? file.type
+    ?? (type === 'voice' ? 'audio/webm' : undefined);
+}
+
+function resolveMediaUploadFileName(
+  type: SendableMediaMessageType,
+  file: DriveUploaderBlobLike,
+  extraInfo: ChatMessageExtraInfo | undefined,
+): string {
+  const fallback = type === 'voice'
+    ? `voice-${Date.now().toString(36)}.webm`
+    : `chat-${type}-${Date.now().toString(36)}`;
+  return pickString(extraInfo?.fileName, file.name, fallback) ?? fallback;
+}
+
+async function uploadChatMediaFile({
+  chatId,
+  content,
+  extraInfo,
+  getDriveUploader,
+  getSession,
+  type,
+}: {
+  chatId: string;
+  content: string;
+  extraInfo: ChatMessageExtraInfo | undefined;
+  getDriveUploader: () => Pick<
+    DriveUploaderClient,
+    'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
+  >;
+  getSession: () => SdkworkChatSession | null;
+  type: SendableMediaMessageType;
+}): Promise<ChatMediaUploadResult> {
+  const file = extraInfo?.file;
+  if (!file) {
+    throw new Error('Chat media messages require a File or Blob before sending.');
+  }
+
+  const session = getSession();
+  const tenantId = resolveChatUploadTenantId(session);
+  const userId = resolveChatUploadUserId(session);
+  const organizationId = resolveAppSdkOrganizationId(session ?? null);
+  const originalFileName = resolveMediaUploadFileName(type, file, extraInfo);
+  const uploadRequest: DriveUploaderRequest = {
+    file,
+    tenantId,
+    ...(organizationId ? { organizationId } : {}),
+    userId,
+    appId: CHAT_APP_ID,
+    appResourceType: CHAT_DRIVE_APP_RESOURCE_TYPE,
+    appResourceId: chatId,
+    scene: CHAT_DRIVE_SCENE,
+    source: CHAT_DRIVE_SOURCE,
+    ...(resolveMediaUploadProfile(type) ? { uploadProfileCode: resolveMediaUploadProfile(type) } : {}),
+    originalFileName,
+    ...(resolveMediaUploadContentType(type, file, extraInfo) ? { contentType: resolveMediaUploadContentType(type, file, extraInfo) } : {}),
+    operatorId: userId,
+  };
+
+  const uploader = getDriveUploader();
+  const uploadResult = type === 'image'
+    ? await uploader.uploadImage(uploadRequest)
+    : type === 'voice'
+      ? await uploader.uploadAudio(uploadRequest)
+      : type === 'video'
+        ? await uploader.uploadVideo(uploadRequest)
+        : await uploader.uploadAttachment(uploadRequest);
+  const drive = normalizeDriveUploadResult(uploadResult);
+  const resource = buildDriveMediaResource(drive, type, {
+    ...extraInfo,
+    fileName: originalFileName,
+    mimeType: uploadRequest.contentType,
+  }, uploadResult);
+  return {
+    content: pickString(content, drive.driveUri) ?? drive.driveUri,
+    drive,
+    resource,
+  };
 }
 
 function mapLiveMessageToMessage(
@@ -693,12 +956,28 @@ class SdkworkChatService implements ChatService {
   private liveSubscriptions = new Map<string, ConversationLiveSubscription>();
   private localMessages = new Map<string, Message[]>();
   private latestReadSeq = new Map<string, number>();
+  private readonly getClient: () => ImSdkClient;
+  private readonly getDriveUploader: () => Pick<
+    DriveUploaderClient,
+    'uploadAudio' | 'uploadAttachment' | 'uploadImage' | 'uploadVideo'
+  >;
+  private readonly getSession: () => SdkworkChatSession | null;
 
   private readonly handleAuthSessionChanged = (): void => {
+    driveUploaderClient = null;
     this.closeAllLiveSubscriptions('auth session changed');
   };
 
-  constructor(private readonly getClient: () => ImSdkClient = getImSdkClientWithSession) {
+  constructor(dependencies: ChatServiceDependencies | (() => ImSdkClient) = {}) {
+    if (typeof dependencies === 'function') {
+      this.getClient = dependencies;
+      this.getDriveUploader = getDefaultDriveUploader;
+      this.getSession = readAppSdkSessionTokens;
+    } else {
+      this.getClient = dependencies.getClient ?? getImSdkClientWithSession;
+      this.getDriveUploader = dependencies.getDriveUploader ?? getDefaultDriveUploader;
+      this.getSession = dependencies.getSession ?? readAppSdkSessionTokens;
+    }
     if (typeof window !== 'undefined') {
       window.addEventListener(SDKWORK_CHAT_SESSION_CHANGED_EVENT, this.handleAuthSessionChanged);
     }
@@ -861,12 +1140,26 @@ class SdkworkChatService implements ChatService {
     content: string,
     type: Message['type'] = 'text',
     replyTo?: Message['replyTo'],
-    extraInfo?: Partial<Message>,
+    extraInfo?: ChatMessageExtraInfo,
   ): Promise<Message> {
     const client = this.client();
     const currentUser = contactService.getCurrentUser();
     const clientMsgId = `pc-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const replyReference = buildReplyReference(replyTo);
+    const mediaUpload = isMediaMessageType(type)
+      ? await uploadChatMediaFile({
+          chatId,
+          content,
+          extraInfo,
+          getDriveUploader: this.getDriveUploader,
+          getSession: this.getSession,
+          type,
+        })
+      : undefined;
+    const remoteSummary = mediaUpload?.resource.fileName ?? (content || extraInfo?.fileName || type);
+    const parts = type === 'text'
+      ? undefined
+      : buildMessageParts(mediaUpload?.content ?? content, type, extraInfo, mediaUpload);
     const postResult = type === 'text'
       ? await client.conversations.postText(chatId, content, {
           clientMsgId,
@@ -875,18 +1168,17 @@ class SdkworkChatService implements ChatService {
         })
       : await client.conversations.postMessage(chatId, {
           clientMsgId,
-          summary: content || extraInfo?.fileName || type,
+          summary: remoteSummary,
           ...(replyReference ? { replyTo: replyReference } : {}),
-          parts: buildMediaMessageParts(chatId, content, type, extraInfo),
-          renderHints: {
-            sdkworkChatPcType: type,
-            ...(extraInfo?.fileName ? { fileName: extraInfo.fileName } : {}),
-            ...(extraInfo?.fileSize ? { fileSize: extraInfo.fileSize } : {}),
-            ...(extraInfo?.coverUrl ? { coverUrl: extraInfo.coverUrl } : {}),
-            ...(extraInfo?.duration ? { duration: String(extraInfo.duration) } : {}),
-          },
+          ...(parts ? { parts } : {}),
+          renderHints: buildMessageRenderHints(type, extraInfo),
         });
 
+    const {
+      file: _file,
+      mimeType: _mimeType,
+      ...localExtraInfo
+    } = extraInfo ?? {};
     const message: Message = {
       id: postResult.messageId,
       chatId,
@@ -895,7 +1187,7 @@ class SdkworkChatService implements ChatService {
       type,
       timestamp: Date.now(),
       replyTo,
-      ...extraInfo,
+      ...localExtraInfo,
     };
     this.upsertLocalMessage(chatId, message, true);
     this.latestReadSeq.set(chatId, Math.max(this.latestReadSeq.get(chatId) ?? 0, postResult.messageSeq));
@@ -905,6 +1197,9 @@ class SdkworkChatService implements ChatService {
   async forwardMessages(targetChatIds: string[], messages: Message[]): Promise<void> {
     for (const targetChatId of targetChatIds) {
       for (const message of messages) {
+        if (isMediaMessageType(message.type)) {
+          throw new Error('Forwarding media messages requires a reusable Drive reference before sending.');
+        }
         await this.sendMessage(targetChatId, message.content, message.type, undefined, {
           fileName: message.fileName,
           fileSize: message.fileSize,
@@ -1363,8 +1658,8 @@ class SdkworkChatService implements ChatService {
   }
 }
 
-export function createSdkworkChatService(getClient?: () => ImSdkClient): ChatService {
-  return new SdkworkChatService(getClient);
+export function createSdkworkChatService(dependencies?: ChatServiceDependencies | (() => ImSdkClient)): ChatService {
+  return new SdkworkChatService(dependencies);
 }
 
 export const chatService = createSdkworkChatService();

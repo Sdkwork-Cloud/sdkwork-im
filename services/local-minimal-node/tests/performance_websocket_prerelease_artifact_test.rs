@@ -148,6 +148,8 @@ fn test_cp11_6_indexes_websocket_e2e_artifact_without_relabeling_full_pre_releas
 
     let catalog = fs::read_to_string(&catalog_path)
         .unwrap_or_else(|_| panic!("missing Step 11 catalog: {}", catalog_path.display()));
+    let catalog_json: Value = serde_json::from_str(&catalog)
+        .unwrap_or_else(|_| panic!("invalid Step 11 catalog JSON: {}", catalog_path.display()));
     let pre_release_readme = fs::read_to_string(&pre_release_readme_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 pre-release README: {}",
@@ -189,8 +191,27 @@ fn test_cp11_6_indexes_websocket_e2e_artifact_without_relabeling_full_pre_releas
             "Step 11 catalog must index {required_text}"
         );
     }
+
+    let websocket_family = catalog_json["scenarioFamilies"]
+        .as_array()
+        .and_then(|families| {
+            families.iter().find(|family| {
+                family["family"]
+                    .as_str()
+                    .is_some_and(|family_name| family_name == "im-websocket-e2e")
+            })
+        })
+        .unwrap_or_else(|| panic!("Step 11 catalog must define im-websocket-e2e scenario family"));
+    let websocket_tier_ids = websocket_family["tierIds"]
+        .as_array()
+        .expect("im-websocket-e2e tierIds must be an array");
     assert!(
-        catalog.contains("\"tierIds\": [\n        \"ci-smoke\",\n        \"pre-release\""),
+        websocket_tier_ids
+            .iter()
+            .any(|tier_id| tier_id == "ci-smoke")
+            && websocket_tier_ids
+                .iter()
+                .any(|tier_id| tier_id == "pre-release"),
         "Step 11 catalog must promote im-websocket-e2e to pre-release supplemental tracking"
     );
 

@@ -453,8 +453,8 @@ fn rtc_state_snapshot_with_options(entries: &[RtcStateSnapshotEntry<'_>]) -> Str
         snapshot.insert(
             (*key).into(),
             json!({
-                "tenant_id": tenant_id,
-                "rtc_session_id": rtc_session_id,
+                "tenantId": tenant_id,
+                "rtcSessionId": rtc_session_id,
                 "session": {
                     "tenantId": tenant_id,
                     "rtcSessionId": rtc_session_id,
@@ -469,7 +469,7 @@ fn rtc_state_snapshot_with_options(entries: &[RtcStateSnapshotEntry<'_>]) -> Str
                     "endedAt": session.ended_at
                 },
                 "signals": serialized_signals,
-                "updated_at": updated_at
+                "updatedAt": updated_at
             }),
         );
     }

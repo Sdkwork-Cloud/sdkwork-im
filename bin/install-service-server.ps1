@@ -59,7 +59,7 @@ $normalizedInstallRoot = $InstallRoot.TrimEnd('\', '/')
 $normalizedConfigDir = $ConfigDir.TrimEnd('\', '/')
 $normalizedLogDir = $LogDir.TrimEnd('\', '/')
 $environmentFile = Join-Path $normalizedConfigDir "server.env"
-$serverConfigPath = Join-Path $normalizedConfigDir "chat.toml"
+$serverConfigPath = Join-Path $normalizedConfigDir "server.yaml"
 $serviceBinaryPath = "$normalizedInstallRoot/bin/craw-chat-server"
 $windowsServiceWrapperExePath = Join-Path (Join-Path $normalizedInstallRoot "bin") "CrawChatServer.exe"
 $windowsServiceWrapperXmlTargetPath = Join-Path (Join-Path $normalizedInstallRoot "bin") "CrawChatServer.xml"
@@ -71,7 +71,7 @@ if (Test-Path $systemdTemplate) {
     $rendered = $unitContent.
         Replace('WorkingDirectory=/opt/sdkwork/chat', "WorkingDirectory=$normalizedInstallRoot").
         Replace('EnvironmentFile=/etc/sdkwork/chat/server.env', "EnvironmentFile=$environmentFile").
-        Replace('ExecStart=/opt/sdkwork/chat/bin/craw-chat-server --config /etc/sdkwork/chat/chat.toml', "ExecStart=$serviceBinaryPath --config $serverConfigPath")
+        Replace('ExecStart=/opt/sdkwork/chat/bin/craw-chat-server --config /etc/sdkwork/chat/server.yaml', "ExecStart=$serviceBinaryPath --config $serverConfigPath")
     $rendered | Set-Content -Path $generatedUnitPath -Encoding utf8
 }
 
@@ -79,7 +79,7 @@ if (Test-Path $launchdTemplate) {
     $plistContent = Get-Content -Path $launchdTemplate -Raw
     $rendered = $plistContent.
         Replace('__INSTALL_ROOT__/bin/craw-chat-server', $serviceBinaryPath).
-        Replace('__CONFIG_DIR__/chat.toml', $serverConfigPath).
+        Replace('__CONFIG_DIR__/server.yaml', $serverConfigPath).
         Replace('__LOG_DIR__/craw-chat-server.out.log', $stdoutLogPath).
         Replace('__LOG_DIR__/craw-chat-server.err.log', $stderrLogPath).
         Replace('__INSTALL_ROOT__', $normalizedInstallRoot).

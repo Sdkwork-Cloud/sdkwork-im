@@ -215,6 +215,8 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_principal_profile_provid
 ) -> Router {
     let projection_service = Arc::new(TimelineProjectionService::default());
     let runtime_dir = runtime_dir.as_ref().to_path_buf();
+    ensure_local_minimal_task_runtime_state_files(runtime_dir.as_path())
+        .unwrap_or_else(|error| panic!("failed to initialize local-minimal task state: {error}"));
     let projection_snapshot_stores =
         build_local_minimal_projection_snapshot_stores(runtime_dir.as_path());
     let realtime_scope_policy =
@@ -266,6 +268,8 @@ fn try_build_public_app_with_bind_addr_and_runtime_dir(
 ) -> Result<Router, String> {
     let projection_service = Arc::new(TimelineProjectionService::default());
     let runtime_dir = runtime_dir.as_ref().to_path_buf();
+    ensure_local_minimal_task_runtime_state_files(runtime_dir.as_path())
+        .map_err(|error| format!("failed to initialize local-minimal task state: {error}"))?;
     let projection_snapshot_stores =
         build_local_minimal_projection_snapshot_stores(runtime_dir.as_path());
     let realtime_scope_policy =
@@ -741,6 +745,35 @@ fn build_local_minimal_rtc_runtime(runtime_dir: impl AsRef<StdPath>) -> Arc<RtcR
     ))))
 }
 
+fn ensure_local_minimal_task_runtime_state_files(runtime_dir: &StdPath) -> Result<(), String> {
+    let state_dir = runtime_dir.join("state");
+    fs::create_dir_all(state_dir.as_path()).map_err(|error| {
+        format!(
+            "failed to create runtime state dir {}: {error}",
+            state_dir.display()
+        )
+    })?;
+    for (file_name, content) in [
+        (
+            "notification-tasks.json",
+            "{\"by_notification\":{},\"tasks_by_recipient\":{}}\n",
+        ),
+        ("automation-executions.json", "{}\n"),
+    ] {
+        let file_path = state_dir.join(file_name);
+        if file_path.exists() {
+            continue;
+        }
+        fs::write(file_path.as_path(), content).map_err(|error| {
+            format!(
+                "failed to initialize runtime state file {}: {error}",
+                file_path.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
 fn build_local_minimal_notification_runtime(
     journal: ProjectionJournal,
     runtime_dir: impl AsRef<StdPath>,
@@ -844,6 +877,8 @@ pub fn build_app_with_dependencies_and_runtime_dir(
     realtime_cluster: Arc<RealtimeClusterBridge>,
 ) -> Router {
     let runtime_dir = runtime_dir.as_ref().to_path_buf();
+    ensure_local_minimal_task_runtime_state_files(runtime_dir.as_path())
+        .unwrap_or_else(|error| panic!("failed to initialize local-minimal task state: {error}"));
     let projection_snapshot_stores =
         build_local_minimal_projection_snapshot_stores(runtime_dir.as_path());
     let realtime_scope_policy =
@@ -1278,6 +1313,14 @@ fn build_app(state: AppState) -> Router {
             "/app/v3/api/iot/{*path}",
             any(aiot_bridge::handle_app_iot_api),
         )
+        .route_service(
+            "/app/v3/api/media/provider_health",
+            media_service::build_default_app(),
+        )
+        .route(
+            "/app/v3/api/principal/profiles/provider_health",
+            get(retrieve_principal_profile_health),
+        )
         .nest("/app/v3/api/rtc", rtc_app_api_routes())
         .route(
             "/backend/v3/api/iot",
@@ -1290,6 +1333,17 @@ fn build_app(state: AppState) -> Router {
         .nest("/backend/v3/api", backend_api_routes())
         .with_state(state)
         .merge(build_local_agent_app_router())
+}
+
+async fn retrieve_principal_profile_health(
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
+    State(state): State<AppState>,
+) -> Result<Json<im_platform_contracts::ProviderHealthSnapshot>, ApiError> {
+    let _auth = resolve_request_app_context(auth, &headers)?;
+    Ok(Json(
+        state.principal_profile_provider.provider_health_snapshot(),
+    ))
 }
 
 fn build_local_agent_app_router() -> Router {

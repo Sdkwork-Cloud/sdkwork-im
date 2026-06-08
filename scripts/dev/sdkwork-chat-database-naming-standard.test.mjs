@@ -238,7 +238,7 @@ assert.ok(
 
 assert.match(
   databaseSpec,
-  /运行时业务数据 INSERT 的 `BIGINT id` MUST 由统一 ID 生成器显式生成并绑定写入/u,
+  /运行时业务数据 INSERT 的 `BIGINT id` MUST 由统一 ID Provider 显式生成并绑定写入/u,
   'root DATABASE_SPEC.md must require explicit generated IDs for runtime INSERTs',
 );
 assert.match(

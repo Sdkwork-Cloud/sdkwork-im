@@ -2,6 +2,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +12,11 @@ import { resolveCrawChatSharedDatabaseConfig } from './craw-chat-shared-database
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), '..', '..');
+export const SDKWORK_CHAT_PC_DEV_HOST_ENV = 'SDKWORK_CHAT_PC_DEV_HOST';
+export const SDKWORK_CHAT_PC_DEV_PORT_ENV = 'SDKWORK_CHAT_PC_DEV_PORT';
+export const DEFAULT_SDKWORK_CHAT_PC_DEV_HOST = '127.0.0.1';
+export const DEFAULT_SDKWORK_CHAT_PC_DEV_PORT = 4176;
+const MAX_DEV_PORT_ATTEMPTS = 50;
 
 const TARGETS = Object.freeze({
   browser: {
@@ -23,13 +29,6 @@ const TARGETS = Object.freeze({
   },
 });
 
-const CRAW_CHAT_BROWSER_ORIGINS = [
-  'http://127.0.0.1:1620',
-  'http://localhost:1620',
-  'http://127.0.0.1:4176',
-  'http://localhost:4176',
-].join(',');
-
 function pnpmCommand() {
   return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 }
@@ -41,6 +40,90 @@ function pnpmShell() {
 function normalizeText(value) {
   const normalized = String(value ?? '').trim();
   return normalized || undefined;
+}
+
+function normalizePort(value, label = 'port') {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return undefined;
+  }
+  if (!/^\d+$/u.test(normalized)) {
+    throw new Error(`${label} must be a TCP port number`);
+  }
+  const port = Number.parseInt(normalized, 10);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`${label} must be between 1 and 65535`);
+  }
+  return port;
+}
+
+export function resolveSdkworkChatPcDevServer({
+  env = process.env,
+  host,
+  port,
+} = {}) {
+  const resolvedHost = normalizeText(host)
+    ?? normalizeText(env[SDKWORK_CHAT_PC_DEV_HOST_ENV])
+    ?? DEFAULT_SDKWORK_CHAT_PC_DEV_HOST;
+  const resolvedPort = normalizePort(
+    port ?? env[SDKWORK_CHAT_PC_DEV_PORT_ENV] ?? DEFAULT_SDKWORK_CHAT_PC_DEV_PORT,
+    SDKWORK_CHAT_PC_DEV_PORT_ENV,
+  );
+  return {
+    host: resolvedHost,
+    port: resolvedPort,
+    url: `http://${resolvedHost}:${resolvedPort}`,
+  };
+}
+
+export function createSdkworkChatBrowserOrigins({
+  host = DEFAULT_SDKWORK_CHAT_PC_DEV_HOST,
+  port = DEFAULT_SDKWORK_CHAT_PC_DEV_PORT,
+} = {}) {
+  const resolvedPort = normalizePort(port, SDKWORK_CHAT_PC_DEV_PORT_ENV);
+  const originHosts = [host, 'localhost']
+    .map((value) => normalizeText(value))
+    .filter((value, index, values) => value && values.indexOf(value) === index);
+  return originHosts
+    .map((originHost) => `http://${originHost}:${resolvedPort}`)
+    .join(',');
+}
+
+export function isTcpPortAvailable(port, host = DEFAULT_SDKWORK_CHAT_PC_DEV_HOST) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+    server.once('error', () => resolve(false));
+    server.listen({ host, port }, () => {
+      server.close(() => resolve(true));
+    });
+  });
+}
+
+export async function resolveAvailableSdkworkChatPcDevPort({
+  env = process.env,
+  host,
+  startPort,
+  maxAttempts = MAX_DEV_PORT_ATTEMPTS,
+  isPortAvailable = isTcpPortAvailable,
+} = {}) {
+  const devServer = resolveSdkworkChatPcDevServer({
+    env,
+    host,
+    port: startPort,
+  });
+  for (let offset = 0; offset < maxAttempts; offset += 1) {
+    const candidatePort = devServer.port + offset;
+    if (candidatePort > 65535) {
+      break;
+    }
+    if (await isPortAvailable(candidatePort, devServer.host)) {
+      return candidatePort;
+    }
+  }
+  throw new Error(
+    `No available SDKWork Chat PC dev port found from ${devServer.port} after ${maxAttempts} attempts`,
+  );
 }
 
 function stripOptionalQuotes(value) {
@@ -158,6 +241,8 @@ export function parseSdkworkChatPcDevArgs(argv = []) {
 
 export function createSdkworkChatPcDevPlan({
   argv = [],
+  devServerHost,
+  devServerPort,
   env = process.env,
   repoRoot: resolvedRepoRoot = repoRoot,
 } = {}) {
@@ -201,6 +286,13 @@ export function createSdkworkChatPcDevPlan({
     mergedEnv.SDKWORK_CHAT_DEPLOYMENT_MODE = 'desktop';
     mergedEnv.SDKWORK_CHAT_DATABASE_ENGINE = 'sqlite';
   }
+  const devServer = resolveSdkworkChatPcDevServer({
+    env: mergedEnv,
+    host: devServerHost,
+    port: devServerPort,
+  });
+  mergedEnv[SDKWORK_CHAT_PC_DEV_HOST_ENV] = devServer.host;
+  mergedEnv[SDKWORK_CHAT_PC_DEV_PORT_ENV] = String(devServer.port);
   const command = pnpmCommand();
   const shared = {
     command,
@@ -219,10 +311,12 @@ export function createSdkworkChatPcDevPlan({
   const unifiedServerEnv = {
     ...mergedEnv,
     ...resolveCrawChatSharedDatabaseConfig({ env: mergedEnv, repoRoot: resolvedRepoRoot }).env,
-    CRAW_CHAT_BROWSER_ORIGINS,
+    CRAW_CHAT_BROWSER_ORIGINS: mergedEnv.CRAW_CHAT_BROWSER_ORIGINS
+      ?? createSdkworkChatBrowserOrigins(devServer),
     CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE: 'embedded',
   };
   return {
+    devServer,
     dryRun: options.dryRun,
     target: options.target,
     processes: [
@@ -273,16 +367,29 @@ function terminateProcessTree(child) {
   child.kill();
 }
 
-export function runSdkworkChatPcDev({
+export async function runSdkworkChatPcDev({
   argv = process.argv.slice(2),
   env = process.env,
+  findAvailableDevPort = resolveAvailableSdkworkChatPcDevPort,
   repoRoot: resolvedRepoRoot = repoRoot,
   spawnImpl = spawn,
   stdout = process.stdout,
   stderr = process.stderr,
 } = {}) {
+  const initialPlan = createSdkworkChatPcDevPlan({
+    argv,
+    env,
+    repoRoot: resolvedRepoRoot,
+  });
+  const resolvedDevPort = await findAvailableDevPort({
+    env: initialPlan.processes[1].env,
+    host: initialPlan.devServer.host,
+    startPort: initialPlan.devServer.port,
+  });
   const plan = createSdkworkChatPcDevPlan({
     argv,
+    devServerHost: initialPlan.devServer.host,
+    devServerPort: resolvedDevPort,
     env,
     repoRoot: resolvedRepoRoot,
   });
@@ -347,7 +454,7 @@ export function runSdkworkChatPcDev({
 
 if (path.resolve(process.argv[1] ?? '') === __filename) {
   try {
-    const exitCode = runSdkworkChatPcDev();
+    const exitCode = await runSdkworkChatPcDev();
     if (Number.isInteger(exitCode)) {
       process.exitCode = exitCode;
     }

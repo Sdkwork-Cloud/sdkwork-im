@@ -12,6 +12,7 @@ import {
   getImSdkClientWithSession,
 } from '@sdkwork/clawchat-pc-core/sdk/imSdkClient';
 import {
+  applyAppSdkSessionTokens,
   readAppSdkSessionTokens,
 } from '@sdkwork/clawchat-pc-core/sdk/session';
 import type { User } from '@sdkwork/clawchat-pc-types';
@@ -264,18 +265,7 @@ class SdkworkContactService implements ContactService {
   }
 
   async searchContacts(query: string): Promise<User[]> {
-    const normalizedQuery = query.trim();
-    if (!normalizedQuery) {
-      return [];
-    }
-
-    const response = await this.client().social.users.list({
-      q: normalizedQuery,
-      limit: SOCIAL_USER_SEARCH_LIMIT,
-    });
-    return response.items
-      .filter((item) => !this.isCurrentUserSearchResult(item))
-      .map((item) => this.mapSocialUserSearchResultToUser(item));
+    return this.searchSocialUsers(query, { includeCurrentUser: false });
   }
 
   async addFriend(userId: string): Promise<void> {
@@ -377,16 +367,15 @@ class SdkworkContactService implements ContactService {
     if (cached) {
       return { ...cached };
     }
+    if (shouldReturnCurrentUserIfLookupFails) {
+      return await this.findSocialUserByLookup(normalizedId) ?? currentUser;
+    }
     const contacts = await this.getContacts();
     const contact = contacts.find((user) => user.id === normalizedId || user.chatId === normalizedId);
     if (contact) {
       return contact;
     }
-    const [searchedUser] = await this.searchContacts(normalizedId);
-    if (searchedUser?.id === normalizedId || searchedUser?.chatId === normalizedId) {
-      return searchedUser;
-    }
-    return shouldReturnCurrentUserIfLookupFails ? currentUser : null;
+    return await this.findSocialUserByLookup(normalizedId);
   }
 
   async getFriendRequests(): Promise<FriendRequest[]> {
@@ -549,8 +538,31 @@ class SdkworkContactService implements ContactService {
   }
 
   private async loadUserProfile(userId: string): Promise<User | null> {
-    const [profile] = await this.searchContacts(userId);
+    const [profile] = await this.searchSocialUsers(userId, { includeCurrentUser: true });
     return profile?.id === userId ? profile : null;
+  }
+
+  private async searchSocialUsers(
+    query: string,
+    options: { includeCurrentUser: boolean },
+  ): Promise<User[]> {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    const response = await this.client().social.users.list({
+      q: normalizedQuery,
+      limit: SOCIAL_USER_SEARCH_LIMIT,
+    });
+    return response.items
+      .filter((item) => options.includeCurrentUser || !this.isCurrentUserSearchResult(item))
+      .map((item) => this.mapSocialUserSearchResultToUser(item));
+  }
+
+  private async findSocialUserByLookup(lookup: string): Promise<User | null> {
+    const users = await this.searchSocialUsers(lookup, { includeCurrentUser: true });
+    return users.find((user) => user.id === lookup || user.chatId === lookup) ?? null;
   }
 
   private normalizeContactUserId(userId: string): string {
@@ -620,6 +632,7 @@ class SdkworkContactService implements ContactService {
   private mapSocialUserSearchResultToUser(result: SocialUserSearchResult): User {
     const resultRecord = toRecord(result);
     const metadata = toRecord(resultRecord.metadata);
+    const isCurrentProfile = this.isCurrentUserSearchResult(result);
     const chatId = pickString(
       resultRecord.chatId,
       resultRecord.chat_id,
@@ -632,7 +645,7 @@ class SdkworkContactService implements ContactService {
       ...(chatId ? { chatId } : {}),
       name,
       avatar: result.avatarUrl ?? createAvatar(result.userId),
-      status: result.relationshipState === 'active' ? 'online' : 'offline',
+      status: result.relationshipState === 'active' || result.relationshipState === 'self' ? 'online' : 'offline',
       email: result.email,
       phone: result.phone,
       departmentId: pickString(
@@ -644,18 +657,33 @@ class SdkworkContactService implements ContactService {
       py: createSearchKey(name),
     };
     this.cacheUser(user);
+    if (isCurrentProfile) {
+      this.syncCurrentUserProfile(user);
+    }
     return user;
   }
 
-  private isCurrentUserIdentifier(userId: string): boolean {
+  private isCurrentUserIdentifier(userId: unknown): boolean {
+    const normalizedUserId = normalizeString(userId);
+    if (!normalizedUserId) {
+      return false;
+    }
     const currentUser = this.getCurrentUser();
-    return userId === currentUser.id || (Boolean(currentUser.chatId) && userId === currentUser.chatId);
+    return normalizedUserId === currentUser.id || (Boolean(currentUser.chatId) && normalizedUserId === currentUser.chatId);
   }
 
   private isCurrentUserSearchResult(result: SocialUserSearchResult): boolean {
+    const resultRecord = toRecord(result);
+    const metadata = toRecord(resultRecord.metadata);
+    const chatId = pickString(
+      resultRecord.chatId,
+      resultRecord.chat_id,
+      metadata.chatId,
+      metadata.chat_id,
+    );
     return result.relationshipState === 'self'
       || this.isCurrentUserIdentifier(result.userId)
-      || this.isCurrentUserIdentifier(result.chatId);
+      || this.isCurrentUserIdentifier(chatId);
   }
 
   private createUserFromId(userId: string, preferences = this.preferenceByUserId.get(userId)): User {
@@ -749,6 +777,56 @@ class SdkworkContactService implements ContactService {
     if (user.chatId) {
       this.userIdByChatId.set(user.chatId, user.id);
     }
+  }
+
+  private syncCurrentUserProfile(user: User): void {
+    const currentUser = this.getCurrentUser();
+    const currentUserProfile: User = {
+      ...currentUser,
+      ...user,
+      id: currentUser.id,
+      name: user.name || currentUser.name,
+      avatar: user.avatar ?? currentUser.avatar,
+      status: currentUser.status ?? user.status,
+      py: createSearchKey(user.name || currentUser.name),
+    };
+
+    this.currentUserOverrides = {
+      ...this.currentUserOverrides,
+      ...(currentUserProfile.chatId ? { chatId: currentUserProfile.chatId } : {}),
+      name: currentUserProfile.name,
+      avatar: currentUserProfile.avatar,
+      status: currentUserProfile.status,
+      email: currentUserProfile.email,
+      phone: currentUserProfile.phone,
+    };
+    this.cacheUser(currentUserProfile);
+    this.persistCurrentUserProfile(currentUserProfile);
+  }
+
+  private persistCurrentUserProfile(user: User): void {
+    if (!user.chatId) {
+      return;
+    }
+
+    const session = readAppSdkSessionTokens();
+    if (!session || session.user?.chatId === user.chatId) {
+      return;
+    }
+
+    applyAppSdkSessionTokens({
+      ...session,
+      user: {
+        ...(session.user ?? {}),
+        id: pickString(session.user?.id, session.context?.userId, user.id) ?? user.id,
+        userId: pickString(session.user?.userId, session.context?.userId, user.id) ?? user.id,
+        chatId: user.chatId,
+        ...(user.name ? { displayName: user.name, name: user.name } : {}),
+        ...(user.avatar ? { avatar: user.avatar } : {}),
+        ...(user.email ? { email: user.email } : {}),
+        ...(user.phone ? { phone: user.phone } : {}),
+      },
+    });
   }
 
 }

@@ -77,28 +77,72 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-server_yaml="${config_dir}/chat.toml"
+server_yaml="${config_dir}/server.yaml"
+legacy_chat_toml="${config_dir}/chat.toml"
 postgresql_yaml="${config_dir}/postgresql.yaml"
-password_file="${config_dir}/database.secret"
+storage_postgresql_yaml="${config_dir}/storage/postgresql.yaml"
 missing=()
+config_missing=()
+storage_missing=()
 
-[[ -f "$server_yaml" ]] || missing+=("chat.toml")
-[[ -f "$postgresql_yaml" ]] || missing+=("postgresql.yaml")
-[[ -f "$password_file" ]] || missing+=("database.secret")
+if [[ -f "$server_yaml" ]]; then
+  server_config_path="$server_yaml"
+elif [[ -f "$legacy_chat_toml" ]]; then
+  server_config_path="$legacy_chat_toml"
+else
+  server_config_path=""
+  config_missing+=("server.yaml")
+fi
 
-server_content="$(cat "$server_yaml" 2>/dev/null || true)"
-storage_content="$(cat "$postgresql_yaml" 2>/dev/null || true)"
+if [[ -f "$postgresql_yaml" ]]; then
+  storage_config_path="$postgresql_yaml"
+elif [[ -f "$storage_postgresql_yaml" ]]; then
+  storage_config_path="$storage_postgresql_yaml"
+else
+  storage_config_path=""
+  storage_missing+=("postgresql.yaml")
+fi
 
-for contract in "[runtime]" "deployment_mode = \"server\"" "app_code = \"chat\"" "[server]" "bind_address ="; do
-  [[ "$server_content" == *"$contract"* ]] || missing+=("$contract")
-done
-for contract in "provider: postgresql" "passwordFile:" "migrationMode:"; do
-  [[ "$storage_content" == *"$contract"* ]] || missing+=("$contract")
-done
+server_content="$(cat "$server_config_path" 2>/dev/null || true)"
+storage_content="$(cat "$storage_config_path" 2>/dev/null || true)"
+
+if [[ -n "$server_config_path" ]]; then
+  if [[ "$(basename "$server_config_path")" == "server.yaml" ]]; then
+    for contract in "instance:" "name:" "network:" "bindAddress:" "publicEndpoints:" "baseUrl:" "runtime:" "dataRoot:"; do
+      [[ "$server_content" == *"$contract"* ]] || config_missing+=("$contract")
+    done
+  else
+    for contract in "[runtime]" "deployment_mode = \"server\"" "app_code = \"chat\"" "[server]" "bind_address ="; do
+      [[ "$server_content" == *"$contract"* ]] || config_missing+=("$contract")
+    done
+  fi
+fi
+
+if [[ -n "$storage_config_path" ]]; then
+  for contract in "provider: postgresql" "passwordFile:" "migrationMode:"; do
+    [[ "$storage_content" == *"$contract"* ]] || storage_missing+=("$contract")
+  done
+
+  password_file="$(printf '%s\n' "$storage_content" | awk -F: '/^[[:space:]]*passwordFile:/ {sub(/^[[:space:]]+/, "", $2); sub(/[[:space:]]+$/, "", $2); gsub(/^["'\'']|["'\'']$/, "", $2); print $2; exit}')"
+  if [[ -z "$password_file" ]]; then
+    storage_missing+=("passwordFile target")
+  elif [[ "$password_file" = /* ]]; then
+    [[ -f "$password_file" ]] || storage_missing+=("passwordFile target")
+  else
+    storage_root="$(cd "$(dirname "$storage_config_path")" && pwd)"
+    [[ -f "${config_dir}/${password_file}" || -f "${storage_root}/${password_file}" ]] || storage_missing+=("passwordFile target")
+  fi
+fi
+
+missing=("${config_missing[@]}" "${storage_missing[@]}")
 
 config_valid=true
-if [[ ${#missing[@]} -gt 0 ]]; then
+if [[ ${#config_missing[@]} -gt 0 ]]; then
   config_valid=false
+fi
+storage_valid=true
+if [[ ${#storage_missing[@]} -gt 0 ]]; then
+  storage_valid=false
 fi
 
 release_contracts_enabled=false
@@ -116,7 +160,10 @@ if [[ -n "$release_gate_path" ]]; then
   fi
 fi
 
-ready="$config_valid"
+ready=false
+if [[ "$config_valid" == true && "$storage_valid" == true ]]; then
+  ready=true
+fi
 if [[ "$release_contracts_enabled" == true && "$release_contracts_valid" != true ]]; then
   ready=false
 fi
@@ -128,7 +175,7 @@ if [[ "$output_format" == "json" ]]; then
   "instance": "${instance_name}",
   "config": "${config_dir}",
   "configValid": ${config_valid},
-  "storageValid": ${config_valid},
+  "storageValid": ${storage_valid},
   "ready": ${ready},
   "output": "${output_format}",
   "missing": $(json_array_strings "${missing[@]}"),

@@ -34,14 +34,20 @@ assert.doesNotMatch(
 
 assert.match(
   profileMenuSource,
-  /title=["']Copy Chat ID["']/u,
-  'ProfileMenuModal user id copy control must expose a copy-ID title',
+  /useTranslation/u,
+  'ProfileMenuModal must use react-i18next for user-facing profile copy',
 );
 
 assert.match(
   profileMenuSource,
-  /toast\(["']Chat ID copied["'],\s*["']success["']\)/u,
-  'ProfileMenuModal must show an in-app success toast after copying the public chat id',
+  /title=\{t\(['"]profile\.copyChatId['"]\)\}/u,
+  'ProfileMenuModal user id copy control must expose a localized copy-ID title',
+);
+
+assert.match(
+  profileMenuSource,
+  /toast\(t\(['"]profile\.toast\.chatIdCopied['"]\),\s*["']success["']\)/u,
+  'ProfileMenuModal must show a localized in-app success toast after copying the public chat id',
 );
 
 assert.match(
@@ -87,9 +93,15 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  `${profileMenuSource}\n${contactDetailSource}`,
-  /Loading|loading|Unavailable|Unavaiable/u,
+  profileMenuSource,
+  />\s*(?:Loading|loading|Unavailable|Unavaiable)\s*</u,
   'Profile surfaces must not render Loading, loading, or Unavailable as a user-facing Chat ID fallback',
+);
+
+assert.doesNotMatch(
+  contactDetailSource,
+  /displayUserChatId\s*(?:\|\||\?\?)\s*["'](?:Loading|loading|Unavailable|Unavaiable)["']/u,
+  'ContactDetailPane must not render Loading, loading, or Unavailable as a user-facing Chat ID fallback',
 );
 
 console.log('sdkwork-chat-pc profile menu user id contract passed');

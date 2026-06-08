@@ -11,6 +11,7 @@ import {
   Video,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { Avatar, cn } from '@sdkwork/clawchat-pc-commons';
 import { toast } from '../Toast';
 import { contactService } from '../../services/ContactService';
@@ -25,6 +26,7 @@ export const ContactDetailPane: React.FC<{
   onStartCall?: (type: 'voice' | 'video', user: UserType) => void;
   onAppSelect?: (appId: string) => void;
 }> = ({ user, departmentName, fullWidth, onSendMessage, onStartCall, onAppSelect }) => {
+  const { t } = useTranslation();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
   const { promptConfig, customPrompt, closePrompt } = usePrompt();
@@ -43,20 +45,20 @@ export const ContactDetailPane: React.FC<{
     try {
       await contactService.toggleStarContact(user.id, newStatus);
       setIsStarred(newStatus);
-      toast(newStatus ? 'Contact starred' : 'Contact unstarred', 'success');
+      toast(t(newStatus ? 'contacts.detail.toast.starred' : 'contacts.detail.toast.unstarred'), 'success');
     } catch {
-      toast('Contact update failed', 'error');
+      toast(t('contacts.detail.toast.updateFailed'), 'error');
     }
   };
 
   const copyDisplayUserChatId = () => {
     setShowMoreMenu(false);
     if (!displayUserChatId) {
-      toast('Chat ID is not ready. Please try again.', 'error');
+      toast(t('contacts.detail.toast.chatIdNotReady'), 'error');
       return;
     }
     void navigator.clipboard.writeText(displayUserChatId);
-    toast('Chat ID copied', 'success');
+    toast(t('contacts.detail.toast.chatIdCopied'), 'success');
   };
 
   const startVoiceCall = () => {
@@ -64,7 +66,7 @@ export const ContactDetailPane: React.FC<{
       onStartCall('voice', user);
       return;
     }
-    toast('Voice calling is unavailable', 'error');
+    toast(t('contacts.detail.toast.voiceUnavailable'), 'error');
   };
 
   const startVideoCall = () => {
@@ -72,7 +74,7 @@ export const ContactDetailPane: React.FC<{
       onStartCall('video', user);
       return;
     }
-    toast('Video calling is unavailable', 'error');
+    toast(t('contacts.detail.toast.videoUnavailable'), 'error');
   };
 
   return (
@@ -92,7 +94,7 @@ export const ContactDetailPane: React.FC<{
               <button
                 onClick={handleToggleStar}
                 className="rounded-full bg-white/5 p-2 text-gray-400 shadow-sm transition-colors hover:bg-white/10 hover:text-yellow-400"
-                title={isStarred ? 'Unstar contact' : 'Star contact'}
+                title={t(isStarred ? 'contacts.detail.unstarContact' : 'contacts.detail.starContact')}
               >
                 <Star size={18} className={cn('transition-colors', isStarred && 'fill-yellow-400 text-yellow-400')} />
               </button>
@@ -100,7 +102,7 @@ export const ContactDetailPane: React.FC<{
                 <button
                   onClick={() => setShowMoreMenu(!showMoreMenu)}
                   className="rounded-full bg-white/5 p-2 text-gray-400 shadow-sm transition-colors hover:bg-white/10 hover:text-white"
-                  title="More"
+                  title={t('contacts.detail.more')}
                 >
                   <MoreVertical size={18} />
                 </button>
@@ -116,27 +118,27 @@ export const ContactDetailPane: React.FC<{
                         className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
                         onClick={copyDisplayUserChatId}
                       >
-                        Copy Chat ID
+                        {t('contacts.detail.copyChatId')}
                       </button>
                       <button
                         className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
                         onClick={() => {
                           setShowMoreMenu(false);
-                          customPrompt('Set remark', user.name, async (name) => {
+                          customPrompt(t('contacts.detail.setRemark'), user.name, async (name) => {
                             try {
                               if (name?.trim()) {
                                 await contactService.setContactRemark(user.id, name.trim());
-                                toast('Remark updated', 'success');
+                                toast(t('contacts.detail.toast.remarkUpdated'), 'success');
                               }
                             } catch {
-                              toast('Remark update failed', 'error');
+                              toast(t('contacts.detail.toast.remarkUpdateFailed'), 'error');
                             } finally {
                               closePrompt();
                             }
                           });
                         }}
                       >
-                        Set Remark
+                        {t('contacts.detail.setRemark')}
                       </button>
                       <button
                         className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
@@ -144,13 +146,13 @@ export const ContactDetailPane: React.FC<{
                           setShowMoreMenu(false);
                           try {
                             await contactService.recommendToFriend(user.id);
-                            toast('Recommendation sent', 'success');
+                            toast(t('contacts.detail.toast.recommendationSent'), 'success');
                           } catch {
-                            toast('Recommendation failed', 'error');
+                            toast(t('contacts.detail.toast.recommendationFailed'), 'error');
                           }
                         }}
                       >
-                        Recommend
+                        {t('contacts.detail.recommend')}
                       </button>
                       <div className="mx-2 my-1 h-px bg-white/10" />
                       <button
@@ -159,13 +161,13 @@ export const ContactDetailPane: React.FC<{
                           setShowMoreMenu(false);
                           try {
                             await contactService.addToBlacklist(user.id);
-                            toast('Added to blacklist', 'success');
+                            toast(t('contacts.detail.toast.blacklisted'), 'success');
                           } catch {
-                            toast('Blacklist update failed', 'error');
+                            toast(t('contacts.detail.toast.blacklistFailed'), 'error');
                           }
                         }}
                       >
-                        Add to Blacklist
+                        {t('contacts.detail.addToBlacklist')}
                       </button>
                       <button
                         className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-500 transition-colors hover:bg-red-500/10"
@@ -173,13 +175,13 @@ export const ContactDetailPane: React.FC<{
                           setShowMoreMenu(false);
                           try {
                             await contactService.deleteContact(user.id);
-                            toast('Contact deleted', 'success');
+                            toast(t('contacts.detail.toast.deleted'), 'success');
                           } catch {
-                            toast('Delete contact failed', 'error');
+                            toast(t('contacts.detail.toast.deleteFailed'), 'error');
                           }
                         }}
                       >
-                        Delete
+                        {t('contacts.detail.delete')}
                       </button>
                     </motion.div>
                   </>
@@ -210,7 +212,7 @@ export const ContactDetailPane: React.FC<{
             <h2 className="z-10 mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-100">
               {user.name}
             </h2>
-            <div className="z-10 mb-6 text-sm font-medium text-indigo-400">{user.position || 'Unknown position'}</div>
+            <div className="z-10 mb-6 text-sm font-medium text-indigo-400">{user.position || t('contacts.detail.unknownPosition')}</div>
 
             <div className="z-10 flex w-full items-center justify-center gap-3">
               <button
@@ -218,26 +220,26 @@ export const ContactDetailPane: React.FC<{
                   if (onSendMessage) {
                     onSendMessage(user);
                   } else {
-                    toast('Messaging is unavailable', 'error');
+                    toast(t('contacts.detail.toast.messagingUnavailable'), 'error');
                   }
                 }}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 font-medium text-white shadow-lg shadow-indigo-500/20 transition-all hover:bg-indigo-500 active:scale-[0.98]"
               >
                 <MessageSquare size={18} />
-                Message
+                {t('contacts.detail.message')}
               </button>
               <div className="flex gap-2">
                 <button
                   onClick={startVoiceCall}
                   className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/5 bg-white/5 text-gray-300 transition-all hover:bg-white/10 active:scale-[0.98]"
-                  title="Voice call"
+                  title={t('contacts.detail.voiceCall')}
                 >
                   <Phone size={18} />
                 </button>
                 <button
                   onClick={startVideoCall}
                   className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/5 bg-white/5 text-gray-300 transition-all hover:bg-white/10 active:scale-[0.98]"
-                  title="Video call"
+                  title={t('contacts.detail.videoCall')}
                 >
                   <Video size={18} />
                 </button>
@@ -247,19 +249,19 @@ export const ContactDetailPane: React.FC<{
 
           <div className="custom-scrollbar flex flex-1 flex-col gap-6 overflow-y-auto p-8">
             <div className="space-y-4">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Basic Info</h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">{t('contacts.detail.basicInfo')}</h3>
               <div className="flex flex-col gap-3">
                 <div className="flex items-start gap-4 rounded-xl p-3 transition-colors hover:bg-white/5">
                   <Hash size={18} className="mt-0.5 shrink-0 text-gray-500" />
                   <div className="min-w-0">
-                    <div className="mb-0.5 text-xs text-gray-500">Chat ID</div>
+                    <div className="mb-0.5 text-xs text-gray-500">{t('contacts.detail.chatId')}</div>
                     <div className="break-all font-mono text-sm text-gray-200">{displayUserChatId}</div>
                   </div>
                 </div>
                 <div className="flex items-start gap-4 rounded-xl p-3 transition-colors hover:bg-white/5">
                   <Building2 size={18} className="mt-0.5 shrink-0 text-gray-500" />
                   <div>
-                    <div className="mb-0.5 text-xs text-gray-500">Department</div>
+                      <div className="mb-0.5 text-xs text-gray-500">{t('contacts.detail.department')}</div>
                     <div className="text-sm text-gray-200">{departmentName}</div>
                   </div>
                 </div>
@@ -267,7 +269,7 @@ export const ContactDetailPane: React.FC<{
                   <div className="flex items-start gap-4 rounded-xl p-3 transition-colors hover:bg-white/5">
                     <Building2 size={18} className="mt-0.5 shrink-0 text-gray-500" />
                     <div>
-                      <div className="mb-0.5 text-xs text-gray-500">Company</div>
+                      <div className="mb-0.5 text-xs text-gray-500">{t('contacts.detail.company')}</div>
                       <div className="text-sm text-gray-200">{user.company}</div>
                     </div>
                   </div>
@@ -276,7 +278,7 @@ export const ContactDetailPane: React.FC<{
                   <div className="flex items-start gap-4 rounded-xl p-3 transition-colors hover:bg-white/5">
                     <Hash size={18} className="mt-0.5 shrink-0 text-gray-500" />
                     <div>
-                      <div className="mb-0.5 text-xs text-gray-500">Location</div>
+                      <div className="mb-0.5 text-xs text-gray-500">{t('contacts.detail.location')}</div>
                       <div className="text-sm text-gray-200">{user.location}</div>
                     </div>
                   </div>
@@ -285,7 +287,7 @@ export const ContactDetailPane: React.FC<{
                   <div className="flex items-start gap-4 rounded-xl p-3 transition-colors hover:bg-white/5">
                     <MessageSquare size={18} className="mt-0.5 shrink-0 text-gray-500" />
                     <div>
-                      <div className="mb-0.5 text-xs text-gray-500">Signature</div>
+                      <div className="mb-0.5 text-xs text-gray-500">{t('contacts.detail.signature')}</div>
                       <div className="text-sm italic text-gray-200">"{user.motto}"</div>
                     </div>
                   </div>
@@ -293,11 +295,11 @@ export const ContactDetailPane: React.FC<{
                 {user.email && (
                   <div
                     className="group flex cursor-pointer items-start gap-4 rounded-xl p-3 transition-colors hover:bg-white/5"
-                    onClick={() => (onAppSelect ? onAppSelect('mail') : toast('Mail app selected', 'success'))}
+                    onClick={() => (onAppSelect ? onAppSelect('mail') : toast(t('contacts.detail.toast.mailSelected'), 'success'))}
                   >
                     <Mail size={18} className="mt-0.5 shrink-0 text-gray-500" />
                     <div className="flex-1">
-                      <div className="mb-0.5 text-xs text-gray-500">Email</div>
+                      <div className="mb-0.5 text-xs text-gray-500">{t('contacts.detail.email')}</div>
                       <div className="text-sm text-gray-200">{user.email}</div>
                     </div>
                     <ChevronRight size={16} className="text-gray-600 opacity-0 transition-opacity group-hover:opacity-100" />
@@ -310,7 +312,7 @@ export const ContactDetailPane: React.FC<{
                   >
                     <Phone size={18} className="mt-0.5 shrink-0 text-gray-500" />
                     <div className="flex-1">
-                      <div className="mb-0.5 text-xs text-gray-500">Phone</div>
+                      <div className="mb-0.5 text-xs text-gray-500">{t('contacts.detail.phone')}</div>
                       <div className="font-mono text-sm text-gray-200">{user.phone}</div>
                     </div>
                     <ChevronRight size={16} className="text-gray-600 opacity-0 transition-opacity group-hover:opacity-100" />

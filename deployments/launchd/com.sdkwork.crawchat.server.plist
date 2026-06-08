@@ -9,7 +9,7 @@
   <array>
     <string>__INSTALL_ROOT__/bin/craw-chat-server</string>
     <string>--config</string>
-    <string>__CONFIG_DIR__/chat.toml</string>
+    <string>__CONFIG_DIR__/server.yaml</string>
   </array>
 
   <key>WorkingDirectory</key>

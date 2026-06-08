@@ -182,19 +182,35 @@ for (const required of [
   'SDKWORK_CHAT_SERVER_BIND=0.0.0.0:18080',
   'SDKWORK_CHAT_SERVER_BASE_URL=https://chat.example.com/sdkwork/chat',
   'SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL=wss://realtime.example.com/sdkwork/chat',
+  'CRAW_CHAT_SERVER_INSTANCE=default',
+  'CRAW_CHAT_SERVER_CONFIG_DIR=/etc/sdkwork/chat',
+  'CRAW_CHAT_SERVER_DATA_DIR=/var/lib/sdkwork/chat',
+  'CRAW_CHAT_SERVER_LOG_DIR=/var/log/sdkwork/chat',
+  'CRAW_CHAT_SERVER_RUN_DIR=/run/sdkwork/chat',
+  'CRAW_CHAT_SERVER_BASE_URL=https://chat.example.com/sdkwork/chat',
+  'CRAW_CHAT_SERVER_API_BASE_URL=https://chat.example.com/sdkwork/chat',
+  'CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=wss://realtime.example.com/sdkwork/chat',
+  'CRAW_CHAT_PC_API_UPSTREAM=https://chat.example.com/sdkwork/chat',
+  'CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true',
+  'CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET=replace-with-secret-manager-app-context-signature-secret',
 ]) {
   assert.ok(serverEnvTemplate.includes(required), `server.env.example must document ${required}`);
 }
-assert.doesNotMatch(serverEnvTemplate, /CRAW_CHAT_SERVER_CONFIG_DIR|CRAW_CHAT_POSTGRES_/u);
+assert.doesNotMatch(serverEnvTemplate, /CRAW_CHAT_POSTGRES_/u);
 
 const serverConfigTemplate = read('deployments/templates/server.yaml.example');
 for (const required of [
+  'instance:',
+  'name: default',
   'appCode: chat',
   'deploymentMode: server',
   'configFile: /etc/sdkwork/chat/chat.toml',
   'dataDirectory: /var/lib/sdkwork/chat',
+  'dataDir: /var/lib/sdkwork/chat',
   'logDirectory: /var/log/sdkwork/chat',
+  'logDir: /var/log/sdkwork/chat',
   'runtimeDirectory: /run/sdkwork/chat',
+  'runDir: /run/sdkwork/chat',
   'baseUrl: https://chat.example.com/sdkwork/chat',
   'apiBaseUrl: https://chat.example.com/sdkwork/chat',
   'websocketBaseUrl: wss://realtime.example.com/sdkwork/chat',

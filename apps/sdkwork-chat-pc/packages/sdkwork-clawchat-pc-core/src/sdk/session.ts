@@ -191,20 +191,30 @@ function normalizeContext(value: unknown): SdkworkChatAppContext | undefined {
     return undefined;
   }
   const context = value as Partial<IamAppContext>;
-  if (!normalizeString(context.appId) || !normalizeString(context.tenantId) || !normalizeString(context.userId)) {
+  const record = value as Record<string, unknown>;
+  const appId = normalizeString(context.appId) ?? normalizeString(record.app_id);
+  const tenantId = normalizeString(context.tenantId) ?? normalizeString(record.tenant_id);
+  const userId = normalizeString(context.userId) ?? normalizeString(record.user_id);
+  const sessionId = normalizeString(context.sessionId) ?? normalizeString(record.session_id);
+  const organizationId = normalizeString(context.organizationId) ?? normalizeString(record.organization_id);
+  const environment = normalizeString(context.environment) ?? normalizeString(record.env);
+  const deploymentMode = normalizeString(context.deploymentMode) ?? normalizeString(record.deployment_mode);
+  const authLevel = normalizeString(context.authLevel) ?? normalizeString(record.auth_level);
+  if (!appId || !tenantId || !userId) {
     return undefined;
   }
   return {
     ...context,
-    appId: normalizeString(context.appId) ?? '',
-    tenantId: normalizeString(context.tenantId) ?? '',
-    userId: normalizeString(context.userId) ?? '',
-    sessionId: normalizeString(context.sessionId) ?? normalizeString((value as { sessionId?: unknown }).sessionId) ?? '',
-    environment: context.environment ?? 'dev',
-    deploymentMode: context.deploymentMode ?? 'local',
-    authLevel: context.authLevel ?? 'password',
-    dataScope: Array.isArray(context.dataScope) ? context.dataScope : [],
-    permissionScope: Array.isArray(context.permissionScope) ? context.permissionScope : [],
+    appId,
+    ...(organizationId ? { organizationId } : {}),
+    tenantId,
+    userId,
+    sessionId: sessionId ?? '',
+    environment: (environment ?? 'dev') as IamAppContext['environment'],
+    deploymentMode: (deploymentMode ?? 'local') as IamAppContext['deploymentMode'],
+    authLevel: (authLevel ?? 'password') as IamAppContext['authLevel'],
+    dataScope: normalizeStringArray(context.dataScope ?? record.data_scope),
+    permissionScope: normalizeStringArray(context.permissionScope ?? record.permission_scope),
   };
 }
 
@@ -215,9 +225,13 @@ export function normalizeSdkworkChatSessionUser(value: unknown): SdkworkChatSess
   const user = value as Partial<SdkworkChatSessionUser>;
   const id = normalizeString(user.userId) ?? normalizeString(user.id);
   const avatar = normalizeString(user.avatar);
-  const chatId = normalizeString((value as { chatId?: unknown }).chatId)
-    ?? normalizeString((value as { imId?: unknown }).imId)
-    ?? normalizeString((value as { crawChatId?: unknown }).crawChatId);
+  const userRecord = value as Record<string, unknown>;
+  const chatId = normalizeString(userRecord.chatId)
+    ?? normalizeString(userRecord.chat_id)
+    ?? normalizeString(userRecord.imId)
+    ?? normalizeString(userRecord.im_id)
+    ?? normalizeString(userRecord.crawChatId)
+    ?? normalizeString(userRecord.craw_chat_id);
   const normalized: SdkworkChatSessionUser = {
     ...(avatar ? { avatar } : {}),
     ...(chatId ? { chatId } : {}),
@@ -253,7 +267,7 @@ function normalizeSession(value: unknown): SdkworkChatSession | null {
     ...(normalizeSdkworkChatSessionUser(candidate.user) ? { user: normalizeSdkworkChatSessionUser(candidate.user) } : {}),
   };
 
-  return session.authToken || session.accessToken ? session : null;
+  return session.authToken && session.accessToken ? session : null;
 }
 
 export function readAppSdkSessionTokens(): SdkworkChatSession | null {
@@ -279,7 +293,7 @@ export function persistAppSdkSessionTokens(session: SdkworkChatSession): Sdkwork
   const normalizedSession = normalizeSession(session);
   if (!normalizedSession) {
     clearAppSdkSessionTokens();
-    throw new Error('SDKWork Chat session requires authToken or accessToken.');
+    throw new Error('SDKWork Chat session requires authToken and accessToken.');
   }
 
   getStorage()?.setItem(SDKWORK_CHAT_SESSION_KEY, JSON.stringify(normalizedSession));
@@ -299,11 +313,11 @@ export function clearAppSdkSessionTokens(): void {
 }
 
 export function resolveAppSdkAccessToken(session = readAppSdkSessionTokens()): string | undefined {
-  return session?.accessToken ?? session?.authToken;
+  return session?.accessToken;
 }
 
 export function resolveAppSdkAuthToken(session = readAppSdkSessionTokens()): string | undefined {
-  return session?.authToken ?? session?.accessToken;
+  return session?.authToken;
 }
 
 export function resolveAppSdkRefreshToken(session = readAppSdkSessionTokens()): string | undefined {
@@ -518,7 +532,18 @@ export function createSdkworkChatSessionTokenManager(
       ...existing,
       ...tokens,
     };
-    currentSession = applyAppSdkSessionTokens(next);
+    const normalizedSession = normalizeSession(next);
+    if (!normalizedSession) {
+      currentSession = null;
+      clearAppSdkSessionTokens();
+      return;
+    }
+    currentSession = applyAppSdkSessionTokens(normalizedSession);
+  };
+
+  const hasDualTokens = () => {
+    const current = readCurrentSession();
+    return Boolean(current?.authToken && current?.accessToken);
   };
 
   return {
@@ -545,8 +570,8 @@ export function createSdkworkChatSessionTokenManager(
     clearAuthToken: () => patchTokens({ authToken: undefined }),
     clearAccessToken: () => patchTokens({ accessToken: undefined }),
     isExpired,
-    isValid: () => Boolean(resolveAppSdkAccessToken(readCurrentSession()) || resolveAppSdkAuthToken(readCurrentSession())) && !isExpired(),
-    hasToken: () => Boolean(resolveAppSdkAccessToken(readCurrentSession()) || resolveAppSdkAuthToken(readCurrentSession())),
+    isValid: () => hasDualTokens() && !isExpired(),
+    hasToken: () => hasDualTokens(),
     hasAuthToken: () => Boolean(resolveAppSdkAuthToken(readCurrentSession())),
     hasAccessToken: () => Boolean(resolveAppSdkAccessToken(readCurrentSession())),
     willExpireIn: (seconds: number) => {
@@ -571,5 +596,5 @@ export function getSdkworkChatGlobalTokenManager(): AuthTokenManager {
 }
 
 export function isAppSdkSessionAuthenticated(session = readAppSdkSessionTokens()): boolean {
-  return Boolean(resolveAppSdkAccessToken(session));
+  return Boolean(session?.authToken && session?.accessToken);
 }

@@ -1013,7 +1013,7 @@ fn resolve_require_dual_token_headers() -> bool {
     std::env::var(CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
         .ok()
         .map(|value| parse_truthy_env_flag(Some(value)))
-        .unwrap_or(true)
+        .unwrap_or(false)
 }
 
 fn parse_truthy_env_flag(raw: Option<String>) -> bool {
@@ -1919,6 +1919,14 @@ mod tests {
             }
             Self { name, previous }
         }
+
+        fn remove(name: &'static str) -> Self {
+            let previous = std::env::var(name).ok();
+            unsafe {
+                std::env::remove_var(name);
+            }
+            Self { name, previous }
+        }
     }
 
     impl Drop for ScopedEnvVar {
@@ -2102,6 +2110,17 @@ mod tests {
         headers.insert("access-token", HeaderValue::from_static("access"));
         assert!(has_access_token_header(&headers));
         require_dual_token_headers(&headers).expect("dual token headers should pass");
+    }
+
+    #[test]
+    fn dual_token_guardrail_defaults_to_app_context_projection() {
+        let _guard = rate_limit_env_guard();
+        let _env = ScopedEnvVar::remove(CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS_ENV);
+
+        assert!(
+            !resolve_require_dual_token_headers(),
+            "conversation runtime should default to SDKWork AppContext projection without legacy bearer/access-token headers"
+        );
     }
 
     #[test]

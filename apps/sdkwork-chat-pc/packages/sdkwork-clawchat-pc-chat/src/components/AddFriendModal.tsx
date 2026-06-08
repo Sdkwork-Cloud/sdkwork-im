@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Loader2, Search, UserPlus } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { Avatar } from '@sdkwork/clawchat-pc-commons';
 import { toast } from './Toast';
 import { contactService } from '../services/ContactService';
@@ -26,6 +27,7 @@ function buildSearchResultDescription(user: User): string {
 }
 
 export const AddFriendModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchNotice, setSearchNotice] = useState<{ type: 'loading' | 'empty'; message: string } | null>(null);
@@ -39,7 +41,7 @@ export const AddFriendModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
 
     setIsSearching(true);
     setResult(null);
-    setSearchNotice({ type: 'loading', message: 'Searching contacts...' });
+    setSearchNotice({ type: 'loading', message: t('contacts.addFriend.notice.searching') });
     try {
       const results = await contactService.searchContacts(normalizedQuery);
       if (results.length > 0) {
@@ -51,11 +53,11 @@ export const AddFriendModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
           desc: buildSearchResultDescription(results[0]),
         });
       } else {
-        setSearchNotice({ type: 'empty', message: `No contact found for ${normalizedQuery}` });
+        setSearchNotice({ type: 'empty', message: t('contacts.addFriend.notice.noResults', { query: normalizedQuery }) });
       }
     } catch {
       setSearchNotice(null);
-      toast('Search failed', 'error');
+      toast(t('contacts.addFriend.toast.searchFailed'), 'error');
     } finally {
       setIsSearching(false);
     }
@@ -70,13 +72,13 @@ export const AddFriendModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
   }, [isOpen]);
 
   return (
-    <ModalWrapper isOpen={isOpen} onClose={onClose} title="Add Friend">
+    <ModalWrapper isOpen={isOpen} onClose={onClose} title={t('contacts.addFriend.title')}>
       <div className="mb-6 flex gap-2">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
           <input
             type="text"
-            placeholder="Email, Chat ID, or phone"
+            placeholder={t('contacts.addFriend.placeholder')}
             value={searchQuery}
             onChange={(event) => {
               setSearchQuery(event.target.value);
@@ -95,7 +97,7 @@ export const AddFriendModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
           disabled={!searchQuery.trim() || isSearching}
           className="rounded-lg bg-[#00b42a] px-4 py-2 text-sm text-white transition-colors hover:bg-[#009a24] disabled:bg-[#00b42a]/50"
         >
-          {isSearching ? 'Searching...' : 'Search'}
+          {isSearching ? t('contacts.addFriend.searchingAction') : t('contacts.addFriend.searchAction')}
         </button>
       </div>
 
@@ -133,15 +135,15 @@ export const AddFriendModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
             onClick={async () => {
               try {
                 await contactService.addFriend(result.id);
-                toast(`Friend request sent to ${result.name}`, 'success');
+                toast(t('contacts.addFriend.toast.requestSent', { name: result.name }), 'success');
                 onClose();
               } catch {
-                toast('Friend request failed', 'error');
+                toast(t('contacts.addFriend.toast.requestFailed'), 'error');
               }
             }}
           >
             <UserPlus size={14} />
-            Add
+            {t('contacts.addFriend.add')}
           </button>
         </motion.div>
       )}

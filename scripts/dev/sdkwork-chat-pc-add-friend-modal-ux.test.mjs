@@ -17,17 +17,22 @@ assert.match(
 );
 assert.match(
   source,
-  /setSearchNotice\(\{\s*type:\s*['"]loading['"],\s*message:\s*['"]正在搜索联系人/u,
+  /useTranslation/u,
+  'add friend modal must use react-i18next for user-facing copy',
+);
+assert.match(
+  source,
+  /setSearchNotice\(\{\s*type:\s*['"]loading['"],\s*message:\s*t\(['"]contacts\.addFriend\.notice\.searching['"]\)\s*\}\)/u,
   'add friend modal must show an in-modal loading notice while the SDK search request is in flight',
 );
 assert.match(
   source,
-  /setSearchNotice\(\{\s*type:\s*['"]empty['"],\s*message:\s*`未找到与\s*\$\{normalizedQuery\}\s*匹配的联系人/u,
+  /setSearchNotice\(\{\s*type:\s*['"]empty['"],\s*message:\s*t\(['"]contacts\.addFriend\.notice\.noResults['"],\s*\{\s*query:\s*normalizedQuery\s*\}\)\s*\}\)/u,
   'add friend modal must show no-result feedback inline under the search box',
 );
 assert.doesNotMatch(
   source,
-  /toast\(['"]未找到该用户['"],\s*['"]error['"]\)/u,
+  /toast\(['"][^'"]*(?:not found|未找到该用户)[^'"]*['"],\s*['"]error['"]\)/iu,
   'add friend modal must not use a top-level error toast for normal empty search results',
 );
 assert.match(
@@ -42,7 +47,7 @@ assert.match(
 );
 assert.match(
   source,
-  /onChange=\{e\s*=>\s*\{[\s\S]*?setSearchNotice\(null\)/u,
+  /onChange=\{\(?event\)?\s*=>\s*\{[\s\S]*?setSearchNotice\(null\)/u,
   'editing the search query must clear stale inline search feedback',
 );
 assert.match(

@@ -553,7 +553,11 @@ importers:
 
   packages/sdkwork-clawchat-pc-drive: {}
 
-  packages/sdkwork-clawchat-pc-enterprise: {}
+  packages/sdkwork-clawchat-pc-enterprise:
+    dependencies:
+      '@sdkwork/clawchat-pc-core':
+        specifier: workspace:*
+        version: link:../sdkwork-clawchat-pc-core
 
   packages/sdkwork-clawchat-pc-image-gen: {}
 

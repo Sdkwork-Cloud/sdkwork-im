@@ -2350,11 +2350,14 @@ version = "0.1.0"
 dependencies = [
  "argon2",
  "axum",
+ "base64",
+ "hmac 0.12.1",
  "password-hash",
  "rand_core 0.6.4",
  "sdkwork_iam_core",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
 ]
 
 [[package]]
@@ -3220,6 +3223,7 @@ dependencies = [
  "craw-chat-runtime-link",
  "futures-util",
  "http-body-util",
+ "im-app-context",
  "local-minimal-node",
  "reqwest",
  "sdkwork-api-config",

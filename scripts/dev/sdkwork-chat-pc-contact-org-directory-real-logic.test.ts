@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { ImSdkClient } from '@sdkwork/im-sdk';
 import { createSdkworkContactService } from '../../apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/ContactService';
 import {
   createSdkworkOrganizationDirectoryService,
   type OrganizationDirectoryClient,
 } from '../../apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/OrganizationDirectoryService';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, '..', '..');
 
 const fakeImClient = {
   social: {
@@ -16,12 +22,53 @@ const fakeImClient = {
   },
 } as unknown as ImSdkClient;
 
+function read(relativePath: string): string {
+  return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
+}
+
 function assertNoTenantParam(value: Record<string, unknown> | undefined, message: string): void {
   assert.equal(value?.tenantId, undefined, message);
 }
 
 function assertNoOrganizationParam(value: Record<string, unknown> | undefined, message: string): void {
   assert.equal(value?.organizationId, undefined, message);
+}
+
+interface SimplifiedDirectoryNode {
+  children: SimplifiedDirectoryNode[];
+  departmentId?: string;
+  kind: string;
+  name: string;
+  organizationId?: string;
+}
+
+function simplifyDirectoryNode(node: {
+  children: Array<{
+    children: unknown[];
+    departmentId?: string;
+    kind: string;
+    name: string;
+    organizationId?: string;
+  }>;
+  departmentId?: string;
+  kind: string;
+  name: string;
+  organizationId?: string;
+}): SimplifiedDirectoryNode {
+  return {
+    children: node.children.map((child) => simplifyDirectoryNode(child as Parameters<typeof simplifyDirectoryNode>[0])),
+    ...(node.departmentId ? { departmentId: node.departmentId } : {}),
+    kind: node.kind,
+    name: node.name,
+    ...(node.organizationId ? { organizationId: node.organizationId } : {}),
+  };
+}
+
+function collectDirectoryNodeIds(nodes: Array<{ children: unknown[]; id: string }>): string[] {
+  return nodes.flatMap((node) => [
+    node.id,
+    ...collectDirectoryNodeIds(node.children as Array<{ children: unknown[]; id: string }>),
+  ]);
 }
 
 async function main(): Promise<void> {
@@ -430,6 +477,41 @@ async function main(): Promise<void> {
     'contact org directory must expose departments through /departments hierarchy independent of organization hierarchy',
   );
   assert.deepEqual(
+    (await productDirectoryService.getOrganizationDirectoryTree()).map(simplifyDirectoryNode),
+    [
+      {
+        children: [
+          {
+            children: [
+              {
+                children: [
+                  {
+                    children: [],
+                    departmentId: 'dept-rd',
+                    kind: 'department',
+                    name: 'Research',
+                    organizationId: 'org-company',
+                  },
+                ],
+                departmentId: 'dept-root',
+                kind: 'department',
+                name: 'Company Headquarters',
+                organizationId: 'org-company',
+              },
+            ],
+            kind: 'organization',
+            name: 'SDKWork Cloud Company',
+            organizationId: 'org-company',
+          },
+        ],
+        kind: 'organization',
+        name: 'SDKWork Group',
+        organizationId: 'org-group',
+      },
+    ],
+    'contact organization directory must merge organizations and departments into one address-book tree',
+  );
+  assert.deepEqual(
     await productDirectoryService.getUsersByDepartment('dept-rd'),
     [
       {
@@ -473,11 +555,182 @@ async function main(): Promise<void> {
     [
       'iam.organizations.tree.retrieve:',
       'iam.departments.tree.retrieve:org-company',
+      'iam.organizations.tree.retrieve:',
+      'iam.departments.tree.retrieve:',
       'iam.departmentAssignments.list:org-company:dept-rd',
       'iam.positionAssignments.list:assign-alice-rd',
       'iam.roleBindings.list:department_assignment:assign-alice-rd:',
     ],
     'contact org directory product view must use organization tree, department tree, position assignment, and role binding SDK APIs',
+  );
+
+  const duplicateDepartmentIdDirectoryService = createSdkworkOrganizationDirectoryService(() => ({
+    iam: {
+      organizations: {
+        tree: {
+          async retrieve() {
+            return {
+              items: [
+                {
+                  organizationId: 'org-a',
+                  name: 'Organization A',
+                  parentOrganizationId: null,
+                  order: 0,
+                  children: [],
+                },
+                {
+                  organizationId: 'org-b',
+                  name: 'Organization B',
+                  parentOrganizationId: null,
+                  order: 10,
+                  children: [],
+                },
+              ],
+            };
+          },
+        },
+      },
+      departments: {
+        tree: {
+          async retrieve() {
+            return {
+              items: [
+                {
+                  departmentId: 'dept-root',
+                  organizationId: 'org-a',
+                  name: 'Headquarters',
+                  parentDepartmentId: null,
+                  order: 0,
+                  children: [],
+                },
+                {
+                  departmentId: 'dept-root',
+                  organizationId: 'org-b',
+                  name: 'Headquarters',
+                  parentDepartmentId: null,
+                  order: 0,
+                  children: [],
+                },
+              ],
+            };
+          },
+        },
+      },
+      departmentAssignments: {
+        async list(params) {
+          duplicateDepartmentIdCalls.push(`iam.departmentAssignments.list:${params?.organizationId ?? ''}:${params?.departmentId ?? ''}`);
+          return [];
+        },
+      },
+    },
+  }) satisfies OrganizationDirectoryClient);
+  const duplicateDepartmentIdCalls: string[] = [];
+  const duplicateDepartmentIdNodeIds = collectDirectoryNodeIds(
+    await duplicateDepartmentIdDirectoryService.getOrganizationDirectoryTree(),
+  );
+  assert.equal(
+    new Set(duplicateDepartmentIdNodeIds).size,
+    duplicateDepartmentIdNodeIds.length,
+    'organization directory tree node ids must stay unique when different organizations reuse department ids',
+  );
+  assert.deepEqual(
+    await duplicateDepartmentIdDirectoryService.getUsersByDepartment('dept-root', 'org-a'),
+    [],
+    'department member lookup must accept the selected department organization when department ids are reused across organizations',
+  );
+  assert.deepEqual(
+    duplicateDepartmentIdCalls,
+    ['iam.departmentAssignments.list:org-a:dept-root'],
+    'department member lookup must pass the selected organization id instead of relying on a department-id-only cache',
+  );
+
+  const unscopedDepartmentDirectoryService = createSdkworkOrganizationDirectoryService(() => ({
+    iam: {
+      organizations: {
+        tree: {
+          async retrieve() {
+            return {
+              items: [
+                {
+                  organizationId: 'org-root',
+                  name: 'Root Organization',
+                  parentOrganizationId: null,
+                  order: 0,
+                  children: [
+                    {
+                      organizationId: 'org-company',
+                      name: 'Company Organization',
+                      parentOrganizationId: 'org-root',
+                      order: 10,
+                      children: [],
+                    },
+                  ],
+                },
+              ],
+            };
+          },
+        },
+      },
+      departments: {
+        tree: {
+          async retrieve(params) {
+            unscopedDepartmentCalls.push(`iam.departments.tree.retrieve:${params?.organizationId ?? ''}`);
+            if (params?.organizationId === 'org-root') {
+              return { items: [] };
+            }
+            return {
+              items: [
+                {
+                  departmentId: 'dept-unscoped',
+                  name: 'Unscoped Department',
+                  parentDepartmentId: null,
+                  order: 0,
+                  children: [],
+                },
+              ],
+            };
+          },
+        },
+      },
+    },
+  }) satisfies OrganizationDirectoryClient);
+  const unscopedDepartmentCalls: string[] = [];
+  const unscopedDirectoryTree = (await unscopedDepartmentDirectoryService.getOrganizationDirectoryTree()).map(simplifyDirectoryNode);
+  assert.deepEqual(
+    unscopedDirectoryTree,
+    [
+      {
+        children: [
+          {
+            children: [
+              {
+                children: [],
+                departmentId: 'dept-unscoped',
+                kind: 'department',
+                name: 'Unscoped Department',
+                organizationId: 'org-company',
+              },
+            ],
+            kind: 'organization',
+            name: 'Company Organization',
+            organizationId: 'org-company',
+          },
+        ],
+        kind: 'organization',
+        name: 'Root Organization',
+        organizationId: 'org-root',
+      },
+    ],
+    'organization directory must resolve unscoped department trees through scoped organization department reads',
+  );
+  assert.deepEqual(
+    unscopedDepartmentCalls,
+    [
+      'iam.departments.tree.retrieve:',
+      'iam.departments.tree.retrieve:org-root',
+      'iam.departments.tree.retrieve:org-company',
+    ],
+    'organization directory must re-read department trees by organization when the global department tree has no organization scope',
   );
 
   const memberManagementCalls: string[] = [];
@@ -883,6 +1136,23 @@ async function main(): Promise<void> {
       'iam.departments.list:',
     ],
     'contact org directory must rely on request Context for current organization instead of resolving and passing it as params',
+  );
+
+  const orgContainerSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/contacts/OrgContainer.tsx');
+  assert.match(
+    orgContainerSource,
+    /organizationDirectoryService\.getOrganizationDirectoryTree\(\)/u,
+    'OrgContainer must load the unified organization/department directory tree from OrganizationDirectoryService',
+  );
+  assert.doesNotMatch(
+    orgContainerSource,
+    /organizationDirectoryService\.getOrganizations\(\)|organizationDirectoryService\.getOrganizationTree\(\)|organizationDirectoryService\.getDepartmentTree\(/u,
+    'OrgContainer must not keep separate organization and department tree loading paths',
+  );
+  assert.doesNotMatch(
+    orgContainerSource,
+    /visibleOrganizationTree|visibleDepartmentTree|renderOrganizationNode|renderDepartmentNode/u,
+    'OrgContainer must render one unified organization-directory tree instead of separate organization and department trees',
   );
 
   console.log('sdkwork-chat-pc contact org directory real-logic contract passed');

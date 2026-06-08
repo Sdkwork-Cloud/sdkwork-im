@@ -7,13 +7,13 @@ import type {
   AiotDeviceUpdateRequest,
   SdkworkAiotBackendClient,
 } from '@sdkwork/aiot-backend-sdk';
+import { getAiotAppSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/aiotAppSdkClient';
 import {
-  getAiotAppSdkClientWithSession,
   readAppSdkSessionTokens,
   resolveAppSdkOrganizationId,
   resolveAppSdkTenantId,
   resolveAppSdkUserId,
-} from '@sdkwork/clawchat-pc-core';
+} from '@sdkwork/clawchat-pc-core/sdk/session';
 
 export type DeviceType = 'camera' | 'speaker' | 'display' | 'sensor' | 'other';
 export type DeviceStatus = 'online' | 'offline' | 'error' | 'unactivated';
@@ -67,6 +67,7 @@ const DEFAULT_AIOT_CONTEXT: AiotDeviceServiceContext = {
   permissionScope: 'iot.devices.read',
 };
 const DEFAULT_AIOT_PRODUCT_ID = 'sdkwork-chat-pc-device';
+const STANDARD_AGENT_ID_PATTERN = /^agent\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/u;
 
 let configuredBackendClient: SdkworkAiotBackendClient | undefined;
 let configuredClient: SdkworkAiotAppClient | undefined;
@@ -86,6 +87,18 @@ function readString(value: unknown, fallback = ''): string {
     return String(value);
   }
   return fallback;
+}
+
+function assertStandardAgentId(agentId: string): void {
+  if (!STANDARD_AGENT_ID_PATTERN.test(agentId)) {
+    throw new Error('Device agent binding id must use the standard agent. prefix.');
+  }
+}
+
+function assertDeviceAgentMetadata(device: Partial<Device>): void {
+  if (device.agentId !== undefined) {
+    assertStandardAgentId(device.agentId);
+  }
 }
 
 function normalizeDeviceType(value: unknown, fallback: unknown): DeviceType {
@@ -230,6 +243,7 @@ class AiotDeviceService implements DeviceService {
   }
 
   async addDevice(device: Omit<Device, 'id'>): Promise<Device> {
+    assertDeviceAgentMetadata(device);
     const backendClient = getBackendClient(this.options.backendClient);
     const response = await backendClient.iot.devices.create(
       toCreateRequest(device),
@@ -246,6 +260,7 @@ class AiotDeviceService implements DeviceService {
   }
 
   async updateDevice(id: string, device: Partial<Device>): Promise<void> {
+    assertDeviceAgentMetadata(device);
     await getBackendClient(this.options.backendClient).iot.devices.update(
       id,
       toUpdateRequest(device),
@@ -257,6 +272,7 @@ class AiotDeviceService implements DeviceService {
   }
 
   async bindAgent(deviceId: string, agentId: string): Promise<void> {
+    assertStandardAgentId(agentId);
     await getBackendClient(this.options.backendClient).iot.devices.twin.update(deviceId, {
       desired: { agentId },
     });

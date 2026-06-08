@@ -131,6 +131,23 @@ foreach ($path in @($configDir, $runtimeDir, $logsDir, $pidsDir, $stateDir)) {
 }
 
 if ((Test-Path $configFile) -and -not $Force) {
+    $missingConfig = @()
+    if ([string]::IsNullOrWhiteSpace((Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_PROFILE"))) {
+        $missingConfig += "CRAW_CHAT_RUNTIME_PROFILE=$ProfileName"
+    }
+    if ([string]::IsNullOrWhiteSpace((Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE"))) {
+        $missingConfig += "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true"
+    }
+    if ([string]::IsNullOrWhiteSpace((Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET"))) {
+        $missingConfig += "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET=$(New-RandomSecret)"
+    }
+
+    if ($missingConfig.Count -gt 0) {
+        Add-Content -Path $configFile -Value $missingConfig
+        Write-Host "Config updated with signed AppContext settings: $configFile"
+        exit 0
+    }
+
     Write-Host "Config already exists: $configFile"
     exit 0
 }
@@ -139,12 +156,19 @@ $friendRequestCursorSecret = Read-ConfigValue -ConfigFile $configFile -Key "CRAW
 if ([string]::IsNullOrWhiteSpace($friendRequestCursorSecret)) {
     $friendRequestCursorSecret = New-RandomSecret
 }
+$appContextSignatureSecret = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET"
+if ([string]::IsNullOrWhiteSpace($appContextSignatureSecret)) {
+    $appContextSignatureSecret = New-RandomSecret
+}
 
 $content = @(
     "# $ProfileName runtime config"
     "CRAW_CHAT_BIND_ADDR=$BindAddress"
     "CRAW_CHAT_RUNTIME_DIR=$runtimeDir"
+    "CRAW_CHAT_RUNTIME_PROFILE=$ProfileName"
     "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=$friendRequestCursorSecret"
+    "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true"
+    "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET=$appContextSignatureSecret"
 )
 
 Set-Content -Path $configFile -Value $content

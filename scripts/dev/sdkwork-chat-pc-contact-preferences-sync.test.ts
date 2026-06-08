@@ -98,6 +98,16 @@ const contactTags = new Map<string, ContactTagView>([
 ]);
 
 const fakeClient = {
+  chat: {
+    contacts: {
+      async list() {
+        return {
+          hasMore: false,
+          items: contactItems,
+        };
+      },
+    },
+  },
   social: {
     users: {
       async list(params: { limit?: number; q?: string }) {

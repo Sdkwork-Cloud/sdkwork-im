@@ -12,7 +12,9 @@ import {
   readAppSdkSessionTokens,
   resolveSdkworkChatAuthAppearance,
   resolveSdkworkChatAuthRuntimeConfig,
+  SDKWORK_CHAT_SESSION_CHANGED_EVENT,
   type SdkworkChatSession,
+  type SdkworkChatSessionChangedDetail,
 } from '@sdkwork/clawchat-pc-core';
 
 interface AuthGateProps {
@@ -23,7 +25,7 @@ const AUTH_BASE_PATH = '/auth';
 const CHAT_SETTINGS_STORAGE_KEY = 'clawchat-settings';
 
 function isAuthenticatedSession(session: SdkworkChatSession | null): boolean {
-  return Boolean(session?.authToken || session?.accessToken);
+  return Boolean(session?.authToken && session?.accessToken);
 }
 
 function isAuthRoute(pathname: string): boolean {
@@ -505,6 +507,23 @@ export function AuthGate({ children }: AuthGateProps) {
       disposed = true;
     };
   }, [location.hash, location.pathname, location.search]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleSessionChanged = (event: Event) => {
+      const detail = (event as CustomEvent<SdkworkChatSessionChangedDetail>).detail;
+      setSession(detail?.session ?? readAppSdkSessionTokens());
+      setIsBootstrapped(true);
+    };
+
+    window.addEventListener(SDKWORK_CHAT_SESSION_CHANGED_EVENT, handleSessionChanged);
+    return () => {
+      window.removeEventListener(SDKWORK_CHAT_SESSION_CHANGED_EVENT, handleSessionChanged);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isBootstrapped || isAuthenticated || isAuthPath) {

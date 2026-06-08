@@ -14,12 +14,36 @@ import { TextMessageItem, ImageMessageItem, VideoMessageItem, VoiceMessageItem, 
 
 interface MessageListProps {
   chatId: string;
+  fallbackMessages?: Message[];
   refreshKey?: number;
   searchQuery?: string;
+  senderProfiles?: Record<string, User>;
   onReply?: (msg: Message, senderName: string) => void;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ chatId, refreshKey = 0, searchQuery = '', onReply }) => {
+const EMPTY_MESSAGES: Message[] = [];
+const EMPTY_SENDER_PROFILES: Record<string, User> = {};
+
+function mergeDisplayMessages(messages: Message[], fallbackMessages: Message[]): Message[] {
+  if (fallbackMessages.length === 0) {
+    return messages;
+  }
+
+  const messageIds = new Set(messages.map((message) => message.id));
+  return [
+    ...fallbackMessages.filter((message) => !messageIds.has(message.id)),
+    ...messages,
+  ].sort((left, right) => left.timestamp - right.timestamp);
+}
+
+export const MessageList: React.FC<MessageListProps> = ({
+  chatId,
+  fallbackMessages = EMPTY_MESSAGES,
+  refreshKey = 0,
+  searchQuery = '',
+  senderProfiles = EMPTY_SENDER_PROFILES,
+  onReply,
+}) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, User>>({});
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -32,6 +56,10 @@ export const MessageList: React.FC<MessageListProps> = ({ chatId, refreshKey = 0
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [viewerState, setViewerState] = useState({ isOpen: false, currentIndex: 0 });
+  const fallbackMessageIds = React.useMemo(
+    () => new Set(fallbackMessages.map((message) => message.id)),
+    [fallbackMessages],
+  );
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,11 +87,11 @@ export const MessageList: React.FC<MessageListProps> = ({ chatId, refreshKey = 0
         if (!isMounted) {
           return;
         }
-        setMessages(data);
+        setMessages(mergeDisplayMessages(data, fallbackMessages));
         setTimeout(scrollToBottom, 50);
       } catch {
         if (isMounted) {
-          setMessages([]);
+          setMessages(fallbackMessages);
           toast('加载消息失败', 'error');
         }
       } finally {
@@ -76,21 +104,24 @@ export const MessageList: React.FC<MessageListProps> = ({ chatId, refreshKey = 0
     return () => {
       isMounted = false;
     };
-  }, [chatId, refreshKey]);
+  }, [chatId, fallbackMessages, refreshKey]);
 
   useEffect(() => {
     const unsubscribe = chatService.subscribeMessages(chatId, (message) => {
       setMessages(prev => {
         const byId = new Map(prev.map(item => [item.id, item]));
         byId.set(message.id, { ...byId.get(message.id), ...message });
-        return Array.from(byId.values()).sort((left, right) => left.timestamp - right.timestamp);
+        return mergeDisplayMessages(
+          Array.from(byId.values()).sort((left, right) => left.timestamp - right.timestamp),
+          fallbackMessages,
+        );
       });
     });
 
     return () => {
       unsubscribe();
     };
-  }, [chatId]);
+  }, [chatId, fallbackMessages]);
 
   useEffect(() => {
     scrollToBottom();
@@ -98,7 +129,7 @@ export const MessageList: React.FC<MessageListProps> = ({ chatId, refreshKey = 0
 
   const handleContextMenu = (e: React.MouseEvent, msg: Message) => {
     e.preventDefault();
-    if (isMultiSelect) return;
+    if (isMultiSelect || fallbackMessageIds.has(msg.id)) return;
     setContextMenu({ x: e.clientX, y: e.clientY, msg });
   };
 
@@ -227,7 +258,7 @@ export const MessageList: React.FC<MessageListProps> = ({ chatId, refreshKey = 0
       
       <AnimatePresence initial={false}>
       {filteredMessages.map((msg, index) => {
-        const sender = usersMap[msg.senderId] || currentUser;
+        const sender = senderProfiles[msg.senderId] || usersMap[msg.senderId] || currentUser;
         const isMe = currentUser ? msg.senderId === currentUser.id : false;
         const showTime = index === 0 || msg.timestamp - filteredMessages[index - 1].timestamp > 1000 * 60 * 5;
 

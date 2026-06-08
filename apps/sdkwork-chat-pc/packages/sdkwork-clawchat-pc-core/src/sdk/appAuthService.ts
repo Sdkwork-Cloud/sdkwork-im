@@ -22,13 +22,15 @@ export interface AppAuthService {
 interface RuntimeSessionPayload {
   accessToken?: string;
   authToken?: string;
-  context?: SdkworkChatSession['context'];
+  context?: unknown;
   expiresAt?: number | string;
   refreshToken?: string;
   sessionId?: string;
   user?: SdkworkChatSessionUser;
   userInfo?: SdkworkChatSessionUser;
 }
+
+type RuntimeSessionContext = NonNullable<SdkworkChatSession['context']>;
 
 const sdkworkChatAuthIntegration = createSdkworkAuthAppbaseIntegration({
   app: {
@@ -47,17 +49,68 @@ export const sdkworkChatAuthRoutes = sdkworkChatAuthIntegration.routes;
 
 export const sdkworkChatAuthAppbaseMeta = sdkworkChatAuthIntegration.appbaseMeta;
 
+function normalizeContextString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function normalizeContextStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeContextString(item))
+      .filter(Boolean) as string[];
+  }
+
+  const normalized = normalizeContextString(value);
+  if (!normalized) {
+    return [];
+  }
+
+  return normalized
+    .split(normalized.includes(',') ? /,/u : /\s+/u)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeRuntimeSessionContext(value: unknown): SdkworkChatSession['context'] | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const context = value as Record<string, unknown>;
+  const appId = normalizeContextString(context.appId ?? context.app_id);
+  const tenantId = normalizeContextString(context.tenantId ?? context.tenant_id);
+  const userId = normalizeContextString(context.userId ?? context.user_id);
+  const sessionId = normalizeContextString(context.sessionId ?? context.session_id);
+  if (!appId || !tenantId || !userId || !sessionId) {
+    return undefined;
+  }
+
+  return {
+    appId,
+    authLevel: (normalizeContextString(context.authLevel ?? context.auth_level) ?? 'password') as RuntimeSessionContext['authLevel'],
+    dataScope: normalizeContextStringArray(context.dataScope ?? context.data_scope),
+    deploymentMode: (normalizeContextString(context.deploymentMode ?? context.deployment_mode) ?? 'local') as RuntimeSessionContext['deploymentMode'],
+    environment: (normalizeContextString(context.environment ?? context.env) ?? 'dev') as RuntimeSessionContext['environment'],
+    ...(normalizeContextString(context.organizationId ?? context.organization_id)
+      ? { organizationId: normalizeContextString(context.organizationId ?? context.organization_id) }
+      : {}),
+    permissionScope: normalizeContextStringArray(context.permissionScope ?? context.permission_scope),
+    sessionId,
+    tenantId,
+    userId,
+  };
+}
+
 function toSession(data: RuntimeSessionPayload): SdkworkChatSession {
   const expiresAt = typeof data.expiresAt === 'string' ? Date.parse(data.expiresAt) : data.expiresAt;
-  const accessToken = data.accessToken ?? data.authToken;
-  const authToken = data.authToken ?? data.accessToken;
+  const context = normalizeRuntimeSessionContext(data.context);
   return {
-    accessToken,
-    authToken,
+    accessToken: data.accessToken,
+    authToken: data.authToken,
     refreshToken: data.refreshToken,
-    ...(data.context ? { context: data.context } : {}),
+    ...(context ? { context } : {}),
     ...(expiresAt ? { expiresAt } : {}),
-    ...(data.sessionId ?? data.context?.sessionId ? { sessionId: data.sessionId ?? data.context.sessionId } : {}),
+    ...(data.sessionId ?? context?.sessionId ? { sessionId: data.sessionId ?? context?.sessionId } : {}),
     ...(normalizeSdkworkChatSessionUser(data.user ?? data.userInfo)
       ? { user: normalizeSdkworkChatSessionUser(data.user ?? data.userInfo) }
       : {}),
@@ -72,7 +125,7 @@ export const appAuthService: AppAuthService = {
 
     try {
       const session = await getSdkworkChatIamRuntime().service.auth.sessions.current.retrieve();
-      return applyAppSdkSessionTokens(toSession(session as RuntimeSessionPayload));
+      return applyAppSdkSessionTokens(toSession(session as unknown as RuntimeSessionPayload));
     } catch {
       clearSdkworkChatIamRuntimeSession();
       resetSdkworkChatIamRuntime();

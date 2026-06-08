@@ -2,6 +2,7 @@ export * from './sdk/appSdkClient';
 export * from './sdk/appbaseAppSdkClient';
 export * from './sdk/aiotAppSdkClient';
 export * from './sdk/agentAppSdkClient';
+export * from './sdk/driveAppSdkClient';
 export * from './sdk/appAuthService';
 export * from './sdk/appAuthRuntime';
 export * from './sdk/imSdkClient';

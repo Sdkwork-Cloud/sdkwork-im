@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { Search, Plus, MoreHorizontal } from 'lucide-react';
 import { Chat } from '@sdkwork/clawchat-pc-types';
 import { Avatar } from '@sdkwork/clawchat-pc-commons';
@@ -19,6 +20,9 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
   onTogglePin,
   onDeleteChat
 }) => {
+  const { t } = useTranslation();
+  const emptyNotice = t('chat.rightPanel.emptyNotice');
+
   return (
     <motion.div
       initial={{ width: 0, opacity: 0 }}
@@ -37,37 +41,37 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                <div className="w-10 h-10 rounded-full bg-[#2b2b2d] flex items-center justify-center group-hover:bg-white/10 transition-colors">
                   <Search size={18} className="text-gray-400 group-hover:text-gray-200" />
                </div>
-               <span className="text-xs text-gray-400 group-hover:text-gray-200">查找聊天</span>
+               <span className="text-xs text-gray-400 group-hover:text-gray-200">{t('chat.rightPanel.actions.searchChat')}</span>
             </div>
             {activeChat.type === 'group' && (
               <div className="flex flex-col items-center gap-2 cursor-pointer group" onClick={() => onSetModal('addMember', '')}>
                  <div className="w-10 h-10 rounded-full bg-[#2b2b2d] flex items-center justify-center group-hover:bg-white/10 transition-colors">
                     <Plus size={18} className="text-gray-400 group-hover:text-gray-200" />
                  </div>
-                 <span className="text-xs text-gray-400 group-hover:text-gray-200">添加成员</span>
+                 <span className="text-xs text-gray-400 group-hover:text-gray-200">{t('chat.rightPanel.actions.addMember')}</span>
               </div>
             )}
          </div>
          
          <div className="w-full space-y-4">
             <div className="flex items-center justify-between py-3 border-b border-white/5 cursor-pointer hover:bg-white/5 px-2 -mx-2 rounded transition-colors group" onClick={() => onSetModal('editName', activeChat.name)}>
-               <span className="text-sm text-gray-300">{activeChat.type === 'group' ? '群聊名称' : '设置备注'}</span>
+               <span className="text-sm text-gray-300">{activeChat.type === 'group' ? t('chat.rightPanel.fields.groupName') : t('chat.rightPanel.fields.remark')}</span>
                <div className="flex items-center gap-2 text-gray-500">
                  <span className="text-sm overflow-hidden text-ellipsis whitespace-nowrap max-w-[100px]">{activeChat.name}</span>
                  <MoreHorizontal size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                </div>
             </div>
             {activeChat.type === 'group' && (
-              <div className="flex items-center justify-between py-3 border-b border-white/5 cursor-pointer hover:bg-white/5 px-2 -mx-2 rounded transition-colors group" onClick={() => onSetModal('editNotice', activeChat.notice || '暂无公告')}>
-                 <span className="text-sm text-gray-300">群公告</span>
+              <div className="flex items-center justify-between py-3 border-b border-white/5 cursor-pointer hover:bg-white/5 px-2 -mx-2 rounded transition-colors group" onClick={() => onSetModal('editNotice', activeChat.notice || emptyNotice)}>
+                 <span className="text-sm text-gray-300">{t('chat.rightPanel.fields.groupNotice')}</span>
                  <div className="flex items-center gap-2 text-gray-500">
-                   <span className="text-sm overflow-hidden text-ellipsis whitespace-nowrap max-w-[100px]">{activeChat.notice || '暂无公告'}</span>
+                   <span className="text-sm overflow-hidden text-ellipsis whitespace-nowrap max-w-[100px]">{activeChat.notice || emptyNotice}</span>
                    <MoreHorizontal size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                  </div>
               </div>
             )}
             <div className="flex items-center justify-between py-3 border-b border-white/5">
-               <span className="text-sm text-gray-300">消息免打扰</span>
+               <span className="text-sm text-gray-300">{t('chat.rightPanel.fields.mute')}</span>
                <div 
                  className={`w-10 h-5 rounded-full relative cursor-pointer pt-0.5 px-0.5 transition-colors ${activeChat.isMuted ? 'bg-[#00b42a]' : 'bg-[#2b2b2d] hover:bg-white/10'}`}
                  onClick={() => void onToggleMute()}
@@ -76,7 +80,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                </div>
             </div>
             <div className="flex items-center justify-between py-3 border-b border-white/5">
-               <span className="text-sm text-gray-300">置顶聊天</span>
+               <span className="text-sm text-gray-300">{t('chat.rightPanel.fields.pin')}</span>
                <div 
                  className={`w-10 h-5 rounded-full relative cursor-pointer pt-0.5 px-0.5 transition-colors ${activeChat.isPinned ? 'bg-[#00b42a]' : 'bg-[#2b2b2d] hover:bg-white/10'}`}
                  onClick={() => void onTogglePin()}
@@ -90,7 +94,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
            className="w-full py-3 mt-8 text-red-500 text-sm font-medium hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
            onClick={() => void onDeleteChat()}
          >
-            {activeChat.type === 'group' ? '退出群聊' : '删除聊天'}
+            {activeChat.type === 'group' ? t('chat.rightPanel.actions.leaveGroup') : t('chat.rightPanel.actions.deleteChat')}
          </button>
       </div>
     </motion.div>

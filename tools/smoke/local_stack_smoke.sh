@@ -45,6 +45,21 @@ APP_CONTEXT_HEADERS=(
   "x-sdkwork-permission-scope: chat.write"
 )
 CONTENT_TYPE_HEADER="Content-Type: application/json"
+SIGNED_APP_CONTEXT_HEADER_NAMES=(
+  "x-sdkwork-app-id"
+  "x-sdkwork-tenant-id"
+  "x-sdkwork-organization-id"
+  "x-sdkwork-user-id"
+  "x-sdkwork-session-id"
+  "x-sdkwork-environment"
+  "x-sdkwork-deployment-mode"
+  "x-sdkwork-auth-level"
+  "x-sdkwork-data-scope"
+  "x-sdkwork-permission-scope"
+  "x-sdkwork-actor-id"
+  "x-sdkwork-actor-kind"
+  "x-sdkwork-device-id"
+)
 
 have_curl() {
   command -v curl >/dev/null 2>&1
@@ -52,6 +67,131 @@ have_curl() {
 
 have_wget() {
   command -v wget >/dev/null 2>&1
+}
+
+truthy() {
+  local normalized=""
+  normalized="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$normalized" in
+    1|true|yes|on)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+read_config_value_from_file() {
+  local config_file="$1"
+  local key="$2"
+  [[ -f "$config_file" ]] || return 1
+
+  while IFS='=' read -r current_key current_value; do
+    current_key="${current_key%$'\r'}"
+    current_value="${current_value%$'\r'}"
+    [[ -z "$current_key" || "$current_key" == \#* ]] && continue
+    if [[ "$current_key" == "$key" ]]; then
+      printf '%s\n' "$current_value"
+      return 0
+    fi
+  done <"$config_file"
+
+  return 1
+}
+
+resolve_local_config_value() {
+  local key="$1"
+  local config_file=""
+  for config_file in \
+    ".runtime/local-minimal/config/local-minimal.env" \
+    ".runtime/local-default/config/local-default.env"; do
+    read_config_value_from_file "$config_file" "$key" && return 0
+  done
+
+  return 1
+}
+
+resolve_default_compose_signature_secret() {
+  local compose_file="deployments/docker-compose/local-minimal.yml"
+  [[ "$base_url" == "$DEFAULT_BASE_URL" && -f "$compose_file" ]] || return 1
+
+  sed -n 's/^[[:space:]]*CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET:[[:space:]]*//p' "$compose_file" \
+    | head -n 1 \
+    | tr -d '"' \
+    | tr -d "'"
+}
+
+app_context_header_value() {
+  local header_name="$1"
+  local header=""
+  local current_name=""
+  local current_value=""
+
+  for header in "${APP_CONTEXT_HEADERS[@]}"; do
+    current_name="${header%%:*}"
+    current_value="${header#*:}"
+    current_name="$(printf '%s' "$current_name" | tr '[:upper:]' '[:lower:]')"
+    if [[ "$current_name" == "$header_name" ]]; then
+      printf '%s\n' "${current_value#"${current_value%%[![:space:]]*}"}"
+      return 0
+    fi
+  done
+
+  printf '\n'
+}
+
+canonicalize_app_context_headers() {
+  local first=1
+  local header_name=""
+
+  for header_name in "${SIGNED_APP_CONTEXT_HEADER_NAMES[@]}"; do
+    if [[ "$first" -eq 0 ]]; then
+      printf '\n'
+    fi
+    first=0
+    printf '%s:%s' "$header_name" "$(app_context_header_value "$header_name")"
+  done
+}
+
+sign_app_context_headers() {
+  local secret="$1"
+
+  if ! command -v openssl >/dev/null 2>&1; then
+    echo "openssl is required to sign SDKWork AppContext smoke headers." >&2
+    exit 1
+  fi
+
+  canonicalize_app_context_headers \
+    | openssl dgst -sha256 -hmac "$secret" -binary \
+    | openssl base64 -A \
+    | tr '+/' '-_' \
+    | tr -d '='
+}
+
+configure_app_context_signature() {
+  local require_signature="${CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE:-}"
+  local signature_secret="${CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET:-}"
+
+  if [[ -z "$require_signature" ]]; then
+    require_signature="$(resolve_local_config_value "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE" || true)"
+  fi
+  if [[ -z "$signature_secret" ]]; then
+    signature_secret="$(resolve_local_config_value "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET" || true)"
+  fi
+  if [[ -z "$signature_secret" ]]; then
+    signature_secret="$(resolve_default_compose_signature_secret || true)"
+  fi
+
+  if [[ -n "$signature_secret" ]]; then
+    APP_CONTEXT_HEADERS+=("x-sdkwork-context-signature: $(sign_app_context_headers "$signature_secret")")
+    return
+  fi
+
+  if truthy "$require_signature"; then
+    echo "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET is required when CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true." >&2
+    exit 1
+  fi
 }
 
 curl_app_context_args() {
@@ -155,6 +295,7 @@ normalize_json() {
 }
 
 wait_healthy "$base_url"
+configure_app_context_signature
 
 conversation_id="c_smoke_$(date +%s)_$$"
 
