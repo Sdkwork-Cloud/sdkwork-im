@@ -420,7 +420,8 @@ async fn inject_appbase_session_context_for_embedded_runtime(
 ) -> Result<(), Response> {
     let context_headers =
         fetch_embedded_appbase_session_context_headers(router, request.headers()).await?;
-    replace_sdkwork_context_headers(request.headers_mut(), context_headers)?;
+    replace_sdkwork_context_headers(request.headers_mut(), context_headers)
+        .map_err(|error| *error)?;
     Ok(())
 }
 
@@ -430,7 +431,8 @@ async fn inject_appbase_session_context_for_proxied_route(
 ) -> Result<(), Response> {
     let context_headers =
         appbase_session_context_headers_for_proxied_route(state, request.headers()).await?;
-    replace_sdkwork_context_headers(request.headers_mut(), context_headers)?;
+    replace_sdkwork_context_headers(request.headers_mut(), context_headers)
+        .map_err(|error| *error)?;
     Ok(())
 }
 
@@ -900,7 +902,7 @@ fn remove_sdkwork_context_headers(headers: &mut HeaderMap) {
 fn replace_sdkwork_context_headers(
     headers: &mut HeaderMap,
     context_headers: Vec<(&'static str, HeaderValue)>,
-) -> Result<(), Response> {
+) -> Result<(), Box<Response>> {
     remove_sdkwork_context_headers(headers);
     for (name, value) in context_headers {
         headers.insert(name, value);
@@ -908,7 +910,9 @@ fn replace_sdkwork_context_headers(
     sign_sdkwork_context_headers_if_configured(headers)
 }
 
-fn sign_sdkwork_context_headers_if_configured(headers: &mut HeaderMap) -> Result<(), Response> {
+fn sign_sdkwork_context_headers_if_configured(
+    headers: &mut HeaderMap,
+) -> Result<(), Box<Response>> {
     let Some(secret) = std::env::var(APP_CONTEXT_SIGNATURE_SECRET_ENV)
         .ok()
         .map(|value| value.trim().to_owned())
@@ -917,16 +921,16 @@ fn sign_sdkwork_context_headers_if_configured(headers: &mut HeaderMap) -> Result
         return Ok(());
     };
     let signature = sign_app_context_headers(headers, secret.as_str()).map_err(|error| {
-        json_error_response(
+        Box::new(json_error_response(
             StatusCode::BAD_GATEWAY,
             format!("gateway failed to sign app context projection: {error}").as_str(),
-        )
+        ))
     })?;
     let signature = HeaderValue::from_str(signature.as_str()).map_err(|error| {
-        json_error_response(
+        Box::new(json_error_response(
             StatusCode::BAD_GATEWAY,
             format!("gateway produced invalid app context signature header: {error}").as_str(),
-        )
+        ))
     })?;
     headers.insert("x-sdkwork-context-signature", signature);
     Ok(())
