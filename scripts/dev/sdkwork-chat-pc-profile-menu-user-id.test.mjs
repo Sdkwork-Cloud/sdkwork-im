@@ -93,6 +93,12 @@ assert.match(
 );
 
 assert.doesNotMatch(
+  sidebarSource,
+  /Chat ID is not ready|profile\.toast\.chatIdNotReady|if\s*\(\s*!\s*refreshedUser\.chatId\s*\)[\s\S]*?return\s*;/u,
+  'Sidebar avatar click must not block the profile menu with a Chat ID not-ready toast; ProfileMenuModal owns the localized copy-disabled state',
+);
+
+assert.doesNotMatch(
   profileMenuSource,
   />\s*(?:Loading|loading|Unavailable|Unavaiable)\s*</u,
   'Profile surfaces must not render Loading, loading, or Unavailable as a user-facing Chat ID fallback',

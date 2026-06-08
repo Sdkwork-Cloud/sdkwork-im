@@ -879,6 +879,12 @@ async fn gateway_derives_proxied_chat_data_context_from_appbase_dual_tokens_not_
             "/app/v3/api/automation/jobs",
             "/app/v3/api/automation/jobs",
         ),
+        (
+            "sdkwork-drive-app-api",
+            Method::POST,
+            "/app/v3/api/drive/uploader/uploads",
+            "/app/v3/api/drive/uploader/uploads",
+        ),
     ] {
         assert_gateway_derives_context_for_configured_upstream(
             service_id,
@@ -940,6 +946,12 @@ async fn gateway_fails_closed_for_protected_routes_without_appbase_session_conte
             Method::POST,
             "/app/v3/api/automation/jobs",
             "/app/v3/api/automation/jobs",
+        ),
+        (
+            "sdkwork-drive-app-api",
+            Method::POST,
+            "/app/v3/api/drive/uploader/uploads",
+            "/app/v3/api/drive/uploader/uploads",
         ),
     ] {
         assert_gateway_fails_closed_without_appbase_context(

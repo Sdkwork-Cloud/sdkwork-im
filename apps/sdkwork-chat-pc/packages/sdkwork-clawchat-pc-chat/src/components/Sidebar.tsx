@@ -82,11 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, []);
 
   const openProfileMenu = useCallback(async () => {
-    const refreshedUser = await refreshCurrentUser();
-    if (!refreshedUser.chatId) {
-      toast("Chat ID is not ready. Please try again.", "error");
-      return;
-    }
+    await refreshCurrentUser();
     setShowProfileMenu(true);
   }, [refreshCurrentUser]);
 

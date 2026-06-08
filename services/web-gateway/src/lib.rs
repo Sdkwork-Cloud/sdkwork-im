@@ -495,6 +495,7 @@ fn should_resolve_proxied_context_from_appbase_session(service_id: &str, path: &
         "streaming-service" => path.starts_with("/im/v3/api/streams"),
         "media-service" => path.starts_with("/im/v3/api/media/"),
         "sdkwork-rtc-signaling-service" => path.starts_with("/app/v3/api/rtc/"),
+        "sdkwork-drive-app-api" => path.starts_with("/app/v3/api/drive/"),
         "notification-service" => path.starts_with("/app/v3/api/notifications"),
         "automation-service" => path.starts_with("/app/v3/api/automation/"),
         _ => false,
@@ -994,6 +995,14 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         RouteVisibility::Public,
         vec![SdkTarget::SdkworkRtcAppSdk],
         "rtc",
+    ));
+    entries.extend(prefix_routes(
+        "sdkwork-drive-app-api",
+        all_http_methods(),
+        &["/app/v3/api/drive/{*path}"],
+        RouteVisibility::Public,
+        vec![SdkTarget::SdkworkDriveAppSdk],
+        "drive",
     ));
     entries.extend(prefix_routes(
         "media-service",
@@ -1823,7 +1832,7 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
         "GatewaySdkTarget".to_owned(),
         json!({
             "type": "string",
-            "enum": ["sdkworkImSdk", "sdkworkImAppSdk", "sdkworkImBackendSdk", "sdkworkRtcAppSdk", "none"]
+            "enum": ["sdkworkImSdk", "sdkworkImAppSdk", "sdkworkImBackendSdk", "sdkworkRtcAppSdk", "sdkworkDriveAppSdk", "none"]
         }),
     );
     schemas.insert(

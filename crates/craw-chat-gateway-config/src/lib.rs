@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 const DEFAULT_GATEWAY_BIND_ADDR: &str = "127.0.0.1:18079";
 const DEFAULT_APPBASE_APP_API_UPSTREAM: &str = "http://127.0.0.1:18090";
+const DEFAULT_DRIVE_APP_API_UPSTREAM: &str = "http://127.0.0.1:18080";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -178,6 +179,7 @@ fn parse_toml_key_value(trimmed: &str, keys: &[&str]) -> Option<String> {
 
 pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
     let appbase_upstream = default_appbase_app_api_upstream();
+    let drive_upstream = default_drive_app_api_upstream();
     vec![
         service_upstream("sdkwork-appbase-app-api", appbase_upstream.as_str()),
         service_upstream("session-gateway", "http://127.0.0.1:18080"),
@@ -186,6 +188,7 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
         service_upstream("projection-service", "http://127.0.0.1:18083"),
         service_upstream("streaming-service", "http://127.0.0.1:18084"),
         service_upstream("sdkwork-rtc-signaling-service", "http://127.0.0.1:18085"),
+        service_upstream("sdkwork-drive-app-api", drive_upstream.as_str()),
         service_upstream("media-service", "http://127.0.0.1:18086"),
         service_upstream("notification-service", "http://127.0.0.1:18087"),
         service_upstream("automation-service", "http://127.0.0.1:18088"),
@@ -208,6 +211,17 @@ fn default_appbase_app_api_upstream() -> String {
         .map(|value| value.trim().trim_end_matches('/').to_owned())
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| DEFAULT_APPBASE_APP_API_UPSTREAM.to_owned())
+}
+
+fn default_drive_app_api_upstream() -> String {
+    first_env_value(&[
+        "CRAW_CHAT_DRIVE_APP_API_UPSTREAM",
+        "SDKWORK_DRIVE_APP_API_UPSTREAM",
+        "SDKWORK_DRIVE_APP_API_BASE_URL",
+    ])
+    .map(|value| value.trim().trim_end_matches('/').to_owned())
+    .filter(|value| !value.is_empty())
+    .unwrap_or_else(|| DEFAULT_DRIVE_APP_API_UPSTREAM.to_owned())
 }
 
 pub fn service_upstream(service_id: &str, base_url: &str) -> ServiceUpstreamConfig {
@@ -360,6 +374,9 @@ bind_address = "127.0.0.1:38080"
         let _runtime_mode = ScopedEnvVar::remove("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE");
         let _appbase_upstream = ScopedEnvVar::remove("CRAW_CHAT_APPBASE_APP_API_UPSTREAM");
         let _appbase_bind_addr = ScopedEnvVar::remove("SDKWORK_APPBASE_APP_API_BIND_ADDR");
+        let _drive_upstream = ScopedEnvVar::remove("CRAW_CHAT_DRIVE_APP_API_UPSTREAM");
+        let _sdkwork_drive_upstream = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_UPSTREAM");
+        let _sdkwork_drive_base_url = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_BASE_URL");
 
         let config = WebGatewayConfig::from_env();
 
@@ -373,8 +390,34 @@ bind_address = "127.0.0.1:38080"
             Some("http://127.0.0.1:18080")
         );
         assert_eq!(
+            config.upstream_base_url("sdkwork-drive-app-api"),
+            Some("http://127.0.0.1:18080")
+        );
+        assert_eq!(
             config.upstream_base_url("ops-service"),
             Some("http://127.0.0.1:18091")
+        );
+    }
+
+    #[test]
+    fn test_web_gateway_config_allows_drive_app_api_upstream_override() {
+        let _guard = gateway_config_env_guard();
+        let _runtime_mode = ScopedEnvVar::remove("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE");
+        let _drive_upstream = ScopedEnvVar::set(
+            "CRAW_CHAT_DRIVE_APP_API_UPSTREAM",
+            "http://127.0.0.1:28080/",
+        );
+        let _sdkwork_drive_upstream =
+            ScopedEnvVar::set("SDKWORK_DRIVE_APP_API_UPSTREAM", "http://127.0.0.1:38080");
+        let _sdkwork_drive_base_url =
+            ScopedEnvVar::set("SDKWORK_DRIVE_APP_API_BASE_URL", "http://127.0.0.1:48080");
+
+        let config = WebGatewayConfig::from_env();
+
+        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Split);
+        assert_eq!(
+            config.upstream_base_url("sdkwork-drive-app-api"),
+            Some("http://127.0.0.1:28080")
         );
     }
 
@@ -387,12 +430,17 @@ bind_address = "127.0.0.1:38080"
             "http://127.0.0.1:19090/",
         );
         let _appbase_bind_addr = ScopedEnvVar::remove("SDKWORK_APPBASE_APP_API_BIND_ADDR");
+        let _drive_upstream = ScopedEnvVar::set(
+            "CRAW_CHAT_DRIVE_APP_API_UPSTREAM",
+            "http://127.0.0.1:28080/",
+        );
 
         let config = WebGatewayConfig::from_env();
 
         assert_eq!(config.runtime_mode, GatewayRuntimeMode::Embedded);
         assert!(config.upstreams.is_empty());
         assert_eq!(config.upstream_base_url("sdkwork-appbase-app-api"), None);
+        assert_eq!(config.upstream_base_url("sdkwork-drive-app-api"), None);
         assert_eq!(config.upstream_base_url("session-gateway"), None);
         assert_eq!(config.upstream_base_url("conversation-runtime"), None);
         assert_eq!(config.upstream_base_url("ops-service"), None);
