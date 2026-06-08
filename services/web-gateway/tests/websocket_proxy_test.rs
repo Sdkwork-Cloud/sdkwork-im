@@ -51,6 +51,7 @@ async fn websocket_context_echo(headers: HeaderMap, ws: WebSocketUpgrade) -> imp
     let tenant_id = header_value(&headers, "x-sdkwork-tenant-id").unwrap_or_default();
     let user_id = header_value(&headers, "x-sdkwork-user-id").unwrap_or_default();
     let session_id = header_value(&headers, "x-sdkwork-session-id").unwrap_or_default();
+    let device_id = header_value(&headers, "x-sdkwork-device-id").unwrap_or_default();
     ws.protocols([LINK_WEBSOCKET_SUBPROTOCOL])
         .on_upgrade(move |mut socket| async move {
             let _ = socket
@@ -59,6 +60,7 @@ async fn websocket_context_echo(headers: HeaderMap, ws: WebSocketUpgrade) -> imp
                         "tenantId": tenant_id,
                         "userId": user_id,
                         "sessionId": session_id,
+                        "deviceId": device_id,
                     })
                     .to_string()
                     .into(),
@@ -170,6 +172,162 @@ async fn handle_echo_socket(mut socket: WebSocket) {
             }
         }
     }
+}
+
+#[tokio::test]
+async fn gateway_accepts_browser_realtime_websocket_auth_init_before_upstream_connect() {
+    let appbase_app = Router::new().route(
+        "/app/v3/api/auth/sessions/current",
+        get(appbase_current_session),
+    );
+    let (appbase_address, appbase_handle) = spawn_server(appbase_app).await;
+    let upstream_app = Router::new().route("/im/v3/api/realtime/ws", get(websocket_context_echo));
+    let (upstream_address, upstream_handle) = spawn_server(upstream_app).await;
+
+    let gateway_app = web_gateway::build_app(test_gateway_config(vec![
+        service_upstream(
+            "session-gateway",
+            format!("http://{upstream_address}").as_str(),
+        ),
+        service_upstream(
+            "sdkwork-appbase-app-api",
+            format!("http://{appbase_address}").as_str(),
+        ),
+    ]));
+    let (gateway_address, gateway_handle) = spawn_server(gateway_app).await;
+
+    let request = ClientRequestBuilder::new(
+        format!("ws://{gateway_address}/im/v3/api/realtime/ws?deviceId=device-frame")
+            .parse()
+            .unwrap(),
+    )
+    .with_sub_protocol(LINK_WEBSOCKET_SUBPROTOCOL);
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("browser websocket connection should upgrade before auth.init");
+    socket
+        .send(TungsteniteMessage::Text(
+            json!({
+                "type": "auth.init",
+                "requestId": "auth-1",
+                "authToken": "real-auth-token",
+                "accessToken": "real-access-token",
+                "deviceId": "device-frame"
+            })
+            .to_string()
+            .into(),
+        ))
+        .await
+        .expect("auth.init frame should send");
+
+    let auth_ok = socket
+        .next()
+        .await
+        .expect("auth.ok frame should arrive")
+        .expect("auth.ok frame should decode");
+    let TungsteniteMessage::Text(text) = auth_ok else {
+        panic!("expected auth.ok text frame, got {auth_ok:?}");
+    };
+    let auth_ok: serde_json::Value =
+        serde_json::from_str(text.as_str()).expect("auth.ok frame should be json");
+    assert_eq!(auth_ok["type"], "auth.ok");
+    assert_eq!(auth_ok["requestId"], "auth-1");
+    assert_eq!(auth_ok["tenantId"], "tenant_real");
+    assert_eq!(auth_ok["principalId"], "user_real");
+    assert_eq!(auth_ok["sessionId"], "session_real");
+    assert_eq!(auth_ok["deviceId"], "device-frame");
+
+    let context_frame = socket
+        .next()
+        .await
+        .expect("upstream context frame should arrive after auth.ok")
+        .expect("upstream context frame should decode");
+    let TungsteniteMessage::Text(text) = context_frame else {
+        panic!("expected context text frame, got {context_frame:?}");
+    };
+    let context: serde_json::Value =
+        serde_json::from_str(text.as_str()).expect("context frame should be json");
+    assert_eq!(context["tenantId"], "tenant_real");
+    assert_eq!(context["userId"], "user_real");
+    assert_eq!(context["sessionId"], "session_real");
+    assert_eq!(context["deviceId"], "device-frame");
+
+    let _ = socket.close(None).await;
+    gateway_handle.abort();
+    upstream_handle.abort();
+    appbase_handle.abort();
+}
+
+#[tokio::test]
+async fn gateway_rejects_realtime_websocket_business_frame_before_auth_init() {
+    let appbase_app = Router::new().route(
+        "/app/v3/api/auth/sessions/current",
+        get(appbase_current_session),
+    );
+    let (appbase_address, appbase_handle) = spawn_server(appbase_app).await;
+    let upstream_app = Router::new().route("/im/v3/api/realtime/ws", get(websocket_context_echo));
+    let (upstream_address, upstream_handle) = spawn_server(upstream_app).await;
+
+    let gateway_app = web_gateway::build_app(test_gateway_config(vec![
+        service_upstream(
+            "session-gateway",
+            format!("http://{upstream_address}").as_str(),
+        ),
+        service_upstream(
+            "sdkwork-appbase-app-api",
+            format!("http://{appbase_address}").as_str(),
+        ),
+    ]));
+    let (gateway_address, gateway_handle) = spawn_server(gateway_app).await;
+
+    let request = ClientRequestBuilder::new(
+        format!("ws://{gateway_address}/im/v3/api/realtime/ws")
+            .parse()
+            .unwrap(),
+    )
+    .with_sub_protocol(LINK_WEBSOCKET_SUBPROTOCOL);
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("browser websocket connection should upgrade before auth.init");
+    socket
+        .send(TungsteniteMessage::Text(
+            json!({
+                "type": "subscriptions.sync",
+                "requestId": "sub-before-auth",
+                "items": []
+            })
+            .to_string()
+            .into(),
+        ))
+        .await
+        .expect("pre-auth business frame should send");
+
+    let error_frame = socket
+        .next()
+        .await
+        .expect("auth error frame should arrive")
+        .expect("auth error frame should decode");
+    let TungsteniteMessage::Text(text) = error_frame else {
+        panic!("expected auth error text frame, got {error_frame:?}");
+    };
+    let error: serde_json::Value =
+        serde_json::from_str(text.as_str()).expect("auth error frame should be json");
+    assert_eq!(error["type"], "error");
+    assert_eq!(error["code"], "websocket_auth_required");
+    assert_eq!(error["requestId"], "sub-before-auth");
+
+    let close_frame = socket
+        .next()
+        .await
+        .expect("gateway should close websocket after auth error")
+        .expect("close frame should decode");
+    assert!(matches!(close_frame, TungsteniteMessage::Close(_)));
+
+    gateway_handle.abort();
+    upstream_handle.abort();
+    appbase_handle.abort();
 }
 
 #[tokio::test]

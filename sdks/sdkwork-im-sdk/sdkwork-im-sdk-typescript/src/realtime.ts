@@ -131,6 +131,11 @@ interface ParsedRealtimeMessage {
   message: ImDecodedMessage;
 }
 
+interface ResolvedWebSocketCredentials {
+  accessToken?: string;
+  authToken?: string;
+}
+
 type BrowserWebSocketConstructor = new (
   url: string,
   protocols?: string | string[],
@@ -233,20 +238,14 @@ function addHeader(headers: Record<string, string>, key: string, value: unknown)
 
 function buildWebSocketHeaders({
   accessToken,
-  auth,
   authToken,
   headerProvider,
   headers,
-}: Pick<
-  ImCreateLiveConnectionParams,
-  'accessToken' | 'auth' | 'authToken' | 'headerProvider' | 'headers'
->): Record<string, string> {
+}: ResolvedWebSocketCredentials & Pick<ImCreateLiveConnectionParams, 'headerProvider' | 'headers'>): Record<string, string> {
   const resolvedHeaders: Record<string, string> = {};
-  const websocketCredential = auth?.mode === 'automatic' ? auth.credentialProvider?.() : undefined;
-  const resolvedAuthToken = pickString(authToken, websocketCredential);
 
-  if (resolvedAuthToken) {
-    resolvedHeaders.Authorization = normalizeAuthorizationHeader(resolvedAuthToken);
+  if (authToken) {
+    resolvedHeaders.Authorization = normalizeAuthorizationHeader(authToken);
   }
   addHeader(resolvedHeaders, 'Access-Token', accessToken);
 
@@ -258,6 +257,18 @@ function buildWebSocketHeaders({
   }
 
   return resolvedHeaders;
+}
+
+function resolveWebSocketCredentials({
+  accessToken,
+  auth,
+  authToken,
+}: Pick<ImCreateLiveConnectionParams, 'accessToken' | 'auth' | 'authToken'>): ResolvedWebSocketCredentials {
+  const websocketCredential = auth?.mode === 'automatic' ? auth.credentialProvider?.() : undefined;
+  return {
+    accessToken: pickString(accessToken),
+    authToken: pickString(authToken, websocketCredential),
+  };
 }
 
 function appendRealtimeRoutePath(pathname: string): string {
@@ -274,9 +285,6 @@ function buildWebSocketUrl(websocketBaseUrl: string, options: ImConnectOptions):
 
   if (options.deviceId) {
     url.searchParams.set('deviceId', options.deviceId);
-  }
-  for (const conversationId of pickStringArray(options.subscriptions?.conversations)) {
-    url.searchParams.append('conversationId', conversationId);
   }
 
   return url.toString();
@@ -473,6 +481,39 @@ function sendSubscriptionSync(
   }));
 }
 
+function sendAuthInit(
+  socket: ImWebSocketLike,
+  credentials: Required<ResolvedWebSocketCredentials>,
+  deviceId: string | undefined,
+  requestId: string,
+): void {
+  if (socket.readyState !== SOCKET_OPEN_STATE) {
+    return;
+  }
+  socket.send(JSON.stringify({
+    type: 'auth.init',
+    requestId,
+    authToken: credentials.authToken,
+    accessToken: credentials.accessToken,
+    ...(deviceId ? { deviceId } : {}),
+  }));
+}
+
+function parseRealtimeControlFrame(raw: string): Record<string, unknown> | undefined {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return isRecord(parsed) ? unwrapWirePayload(parsed) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isAuthOkFrame(raw: string, requestId: string): boolean {
+  const frame = parseRealtimeControlFrame(raw);
+  return pickString(frame?.type) === 'auth.ok'
+    && (!pickString(frame?.requestId) || pickString(frame?.requestId) === requestId);
+}
+
 function readCloseReason(event: unknown): string | undefined {
   return isRecord(event) ? pickString(event.reason) : undefined;
 }
@@ -493,14 +534,22 @@ export function createImLiveConnection({
     states: new Set(),
   };
   const subscriptionConversations = pickStringArray(options.subscriptions?.conversations);
+  const credentials = resolveWebSocketCredentials({ accessToken, auth, authToken });
   const url = buildWebSocketUrl(websocketBaseUrl, {
     ...options,
     subscriptions: { conversations: subscriptionConversations },
   });
+  const usesBrowserWebSocket = !webSocketFactory;
   const socket = resolveWebSocketFactory(webSocketFactory)(url, {
-    headers: buildWebSocketHeaders({ accessToken, auth, authToken, headerProvider, headers }),
+    headers: buildWebSocketHeaders({ ...credentials, headerProvider, headers }),
     protocols: [],
   });
+  const authInitRequestId = 'sdkwork-im-auth-init-1';
+  const frameAuthRequired = usesBrowserWebSocket && auth?.mode !== 'none';
+  const frameAuthCredentials = credentials.accessToken && credentials.authToken
+    ? { accessToken: credentials.accessToken, authToken: credentials.authToken }
+    : undefined;
+  let awaitingAuthOk = frameAuthRequired;
   let subscriptionSyncCounter = 0;
 
   const emitState = (state: ImLiveConnectionState): void => {
@@ -509,7 +558,7 @@ export function createImLiveConnection({
     }
   };
 
-  socket.addEventListener('open', () => {
+  const emitOpenAndSyncSubscriptions = (): void => {
     emitState({ status: 'open' });
     subscriptionSyncCounter += 1;
     sendSubscriptionSync(
@@ -517,6 +566,20 @@ export function createImLiveConnection({
       subscriptionConversations,
       `sdkwork-im-subscriptions-sync-${subscriptionSyncCounter}`,
     );
+  };
+
+  socket.addEventListener('open', () => {
+    if (frameAuthRequired) {
+      if (!frameAuthCredentials) {
+        emitState({ status: 'error', reason: 'websocket auth tokens are not ready' });
+        socket.close(4401, 'websocket auth tokens are not ready');
+        return;
+      }
+      sendAuthInit(socket, frameAuthCredentials, options.deviceId, authInitRequestId);
+      return;
+    }
+
+    emitOpenAndSyncSubscriptions();
   });
   socket.addEventListener('close', (event: unknown) => emitState({ status: 'closed', reason: readCloseReason(event) }));
   socket.addEventListener('error', (event: unknown) => {
@@ -528,6 +591,13 @@ export function createImLiveConnection({
   socket.addEventListener('message', (event: unknown) => {
     const raw = extractMessageData(event);
     if (!raw) {
+      return;
+    }
+    if (awaitingAuthOk) {
+      if (isAuthOkFrame(raw, authInitRequestId)) {
+        awaitingAuthOk = false;
+        emitOpenAndSyncSubscriptions();
+      }
       return;
     }
     const decodedMessages = parseRealtimePayloads(raw);

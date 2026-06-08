@@ -50,9 +50,58 @@ class FakeWebSocket implements ImWebSocketLike {
   }
 }
 
+class FakeBrowserWebSocket implements ImWebSocketLike {
+  static readonly instances: FakeBrowserWebSocket[] = [];
+
+  readonly sent: string[] = [];
+  readonly protocols?: string | string[];
+  readonly url: string;
+  readyState = 0;
+
+  private readonly listeners = new Map<FakeWebSocketEventName, Set<(event: unknown) => void>>();
+
+  constructor(url: string, protocols?: string | string[]) {
+    this.url = url;
+    this.protocols = protocols;
+    FakeBrowserWebSocket.instances.push(this);
+  }
+
+  addEventListener(type: FakeWebSocketEventName, handler: (event: unknown) => void): void {
+    const listeners = this.listeners.get(type) ?? new Set();
+    listeners.add(handler);
+    this.listeners.set(type, listeners);
+  }
+
+  close(code?: number, reason?: string): void {
+    this.readyState = 3;
+    this.emit('close', { code, reason });
+  }
+
+  emit(type: FakeWebSocketEventName, event: unknown): void {
+    for (const handler of this.listeners.get(type) ?? []) {
+      handler(event);
+    }
+  }
+
+  open(): void {
+    this.readyState = 1;
+    this.emit('open', {});
+  }
+
+  send(value: string): void {
+    this.sent.push(value);
+  }
+}
+
 function parseSent(socket: FakeWebSocket, index: number): Record<string, unknown> {
   const raw = socket.sent[index];
   assert.equal(typeof raw, 'string', `expected websocket frame ${index} to be sent`);
+  return JSON.parse(raw) as Record<string, unknown>;
+}
+
+function parseBrowserSent(socket: FakeBrowserWebSocket, index: number): Record<string, unknown> {
+  const raw = socket.sent[index];
+  assert.equal(typeof raw, 'string', `expected browser websocket frame ${index} to be sent`);
   return JSON.parse(raw) as Record<string, unknown>;
 }
 
@@ -95,9 +144,10 @@ async function main(): Promise<void> {
     const socket = sockets[0];
     assert.equal(
       socket.url,
-      'wss://chat.example.com/sdkwork/chat/im/v3/api/realtime/ws?deviceId=device-1&conversationId=conversation-1&conversationId=conversation-2',
-      'IM websocket URL must preserve deployment base paths and append the SDK-owned realtime route once',
+      'wss://chat.example.com/sdkwork/chat/im/v3/api/realtime/ws?deviceId=device-1',
+      'IM websocket URL must preserve deployment base paths and keep subscriptions out of the handshake query',
     );
+    assert.equal(socket.url.includes('conversationId='), false, 'IM websocket subscriptions must be sent as frames');
     assert.deepEqual(
       socket.options.protocols,
       [],
@@ -218,6 +268,78 @@ async function main(): Promise<void> {
 
     connection.disconnect(1000, 'test complete');
     assert.equal(socket.readyState, 3);
+
+    FakeBrowserWebSocket.instances.length = 0;
+    Object.defineProperty(globalThis, 'WebSocket', {
+      configurable: true,
+      value: FakeBrowserWebSocket,
+    });
+
+    const browserClient = new ImSdkClient({
+      accessToken: 'browser-access-token-1',
+      authToken: 'browser-auth-token-1',
+      webSocketAuth: ImWebSocketAuthOptions.automatic({
+        credentialProvider: () => 'browser-auth-token-1',
+      }),
+      websocketBaseUrl: 'wss://chat.example.com/sdkwork/chat/',
+    });
+    const browserConnection = await browserClient.connect({
+      deviceId: 'browser-device-1',
+      subscriptions: {
+        conversations: ['browser-conversation-1'],
+      },
+    });
+    assert.equal(FakeBrowserWebSocket.instances.length, 1, 'browser runtime must use global WebSocket');
+    const browserSocket = FakeBrowserWebSocket.instances[0];
+    assert.equal(
+      browserSocket.url,
+      'wss://chat.example.com/sdkwork/chat/im/v3/api/realtime/ws?deviceId=browser-device-1',
+      'browser websocket URL must not include subscription identifiers',
+    );
+    assert.deepEqual(browserSocket.protocols, []);
+
+    const browserStates: string[] = [];
+    browserConnection.lifecycle.onStateChange((state) => browserStates.push(state.status));
+
+    browserSocket.open();
+    assert.deepEqual(browserStates, [], 'browser websocket must wait for auth.ok before reporting open');
+    assert.deepEqual(parseBrowserSent(browserSocket, 0), {
+      type: 'auth.init',
+      requestId: 'sdkwork-im-auth-init-1',
+      authToken: 'browser-auth-token-1',
+      accessToken: 'browser-access-token-1',
+      deviceId: 'browser-device-1',
+    });
+    assert.equal(
+      browserSocket.sent.some((frame) => frame.includes('subscriptions.sync')),
+      false,
+      'browser websocket must not send subscriptions before auth.ok',
+    );
+
+    browserSocket.emit('message', {
+      data: JSON.stringify({
+        type: 'auth.ok',
+        requestId: 'sdkwork-im-auth-init-1',
+        tenantId: 'tenant_real',
+        principalId: 'user_real',
+        sessionId: 'session_real',
+        deviceId: 'browser-device-1',
+      }),
+    });
+    assert.deepEqual(browserStates, ['open']);
+    assert.deepEqual(parseBrowserSent(browserSocket, 1), {
+      type: 'subscriptions.sync',
+      requestId: 'sdkwork-im-subscriptions-sync-1',
+      items: [
+        {
+          scopeType: 'conversation',
+          scopeId: 'browser-conversation-1',
+          eventTypes: ['message.posted'],
+        },
+      ],
+    });
+
+    browserConnection.disconnect(1000, 'browser test complete');
   } finally {
     if (originalWebSocket) {
       Object.defineProperty(globalThis, 'WebSocket', originalWebSocket);
