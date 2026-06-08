@@ -276,10 +276,14 @@ async function main(): Promise<void> {
     });
 
     const browserClient = new ImSdkClient({
-      accessToken: 'browser-access-token-1',
-      authToken: 'browser-auth-token-1',
+      accessToken: 'stale-browser-access-token',
+      authToken: 'stale-browser-auth-token',
+      tokenManager: {
+        getAccessToken: () => 'browser-access-token-1',
+        getAuthToken: () => 'browser-auth-token-1',
+      },
       webSocketAuth: ImWebSocketAuthOptions.automatic({
-        credentialProvider: () => 'browser-auth-token-1',
+        credentialProvider: () => 'stale-browser-auth-token',
       }),
       websocketBaseUrl: 'wss://chat.example.com/sdkwork/chat/',
     });

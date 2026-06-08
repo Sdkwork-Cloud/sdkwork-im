@@ -241,14 +241,12 @@ async fn proxy_websocket_request(
         let original_headers = request.headers().clone();
         let state = state.clone();
         let upstream_base_url = upstream_base_url.to_owned();
-        let service_id = service_id.to_owned();
         return ws
             .protocols(websocket_subprotocols.to_vec())
             .on_upgrade(move |downstream_socket| {
                 proxy_realtime_websocket_after_auth_init(
                     downstream_socket,
                     state,
-                    service_id,
                     upstream_base_url,
                     path_and_query,
                     original_headers,
@@ -554,6 +552,292 @@ fn should_resolve_proxied_context_from_appbase_session(service_id: &str, path: &
         "automation-service" => path.starts_with("/app/v3/api/automation/"),
         _ => false,
     }
+}
+
+fn should_authenticate_realtime_websocket_with_init_frame(
+    service_id: &str,
+    path: &str,
+    headers: &HeaderMap,
+) -> bool {
+    service_id == "session-gateway"
+        && path == IM_REALTIME_WEBSOCKET_PATH
+        && (!headers.contains_key(header::AUTHORIZATION) || !headers.contains_key("access-token"))
+}
+
+async fn proxy_realtime_websocket_after_auth_init(
+    mut downstream_socket: WebSocket,
+    state: GatewayState,
+    upstream_base_url: String,
+    path_and_query: String,
+    original_headers: HeaderMap,
+) {
+    let Some(auth_init) = read_websocket_auth_init_frame(&mut downstream_socket).await else {
+        close_websocket_with_auth_error(
+            &mut downstream_socket,
+            None,
+            "websocket_auth_required",
+            "auth.init frame is required before realtime websocket frames",
+        )
+        .await;
+        return;
+    };
+    if auth_init.frame_type != "auth.init" {
+        close_websocket_with_auth_error(
+            &mut downstream_socket,
+            auth_init.request_id.as_deref(),
+            "websocket_auth_required",
+            "auth.init frame is required before realtime websocket frames",
+        )
+        .await;
+        return;
+    }
+
+    let Some(auth_header) = websocket_auth_init_authorization_header(&auth_init) else {
+        close_websocket_with_auth_error(
+            &mut downstream_socket,
+            auth_init.request_id.as_deref(),
+            "websocket_auth_required",
+            "auth.init authToken is required",
+        )
+        .await;
+        return;
+    };
+    let Some(access_token) = websocket_auth_init_access_token_header(&auth_init) else {
+        close_websocket_with_auth_error(
+            &mut downstream_socket,
+            auth_init.request_id.as_deref(),
+            "websocket_auth_required",
+            "auth.init accessToken is required",
+        )
+        .await;
+        return;
+    };
+    let mut context_headers =
+        match fetch_appbase_session_context_headers(&state, Some(auth_header), Some(access_token))
+            .await
+        {
+            Ok(headers) => headers,
+            Err(_) => {
+                close_websocket_with_auth_error(
+                    &mut downstream_socket,
+                    auth_init.request_id.as_deref(),
+                    "websocket_auth_failed",
+                    "websocket auth.init session validation failed",
+                )
+                .await;
+                return;
+            }
+        };
+    merge_websocket_auth_init_device_header(&mut context_headers, auth_init.device_id.as_deref());
+    let auth_ok_context = websocket_auth_ok_context(&context_headers);
+
+    let Ok(upstream_url) = upstream_websocket_url(upstream_base_url.as_str(), path_and_query.as_str())
+    else {
+        close_websocket_with_auth_error(
+            &mut downstream_socket,
+            auth_init.request_id.as_deref(),
+            "websocket_upstream_unavailable",
+            "gateway websocket upstream URL is invalid",
+        )
+        .await;
+        return;
+    };
+    let mut upstream_request = match upstream_url.as_str().into_client_request() {
+        Ok(request) => request,
+        Err(_) => {
+            close_websocket_with_auth_error(
+                &mut downstream_socket,
+                auth_init.request_id.as_deref(),
+                "websocket_upstream_unavailable",
+                "gateway failed to prepare websocket upstream request",
+            )
+            .await;
+            return;
+        }
+    };
+    copy_websocket_headers(&original_headers, upstream_request.headers_mut());
+    if let Err(()) =
+        replace_sdkwork_context_headers_for_upstream(upstream_request.headers_mut(), context_headers)
+    {
+        close_websocket_with_auth_error(
+            &mut downstream_socket,
+            auth_init.request_id.as_deref(),
+            "websocket_auth_failed",
+            "gateway failed to prepare websocket auth context",
+        )
+        .await;
+        return;
+    }
+
+    match connect_async(upstream_request).await {
+        Ok((upstream_socket, _)) => {
+            send_websocket_auth_ok(&mut downstream_socket, &auth_init, &auth_ok_context).await;
+            proxy_websocket_streams(downstream_socket, upstream_socket).await;
+        }
+        Err(_) => {
+            close_websocket_with_auth_error(
+                &mut downstream_socket,
+                auth_init.request_id.as_deref(),
+                "websocket_upstream_unavailable",
+                "gateway websocket upstream request failed after auth.init",
+            )
+            .await;
+        }
+    }
+}
+
+async fn read_websocket_auth_init_frame(socket: &mut WebSocket) -> Option<WebsocketAuthInitFrame> {
+    let next_message = tokio::time::timeout(
+        Duration::from_secs(WEBSOCKET_AUTH_INIT_TIMEOUT_SECONDS),
+        socket.next(),
+    )
+    .await
+    .ok()??;
+    let Ok(message) = next_message else {
+        return None;
+    };
+    let text = match message {
+        Message::Text(text) => text.to_string(),
+        Message::Binary(bytes) => String::from_utf8(bytes.to_vec()).ok()?,
+        Message::Close(_) => return None,
+        Message::Ping(payload) => {
+            let _ = socket.send(Message::Pong(payload)).await;
+            return None;
+        }
+        Message::Pong(_) => return None,
+    };
+    serde_json::from_str::<WebsocketAuthInitFrame>(text.as_str()).ok()
+}
+
+fn websocket_auth_init_authorization_header(frame: &WebsocketAuthInitFrame) -> Option<HeaderValue> {
+    let token = frame.auth_token.as_deref()?.trim();
+    if token.is_empty() {
+        return None;
+    }
+    HeaderValue::from_str(normalize_websocket_auth_token(token).as_str()).ok()
+}
+
+fn websocket_auth_init_access_token_header(frame: &WebsocketAuthInitFrame) -> Option<HeaderValue> {
+    let token = frame.access_token.as_deref()?.trim();
+    if token.is_empty() {
+        return None;
+    }
+    HeaderValue::from_str(token).ok()
+}
+
+fn normalize_websocket_auth_token(token: &str) -> String {
+    if token
+        .get(..7)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("Bearer "))
+    {
+        token.to_owned()
+    } else {
+        format!("Bearer {token}")
+    }
+}
+
+fn merge_websocket_auth_init_device_header(
+    context_headers: &mut Vec<(&'static str, HeaderValue)>,
+    device_id: Option<&str>,
+) {
+    if context_headers
+        .iter()
+        .any(|(name, _)| *name == "x-sdkwork-device-id")
+    {
+        return;
+    }
+    let Some(device_id) = device_id.map(str::trim).filter(|value| !value.is_empty()) else {
+        return;
+    };
+    if let Ok(value) = HeaderValue::from_str(device_id) {
+        context_headers.push(("x-sdkwork-device-id", value));
+    }
+}
+
+fn websocket_auth_ok_context(
+    context_headers: &[(&'static str, HeaderValue)],
+) -> Map<String, Value> {
+    let mut context = Map::new();
+    if let Some(value) = context_header_value(context_headers, "x-sdkwork-tenant-id") {
+        context.insert("tenantId".to_owned(), Value::String(value));
+    }
+    if let Some(value) = context_header_value(context_headers, "x-sdkwork-user-id") {
+        context.insert("principalId".to_owned(), Value::String(value));
+    }
+    if let Some(value) = context_header_value(context_headers, "x-sdkwork-session-id") {
+        context.insert("sessionId".to_owned(), Value::String(value));
+    }
+    if let Some(value) = context_header_value(context_headers, "x-sdkwork-device-id") {
+        context.insert("deviceId".to_owned(), Value::String(value));
+    }
+    context
+}
+
+fn context_header_value(
+    context_headers: &[(&'static str, HeaderValue)],
+    target_name: &str,
+) -> Option<String> {
+    context_headers
+        .iter()
+        .find(|(name, _)| *name == target_name)
+        .and_then(|(_, value)| value.to_str().ok())
+        .map(str::to_owned)
+}
+
+fn replace_sdkwork_context_headers_for_upstream(
+    headers: &mut HeaderMap,
+    context_headers: Vec<(&'static str, HeaderValue)>,
+) -> Result<(), ()> {
+    replace_sdkwork_context_headers(headers, context_headers).map_err(|_| ())
+}
+
+async fn send_websocket_auth_ok(
+    socket: &mut WebSocket,
+    frame: &WebsocketAuthInitFrame,
+    context: &Map<String, Value>,
+) {
+    let mut payload = Map::new();
+    payload.insert("type".to_owned(), Value::String("auth.ok".to_owned()));
+    payload.insert(
+        "requestId".to_owned(),
+        frame
+            .request_id
+            .as_ref()
+            .map(|value| Value::String(value.clone()))
+            .unwrap_or(Value::Null),
+    );
+    for (name, value) in context {
+        payload.insert(name.clone(), value.clone());
+    }
+    let _ = socket
+        .send(Message::Text(Value::Object(payload).to_string().into()))
+        .await;
+}
+
+async fn close_websocket_with_auth_error(
+    socket: &mut WebSocket,
+    request_id: Option<&str>,
+    code: &str,
+    message: &str,
+) {
+    let _ = socket
+        .send(Message::Text(
+            json!({
+                "type": "error",
+                "requestId": request_id,
+                "code": code,
+                "message": message,
+            })
+            .to_string()
+            .into(),
+        ))
+        .await;
+    let _ = socket
+        .send(Message::Close(Some(CloseFrame {
+            code: axum::extract::ws::close_code::POLICY,
+            reason: Utf8Bytes::from(code.to_owned()),
+        })))
+        .await;
 }
 
 fn remove_sdkwork_context_headers(headers: &mut HeaderMap) {

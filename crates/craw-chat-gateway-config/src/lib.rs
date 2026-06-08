@@ -198,7 +198,14 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
 }
 
 pub fn default_embedded_upstreams() -> Vec<ServiceUpstreamConfig> {
-    Vec::new()
+    let mut upstreams = Vec::new();
+    if let Some(drive_upstream) = explicit_drive_app_api_upstream() {
+        upstreams.push(service_upstream(
+            "sdkwork-drive-app-api",
+            drive_upstream.as_str(),
+        ));
+    }
+    upstreams
 }
 
 fn default_appbase_app_api_upstream() -> String {
@@ -214,6 +221,10 @@ fn default_appbase_app_api_upstream() -> String {
 }
 
 fn default_drive_app_api_upstream() -> String {
+    explicit_drive_app_api_upstream().unwrap_or_else(|| DEFAULT_DRIVE_APP_API_UPSTREAM.to_owned())
+}
+
+fn explicit_drive_app_api_upstream() -> Option<String> {
     first_env_value(&[
         "CRAW_CHAT_DRIVE_APP_API_UPSTREAM",
         "SDKWORK_DRIVE_APP_API_UPSTREAM",
@@ -221,7 +232,6 @@ fn default_drive_app_api_upstream() -> String {
     ])
     .map(|value| value.trim().trim_end_matches('/').to_owned())
     .filter(|value| !value.is_empty())
-    .unwrap_or_else(|| DEFAULT_DRIVE_APP_API_UPSTREAM.to_owned())
 }
 
 pub fn service_upstream(service_id: &str, base_url: &str) -> ServiceUpstreamConfig {
