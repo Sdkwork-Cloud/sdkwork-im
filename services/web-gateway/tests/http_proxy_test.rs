@@ -670,6 +670,57 @@ async fn embedded_gateway_derives_im_social_context_from_appbase_dual_tokens_not
 }
 
 #[tokio::test]
+async fn embedded_gateway_derives_drive_context_from_embedded_appbase_current_session() {
+    let embedded_runtime = Router::new().route(
+        "/app/v3/api/auth/sessions/current",
+        get(appbase_current_session),
+    );
+    let drive = spawn_app_upstream(Router::new().route(
+        "/app/v3/api/drive/uploader/uploads",
+        any(echo_context_upstream),
+    ))
+    .await;
+    let app = web_gateway::build_app_with_registry_and_runtime_routers(
+        WebGatewayConfig {
+            bind_addr: "127.0.0.1:0".to_owned(),
+            runtime_mode: GatewayRuntimeMode::Embedded,
+            strict_startup: true,
+            upstreams: vec![service_upstream(
+                "sdkwork-drive-app-api",
+                drive.base_url.as_str(),
+            )],
+        },
+        web_gateway::build_gateway_registry().expect("gateway registry should build"),
+        Some(embedded_runtime),
+        None,
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/app/v3/api/drive/uploader/uploads")
+                .header(header::AUTHORIZATION, "Bearer real-auth-token")
+                .header("access-token", "real-access-token")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "user_test006_a_com")
+                .header("x-sdkwork-session-id", "spoofed_session")
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .expect("gateway drive upload request should return");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let context = read_json_body(response).await;
+    assert_eq!(context["tenantId"], "tenant_real");
+    assert_eq!(context["userId"], "user_real");
+    assert_eq!(context["sessionId"], "session_real");
+    assert_ne!(context["tenantId"], "t_demo");
+    assert_ne!(context["userId"], "user_test006_a_com");
+}
+
+#[tokio::test]
 async fn gateway_derives_proxied_im_http_context_from_appbase_dual_tokens_not_client_headers() {
     let appbase = spawn_app_upstream(Router::new().route(
         "/app/v3/api/auth/sessions/current",

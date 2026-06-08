@@ -422,7 +422,28 @@ bind_address = "127.0.0.1:38080"
     }
 
     #[test]
-    fn test_web_gateway_embedded_mode_uses_no_external_upstreams() {
+    fn test_web_gateway_embedded_mode_uses_no_implicit_external_upstreams() {
+        let _guard = gateway_config_env_guard();
+        let _runtime_mode = ScopedEnvVar::set("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE", "embedded");
+        let _appbase_upstream = ScopedEnvVar::remove("CRAW_CHAT_APPBASE_APP_API_UPSTREAM");
+        let _appbase_bind_addr = ScopedEnvVar::remove("SDKWORK_APPBASE_APP_API_BIND_ADDR");
+        let _drive_upstream = ScopedEnvVar::remove("CRAW_CHAT_DRIVE_APP_API_UPSTREAM");
+        let _sdkwork_drive_upstream = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_UPSTREAM");
+        let _sdkwork_drive_base_url = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_BASE_URL");
+
+        let config = WebGatewayConfig::from_env();
+
+        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Embedded);
+        assert!(config.upstreams.is_empty());
+        assert_eq!(config.upstream_base_url("sdkwork-appbase-app-api"), None);
+        assert_eq!(config.upstream_base_url("sdkwork-drive-app-api"), None);
+        assert_eq!(config.upstream_base_url("session-gateway"), None);
+        assert_eq!(config.upstream_base_url("conversation-runtime"), None);
+        assert_eq!(config.upstream_base_url("ops-service"), None);
+    }
+
+    #[test]
+    fn test_web_gateway_embedded_mode_allows_explicit_drive_app_api_upstream() {
         let _guard = gateway_config_env_guard();
         let _runtime_mode = ScopedEnvVar::set("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE", "embedded");
         let _appbase_upstream = ScopedEnvVar::set(
@@ -434,13 +455,19 @@ bind_address = "127.0.0.1:38080"
             "CRAW_CHAT_DRIVE_APP_API_UPSTREAM",
             "http://127.0.0.1:28080/",
         );
+        let _sdkwork_drive_upstream =
+            ScopedEnvVar::set("SDKWORK_DRIVE_APP_API_UPSTREAM", "http://127.0.0.1:38080");
+        let _sdkwork_drive_base_url =
+            ScopedEnvVar::set("SDKWORK_DRIVE_APP_API_BASE_URL", "http://127.0.0.1:48080");
 
         let config = WebGatewayConfig::from_env();
 
         assert_eq!(config.runtime_mode, GatewayRuntimeMode::Embedded);
-        assert!(config.upstreams.is_empty());
+        assert_eq!(
+            config.upstream_base_url("sdkwork-drive-app-api"),
+            Some("http://127.0.0.1:28080")
+        );
         assert_eq!(config.upstream_base_url("sdkwork-appbase-app-api"), None);
-        assert_eq!(config.upstream_base_url("sdkwork-drive-app-api"), None);
         assert_eq!(config.upstream_base_url("session-gateway"), None);
         assert_eq!(config.upstream_base_url("conversation-runtime"), None);
         assert_eq!(config.upstream_base_url("ops-service"), None);

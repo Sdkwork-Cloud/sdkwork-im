@@ -24,6 +24,7 @@ use craw_chat_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
 use futures_util::{SinkExt, StreamExt};
 use im_app_context::sign_app_context_headers;
 use reqwest::Client;
+use serde::Deserialize;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 use std::collections::BTreeSet;
@@ -38,6 +39,8 @@ use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 const BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
 const APPBASE_APP_API_SERVICE_ID: &str = "sdkwork-appbase-app-api";
 const APP_CONTEXT_SIGNATURE_SECRET_ENV: &str = "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET";
+const IM_REALTIME_WEBSOCKET_PATH: &str = "/im/v3/api/realtime/ws";
+const WEBSOCKET_AUTH_INIT_TIMEOUT_SECONDS: u64 = 10;
 
 #[derive(Clone)]
 struct GatewayState {
@@ -53,6 +56,17 @@ struct GatewayState {
 struct GatewayHealthResponse {
     status: &'static str,
     service: &'static str,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WebsocketAuthInitFrame {
+    #[serde(rename = "type")]
+    frame_type: String,
+    request_id: Option<String>,
+    auth_token: Option<String>,
+    access_token: Option<String>,
+    device_id: Option<String>,
 }
 
 pub fn build_app(config: WebGatewayConfig) -> Router {
@@ -214,6 +228,34 @@ async fn proxy_websocket_request(
             format!("upstream target is not configured for {service_id}").as_str(),
         );
     };
+    if should_authenticate_realtime_websocket_with_init_frame(
+        service_id,
+        request.uri().path(),
+        request.headers(),
+    ) {
+        let path_and_query = request
+            .uri()
+            .path_and_query()
+            .map(|value| value.as_str().to_owned())
+            .unwrap_or_else(|| "/".to_owned());
+        let original_headers = request.headers().clone();
+        let state = state.clone();
+        let upstream_base_url = upstream_base_url.to_owned();
+        let service_id = service_id.to_owned();
+        return ws
+            .protocols(websocket_subprotocols.to_vec())
+            .on_upgrade(move |downstream_socket| {
+                proxy_realtime_websocket_after_auth_init(
+                    downstream_socket,
+                    state,
+                    service_id,
+                    upstream_base_url,
+                    path_and_query,
+                    original_headers,
+                )
+            })
+            .into_response();
+    }
     if should_resolve_proxied_context_from_appbase_session(service_id, request.uri().path())
         && let Err(response) =
             inject_appbase_session_context_for_configured_upstream(state, &mut request).await
@@ -418,6 +460,19 @@ async fn inject_appbase_session_context_for_configured_upstream(
     state: &GatewayState,
     request: &mut Request,
 ) -> Result<(), Response> {
+    let auth_header = request.headers().get(header::AUTHORIZATION).cloned();
+    let access_token = request.headers().get("access-token").cloned();
+    let context_headers =
+        fetch_appbase_session_context_headers(state, auth_header, access_token).await?;
+    replace_sdkwork_context_headers(request.headers_mut(), context_headers)?;
+    Ok(())
+}
+
+async fn fetch_appbase_session_context_headers(
+    state: &GatewayState,
+    auth_header: Option<HeaderValue>,
+    access_token: Option<HeaderValue>,
+) -> Result<Vec<(&'static str, HeaderValue)>, Response> {
     let Some(appbase_base_url) = state.config.upstream_base_url(APPBASE_APP_API_SERVICE_ID) else {
         return Err(json_error_response(
             StatusCode::BAD_GATEWAY,
@@ -429,10 +484,10 @@ async fn inject_appbase_session_context_for_configured_upstream(
         appbase_base_url.trim_end_matches('/')
     );
     let mut request_builder = state.client.get(current_session_url);
-    if let Some(value) = request.headers().get(header::AUTHORIZATION) {
+    if let Some(value) = auth_header {
         request_builder = request_builder.header(header::AUTHORIZATION, value);
     }
-    if let Some(value) = request.headers().get("access-token") {
+    if let Some(value) = access_token {
         request_builder = request_builder.header("access-token", value);
     }
 
@@ -460,8 +515,7 @@ async fn inject_appbase_session_context_for_configured_upstream(
             "appbase current-session response is missing tenant/user context",
         )
     })?;
-    replace_sdkwork_context_headers(request.headers_mut(), context_headers)?;
-    Ok(())
+    Ok(context_headers)
 }
 
 fn build_current_session_request(headers: &HeaderMap) -> Request {
