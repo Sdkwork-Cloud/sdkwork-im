@@ -125,6 +125,7 @@ export class ImSdkClient {
       headerProvider: this.options.headerProvider,
       headers: this.options.headers,
       options,
+      tokenManager: this.options.tokenManager ?? this.options.tokenProvider,
       websocketBaseUrl: this.websocketBaseUrl,
       webSocketFactory: this.options.webSocketFactory,
     }));

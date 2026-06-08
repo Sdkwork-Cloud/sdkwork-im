@@ -256,7 +256,7 @@ async fn proxy_websocket_request(
     }
     if should_resolve_proxied_context_from_appbase_session(service_id, request.uri().path())
         && let Err(response) =
-            inject_appbase_session_context_for_configured_upstream(state, &mut request).await
+            inject_appbase_session_context_for_proxied_route(state, &mut request).await
     {
         return response;
     }
@@ -350,7 +350,7 @@ async fn proxy_request(State(state): State<GatewayState>, mut request: Request) 
         service_id.as_str(),
         request.uri().path(),
     ) && let Err(response) =
-        inject_appbase_session_context_for_configured_upstream(&state, &mut request).await
+        inject_appbase_session_context_for_proxied_route(&state, &mut request).await
     {
         return response;
     }
@@ -418,8 +418,54 @@ async fn inject_appbase_session_context_for_embedded_runtime(
     router: Router,
     request: &mut Request,
 ) -> Result<(), Response> {
+    let context_headers =
+        fetch_embedded_appbase_session_context_headers(router, request.headers()).await?;
+    replace_sdkwork_context_headers(request.headers_mut(), context_headers)?;
+    Ok(())
+}
+
+async fn inject_appbase_session_context_for_proxied_route(
+    state: &GatewayState,
+    request: &mut Request,
+) -> Result<(), Response> {
+    let context_headers =
+        appbase_session_context_headers_for_proxied_route(state, request.headers()).await?;
+    replace_sdkwork_context_headers(request.headers_mut(), context_headers)?;
+    Ok(())
+}
+
+async fn appbase_session_context_headers_for_proxied_route(
+    state: &GatewayState,
+    headers: &HeaderMap,
+) -> Result<Vec<(&'static str, HeaderValue)>, Response> {
+    if state
+        .config
+        .upstream_base_url(APPBASE_APP_API_SERVICE_ID)
+        .is_some()
+    {
+        let auth_header = headers.get(header::AUTHORIZATION).cloned();
+        let access_token = headers.get("access-token").cloned();
+        return fetch_appbase_session_context_headers(state, auth_header, access_token).await;
+    }
+
+    if state.config.runtime_mode == GatewayRuntimeMode::Embedded
+        && let Some(router) = state.embedded_runtime_router.clone()
+    {
+        return fetch_embedded_appbase_session_context_headers(router, headers).await;
+    }
+
+    Err(json_error_response(
+        StatusCode::BAD_GATEWAY,
+        "upstream target is not configured for sdkwork-appbase-app-api",
+    ))
+}
+
+async fn fetch_embedded_appbase_session_context_headers(
+    router: Router,
+    headers: &HeaderMap,
+) -> Result<Vec<(&'static str, HeaderValue)>, Response> {
     let session_response = router
-        .oneshot(build_current_session_request(request.headers()))
+        .oneshot(build_current_session_request(headers))
         .await
         .map_err(|error| match error {})?;
     let status = session_response.status();
@@ -450,20 +496,7 @@ async fn inject_appbase_session_context_for_embedded_runtime(
             "appbase current-session response is missing tenant/user context",
         )
     })?;
-    replace_sdkwork_context_headers(request.headers_mut(), context_headers)?;
-    Ok(())
-}
-
-async fn inject_appbase_session_context_for_configured_upstream(
-    state: &GatewayState,
-    request: &mut Request,
-) -> Result<(), Response> {
-    let auth_header = request.headers().get(header::AUTHORIZATION).cloned();
-    let access_token = request.headers().get("access-token").cloned();
-    let context_headers =
-        fetch_appbase_session_context_headers(state, auth_header, access_token).await?;
-    replace_sdkwork_context_headers(request.headers_mut(), context_headers)?;
-    Ok(())
+    Ok(context_headers)
 }
 
 async fn fetch_appbase_session_context_headers(
@@ -612,10 +645,11 @@ async fn proxy_realtime_websocket_after_auth_init(
         .await;
         return;
     };
+    let mut auth_headers = HeaderMap::new();
+    auth_headers.insert(header::AUTHORIZATION, auth_header);
+    auth_headers.insert("access-token", access_token);
     let mut context_headers =
-        match fetch_appbase_session_context_headers(&state, Some(auth_header), Some(access_token))
-            .await
-        {
+        match appbase_session_context_headers_for_proxied_route(&state, &auth_headers).await {
             Ok(headers) => headers,
             Err(_) => {
                 close_websocket_with_auth_error(
@@ -631,7 +665,8 @@ async fn proxy_realtime_websocket_after_auth_init(
     merge_websocket_auth_init_device_header(&mut context_headers, auth_init.device_id.as_deref());
     let auth_ok_context = websocket_auth_ok_context(&context_headers);
 
-    let Ok(upstream_url) = upstream_websocket_url(upstream_base_url.as_str(), path_and_query.as_str())
+    let Ok(upstream_url) =
+        upstream_websocket_url(upstream_base_url.as_str(), path_and_query.as_str())
     else {
         close_websocket_with_auth_error(
             &mut downstream_socket,
@@ -656,9 +691,10 @@ async fn proxy_realtime_websocket_after_auth_init(
         }
     };
     copy_websocket_headers(&original_headers, upstream_request.headers_mut());
-    if let Err(()) =
-        replace_sdkwork_context_headers_for_upstream(upstream_request.headers_mut(), context_headers)
-    {
+    if let Err(()) = replace_sdkwork_context_headers_for_upstream(
+        upstream_request.headers_mut(),
+        context_headers,
+    ) {
         close_websocket_with_auth_error(
             &mut downstream_socket,
             auth_init.request_id.as_deref(),

@@ -116,6 +116,7 @@ export interface ImCreateLiveConnectionParams {
   headerProvider?: () => Record<string, string>;
   headers?: Record<string, string>;
   options: ImConnectOptions;
+  tokenManager?: unknown;
   websocketBaseUrl: string;
   webSocketFactory?: ImWebSocketFactory;
 }
@@ -134,6 +135,15 @@ interface ParsedRealtimeMessage {
 interface ResolvedWebSocketCredentials {
   accessToken?: string;
   authToken?: string;
+}
+
+interface WebSocketTokenManagerLike {
+  getAccessToken?: () => string | undefined;
+  getAuthToken?: () => string | undefined;
+  getTokens?: () => {
+    accessToken?: string;
+    authToken?: string;
+  } | undefined;
 }
 
 type BrowserWebSocketConstructor = new (
@@ -263,11 +273,14 @@ function resolveWebSocketCredentials({
   accessToken,
   auth,
   authToken,
-}: Pick<ImCreateLiveConnectionParams, 'accessToken' | 'auth' | 'authToken'>): ResolvedWebSocketCredentials {
+  tokenManager,
+}: Pick<ImCreateLiveConnectionParams, 'accessToken' | 'auth' | 'authToken' | 'tokenManager'>): ResolvedWebSocketCredentials {
+  const manager = isRecord(tokenManager) ? tokenManager as WebSocketTokenManagerLike : undefined;
+  const managerTokens = manager?.getTokens?.();
   const websocketCredential = auth?.mode === 'automatic' ? auth.credentialProvider?.() : undefined;
   return {
-    accessToken: pickString(accessToken),
-    authToken: pickString(authToken, websocketCredential),
+    accessToken: pickString(manager?.getAccessToken?.(), managerTokens?.accessToken, accessToken),
+    authToken: pickString(manager?.getAuthToken?.(), managerTokens?.authToken, authToken, websocketCredential),
   };
 }
 
@@ -525,6 +538,7 @@ export function createImLiveConnection({
   headerProvider,
   headers,
   options,
+  tokenManager,
   websocketBaseUrl,
   webSocketFactory,
 }: ImCreateLiveConnectionParams): ImLiveConnection {
@@ -534,7 +548,7 @@ export function createImLiveConnection({
     states: new Set(),
   };
   const subscriptionConversations = pickStringArray(options.subscriptions?.conversations);
-  const credentials = resolveWebSocketCredentials({ accessToken, auth, authToken });
+  const credentials = resolveWebSocketCredentials({ accessToken, auth, authToken, tokenManager });
   const url = buildWebSocketUrl(websocketBaseUrl, {
     ...options,
     subscriptions: { conversations: subscriptionConversations },
