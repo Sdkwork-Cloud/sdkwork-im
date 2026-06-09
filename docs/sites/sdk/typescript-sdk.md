@@ -10,7 +10,7 @@ This package is the primary IM consumer SDK for browser and Node.js and follows 
 - one semantic SDK surface at the package root
 
 Use `ImSdkClient` for application code. The root client exposes semantic modules such as
-`sdk.conversations`, `sdk.messages`, `sdk.rtc`, and `sdk.connect(...)`. When you need exact
+`sdk.conversations`, `sdk.messages`, `sdk.calls`, and `sdk.connect(...)`. When you need exact
 OpenAPI transport control, use `sdk.transport.presence`, `sdk.transport.realtime`,
 `sdk.transport.chat`, and `sdk.transport.streams`.
 
@@ -122,7 +122,7 @@ For a new application, build against the SDK in this order:
    `sdk.transport.realtime.events.ack(...)`
 6. Add Drive-backed media message references
 7. Add custom, AI, and agent/workflow messages
-8. Add RTC lifecycle and signaling
+8. Add IM call lifecycle and signaling
 
 That order keeps the core app lifecycle stable before richer message and transport features are
 added.
@@ -141,7 +141,7 @@ when you need exact OpenAPI operations, request bodies, or transport DTO details
 | Message schemas and semantic send ergonomics | `sdk.conversations.postText(...)`, `sdk.conversations.postMessage(...)` | [Messages](/api-reference/im/messages) |
 | Drive-backed media message references | `sdkwork-drive` for file lifecycle, then `sdk.conversations.postMessage(...)` with `ContentPart.drive` and `MediaResource` | [Media](/api-reference/im/media) |
 | Realtime presence, live subscriptions, and durable replay | `sdk.connect(...)`, `sdk.transport.presence`, `sdk.transport.realtime` | [Realtime And Presence](/api-reference/im/session-and-realtime) |
-| RTC lifecycle and signaling-side HTTP calls | `sdk.rtc.create(...)`, `sdk.rtc.postJsonSignal(...)`, `sdk.rtc.issueParticipantCredential(...)`, `sdk.rtc.getRecordingArtifact(...)` | [RTC](/api-reference/im/rtc) |
+| IM call lifecycle and signaling-side HTTP calls | `sdk.calls.start(...)`, `sdk.calls.sendSignal(...)`, `sdk.calls.issueParticipantCredential(...)`, `sdk.calls.watchIncoming(...)` | [Calls](/api-reference/im/calls) |
 | Stream transport and checkpointing | `sdk.transport.streams.create(...)`, `sdk.transport.streams.frames.create(...)`, `sdk.transport.streams.checkpoint.create(...)`, `sdk.transport.streams.complete(...)` | [Streams](/api-reference/im/streams) |
 
 ## Conversations
@@ -491,33 +491,12 @@ const live = await sdk.connect({
   clientRouteId: 'web-chrome-01',
   subscriptions: {
     conversations: ['conversation-1'],
-    rtcSessions: ['rtc-1'],
   },
 });
 
-live.messages.on((message, context) => {
-  console.log(message.type, message.summary, context.sequence);
-  void context.ack();
-});
-
 live.messages.onConversation('conversation-1', (message, context) => {
-  console.log(context.conversationId, message.type);
-});
-
-live.data.on((data, context) => {
-  console.log(data.schemaRef, data.payload, context.sequence);
-});
-
-live.signals.on((signal, context) => {
-  console.log(signal.signalType, signal.payload, context.scopeId);
-});
-
-live.signals.onRtcSession('rtc-1', (signal, context) => {
-  console.log(signal.signalType, context.scopeId);
-});
-
-live.events.on((context) => {
-  console.log(context.kind, context.sequence, context.source);
+  console.log(context.conversationId, message.type, context.sequence);
+  void context.ack();
 });
 
 live.lifecycle.onStateChange((state) => {
@@ -525,38 +504,30 @@ live.lifecycle.onStateChange((state) => {
 });
 
 live.lifecycle.onError((context) => {
-  console.log(context.code, context.error);
+  console.log(context);
 });
-
-console.log(live.lifecycle.getState().status);
 ```
 
 The recommended receive surface is payload-first by domain stream. Your callback receives the final
 semantic object first and the operational receive context second. That keeps rendering and business
-logic focused on `message`, `data`, or `signal`, while `context` remains available for sequencing,
+logic focused on `message`, while `context` remains available for sequencing,
 sender metadata, raw-event inspection, and `context.ack()`.
 
 Each context gives you:
 
-- the semantic payload: `message`, `data`, or `signal`
+- the semantic payload: `message`
 - `sequence`
 - `receivedAt`
 - `sender`
-- `source`
 - `rawEvent`
 - `context.ack()`
 
 Use the live domain streams this way:
 
-- `live.messages.on(...)` for the primary inbound message stream
 - `live.messages.onConversation(...)` for conversation-scoped message handling
-- `live.data.on(...)` for non-message structured data delivery
-- `live.signals.on(...)` for generic signaling delivery
-- `live.signals.onRtcSession(...)` for RTC-session-scoped signaling
-- `live.events.on(...)` for the normalized receive context before app-specific routing
+- `live.events.onConversation(...)` for raw conversation realtime event handling
 - `live.lifecycle.onStateChange(...)` for `connected`, `error`, and `closed` transitions
 - `live.lifecycle.onError(...)` for realtime protocol and socket-level failures
-- `live.lifecycle.getState()` for the latest connection snapshot
 
 ### Durable Catch-Up
 
@@ -638,48 +609,56 @@ const sdk = new ImSdkClient({
 });
 ```
 
-## RTC
+## Calls
 
-RTC lifecycle stays in `sdk.rtc`, while inbound signaling arrives through the live runtime.
+IM owns the call lifecycle and signaling surface through `sdk.calls`. RTC provider SDKs stay focused
+on media runtime, native driver, and provider bridge capabilities.
 
 ```ts
-const session = await sdk.rtc.create({
+const session = await sdk.calls.start({
   rtcSessionId: 'rtc-1',
   conversationId: 'conversation-1',
   rtcMode: 'group_call',
 });
 
-await sdk.rtc.invite(session.rtcSessionId, {
+await sdk.calls.invite(session.rtcSessionId, {
   signalingStreamId: 'rtc-signal-1',
 });
 
-await sdk.rtc.postJsonSignal(session.rtcSessionId, 'offer', {
+await sdk.calls.sendSignal(session.rtcSessionId, {
   signalingStreamId: 'rtc-signal-1',
-  payload: {
+  signalType: 'offer',
+  payload: JSON.stringify({
     sdp: 'v=0...',
-  },
+  }),
 });
 
-const credential = await sdk.rtc.issueParticipantCredential(session.rtcSessionId, {
+const credential = await sdk.calls.issueParticipantCredential(session.rtcSessionId, {
   participantId: 'user-1',
 });
 
-const recording = await sdk.rtc.getRecordingArtifact(session.rtcSessionId);
-
-live.signals.onRtcSession(session.rtcSessionId, (signal, context) => {
-  console.log(signal.signalType, signal.payload, context.scopeId);
+const unsubscribeIncoming = sdk.calls.subscribe((incoming) => {
+  console.log(incoming.rtcSessionId, incoming.conversationId);
 });
+
+await sdk.calls.watchIncoming({
+  connection: live,
+  conversationIds: ['conversation-1'],
+});
+
+unsubscribeIncoming();
 ```
 
-Handle incoming RTC signaling through `live.signals.onRtcSession(...)`. Use
-`sdk.rtc.postJsonSignal(...)` for common JSON signaling, `sdk.rtc.issueParticipantCredential(...)`
-for provider join credentials, and `sdk.rtc.getRecordingArtifact(...)` for recording metadata.
+Handle incoming call invites through `sdk.calls.subscribe(...)` and `sdk.calls.watchIncoming(...)`.
+Use `sdk.calls.sendSignal(...)`
+for SDP/ICE/business signaling payloads and `sdk.calls.issueParticipantCredential(...)` for provider
+join credentials.
 
 ## Route-Aligned Transport Modules
 
 Some route groups are intentionally available through the generated transport client because they
 already match the public OpenAPI contract cleanly. Use the higher-level semantic modules for chat,
-live receive, media, and RTC workflows. Use `sdk.transport` when you need exact route-group control
+live receive, media, and call workflows. Use `sdk.transport` when you need exact route-group control
 for presence, realtime coordination, inbox, or stream transport.
 
 ```ts
@@ -769,5 +748,5 @@ node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs --language typescript
 - Read [Portal Access](/api-reference/app/portal-access) when you need the underlying HTTP
   contract for portal snapshots and SDKWork appbase credential pass-through.
 - Read [Messages](/api-reference/im/messages), [Realtime Presence](/api-reference/im/session-and-realtime),
-  and [RTC](/api-reference/im/rtc) when you need the route-level contract behind the semantic
+  and [Calls](/api-reference/im/calls) when you need the route-level contract behind the semantic
   TypeScript SDK.

@@ -6,6 +6,11 @@ use std::path::{Path as StdPath, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use self::im_calls::{
+    CreateRtcSessionRequest, ImCallRuntime, InviteRtcSessionRequest,
+    IssueRtcParticipantCredentialRequest, PostRtcSignalRequest, RtcSessionMutationResponse,
+    UpdateRtcSessionRequest, rtc_create_request_key, rtc_session_action_request_key,
+};
 use audit_service::{
     AuditExportBundle, AuditRecordMutationResponse, AuditRuntime, RecordAuditAnchor,
     audit_record_request_key,
@@ -71,15 +76,6 @@ use projection_service::{
     NotificationRecipientView, ProjectionAccessError, TimelineProjectionService,
 };
 use sdkwork_rtc_app_context::AppContext as RtcAppContext;
-use sdkwork_rtc_core::{
-    ProviderHealthSnapshot, RtcCallbackEvent, RtcCallbackRequest, RtcStateRecord,
-};
-use sdkwork_rtc_signaling_service::{
-    CreateRtcSessionRequest, InviteRtcSessionRequest, IssueRtcParticipantCredentialRequest,
-    PostRtcSignalRequest, RtcRuntime, RtcSessionMutationResponse, UpdateRtcSessionRequest,
-    rtc_create_request_key, rtc_session_action_request_key,
-};
-use sdkwork_rtc_state_store::{FileRtcStateStore, validate_rtc_state_store_file};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use session_gateway::{
@@ -101,11 +97,13 @@ use tokio::sync::Semaphore;
 mod access;
 mod aiot_bridge;
 mod build;
+mod calls;
 mod client_route_registration;
 mod commercial_readiness;
 mod conversation;
 mod effects;
 mod handoff;
+mod im_calls;
 mod membership;
 mod message;
 mod platform;
@@ -113,13 +111,13 @@ mod presence_routes;
 mod principal_profile;
 mod projection;
 mod realtime_policy;
-mod rtc;
 mod runtime_dir;
 mod side_effect_outbox;
 mod social;
 mod stream;
 
 use self::client_route_registration::LocalNodeClientRouteRegistration;
+use self::im_calls::{FileImCallStateStore, RtcStateRecord, validate_im_call_state_store_file};
 
 fn rtc_app_context_from_auth(auth: &AppContext) -> RtcAppContext {
     RtcAppContext {
@@ -185,7 +183,7 @@ struct AppState {
     aiot_app_api_server: Arc<sdkwork_aiot_http_api::AiotApiServer>,
     aiot_backend_api_server: Arc<sdkwork_aiot_http_api::AiotApiServer>,
     streaming_runtime: Arc<StreamingRuntime>,
-    rtc_runtime: Arc<RtcRuntime>,
+    call_runtime: Arc<ImCallRuntime>,
     notification_runtime: Arc<NotificationRuntime>,
     automation_runtime: Arc<AutomationRuntime>,
     audit_runtime: Arc<AuditRuntime>,
@@ -355,7 +353,7 @@ impl AppState {
             }
         }
 
-        if let Ok(binding) = self.rtc_runtime.provider_binding(None) {
+        if let Ok(binding) = self.call_runtime.provider_binding(None) {
             bindings.insert(ProviderDomain::Rtc, provider_binding_from_rtc(binding));
         }
         bindings.insert(
@@ -1591,8 +1589,8 @@ impl From<streaming_service::StreamingError> for ApiError {
     }
 }
 
-impl From<sdkwork_rtc_signaling_service::RtcError> for ApiError {
-    fn from(value: sdkwork_rtc_signaling_service::RtcError) -> Self {
+impl From<im_calls::ImCallError> for ApiError {
+    fn from(value: im_calls::ImCallError) -> Self {
         Self {
             status: value.status(),
             code: value.code(),
@@ -1801,28 +1799,40 @@ fn compose_app_api_dependency_openapi_paths(schema: &mut Value) {
             "Get appbase verification policy",
         ),
         (
-            "/app/v3/api/open_platform/qr_auth/sessions",
+            "/app/v3/api/oauth/authorization_urls",
             "post",
-            "appbase.openPlatform.qrAuth.sessions.create",
-            "Create a QR auth session",
+            "appbase.oauth.authorizationUrls.create",
+            "Create an OAuth authorization URL",
         ),
         (
-            "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}",
+            "/app/v3/api/oauth/device_authorizations",
+            "post",
+            "appbase.oauth.deviceAuthorizations.create",
+            "Create an OAuth device authorization",
+        ),
+        (
+            "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}",
             "get",
-            "appbase.openPlatform.qrAuth.sessions.retrieve",
-            "Get a QR auth session",
+            "appbase.oauth.deviceAuthorizations.retrieve",
+            "Get an OAuth device authorization",
         ),
         (
-            "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans",
+            "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/scans",
             "post",
-            "appbase.openPlatform.qrAuth.sessions.scans.create",
-            "Scan a QR auth session",
+            "appbase.oauth.deviceAuthorizations.scans.create",
+            "Scan an OAuth device authorization",
         ),
         (
-            "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords",
+            "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/password_completions",
             "post",
-            "appbase.openPlatform.qrAuth.sessions.passwords.create",
-            "Approve a QR auth session with a password",
+            "appbase.oauth.deviceAuthorizations.passwordCompletions.create",
+            "Approve an OAuth device authorization with a password",
+        ),
+        (
+            "/app/v3/api/oauth/sessions",
+            "post",
+            "appbase.oauth.sessions.create",
+            "Create an OAuth session",
         ),
     ] {
         insert_app_api_dependency_operation(paths, path, method, operation_id, summary);
@@ -1868,21 +1878,12 @@ fn insert_app_api_dependency_operation(
     if !path_item.is_object() {
         *path_item = serde_json::json!({});
     }
-    let operation = if path.contains("{sessionKey}") {
+    let path_parameters = openapi_path_parameters(path);
+    let operation = if path_parameters.is_empty() {
         serde_json::json!({
             "tags": ["appbase"],
             "operationId": operation_id,
             "summary": summary,
-            "parameters": [
-                {
-                    "name": "sessionKey",
-                    "in": "path",
-                    "required": true,
-                    "schema": {
-                        "type": "string"
-                    }
-                }
-            ],
             "responses": appbase_dependency_openapi_responses()
         })
     } else {
@@ -1890,6 +1891,7 @@ fn insert_app_api_dependency_operation(
             "tags": ["appbase"],
             "operationId": operation_id,
             "summary": summary,
+            "parameters": path_parameters,
             "responses": appbase_dependency_openapi_responses()
         })
     };
@@ -1898,6 +1900,22 @@ fn insert_app_api_dependency_operation(
         .expect("path item should be an object after initialization")
         .entry(method.to_owned())
         .or_insert(operation);
+}
+
+fn openapi_path_parameters(path: &str) -> Vec<Value> {
+    path.split('/')
+        .filter_map(|segment| {
+            let name = segment.strip_prefix('{')?.strip_suffix('}')?;
+            Some(serde_json::json!({
+                "name": name,
+                "in": "path",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                }
+            }))
+        })
+        .collect()
 }
 
 fn appbase_dependency_openapi_responses() -> Value {

@@ -5,10 +5,10 @@ It is not generated from
 OpenAPI and it must not be collapsed into `sdkwork-im-sdk`, `sdkwork-im-app-sdk`, or
 `sdkwork-im-backend-sdk`.
 
-The app and backend OpenAPI SDKs may expose HTTP routes related to RTC signaling, provider health,
-callbacks, or management. The RTC SDK owns a different layer: provider selection, provider package
-boundaries, native runtime bridges, capability negotiation, and provider-neutral call runtime
-contracts.
+The app and backend OpenAPI SDKs may expose HTTP routes related to provider health, callbacks, or
+management. IM exposes call signaling through `sdk.calls`. The RTC SDK owns a different layer:
+provider selection, provider package boundaries, native runtime bridges, capability negotiation,
+and provider-neutral media runtime contracts.
 
 ## Owns
 
@@ -26,7 +26,7 @@ contracts.
 - Provider package catalogs and package-boundary loading.
 - Runtime bridge contracts for native SDK integration and native driver ownership.
 - Capability catalog and capability negotiation.
-- Signaling transport vocabulary and shared IM live-connection expectations.
+- Shared provider runtime vocabulary and media bridge expectations.
 - Provider activation metadata across official languages.
 - Root public surface rules for provider-neutral and builtin-provider exports.
 
@@ -60,5 +60,5 @@ node ../../../../sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
 ## Related Docs
 
 - [SDK Overview](/sdk/index)
-- [IM RTC Signaling API](/api-reference/im/rtc)
+- [IM Calls API](/api-reference/im/calls)
 - `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/README.md`

@@ -77,7 +77,7 @@ function sdkLabel(page, route, method) {
     "im/messages": "`@sdkwork/im-sdk` / `sdk.messages`",
     "im/media": "`@sdkwork/im-sdk` / `sdk.media`",
     "im/streams": "`@sdkwork/im-sdk` / generated stream transport",
-    "im/rtc": "`@sdkwork/im-sdk` / `sdk.rtc`",
+    "im/calls": "`@sdkwork/im-sdk` / `sdk.calls`",
     "app/notifications": "`sdkwork-im-app-sdk` / `client.notification`",
     "app/automation": "`sdkwork-im-app-sdk` / `client.automation`",
     "app/provider-health": "`sdkwork-im-app-sdk` / provider health",
@@ -273,32 +273,29 @@ function permissionLabel(page, method, route) {
         return "Conversation `stream.abort` capability.";
       }
       return "Conversation `stream.append` capability.";
-    case "im/rtc":
-      if (isRoute(route, "/rtc/sessions")) {
-        return "Conversation `rtc.create` capability when the session is bound to a conversation.";
+    case "im/calls":
+      if (isRoute(route, "/calls/sessions")) {
+        return "Conversation `call.create` capability when the session is bound to a conversation.";
       }
       if (route.endsWith("/invite")) {
-        return "Conversation `rtc.invite` capability.";
+        return "Conversation `call.invite` capability.";
       }
       if (route.endsWith("/accept")) {
-        return "Conversation `rtc.accept` capability.";
+        return "Conversation `call.accept` capability.";
       }
       if (route.endsWith("/reject")) {
-        return "Conversation `rtc.reject` capability.";
+        return "Conversation `call.reject` capability.";
       }
       if (route.endsWith("/end")) {
-        return "Conversation `rtc.end` capability.";
+        return "Conversation `call.end` capability.";
       }
       if (route.endsWith("/signals")) {
-        return "Conversation `rtc.signal` capability.";
+        return "Conversation `call.signal` capability.";
       }
       if (route.endsWith("/credentials")) {
-        return "Conversation `rtc.issue_credential` capability.";
+        return "Conversation `call.issue_credential` capability.";
       }
-      if (route.endsWith("/artifacts/recording")) {
-        return "Conversation `rtc.artifact` capability.";
-      }
-      return "Authenticated principal; provider callback mapping is validated by the RTC runtime.";
+      return "Authenticated principal; conversation call scope is validated by IM.";
     case "app/notifications":
       return method === "POST"
         ? "Own recipient scope or `notification.write` for delegated sends."

@@ -1,12 +1,8 @@
 import type {
+  AiotCommandCreateRequest,
   AiotDevice,
   SdkworkAiotAppClient,
 } from '@sdkwork/aiot-app-sdk';
-import type {
-  AiotDeviceCreateRequest,
-  AiotDeviceUpdateRequest,
-  SdkworkAiotBackendClient,
-} from '@sdkwork/aiot-backend-sdk';
 import { getAiotAppSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/aiotAppSdkClient';
 import {
   readAppSdkSessionTokens,
@@ -48,7 +44,6 @@ export interface AiotDeviceServiceContext {
 }
 
 export interface AiotDeviceServiceOptions {
-  backendClient?: SdkworkAiotBackendClient;
   client?: SdkworkAiotAppClient;
   context?: Partial<AiotDeviceServiceContext>;
 }
@@ -61,15 +56,17 @@ interface AiotDevicesListParams {
   xSdkworkPermissionScope: string;
 }
 
+interface AiotDeviceCommandParams extends AiotDevicesListParams {
+  idempotencyKey: string;
+}
+
 const DEFAULT_AIOT_CONTEXT: AiotDeviceServiceContext = {
   tenantId: '20001',
   organizationId: '30001',
   permissionScope: 'iot.devices.read',
 };
-const DEFAULT_AIOT_PRODUCT_ID = 'sdkwork-chat-pc-device';
 const STANDARD_AGENT_ID_PATTERN = /^agent\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/u;
 
-let configuredBackendClient: SdkworkAiotBackendClient | undefined;
 let configuredClient: SdkworkAiotAppClient | undefined;
 let configuredContext: Partial<AiotDeviceServiceContext> = {};
 
@@ -127,50 +124,6 @@ function resolveDeviceId(device: AiotDevice): string {
   return device.deviceId || device.id;
 }
 
-function createDeviceId(device: Omit<Device, 'id'>): string {
-  const seed = readString(device.macAddress, device.name)
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  if (seed) {
-    return `pc-${seed}`.slice(0, 96);
-  }
-
-  const entropy =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `pc-${entropy}`.slice(0, 96);
-}
-
-function buildDeviceMetadata(device: Partial<Device>): Record<string, unknown> {
-  return {
-    ...(device.type ? { type: device.type } : {}),
-    ...(device.agentId !== undefined ? { agentId: device.agentId } : {}),
-    ...(device.macAddress !== undefined ? { macAddress: device.macAddress } : {}),
-    ...(device.firmwareVersion !== undefined ? { firmwareVersion: device.firmwareVersion } : {}),
-  };
-}
-
-function toCreateRequest(device: Omit<Device, 'id'>): AiotDeviceCreateRequest {
-  return {
-    deviceId: createDeviceId(device),
-    displayName: device.name,
-    productId: DEFAULT_AIOT_PRODUCT_ID,
-    clientId: device.macAddress,
-    chipFamily: device.type,
-  };
-}
-
-function toUpdateRequest(device: Partial<Device>): AiotDeviceUpdateRequest {
-  return {
-    ...(device.name !== undefined ? { displayName: device.name } : {}),
-    ...(device.status !== undefined ? { status: device.status } : {}),
-    metadata: buildDeviceMetadata(device),
-  };
-}
-
 function mapAiotDevice(device: AiotDevice): Device {
   const metadata = readRecord(device.metadata);
   const deviceId = resolveDeviceId(device);
@@ -211,16 +164,38 @@ function toListParams(context: AiotDeviceServiceContext): AiotDevicesListParams 
   };
 }
 
+function toCommandParams(
+  context: AiotDeviceServiceContext,
+  idempotencyKey: string,
+): AiotDeviceCommandParams {
+  return {
+    ...toListParams(context),
+    idempotencyKey,
+  };
+}
+
 function getClient(override?: SdkworkAiotAppClient): SdkworkAiotAppClient {
   return override ?? configuredClient ?? getAiotAppSdkClientWithSession();
 }
 
-function getBackendClient(override?: SdkworkAiotBackendClient): SdkworkAiotBackendClient {
-  const client = override ?? configuredBackendClient;
-  if (!client) {
-    throw new Error('AIoT backend SDK client is required for device mutation operations.');
-  }
-  return client;
+async function submitDeviceCommand(
+  client: SdkworkAiotAppClient,
+  deviceId: string,
+  body: AiotCommandCreateRequest,
+  idempotencyKey: string,
+  context?: Partial<AiotDeviceServiceContext>,
+): Promise<void> {
+  await client.iot.devices.commands.create(
+    deviceId,
+    body,
+    toCommandParams(resolveContext('iot.commands.execute', context), idempotencyKey),
+  );
+}
+
+function unsupportedAppDeviceManagementCapability(capability: string): Error {
+  return new Error(
+    `AIoT app SDK does not expose device ${capability}. Use a backend-admin device management surface or extend sdkwork-aiot app API before enabling this user-facing workflow.`,
+  );
 }
 
 class AiotDeviceService implements DeviceService {
@@ -244,68 +219,75 @@ class AiotDeviceService implements DeviceService {
 
   async addDevice(device: Omit<Device, 'id'>): Promise<Device> {
     assertDeviceAgentMetadata(device);
-    const backendClient = getBackendClient(this.options.backendClient);
-    const response = await backendClient.iot.devices.create(
-      toCreateRequest(device),
-    );
-    const created = mapAiotDevice(response.data as AiotDevice);
-    await backendClient.iot.devices.update(created.id, {
-      metadata: buildDeviceMetadata(device),
-      status: device.status,
-    });
-    return {
-      ...created,
-      ...device,
-    };
+    throw unsupportedAppDeviceManagementCapability('creation');
   }
 
   async updateDevice(id: string, device: Partial<Device>): Promise<void> {
+    if (!id.trim()) {
+      throw new Error('Device id is required.');
+    }
     assertDeviceAgentMetadata(device);
-    await getBackendClient(this.options.backendClient).iot.devices.update(
-      id,
-      toUpdateRequest(device),
-    );
+    throw unsupportedAppDeviceManagementCapability('update');
   }
 
   async deleteDevice(id: string): Promise<void> {
-    await getBackendClient(this.options.backendClient).iot.devices.delete(id);
+    if (!id.trim()) {
+      throw new Error('Device id is required.');
+    }
+    throw unsupportedAppDeviceManagementCapability('deletion');
   }
 
   async bindAgent(deviceId: string, agentId: string): Promise<void> {
     assertStandardAgentId(agentId);
-    await getBackendClient(this.options.backendClient).iot.devices.twin.update(deviceId, {
-      desired: { agentId },
-    });
+    await submitDeviceCommand(
+      getClient(this.options.client),
+      deviceId,
+      {
+        capabilityName: 'agent-hosting',
+        commandName: 'bind-agent',
+        payload: { agentId },
+      },
+      `bind-agent:${deviceId}:${agentId}`,
+      this.options.context,
+    );
   }
 
   async unbindAgent(deviceId: string): Promise<void> {
-    await getBackendClient(this.options.backendClient).iot.devices.twin.update(deviceId, {
-      desired: { agentId: null },
-    });
+    await submitDeviceCommand(
+      getClient(this.options.client),
+      deviceId,
+      {
+        capabilityName: 'agent-hosting',
+        commandName: 'unbind-agent',
+        payload: {},
+      },
+      `unbind-agent:${deviceId}`,
+      this.options.context,
+    );
   }
 
   async activateDevice(deviceId: string, activationCode: string): Promise<void> {
-    const backendClient = getBackendClient(this.options.backendClient);
-    const commands = await backendClient.iot.devices.commands.list(deviceId);
-    for (const command of commands.data) {
-      if (
-        command.commandName === 'activate'
-        && (command.status === 'queued' || command.status === 'pending')
-      ) {
-        await backendClient.iot.devices.commands.cancel(deviceId, command.commandId).catch(() => undefined);
-      }
+    const normalizedActivationCode = activationCode.trim();
+    if (!normalizedActivationCode) {
+      throw new Error('Activation code is required.');
     }
-    await backendClient.iot.devices.twin.update(deviceId, {
-      desired: {
-        activationCode,
-        activationRequestedAt: new Date().toISOString(),
+    await submitDeviceCommand(
+      getClient(this.options.client),
+      deviceId,
+      {
+        capabilityName: 'device-activation',
+        commandName: 'activate',
+        payload: {
+          activationCode: normalizedActivationCode,
+        },
       },
-    });
+      `activate-device:${deviceId}`,
+      this.options.context,
+    );
   }
 }
 
 export function configureDeviceService(options: AiotDeviceServiceOptions = {}): void {
-  configuredBackendClient = options.backendClient ?? configuredBackendClient;
   configuredClient = options.client ?? configuredClient;
   configuredContext = {
     ...configuredContext,

@@ -14,7 +14,7 @@ public class MessageInteractionSummaryView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -22,7 +22,7 @@ public class MessageInteractionSummaryView {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -30,7 +30,7 @@ public class MessageInteractionSummaryView {
     public String getMessageId() {
         return this.messageId;
     }
-    
+
     public void setMessageId(String messageId) {
         this.messageId = messageId;
     }
@@ -38,7 +38,7 @@ public class MessageInteractionSummaryView {
     public Integer getMessageSeq() {
         return this.messageSeq;
     }
-    
+
     public void setMessageSeq(Integer messageSeq) {
         this.messageSeq = messageSeq;
     }
@@ -46,7 +46,7 @@ public class MessageInteractionSummaryView {
     public Integer getTotalReactionCount() {
         return this.totalReactionCount;
     }
-    
+
     public void setTotalReactionCount(Integer totalReactionCount) {
         this.totalReactionCount = totalReactionCount;
     }
@@ -54,7 +54,7 @@ public class MessageInteractionSummaryView {
     public List<MessageReactionCountView> getReactionCounts() {
         return this.reactionCounts;
     }
-    
+
     public void setReactionCounts(List<MessageReactionCountView> reactionCounts) {
         this.reactionCounts = reactionCounts;
     }
@@ -62,7 +62,7 @@ public class MessageInteractionSummaryView {
     public MessagePinView getPin() {
         return this.pin;
     }
-    
+
     public void setPin(MessagePinView pin) {
         this.pin = pin;
     }

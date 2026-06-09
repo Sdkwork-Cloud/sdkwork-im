@@ -6,7 +6,7 @@ This example will show how to create or select a conversation and move through t
 
 ## Modules Involved
 
-This scenario primarily uses devices, inbox, conversations, and messages.
+This scenario primarily uses presence, realtime, inbox, conversations, and messages.
 
 ## Flow
 
@@ -14,4 +14,4 @@ The final version of this page will show a realistic conversation lifecycle for 
 
 ## Related Pages
 
-Continue with the devices, inbox, conversations, and messages module pages.
+Continue with the realtime, inbox, conversations, and messages module pages.

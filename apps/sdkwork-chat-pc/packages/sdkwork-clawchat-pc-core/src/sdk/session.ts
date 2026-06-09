@@ -595,6 +595,11 @@ export function getSdkworkChatGlobalTokenManager(): AuthTokenManager {
   return sdkworkChatGlobalTokenManager;
 }
 
+export function isAppSdkSessionExpired(session = readAppSdkSessionTokens()): boolean {
+  const expiresAt = session?.expiresAt;
+  return typeof expiresAt === 'number' && Number.isFinite(expiresAt) && Date.now() >= expiresAt;
+}
+
 export function isAppSdkSessionAuthenticated(session = readAppSdkSessionTokens()): boolean {
-  return Boolean(session?.authToken && session?.accessToken);
+  return Boolean(session?.authToken && session?.accessToken) && !isAppSdkSessionExpired(session);
 }

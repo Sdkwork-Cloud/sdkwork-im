@@ -112,12 +112,12 @@ Add a dedicated panel on the right or bottom side of the window with:
 Behavior:
 
 - all RTC buttons require authenticated state
-- `Create` uses `/im/v3/api/rtc/sessions`
-- `Invite` uses `/im/v3/api/rtc/sessions/{id}/invite`
-- `Accept` uses `/im/v3/api/rtc/sessions/{id}/accept`
-- `Reject` uses `/im/v3/api/rtc/sessions/{id}/reject`
-- `End` uses `/im/v3/api/rtc/sessions/{id}/end`
-- `Send Signal` uses `/im/v3/api/rtc/sessions/{id}/signals`
+- `Create` uses `/im/v3/api/calls/sessions`
+- `Invite` uses `/im/v3/api/calls/sessions/{id}/invite`
+- `Accept` uses `/im/v3/api/calls/sessions/{id}/accept`
+- `Reject` uses `/im/v3/api/calls/sessions/{id}/reject`
+- `End` uses `/im/v3/api/calls/sessions/{id}/end`
+- `Send Signal` uses `/im/v3/api/calls/sessions/{id}/signals`
 - `Fetch Credentials` and `Fetch Recording` are debugging helpers for provider validation
 - responses are appended to a diagnostics box and critical durable outcomes are also visible through the timeline as `rtc.*` summaries
 

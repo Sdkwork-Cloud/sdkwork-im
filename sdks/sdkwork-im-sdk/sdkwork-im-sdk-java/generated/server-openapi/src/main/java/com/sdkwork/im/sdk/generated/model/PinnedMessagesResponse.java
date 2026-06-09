@@ -8,7 +8,7 @@ public class PinnedMessagesResponse {
     public List<MessageInteractionSummaryView> getItems() {
         return this.items;
     }
-    
+
     public void setItems(List<MessageInteractionSummaryView> items) {
         this.items = items;
     }

@@ -10,7 +10,7 @@ public class StreamView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -18,7 +18,7 @@ public class StreamView {
     public String getStreamId() {
         return this.streamId;
     }
-    
+
     public void setStreamId(String streamId) {
         this.streamId = streamId;
     }
@@ -26,7 +26,7 @@ public class StreamView {
     public String getState() {
         return this.state;
     }
-    
+
     public void setState(String state) {
         this.state = state;
     }
@@ -34,7 +34,7 @@ public class StreamView {
     public String getOpenedAt() {
         return this.openedAt;
     }
-    
+
     public void setOpenedAt(String openedAt) {
         this.openedAt = openedAt;
     }

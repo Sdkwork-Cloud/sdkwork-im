@@ -8,6 +8,7 @@ import {
 import {
   applyAppSdkSessionTokens,
   clearAppSdkSessionTokens,
+  isAppSdkSessionAuthenticated,
   normalizeSdkworkChatSessionUser,
   readAppSdkSessionTokens,
   type SdkworkChatSession,
@@ -119,7 +120,9 @@ function toSession(data: RuntimeSessionPayload): SdkworkChatSession {
 
 export const appAuthService: AppAuthService = {
   async getCurrentSession() {
-    if (!readAppSdkSessionTokens()) {
+    const storedSession = readAppSdkSessionTokens();
+    if (!isAppSdkSessionAuthenticated(storedSession)) {
+      clearSdkworkChatIamRuntimeSession();
       return null;
     }
 

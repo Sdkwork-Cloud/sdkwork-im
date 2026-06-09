@@ -15,7 +15,7 @@ public class Friendship {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -23,7 +23,7 @@ public class Friendship {
     public String getFriendshipId() {
         return this.friendshipId;
     }
-    
+
     public void setFriendshipId(String friendshipId) {
         this.friendshipId = friendshipId;
     }
@@ -31,7 +31,7 @@ public class Friendship {
     public String getInitiatorUserId() {
         return this.initiatorUserId;
     }
-    
+
     public void setInitiatorUserId(String initiatorUserId) {
         this.initiatorUserId = initiatorUserId;
     }
@@ -39,7 +39,7 @@ public class Friendship {
     public String getLeftUserId() {
         return this.leftUserId;
     }
-    
+
     public void setLeftUserId(String leftUserId) {
         this.leftUserId = leftUserId;
     }
@@ -47,7 +47,7 @@ public class Friendship {
     public String getRightUserId() {
         return this.rightUserId;
     }
-    
+
     public void setRightUserId(String rightUserId) {
         this.rightUserId = rightUserId;
     }
@@ -55,7 +55,7 @@ public class Friendship {
     public String getUserHighId() {
         return this.userHighId;
     }
-    
+
     public void setUserHighId(String userHighId) {
         this.userHighId = userHighId;
     }
@@ -63,7 +63,7 @@ public class Friendship {
     public String getUserLowId() {
         return this.userLowId;
     }
-    
+
     public void setUserLowId(String userLowId) {
         this.userLowId = userLowId;
     }
@@ -71,7 +71,7 @@ public class Friendship {
     public String getStatus() {
         return this.status;
     }
-    
+
     public void setStatus(String status) {
         this.status = status;
     }
@@ -79,7 +79,7 @@ public class Friendship {
     public String getCreatedAt() {
         return this.createdAt;
     }
-    
+
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }

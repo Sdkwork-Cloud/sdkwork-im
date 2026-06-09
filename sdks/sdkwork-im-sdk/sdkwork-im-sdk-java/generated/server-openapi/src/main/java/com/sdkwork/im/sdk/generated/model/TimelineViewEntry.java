@@ -20,7 +20,7 @@ public class TimelineViewEntry {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -28,7 +28,7 @@ public class TimelineViewEntry {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -36,7 +36,7 @@ public class TimelineViewEntry {
     public String getMessageId() {
         return this.messageId;
     }
-    
+
     public void setMessageId(String messageId) {
         this.messageId = messageId;
     }
@@ -44,7 +44,7 @@ public class TimelineViewEntry {
     public Integer getMessageSeq() {
         return this.messageSeq;
     }
-    
+
     public void setMessageSeq(Integer messageSeq) {
         this.messageSeq = messageSeq;
     }
@@ -52,7 +52,7 @@ public class TimelineViewEntry {
     public String getSummary() {
         return this.summary;
     }
-    
+
     public void setSummary(String summary) {
         this.summary = summary;
     }
@@ -60,7 +60,7 @@ public class TimelineViewEntry {
     public Sender getSender() {
         return this.sender;
     }
-    
+
     public void setSender(Sender sender) {
         this.sender = sender;
     }
@@ -68,7 +68,7 @@ public class TimelineViewEntry {
     public MessageBody getBody() {
         return this.body;
     }
-    
+
     public void setBody(MessageBody body) {
         this.body = body;
     }
@@ -76,7 +76,7 @@ public class TimelineViewEntry {
     public String getMessageType() {
         return this.messageType;
     }
-    
+
     public void setMessageType(String messageType) {
         this.messageType = messageType;
     }
@@ -84,7 +84,7 @@ public class TimelineViewEntry {
     public String getDeliveryMode() {
         return this.deliveryMode;
     }
-    
+
     public void setDeliveryMode(String deliveryMode) {
         this.deliveryMode = deliveryMode;
     }
@@ -92,7 +92,7 @@ public class TimelineViewEntry {
     public String getClientMsgId() {
         return this.clientMsgId;
     }
-    
+
     public void setClientMsgId(String clientMsgId) {
         this.clientMsgId = clientMsgId;
     }
@@ -100,7 +100,7 @@ public class TimelineViewEntry {
     public String getStreamSessionId() {
         return this.streamSessionId;
     }
-    
+
     public void setStreamSessionId(String streamSessionId) {
         this.streamSessionId = streamSessionId;
     }
@@ -108,7 +108,7 @@ public class TimelineViewEntry {
     public String getRtcSessionId() {
         return this.rtcSessionId;
     }
-    
+
     public void setRtcSessionId(String rtcSessionId) {
         this.rtcSessionId = rtcSessionId;
     }
@@ -116,7 +116,7 @@ public class TimelineViewEntry {
     public String getOccurredAt() {
         return this.occurredAt;
     }
-    
+
     public void setOccurredAt(String occurredAt) {
         this.occurredAt = occurredAt;
     }
@@ -124,7 +124,7 @@ public class TimelineViewEntry {
     public String getCommittedAt() {
         return this.committedAt;
     }
-    
+
     public void setCommittedAt(String committedAt) {
         this.committedAt = committedAt;
     }

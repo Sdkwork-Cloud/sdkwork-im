@@ -10,7 +10,7 @@ public class DriveReference {
     public String getDriveUri() {
         return this.driveUri;
     }
-    
+
     public void setDriveUri(String driveUri) {
         this.driveUri = driveUri;
     }
@@ -18,7 +18,7 @@ public class DriveReference {
     public String getSpaceId() {
         return this.spaceId;
     }
-    
+
     public void setSpaceId(String spaceId) {
         this.spaceId = spaceId;
     }
@@ -26,7 +26,7 @@ public class DriveReference {
     public String getNodeId() {
         return this.nodeId;
     }
-    
+
     public void setNodeId(String nodeId) {
         this.nodeId = nodeId;
     }
@@ -34,7 +34,7 @@ public class DriveReference {
     public String getNodeVersion() {
         return this.nodeVersion;
     }
-    
+
     public void setNodeVersion(String nodeVersion) {
         this.nodeVersion = nodeVersion;
     }

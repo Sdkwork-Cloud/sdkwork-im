@@ -9,8 +9,8 @@ namespace Sdkwork.Im.Sdk.Generated.Models
         public string? Id { get; set; }
         public string? Kind { get; set; }
         public string? MediaKind { get; set; }
-        public string? Source { get; set; }
-        public string? Uri { get; set; }
+        public string Source { get; set; }
+        public string Uri { get; set; }
         public string? PublicUrl { get; set; }
         public string? Url { get; set; }
         public string? Name { get; set; }

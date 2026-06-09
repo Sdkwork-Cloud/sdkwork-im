@@ -9,6 +9,10 @@ import { fileURLToPath } from 'node:url';
 
 import { resolveSdkworkChatIamCommandEnv } from '../../apps/sdkwork-chat-pc/scripts/sdkwork-chat-iam-env.mjs';
 import { resolveCrawChatSharedDatabaseConfig } from './craw-chat-shared-database.mjs';
+import {
+  createCrawChatServerCargoEnv,
+  resolveCrawChatServerBindEnv,
+} from './craw-chat-server-dev-runtime.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), '..', '..');
@@ -245,6 +249,7 @@ export function createSdkworkChatPcDevPlan({
   devServerPort,
   env = process.env,
   repoRoot: resolvedRepoRoot = repoRoot,
+  serverEnv = {},
 } = {}) {
   const options = parseSdkworkChatPcDevArgs(argv);
   const target = TARGETS[options.target];
@@ -258,9 +263,16 @@ export function createSdkworkChatPcDevPlan({
   const defaultEnvFile = databaseProfile === 'postgres'
     ? resolveDefaultPostgresEnvFile(resolvedRepoRoot)
     : undefined;
+  const cargoEnv = createCrawChatServerCargoEnv({
+    env: {
+      ...env,
+      ...loadSdkworkChatPcDevEnvFile(options.envFile ?? defaultEnvFile, { repoRoot: resolvedRepoRoot }),
+      ...serverEnv,
+    },
+    repoRoot: resolvedRepoRoot,
+  });
   const mergedEnv = {
-    ...env,
-    ...loadSdkworkChatPcDevEnvFile(options.envFile ?? defaultEnvFile, { repoRoot: resolvedRepoRoot }),
+    ...cargoEnv.env,
   };
   if (databaseProfile === 'sqlite') {
     delete mergedEnv.SDKWORK_CHAT_DATABASE_ENGINE;
@@ -372,6 +384,7 @@ export async function runSdkworkChatPcDev({
   env = process.env,
   findAvailableDevPort = resolveAvailableSdkworkChatPcDevPort,
   repoRoot: resolvedRepoRoot = repoRoot,
+  resolveServerBindEnv = resolveCrawChatServerBindEnv,
   spawnImpl = spawn,
   stdout = process.stdout,
   stderr = process.stderr,
@@ -386,12 +399,23 @@ export async function runSdkworkChatPcDev({
     host: initialPlan.devServer.host,
     startPort: initialPlan.devServer.port,
   });
+  const serverPortPlan = createSdkworkChatPcDevPlan({
+    argv,
+    devServerHost: initialPlan.devServer.host,
+    devServerPort: resolvedDevPort,
+    env,
+    repoRoot: resolvedRepoRoot,
+  });
+  const resolvedServerBind = await resolveServerBindEnv({
+    env: serverPortPlan.processes[0].env,
+  });
   const plan = createSdkworkChatPcDevPlan({
     argv,
     devServerHost: initialPlan.devServer.host,
     devServerPort: resolvedDevPort,
     env,
     repoRoot: resolvedRepoRoot,
+    serverEnv: resolvedServerBind.env,
   });
   if (plan.dryRun) {
     stdout.write(`${formatPlan(plan)}\n`);

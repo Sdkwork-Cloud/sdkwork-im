@@ -38,7 +38,7 @@ craw-chat/
 - `conversation-runtime`
 - `session-gateway`
 - `streaming-service`
-- `sdkwork-rtc-signaling-service` (owned by the sibling workspace dependency at `../sdkwork-rtc`)
+- `im-call-runtime` (IM-owned call signaling under `/im/v3/api/calls`, using `../sdkwork-rtc` only for RTC provider/runtime bridges)
 - `media-service`
 - `notification-service`
 - `automation-service`

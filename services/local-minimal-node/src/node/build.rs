@@ -240,7 +240,7 @@ fn build_default_app_with_bind_addr_and_runtime_dir_and_principal_profile_provid
         journal.clone(),
         Some(realtime_scope_policy),
         build_local_minimal_streaming_runtime(runtime_dir.as_path()),
-        build_local_minimal_rtc_runtime(runtime_dir.as_path()),
+        build_local_minimal_call_runtime(runtime_dir.as_path()),
         build_local_minimal_notification_runtime(
             journal.clone(),
             runtime_dir.as_path(),
@@ -295,7 +295,7 @@ fn try_build_public_app_with_bind_addr_and_runtime_dir(
         journal.clone(),
         Some(realtime_scope_policy),
         build_local_minimal_streaming_runtime(runtime_dir.as_path()),
-        build_local_minimal_rtc_runtime(runtime_dir.as_path()),
+        build_local_minimal_call_runtime(runtime_dir.as_path()),
         build_local_minimal_notification_runtime(
             journal.clone(),
             runtime_dir.as_path(),
@@ -739,10 +739,10 @@ fn build_local_minimal_streaming_runtime(
     )))
 }
 
-fn build_local_minimal_rtc_runtime(runtime_dir: impl AsRef<StdPath>) -> Arc<RtcRuntime> {
-    Arc::new(RtcRuntime::with_store(Arc::new(FileRtcStateStore::new(
-        runtime_dir.as_ref().join("state").join("rtc-state.json"),
-    ))))
+fn build_local_minimal_call_runtime(runtime_dir: impl AsRef<StdPath>) -> Arc<ImCallRuntime> {
+    Arc::new(ImCallRuntime::with_store(Arc::new(
+        FileImCallStateStore::new(runtime_dir.as_ref().join("state").join("rtc-state.json")),
+    )))
 }
 
 fn ensure_local_minimal_task_runtime_state_files(runtime_dir: &StdPath) -> Result<(), String> {
@@ -936,7 +936,7 @@ pub fn build_app_with_dependencies_and_runtime_dir(
         journal.clone(),
         Some(realtime_scope_policy),
         build_local_minimal_streaming_runtime(runtime_dir.as_path()),
-        build_local_minimal_rtc_runtime(runtime_dir.as_path()),
+        build_local_minimal_call_runtime(runtime_dir.as_path()),
         build_local_minimal_notification_runtime(
             journal.clone(),
             runtime_dir.as_path(),
@@ -972,7 +972,7 @@ fn build_app_with_dependencies_and_provider_ports(
         journal.clone(),
         Some(realtime_scope_policy),
         Arc::new(StreamingRuntime::default()),
-        Arc::new(RtcRuntime::default()),
+        Arc::new(ImCallRuntime::default()),
         Arc::new(NotificationRuntime::with_journal_and_projection(
             Arc::new(journal.clone()),
             projection_service,
@@ -999,7 +999,7 @@ pub fn build_app_with_dependencies_and_runtime(
         journal.clone(),
         None,
         Arc::new(StreamingRuntime::default()),
-        Arc::new(RtcRuntime::default()),
+        Arc::new(ImCallRuntime::default()),
         Arc::new(NotificationRuntime::with_journal_and_projection(
             Arc::new(journal),
             projection_service,
@@ -1027,7 +1027,7 @@ pub fn build_app_with_dependencies_realtime_and_notification_runtime(
         journal.clone(),
         None,
         Arc::new(StreamingRuntime::default()),
-        Arc::new(RtcRuntime::default()),
+        Arc::new(ImCallRuntime::default()),
         notification_runtime,
         Arc::new(AutomationRuntime::default()),
         build_default_principal_profile_provider(),
@@ -1046,7 +1046,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
     journal: ProjectionJournal,
     realtime_scope_policy: Option<Arc<realtime_policy::DirectChatRealtimePolicy>>,
     streaming_runtime: Arc<StreamingRuntime>,
-    rtc_runtime: Arc<RtcRuntime>,
+    call_runtime: Arc<ImCallRuntime>,
     notification_runtime: Arc<NotificationRuntime>,
     automation_runtime: Arc<AutomationRuntime>,
     principal_profile_provider: Arc<dyn PrincipalProfileProvider>,
@@ -1080,7 +1080,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
             "projection-service".into(),
             "media-service".into(),
             "streaming-service".into(),
-            "sdkwork-rtc-signaling-service".into(),
+            "im-calls-service".into(),
             "notification-service".into(),
             "automation-service".into(),
             "audit-service".into(),
@@ -1151,7 +1151,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         aiot_app_api_server,
         aiot_backend_api_server,
         streaming_runtime,
-        rtc_runtime,
+        call_runtime,
         notification_runtime,
         automation_runtime,
         audit_runtime,
@@ -1321,7 +1321,6 @@ fn build_app(state: AppState) -> Router {
             "/app/v3/api/principal/profiles/provider_health",
             get(retrieve_principal_profile_health),
         )
-        .nest("/app/v3/api/rtc", rtc_app_api_routes())
         .route(
             "/backend/v3/api/iot",
             any(aiot_bridge::handle_backend_iot_api),
@@ -1375,8 +1374,6 @@ fn im_standard_api_routes() -> Router<AppState> {
             "/realtime/events",
             get(presence_routes::list_realtime_events),
         )
-        .route("/rtc/sessions", post(rtc::create_rtc_session))
-        .route("/rtc/sessions/{rtc_session_id}", get(rtc::get_rtc_session))
         .route("/social/users", get(social::list_social_users))
         .route(
             "/social/friend_requests",
@@ -1572,39 +1569,37 @@ fn im_standard_api_routes() -> Router<AppState> {
             post(stream::complete_stream),
         )
         .route("/streams/{stream_id}/abort", post(stream::abort_stream))
+        .nest("/calls", im_calls_routes())
 }
 
-fn rtc_app_api_routes() -> Router<AppState> {
+fn im_calls_routes() -> Router<AppState> {
     Router::new()
-        .route("/sessions", post(rtc::create_rtc_session))
-        .route("/sessions/{rtc_session_id}", get(rtc::get_rtc_session))
+        .route("/sessions", post(calls::create_rtc_session))
+        .route("/sessions/{rtc_session_id}", get(calls::get_rtc_session))
         .route(
             "/sessions/{rtc_session_id}/invite",
-            post(rtc::invite_rtc_session),
+            post(calls::invite_rtc_session),
         )
         .route(
             "/sessions/{rtc_session_id}/accept",
-            post(rtc::accept_rtc_session),
+            post(calls::accept_rtc_session),
         )
         .route(
             "/sessions/{rtc_session_id}/reject",
-            post(rtc::reject_rtc_session),
+            post(calls::reject_rtc_session),
         )
-        .route("/sessions/{rtc_session_id}/end", post(rtc::end_rtc_session))
+        .route(
+            "/sessions/{rtc_session_id}/end",
+            post(calls::end_rtc_session),
+        )
         .route(
             "/sessions/{rtc_session_id}/signals",
-            post(rtc::post_rtc_signal),
+            post(calls::post_rtc_signal),
         )
         .route(
             "/sessions/{rtc_session_id}/credentials",
-            post(rtc::issue_rtc_participant_credential),
+            post(calls::issue_rtc_participant_credential),
         )
-        .route(
-            "/sessions/{rtc_session_id}/artifacts/recording",
-            get(rtc::get_rtc_recording_artifact),
-        )
-        .route("/provider_callbacks", post(rtc::map_rtc_provider_callback))
-        .route("/provider_health", get(rtc::get_rtc_provider_health))
 }
 
 fn backend_api_routes() -> Router<AppState> {

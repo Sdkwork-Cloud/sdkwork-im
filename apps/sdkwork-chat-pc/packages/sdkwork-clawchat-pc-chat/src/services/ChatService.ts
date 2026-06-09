@@ -6,6 +6,8 @@ import type {
   ImDecodedMessage,
   ImLiveConnection,
   ImMessageContext,
+  ImRealtimeEventContext,
+  ImRealtimeScopeSubscription,
   ImSdkClient,
   MediaKind,
   MediaResource,
@@ -40,6 +42,7 @@ import { contactService } from './ContactService';
 
 type ConversationInboxEntry = InboxResponse['items'][number];
 type TimelineViewEntry = TimelineResponse['items'][number];
+type ChatListHandler = (chats: Chat[]) => void;
 type MessageHandler = (message: Message) => void;
 type SendableMediaMessageType = Extract<Message['type'], 'file' | 'image' | 'video' | 'voice'>;
 type SendableStructuredMessageType = Extract<Message['type'], 'applet' | 'card' | 'link' | 'music' | 'system' | 'video_call'>;
@@ -70,18 +73,26 @@ export interface ChatOfflineSyncResult {
 }
 
 interface ConversationLiveSubscription {
-  closeLifecycleStream?: ImSubscription;
-  closeMessageStream?: ImSubscription;
-  closeErrorStream?: ImSubscription;
-  connection?: ImLiveConnection;
   handlers: Set<MessageHandler>;
+  notifiedMessageVersions: Map<string, string>;
+}
+
+interface LiveSubscriptionSession {
+  closeErrorStream?: ImSubscription;
+  closeLifecycleStream?: ImSubscription;
+  closeMessageStreams: Map<string, ImSubscription>;
+  closeScopeStreams: Map<string, ImSubscription>;
+  connectionAttempt: number;
+  connection?: ImLiveConnection;
   isClosed: boolean;
+  reconnectAttempt: number;
   reconnectTimer?: ReturnType<typeof setTimeout>;
   started: Promise<void>;
 }
 
 export interface ChatService {
   getChats(): Promise<Chat[]>;
+  subscribeChats(handler: ChatListHandler): () => void;
   getMessages(chatId: string): Promise<Message[]>;
   subscribeMessages(chatId: string, handler: MessageHandler): () => void;
   sendMessage(
@@ -102,9 +113,10 @@ export interface ChatService {
   removeReaction(chatId: string, messageId: string, emoji: string): Promise<void>;
   updateChat(chatId: string, updates: Partial<Chat>): Promise<Chat>;
   createChat(chat: Chat): Promise<void>;
-  startDirectChat(user: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat>;
+  startDirectChat(user: Pick<Chat, 'avatar' | 'name'> & { conversationId?: string; directChatId?: string; id: string }): Promise<Chat>;
   startAgentChat(agent: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat>;
   startEnterpriseChat(enterprise: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat>;
+  recoverRealtimeConnection(reason?: string): void;
   syncOfflineMessages(): Promise<ChatOfflineSyncResult>;
 }
 
@@ -113,10 +125,23 @@ type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'isMa
 };
 const INBOX_PAGE_LIMIT = 100;
 const MESSAGE_PAGE_LIMIT = 100;
+const CHAT_LIST_REALTIME_EVENT_TYPES = [
+  'message.posted',
+  'conversation.updated',
+  'conversation.created',
+  'conversation.member_joined',
+  'conversation.member_role_changed',
+  'conversation.member_removed',
+  'conversation.member_left',
+  'conversation.owner_transferred',
+];
 const CHAT_APP_ID = 'chat';
 const CHAT_DRIVE_SCENE = 'im';
 const CHAT_DRIVE_SOURCE = 'chat_message';
 const CHAT_DRIVE_APP_RESOURCE_TYPE = 'im_conversation';
+const LIVE_RECONNECT_BASE_DELAY_MS = 1000;
+const LIVE_RECONNECT_MAX_DELAY_MS = 30000;
+const LIVE_RECONNECT_JITTER_RATIO = 0.2;
 const CHAT_MESSAGE_TYPES = new Set<Message['type']>([
   'applet',
   'card',
@@ -151,6 +176,16 @@ function parseTimestamp(value: string | undefined): number {
   }
   const timestamp = new Date(value).getTime();
   return Number.isFinite(timestamp) ? timestamp : Date.now();
+}
+
+function computeLiveReconnectDelay(attempt: number): number {
+  const normalizedAttempt = Math.max(1, attempt);
+  const exponentialDelay = Math.min(
+    LIVE_RECONNECT_MAX_DELAY_MS,
+    LIVE_RECONNECT_BASE_DELAY_MS * (2 ** (normalizedAttempt - 1)),
+  );
+  const jitterSpan = exponentialDelay * LIVE_RECONNECT_JITTER_RATIO;
+  return Math.round(exponentialDelay - jitterSpan + Math.random() * jitterSpan * 2);
 }
 
 function normalizeConversationType(value: string | undefined): Chat['type'] {
@@ -191,6 +226,23 @@ function pickNumber(...values: unknown[]): number | undefined {
   return undefined;
 }
 
+function parseJsonRecord(value: unknown): Record<string, unknown> | undefined {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined;
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function isLocalPreviewUrl(value: string | undefined): boolean {
   return Boolean(value && /^(?:blob:|data:)/iu.test(value.trim()));
 }
@@ -211,6 +263,14 @@ function isMediaMessageType(value: Message['type']): value is SendableMediaMessa
 
 function isStructuredMessageType(value: Message['type']): value is SendableStructuredMessageType {
   return Object.prototype.hasOwnProperty.call(STRUCTURED_MESSAGE_SCHEMA_BY_TYPE, value);
+}
+
+function isFatalLiveConnectionError(error: unknown): boolean {
+  const code = pickString(toRecord(error).code);
+  return Boolean(code && (
+    /^websocket_(?:auth|upstream|connect|heartbeat)/u.test(code)
+    || /(?:auth|session|token).*(?:failed|expired|invalid|required)/iu.test(code)
+  ));
 }
 
 function resolveDecodedMessageType(message: ImDecodedMessage): Message['type'] {
@@ -313,6 +373,339 @@ function resolveTimelineMessageContent(entry: TimelineViewEntry, type: Message['
     default:
       return pickString(part.text, entry.body?.summary, entry.summary) ?? '';
   }
+}
+
+type RtcCallDisplayState = 'accepted' | 'ended' | 'rejected' | 'started' | 'syncing';
+
+interface ParsedRtcCallSignal {
+  nestedPayload: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  signalType: string;
+}
+
+interface RtcCallDescriptor {
+  actorId?: string;
+  initiatorId?: string;
+  mode?: string;
+  receiverId?: string;
+  signalType: string;
+  state: RtcCallDisplayState;
+}
+
+const RTC_CALL_MESSAGE_ID_PREFIX = 'call:';
+const RTC_CALL_DESCRIPTOR_PREFIX = 'rtc-call:';
+
+function bodyParts(body: unknown): Record<string, unknown>[] {
+  const bodyRecord = toRecord(body);
+  const parts = Array.isArray(bodyRecord.parts) ? bodyRecord.parts : [];
+  return parts
+    .map((part) => toRecord(part))
+    .filter((part) => Object.keys(part).length > 0);
+}
+
+function isRtcSignalPart(
+  part: Record<string, unknown>,
+  payload: Record<string, unknown>,
+  nestedPayload: Record<string, unknown>,
+): boolean {
+  const signalType = pickString(part.signalType, payload.signalType, nestedPayload.signalType);
+  return pickString(part.kind) === 'signal'
+    && Boolean(pickString(payload.rtcSessionId, nestedPayload.rtcSessionId))
+    && (!signalType || signalType.startsWith('rtc.') || Boolean(signalType));
+}
+
+function parseRtcCallSignals(parts: Record<string, unknown>[]): ParsedRtcCallSignal[] {
+  return parts
+    .map((part) => {
+      const payload = parseJsonRecord(part.payload) ?? {};
+      const nestedPayload = parseJsonRecord(payload.signalPayload) ?? {};
+      if (!isRtcSignalPart(part, payload, nestedPayload)) {
+        return undefined;
+      }
+      const signalType = pickString(part.signalType, payload.signalType, nestedPayload.signalType) ?? 'rtc.signal';
+      return {
+        nestedPayload,
+        payload,
+        signalType,
+      };
+    })
+    .filter((signal): signal is ParsedRtcCallSignal => Boolean(signal));
+}
+
+function normalizeRtcCallState(signalType: string, value: unknown): RtcCallDisplayState {
+  const state = pickString(value)?.toLowerCase();
+  if (state === 'accepted' || state === 'connected') {
+    return 'accepted';
+  }
+  if (state === 'rejected' || state === 'declined') {
+    return 'rejected';
+  }
+  if (state === 'ended' || state === 'closed') {
+    return 'ended';
+  }
+  if (state === 'started' || state === 'ringing' || state === 'invited') {
+    return 'started';
+  }
+
+  switch (signalType) {
+    case 'rtc.invite':
+      return 'started';
+    case 'rtc.accept':
+      return 'accepted';
+    case 'rtc.reject':
+      return 'rejected';
+    case 'rtc.end':
+      return 'ended';
+    default:
+      return 'syncing';
+  }
+}
+
+function isVideoRtcMode(value: string | undefined): boolean {
+  return Boolean(value && /video/iu.test(value));
+}
+
+function formatRtcCallMode(value: string | undefined): string {
+  return isVideoRtcMode(value) ? '视频通话' : '语音通话';
+}
+
+function formatRtcCallParticipant(value: string | undefined, fallback: string): string {
+  return value && value.trim().length > 0 ? value.trim() : fallback;
+}
+
+function resolveRtcCallDurationSeconds(signal: ParsedRtcCallSignal): number | undefined {
+  const duration = pickNumber(
+    signal.payload.durationSeconds,
+    signal.payload.duration,
+    signal.nestedPayload.durationSeconds,
+    signal.nestedPayload.duration,
+  );
+  if (duration !== undefined) {
+    return Math.max(0, Math.round(duration));
+  }
+
+  const startedAt = pickString(signal.payload.startedAt, signal.nestedPayload.startedAt);
+  const endedAt = pickString(signal.payload.endedAt, signal.nestedPayload.endedAt);
+  if (!startedAt || !endedAt) {
+    return undefined;
+  }
+  const startedAtMillis = new Date(startedAt).getTime();
+  const endedAtMillis = new Date(endedAt).getTime();
+  if (!Number.isFinite(startedAtMillis) || !Number.isFinite(endedAtMillis) || endedAtMillis < startedAtMillis) {
+    return undefined;
+  }
+  return Math.round((endedAtMillis - startedAtMillis) / 1000);
+}
+
+function buildRtcCallDescriptor(descriptor: RtcCallDescriptor): string {
+  return `${RTC_CALL_DESCRIPTOR_PREFIX}${encodeURIComponent(JSON.stringify(descriptor))}`;
+}
+
+function readRtcCallDescriptor(message: Message): RtcCallDescriptor | undefined {
+  if (message.type !== 'video_call' || !message.id.startsWith(RTC_CALL_MESSAGE_ID_PREFIX)) {
+    return undefined;
+  }
+  const descriptor = message.desc ?? '';
+  if (!descriptor.startsWith(RTC_CALL_DESCRIPTOR_PREFIX)) {
+    return undefined;
+  }
+
+  const encodedDescriptor = descriptor.slice(RTC_CALL_DESCRIPTOR_PREFIX.length);
+  try {
+    const parsed = parseJsonRecord(decodeURIComponent(encodedDescriptor));
+    const state = pickString(parsed?.state);
+    const signalType = pickString(parsed?.signalType) ?? 'rtc.signal';
+    if (
+      state === 'accepted'
+      || state === 'ended'
+      || state === 'rejected'
+      || state === 'started'
+      || state === 'syncing'
+    ) {
+      return {
+        actorId: pickString(parsed?.actorId),
+        initiatorId: pickString(parsed?.initiatorId),
+        mode: pickString(parsed?.mode),
+        receiverId: pickString(parsed?.receiverId),
+        signalType,
+        state,
+      };
+    }
+  } catch {
+    const [state, signalType = 'rtc.signal'] = encodedDescriptor.split(':');
+    if (
+      state === 'accepted'
+      || state === 'ended'
+      || state === 'rejected'
+      || state === 'started'
+      || state === 'syncing'
+    ) {
+      return {
+        signalType,
+        state,
+      };
+    }
+  }
+
+  return undefined;
+}
+
+function resolveRtcCallDisplayState(message: Message): RtcCallDisplayState | undefined {
+  return readRtcCallDescriptor(message)?.state;
+}
+
+function buildMessageNotificationVersion(message: Message): string {
+  const rtcDescriptor = readRtcCallDescriptor(message);
+  if (!rtcDescriptor) {
+    return 'posted';
+  }
+  return [
+    'rtc',
+    message.desc ?? '',
+    message.duration ?? '',
+  ].join(':');
+}
+
+function shouldPreferIncomingMessage(existing: Message, incoming: Message, defaultPreference: boolean): boolean {
+  const existingRtcState = resolveRtcCallDisplayState(existing);
+  const incomingRtcState = resolveRtcCallDisplayState(incoming);
+  if (existingRtcState || incomingRtcState) {
+    if (incomingRtcState === 'syncing' && existingRtcState && existingRtcState !== 'syncing') {
+      return false;
+    }
+    if (existingRtcState === 'syncing' && incomingRtcState && incomingRtcState !== 'syncing') {
+      return true;
+    }
+    return incoming.timestamp >= existing.timestamp;
+  }
+  return defaultPreference;
+}
+
+function mergeSameIdMessage(existing: Message, incoming: Message, preferIncoming: boolean): Message {
+  const existingRtcDescriptor = readRtcCallDescriptor(existing);
+  const incomingRtcDescriptor = readRtcCallDescriptor(incoming);
+  if (existingRtcDescriptor && incomingRtcDescriptor) {
+    const mergedDescriptor: RtcCallDescriptor = {
+      ...existingRtcDescriptor,
+      ...incomingRtcDescriptor,
+      actorId: incomingRtcDescriptor.actorId ?? existingRtcDescriptor.actorId,
+      initiatorId:
+        incomingRtcDescriptor.initiatorId
+        ?? existingRtcDescriptor.initiatorId
+        ?? (existing.senderId !== 'system' ? existing.senderId : undefined)
+        ?? (incoming.senderId !== 'system' ? incoming.senderId : undefined),
+      mode: incomingRtcDescriptor.mode ?? existingRtcDescriptor.mode,
+      receiverId: incomingRtcDescriptor.receiverId ?? existingRtcDescriptor.receiverId,
+      signalType: incomingRtcDescriptor.signalType,
+      state: incomingRtcDescriptor.state,
+    };
+    const merged = preferIncoming
+      ? { ...existing, ...incoming }
+      : { ...incoming, ...existing };
+    return {
+      ...merged,
+      senderId: mergedDescriptor.initiatorId ?? existing.senderId,
+      content: buildRtcCallMessageContent(mergedDescriptor),
+      desc: buildRtcCallDescriptor(mergedDescriptor),
+      ...(incoming.reactions ? { reactions: incoming.reactions } : existing.reactions ? { reactions: existing.reactions } : {}),
+    };
+  }
+
+  const merged = preferIncoming
+    ? { ...existing, ...incoming }
+    : { ...incoming, ...existing };
+  return {
+    ...merged,
+    ...(incoming.reactions ? { reactions: incoming.reactions } : existing.reactions ? { reactions: existing.reactions } : {}),
+  };
+}
+
+function buildRtcCallMessageContent(descriptor: RtcCallDescriptor): string {
+  const mode = formatRtcCallMode(descriptor.mode);
+  const initiator = formatRtcCallParticipant(descriptor.initiatorId, '发起方');
+  const receiver = descriptor.receiverId;
+  const actor = formatRtcCallParticipant(descriptor.actorId, '对方');
+  const callSubject = receiver
+    ? `${initiator} 向 ${receiver} 发起的${mode}`
+    : `${initiator} 发起的${mode}`;
+
+  switch (descriptor.state) {
+    case 'accepted':
+      return `${callSubject}，${actor} 已接通`;
+    case 'rejected':
+      return `${callSubject}，${actor} 已拒绝`;
+    case 'ended':
+      return `${callSubject}，${actor} 已挂断`;
+    case 'started':
+      return receiver
+        ? `${initiator} 向 ${receiver} 发起了${mode}`
+        : `${initiator} 发起了${mode}`;
+    case 'syncing':
+    default:
+      return `${callSubject}正在同步`;
+  }
+}
+
+function mapRtcSignalToCallMessage(options: {
+  chatId: string;
+  fallbackSenderId: string;
+  parts: Record<string, unknown>[];
+  timestamp: number;
+}): Message | undefined {
+  const signal = parseRtcCallSignals(options.parts)[0];
+  if (!signal) {
+    return undefined;
+  }
+  const rtcSessionId = pickString(signal.payload.rtcSessionId, signal.nestedPayload.rtcSessionId);
+  if (!rtcSessionId) {
+    return undefined;
+  }
+  const state = normalizeRtcCallState(
+    signal.signalType,
+    pickString(signal.payload.state, signal.nestedPayload.state),
+  );
+  const explicitInitiatorId = pickString(
+    signal.payload.initiatorId,
+    signal.nestedPayload.initiatorId,
+  );
+  const initiatorId = explicitInitiatorId
+    ?? (signal.signalType === 'rtc.invite' ? options.fallbackSenderId : undefined);
+  const descriptor: RtcCallDescriptor = {
+    actorId: pickString(
+      signal.payload.actorId,
+      signal.payload.operatorId,
+      signal.payload.senderId,
+      signal.nestedPayload.actorId,
+      signal.nestedPayload.operatorId,
+      signal.nestedPayload.senderId,
+      options.fallbackSenderId,
+    ),
+    initiatorId,
+    mode: pickString(signal.payload.rtcMode, signal.nestedPayload.rtcMode),
+    receiverId: pickString(
+      signal.payload.receiverId,
+      signal.payload.targetUserId,
+      signal.payload.participantId,
+      signal.nestedPayload.receiverId,
+      signal.nestedPayload.targetUserId,
+      signal.nestedPayload.participantId,
+    ),
+    signalType: signal.signalType,
+    state,
+  };
+  const duration = resolveRtcCallDurationSeconds(signal);
+  const senderId = initiatorId ?? options.fallbackSenderId ?? 'system';
+
+  return {
+    id: `${RTC_CALL_MESSAGE_ID_PREFIX}${rtcSessionId}`,
+    chatId: pickString(signal.payload.conversationId, signal.nestedPayload.conversationId) ?? options.chatId,
+    senderId,
+    content: buildRtcCallMessageContent(descriptor),
+    type: 'video_call',
+    timestamp: options.timestamp,
+    desc: buildRtcCallDescriptor(descriptor),
+    ...(duration !== undefined ? { duration } : {}),
+  };
 }
 
 function resolveDecodedMessageContent(message: ImDecodedMessage, type: Message['type']): string {
@@ -617,7 +1010,8 @@ function buildMessageRenderHints(
     ...(coverUrl ? { coverUrl } : {}),
     ...(extraInfo?.fileName ? { fileName: extraInfo.fileName } : {}),
     ...(extraInfo?.fileSize ? { fileSize: extraInfo.fileSize } : {}),
-    ...(type === 'link' && extraInfo?.desc ? { desc: extraInfo.desc } : {}),
+    ...(extraInfo?.appIcon ? { appIcon: extraInfo.appIcon } : {}),
+    ...(isStructuredMessageType(type) && extraInfo?.desc ? { desc: extraInfo.desc } : {}),
     ...(extraInfo?.duration ? { duration: String(extraInfo.duration) } : {}),
   };
 }
@@ -726,13 +1120,32 @@ function mapLiveMessageToMessage(
   const rawEvent = toRecord(context.rawEvent);
   const content = toRecord(decodedMessage.content);
   const resource = decodedMessage.attachments[0]?.resource;
-  const type = resolveDecodedMessageType(decodedMessage);
   const messageId = pickString(
     context.messageId,
     payload.messageId,
     rawEvent.eventId,
   ) ?? `${fallbackChatId}:${context.sequence}`;
   const conversationId = pickString(context.conversationId, payload.conversationId) ?? fallbackChatId;
+  const senderId = pickString(
+    context.sender?.principalId,
+    context.sender?.id,
+    decodedMessage.sender?.id,
+  ) ?? 'system';
+  const timestamp = parseTimestamp(context.receivedAt);
+  const rtcCallMessage = mapRtcSignalToCallMessage({
+    chatId: conversationId,
+    fallbackSenderId: senderId,
+    parts: [
+      ...bodyParts(decodedMessage.body),
+      ...bodyParts(payload.body),
+    ],
+    timestamp,
+  });
+  if (rtcCallMessage) {
+    return rtcCallMessage;
+  }
+
+  const type = resolveDecodedMessageType(decodedMessage);
   const renderHints = decodedMessage.renderHints ?? {};
   const duration = pickNumber(renderHints.duration, renderHints.durationSeconds, content.durationSeconds, resource?.durationSeconds);
   const coverUrl = pickString(
@@ -754,10 +1167,10 @@ function mapLiveMessageToMessage(
   return {
     id: messageId,
     chatId: conversationId,
-    senderId: context.sender?.principalId ?? 'system',
+    senderId,
     content: resolveDecodedMessageContent(decodedMessage, type),
     type,
-    timestamp: parseTimestamp(context.receivedAt),
+    timestamp,
     ...(coverUrl ? { coverUrl } : {}),
     ...(duration ? { duration } : {}),
     ...(fileName ? { fileName } : {}),
@@ -792,6 +1205,63 @@ function buildLastMessage(entry: ConversationInboxEntry, timestamp: number): Mes
   };
 }
 
+function mapLiveEventToMessage(context: ImRealtimeEventContext): Message | undefined {
+  const payload = toRecord(context.payload);
+  const rawEvent = toRecord(context.rawEvent);
+  const payloadBody = toRecord(payload.body);
+  const bodyPartsValue = Array.isArray(payloadBody.parts) ? payloadBody.parts : [];
+  const payloadSender = toRecord(payload.sender);
+  const sender = pickString(payloadSender.id)
+    ? {
+        id: pickString(payloadSender.id) ?? '',
+        kind: pickString(payloadSender.kind) ?? 'user',
+        metadata: toRecord(payloadSender.metadata),
+      }
+    : undefined;
+  const conversationId = pickString(
+    payload.conversationId,
+    rawEvent.conversationId,
+    rawEvent.scopeType === 'conversation' ? rawEvent.scopeId : undefined,
+  );
+  if (!conversationId) {
+    return undefined;
+  }
+
+  return mapLiveMessageToMessage(
+    conversationId,
+    {
+      attachments: [],
+      body: {
+        parts: bodyPartsValue,
+        renderHints: toRecord(payloadBody.renderHints),
+        summary: pickString(payloadBody.summary),
+      },
+      conversationId,
+      messageId: pickString(payload.messageId, context.eventId),
+      messageSeq: pickNumber(payload.messageSeq, payload.sequence, context.sequence),
+      messageType: pickString(payload.messageType, payload.type) as ImDecodedMessage['messageType'],
+      occurredAt: pickString(payload.occurredAt, context.receivedAt),
+      renderHints: toRecord(payloadBody.renderHints),
+      sender,
+      summary: pickString(payload.summary, payloadBody.summary),
+      text: pickString(payload.text, payload.summary, payloadBody.summary),
+      type: pickString(payload.type, payload.messageType),
+    },
+    {
+      ack: context.ack,
+      conversationId,
+      eventId: context.eventId,
+      eventType: context.eventType,
+      messageId: pickString(payload.messageId, context.eventId),
+      payload,
+      rawEvent: context.rawEvent,
+      receivedAt: context.receivedAt,
+      sender,
+      sequence: context.sequence,
+    },
+  );
+}
+
 function mapInboxEntryToChat(entry: ConversationInboxEntry, viewState: ConversationViewState | undefined): Chat {
   const updatedAt = parseTimestamp(entry.lastActivityAt);
   return {
@@ -809,6 +1279,39 @@ function mapInboxEntryToChat(entry: ConversationInboxEntry, viewState: Conversat
     isPinned: viewState?.isPinned,
     notice: viewState?.notice,
     lastMessage: buildLastMessage(entry, updatedAt),
+  };
+}
+
+function mapLocalMessageToChat(message: Message, viewState: ConversationViewState | undefined): Chat {
+  return {
+    id: message.chatId,
+    name: viewState?.name ?? `Chat ${message.chatId}`,
+    avatar: viewState?.avatar ?? createConversationAvatar(message.chatId),
+    type: viewState?.type ?? 'single',
+    unreadCount: viewState?.isMarkedUnread ? 1 : 0,
+    updatedAt: message.timestamp,
+    activeCount: viewState?.activeCount,
+    memberCount: viewState?.memberCount,
+    members: viewState?.members,
+    isMarkedUnread: viewState?.isMarkedUnread,
+    isMuted: viewState?.isMuted,
+    isPinned: viewState?.isPinned,
+    notice: viewState?.notice,
+    lastMessage: message,
+  };
+}
+
+function applyLocalLastMessageToChat(chat: Chat, localLastMessage: Message | undefined): Chat {
+  if (!localLastMessage) {
+    return chat;
+  }
+  if (chat.lastMessage && chat.lastMessage.timestamp > localLastMessage.timestamp) {
+    return chat;
+  }
+  return {
+    ...chat,
+    lastMessage: localLastMessage,
+    updatedAt: Math.max(chat.updatedAt, localLastMessage.timestamp),
   };
 }
 
@@ -856,6 +1359,19 @@ function mapTimelineEntryToMessage(
   total: number,
   cachedMessage?: Message,
 ): Message {
+  const timestamp = parseTimestamp(entry.committedAt ?? entry.occurredAt) || Date.now() - Math.max(total - index, 0) * 1000;
+  const senderId = pickString(entry.sender?.id) ?? 'system';
+  const rtcCallMessage = mapRtcSignalToCallMessage({
+    chatId: entry.conversationId,
+    fallbackSenderId: senderId,
+    parts: bodyParts(entry.body),
+    timestamp,
+  });
+  if (rtcCallMessage) {
+    return cachedMessage
+      ? mergeSameIdMessage(cachedMessage, rtcCallMessage, shouldPreferIncomingMessage(cachedMessage, rtcCallMessage, true))
+      : rtcCallMessage;
+  }
   if (cachedMessage) {
     return cachedMessage;
   }
@@ -879,10 +1395,10 @@ function mapTimelineEntryToMessage(
   return {
     id: entry.messageId,
     chatId: entry.conversationId,
-    senderId: pickString(entry.sender?.id) ?? 'system',
+    senderId,
     content: resolveTimelineMessageContent(entry, type),
     type,
-    timestamp: parseTimestamp(entry.committedAt ?? entry.occurredAt) || Date.now() - Math.max(total - index, 0) * 1000,
+    timestamp,
     ...(coverUrl ? { coverUrl } : {}),
     ...(duration ? { duration } : {}),
     ...(fileName ? { fileName } : {}),
@@ -934,7 +1450,13 @@ function sortChats(left: Chat, right: Chat): number {
 function mergeMessageLists(remoteMessages: Message[], localMessages: Message[]): Message[] {
   const byId = new Map<string, Message>();
   for (const message of remoteMessages) {
-    byId.set(message.id, message);
+    const existing = byId.get(message.id);
+    byId.set(
+      message.id,
+      existing
+        ? mergeSameIdMessage(existing, message, shouldPreferIncomingMessage(existing, message, true))
+        : message,
+    );
   }
   for (const message of localMessages) {
     const existing = byId.get(message.id);
@@ -942,18 +1464,17 @@ function mergeMessageLists(remoteMessages: Message[], localMessages: Message[]):
       byId.set(message.id, message);
       continue;
     }
-    byId.set(message.id, {
-      ...existing,
-      ...message,
-      ...(message.reactions ? { reactions: message.reactions } : existing.reactions ? { reactions: existing.reactions } : {}),
-    });
+    byId.set(message.id, mergeSameIdMessage(existing, message, shouldPreferIncomingMessage(existing, message, false)));
   }
   return Array.from(byId.values()).sort((left, right) => left.timestamp - right.timestamp);
 }
 
 class SdkworkChatService implements ChatService {
+  private readonly chatListHandlers = new Set<ChatListHandler>();
   private conversationViewState = new Map<string, ConversationViewState>();
+  private liveCatchUpConversations = new Set<string>();
   private liveSubscriptions = new Map<string, ConversationLiveSubscription>();
+  private liveSession?: LiveSubscriptionSession;
   private localMessages = new Map<string, Message[]>();
   private latestReadSeq = new Map<string, number>();
   private readonly getClient: () => ImSdkClient;
@@ -965,7 +1486,20 @@ class SdkworkChatService implements ChatService {
 
   private readonly handleAuthSessionChanged = (): void => {
     driveUploaderClient = null;
+    this.localMessages.clear();
+    this.latestReadSeq.clear();
+    this.conversationViewState.clear();
     this.closeAllLiveSubscriptions('auth session changed');
+  };
+
+  private readonly handleBrowserOnline = (): void => {
+    this.recoverRealtimeConnection('browser online');
+  };
+
+  private readonly handleBrowserVisibilityChanged = (): void => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      this.recoverRealtimeConnection('browser visible');
+    }
   };
 
   constructor(dependencies: ChatServiceDependencies | (() => ImSdkClient) = {}) {
@@ -980,11 +1514,25 @@ class SdkworkChatService implements ChatService {
     }
     if (typeof window !== 'undefined') {
       window.addEventListener(SDKWORK_CHAT_SESSION_CHANGED_EVENT, this.handleAuthSessionChanged);
+      window.addEventListener('online', this.handleBrowserOnline);
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.handleBrowserVisibilityChanged);
     }
   }
 
   private client(): ImSdkClient {
     return this.getClient();
+  }
+
+  private resolveChatListRealtimeUserId(): string | undefined {
+    return resolveAppSdkUserId(this.getSession())
+      ?? contactService.getCurrentUser().id;
+  }
+
+  private resolveCurrentUserId(): string {
+    return resolveAppSdkUserId(this.getSession())
+      ?? contactService.getCurrentUser().id;
   }
 
   private async listAllInboxEntries(): Promise<ConversationInboxEntry[]> {
@@ -1060,7 +1608,10 @@ class SdkworkChatService implements ChatService {
         } catch {
           // Keep local naming/avatar fallbacks usable if profile sync is temporarily unavailable.
         }
-        return mapInboxEntryToChat(entry, viewState);
+        return applyLocalLastMessageToChat(
+          mapInboxEntryToChat(entry, viewState),
+          this.localMessages.get(entry.conversationId)?.at(-1),
+        );
       }));
     const chats = chatResults.filter((chat): chat is Chat => Boolean(chat));
 
@@ -1070,25 +1621,27 @@ class SdkworkChatService implements ChatService {
       }
       const state = this.conversationViewState.get(chatId);
       const lastMessage = localMessages.at(-1);
-      chats.push({
-        id: chatId,
-        name: state?.name ?? `Chat ${chatId}`,
-        avatar: state?.avatar ?? createConversationAvatar(chatId),
-        type: state?.type ?? 'single',
-        unreadCount: 0,
-        updatedAt: lastMessage?.timestamp ?? Date.now(),
-        lastMessage,
-        activeCount: state?.activeCount,
-        memberCount: state?.memberCount,
-        members: state?.members,
-        isMarkedUnread: state?.isMarkedUnread,
-        isMuted: state?.isMuted,
-        isPinned: state?.isPinned,
-        notice: state?.notice,
-      });
+      if (lastMessage) {
+        chats.push(mapLocalMessageToChat(lastMessage, state));
+      }
     }
 
     return chats.sort(sortChats);
+  }
+
+  subscribeChats(handler: ChatListHandler): () => void {
+    this.chatListHandlers.add(handler);
+    this.ensureLiveSession();
+    this.syncLiveSessionSubscriptions();
+    void this.emitChatList().catch(() => undefined);
+
+    return () => {
+      this.chatListHandlers.delete(handler);
+      this.syncLiveSessionSubscriptions();
+      if (this.chatListHandlers.size === 0 && this.liveSubscriptions.size === 0) {
+        this.closeLiveSession('chat list subscription closed');
+      }
+    };
   }
 
   async getMessages(chatId: string): Promise<Message[]> {
@@ -1189,9 +1742,14 @@ class SdkworkChatService implements ChatService {
       replyTo,
       ...localExtraInfo,
     };
-    this.upsertLocalMessage(chatId, message, true);
+    const storedMessage = this.upsertLocalMessage(chatId, message, true);
     this.latestReadSeq.set(chatId, Math.max(this.latestReadSeq.get(chatId) ?? 0, postResult.messageSeq));
-    return message;
+    const subscription = this.liveSubscriptions.get(chatId);
+    if (subscription) {
+      this.notifyLiveSubscription(subscription, storedMessage);
+    }
+    await this.emitChatList().catch(() => undefined);
+    return storedMessage;
   }
 
   async forwardMessages(targetChatIds: string[], messages: Message[]): Promise<void> {
@@ -1348,10 +1906,29 @@ class SdkworkChatService implements ChatService {
     }
   }
 
-  async startDirectChat(user: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat> {
+  async startDirectChat(user: Pick<Chat, 'avatar' | 'name'> & { conversationId?: string; directChatId?: string; id: string }): Promise<Chat> {
     const targetUserId = user.id.trim();
     if (!targetUserId) {
       throw new Error('Direct chat target user id is required');
+    }
+    const projectedConversationId = user.conversationId?.trim();
+    if (projectedConversationId) {
+      await this.client().conversations.updatePreferences(projectedConversationId, { isHidden: false });
+      this.conversationViewState.set(projectedConversationId, {
+        ...this.conversationViewState.get(projectedConversationId),
+        avatar: user.avatar,
+        isHidden: false,
+        name: user.name,
+        type: 'single',
+      });
+      return {
+        id: projectedConversationId,
+        name: user.name,
+        avatar: user.avatar,
+        type: 'single',
+        unreadCount: 0,
+        updatedAt: Date.now(),
+      };
     }
     const currentUser = contactService.getCurrentUser();
     const currentUserId = currentUser.id.trim();
@@ -1498,6 +2075,24 @@ class SdkworkChatService implements ChatService {
     };
   }
 
+  recoverRealtimeConnection(reason = 'realtime recovery requested'): void {
+    const session = this.liveSession;
+    if (
+      !session
+      || session.isClosed
+      || !this.hasLiveSubscriptionDemand()
+      || this.liveSession !== session
+    ) {
+      return;
+    }
+
+    if (session.reconnectTimer) {
+      clearTimeout(session.reconnectTimer);
+      session.reconnectTimer = undefined;
+    }
+    this.restartLiveSession(session, reason);
+  }
+
   private getOrCreateLiveSubscription(chatId: string): ConversationLiveSubscription {
     const existing = this.liveSubscriptions.get(chatId);
     if (existing) {
@@ -1506,48 +2101,80 @@ class SdkworkChatService implements ChatService {
 
     const subscription: ConversationLiveSubscription = {
       handlers: new Set<MessageHandler>(),
-      isClosed: false,
-      started: Promise.resolve(),
+      notifiedMessageVersions: new Map(
+        (this.localMessages.get(chatId) ?? []).map((message) => [
+          message.id,
+          buildMessageNotificationVersion(message),
+        ]),
+      ),
     };
-    subscription.started = this.startLiveSubscription(chatId, subscription);
     this.liveSubscriptions.set(chatId, subscription);
+    this.ensureLiveSession();
+    this.syncLiveSessionSubscriptions();
     return subscription;
   }
 
-  private async startLiveSubscription(
-    chatId: string,
-    subscription: ConversationLiveSubscription,
-  ): Promise<void> {
+  private ensureLiveSession(): LiveSubscriptionSession {
+    if (this.liveSession && !this.liveSession.isClosed) {
+      return this.liveSession;
+    }
+
+    const session: LiveSubscriptionSession = {
+      closeMessageStreams: new Map<string, ImSubscription>(),
+      closeScopeStreams: new Map<string, ImSubscription>(),
+      connectionAttempt: 0,
+      isClosed: false,
+      reconnectAttempt: 0,
+      started: Promise.resolve(),
+    };
+    session.started = this.startLiveSession(session);
+    this.liveSession = session;
+    return session;
+  }
+
+  private async startLiveSession(session: LiveSubscriptionSession): Promise<void> {
+    const connectionAttempt = session.connectionAttempt + 1;
+    session.connectionAttempt = connectionAttempt;
     try {
       const connection = await this.client().connect({
         deviceId: resolveSdkworkChatPcClientId(),
         subscriptions: {
-          conversations: [chatId],
+          conversations: [],
         },
       });
-      if (subscription.isClosed) {
+      if (session.connectionAttempt !== connectionAttempt) {
+        connection.disconnect(1000, 'stale conversation subscription connection');
+        return;
+      }
+      if (session.isClosed) {
         connection.disconnect(1000, 'conversation subscription closed');
         return;
       }
 
-      subscription.connection = connection;
-      subscription.closeMessageStream = connection.messages.onConversation(
-        chatId,
-        (message, context) => {
-          this.handleLiveMessage(chatId, message, context);
-        },
-      );
-      subscription.closeLifecycleStream = connection.lifecycle.onStateChange((state) => {
-        if ((state.status === 'closed' || state.status === 'error') && !subscription.isClosed) {
-          this.scheduleLiveResubscribe(chatId, subscription);
+      session.connection = connection;
+      session.reconnectAttempt = 0;
+      this.syncLiveSessionSubscriptions(session);
+      session.closeLifecycleStream = connection.lifecycle.onStateChange((state) => {
+        if (state.status === 'open' && !session.isClosed) {
+          void this.catchUpLiveSessionMessages(session);
+        }
+        if ((state.status === 'closed' || state.status === 'error') && !session.isClosed) {
+          this.scheduleLiveSessionReconnect(session);
         }
       });
-      subscription.closeErrorStream = connection.lifecycle.onError(() => undefined);
+      session.closeErrorStream = connection.lifecycle.onError((error) => {
+        if (isFatalLiveConnectionError(error)) {
+          this.scheduleLiveSessionReconnect(session);
+        }
+      });
     } catch {
-      if (this.liveSubscriptions.get(chatId) === subscription && subscription.handlers.size > 0 && !subscription.isClosed) {
-        this.scheduleLiveResubscribe(chatId, subscription);
-      } else if (this.liveSubscriptions.get(chatId) === subscription) {
-        this.liveSubscriptions.delete(chatId);
+      if (session.connectionAttempt !== connectionAttempt) {
+        return;
+      }
+      if (this.liveSession === session && this.liveSubscriptions.size > 0 && !session.isClosed) {
+        this.scheduleLiveSessionReconnect(session);
+      } else if (this.liveSession === session) {
+        this.liveSession = undefined;
       }
     }
   }
@@ -1557,58 +2184,308 @@ class SdkworkChatService implements ChatService {
     subscription: ConversationLiveSubscription,
     reason = 'conversation subscription closed',
   ): void {
-    subscription.isClosed = true;
-    if (subscription.reconnectTimer) {
-      clearTimeout(subscription.reconnectTimer);
-      subscription.reconnectTimer = undefined;
+    if (this.liveSubscriptions.get(chatId) !== subscription) {
+      return;
     }
-    subscription.closeMessageStream?.();
-    subscription.closeLifecycleStream?.();
-    subscription.closeErrorStream?.();
-    subscription.connection?.disconnect(1000, reason);
-    if (this.liveSubscriptions.get(chatId) === subscription) {
-      this.liveSubscriptions.delete(chatId);
+    this.liveSubscriptions.delete(chatId);
+    this.syncLiveSessionSubscriptions();
+    if (this.liveSubscriptions.size === 0 && this.chatListHandlers.size === 0) {
+      this.closeLiveSession(reason);
     }
   }
 
   private closeAllLiveSubscriptions(reason: string): void {
-    for (const [chatId, subscription] of Array.from(this.liveSubscriptions.entries())) {
-      this.closeLiveSubscription(chatId, subscription, reason);
+    this.liveSubscriptions.clear();
+    this.closeLiveSession(reason);
+  }
+
+  private closeLiveSession(reason: string): void {
+    const session = this.liveSession;
+    if (!session) {
+      return;
+    }
+
+    session.isClosed = true;
+    if (session.reconnectTimer) {
+      clearTimeout(session.reconnectTimer);
+      session.reconnectTimer = undefined;
+    }
+    for (const closeMessageStream of session.closeMessageStreams.values()) {
+      closeMessageStream();
+    }
+    session.closeMessageStreams.clear();
+    for (const closeScopeStream of session.closeScopeStreams.values()) {
+      closeScopeStream();
+    }
+    session.closeScopeStreams.clear();
+    session.closeLifecycleStream?.();
+    session.closeErrorStream?.();
+    session.connection?.disconnect(1000, reason);
+    if (this.liveSession === session) {
+      this.liveSession = undefined;
     }
   }
 
-  private restartLiveSubscription(chatId: string, subscription: ConversationLiveSubscription): void {
+  private restartLiveSession(
+    session: LiveSubscriptionSession,
+    reason = 'restarting conversation subscription',
+  ): void {
     if (
-      subscription.isClosed
-      || subscription.handlers.size === 0
-      || this.liveSubscriptions.get(chatId) !== subscription
+      session.isClosed
+      || !this.hasLiveSubscriptionDemand()
+      || this.liveSession !== session
     ) {
       return;
     }
 
-    subscription.closeMessageStream?.();
-    subscription.closeLifecycleStream?.();
-    subscription.closeErrorStream?.();
-    subscription.connection?.disconnect(1000, 'restarting conversation subscription');
-    subscription.closeMessageStream = undefined;
-    subscription.closeLifecycleStream = undefined;
-    subscription.closeErrorStream = undefined;
-    subscription.connection = undefined;
-    subscription.reconnectTimer = undefined;
-    subscription.started = this.startLiveSubscription(chatId, subscription);
+    for (const closeMessageStream of session.closeMessageStreams.values()) {
+      closeMessageStream();
+    }
+    session.closeMessageStreams.clear();
+    for (const closeScopeStream of session.closeScopeStreams.values()) {
+      closeScopeStream();
+    }
+    session.closeScopeStreams.clear();
+    session.closeLifecycleStream?.();
+    session.closeErrorStream?.();
+    session.connection?.disconnect(1000, reason);
+    session.closeLifecycleStream = undefined;
+    session.closeErrorStream = undefined;
+    session.connection = undefined;
+    session.reconnectTimer = undefined;
+    session.started = this.startLiveSession(session);
   }
 
-  private scheduleLiveResubscribe(chatId: string, subscription: ConversationLiveSubscription): void {
+  private scheduleLiveSessionReconnect(session: LiveSubscriptionSession): void {
     if (
-      subscription.reconnectTimer
-      || subscription.isClosed
-      || subscription.handlers.size === 0
-      || this.liveSubscriptions.get(chatId) !== subscription
+      session.reconnectTimer
+      || session.isClosed
+      || !this.hasLiveSubscriptionDemand()
+      || this.liveSession !== session
     ) {
       return;
     }
 
-    subscription.reconnectTimer = setTimeout(() => this.restartLiveSubscription(chatId, subscription), 1000);
+    session.reconnectAttempt += 1;
+    session.reconnectTimer = setTimeout(
+      () => this.restartLiveSession(session),
+      computeLiveReconnectDelay(session.reconnectAttempt),
+    );
+  }
+
+  private syncLiveSessionSubscriptions(session = this.liveSession): void {
+    if (!session || session.isClosed) {
+      return;
+    }
+
+    const conversationIds = Array.from(this.liveSubscriptions.keys());
+    const scopes = this.getChatListRealtimeScopes();
+    for (const [conversationId, closeMessageStream] of Array.from(session.closeMessageStreams.entries())) {
+      if (this.liveSubscriptions.has(conversationId)) {
+        continue;
+      }
+      closeMessageStream();
+      session.closeMessageStreams.delete(conversationId);
+    }
+    const scopeKeys = new Set(scopes.map((scope) => this.realtimeScopeKey(scope)));
+    for (const [scopeKey, closeScopeStream] of Array.from(session.closeScopeStreams.entries())) {
+      if (scopeKeys.has(scopeKey)) {
+        continue;
+      }
+      closeScopeStream();
+      session.closeScopeStreams.delete(scopeKey);
+    }
+
+    const connection = session.connection;
+    if (!connection) {
+      return;
+    }
+
+    for (const conversationId of conversationIds) {
+      if (session.closeMessageStreams.has(conversationId)) {
+        continue;
+      }
+      session.closeMessageStreams.set(
+        conversationId,
+        connection.messages.onConversation(
+          conversationId,
+          (message, context) => {
+            this.handleLiveMessage(conversationId, message, context);
+          },
+        ),
+      );
+    }
+    for (const scope of scopes) {
+      const scopeKey = this.realtimeScopeKey(scope);
+      if (session.closeScopeStreams.has(scopeKey)) {
+        continue;
+      }
+      session.closeScopeStreams.set(
+        scopeKey,
+        connection.events.onScope(scope.scopeType, scope.scopeId, (_event, context) => {
+          this.handleLiveScopeEvent(context);
+        }),
+      );
+    }
+    connection.subscriptions.syncConversations(conversationIds);
+    connection.subscriptions.syncScopes(scopes);
+  }
+
+  private hasLiveSubscriptionDemand(): boolean {
+    return this.liveSubscriptions.size > 0 || this.chatListHandlers.size > 0;
+  }
+
+  private async catchUpLiveSessionMessages(session: LiveSubscriptionSession): Promise<void> {
+    if (session.isClosed || this.liveSession !== session) {
+      return;
+    }
+
+    const conversationIds = Array.from(this.liveSubscriptions.keys());
+    for (const conversationId of conversationIds) {
+      if (session.isClosed || this.liveSession !== session || !this.liveSubscriptions.has(conversationId)) {
+        return;
+      }
+
+      await this.catchUpConversationMessages(conversationId).catch(() => undefined);
+    }
+    if (this.chatListHandlers.size > 0) {
+      await this.emitChatList().catch(() => undefined);
+    }
+  }
+
+  private async catchUpConversationMessages(conversationId: string): Promise<void> {
+    if (this.liveCatchUpConversations.has(conversationId)) {
+      return;
+    }
+
+    this.liveCatchUpConversations.add(conversationId);
+    try {
+      await this.doCatchUpConversationMessages(conversationId);
+    } finally {
+      this.liveCatchUpConversations.delete(conversationId);
+    }
+  }
+
+  private async doCatchUpConversationMessages(conversationId: string): Promise<void> {
+    const checkpointSeq = this.latestReadSeq.get(conversationId) ?? 0;
+    if (checkpointSeq <= 0) {
+      return;
+    }
+
+    const entries: TimelineViewEntry[] = [];
+    let afterSeq = checkpointSeq;
+    while (true) {
+      const response = await this.client().conversations.listMessages(conversationId, {
+        afterSeq,
+        limit: MESSAGE_PAGE_LIMIT,
+      });
+      entries.push(...response.items.filter((entry) => entry.messageSeq > checkpointSeq));
+
+      if (
+        !response.hasMore
+        || typeof response.nextAfterSeq !== 'number'
+        || response.nextAfterSeq <= afterSeq
+      ) {
+        break;
+      }
+
+      afterSeq = response.nextAfterSeq;
+    }
+
+    if (entries.length === 0) {
+      return;
+    }
+
+    const cachedMessages = new Map(
+      (this.localMessages.get(conversationId) ?? []).map((message) => [message.id, message]),
+    );
+    const messages = await Promise.all(entries.map(async (entry, index) => {
+      const message = mapTimelineEntryToMessage(
+        entry,
+        index,
+        entries.length,
+        cachedMessages.get(entry.messageId),
+      );
+      try {
+        const summary = await this.client().conversations.getMessageInteractionSummary(
+          conversationId,
+          entry.messageId,
+        );
+        return withMessageInteractionSummary(message, summary);
+      } catch {
+        return message;
+      }
+    }));
+
+    const mergedMessages = mergeMessageLists(messages, this.localMessages.get(conversationId) ?? []);
+    this.localMessages.set(conversationId, mergedMessages);
+    for (const entry of entries) {
+      this.latestReadSeq.set(conversationId, Math.max(
+        this.latestReadSeq.get(conversationId) ?? 0,
+        entry.messageSeq,
+      ));
+    }
+
+    const subscription = this.liveSubscriptions.get(conversationId);
+    if (!subscription) {
+      return;
+    }
+    for (const message of messages) {
+      this.notifyLiveSubscription(subscription, message);
+    }
+    void this.emitChatList().catch(() => undefined);
+  }
+
+  private getChatListRealtimeScopes(): ImRealtimeScopeSubscription[] {
+    if (this.chatListHandlers.size === 0) {
+      return [];
+    }
+    const userId = this.resolveChatListRealtimeUserId();
+    if (!userId) {
+      return [];
+    }
+    return [
+      {
+        eventTypes: CHAT_LIST_REALTIME_EVENT_TYPES,
+        scopeId: userId,
+        scopeType: 'user',
+      },
+    ];
+  }
+
+  private realtimeScopeKey(scope: Pick<ImRealtimeScopeSubscription, 'scopeId' | 'scopeType'>): string {
+    return `${scope.scopeType}:${scope.scopeId}`;
+  }
+
+  private handleLiveScopeEvent(context: ImRealtimeEventContext): void {
+    if (
+      context.eventType
+      && !CHAT_LIST_REALTIME_EVENT_TYPES.includes(context.eventType)
+    ) {
+      return;
+    }
+
+    const message = context.eventType === 'message.posted'
+      ? mapLiveEventToMessage(context)
+      : undefined;
+    if (message && !this.conversationViewState.get(message.chatId)?.isHidden) {
+      const storedMessage = this.upsertLocalMessage(message.chatId, message, true);
+      if (storedMessage.senderId !== this.resolveCurrentUserId()) {
+        this.conversationViewState.set(message.chatId, {
+          ...this.conversationViewState.get(message.chatId),
+          isMarkedUnread: true,
+        });
+      }
+      const messageSeq = pickNumber(context.payload?.messageSeq, context.sequence) ?? 0;
+      this.latestReadSeq.set(message.chatId, Math.max(this.latestReadSeq.get(message.chatId) ?? 0, messageSeq));
+      const subscription = this.liveSubscriptions.get(message.chatId);
+      if (subscription) {
+        this.notifyLiveSubscription(subscription, storedMessage);
+      }
+    }
+
+    void context.ack().catch(() => undefined);
+    void this.emitChatList().catch(() => undefined);
   }
 
   private handleLiveMessage(
@@ -1617,15 +2494,37 @@ class SdkworkChatService implements ChatService {
     context: ImMessageContext,
   ): void {
     const message = mapLiveMessageToMessage(fallbackChatId, decodedMessage, context);
-    const storedMessage = this.upsertLocalMessage(message.chatId, message);
-    this.latestReadSeq.set(message.chatId, Math.max(this.latestReadSeq.get(message.chatId) ?? 0, context.sequence));
-    const subscription = this.liveSubscriptions.get(fallbackChatId);
+    const isRtcCallUpdate = Boolean(resolveRtcCallDisplayState(message));
+    const storedMessage = this.upsertLocalMessage(message.chatId, message, isRtcCallUpdate);
+    const messageSeq = pickNumber(decodedMessage.messageSeq, context.payload?.messageSeq, context.sequence) ?? 0;
+    this.latestReadSeq.set(message.chatId, Math.max(this.latestReadSeq.get(message.chatId) ?? 0, messageSeq));
+    const subscription = this.liveSubscriptions.get(message.chatId) ?? this.liveSubscriptions.get(fallbackChatId);
     if (subscription) {
-      for (const handler of subscription.handlers) {
-        handler(storedMessage);
-      }
+      this.notifyLiveSubscription(subscription, storedMessage);
     }
+    void this.emitChatList().catch(() => undefined);
     void context.ack().catch(() => undefined);
+  }
+
+  private async emitChatList(): Promise<void> {
+    if (this.chatListHandlers.size === 0) {
+      return;
+    }
+    const chats = await this.getChats();
+    for (const handler of this.chatListHandlers) {
+      handler(chats);
+    }
+  }
+
+  private notifyLiveSubscription(subscription: ConversationLiveSubscription, message: Message): void {
+    const nextVersion = buildMessageNotificationVersion(message);
+    if (subscription.notifiedMessageVersions.get(message.id) === nextVersion) {
+      return;
+    }
+    subscription.notifiedMessageVersions.set(message.id, nextVersion);
+    for (const handler of subscription.handlers) {
+      handler(message);
+    }
   }
 
   private upsertLocalMessage(chatId: string, message: Message, preferNew = false): Message {
@@ -1633,9 +2532,11 @@ class SdkworkChatService implements ChatService {
     const byId = new Map(messages.map((item) => [item.id, item]));
     const existingMessage = byId.get(message.id);
     const nextMessage = existingMessage
-      ? preferNew
-        ? { ...existingMessage, ...message }
-        : { ...message, ...existingMessage }
+      ? mergeSameIdMessage(
+          existingMessage,
+          message,
+          shouldPreferIncomingMessage(existingMessage, message, preferNew),
+        )
       : message;
     byId.set(message.id, nextMessage);
     this.localMessages.set(

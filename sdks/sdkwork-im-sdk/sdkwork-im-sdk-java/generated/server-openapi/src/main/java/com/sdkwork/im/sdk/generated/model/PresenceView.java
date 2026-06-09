@@ -12,7 +12,7 @@ public class PresenceView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -20,7 +20,7 @@ public class PresenceView {
     public String getPrincipalId() {
         return this.principalId;
     }
-    
+
     public void setPrincipalId(String principalId) {
         this.principalId = principalId;
     }
@@ -28,7 +28,7 @@ public class PresenceView {
     public String getPrincipalKind() {
         return this.principalKind;
     }
-    
+
     public void setPrincipalKind(String principalKind) {
         this.principalKind = principalKind;
     }
@@ -36,7 +36,7 @@ public class PresenceView {
     public String getDeviceId() {
         return this.deviceId;
     }
-    
+
     public void setDeviceId(String deviceId) {
         this.deviceId = deviceId;
     }
@@ -44,7 +44,7 @@ public class PresenceView {
     public String getStatus() {
         return this.status;
     }
-    
+
     public void setStatus(String status) {
         this.status = status;
     }
@@ -52,7 +52,7 @@ public class PresenceView {
     public String getUpdatedAt() {
         return this.updatedAt;
     }
-    
+
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }

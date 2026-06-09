@@ -11,8 +11,8 @@
   - however the standalone service HTTP apps still exposed the same conversation-bound request shapes directly:
     - `streaming-service`
       - `POST /im/v3/api/streams` with `scopeKind = conversation`
-    - `rtc-signaling-service`
-      - `POST /im/v3/api/rtc/sessions` with `conversationId`
+    - `im-call-runtime`
+      - `POST /im/v3/api/calls/sessions` with `conversationId`
   - these standalone services do not own conversation membership state and therefore cannot authorize conversation-bound access by themselves.
   - before this fix, they still returned `200` and created state directly.
 - Impact:
@@ -25,7 +25,7 @@ Regression tests were added first:
 
 - `services/streaming-service/tests/http_smoke_test.rs`
   - `test_standalone_streaming_service_rejects_conversation_scope_over_http`
-- `services/rtc-signaling-service/tests/http_smoke_test.rs`
+- `services/im-call-runtime/tests/http_smoke_test.rs`
   - `test_standalone_rtc_service_rejects_conversation_binding_over_http`
 
 Red evidence:
@@ -33,7 +33,7 @@ Red evidence:
 - `cargo test -p streaming-service --offline test_standalone_streaming_service_rejects_conversation_scope_over_http`
   - failed with actual status `200`
   - expected status `403`
-- `cargo test -p rtc-signaling-service --offline test_standalone_rtc_service_rejects_conversation_binding_over_http`
+- `cargo test -p im-call-runtime --offline test_standalone_rtc_service_rejects_conversation_binding_over_http`
   - failed with actual status `200`
   - expected status `403`
 
@@ -60,14 +60,14 @@ Chosen design:
     - open by request scope
     - all subsequent stream session access by persisted session scope
   - standalone apps now reject conversation-bound stream access with `conversation_gateway_required`
-- `services/rtc-signaling-service/src/lib.rs`
+- `services/im-call-runtime/src/lib.rs`
   - added standalone adapter guards for:
     - create by request `conversationId`
     - all subsequent RTC session access by persisted session binding
   - standalone apps now reject conversation-bound RTC access with `conversation_gateway_required`
 - standalone service tests were realigned to the correct product boundary:
   - `streaming-service` tests now use generic non-conversation stream scope for positive standalone coverage
-  - `rtc-signaling-service` tests now use unbound RTC sessions for positive standalone coverage
+  - `im-call-runtime` tests now use unbound RTC sessions for positive standalone coverage
 
 ## 5. Verification
 
@@ -75,13 +75,13 @@ Chosen design:
 
 - `cargo test -p streaming-service --offline test_standalone_streaming_service_rejects_conversation_scope_over_http`
   - failed with `200` vs expected `403`
-- `cargo test -p rtc-signaling-service --offline test_standalone_rtc_service_rejects_conversation_binding_over_http`
+- `cargo test -p im-call-runtime --offline test_standalone_rtc_service_rejects_conversation_binding_over_http`
   - failed with `200` vs expected `403`
 
 ### Green
 
 - `cargo test -p streaming-service --offline`
-- `cargo test -p rtc-signaling-service --offline`
+- `cargo test -p im-call-runtime --offline`
 
 Observed green results:
 

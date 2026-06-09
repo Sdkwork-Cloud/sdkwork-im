@@ -10,7 +10,7 @@ public class DataContentPart extends ContentPart {
     public String getKind() {
         return this.kind;
     }
-    
+
     public void setKind(String kind) {
         this.kind = kind;
     }
@@ -18,7 +18,7 @@ public class DataContentPart extends ContentPart {
     public String getSchemaRef() {
         return this.schemaRef;
     }
-    
+
     public void setSchemaRef(String schemaRef) {
         this.schemaRef = schemaRef;
     }
@@ -26,7 +26,7 @@ public class DataContentPart extends ContentPart {
     public String getEncoding() {
         return this.encoding;
     }
-    
+
     public void setEncoding(String encoding) {
         this.encoding = encoding;
     }
@@ -34,7 +34,7 @@ public class DataContentPart extends ContentPart {
     public String getPayload() {
         return this.payload;
     }
-    
+
     public void setPayload(String payload) {
         this.payload = payload;
     }

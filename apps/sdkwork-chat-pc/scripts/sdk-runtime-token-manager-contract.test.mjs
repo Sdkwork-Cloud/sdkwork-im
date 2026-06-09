@@ -22,6 +22,7 @@ const sdkClientFiles = [
   'appSdkClient.ts',
   'appbaseAppSdkClient.ts',
   'agentAppSdkClient.ts',
+  'driveAppSdkClient.ts',
   'imSdkClient.ts',
 ];
 
@@ -75,8 +76,14 @@ assert.match(
 
 assert.match(
   sessionSource,
-  /isAppSdkSessionAuthenticated[\s\S]*Boolean\(session\?\.authToken\s*&&\s*session\?\.accessToken\)/u,
-  'Authenticated app sessions require both SDKWork tokens.',
+  /export function isAppSdkSessionExpired[\s\S]*Date\.now\(\)\s*>=\s*expiresAt/u,
+  'Session storage must classify expired SDKWork app sessions before reporting authenticated state.',
+);
+
+assert.match(
+  sessionSource,
+  /isAppSdkSessionAuthenticated[\s\S]*Boolean\(session\?\.authToken\s*&&\s*session\?\.accessToken\)\s*&&\s*!isAppSdkSessionExpired\(session\)/u,
+  'Authenticated app sessions require both SDKWork tokens and a non-expired session.',
 );
 
 for (const fileName of sdkClientFiles) {
@@ -92,5 +99,39 @@ for (const fileName of sdkClientFiles) {
     `${fileName} must not create a per-client TokenManager snapshot.`,
   );
 }
+
+const appAuthRuntimeSource = readSdkSource('appAuthRuntime.ts');
+assert.match(
+  appAuthRuntimeSource,
+  /resetDriveAppSdkClient/u,
+  'Authenticated SDK reset must include the Drive app SDK client so media uploads cannot reuse a stale session.',
+);
+assert.match(
+  appAuthRuntimeSource,
+  /getDriveAppSdkClient/u,
+  'Authenticated SDK inventory must include the Drive app SDK client so uploads share the IAM runtime TokenManager.',
+);
+assert.match(
+  appAuthRuntimeSource,
+  /resetSdkworkChatAuthenticatedSdkClients[\s\S]*resetDriveAppSdkClient\(\)/u,
+  'Authenticated SDK reset must clear the Drive app SDK client alongside appbase, IM, app, AIoT, and agent clients.',
+);
+assert.match(
+  appAuthRuntimeSource,
+  /getAuthenticatedSdkClients[\s\S]*getDriveAppSdkClient\(\)/u,
+  'Authenticated SDK inventory must bind the Drive app SDK client into the shared TokenManager closure.',
+);
+
+assert.doesNotMatch(
+  appAuthRuntimeSource,
+  /verificationCodeBypassEnabled/u,
+  'Chat auth runtime development verification config must be prefill-only and must not expose bypass semantics.',
+);
+
+assert.match(
+  appAuthRuntimeSource,
+  /verificationCodePrefillEnabled/u,
+  'Chat auth runtime must use the appbase verificationCodePrefillEnabled field for development verification-code hints.',
+);
 
 console.log('sdkwork chat pc SDK runtime TokenManager contract passed.');

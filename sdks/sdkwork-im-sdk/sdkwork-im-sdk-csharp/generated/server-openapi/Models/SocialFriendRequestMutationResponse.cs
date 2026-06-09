@@ -6,6 +6,6 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class SocialFriendRequestMutationResponse
     {
-        public FriendRequest? FriendRequest { get; set; }
+        public FriendRequest FriendRequest { get; set; }
     }
 }

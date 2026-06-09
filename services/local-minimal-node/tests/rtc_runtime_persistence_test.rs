@@ -51,7 +51,7 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -76,7 +76,7 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_restart_demo/invite")
+                .uri("/im/v3/api/calls/sessions/rtc_restart_demo/invite")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -107,7 +107,7 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_restart_demo/accept")
+                .uri("/im/v3/api/calls/sessions/rtc_restart_demo/accept")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -141,7 +141,7 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_restart_demo/signals")
+                .uri("/im/v3/api/calls/sessions/rtc_restart_demo/signals")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -176,7 +176,7 @@ async fn test_default_local_minimal_profile_restores_rtc_runtime_state_after_reb
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_restart_demo/end")
+                .uri("/im/v3/api/calls/sessions/rtc_restart_demo/end")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")

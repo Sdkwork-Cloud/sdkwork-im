@@ -10,7 +10,7 @@ public class CreateConversationResult {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -18,7 +18,7 @@ public class CreateConversationResult {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -26,7 +26,7 @@ public class CreateConversationResult {
     public String getKind() {
         return this.kind;
     }
-    
+
     public void setKind(String kind) {
         this.kind = kind;
     }
@@ -34,7 +34,7 @@ public class CreateConversationResult {
     public String getCreatedAt() {
         return this.createdAt;
     }
-    
+
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }

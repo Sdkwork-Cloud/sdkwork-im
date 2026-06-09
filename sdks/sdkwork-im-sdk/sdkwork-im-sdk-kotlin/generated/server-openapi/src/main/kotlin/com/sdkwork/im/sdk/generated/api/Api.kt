@@ -8,7 +8,7 @@ import com.sdkwork.im.sdk.generated.http.HttpClient
 class Api(private val client: HttpClient) {
     val presence: PresenceApi = PresenceApi(client)
     val realtime: RealtimeApi = RealtimeApi(client)
-    val rtc: RtcApi = RtcApi(client)
+    val calls: CallsApi = CallsApi(client)
     val social: SocialApi = SocialApi(client)
     val chat: ChatApi = ChatApi(client)
     val streams: StreamsApi = StreamsApi(client)

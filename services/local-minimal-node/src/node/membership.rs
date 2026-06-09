@@ -184,6 +184,11 @@ pub(super) async fn transfer_conversation_owner(
     let auth = resolve_request_app_context(auth, &headers)?;
     let actor_auth =
         access::resolve_conversation_actor_auth_context(&state, &auth, conversation_id.as_str())?;
+    let base_recipients = effects::conversation_member_principal_recipients_from_auth_context(
+        &state,
+        &auth,
+        conversation_id.as_str(),
+    )?;
     let transfer = state
         .conversation_runtime
         .transfer_conversation_owner_from_auth_context(
@@ -193,6 +198,35 @@ pub(super) async fn transfer_conversation_owner(
         )?;
 
     effects::record_owner_transfer_audit(&state, &actor_auth, conversation_id.as_str(), &transfer);
+
+    effects::publish_realtime_membership_event(
+        &state,
+        &actor_auth,
+        conversation_id.as_str(),
+        "conversation.owner_transferred",
+        serde_json::json!({
+            "conversationId": conversation_id.as_str(),
+            "transferredAt": transfer.transferred_at.as_str(),
+            "previousOwner": &transfer.previous_owner,
+            "newOwner": &transfer.new_owner,
+            "actor": {
+                "id": actor_auth.actor_id.as_str(),
+                "kind": actor_auth.actor_kind.as_str(),
+            }
+        })
+        .to_string(),
+        base_recipients,
+        BTreeSet::from([
+            NotificationRecipientView {
+                principal_id: transfer.previous_owner.principal_id.clone(),
+                principal_kind: transfer.previous_owner.principal_kind.clone(),
+            },
+            NotificationRecipientView {
+                principal_id: transfer.new_owner.principal_id.clone(),
+                principal_kind: transfer.new_owner.principal_kind.clone(),
+            },
+        ]),
+    )?;
 
     Ok(Json(transfer))
 }

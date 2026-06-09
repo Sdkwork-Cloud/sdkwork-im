@@ -408,8 +408,32 @@ assert.match(
 
 assert.match(
   authGateSource,
-  /return\s+Boolean\(session\?\.authToken\s*&&\s*session\?\.accessToken\)/u,
-  'AuthGate must require both SDKWork authToken and accessToken before rendering protected routes.',
+  /function\s+isAuthenticatedSession\([\s\S]*return\s+isAppSdkSessionAuthenticated\(session\)/u,
+  'AuthGate must use the centralized dual-token and expiry-aware authenticated session predicate.',
+);
+
+assert.match(
+  authGateSource,
+  /const\s+storedSession\s*=\s*readAppSdkSessionTokens\(\)[\s\S]*if\s*\(\s*!isAuthenticatedSession\(storedSession\)\s*\)[\s\S]*setSession\(null\)[\s\S]*setIsBootstrapped\(true\)[\s\S]*return\s+\(\)\s*=>/u,
+  'AuthGate must not call appbase current-session validation when no complete local dual-token session exists.',
+);
+
+assert.match(
+  appAuthServiceSource,
+  /const\s+storedSession\s*=\s*readAppSdkSessionTokens\(\)[\s\S]*if\s*\(\s*!isAppSdkSessionAuthenticated\(storedSession\)\s*\)[\s\S]*clearSdkworkChatIamRuntimeSession\(\)[\s\S]*return\s+null/u,
+  'SDKWork Chat auth service must clear missing, incomplete, or expired local sessions before calling appbase current-session validation.',
+);
+
+assert.match(
+  sessionSource,
+  /export function isAppSdkSessionExpired[\s\S]*Date\.now\(\)\s*>=\s*expiresAt/u,
+  'Session storage must classify expired appbase IAM sessions locally before protected bootstrap calls.',
+);
+
+assert.match(
+  sessionSource,
+  /export function isAppSdkSessionAuthenticated[\s\S]*Boolean\(session\?\.authToken\s*&&\s*session\?\.accessToken\)\s*&&\s*!isAppSdkSessionExpired\(session\)/u,
+  'Authenticated app sessions require both SDKWork tokens and a non-expired local session.',
 );
 
 assert.match(

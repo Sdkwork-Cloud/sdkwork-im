@@ -8,7 +8,7 @@ public class MemberDirectoryResponse {
     public List<ConversationMember> getItems() {
         return this.items;
     }
-    
+
     public void setItems(List<ConversationMember> items) {
         this.items = items;
     }

@@ -8,7 +8,7 @@ public class TextContentPart extends ContentPart {
     public String getKind() {
         return this.kind;
     }
-    
+
     public void setKind(String kind) {
         this.kind = kind;
     }
@@ -16,7 +16,7 @@ public class TextContentPart extends ContentPart {
     public String getText() {
         return this.text;
     }
-    
+
     public void setText(String text) {
         this.text = text;
     }

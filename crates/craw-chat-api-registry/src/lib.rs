@@ -35,7 +35,6 @@ pub enum SdkTarget {
     SdkworkImSdk,
     SdkworkImAppSdk,
     SdkworkImBackendSdk,
-    SdkworkRtcAppSdk,
     SdkworkDriveAppSdk,
     None,
 }

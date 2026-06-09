@@ -23,11 +23,11 @@ This section answers two practical questions:
 - realtime subscription sync, poll windows, ack flow, and websocket upgrade
 - client route registration and client-route event window reads
 
-### Media, streaming, and RTC
+### Media, streaming, and calls
 
 - media upload initiation, completion, lookup, signed download URL, and attachment
 - stream open, frame append, list, checkpoint, complete, and abort
-- RTC create, invite, accept, reject, end, signal, participant credential, recording artifact, and provider callback
+- IM call create, invite, accept, reject, end, signal, and RTC participant credential handoff
 
 ### Platform and operations
 
@@ -37,7 +37,7 @@ This section answers two practical questions:
 
 ### Governance and extension
 
-- provider health for media, RTC, principal-profile, and AIoT integration
+- provider health for media, RTC media runtime, principal-profile, and AIoT integration
 - AIoT uplink and downlink ingestion through sdkwork-aiot
 - protocol registry and governance
 - provider registry and policy lifecycle

@@ -97,6 +97,21 @@ async function main(): Promise<void> {
     calls.slice(1),
     [
       {
+        method: 'conversations.updateProfile',
+        conversationId: group.id,
+        body: {
+          avatarUrl: group.avatar,
+          displayName: 'Project Room',
+        },
+      },
+      {
+        method: 'conversations.updatePreferences',
+        conversationId: group.id,
+        body: {
+          isHidden: false,
+        },
+      },
+      {
         method: 'conversations.addMember',
         conversationId: group.id,
         body: {
@@ -114,23 +129,8 @@ async function main(): Promise<void> {
           role: 'member',
         },
       },
-      {
-        method: 'conversations.updateProfile',
-        conversationId: group.id,
-        body: {
-          avatarUrl: group.avatar,
-          displayName: 'Project Room',
-        },
-      },
-      {
-        method: 'conversations.updatePreferences',
-        conversationId: group.id,
-        body: {
-          isHidden: false,
-        },
-      },
     ],
-    'group creation must create the conversation, add unique real members, persist profile, and unhide through the IM SDK',
+    'group creation must create the conversation, persist profile, unhide, and then invite members through the IM SDK so invitees refresh into a named group',
   );
   assert.deepEqual(group.members, ['current-user', 'u_bob', 'u_carol']);
   assert.equal(group.memberCount, 3);

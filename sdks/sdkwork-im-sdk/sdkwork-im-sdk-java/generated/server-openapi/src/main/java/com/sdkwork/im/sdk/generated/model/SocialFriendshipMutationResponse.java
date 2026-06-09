@@ -7,7 +7,7 @@ public class SocialFriendshipMutationResponse {
     public Friendship getFriendship() {
         return this.friendship;
     }
-    
+
     public void setFriendship(Friendship friendship) {
         this.friendship = friendship;
     }

@@ -8,7 +8,7 @@ public class DeleteMessageFavoriteResponse {
     public String getFavoriteId() {
         return this.favoriteId;
     }
-    
+
     public void setFavoriteId(String favoriteId) {
         this.favoriteId = favoriteId;
     }
@@ -16,7 +16,7 @@ public class DeleteMessageFavoriteResponse {
     public Boolean getDeleted() {
         return this.deleted;
     }
-    
+
     public void setDeleted(Boolean deleted) {
         this.deleted = deleted;
     }

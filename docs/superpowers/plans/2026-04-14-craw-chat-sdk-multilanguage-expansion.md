@@ -301,7 +301,7 @@ Add the rest of the composed SDK contract to the smoke tests:
 
 - `sdk.conversations().post_text(...)`
 - `sdk.streams().append_text_frame(...)`
-- `sdk.rtc().post_json_signal(...)`
+- `sdk.calls.sendSignal(...)`
 - module accessors for `session`, `presence`, `realtime`, `devices`, `inbox`, `messages`, `media`
 
 Builder expectations should be concrete:

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from '../Toast';
 import { groupService } from '../../services/GroupService';
 import type { Chat } from '@sdkwork/clawchat-pc-types';
-import { PromptModal, usePrompt } from '../PromptModal';
+import { CreateGroupModal } from '../CreateGroupModal';
 
 export const GroupsContainer: React.FC<{
   searchQuery?: string;
@@ -13,8 +13,7 @@ export const GroupsContainer: React.FC<{
   const { t } = useTranslation();
   const [groups, setGroups] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const { promptConfig, customPrompt, closePrompt } = usePrompt();
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
 
   useEffect(() => {
     groupService.getGroups()
@@ -42,20 +41,7 @@ export const GroupsContainer: React.FC<{
         </div>
         <button 
           onClick={() => {
-             customPrompt(t('contacts.groups.promptName'), '', async (name) => {
-               try {
-                 if (name && name.trim()) {
-                  const newGroup = await groupService.createGroup(name.trim(), []);
-                  setGroups([newGroup, ...groups]);
-                  onOpenGroup?.(newGroup);
-                  toast(t('contacts.groups.toast.createSucceeded'), 'success');
-                 }
-               } catch {
-                 toast(t('contacts.groups.toast.createFailed'), 'error');
-               } finally {
-                 closePrompt();
-               }
-             });
+            setIsCreateGroupOpen(true);
           }}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-indigo-500/20"
         >
@@ -84,7 +70,7 @@ export const GroupsContainer: React.FC<{
                   <h4 className="text-md font-medium text-gray-200">{group.name}</h4>
                   <p className="text-xs text-gray-500 mt-1">
                     {t('contacts.groups.memberStats', {
-                      activeCount: (group as any).activeCount || 0,
+                      activeCount: group.activeCount || 0,
                       count: group.memberCount || 0,
                     })}
                   </p>
@@ -94,7 +80,14 @@ export const GroupsContainer: React.FC<{
           ))}
         </div>
       </div>
-      <PromptModal {...promptConfig} onCancel={closePrompt} />
+      <CreateGroupModal
+        isOpen={isCreateGroupOpen}
+        onClose={() => setIsCreateGroupOpen(false)}
+        onCreated={async (group) => {
+          setGroups((previousGroups) => [group, ...previousGroups]);
+          onOpenGroup?.(group);
+        }}
+      />
     </div>
   );
 };

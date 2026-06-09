@@ -6,8 +6,8 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class MessageReplyReference
     {
-        public string? MessageId { get; set; }
-        public string? SenderDisplayName { get; set; }
-        public string? ContentPreview { get; set; }
+        public string MessageId { get; set; }
+        public string SenderDisplayName { get; set; }
+        public string ContentPreview { get; set; }
     }
 }

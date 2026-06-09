@@ -1,4 +1,4 @@
-﻿param(
+param(
     [Alias("base-url")]
     [string]$BaseUrl,
     [Alias("tenant-id")]
@@ -269,7 +269,7 @@ function Ensure-RtcSessionExistsForInvite {
         -ResolvedBaseUrl $ResolvedBaseUrl `
         -BearerToken $BearerToken `
         -Method "POST" `
-        -Path "/im/v3/api/rtc/sessions" `
+        -Path "/im/v3/api/calls/sessions" `
         -Body ([ordered]@{
                 rtcSessionId = $RtcSessionId
                 conversationId = $ConversationId
@@ -1019,7 +1019,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/im/v3/api/rtc/sessions" `
+                    -Path "/im/v3/api/calls/sessions" `
                     -Body ([ordered]@{
                             rtcSessionId = $rtcSessionId
                             conversationId = $conversationIdValue
@@ -1037,7 +1037,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/invite" `
+                    -Path "/im/v3/api/calls/sessions/$rtcSessionId/invite" `
                     -Body ([ordered]@{
                             signalingStreamId = $signalingStreamTextBox.Text.Trim()
                         })
@@ -1047,7 +1047,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/accept" `
+                    -Path "/im/v3/api/calls/sessions/$rtcSessionId/accept" `
                     -Body ([ordered]@{
                             artifactMessageId = $artifactMessageTextBox.Text.Trim()
                         })
@@ -1057,7 +1057,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/reject" `
+                    -Path "/im/v3/api/calls/sessions/$rtcSessionId/reject" `
                     -Body ([ordered]@{
                             artifactMessageId = $artifactMessageTextBox.Text.Trim()
                         })
@@ -1067,7 +1067,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/end" `
+                    -Path "/im/v3/api/calls/sessions/$rtcSessionId/end" `
                     -Body ([ordered]@{
                             artifactMessageId = $artifactMessageTextBox.Text.Trim()
                         })
@@ -1083,7 +1083,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/signals" `
+                    -Path "/im/v3/api/calls/sessions/$rtcSessionId/signals" `
                     -Body ([ordered]@{
                             signalType = $signalTypeTextBox.Text.Trim()
                             schemaRef = $schemaRefTextBox.Text.Trim()
@@ -1099,7 +1099,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "POST" `
-                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/credentials" `
+                    -Path "/im/v3/api/calls/sessions/$rtcSessionId/credentials" `
                     -Body ([ordered]@{
                             participantId = $participantId
                         })
@@ -1109,7 +1109,7 @@ $invokeRtcAction = {
                     -ResolvedBaseUrl $resolvedBaseUrl `
                     -BearerToken ([string]$script:resolvedAuthContext.BearerToken) `
                     -Method "GET" `
-                    -Path "/im/v3/api/rtc/sessions/$rtcSessionId/artifacts/recording" `
+                    -Path "/im/v3/api/calls/sessions/$rtcSessionId/artifacts/recording" `
                     -Body $null
             }
             default {

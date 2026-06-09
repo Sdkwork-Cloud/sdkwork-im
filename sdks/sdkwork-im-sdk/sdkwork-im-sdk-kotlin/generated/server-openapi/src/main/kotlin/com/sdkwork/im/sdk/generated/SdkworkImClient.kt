@@ -4,7 +4,7 @@ import com.sdkwork.common.core.SdkConfig
 import com.sdkwork.im.sdk.generated.http.HttpClient
 import com.sdkwork.im.sdk.generated.api.PresenceApi
 import com.sdkwork.im.sdk.generated.api.RealtimeApi
-import com.sdkwork.im.sdk.generated.api.RtcApi
+import com.sdkwork.im.sdk.generated.api.CallsApi
 import com.sdkwork.im.sdk.generated.api.SocialApi
 import com.sdkwork.im.sdk.generated.api.ChatApi
 import com.sdkwork.im.sdk.generated.api.StreamsApi
@@ -14,7 +14,7 @@ open class SdkworkImClient {
 
     lateinit var presence: PresenceApi
     lateinit var realtime: RealtimeApi
-    lateinit var rtc: RtcApi
+    lateinit var calls: CallsApi
     lateinit var social: SocialApi
     lateinit var chat: ChatApi
     lateinit var streams: StreamsApi
@@ -23,7 +23,7 @@ open class SdkworkImClient {
         this.httpClient = HttpClient(baseUrl)
         presence = PresenceApi(httpClient)
         realtime = RealtimeApi(httpClient)
-        rtc = RtcApi(httpClient)
+        calls = CallsApi(httpClient)
         social = SocialApi(httpClient)
         chat = ChatApi(httpClient)
         streams = StreamsApi(httpClient)
@@ -33,7 +33,7 @@ open class SdkworkImClient {
         this.httpClient = HttpClient(config)
         presence = PresenceApi(httpClient)
         realtime = RealtimeApi(httpClient)
-        rtc = RtcApi(httpClient)
+        calls = CallsApi(httpClient)
         social = SocialApi(httpClient)
         chat = ChatApi(httpClient)
         streams = StreamsApi(httpClient)

@@ -16,7 +16,7 @@ public class ContactTagView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -24,7 +24,7 @@ public class ContactTagView {
     public String getOwnerUserId() {
         return this.ownerUserId;
     }
-    
+
     public void setOwnerUserId(String ownerUserId) {
         this.ownerUserId = ownerUserId;
     }
@@ -32,7 +32,7 @@ public class ContactTagView {
     public String getTagId() {
         return this.tagId;
     }
-    
+
     public void setTagId(String tagId) {
         this.tagId = tagId;
     }
@@ -40,7 +40,7 @@ public class ContactTagView {
     public String getName() {
         return this.name;
     }
-    
+
     public void setName(String name) {
         this.name = name;
     }
@@ -48,7 +48,7 @@ public class ContactTagView {
     public String getColor() {
         return this.color;
     }
-    
+
     public void setColor(String color) {
         this.color = color;
     }
@@ -56,7 +56,7 @@ public class ContactTagView {
     public Integer getCount() {
         return this.count;
     }
-    
+
     public void setCount(Integer count) {
         this.count = count;
     }
@@ -64,7 +64,7 @@ public class ContactTagView {
     public String getBg() {
         return this.bg;
     }
-    
+
     public void setBg(String bg) {
         this.bg = bg;
     }
@@ -72,7 +72,7 @@ public class ContactTagView {
     public String getBorder() {
         return this.border;
     }
-    
+
     public void setBorder(String border) {
         this.border = border;
     }
@@ -80,7 +80,7 @@ public class ContactTagView {
     public String getCreatedAt() {
         return this.createdAt;
     }
-    
+
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }
@@ -88,7 +88,7 @@ public class ContactTagView {
     public String getUpdatedAt() {
         return this.updatedAt;
     }
-    
+
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }

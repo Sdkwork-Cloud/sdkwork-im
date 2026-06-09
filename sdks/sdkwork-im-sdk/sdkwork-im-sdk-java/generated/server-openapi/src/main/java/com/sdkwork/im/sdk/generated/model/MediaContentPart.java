@@ -10,7 +10,7 @@ public class MediaContentPart extends ContentPart {
     public String getKind() {
         return this.kind;
     }
-    
+
     public void setKind(String kind) {
         this.kind = kind;
     }
@@ -18,7 +18,7 @@ public class MediaContentPart extends ContentPart {
     public DriveReference getDrive() {
         return this.drive;
     }
-    
+
     public void setDrive(DriveReference drive) {
         this.drive = drive;
     }
@@ -26,7 +26,7 @@ public class MediaContentPart extends ContentPart {
     public MediaResource getResource() {
         return this.resource;
     }
-    
+
     public void setResource(MediaResource resource) {
         this.resource = resource;
     }
@@ -34,7 +34,7 @@ public class MediaContentPart extends ContentPart {
     public String getMediaRole() {
         return this.mediaRole;
     }
-    
+
     public void setMediaRole(String mediaRole) {
         this.mediaRole = mediaRole;
     }

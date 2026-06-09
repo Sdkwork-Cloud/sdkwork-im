@@ -3,6 +3,7 @@ import { Check, Globe, Lock, X, Upload, Sparkles, Loader2, Image as ImageIcon } 
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@sdkwork/clawchat-pc-commons';
 import { toast } from '@sdkwork/clawchat-pc-chat';
+import { knowledgeAiService } from '../services/KnowledgeAiService';
 
 interface CreateKBModalProps {
   isOpen: boolean;
@@ -44,19 +45,13 @@ export const CreateKBModal: React.FC<CreateKBModalProps> = ({
     }
     setIsGeneratingIcon(true);
     try {
-      const res = await fetch('/api/agent/icon', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: newKBData.name + (newKBData.description ? ` (${newKBData.description})` : '') })
+      const logo = await knowledgeAiService.generateKnowledgeBaseIcon({
+        description: newKBData.name + (newKBData.description ? ` (${newKBData.description})` : ''),
       });
-      const data = await res.json();
-      if (data.result) {
-        setNewKBData({...newKBData, logo: data.result});
-      } else {
-        toast('图标生成失败，请重试', 'error');
-      }
+      setNewKBData({...newKBData, logo});
     } catch (e) {
-      toast('网络错误，无法生成图标', 'error');
+      const message = e instanceof Error && e.message ? e.message : '无法生成图标';
+      toast(message, 'error');
     } finally {
       setIsGeneratingIcon(false);
     }

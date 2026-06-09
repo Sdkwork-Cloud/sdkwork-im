@@ -6,6 +6,6 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class AckResponse
     {
-        public bool? Ok { get; set; }
+        public bool Ok { get; set; }
     }
 }

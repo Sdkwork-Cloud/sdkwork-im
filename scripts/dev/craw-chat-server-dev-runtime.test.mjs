@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -83,4 +84,19 @@ assert.equal(
   explicitBindEnv.portChanged,
   false,
   'explicit server binds must not be reported as automatic port fallback',
+);
+
+const startScript = fs.readFileSync(
+  path.join(repoRoot, 'scripts/dev/start-craw-chat-unified-web.mjs'),
+  'utf8',
+);
+assert.match(
+  startScript,
+  /createCrawChatServerCargoEnv/u,
+  'server:dev startup must use the shared cargo target isolation helper',
+);
+assert.match(
+  startScript,
+  /resolveCrawChatServerBindEnv/u,
+  'server:dev startup must use the shared gateway bind resolver',
 );

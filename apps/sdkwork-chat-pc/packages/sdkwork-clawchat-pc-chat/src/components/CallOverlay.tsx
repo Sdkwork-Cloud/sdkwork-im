@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Phone, Video, Mic, MicOff, VideoOff, MonitorUp, PhoneOff, Maximize, Minimize, Smartphone, Monitor } from 'lucide-react';
 import { Avatar } from '@sdkwork/clawchat-pc-commons';
@@ -6,11 +6,37 @@ import { toast } from './Toast';
 import { callService, type SdkworkCallSnapshot } from '../services/CallService';
 
 export type CallType = 'voice' | 'video';
+type CallOverlayPhase = 'incoming-ringing' | 'outgoing-ringing' | 'connected' | 'finished' | 'idle';
+
+function stopMediaStream(stream: MediaStream | undefined): void {
+  stream?.getTracks().forEach((track) => {
+    track.stop();
+  });
+}
+
+function readErrorMessage(error: unknown): string | undefined {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return typeof error === 'string' && error.trim().length > 0 ? error : undefined;
+}
+
+function resolveLocalMediaErrorMessage(error: unknown): string {
+  const errorName = error instanceof DOMException ? error.name : undefined;
+  if (errorName === 'NotAllowedError' || errorName === 'SecurityError') {
+    return '无法访问麦克风或摄像头，请检查浏览器权限';
+  }
+  if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+    return '未检测到可用的麦克风或摄像头';
+  }
+  return readErrorMessage(error) ?? '无法启动本地音视频设备';
+}
 
 interface CallOverlayProps {
   conversationId: string;
   isOpen: boolean;
   mode?: 'incoming' | 'outgoing';
+  rtcSessionId?: string;
   type: CallType;
   callerName: string;
   callerAvatar: string;
@@ -21,6 +47,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   conversationId,
   isOpen,
   mode = 'outgoing',
+  rtcSessionId,
   type,
   callerName,
   callerAvatar,
@@ -28,46 +55,212 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
 }) => {
   const [callState, setCallState] = useState<'ringing' | 'connected'>('ringing');
   const [callSnapshot, setCallSnapshot] = useState<SdkworkCallSnapshot>(callService.getSnapshot());
+  const [activeRtcSessionId, setActiveRtcSessionId] = useState<string | undefined>(rtcSessionId);
+  const activeRtcSessionIdRef = useRef<string | undefined>(rtcSessionId);
+  const autoClosedTerminalSessionRef = useRef<string | undefined>(undefined);
+  const isOpenRef = useRef(isOpen);
+  const localPreviewVideoRef = useRef<HTMLVideoElement | null>(null);
+  const localMediaStreamRef = useRef<MediaStream | undefined>(undefined);
+  const localMediaRequestRef = useRef<Promise<MediaStream | undefined> | undefined>(undefined);
+  const screenShareStreamRef = useRef<MediaStream | undefined>(undefined);
+  const isMutedRef = useRef(false);
+  const isVideoOffRef = useRef(type === 'voice');
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(type === 'voice');
   const [viewMode, setViewMode] = useState<'mobile' | 'desktop' | 'fullscreen'>('mobile');
   const [callDuration, setCallDuration] = useState(0);
 
+  const applyAudioMutedToLocalTracks = useCallback((muted: boolean) => {
+    localMediaStreamRef.current?.getAudioTracks().forEach((track) => {
+      track.enabled = !muted;
+    });
+  }, []);
+
+  const applyVideoMutedToLocalTracks = useCallback((muted: boolean) => {
+    localMediaStreamRef.current?.getVideoTracks().forEach((track) => {
+      track.enabled = !muted;
+    });
+  }, []);
+
+  const releaseCallMedia = useCallback(() => {
+    if (localPreviewVideoRef.current) {
+      localPreviewVideoRef.current.srcObject = null;
+    }
+    stopMediaStream(localMediaStreamRef.current);
+    localMediaStreamRef.current = undefined;
+    localMediaRequestRef.current = undefined;
+    stopMediaStream(screenShareStreamRef.current);
+    screenShareStreamRef.current = undefined;
+  }, []);
+
+  const closeOverlayWithMediaRelease = useCallback(() => {
+    releaseCallMedia();
+    onClose();
+  }, [onClose, releaseCallMedia]);
+
+  const ensureLocalMedia = useCallback(async (): Promise<MediaStream | undefined> => {
+    if (localMediaStreamRef.current) {
+      applyAudioMutedToLocalTracks(isMutedRef.current);
+      applyVideoMutedToLocalTracks(isVideoOffRef.current || type === 'voice');
+      return localMediaStreamRef.current;
+    }
+    if (localMediaRequestRef.current) {
+      return localMediaRequestRef.current;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast('当前浏览器不支持麦克风或摄像头访问', 'error');
+      return undefined;
+    }
+
+    localMediaRequestRef.current = (async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: type === 'video',
+      });
+      if (!isOpenRef.current) {
+        stopMediaStream(stream);
+        return undefined;
+      }
+      localMediaStreamRef.current = stream;
+      if (localPreviewVideoRef.current) {
+        localPreviewVideoRef.current.srcObject = stream;
+      }
+      const nextAudioMuted = stream.getAudioTracks().length === 0 ? true : isMutedRef.current;
+      const nextVideoMuted = type === 'voice' || stream.getVideoTracks().length === 0 ? true : isVideoOffRef.current;
+      isMutedRef.current = nextAudioMuted;
+      isVideoOffRef.current = nextVideoMuted;
+      setIsMuted(nextAudioMuted);
+      setIsVideoOff(nextVideoMuted);
+      applyAudioMutedToLocalTracks(nextAudioMuted);
+      applyVideoMutedToLocalTracks(nextVideoMuted);
+      await Promise.all([
+        callService.setAudioMuted(nextAudioMuted),
+        callService.setVideoMuted(nextVideoMuted),
+      ]);
+      return stream;
+    })();
+
+    try {
+      return await localMediaRequestRef.current;
+    } catch (error) {
+      toast(resolveLocalMediaErrorMessage(error), 'error');
+      if (type === 'video') {
+        isVideoOffRef.current = true;
+        setIsVideoOff(true);
+        void callService.setVideoMuted(true).catch(() => undefined);
+      }
+      return undefined;
+    } finally {
+      localMediaRequestRef.current = undefined;
+    }
+  }, [applyAudioMutedToLocalTracks, applyVideoMutedToLocalTracks, type]);
+
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
+
   useEffect(() => {
     return callService.subscribe((snapshot) => {
+      const snapshotIsTerminal = snapshot.state === 'ended'
+        || snapshot.state === 'rejected'
+        || snapshot.state === 'errored';
+      const currentRtcSessionId = activeRtcSessionIdRef.current;
+      const snapshotMatchesPropSession = Boolean(rtcSessionId && snapshot.rtcSessionId === rtcSessionId);
+      const snapshotMatchesActiveSession = Boolean(currentRtcSessionId && snapshot.rtcSessionId === currentRtcSessionId);
+      const snapshotMatchesPendingCall = !currentRtcSessionId
+        && !snapshotIsTerminal
+        && snapshot.conversationId === conversationId
+        && snapshot.direction === mode;
+      const shouldApplyUiState = snapshotMatchesPropSession
+        || snapshotMatchesActiveSession
+        || snapshotMatchesPendingCall
+        || snapshot.state === 'idle';
+
       setCallSnapshot(snapshot);
+      if (!shouldApplyUiState) {
+        return;
+      }
+      if (snapshot.rtcSessionId && snapshot.rtcSessionId !== currentRtcSessionId) {
+        activeRtcSessionIdRef.current = snapshot.rtcSessionId;
+        setActiveRtcSessionId(snapshot.rtcSessionId);
+      }
+      isMutedRef.current = snapshot.isAudioMuted;
+      isVideoOffRef.current = snapshot.isVideoMuted;
       setIsMuted(snapshot.isAudioMuted);
       setIsVideoOff(snapshot.isVideoMuted);
+      applyAudioMutedToLocalTracks(snapshot.isAudioMuted);
+      applyVideoMutedToLocalTracks(snapshot.isVideoMuted);
       setCallState(snapshot.state === 'connected' ? 'connected' : 'ringing');
       if (snapshot.state === 'errored' && snapshot.errorMessage) {
         toast(snapshot.errorMessage, 'error');
       }
       if (snapshot.state === 'ended' || snapshot.state === 'rejected' || snapshot.state === 'errored') {
         setCallDuration(0);
+        if (snapshot.rtcSessionId && snapshot.rtcSessionId !== autoClosedTerminalSessionRef.current) {
+          autoClosedTerminalSessionRef.current = snapshot.rtcSessionId;
+          if (isOpen) {
+            closeOverlayWithMediaRelease();
+          }
+        }
       }
     });
-  }, []);
+  }, [
+    applyAudioMutedToLocalTracks,
+    applyVideoMutedToLocalTracks,
+    closeOverlayWithMediaRelease,
+    conversationId,
+    isOpen,
+    mode,
+    rtcSessionId,
+  ]);
 
   // Reset state when opened and start the SDK-backed outgoing call when needed.
   useEffect(() => {
     if (!isOpen) {
+      releaseCallMedia();
       return;
     }
 
     setCallState('ringing');
+    isMutedRef.current = false;
+    isVideoOffRef.current = type === 'voice';
     setIsMuted(false);
     setIsVideoOff(type === 'voice');
+    autoClosedTerminalSessionRef.current = undefined;
+    activeRtcSessionIdRef.current = rtcSessionId;
+    setActiveRtcSessionId(rtcSessionId);
     setCallDuration(0);
     setViewMode('mobile'); // Default to mobile mode
 
     if (mode === 'outgoing') {
+      void ensureLocalMedia();
       void callService.startOutgoingCall({
         conversationId,
         targetName: callerName,
         type,
       });
     }
-  }, [callerName, conversationId, isOpen, mode, type]);
+  }, [callerName, conversationId, ensureLocalMedia, isOpen, mode, releaseCallMedia, rtcSessionId, type]);
+
+  useEffect(() => {
+    if (!isOpen || callState !== 'connected') {
+      return;
+    }
+    void ensureLocalMedia();
+  }, [callState, ensureLocalMedia, isOpen]);
+
+  useEffect(() => {
+    if (!localPreviewVideoRef.current) {
+      return;
+    }
+    localPreviewVideoRef.current.srcObject = localMediaStreamRef.current ?? null;
+  }, [callState, isVideoOff, type]);
+
+  useEffect(() => {
+    return () => {
+      releaseCallMedia();
+    };
+  }, [releaseCallMedia]);
 
   // Timer for connected state
   useEffect(() => {
@@ -103,12 +296,61 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   const hangupBtnClass = isMobile ? 'w-14 h-14 ml-1' : 'w-16 h-16 ml-4';
   const iconSize = isMobile ? 20 : 24;
   const hangupIconSize = isMobile ? 24 : 28;
-  const isIncomingRinging = mode === 'incoming' && callSnapshot.state === 'ringing';
-  const statusText = callSnapshot.state === 'connecting'
+  const isTerminalCall = callSnapshot.state === 'ended'
+    || callSnapshot.state === 'rejected'
+    || callSnapshot.state === 'errored';
+  const snapshotMatchesActiveSession = Boolean(activeRtcSessionId && callSnapshot.rtcSessionId === activeRtcSessionId);
+  const snapshotMatchesPendingCall = !activeRtcSessionId
+    && !isTerminalCall
+    && callSnapshot.conversationId === conversationId
+    && callSnapshot.direction === mode;
+  const isCurrentCallSnapshot = snapshotMatchesActiveSession || snapshotMatchesPendingCall;
+  const isCurrentTerminalCall = isCurrentCallSnapshot && isTerminalCall;
+  const isConnectedCall = isCurrentCallSnapshot && callSnapshot.state === 'connected';
+  const isIncomingRinging = mode === 'incoming'
+    && callState === 'ringing'
+    && !isConnectedCall
+    && !isCurrentTerminalCall;
+  const isOutgoingRinging = mode === 'outgoing'
+    && callState === 'ringing'
+    && !isConnectedCall
+    && !isCurrentTerminalCall;
+  const callOverlayPhase: CallOverlayPhase = isConnectedCall
+    ? 'connected'
+    : isCurrentTerminalCall
+      ? 'finished'
+      : isIncomingRinging
+        ? 'incoming-ringing'
+        : isOutgoingRinging
+          ? 'outgoing-ringing'
+          : 'idle';
+  const showAcceptAction = callOverlayPhase === 'incoming-ringing';
+  const showRejectAction = callOverlayPhase === 'incoming-ringing';
+  const showCancelAction = callOverlayPhase === 'outgoing-ringing';
+  const showHangupAction = callOverlayPhase === 'connected';
+  const showCloseAction = callOverlayPhase === 'finished';
+  const canControlLocalMedia = callOverlayPhase === 'connected' || callOverlayPhase === 'outgoing-ringing';
+  const canToggleAudio = canControlLocalMedia;
+  const canToggleVideo = canControlLocalMedia && type === 'video';
+  const canShareScreen = callOverlayPhase === 'connected' && type === 'video';
+  const displayNameClass = isMobile ? 'max-w-[280px]' : 'max-w-[520px]';
+  const audioStatusText = isMuted ? '麦克风已关闭' : '麦克风已开启';
+  const videoStatusText = isVideoOff ? '摄像头已关闭' : '摄像头已开启';
+  const localMediaStatusText = type === 'video'
+    ? `${audioStatusText} · ${videoStatusText}`
+    : audioStatusText;
+  const shouldShowLocalMediaStatus = callOverlayPhase === 'outgoing-ringing' && canControlLocalMedia;
+  const statusText = isCurrentCallSnapshot && callSnapshot.state === 'connecting'
     ? '正在连接...'
-    : callSnapshot.state === 'errored'
+    : isCurrentCallSnapshot && callSnapshot.state === 'errored'
       ? '通话连接失败'
-      : '正在呼叫...';
+      : isCurrentCallSnapshot && callSnapshot.state === 'rejected'
+        ? '已拒绝'
+        : isCurrentCallSnapshot && callSnapshot.state === 'ended'
+          ? '通话已结束'
+          : isOutgoingRinging
+            ? '等待对方接听...'
+            : '邀请你通话...';
 
   return (
     <AnimatePresence>
@@ -172,10 +414,23 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                   <div className="absolute inset-0 rounded-full border-2 border-blue-500 animate-ping opacity-75" />
                 )}
               </motion.div>
-              <h2 className={`mt-6 font-medium text-white drop-shadow-lg ${isMobile ? 'text-2xl' : 'text-3xl'}`}>{callerName}</h2>
+              <h2
+                className={`mt-6 truncate text-center font-medium text-white drop-shadow-lg ${displayNameClass} ${isMobile ? 'text-2xl' : 'text-3xl'}`}
+                title={callerName}
+              >
+                {callerName}
+              </h2>
               <p className={`mt-2 text-gray-400 ${isMobile ? 'text-base' : 'text-lg'}`}>
                 {callState === 'ringing' ? statusText : formatTime(callDuration)}
               </p>
+              {shouldShowLocalMediaStatus && (
+                <p
+                  className={`mt-1 truncate text-center text-gray-500 ${displayNameClass} ${isMobile ? 'text-xs' : 'text-sm'}`}
+                  title={localMediaStatusText}
+                >
+                  {localMediaStatusText}
+                </p>
+              )}
             </div>
           ) : (
             /* Simulated Video Feed */
@@ -194,9 +449,30 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                   ? 'top-20 right-4 w-24 h-36 rounded-lg border border-white/20' 
                   : 'bottom-24 right-6 w-48 h-72 rounded-xl border-2 border-white/20'
               }`}>
-                <div className="absolute inset-0 flex items-center justify-center text-white/30">
-                  我
-                </div>
+                {type === 'video' && !isVideoOff && (
+                  <video
+                    ref={localPreviewVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                )}
+                {(type !== 'video' || isVideoOff) && (
+                  <div className="absolute inset-0 flex items-center justify-center text-white/30">
+                    我
+                  </div>
+                )}
+                {type === 'video' && (
+                  <div className="absolute left-2 right-2 bottom-2 text-center">
+                    <span
+                      className="block truncate rounded-full bg-black/50 px-2 py-1 text-[10px] text-white/70"
+                      title={localMediaStatusText}
+                    >
+                      {localMediaStatusText}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -204,91 +480,125 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
 
         {/* Controls Bar */}
         <div className={`absolute bottom-0 left-0 right-0 flex justify-center items-center bg-gradient-to-t from-black/80 to-transparent z-30 ${isMobile ? 'p-6 gap-3' : 'p-6 gap-6'}`}>
-          {isIncomingRinging && (
+          {showAcceptAction && (
             <button
               onClick={() => {
-                void callService.acceptIncomingCall().catch((error) => {
-                  toast(error instanceof Error ? error.message : 'RTC accept failed', 'error');
-                });
+                void callService.acceptIncomingCall()
+                  .then(() => ensureLocalMedia())
+                  .catch((error) => {
+                    toast(error instanceof Error ? error.message : '接听失败', 'error');
+                  });
               }}
               className={`${hangupBtnClass} rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20 transition-all hover:scale-105`}
-              title="Accept"
+              title="接听"
             >
               <Phone size={hangupIconSize} />
             </button>
           )}
-          {!isIncomingRinging && (
-            <>
-          <button 
-            onClick={() => {
-              const nextMuted = !isMuted;
-              setIsMuted(nextMuted);
-              void callService.setAudioMuted(nextMuted).catch((error) => {
-                toast(error instanceof Error ? error.message : '静音设置失败', 'error');
-              });
-            }}
-            className={`${controlBtnClass} rounded-full flex items-center justify-center transition-all ${
-              isMuted ? 'bg-white text-black' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'
-            }`}
-            title={isMuted ? "取消静音" : "静音"}
-          >
-            {isMuted ? <MicOff size={iconSize} /> : <Mic size={iconSize} />}
-          </button>
+          {canToggleAudio && (
+            <button
+              onClick={() => {
+                const nextMuted = !isMuted;
+                isMutedRef.current = nextMuted;
+                setIsMuted(nextMuted);
+                applyAudioMutedToLocalTracks(nextMuted);
+                if (!nextMuted && !localMediaStreamRef.current) {
+                  void ensureLocalMedia();
+                }
+                void callService.setAudioMuted(nextMuted).catch((error) => {
+                  toast(error instanceof Error ? error.message : '静音设置失败', 'error');
+                });
+              }}
+              className={`${controlBtnClass} rounded-full flex items-center justify-center transition-all ${
+                isMuted ? 'bg-white text-black' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'
+              }`}
+              title={isMuted ? "取消静音" : "静音"}
+            >
+              {isMuted ? <MicOff size={iconSize} /> : <Mic size={iconSize} />}
+            </button>
+          )}
 
-          <button 
-            onClick={() => {
-              const nextVideoOff = !isVideoOff;
-              setIsVideoOff(nextVideoOff);
-              void callService.setVideoMuted(nextVideoOff).catch((error) => {
-                toast(error instanceof Error ? error.message : '视频设置失败', 'error');
-              });
-            }}
-            className={`${controlBtnClass} rounded-full flex items-center justify-center transition-all ${
-              isVideoOff ? 'bg-white text-black' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'
-            }`}
-            title={isVideoOff ? "开启视频" : "关闭视频"}
-          >
-            {isVideoOff ? <VideoOff size={iconSize} /> : <Video size={iconSize} />}
-          </button>
+          {canToggleVideo && (
+            <button
+              onClick={() => {
+                const nextVideoOff = !isVideoOff;
+                isVideoOffRef.current = nextVideoOff;
+                setIsVideoOff(nextVideoOff);
+                applyVideoMutedToLocalTracks(nextVideoOff);
+                if (!nextVideoOff && !localMediaStreamRef.current) {
+                  void ensureLocalMedia();
+                }
+                void callService.setVideoMuted(nextVideoOff).catch((error) => {
+                  toast(error instanceof Error ? error.message : '视频设置失败', 'error');
+                });
+              }}
+              className={`${controlBtnClass} rounded-full flex items-center justify-center transition-all ${
+                isVideoOff ? 'bg-white text-black' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'
+              }`}
+              title={isVideoOff ? "开启视频" : "关闭视频"}
+            >
+              {isVideoOff ? <VideoOff size={iconSize} /> : <Video size={iconSize} />}
+            </button>
+          )}
 
-          <button 
-            className={`${controlBtnClass} rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md flex items-center justify-center transition-all`}
-            title="共享屏幕"
-            onClick={async () => {
-              if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-                 try {
-                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                    toast('屏幕共享已启动', 'success');
-                    // We just close it when user stops
-                    stream.getVideoTracks()[0].onended = () => {
-                       toast('屏幕共享已结束', 'success');
-                    };
-                 } catch (e: any) {
-                    if (e?.message?.includes('display-capture')) {
-                       toast('无权限进行共享（或在新标签页中打开应用重试）', 'error');
-                    } else {
-                       toast('取消屏幕共享', 'success');
-                    }
-                 }
-              } else {
-                 toast('当前浏览器不支持屏幕共享', 'error');
-              }
-            }}
-          >
-            <MonitorUp size={iconSize} />
-          </button>
-            </>
+          {canShareScreen && (
+            <button
+              className={`${controlBtnClass} rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md flex items-center justify-center transition-all`}
+              title="共享屏幕"
+              onClick={async () => {
+                if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+                   try {
+                      stopMediaStream(screenShareStreamRef.current);
+                      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                      screenShareStreamRef.current = stream;
+                      toast('屏幕共享已启动', 'success');
+                      stream.getVideoTracks().forEach((track) => {
+                        track.onended = () => {
+                         if (screenShareStreamRef.current === stream) {
+                            screenShareStreamRef.current = undefined;
+                         }
+                         toast('屏幕共享已结束', 'success');
+                        };
+                      });
+                   } catch (error) {
+                      if (readErrorMessage(error)?.includes('display-capture')) {
+                         toast('无权限进行共享（或在新标签页中打开应用重试）', 'error');
+                      } else {
+                         toast('取消屏幕共享', 'success');
+                      }
+                   }
+                } else {
+                   toast('当前浏览器不支持屏幕共享', 'error');
+                }
+              }}
+            >
+              <MonitorUp size={iconSize} />
+            </button>
           )}
 
           <button 
             onClick={() => {
-              const task = isIncomingRinging
+              if (showCloseAction) {
+                closeOverlayWithMediaRelease();
+                return;
+              }
+              const task = showRejectAction
                 ? callService.rejectIncomingCall({ reason: 'user_reject' })
-                : callService.endCall({ reason: 'user_hangup' });
-              void task.finally(onClose);
+                : showCancelAction || showHangupAction
+                  ? callService.endCall({ reason: 'user_hangup' })
+                  : Promise.resolve();
+              void task.finally(closeOverlayWithMediaRelease);
             }}
             className={`${hangupBtnClass} rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-500/20 transition-all hover:scale-105`}
-            title="挂断"
+            title={
+              callOverlayPhase === 'incoming-ringing'
+                ? "拒绝"
+                : callOverlayPhase === 'outgoing-ringing'
+                  ? "取消"
+                  : callOverlayPhase === 'connected'
+                    ? "挂断"
+                    : "关闭"
+            }
           >
             <PhoneOff size={hangupIconSize} />
           </button>

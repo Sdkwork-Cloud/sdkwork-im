@@ -12,7 +12,7 @@ public class ConversationSummaryView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -20,7 +20,7 @@ public class ConversationSummaryView {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -28,7 +28,7 @@ public class ConversationSummaryView {
     public Integer getMessageCount() {
         return this.messageCount;
     }
-    
+
     public void setMessageCount(Integer messageCount) {
         this.messageCount = messageCount;
     }
@@ -36,7 +36,7 @@ public class ConversationSummaryView {
     public Integer getLastMessageSeq() {
         return this.lastMessageSeq;
     }
-    
+
     public void setLastMessageSeq(Integer lastMessageSeq) {
         this.lastMessageSeq = lastMessageSeq;
     }
@@ -44,7 +44,7 @@ public class ConversationSummaryView {
     public String getLastSummary() {
         return this.lastSummary;
     }
-    
+
     public void setLastSummary(String lastSummary) {
         this.lastSummary = lastSummary;
     }
@@ -52,7 +52,7 @@ public class ConversationSummaryView {
     public String getLastMessageAt() {
         return this.lastMessageAt;
     }
-    
+
     public void setLastMessageAt(String lastMessageAt) {
         this.lastMessageAt = lastMessageAt;
     }

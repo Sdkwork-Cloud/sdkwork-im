@@ -6,6 +6,6 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class RealtimeEventAckRequest
     {
-        public List<string>? EventIds { get; set; }
+        public List<string> EventIds { get; set; }
     }
 }

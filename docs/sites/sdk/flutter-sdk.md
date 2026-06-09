@@ -102,7 +102,7 @@ await client.streams.framesCreate(
   ),
 );
 
-await client.rtc.sessionsRetrieve(
+await client.calls.sessionsRetrieve(
   'rtc-1',
 );
 ```
@@ -114,7 +114,7 @@ The checked-in Flutter transport currently exposes:
 - `client.realtime`
 - `client.chat`
 - `client.streams`
-- `client.rtc`
+- `client.calls`
 - `client.social`
 
 ## Drive-Backed Media Messages
@@ -165,7 +165,7 @@ catch up.
 The checked-in Dart surface is intentionally narrower than the TypeScript SDK:
 
 - `im_sdk_generated` exports the generated `ImTransportClient`; the checked-in route groups are
-  `client.presence`, `client.realtime`, `client.chat`, `client.streams`, `client.rtc`, and
+  `client.presence`, `client.realtime`, `client.chat`, `client.streams`, `client.calls`, and
   `client.social`.
 - Tokens are issued by `sdkwork-appbase`; Flutter consumers pass them through `authToken` at
   construction time or update them with `client.setAuthToken(...)`.
@@ -213,7 +213,7 @@ over HTTP. WebSocket live receive is still a manual SDK parity gap for Flutter.
 | Messages | `client.chat` | Not checked in | [Messages](/api-reference/im/messages) |
 | Media usage references | Drive transport plus generated message models | Not checked in | [Media](/api-reference/im/media) |
 | Streams | `client.streams` | Not checked in | [Streams](/api-reference/im/streams) |
-| RTC | `client.rtc` | Not checked in | [RTC](/api-reference/im/rtc) |
+| Calls | `client.calls` | Not checked in | [Calls](/api-reference/im/calls) |
 
 ## Current Parity Gap
 

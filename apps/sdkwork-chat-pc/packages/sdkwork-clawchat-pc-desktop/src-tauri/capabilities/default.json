@@ -13,6 +13,7 @@
     "core:window:allow-toggle-maximize",
     "core:window:allow-unmaximize",
     "core:window:allow-close",
-    "allow-sdkwork-chat-pc-window-control"
+    "allow-sdkwork-chat-pc-window-control",
+    "allow-sdkwork-chat-pc-qr-code"
   ]
 }

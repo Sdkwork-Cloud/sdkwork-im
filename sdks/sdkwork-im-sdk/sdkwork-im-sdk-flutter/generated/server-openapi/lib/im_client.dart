@@ -2,7 +2,7 @@ import 'package:sdkwork_common_flutter/sdkwork_common_flutter.dart';
 import 'src/http/client.dart';
 import 'src/api/presence.dart';
 import 'src/api/realtime.dart';
-import 'src/api/rtc.dart';
+import 'src/api/calls.dart';
 import 'src/api/social.dart';
 import 'src/api/chat.dart';
 import 'src/api/streams.dart';
@@ -12,7 +12,7 @@ class SdkworkImClient {
 
   late final PresenceApi presence;
   late final RealtimeApi realtime;
-  late final RtcApi rtc;
+  late final CallsApi calls;
   late final SocialApi social;
   late final ChatApi chat;
   late final StreamsApi streams;
@@ -22,7 +22,7 @@ class SdkworkImClient {
   }) : _httpClient = HttpClient(config: config) {
     presence = PresenceApi(_httpClient);
     realtime = RealtimeApi(_httpClient);
-    rtc = RtcApi(_httpClient);
+    calls = CallsApi(_httpClient);
     social = SocialApi(_httpClient);
     chat = ChatApi(_httpClient);
     streams = StreamsApi(_httpClient);

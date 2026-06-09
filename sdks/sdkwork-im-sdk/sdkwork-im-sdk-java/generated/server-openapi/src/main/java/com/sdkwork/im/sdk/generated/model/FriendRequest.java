@@ -14,7 +14,7 @@ public class FriendRequest {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -22,7 +22,7 @@ public class FriendRequest {
     public String getRequestId() {
         return this.requestId;
     }
-    
+
     public void setRequestId(String requestId) {
         this.requestId = requestId;
     }
@@ -30,7 +30,7 @@ public class FriendRequest {
     public String getRequesterUserId() {
         return this.requesterUserId;
     }
-    
+
     public void setRequesterUserId(String requesterUserId) {
         this.requesterUserId = requesterUserId;
     }
@@ -38,7 +38,7 @@ public class FriendRequest {
     public String getTargetUserId() {
         return this.targetUserId;
     }
-    
+
     public void setTargetUserId(String targetUserId) {
         this.targetUserId = targetUserId;
     }
@@ -46,7 +46,7 @@ public class FriendRequest {
     public String getStatus() {
         return this.status;
     }
-    
+
     public void setStatus(String status) {
         this.status = status;
     }
@@ -54,7 +54,7 @@ public class FriendRequest {
     public String getRequestMessage() {
         return this.requestMessage;
     }
-    
+
     public void setRequestMessage(String requestMessage) {
         this.requestMessage = requestMessage;
     }
@@ -62,7 +62,7 @@ public class FriendRequest {
     public String getCreatedAt() {
         return this.createdAt;
     }
-    
+
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }
@@ -70,7 +70,7 @@ public class FriendRequest {
     public String getUpdatedAt() {
         return this.updatedAt;
     }
-    
+
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }

@@ -6,6 +6,6 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class MemberDirectoryResponse
     {
-        public List<ConversationMember>? Items { get; set; }
+        public List<ConversationMember> Items { get; set; }
     }
 }

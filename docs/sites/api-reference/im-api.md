@@ -23,9 +23,9 @@
     <p><a href="/api-reference/im/media">Open Media APIs</a></p>
   </div>
   <div class="api-card">
-    <h3>RTC Signaling</h3>
-    <p>Create, invite, accept, reject, signal, credential issuance, and recording artifact routes for IM RTC workflows.</p>
-    <p><a href="/api-reference/im/rtc">Open RTC Signaling APIs</a></p>
+    <h3>Calls</h3>
+    <p>Create, invite, accept, reject, signal, and credential issuance routes for IM-owned call workflows.</p>
+    <p><a href="/api-reference/im/calls">Open Calls APIs</a></p>
   </div>
 </div>
 
@@ -46,5 +46,5 @@
   <a href="/api-reference/im/messages"><code>Messages</code> Timeline reads, message send, edit, recall, and system-channel publish</a>
   <a href="/api-reference/im/media"><code>Media</code> Upload initiation, completion, media lookup, signed download, and attach</a>
   <a href="/api-reference/im/streams"><code>Streams</code> Stream open, frame append, list, checkpoint, complete, and abort</a>
-  <a href="/api-reference/im/rtc"><code>RTC</code> RTC session lifecycle, signaling, credentials, and recording artifacts</a>
+  <a href="/api-reference/im/calls"><code>Calls</code> IM call signaling lifecycle, credentials, and RTC media handoff</a>
 </div>

@@ -5,7 +5,7 @@ public class SdkworkImClient {
     private let httpClient: HttpClient
     public let presence: PresenceApi
     public let realtime: RealtimeApi
-    public let rtc: RtcApi
+    public let calls: CallsApi
     public let social: SocialApi
     public let chat: ChatApi
     public let streams: StreamsApi
@@ -14,7 +14,7 @@ public class SdkworkImClient {
         self.httpClient = HttpClient(baseURL: baseURL)
         self.presence = PresenceApi(client: httpClient)
         self.realtime = RealtimeApi(client: httpClient)
-        self.rtc = RtcApi(client: httpClient)
+        self.calls = CallsApi(client: httpClient)
         self.social = SocialApi(client: httpClient)
         self.chat = ChatApi(client: httpClient)
         self.streams = StreamsApi(client: httpClient)
@@ -24,7 +24,7 @@ public class SdkworkImClient {
         self.httpClient = HttpClient(config: config)
         self.presence = PresenceApi(client: httpClient)
         self.realtime = RealtimeApi(client: httpClient)
-        self.rtc = RtcApi(client: httpClient)
+        self.calls = CallsApi(client: httpClient)
         self.social = SocialApi(client: httpClient)
         self.chat = ChatApi(client: httpClient)
         self.streams = StreamsApi(client: httpClient)

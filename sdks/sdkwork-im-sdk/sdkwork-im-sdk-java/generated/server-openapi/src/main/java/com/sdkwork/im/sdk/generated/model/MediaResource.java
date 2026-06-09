@@ -24,7 +24,7 @@ public class MediaResource {
     public String getId() {
         return this.id;
     }
-    
+
     public void setId(String id) {
         this.id = id;
     }
@@ -32,7 +32,7 @@ public class MediaResource {
     public String getKind() {
         return this.kind;
     }
-    
+
     public void setKind(String kind) {
         this.kind = kind;
     }
@@ -40,7 +40,7 @@ public class MediaResource {
     public String getMediaKind() {
         return this.mediaKind;
     }
-    
+
     public void setMediaKind(String mediaKind) {
         this.mediaKind = mediaKind;
     }
@@ -48,7 +48,7 @@ public class MediaResource {
     public String getSource() {
         return this.source;
     }
-    
+
     public void setSource(String source) {
         this.source = source;
     }
@@ -56,7 +56,7 @@ public class MediaResource {
     public String getUri() {
         return this.uri;
     }
-    
+
     public void setUri(String uri) {
         this.uri = uri;
     }
@@ -64,7 +64,7 @@ public class MediaResource {
     public String getPublicUrl() {
         return this.publicUrl;
     }
-    
+
     public void setPublicUrl(String publicUrl) {
         this.publicUrl = publicUrl;
     }
@@ -72,7 +72,7 @@ public class MediaResource {
     public String getUrl() {
         return this.url;
     }
-    
+
     public void setUrl(String url) {
         this.url = url;
     }
@@ -80,7 +80,7 @@ public class MediaResource {
     public String getName() {
         return this.name;
     }
-    
+
     public void setName(String name) {
         this.name = name;
     }
@@ -88,7 +88,7 @@ public class MediaResource {
     public String getTitle() {
         return this.title;
     }
-    
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -96,7 +96,7 @@ public class MediaResource {
     public String getFileName() {
         return this.fileName;
     }
-    
+
     public void setFileName(String fileName) {
         this.fileName = fileName;
     }
@@ -104,7 +104,7 @@ public class MediaResource {
     public String getMimeType() {
         return this.mimeType;
     }
-    
+
     public void setMimeType(String mimeType) {
         this.mimeType = mimeType;
     }
@@ -112,7 +112,7 @@ public class MediaResource {
     public Integer getSize() {
         return this.size;
     }
-    
+
     public void setSize(Integer size) {
         this.size = size;
     }
@@ -120,7 +120,7 @@ public class MediaResource {
     public String getSizeBytes() {
         return this.sizeBytes;
     }
-    
+
     public void setSizeBytes(String sizeBytes) {
         this.sizeBytes = sizeBytes;
     }
@@ -128,7 +128,7 @@ public class MediaResource {
     public String getFileSize() {
         return this.fileSize;
     }
-    
+
     public void setFileSize(String fileSize) {
         this.fileSize = fileSize;
     }
@@ -136,7 +136,7 @@ public class MediaResource {
     public Integer getDurationSeconds() {
         return this.durationSeconds;
     }
-    
+
     public void setDurationSeconds(Integer durationSeconds) {
         this.durationSeconds = durationSeconds;
     }
@@ -144,7 +144,7 @@ public class MediaResource {
     public MediaResource getPoster() {
         return this.poster;
     }
-    
+
     public void setPoster(MediaResource poster) {
         this.poster = poster;
     }
@@ -152,7 +152,7 @@ public class MediaResource {
     public List<MediaResource> getThumbnails() {
         return this.thumbnails;
     }
-    
+
     public void setThumbnails(List<MediaResource> thumbnails) {
         this.thumbnails = thumbnails;
     }

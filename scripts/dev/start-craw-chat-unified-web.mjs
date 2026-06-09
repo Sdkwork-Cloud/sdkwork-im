@@ -9,17 +9,15 @@ import {
   createSdkworkChatBrowserOrigins,
   resolveSdkworkChatPcDevServer,
 } from './run-sdkwork-chat-pc-dev.mjs';
+import {
+  createCrawChatServerCargoEnv,
+  resolveCrawChatServerBindEnv,
+} from './craw-chat-server-dev-runtime.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..', '..');
 const runtimeSiteRoot = path.join(repoRoot, '.runtime', 'dev-sites');
 const defaultBrowserOrigins = createSdkworkChatBrowserOrigins(resolveSdkworkChatPcDevServer());
-const serverBinaryPath = path.join(
-  repoRoot,
-  'target',
-  'debug',
-  process.platform === 'win32' ? 'craw-chat-server.exe' : 'craw-chat-server',
-);
 const activeChildren = new Set();
 let shuttingDown = false;
 
@@ -29,10 +27,17 @@ function createBaseEnv() {
   };
 }
 
-function createRuntimeEnv(baseEnv) {
+async function createRuntimeEnv(baseEnv) {
+  const cargoEnv = createCrawChatServerCargoEnv({
+    env: baseEnv,
+    repoRoot,
+  });
+  const bindEnv = await resolveCrawChatServerBindEnv({
+    env: cargoEnv.env,
+  });
   const env = {
-    ...baseEnv,
-    ...resolveCrawChatSharedDatabaseConfig({ env: baseEnv, repoRoot }).env,
+    ...bindEnv.env,
+    ...resolveCrawChatSharedDatabaseConfig({ env: bindEnv.env, repoRoot }).env,
   };
   env.CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE = env.CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE ?? 'embedded';
   env.CRAW_CHAT_BROWSER_ORIGINS = env.CRAW_CHAT_BROWSER_ORIGINS ?? defaultBrowserOrigins;
@@ -45,6 +50,16 @@ function createRuntimeEnv(baseEnv) {
   ) {
     env.SDKWORK_ADMIN_SANDBOX = 'true';
     process.stdout.write('[craw-chat-server] SDKWORK_ADMIN_SANDBOX=true\n');
+  }
+  if (cargoEnv.usingDefaultTargetDir) {
+    process.stdout.write(
+      `[craw-chat-server] CARGO_TARGET_DIR=${path.relative(repoRoot, env.CARGO_TARGET_DIR)}\n`,
+    );
+  }
+  if (bindEnv.portChanged) {
+    process.stdout.write(
+      `[craw-chat-server] 127.0.0.1:18079 is busy; using http://${bindEnv.bindAddr}\n`,
+    );
   }
 
   return env;
@@ -109,11 +124,16 @@ function escapePowerShellSingleQuotedString(value) {
   return String(value).replaceAll("'", "''");
 }
 
-function terminateStaleCrawChatServerProcesses() {
+function terminateStaleCrawChatServerProcesses(env) {
   if (process.platform !== 'win32') {
     return;
   }
 
+  const serverBinaryPath = path.join(
+    env.CARGO_TARGET_DIR ?? path.join(repoRoot, 'target'),
+    'debug',
+    process.platform === 'win32' ? 'craw-chat-server.exe' : 'craw-chat-server',
+  );
   const normalizedServerBinaryPath = path.resolve(serverBinaryPath).toLowerCase();
   const escapedServerBinaryPath = escapePowerShellSingleQuotedString(normalizedServerBinaryPath);
   const command = [
@@ -218,7 +238,7 @@ async function ensureDevSiteDist({
 }
 
 const buildEnv = createBaseEnv();
-const runtimeEnv = createRuntimeEnv(buildEnv);
+const runtimeEnv = await createRuntimeEnv(buildEnv);
 
 process.once('SIGINT', () => {
   shutdownActiveChildren();
@@ -250,7 +270,7 @@ const portalSiteDir = await ensureDevSiteDist({
 runtimeEnv.CRAW_CHAT_ADMIN_SITE_DIR = adminSiteDir;
 runtimeEnv.CRAW_CHAT_PORTAL_SITE_DIR = portalSiteDir;
 
-terminateStaleCrawChatServerProcesses();
+terminateStaleCrawChatServerProcesses(runtimeEnv);
 await runCommand('cargo', ['run', '-p', 'web-gateway', '--bin', 'craw-chat-server'], {
   env: runtimeEnv,
 });

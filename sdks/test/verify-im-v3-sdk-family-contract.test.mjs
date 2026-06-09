@@ -333,8 +333,9 @@ function isImStandardRoute(route) {
     || route === 'media/{}'
     || route.startsWith('presence/')
     || route.startsWith('realtime/')
-    || route === 'rtc/sessions'
-    || route === 'rtc/sessions/{}'
+    || route === 'calls/sessions'
+    || route === 'calls/sessions/{}'
+    || route.startsWith('calls/sessions/{}/')
     || route.startsWith('social/')
     || route.startsWith('streams')
   );
@@ -361,8 +362,6 @@ function assertDocumentHasNoImStandardRoutes(label, document, prefix) {
 }
 
 const appbaseOwnedAppRoutes = [
-  'auth/oauth_authorization_urls',
-  'auth/oauth_sessions',
   'auth/password_reset_requests',
   'auth/password_resets',
   'auth/registrations',
@@ -381,10 +380,12 @@ const appbaseOwnedAppRoutes = [
   'iam/role_bindings',
   'system/iam/runtime',
   'system/iam/verification_policy',
-  'open_platform/qr_auth/sessions',
-  'open_platform/qr_auth/sessions/{}',
-  'open_platform/qr_auth/sessions/{}/scans',
-  'open_platform/qr_auth/sessions/{}/passwords',
+  'oauth/authorization_urls',
+  'oauth/device_authorizations',
+  'oauth/device_authorizations/{}',
+  'oauth/device_authorizations/{}/scans',
+  'oauth/device_authorizations/{}/password_completions',
+  'oauth/sessions',
 ];
 
 function assertDocumentHasNoAppbaseOwnedAppRoutes(label, document, prefix) {
@@ -887,6 +888,7 @@ for (const imStandardPath of [
   '/app/v3/api/chat/messages/{messageId}/edit',
   '/app/v3/api/social/friend_requests',
   '/app/v3/api/media/uploads',
+  marker('/app/v3/api', '/calls/sessions'),
   marker('/app/v3/api', '/rtc/sessions'),
   marker('/app/v3/api', '/rtc/provider_health'),
   marker('/app/v3/api', '/rtc/provider_callbacks'),
@@ -930,8 +932,8 @@ for (const [label, source] of [
 ]) {
   assert.doesNotMatch(
     source,
-    /oauthAuthorization|OAuthAuthorization|passwordReset|PasswordReset|verificationCode|VerificationCode|qrAuth|QrAuth|IamUser|IamOrganization|IamDepartment|IamPosition|IamRoleBinding|AuthSession|CreateAuthSession|RefreshAuthSession|UpdateCurrentSession/,
-    `${label} must not regenerate sdkwork-appbase-owned auth, IAM, session, verification, or QR auth surface.`,
+    /oauthAuthorization|OAuthAuthorization|deviceAuthorization|DeviceAuthorization|deviceAuthorizations|DeviceAuthorizations|passwordReset|PasswordReset|verificationCode|VerificationCode|qrAuth|QrAuth|IamUser|IamOrganization|IamDepartment|IamPosition|IamRoleBinding|AuthSession|CreateAuthSession|RefreshAuthSession|UpdateCurrentSession/,
+    `${label} must not regenerate sdkwork-appbase-owned auth, IAM, session, verification, or OAuth device authorization surface.`,
   );
 }
 for (const [label, source] of [
@@ -1201,6 +1203,7 @@ for (const imRequiredPath of [
   '/im/v3/api/chat/conversations',
   '/im/v3/api/chat/messages/{messageId}/edit',
   '/im/v3/api/social/friend_requests',
+  '/im/v3/api/calls/sessions',
   '/im/v3/api/streams',
 ]) {
   assert.match(
@@ -1392,7 +1395,7 @@ assert.match(
 );
 assert.match(
   rtcReadmeSource,
-  /not a route-generated SDK workspace|does not[\s\S]*OpenAPI-generated transport problem/i,
+  /not a route-generated SDK workspace|not an OpenAPI-generated HTTP SDK family|does not[\s\S]*OpenAPI-generated transport problem/i,
   'RTC SDK README must keep RTC independent from OpenAPI-generated HTTP SDK families.',
 );
 

@@ -6,6 +6,6 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class RemoveConversationMemberRequest
     {
-        public string? MemberId { get; set; }
+        public string MemberId { get; set; }
     }
 }

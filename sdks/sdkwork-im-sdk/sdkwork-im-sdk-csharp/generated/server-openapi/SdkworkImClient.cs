@@ -11,7 +11,7 @@ namespace Sdkwork.Im.Sdk.Generated
 
         public PresenceApi Presence { get; }
         public RealtimeApi Realtime { get; }
-        public RtcApi Rtc { get; }
+        public CallsApi Calls { get; }
         public SocialApi Social { get; }
         public ChatApi Chat { get; }
         public StreamsApi Streams { get; }
@@ -21,7 +21,7 @@ namespace Sdkwork.Im.Sdk.Generated
             _httpClient = new SdkHttpClient(baseUrl);
             Presence = new PresenceApi(_httpClient);
             Realtime = new RealtimeApi(_httpClient);
-            Rtc = new RtcApi(_httpClient);
+            Calls = new CallsApi(_httpClient);
             Social = new SocialApi(_httpClient);
             Chat = new ChatApi(_httpClient);
             Streams = new StreamsApi(_httpClient);
@@ -32,7 +32,7 @@ namespace Sdkwork.Im.Sdk.Generated
             _httpClient = new SdkHttpClient(config);
             Presence = new PresenceApi(_httpClient);
             Realtime = new RealtimeApi(_httpClient);
-            Rtc = new RtcApi(_httpClient);
+            Calls = new CallsApi(_httpClient);
             Social = new SocialApi(_httpClient);
             Chat = new ChatApi(_httpClient);
             Streams = new StreamsApi(_httpClient);

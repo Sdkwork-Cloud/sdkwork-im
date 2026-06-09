@@ -10,8 +10,10 @@ import { ChatRightPanel } from "../components/ChatRightPanel";
 import { WindowControls } from "../components/WindowControls";
 import { CallOverlay, CallType } from "../components/CallOverlay";
 import { CreateGroupModal } from "../components/CreateGroupModal";
+import { AddGroupMembersModal } from "../components/AddGroupMembersModal";
 import { AddFriendModal } from "../components/AddFriendModal";
 import { CreateAgentModal } from "../components/CreateAgentModal";
+import { ScanQrCodeModal } from "../components/ScanQrCodeModal";
 import { SettingsModal } from "../components/SettingsModal";
 import { AgentView, Agent } from "./AgentView";
 import { CreateAgentView } from "./CreateAgentView";
@@ -40,11 +42,12 @@ import { MusicGenView } from "@sdkwork/clawchat-pc-music-gen";
 import { WritingView } from "@sdkwork/clawchat-pc-writing";
 import { chatService } from "../services/ChatService";
 import { callService } from "../services/CallService";
+import { contactService } from "../services/ContactService";
 import { groupService } from "../services/GroupService";
 import { imSyncCoordinatorService } from "../services/ImSyncCoordinatorService";
 import { systemAssistantService } from "../services/SystemAssistantService";
 import { appAuthService, isSdkworkChatDesktopRuntime } from "@sdkwork/clawchat-pc-core";
-import { Chat } from "@sdkwork/clawchat-pc-types";
+import type { Chat, User } from "@sdkwork/clawchat-pc-types";
 import { IconButton } from "@sdkwork/clawchat-pc-commons";
 import {
   Search,
@@ -55,6 +58,7 @@ import {
   MessageSquarePlus,
   UserPlus,
   Bot,
+  ScanLine,
   X,
 } from "lucide-react";
 import { ToastContainer, toast } from "../components/Toast";
@@ -73,6 +77,9 @@ const ChatLayoutComponent: React.FC = () => {
   const [isChatStartupLoading, setIsChatStartupLoading] = useState(true);
   const [chatStartupError, setChatStartupError] = useState<string | null>(null);
   const [isAssistantAvailable, setIsAssistantAvailable] = useState(false);
+  const [friendRequestUnreadCount, setFriendRequestUnreadCount] = useState(0);
+  const chatListProjectionRevisionRef = useRef(0);
+  const previousFriendRequestUnreadCountRef = useRef<number | undefined>(undefined);
 
   // Call State
   const [isCallOpen, setIsCallOpen] = useState(false);
@@ -82,6 +89,7 @@ const ChatLayoutComponent: React.FC = () => {
     name: string;
     avatar: string;
     id: string;
+    rtcSessionId?: string;
   } | null>(null);
 
   // Plus Menu State
@@ -91,10 +99,13 @@ const ChatLayoutComponent: React.FC = () => {
   // Action Modals State
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
+  const [isScanQrOpen, setIsScanQrOpen] = useState(false);
   const [isCreateAgentModalOpen, setIsCreateAgentModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [pendingCommunityId, setPendingCommunityId] = useState<string | null>(null);
   const [showRHSPanel, setShowRHSPanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [groupMemberProfiles, setGroupMemberProfiles] = useState<User[]>([]);
   const [editAgentId, setEditAgentId] = useState<string | undefined>();
   const [activeModal, setActiveModal] = useState<
     "search" | "editName" | "editNotice" | "addMember" | null
@@ -117,6 +128,12 @@ const ChatLayoutComponent: React.FC = () => {
       ? { ...activeChat, name: t("chat.systemAssistant.displayName") }
       : activeChat;
   }, [activeChat, t]);
+  const currentUser = useMemo(() => contactService.getCurrentUser(), []);
+  const currentUserId = currentUser.id;
+  const activeGroupMemberSignature = useMemo(
+    () => activeChat?.type === "group" ? (activeChat.members ?? []).join("|") : "",
+    [activeChat?.members, activeChat?.type],
+  );
 
   const mergeChatIntoList = (sourceChats: Chat[], nextChat: Chat | null): Chat[] => {
     if (!nextChat) {
@@ -125,6 +142,19 @@ const ChatLayoutComponent: React.FC = () => {
     return sourceChats.some((chat) => chat.id === nextChat.id)
       ? sourceChats.map((chat) => chat.id === nextChat.id ? { ...chat, ...nextChat } : chat)
       : [nextChat, ...sourceChats];
+  };
+
+  const mergeGroupProjections = async (sourceChats: Chat[]): Promise<Chat[]> => {
+    const groups = await groupService.getGroups();
+    if (groups.length === 0) {
+      return sourceChats;
+    }
+
+    const groupsById = new Map(groups.map((group) => [group.id, group]));
+    return sourceChats.map((chat) => {
+      const group = groupsById.get(chat.id);
+      return group ? { ...chat, ...group } : chat;
+    });
   };
 
   const refreshChats = async (shouldApply: () => boolean = () => true): Promise<Chat[]> => {
@@ -154,6 +184,30 @@ const ChatLayoutComponent: React.FC = () => {
       setChatStartupError(null);
     }
     return nextChats;
+  };
+
+  const openHydratedChat = async (chat: Chat): Promise<void> => {
+    const refreshedChats = await chatService.getChats().catch(() => []);
+    const nextChat = refreshedChats.find((item) => item.id === chat.id) ?? chat;
+    setChats((previousChats) => mergeChatIntoList(previousChats, nextChat));
+    setActiveChat((previousActiveChat) =>
+      previousActiveChat?.id === nextChat.id
+        ? { ...previousActiveChat, ...nextChat }
+        : nextChat,
+    );
+    setActiveTab("chat");
+  };
+
+  const handleOpenGroupInvite = async (groupId: string): Promise<void> => {
+    const groups = await groupService.getGroups();
+    const group = groups.find((item) => item.id === groupId) ?? {
+      id: groupId,
+      name: `Group ${groupId}`,
+      type: "group" as const,
+      unreadCount: 0,
+      updatedAt: Date.now(),
+    };
+    await openHydratedChat(group);
   };
 
   const loadChatStartup = async (shouldApply: () => boolean = () => true) => {
@@ -192,6 +246,104 @@ const ChatLayoutComponent: React.FC = () => {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (activeChat?.type !== "group") {
+      setGroupMemberProfiles([]);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const memberIds = new Set(activeChat.members ?? []);
+    const isGroupMemberProfile = (user: User): boolean => (
+      memberIds.has(user.id) || (Boolean(user.chatId) && memberIds.has(user.chatId ?? ""))
+    );
+    const currentUserProfiles = isGroupMemberProfile(currentUser) ? [currentUser] : [];
+
+    void contactService.getContacts()
+      .then((contacts) => {
+        if (!isMounted) {
+          return;
+        }
+        const profilesById = new Map<string, User>();
+        for (const profile of [...currentUserProfiles, ...contacts.filter(isGroupMemberProfile)]) {
+          profilesById.set(profile.id, profile);
+          if (profile.chatId) {
+            profilesById.set(profile.chatId, profile);
+          }
+        }
+        setGroupMemberProfiles(Array.from(new Set(profilesById.values())));
+      })
+      .catch(() => {
+        if (isMounted) {
+          setGroupMemberProfiles(currentUserProfiles);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeChat?.id, activeChat?.type, activeGroupMemberSignature, currentUser]);
+
+  useEffect(() => {
+    return chatService.subscribeChats((nextChats) => {
+      const projectionRevision = chatListProjectionRevisionRef.current + 1;
+      chatListProjectionRevisionRef.current = projectionRevision;
+      const applyChats = (sourceChats: Chat[]) => {
+        setChats((previousChats) => {
+          const byId = new Map(sourceChats.map((chat) => [chat.id, chat]));
+          for (const previousChat of previousChats) {
+            if (systemAssistantService.isSystemAssistantChat(previousChat) && !byId.has(previousChat.id)) {
+              byId.set(previousChat.id, previousChat);
+            }
+          }
+          for (const chat of sourceChats) {
+            byId.set(chat.id, { ...byId.get(chat.id), ...chat });
+          }
+          return Array.from(byId.values()).sort((left, right) => {
+            if (left.isPinned !== right.isPinned) {
+              return left.isPinned ? -1 : 1;
+            }
+            return right.updatedAt - left.updatedAt;
+          });
+        });
+        setActiveChat((previousActiveChat) => {
+          if (!previousActiveChat) {
+            return previousActiveChat;
+          }
+          return sourceChats.find((chat) => chat.id === previousActiveChat.id)
+            ?? systemAssistantService.selectInitialChat(sourceChats);
+        });
+      };
+
+      applyChats(nextChats);
+      void mergeGroupProjections(nextChats)
+        .then((projectedChats) => {
+          if (chatListProjectionRevisionRef.current !== projectionRevision) {
+            return;
+          }
+          applyChats(projectedChats);
+        })
+        .catch(() => undefined);
+    });
+  }, []);
+
+  useEffect(() => {
+    return contactService.subscribePendingFriendRequestCount((count) => {
+      const previousCount = previousFriendRequestUnreadCountRef.current;
+      setFriendRequestUnreadCount(count);
+      if (previousCount !== undefined && count > previousCount) {
+        const increasedCount = count - previousCount;
+        const friendRequestToastMessage = increasedCount > 1
+          ? `收到 ${increasedCount} 条新的好友申请`
+          : "收到新的好友申请";
+        toast(friendRequestToastMessage, "info", { placement: "bottom-right" });
+      }
+      previousFriendRequestUnreadCountRef.current = count;
+    });
   }, []);
 
   useEffect(() => {
@@ -245,6 +397,30 @@ const ChatLayoutComponent: React.FC = () => {
     setIsCallOpen(true);
   };
 
+  const handleStartContactCall = async (
+    type: CallType,
+    user: Parameters<NonNullable<React.ComponentProps<typeof ContactsView>["onStartCall"]>>[1],
+  ) => {
+    try {
+      const chatTarget = await resolveContactChatTarget(user);
+      const directChat = await chatService.startDirectChat(chatTarget);
+      const refreshedChats = await chatService.getChats().catch(() => chats);
+      const nextChats = refreshedChats.some((chat) => chat.id === directChat.id)
+        ? refreshedChats.map((chat) => chat.id === directChat.id ? { ...chat, ...directChat } : chat)
+        : [directChat, ...refreshedChats];
+      setChats(nextChats);
+      setActiveChat(nextChats.find((chat) => chat.id === directChat.id) ?? directChat);
+      setActiveTab("chat");
+      handleStartCall(type, {
+        name: chatTarget.name,
+        avatar: chatTarget.avatar || "",
+        id: directChat.id,
+      });
+    } catch {
+      toast(t(type === "video" ? "contacts.detail.toast.videoUnavailable" : "contacts.detail.toast.voiceUnavailable"), "error");
+    }
+  };
+
   useEffect(() => {
     const conversationIds = chats
       .map((chat) => chat.id)
@@ -267,8 +443,28 @@ const ChatLayoutComponent: React.FC = () => {
           id: snapshot.conversationId ?? activeChat?.id ?? snapshot.rtcSessionId,
           name: snapshot.targetName ?? incomingChat?.name ?? activeChat?.name ?? t("chat.call.incoming"),
           avatar: incomingChat?.avatar ?? activeChat?.avatar ?? '',
+          rtcSessionId: snapshot.rtcSessionId,
         });
         setIsCallOpen(true);
+        if (snapshot.peerUserId) {
+          void contactService.getUserById(snapshot.peerUserId)
+            .then((peerUser) => {
+              if (!peerUser) {
+                return;
+              }
+              setCallTarget((previousTarget) => {
+                if (!previousTarget || snapshot.rtcSessionId !== callService.getSnapshot().rtcSessionId) {
+                  return previousTarget;
+                }
+                return {
+                  ...previousTarget,
+                  name: peerUser.name || previousTarget.name,
+                  avatar: peerUser.avatar ?? previousTarget.avatar,
+                };
+              });
+            })
+            .catch(() => undefined);
+        }
       }
     });
   }, [activeChat?.avatar, activeChat?.id, activeChat?.name, chats, t]);
@@ -306,6 +502,23 @@ const ChatLayoutComponent: React.FC = () => {
     const nextChats = mergeChatIntoList(chats, assistantResult.chat);
     setChats(nextChats);
     setActiveChat(nextChats.find((chat) => chat.id === assistantResult.chat?.id) ?? assistantResult.chat);
+  };
+
+  const resolveContactChatTarget = async (
+    user: Parameters<NonNullable<React.ComponentProps<typeof ContactsView>["onSendMessage"]>>[0],
+  ) => {
+    const hydratedUser = await contactService.getUserById(user.id).catch(() => null);
+    if (hydratedUser?.conversationId) {
+      return { ...user, ...hydratedUser };
+    }
+    const projectedContact = await contactService.getContacts()
+      .then((contacts) => contacts.find((contact) => contact.id === user.id || contact.chatId === user.chatId))
+      .catch(() => null);
+    return {
+      ...user,
+      ...(hydratedUser ?? {}),
+      ...(projectedContact ?? {}),
+    };
   };
 
   const handleLogout = async () => {
@@ -385,6 +598,16 @@ const ChatLayoutComponent: React.FC = () => {
                   >
                     <UserPlus size={16} className="text-gray-400" />
                     <span>{t("chat.menu.addFriend")}</span>
+                  </button>
+                  <button
+                    className="w-full px-4 py-2.5 flex items-center gap-3 text-[14px] text-gray-200 hover:bg-white/5 transition-colors"
+                    onClick={() => {
+                      setIsScanQrOpen(true);
+                      setIsPlusMenuOpen(false);
+                    }}
+                  >
+                    <ScanLine size={16} className="text-gray-400" />
+                    <span>{t("chat.menu.scanQrCode")}</span>
                   </button>
                   <button
                     className="w-full px-4 py-2.5 flex items-center gap-3 text-[14px] text-gray-200 hover:bg-white/5 transition-colors"
@@ -558,7 +781,12 @@ const ChatLayoutComponent: React.FC = () => {
           setActiveTab("create-agent");
         }} />;
       case "community":
-        return <CommunityView />;
+        return (
+          <CommunityView
+            initialCommunityId={pendingCommunityId ?? undefined}
+            onInitialCommunityHandled={() => setPendingCommunityId(null)}
+          />
+        );
       case "videogen":
         return <VideoGenView />;
       case "imagegen":
@@ -575,7 +803,8 @@ const ChatLayoutComponent: React.FC = () => {
             searchQuery={searchQuery}
             onSendMessage={async (user) => {
               try {
-                const directChat = await chatService.startDirectChat(user);
+                const chatTarget = await resolveContactChatTarget(user);
+                const directChat = await chatService.startDirectChat(chatTarget);
                 const refreshedChats = await chatService.getChats().catch(() => chats);
                 const nextChats = refreshedChats.some((chat) => chat.id === directChat.id)
                   ? refreshedChats.map((chat) => chat.id === directChat.id ? { ...chat, ...directChat } : chat)
@@ -587,25 +816,15 @@ const ChatLayoutComponent: React.FC = () => {
                 toast(t("chat.toast.directChatFailed"), "error");
               }
             }}
-            onStartCall={(type, user) =>
-              handleStartCall(type, {
-                name: user.name,
-                avatar: user.avatar || "",
-                id: user.id,
-              })
-            }
+            onStartCall={(type, user) => {
+              void handleStartContactCall(type, user);
+            }}
             onAddFriend={() => setIsAddFriendOpen(true)}
             onAppSelect={(appId) => {
               if (appId === "mail") setActiveTab("mail");
             }}
             onOpenGroup={async (group) => {
-              const refreshedChats = await chatService.getChats().catch(() => chats);
-              const nextChats = refreshedChats.some((chat) => chat.id === group.id)
-                ? refreshedChats.map((chat) => chat.id === group.id ? { ...chat, ...group } : chat)
-                : [group, ...refreshedChats];
-              setChats(nextChats);
-              setActiveChat(nextChats.find((chat) => chat.id === group.id) ?? group);
-              setActiveTab("chat");
+              await openHydratedChat(group);
             }}
           />
         );
@@ -647,6 +866,7 @@ const ChatLayoutComponent: React.FC = () => {
                 acc + (c.unreadCount || 0) + ((c.unreadCount || 0) > 0 || !c.isMarkedUnread ? 0 : 1),
               0,
             )}
+            friendRequestUnreadCount={friendRequestUnreadCount}
           />
         </div>
 
@@ -691,7 +911,7 @@ const ChatLayoutComponent: React.FC = () => {
                   }}
                 />
                 {localizedActiveChat ? (
-                  <ChatWindow chat={localizedActiveChat} />
+                  <ChatWindow chat={localizedActiveChat} onOpenGroupInvite={handleOpenGroupInvite} />
                 ) : (
                   <ChatEmptyHome
                     assistantAvailable={isAssistantAvailable}
@@ -720,6 +940,9 @@ const ChatLayoutComponent: React.FC = () => {
               {activeTab === "chat" && showRHSPanel && activeChat && localizedActiveChat && (
                 <ChatRightPanel
                   activeChat={localizedActiveChat}
+                  currentUserChatId={currentUser.chatId}
+                  currentUserId={currentUserId}
+                  groupMemberProfiles={groupMemberProfiles}
                   onSetModal={(modal, inputVal) => {
                     setActiveModal(modal);
                     setModalInput(inputVal);
@@ -728,12 +951,16 @@ const ChatLayoutComponent: React.FC = () => {
                     const nextMuted = !activeChat.isMuted;
                     try {
                       await chatService.muteChat(activeChat.id, nextMuted);
-                      setChats(
-                        chats.map((c) =>
+                      setChats((previousChats) =>
+                        previousChats.map((c) =>
                           c.id === activeChat.id ? { ...c, isMuted: nextMuted } : c,
                         ),
                       );
-                      setActiveChat({ ...activeChat, isMuted: nextMuted });
+                      setActiveChat((previousActiveChat) =>
+                        previousActiveChat?.id === activeChat.id
+                          ? { ...previousActiveChat, isMuted: nextMuted }
+                          : previousActiveChat,
+                      );
                       toast(
                         t(nextMuted ? "chat.rightPanel.toast.muted" : "chat.rightPanel.toast.unmuted"),
                         "success",
@@ -746,12 +973,16 @@ const ChatLayoutComponent: React.FC = () => {
                     const nextPinned = !activeChat.isPinned;
                     try {
                       await chatService.pinChat(activeChat.id, nextPinned);
-                      setChats(
-                        chats.map((c) =>
+                      setChats((previousChats) =>
+                        previousChats.map((c) =>
                           c.id === activeChat.id ? { ...c, isPinned: nextPinned } : c,
                         ),
                       );
-                      setActiveChat({ ...activeChat, isPinned: nextPinned });
+                      setActiveChat((previousActiveChat) =>
+                        previousActiveChat?.id === activeChat.id
+                          ? { ...previousActiveChat, isPinned: nextPinned }
+                          : previousActiveChat,
+                      );
                       toast(
                         t(nextPinned ? "chat.rightPanel.toast.pinned" : "chat.rightPanel.toast.unpinned"),
                         "success",
@@ -762,13 +993,56 @@ const ChatLayoutComponent: React.FC = () => {
                   }}
                   onDeleteChat={async () => {
                     try {
-                      await chatService.deleteChat(activeChat.id);
-                      setChats(chats.filter((c) => c.id !== activeChat.id));
-                      setActiveChat(null);
+                      if (activeChat.type === "group") {
+                        await groupService.deleteGroup(activeChat.id);
+                      }
+                      if (activeChat.type !== "group") {
+                        await chatService.deleteChat(activeChat.id);
+                      }
+                      chatListProjectionRevisionRef.current += 1;
+                      setChats((previousChats) => previousChats.filter((c) => c.id !== activeChat.id));
+                      setActiveChat((previousActiveChat) =>
+                        previousActiveChat?.id === activeChat.id ? null : previousActiveChat,
+                      );
                       setShowRHSPanel(false);
                       toast(t(activeChat.type === "group" ? "chat.rightPanel.toast.groupLeft" : "chat.rightPanel.toast.chatDeleted"), "success");
                     } catch {
                       toast(t("chat.rightPanel.toast.deleteFailed"), "error");
+                    }
+                  }}
+                  onRemoveGroupMember={async (memberId) => {
+                    if (activeChat.type !== "group") {
+                      return;
+                    }
+
+                    try {
+                      await groupService.removeMember(activeChat.id, memberId);
+                      const refreshedGroups = await groupService.getGroups();
+                      const refreshedChat = refreshedGroups.find((group) => group.id === activeChat.id);
+                      const nextMembers = activeChat.members?.filter((id) => id !== memberId);
+                      const nextMemberCount = Math.max(
+                        (activeChat.memberCount ?? activeChat.members?.length ?? 1) - 1,
+                        0,
+                      );
+                      const nextChat = refreshedChat ?? {
+                        ...activeChat,
+                        members: nextMembers,
+                        memberCount: nextMemberCount,
+                        activeCount: Math.max((activeChat.activeCount ?? nextMemberCount + 1) - 1, 0),
+                      };
+                      setChats((previousChats) =>
+                        previousChats.map((chat) =>
+                          chat.id === activeChat.id ? { ...chat, ...nextChat } : chat,
+                        ),
+                      );
+                      setActiveChat((previousActiveChat) =>
+                        previousActiveChat?.id === activeChat.id
+                          ? { ...previousActiveChat, ...nextChat }
+                          : previousActiveChat,
+                      );
+                      toast(t("chat.rightPanel.toast.memberRemoved"), "success");
+                    } catch {
+                      toast(t("chat.rightPanel.toast.removeMemberFailed"), "error");
                     }
                   }}
                 />
@@ -783,6 +1057,7 @@ const ChatLayoutComponent: React.FC = () => {
             conversationId={callTarget.id}
             isOpen={isCallOpen}
             mode={callMode}
+            rtcSessionId={callTarget.rtcSessionId}
             type={callType}
             callerName={callTarget.name}
             callerAvatar={callTarget.avatar}
@@ -798,18 +1073,46 @@ const ChatLayoutComponent: React.FC = () => {
           isOpen={isCreateGroupOpen}
           onClose={() => setIsCreateGroupOpen(false)}
           onCreated={async (group) => {
-            const refreshedChats = await chatService.getChats().catch(() => chats);
-            const nextChats = refreshedChats.some((chat) => chat.id === group.id)
-              ? refreshedChats.map((chat) => chat.id === group.id ? { ...chat, ...group } : chat)
-              : [group, ...refreshedChats];
-            setChats(nextChats);
-            setActiveChat(nextChats.find((chat) => chat.id === group.id) ?? group);
-            setActiveTab("chat");
+            await openHydratedChat(group);
+          }}
+        />
+        <AddGroupMembersModal
+          chat={activeChat}
+          isOpen={activeModal === "addMember" && Boolean(activeChat)}
+          onClose={() => setActiveModal(null)}
+          onAdded={async () => {
+            if (!activeChat) {
+              return;
+            }
+            const refreshedGroups = await groupService.getGroups();
+            const refreshedChat = refreshedGroups.find((group) => group.id === activeChat.id);
+            const nextChat = refreshedChat ?? activeChat;
+            setChats((previousChats) =>
+              previousChats.map((chat) =>
+                chat.id === activeChat.id ? { ...chat, ...nextChat } : chat,
+              ),
+            );
+            setActiveChat((previousActiveChat) =>
+              previousActiveChat?.id === activeChat.id
+                ? { ...previousActiveChat, ...nextChat }
+                : previousActiveChat,
+            );
           }}
         />
         <AddFriendModal
           isOpen={isAddFriendOpen}
           onClose={() => setIsAddFriendOpen(false)}
+        />
+        <ScanQrCodeModal
+          isOpen={isScanQrOpen}
+          onClose={() => setIsScanQrOpen(false)}
+          onOpenCommunity={(communityId) => {
+            setPendingCommunityId(communityId);
+            setActiveTab("community");
+          }}
+          onOpenGroup={async (group) => {
+            await openHydratedChat(group);
+          }}
         />
         <SettingsModal
           isOpen={isSettingsOpen}
@@ -826,7 +1129,7 @@ const ChatLayoutComponent: React.FC = () => {
         />
         {/* Custom inline Modals */}
         <AnimatePresence>
-          {activeModal && activeChat && (
+          {activeModal && activeModal !== "addMember" && activeChat && (
             <div className="fixed inset-0 z-50 flex items-center justify-center">
               <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -841,7 +1144,6 @@ const ChatLayoutComponent: React.FC = () => {
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-medium text-gray-100">
                     {activeModal === "search" && t("chat.modal.title.searchMessages")}
-                    {activeModal === "addMember" && t("chat.modal.title.addMember")}
                     {activeModal === "editName" &&
                       (activeChat.type === "group"
                         ? t("chat.modal.title.editGroupName")
@@ -895,62 +1197,6 @@ const ChatLayoutComponent: React.FC = () => {
                   </div>
                 )}
 
-                {activeModal === "addMember" && (
-                  <div>
-                    <input
-                      type="text"
-                      placeholder={t("chat.modal.placeholder.memberSearch")}
-                      className="w-full bg-[#181818] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all mb-4"
-                      value={modalInput}
-                      onChange={(e) => setModalInput(e.target.value)}
-                    />
-                    <div className="flex justify-end gap-3 mt-6">
-                      <button
-                        onClick={() => setActiveModal(null)}
-                        className="px-5 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-xl transition-colors"
-                      >
-                        {t("chat.modal.actions.cancel")}
-                      </button>
-                      <button
-                        onClick={async () => {
-                          setActiveModal(null);
-                          const addedIds = modalInput
-                            .split(",")
-                            .map((s) => s.trim())
-                            .filter(Boolean);
-                          if (addedIds.length > 0) {
-                            try {
-                              const resolvedMemberIds = await groupService.addMembersBySearchQuery(activeChat.id, addedIds);
-                              const refreshedGroups = await groupService.getGroups();
-                              const refreshedChat = refreshedGroups.find(
-                                (group) => group.id === activeChat.id,
-                              );
-                              const nextChat = refreshedChat ?? activeChat;
-                              setChats(
-                                chats.map((c) =>
-                                  c.id === activeChat.id ? { ...c, ...nextChat } : c,
-                                ),
-                              );
-                              setActiveChat(nextChat);
-                              toast(
-                                t("chat.modal.toast.invitedMembers", { count: resolvedMemberIds.length }),
-                                "success",
-                              );
-                            } catch {
-                              toast(t("chat.modal.toast.inviteFailed"), "error");
-                            }
-                          } else {
-                            toast(t("chat.modal.toast.inviteMissing"), "error");
-                          }
-                        }}
-                        className="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-colors font-medium"
-                      >
-                        {t("chat.modal.actions.invite")}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {activeModal === "editName" && (
                   <div>
                     <input
@@ -975,17 +1221,25 @@ const ChatLayoutComponent: React.FC = () => {
                         onClick={async () => {
                           setActiveModal(null);
                           try {
-                            await chatService.updateChat(activeChat.id, {
-                              name: modalInput,
-                            });
-                            setChats(
-                              chats.map((c) =>
+                            const updatedChat = activeChat.type === "group"
+                              ? await groupService.updateGroupInfo(activeChat.id, {
+                                name: modalInput,
+                              })
+                              : await chatService.updateChat(activeChat.id, {
+                                name: modalInput,
+                              });
+                            setChats((previousChats) =>
+                              previousChats.map((c) =>
                                 c.id === activeChat.id
-                                  ? { ...c, name: modalInput }
+                                  ? { ...c, ...updatedChat }
                                   : c,
                               ),
                             );
-                            setActiveChat({ ...activeChat, name: modalInput });
+                            setActiveChat((previousActiveChat) =>
+                              previousActiveChat?.id === activeChat.id
+                                ? { ...previousActiveChat, ...updatedChat }
+                                : previousActiveChat,
+                            );
                             toast(
                               activeChat.type === "group"
                                 ? t("chat.modal.toast.groupNameUpdated", { name: modalInput })
@@ -1023,17 +1277,21 @@ const ChatLayoutComponent: React.FC = () => {
                         onClick={async () => {
                           setActiveModal(null);
                           try {
-                            await chatService.updateChat(activeChat.id, {
+                            const updatedChat = await groupService.updateGroupInfo(activeChat.id, {
                               notice: modalInput,
                             });
-                            setChats(
-                              chats.map((c) =>
+                            setChats((previousChats) =>
+                              previousChats.map((c) =>
                                 c.id === activeChat.id
-                                  ? { ...c, notice: modalInput }
+                                  ? { ...c, ...updatedChat }
                                   : c,
                               ),
                             );
-                            setActiveChat({ ...activeChat, notice: modalInput });
+                            setActiveChat((previousActiveChat) =>
+                              previousActiveChat?.id === activeChat.id
+                                ? { ...previousActiveChat, ...updatedChat }
+                                : previousActiveChat,
+                            );
                             toast(t("chat.modal.toast.noticeUpdated"), "success");
                           } catch {
                             toast(t("chat.modal.toast.updateNoticeFailed"), "error");

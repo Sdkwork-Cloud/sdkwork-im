@@ -209,6 +209,9 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
     .expect("payload should be valid json");
     assert_eq!(payload["conversationId"], "c_ws_realtime");
     assert_eq!(payload["summary"], "hello websocket");
+    assert_eq!(payload["body"]["summary"], "hello websocket");
+    assert_eq!(payload["body"]["parts"][0]["kind"], "text");
+    assert_eq!(payload["body"]["parts"][0]["text"], "hello websocket");
 
     socket
         .send(Message::Text(

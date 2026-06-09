@@ -19,7 +19,7 @@ The workspace currently exposes multiple standalone HTTP services:
 - `conversation-runtime` on `127.0.0.1:18082`
 - `projection-service` on `127.0.0.1:18083`
 - `streaming-service` on `127.0.0.1:18084`
-- `rtc-signaling-service` on `127.0.0.1:18085`
+- `im-call-runtime` on `127.0.0.1:18085`
 - `media-service` on `127.0.0.1:18086`
 - `notification-service` on `127.0.0.1:18087`
 - `automation-service` on `127.0.0.1:18088`
@@ -109,8 +109,8 @@ The gateway exposes four contract layers:
   - `/im/v3/api/chat/inbox`
 - `streaming-service`
   - `/im/v3/api/streams/*`
-- `rtc-signaling-service`
-  - `/im/v3/api/rtc/*`
+- `im-call-runtime`
+  - `/im/v3/api/calls/*`
 - `media-service`
   - `/im/v3/api/media/*`
 - `notification-service`

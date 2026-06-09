@@ -1,3 +1,20 @@
+import type {
+  CreateKnowledgeBaseRequest,
+  CreateKnowledgeDocumentRequest,
+  KnowledgeBaseRecord,
+  KnowledgeDocumentRecord,
+  SdkworkAppClient as SdkworkAgentAppClient,
+  UpdateKnowledgeBaseRequest,
+  UpdateKnowledgeDocumentRequest,
+} from '@sdkwork/agent-app-sdk';
+import { getAgentAppSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/agentAppSdkClient';
+import {
+  readAppSdkSessionTokens,
+  resolveAppSdkOrganizationId,
+  resolveAppSdkTenantId,
+  resolveAppSdkUserId,
+} from '@sdkwork/clawchat-pc-core/sdk/session';
+
 export interface KnowledgeBase {
   id: string;
   name: string;
@@ -6,6 +23,7 @@ export interface KnowledgeBase {
   count: number;
   updatedAt: number;
   type: 'personal' | 'team';
+  version?: string;
 }
 
 export interface KnowledgeDoc {
@@ -22,82 +40,439 @@ export interface KnowledgeDoc {
   fileName?: string;
   fileSize?: string;
   fileMimeType?: string;
+  version?: string;
 }
 
-export const knowledgeService = {
-  getBases: async (): Promise<KnowledgeBase[]> => {
-    return new Promise(resolve => setTimeout(() => resolve([
-      { id: 'kb-1', name: '产品需求文档', description: '所有产品的PRD集中地', logo: '🚀', count: 120, updatedAt: Date.now() - 3600000, type: 'team' },
-      { id: 'kb-2', name: '技术架构演进', description: '技术选型、架构图、方案设计', logo: '🛠', count: 45, updatedAt: Date.now() - 86400000, type: 'team' },
-      { id: 'kb-3', name: '新员工入职指南', description: 'Help yourself!', logo: '🌱', count: 12, updatedAt: Date.now() - 200000000, type: 'team' },
-      { id: 'kb-4', name: '个人笔记', description: '随想和学习记录', logo: '📝', count: 88, updatedAt: Date.now(), type: 'personal' },
-    ]), 300));
-  },
-  
-  createBase: async (data: Partial<KnowledgeBase>): Promise<KnowledgeBase> => {
-    return new Promise(resolve => setTimeout(() => {
-      resolve({
-        id: `kb-${Date.now()}`,
-        name: data.name || '未命名知识库',
-        description: data.description || '',
-        logo: data.logo || '📁',
-        count: 0,
-        updatedAt: Date.now(),
-        type: data.type || 'personal'
-      });
-    }, 400));
-  },
-  
-  updateBase: async (id: string, data: Partial<KnowledgeBase>): Promise<KnowledgeBase> => {
-    return new Promise(resolve => setTimeout(() => resolve({ id, ...data } as KnowledgeBase), 300));
-  },
-  
-  deleteBase: async (id: string): Promise<boolean> => {
-    return new Promise(resolve => setTimeout(() => resolve(true), 400));
-  },
+export interface KnowledgeService {
+  getBases(): Promise<KnowledgeBase[]>;
+  createBase(data: Partial<KnowledgeBase>): Promise<KnowledgeBase>;
+  updateBase(id: string, data: Partial<KnowledgeBase>): Promise<KnowledgeBase>;
+  deleteBase(id: string, expectedVersion?: string): Promise<boolean>;
+  getDocs(baseId: string): Promise<KnowledgeDoc[]>;
+  createDoc(data: Partial<KnowledgeDoc>): Promise<KnowledgeDoc>;
+  updateDoc(id: string, data: Partial<KnowledgeDoc>): Promise<KnowledgeDoc>;
+  deleteDoc(id: string, expectedVersion?: string): Promise<boolean>;
+}
 
-  getDocs: async (baseId: string): Promise<KnowledgeDoc[]> => {
-    return new Promise(resolve => setTimeout(() => resolve([
-      { id: 'folder-1', baseId, title: '需求讨论', content: '', author: '张三', updatedAt: Date.now(), tags: [], type: 'folder' },
-      { id: 'folder-2', baseId, title: '产品规范', content: '', author: '张三', updatedAt: Date.now(), tags: [], type: 'folder', parentId: 'folder-1' },
-      { id: 'doc-1', baseId, title: 'v2.0 迭代需求说明书', content: '# v2.0 需求\n\n- 新增知识库功能\n- 侧边栏重构\n- 性能优化', author: '张三', updatedAt: Date.now(), tags: ['需求', 'v2.0'], type: 'markdown', parentId: 'folder-1' },
-      { id: 'doc-2', baseId, title: '前端架构设计规范', content: '# 前端架构\n\n- React 18\n- Tailwind CSS\n- Vite\n- **最佳实践**：所有服务需要统一通过 service 层代理，保持组件整洁。', author: '李四', updatedAt: Date.now() - 3600000, tags: ['架构', '规范'], type: 'markdown' },
-      { id: 'doc-file-1', baseId, title: '用户增长数据报表.pdf', content: '', author: '王五', updatedAt: Date.now() - 86400000, tags: ['数据', '报表'], type: 'file', fileName: '用户增长数据报表.pdf', fileSize: '2.4 MB', fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', fileMimeType: 'application/pdf', parentId: 'folder-2' },
-      { id: 'doc-file-2', baseId, title: '横版风景高清.jpg', content: '', author: '设计部', updatedAt: Date.now() - 50000, tags: ['图片', '素材'], type: 'file', fileName: '横版风景高清.jpg', fileSize: '3.2 MB', fileUrl: 'https://images.unsplash.com/photo-1506744626753-1fa44f14c008?auto=format&fit=crop&w=1920&q=80', fileMimeType: 'image/jpeg' },
-      { id: 'doc-file-5', baseId, title: '竖版长图海报.png', content: '', author: '市场部', updatedAt: Date.now() - 70000, tags: ['运营', '海报'], type: 'file', fileName: '竖版长图海报.png', fileSize: '4.5 MB', fileUrl: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&h=2400&q=80', fileMimeType: 'image/png' },
-      { id: 'doc-file-6', baseId, title: '超宽全景大图.jpg', content: '', author: '摄影组', updatedAt: Date.now() - 80000, tags: ['全景'], type: 'file', fileName: '超宽全景大图.jpg', fileSize: '8.1 MB', fileUrl: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=3200&h=800&q=80', fileMimeType: 'image/jpeg' },
-      { id: 'doc-file-3', baseId, title: '横版演示视频(16:9).mp4', content: '', author: '视频组', updatedAt: Date.now() - 150000, tags: ['视频', '横版'], type: 'file', fileName: '横版演示视频(16:9).mp4', fileSize: '15.6 MB', fileUrl: 'https://www.w3schools.com/html/mov_bbb.mp4', fileMimeType: 'video/mp4' },
-      { id: 'doc-file-7', baseId, title: '竖屏短视频(9:16).mp4', content: '', author: '运营组', updatedAt: Date.now() - 180000, tags: ['视频', '短片'], type: 'file', fileName: '竖屏短视频(9:16).mp4', fileSize: '22.4 MB', fileUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', fileMimeType: 'video/mp4' },
-      { id: 'doc-file-4', baseId, title: '测试背景音乐.mp3', content: '', author: '系统', updatedAt: Date.now() - 250000, tags: ['音频'], type: 'file', fileName: '测试背景音乐.mp3', fileSize: '4.8 MB', fileUrl: 'https://www.w3schools.com/html/horse.ogg', fileMimeType: 'audio/mp3' },
-      { id: 'doc-file-8', baseId, title: 'UI设计源文件.fig', content: '', author: 'UI组', updatedAt: Date.now() - 300000, tags: ['设计', 'Figma'], type: 'file', fileName: '主页UI设计稿_v2.fig', fileSize: '128 MB', fileUrl: '#', fileMimeType: 'application/octet-stream' },
-      { id: 'doc-4', baseId, title: '设计走查问题汇总', content: '# 设计走查\n\n- 按钮颜色不对\n- 间距过大\n- 字体大小不统一', author: '赵六', updatedAt: Date.now() - 200000000, tags: ['设计', '走查'], type: 'markdown' },
-    ]), 400));
-  },
-  
-  createDoc: async (data: Partial<KnowledgeDoc>): Promise<KnowledgeDoc> => {
-    return new Promise(resolve => setTimeout(() => {
-      resolve({
-        id: `doc-${Date.now()}`,
-        baseId: data.baseId || '',
-        title: data.title || '未命名文档',
-        content: data.content || '',
-        author: data.author || '当前用户',
-        updatedAt: Date.now(),
-        tags: data.tags || [],
-        type: data.type || 'markdown',
-        fileUrl: data.fileUrl,
-        fileName: data.fileName,
-        fileSize: data.fileSize,
-        fileMimeType: data.fileMimeType
-      });
-    }, 500));
-  },
-  
-  updateDoc: async (id: string, data: Partial<KnowledgeDoc>): Promise<KnowledgeDoc> => {
-    return new Promise(resolve => setTimeout(() => resolve({ id, ...data } as KnowledgeDoc), 400));
-  },
-  
-  deleteDoc: async (id: string): Promise<boolean> => {
-    return new Promise(resolve => setTimeout(() => resolve(true), 300));
+interface KnowledgeServiceOptions {
+  client?: SdkworkAgentAppClient;
+  organizationId?: string;
+  ownerUserId?: string;
+  tenantId?: string;
+}
+
+type RecordLike = Record<string, unknown>;
+
+const DEFAULT_TENANT_ID = '0';
+const DEFAULT_ORGANIZATION_ID = '0';
+const DEFAULT_OWNER_USER_ID = '0';
+const DEFAULT_PROVIDER_ID = 'provider.knowledge.pc.local';
+const DEFAULT_CONFIGURATION_PROFILE_ID = 'profile.knowledge.pc.default';
+const DEFAULT_RETRIEVAL_MODES = ['wiki', 'keyword'] as const;
+const DEFAULT_CAPABILITY_IDS = ['knowledge.search', 'knowledge.read'] as const;
+const DEFAULT_DOCUMENT_TRUST_LEVEL = 3;
+const KNOWLEDGE_BASE_ID_PREFIX = 'knowledge.base.';
+const KNOWLEDGE_DOCUMENT_ID_PREFIX = 'knowledge.document.';
+
+function isRecord(value: unknown): value is RecordLike {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
   }
-};
+  return value
+    .map((item) => asString(item))
+    .filter((item): item is string => Boolean(item));
+}
+
+function extractArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (!isRecord(value)) {
+    return [];
+  }
+  for (const key of ['items', 'data', 'records', 'list', 'knowledgeBases', 'knowledgeDocuments']) {
+    const nested = value[key];
+    if (Array.isArray(nested)) {
+      return nested;
+    }
+    if (isRecord(nested)) {
+      const items = extractArray(nested);
+      if (items.length > 0) {
+        return items;
+      }
+    }
+  }
+  return [];
+}
+
+function parseTimestamp(value: unknown): number {
+  const numeric = asNumber(value);
+  if (typeof numeric === 'number') {
+    return numeric;
+  }
+  const stringValue = asString(value);
+  if (!stringValue) {
+    return 0;
+  }
+  const parsed = Date.parse(stringValue);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeSlug(value: string, fallback: string): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, '-')
+    .replace(/^-+|-+$/gu, '')
+    .slice(0, 56);
+  return slug || fallback;
+}
+
+function compactSuffix(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().replace(/-/gu, '').slice(0, 12).toLowerCase();
+  }
+  throw new Error('Knowledge resource id generation requires crypto.randomUUID.');
+}
+
+export function createKnowledgeBaseResourceId(name: string): string {
+  return `${KNOWLEDGE_BASE_ID_PREFIX}${normalizeSlug(name, 'untitled')}.${compactSuffix()}`;
+}
+
+export function createKnowledgeDocumentResourceId(title: string): string {
+  return `${KNOWLEDGE_DOCUMENT_ID_PREFIX}${normalizeSlug(title, 'untitled')}.${compactSuffix()}`;
+}
+
+function requireStandardId(value: unknown, fieldName: string, prefix: string): string {
+  const id = asString(value);
+  if (!id) {
+    throw new Error(`${fieldName} is required.`);
+  }
+  if (!id.startsWith(prefix)) {
+    throw new Error(`${fieldName} must start with ${prefix}.`);
+  }
+  if (id.length > 128 || !/^[a-z0-9._-]+$/u.test(id) || id.split('.').some((segment) => segment.length === 0)) {
+    throw new Error(`${fieldName} must use lowercase standard id characters.`);
+  }
+  return id;
+}
+
+function requireKnowledgeBaseId(value: unknown): string {
+  return requireStandardId(value, 'Knowledge base id', KNOWLEDGE_BASE_ID_PREFIX);
+}
+
+function requireKnowledgeDocumentId(value: unknown): string {
+  return requireStandardId(value, 'Knowledge document id', KNOWLEDGE_DOCUMENT_ID_PREFIX);
+}
+
+function requestTimestamp(): string {
+  return new Date().toISOString();
+}
+
+function codeFromKnowledgeBaseId(knowledgeBaseId: string): string {
+  return knowledgeBaseId.replace(/\./gu, '-').slice(0, 128);
+}
+
+function pickTenantId(explicit?: string): string {
+  return explicit ?? resolveAppSdkTenantId(readAppSdkSessionTokens()) ?? DEFAULT_TENANT_ID;
+}
+
+function pickOrganizationId(explicit?: string): string {
+  return explicit ?? resolveAppSdkOrganizationId(readAppSdkSessionTokens()) ?? DEFAULT_ORGANIZATION_ID;
+}
+
+function pickOwnerUserId(explicit?: string): string {
+  return explicit ?? resolveAppSdkUserId(readAppSdkSessionTokens()) ?? DEFAULT_OWNER_USER_ID;
+}
+
+function metadataOf(value: unknown): RecordLike {
+  return isRecord(value) ? value : {};
+}
+
+function mapKnowledgeBase(record: KnowledgeBaseRecord): KnowledgeBase {
+  return {
+    count: 0,
+    description: record.description ?? '',
+    id: record.knowledgeBaseId,
+    logo: '',
+    name: record.displayName,
+    type: record.visibility === 'private' ? 'personal' : 'team',
+    updatedAt: parseTimestamp(record.updatedAt),
+    version: record.version,
+  };
+}
+
+function mapKnowledgeDocument(record: KnowledgeDocumentRecord): KnowledgeDoc {
+  const metadata = metadataOf(record.metadata);
+  const pcType = asString(metadata.pcType);
+  const driveUri = asString(metadata.driveUri);
+  const content = asString(metadata.pcContent) ?? record.summary ?? '';
+  const type: KnowledgeDoc['type'] =
+    pcType === 'folder' || pcType === 'file' || pcType === 'markdown'
+      ? pcType
+      : record.documentKind === 'wiki-section'
+        ? 'folder'
+        : 'markdown';
+
+  return {
+    author: asString(metadata.pcAuthor) ?? '',
+    baseId: record.knowledgeBaseId,
+    content,
+    fileMimeType: asString(metadata.mimeType),
+    fileName: asString(metadata.fileName),
+    fileSize: asString(metadata.fileSize),
+    fileUrl: driveUri,
+    id: record.knowledgeDocumentId,
+    parentId: asString(metadata.pcParentId),
+    tags: Array.isArray(record.tags) ? record.tags : [],
+    title: record.title,
+    type,
+    updatedAt: parseTimestamp(record.updatedAt),
+    version: record.version,
+  };
+}
+
+function extractKnowledgeBaseRecords(response: unknown): KnowledgeBaseRecord[] {
+  const payload = isRecord(response) ? response.data : response;
+  return extractArray(payload)
+    .filter((item): item is KnowledgeBaseRecord => isRecord(item) && Boolean(asString(item.knowledgeBaseId)));
+}
+
+function extractKnowledgeDocumentRecords(response: unknown): KnowledgeDocumentRecord[] {
+  const payload = isRecord(response) ? response.data : response;
+  return extractArray(payload)
+    .filter((item): item is KnowledgeDocumentRecord => isRecord(item) && Boolean(asString(item.knowledgeDocumentId)));
+}
+
+function summarizeContent(content: string): string {
+  return content.trim().replace(/\s+/gu, ' ').slice(0, 160);
+}
+
+function stableContentHash(content: string, title: string): string {
+  let hash = 0x811c9dc5;
+  const input = `${title}\n${content}`;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `sha256-pc-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+function buildDocumentMetadata(data: Partial<KnowledgeDoc>): Record<string, unknown> {
+  const type = data.type ?? 'markdown';
+  return {
+    pcContent: data.content ?? '',
+    ...(data.parentId ? { pcParentId: data.parentId } : {}),
+    pcType: type,
+    ...(data.fileName ? { fileName: data.fileName } : {}),
+    ...(data.fileSize ? { fileSize: data.fileSize } : {}),
+    ...(data.fileMimeType ? { mimeType: data.fileMimeType } : {}),
+    ...(data.fileUrl?.startsWith('drive://') ? { driveUri: data.fileUrl } : {}),
+  };
+}
+
+function assertFileDocumentHasDriveReference(data: Partial<KnowledgeDoc>): void {
+  if (data.type !== 'file') {
+    return;
+  }
+  if (!asString(data.id) || !data.fileUrl?.startsWith('drive://')) {
+    throw new Error('Drive-backed file documents require a stable knowledge document id and Drive reference.');
+  }
+}
+
+function buildCreateBaseRequest(
+  data: Partial<KnowledgeBase>,
+  organizationId: string,
+  ownerUserId: string,
+): CreateKnowledgeBaseRequest {
+  const knowledgeBaseId = requireKnowledgeBaseId(data.id);
+  const name = asString(data.name);
+  if (!name) {
+    throw new Error('Knowledge base name is required.');
+  }
+  return {
+    baseKind: 'wiki',
+    capabilityIds: [...DEFAULT_CAPABILITY_IDS],
+    code: codeFromKnowledgeBaseId(knowledgeBaseId),
+    configurationProfileId: DEFAULT_CONFIGURATION_PROFILE_ID,
+    description: data.description ?? '',
+    displayName: name,
+    knowledgeBaseId,
+    organizationId,
+    ownerUserId,
+    providerId: DEFAULT_PROVIDER_ID,
+    requestedAt: requestTimestamp(),
+    retrievalModes: [...DEFAULT_RETRIEVAL_MODES],
+    visibility: data.type === 'personal' ? 'private' : 'organization',
+  };
+}
+
+function buildUpdateBaseRequest(data: Partial<KnowledgeBase>): UpdateKnowledgeBaseRequest {
+  return {
+    ...(data.description !== undefined ? { description: data.description } : {}),
+    ...(data.name !== undefined ? { displayName: data.name } : {}),
+    ...(data.type ? { visibility: data.type === 'personal' ? 'private' : 'organization' } : {}),
+    ...(data.version ? { expectedVersion: data.version } : {}),
+    requestedAt: requestTimestamp(),
+  };
+}
+
+function buildCreateDocumentRequest(
+  data: Partial<KnowledgeDoc>,
+  organizationId: string,
+): CreateKnowledgeDocumentRequest {
+  assertFileDocumentHasDriveReference(data);
+  const knowledgeDocumentId = requireKnowledgeDocumentId(data.id);
+  const title = asString(data.title);
+  if (!title) {
+    throw new Error('Knowledge document title is required.');
+  }
+  const content = data.content ?? '';
+  return {
+    categories: [],
+    contentHash: stableContentHash(content, title),
+    contentRef: `knowledge://pc/documents/${knowledgeDocumentId}`,
+    documentKind: data.type === 'folder' ? 'wiki-section' : 'wiki-page',
+    knowledgeDocumentId,
+    knowledgeSourceId: null,
+    metadata: buildDocumentMetadata(data),
+    organizationId,
+    redactionClassification: 'internal',
+    requestedAt: requestTimestamp(),
+    summary: summarizeContent(content),
+    tags: data.tags ?? [],
+    title,
+    trustLevel: DEFAULT_DOCUMENT_TRUST_LEVEL,
+  };
+}
+
+function buildUpdateDocumentRequest(data: Partial<KnowledgeDoc>): UpdateKnowledgeDocumentRequest {
+  assertFileDocumentHasDriveReference(data);
+  const title = asString(data.title);
+  const content = data.content ?? '';
+  return {
+    categories: [],
+    ...(content || title ? { contentHash: stableContentHash(content, title ?? '') } : {}),
+    ...(data.id ? { contentRef: `knowledge://pc/documents/${data.id}` } : {}),
+    ...(data.type ? { documentKind: data.type === 'folder' ? 'wiki-section' : 'wiki-page' } : {}),
+    ...(data.version ? { expectedVersion: data.version } : {}),
+    metadata: buildDocumentMetadata(data),
+    redactionClassification: 'internal',
+    requestedAt: requestTimestamp(),
+    ...(content ? { summary: summarizeContent(content) } : {}),
+    tags: data.tags ?? [],
+    title,
+    trustLevel: DEFAULT_DOCUMENT_TRUST_LEVEL,
+  };
+}
+
+class SdkworkKnowledgeService implements KnowledgeService {
+  constructor(private readonly options: KnowledgeServiceOptions = {}) {}
+
+  async getBases(): Promise<KnowledgeBase[]> {
+    const response = await this.client().ai.knowledgeBases.list({
+      page: 1,
+      pageSize: 100,
+      tenantId: this.tenantId(),
+    });
+    return extractKnowledgeBaseRecords(response).map(mapKnowledgeBase);
+  }
+
+  async createBase(data: Partial<KnowledgeBase>): Promise<KnowledgeBase> {
+    const response = await this.client().ai.knowledgeBases.create(
+      buildCreateBaseRequest(data, this.organizationId(), this.ownerUserId()),
+      { tenantId: this.tenantId() },
+    );
+    return mapKnowledgeBase(response.data);
+  }
+
+  async updateBase(id: string, data: Partial<KnowledgeBase>): Promise<KnowledgeBase> {
+    const response = await this.client().ai.knowledgeBases.update(
+      requireKnowledgeBaseId(id),
+      buildUpdateBaseRequest(data),
+      { tenantId: this.tenantId() },
+    );
+    return mapKnowledgeBase(response.data);
+  }
+
+  async deleteBase(id: string, expectedVersion?: string): Promise<boolean> {
+    await this.client().ai.knowledgeBases.delete(requireKnowledgeBaseId(id), {
+      expectedVersion,
+      requestedAt: requestTimestamp(),
+      tenantId: this.tenantId(),
+    });
+    return true;
+  }
+
+  async getDocs(baseId: string): Promise<KnowledgeDoc[]> {
+    const response = await this.client().ai.knowledgeList.list(requireKnowledgeBaseId(baseId), {
+      page: 1,
+      pageSize: 100,
+      tenantId: this.tenantId(),
+    });
+    return extractKnowledgeDocumentRecords(response).map(mapKnowledgeDocument);
+  }
+
+  async createDoc(data: Partial<KnowledgeDoc>): Promise<KnowledgeDoc> {
+    const baseId = requireKnowledgeBaseId(data.baseId);
+    const response = await this.client().ai.knowledgeDocuments.create(
+      baseId,
+      buildCreateDocumentRequest(data, this.organizationId()),
+      { tenantId: this.tenantId() },
+    );
+    return mapKnowledgeDocument(response.data);
+  }
+
+  async updateDoc(id: string, data: Partial<KnowledgeDoc>): Promise<KnowledgeDoc> {
+    const documentId = requireKnowledgeDocumentId(id);
+    const response = await this.client().ai.knowledgeDocuments.update(
+      documentId,
+      buildUpdateDocumentRequest({ ...data, id: documentId }),
+      { tenantId: this.tenantId() },
+    );
+    return mapKnowledgeDocument(response.data);
+  }
+
+  async deleteDoc(id: string, expectedVersion?: string): Promise<boolean> {
+    await this.client().ai.knowledgeDocuments.delete(requireKnowledgeDocumentId(id), {
+      expectedVersion,
+      requestedAt: requestTimestamp(),
+      tenantId: this.tenantId(),
+    });
+    return true;
+  }
+
+  private client(): SdkworkAgentAppClient {
+    return this.options.client ?? getAgentAppSdkClientWithSession();
+  }
+
+  private tenantId(): string {
+    return pickTenantId(this.options.tenantId);
+  }
+
+  private organizationId(): string {
+    return pickOrganizationId(this.options.organizationId);
+  }
+
+  private ownerUserId(): string {
+    return pickOwnerUserId(this.options.ownerUserId);
+  }
+}
+
+export function createKnowledgeService(options: KnowledgeServiceOptions = {}): KnowledgeService {
+  return new SdkworkKnowledgeService(options);
+}
+
+export const knowledgeService = createKnowledgeService();

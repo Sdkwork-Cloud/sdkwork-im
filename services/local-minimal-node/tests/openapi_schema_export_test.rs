@@ -128,9 +128,20 @@ async fn test_local_minimal_node_exports_app_api_openapi_schema() {
                 && paths.contains_key("/app/v3/api/iam/users/current")
                 && paths.contains_key("/app/v3/api/system/iam/runtime")
                 && paths.contains_key("/app/v3/api/system/iam/verification_policy")
-                && paths.contains_key("/app/v3/api/open_platform/qr_auth/sessions")
+                && paths.contains_key("/app/v3/api/oauth/authorization_urls")
+                && paths.contains_key("/app/v3/api/oauth/device_authorizations")
+                && paths.contains_key(
+                    "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}"
+                )
+                && paths.contains_key(
+                    "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/scans"
+                )
+                && paths.contains_key(
+                    "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/password_completions"
+                )
+                && paths.contains_key("/app/v3/api/oauth/sessions")
         }),
-        "schema must include sdkwork-im-app-sdk IAM and QR auth /app/v3/api routes"
+        "schema must include sdkwork-im-app-sdk IAM and OAuth /app/v3/api routes"
     );
     assert!(
         body_json["paths"].as_object().is_some_and(|paths| {
@@ -140,6 +151,7 @@ async fn test_local_minimal_node_exports_app_api_openapi_schema() {
                 && !paths.contains_key("/app/v3/api/auth/refresh")
                 && !paths.contains_key("/app/v3/api/auth/verify/send")
                 && !paths.contains_key("/app/v3/api/auth/verify/check")
+                && !paths.contains_key("/app/v3/api/open_platform/qr_auth/sessions")
                 && !paths.contains_key("/app/v3/api/chat/conversations")
                 && !paths.contains_key("/app/v3/api/device/sessions/resume")
                 && !paths.contains_key("/backend/v3/api/ops/health")

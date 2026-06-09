@@ -22,9 +22,10 @@ pub use craw_chat_contract_message::{
 };
 pub use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 pub use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
+pub use im_domain_core::rtc::{RtcStateRecord, RtcStateStore};
 pub use provider::*;
 pub use sdkwork_rtc_core::{
-    RtcCallbackEvent, RtcCallbackRequest, RtcContractError, RtcCreateSessionRequest,
-    RtcParticipantCredential, RtcProviderPort, RtcRecordingArtifact, RtcSessionHandle,
-    RtcStateRecord, RtcStateStore,
+    RtcCallbackEvent, RtcCallbackRequest, RtcContractError, RtcCreateMediaSessionRequest,
+    RtcMediaSessionMode, RtcParticipantCredential, RtcProviderPort, RtcRecordingArtifact,
+    RtcSessionHandle,
 };

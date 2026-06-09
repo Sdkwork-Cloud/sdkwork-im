@@ -18,7 +18,7 @@ public class ConversationInboxEntry {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -26,7 +26,7 @@ public class ConversationInboxEntry {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -34,7 +34,7 @@ public class ConversationInboxEntry {
     public Boolean getAgentHandoff() {
         return this.agentHandoff;
     }
-    
+
     public void setAgentHandoff(Boolean agentHandoff) {
         this.agentHandoff = agentHandoff;
     }
@@ -42,7 +42,7 @@ public class ConversationInboxEntry {
     public String getConversationType() {
         return this.conversationType;
     }
-    
+
     public void setConversationType(String conversationType) {
         this.conversationType = conversationType;
     }
@@ -50,7 +50,7 @@ public class ConversationInboxEntry {
     public String getLastActivityAt() {
         return this.lastActivityAt;
     }
-    
+
     public void setLastActivityAt(String lastActivityAt) {
         this.lastActivityAt = lastActivityAt;
     }
@@ -58,7 +58,7 @@ public class ConversationInboxEntry {
     public String getLastMessageId() {
         return this.lastMessageId;
     }
-    
+
     public void setLastMessageId(String lastMessageId) {
         this.lastMessageId = lastMessageId;
     }
@@ -66,7 +66,7 @@ public class ConversationInboxEntry {
     public String getLastSenderId() {
         return this.lastSenderId;
     }
-    
+
     public void setLastSenderId(String lastSenderId) {
         this.lastSenderId = lastSenderId;
     }
@@ -74,7 +74,7 @@ public class ConversationInboxEntry {
     public Integer getMessageCount() {
         return this.messageCount;
     }
-    
+
     public void setMessageCount(Integer messageCount) {
         this.messageCount = messageCount;
     }
@@ -82,7 +82,7 @@ public class ConversationInboxEntry {
     public Integer getLastMessageSeq() {
         return this.lastMessageSeq;
     }
-    
+
     public void setLastMessageSeq(Integer lastMessageSeq) {
         this.lastMessageSeq = lastMessageSeq;
     }
@@ -90,7 +90,7 @@ public class ConversationInboxEntry {
     public String getLastSummary() {
         return this.lastSummary;
     }
-    
+
     public void setLastSummary(String lastSummary) {
         this.lastSummary = lastSummary;
     }
@@ -98,7 +98,7 @@ public class ConversationInboxEntry {
     public String getLastMessageAt() {
         return this.lastMessageAt;
     }
-    
+
     public void setLastMessageAt(String lastMessageAt) {
         this.lastMessageAt = lastMessageAt;
     }
@@ -106,7 +106,7 @@ public class ConversationInboxEntry {
     public Integer getUnreadCount() {
         return this.unreadCount;
     }
-    
+
     public void setUnreadCount(Integer unreadCount) {
         this.unreadCount = unreadCount;
     }

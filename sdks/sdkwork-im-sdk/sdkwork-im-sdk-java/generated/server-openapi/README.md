@@ -63,7 +63,7 @@ client.getHttpClient().setHeader("X-Custom-Header", "value");
 
 - `client.getPresence()` - presence API
 - `client.getRealtime()` - realtime API
-- `client.getRtc()` - rtc API
+- `client.getCalls()` - calls API
 - `client.getSocial()` - social API
 - `client.getChat()` - chat API
 - `client.getStreams()` - streams API
@@ -89,14 +89,15 @@ RealtimeEventsResponse result = client.getRealtime().eventsList(params);
 System.out.println(result);
 ```
 
-### rtc
+### calls
 
 ```java
-// Create an IM-backed RTC session
+// Create an IM call signaling session
 CreateRtcSessionRequest body = new CreateRtcSessionRequest();
+body.setRtcSessionId("1");
 body.setConversationId("1");
-body.setMediaKind("mediakind");
-RtcSession result = client.getRtc().sessionsCreate(body);
+body.setRtcMode("rtcmode");
+RtcSessionMutationResponse result = client.getCalls().sessionsCreate(body);
 System.out.println(result);
 ```
 

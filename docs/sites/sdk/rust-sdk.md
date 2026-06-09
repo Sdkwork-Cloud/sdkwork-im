@@ -31,8 +31,8 @@ Today the normal Rust consumption boundary is the composed crate under `composed
 
 - live-schema generation from the same Craw Chat OpenAPI 3.x export as every official language
 - verified generated-versus-semantic ownership split between `generated/server-openapi` and `composed`
-- a checked-in `ImSdkClient` with route-aligned modules for session, presence, realtime, devices,
-  inbox, conversations, messages, media, streams, and rtc
+- a checked-in `ImSdkClient` with route-aligned modules for session, presence, realtime, inbox,
+  conversations, messages, media, streams, and calls
 - builder helpers for text messages, text stream frames, and JSON RTC signals
 - re-exported generated transport types so application code can still drop down to `ImTransportClient`
   when it needs transport-level token hooks, portal, or DTO-level access
@@ -70,7 +70,7 @@ Use the map below to jump from the Rust surface you are using to the matching HT
 | Message posting and mutation helpers | `ImSdkClient::conversations()`, `messages()`, `build_text_message(...)` | [Messages](/api-reference/im/messages) |
 | Upload and attachment lifecycle | `ImSdkClient::media()` | [Media](/api-reference/im/media) |
 | Stream ingestion and checkpoints | `ImSdkClient::streams()`, `build_text_stream_frame(...)` | [Streams](/api-reference/im/streams) |
-| RTC lifecycle and JSON signaling helpers | `ImSdkClient::rtc()`, `build_json_rtc_signal(...)` | [RTC](/api-reference/im/rtc) |
+| IM call lifecycle and signaling helpers | `ImSdkClient::calls()`, `calls.sendSignal(...)` | [Calls](/api-reference/im/calls) |
 
 When you need the exact generated route groups or transport-level DTO usage examples, pair this
 page with `generated/server-openapi/README.md`.
@@ -134,5 +134,5 @@ Rust workspace wrappers:
 - Read [Portal Access](/api-reference/app/portal-access), [Conversations](/api-reference/im/conversations),
   and [Messages](/api-reference/im/messages) when you need the exact HTTP contract behind the Rust
   semantic and generated layers.
-- Read [Realtime Presence](/api-reference/im/session-and-realtime) and [RTC](/api-reference/im/rtc)
-  when you need the route-level contract for live coordination and RTC workflows.
+- Read [Realtime Presence](/api-reference/im/session-and-realtime) and [Calls](/api-reference/im/calls)
+  when you need the route-level contract for live coordination and call workflows.

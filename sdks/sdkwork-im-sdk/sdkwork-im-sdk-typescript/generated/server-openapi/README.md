@@ -56,7 +56,7 @@ const client = new SdkworkImClient({
 
 - `client.presence` - presence API
 - `client.realtime` - realtime API
-- `client.rtc` - rtc API
+- `client.calls` - calls API
 - `client.social` - social API
 - `client.chat` - chat API
 - `client.streams` - streams API
@@ -81,15 +81,16 @@ const params = {
 const result = await client.realtime.events.list(params);
 ```
 
-### rtc
+### calls
 
 ```typescript
-// Create an IM-backed RTC session
+// Create an IM call signaling session
 const body = {
+  rtcSessionId: 'rtcSessionId',
   conversationId: 'conversationId',
-  mediaKind: 'mediaKind',
+  rtcMode: 'rtcMode',
 };
-const result = await client.rtc.sessions.create(body);
+const result = await client.calls.sessions.create(body);
 ```
 
 ### social

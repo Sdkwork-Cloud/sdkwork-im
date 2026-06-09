@@ -50,7 +50,7 @@ client.setHeader("X-Custom-Header", value: "value")
 
 - `client.presence` - presence API
 - `client.realtime` - realtime API
-- `client.rtc` - rtc API
+- `client.calls` - calls API
 - `client.social` - social API
 - `client.chat` - chat API
 - `client.streams` - streams API
@@ -77,15 +77,16 @@ let result = try await client.realtime.eventsList(params: params)
 print(result)
 ```
 
-### rtc
+### calls
 
 ```swift
-// Create an IM-backed RTC session
+// Create an IM call signaling session
 let body = CreateRtcSessionRequest(
+    rtcSessionId: "1",
     conversationId: "1",
-    mediaKind: "mediakind"
+    rtcMode: "rtcmode"
 )
-let result = try await client.rtc.sessionsCreate(body: body)
+let result = try await client.calls.sessionsCreate(body: body)
 print(result)
 ```
 

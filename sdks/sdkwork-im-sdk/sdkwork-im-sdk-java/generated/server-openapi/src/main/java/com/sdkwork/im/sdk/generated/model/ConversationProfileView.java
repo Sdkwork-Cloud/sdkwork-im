@@ -14,7 +14,7 @@ public class ConversationProfileView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -22,7 +22,7 @@ public class ConversationProfileView {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -30,7 +30,7 @@ public class ConversationProfileView {
     public String getDisplayName() {
         return this.displayName;
     }
-    
+
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
     }
@@ -38,7 +38,7 @@ public class ConversationProfileView {
     public String getAvatarUrl() {
         return this.avatarUrl;
     }
-    
+
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
     }
@@ -46,7 +46,7 @@ public class ConversationProfileView {
     public String getNotice() {
         return this.notice;
     }
-    
+
     public void setNotice(String notice) {
         this.notice = notice;
     }
@@ -54,7 +54,7 @@ public class ConversationProfileView {
     public String getUpdatedAt() {
         return this.updatedAt;
     }
-    
+
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }
@@ -62,7 +62,7 @@ public class ConversationProfileView {
     public String getUpdatedByPrincipalKind() {
         return this.updatedByPrincipalKind;
     }
-    
+
     public void setUpdatedByPrincipalKind(String updatedByPrincipalKind) {
         this.updatedByPrincipalKind = updatedByPrincipalKind;
     }
@@ -70,7 +70,7 @@ public class ConversationProfileView {
     public String getUpdatedByPrincipalId() {
         return this.updatedByPrincipalId;
     }
-    
+
     public void setUpdatedByPrincipalId(String updatedByPrincipalId) {
         this.updatedByPrincipalId = updatedByPrincipalId;
     }

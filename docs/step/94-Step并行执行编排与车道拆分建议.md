@@ -160,7 +160,7 @@
 主写入范围：
 
 - `services/streaming-service/`
-- `services/rtc-signaling-service/`
+- `services/im-call-runtime/`
 - `crates/im-domain-core/src/stream.rs`
 - `crates/im-domain-core/src/rtc.rs`
 

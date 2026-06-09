@@ -66,11 +66,18 @@ impl RealtimeScopeAccessPolicy for DirectChatRealtimePolicy {
     fn validate_subscription_scope(
         &self,
         tenant_id: &str,
-        _principal_id: &str,
-        _principal_kind: &str,
+        principal_id: &str,
+        principal_kind: &str,
         scope_type: &str,
         scope_id: &str,
     ) -> Result<(), RealtimeRuntimeError> {
+        if scope_type == "user" && (principal_kind != "user" || principal_id != scope_id) {
+            return Err(RealtimeRuntimeError {
+                code: "realtime_scope_access_denied",
+                message: format!("principal cannot subscribe to user realtime scope: {scope_id}"),
+            });
+        }
+
         if scope_type == "conversation"
             && let Some(error) = self.conversation_access_error(tenant_id, scope_id)
         {
@@ -91,5 +98,34 @@ impl RealtimeScopeAccessPolicy for DirectChatRealtimePolicy {
             || self
                 .conversation_access_error(tenant_id, event.scope_id.as_str())
                 .is_none()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_user_scope_subscriptions_are_limited_to_current_user() {
+        let policy = DirectChatRealtimePolicy {
+            projection_service: Arc::new(TimelineProjectionService::default()),
+            social_query: RwLock::new(None),
+        };
+
+        assert!(
+            policy
+                .validate_subscription_scope("t_demo", "u_alice", "user", "user", "u_alice")
+                .is_ok()
+        );
+
+        let error = policy
+            .validate_subscription_scope("t_demo", "u_alice", "user", "user", "u_bob")
+            .expect_err("user scope subscription to another user must be rejected");
+        assert_eq!(error.code, "realtime_scope_access_denied");
+
+        let service_error = policy
+            .validate_subscription_scope("t_demo", "svc_social", "service", "user", "u_alice")
+            .expect_err("non-user principals must not subscribe to user scopes");
+        assert_eq!(service_error.code, "realtime_scope_access_denied");
     }
 }

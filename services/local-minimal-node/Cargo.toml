@@ -35,10 +35,13 @@ sdkwork-aiot-contract.workspace = true
 sdkwork-aiot-http-api.workspace = true
 sdkwork-aiot-runtime.workspace = true
 sdkwork-aiot-transport.workspace = true
+sdkwork-rtc-adapter-agora.workspace = true
+sdkwork-rtc-adapter-aliyun.workspace = true
+sdkwork-rtc-adapter-livekit.workspace = true
+sdkwork-rtc-adapter-tencent.workspace = true
+sdkwork-rtc-adapter-volcengine.workspace = true
 sdkwork-rtc-core.workspace = true
 sdkwork-rtc-app-context.workspace = true
-sdkwork-rtc-signaling-service.workspace = true
-sdkwork-rtc-state-store.workspace = true
 streaming-service = { path = "../streaming-service" }
 tokio.workspace = true
 tower.workspace = true

@@ -4,7 +4,7 @@ import com.sdkwork.common.core.Types;
 import com.sdkwork.im.sdk.generated.http.HttpClient;
 import com.sdkwork.im.sdk.generated.api.PresenceApi;
 import com.sdkwork.im.sdk.generated.api.RealtimeApi;
-import com.sdkwork.im.sdk.generated.api.RtcApi;
+import com.sdkwork.im.sdk.generated.api.CallsApi;
 import com.sdkwork.im.sdk.generated.api.SocialApi;
 import com.sdkwork.im.sdk.generated.api.ChatApi;
 import com.sdkwork.im.sdk.generated.api.StreamsApi;
@@ -13,7 +13,7 @@ public class SdkworkImClient {
     private final HttpClient httpClient;
     private PresenceApi presence;
     private RealtimeApi realtime;
-    private RtcApi rtc;
+    private CallsApi calls;
     private SocialApi social;
     private ChatApi chat;
     private StreamsApi streams;
@@ -22,7 +22,7 @@ public class SdkworkImClient {
         this.httpClient = new HttpClient(baseUrl);
         this.presence = new PresenceApi(httpClient);
         this.realtime = new RealtimeApi(httpClient);
-        this.rtc = new RtcApi(httpClient);
+        this.calls = new CallsApi(httpClient);
         this.social = new SocialApi(httpClient);
         this.chat = new ChatApi(httpClient);
         this.streams = new StreamsApi(httpClient);
@@ -32,7 +32,7 @@ public class SdkworkImClient {
         this.httpClient = new HttpClient(config);
         this.presence = new PresenceApi(httpClient);
         this.realtime = new RealtimeApi(httpClient);
-        this.rtc = new RtcApi(httpClient);
+        this.calls = new CallsApi(httpClient);
         this.social = new SocialApi(httpClient);
         this.chat = new ChatApi(httpClient);
         this.streams = new StreamsApi(httpClient);
@@ -46,8 +46,8 @@ public class SdkworkImClient {
         return this.realtime;
     }
 
-    public RtcApi getRtc() {
-        return this.rtc;
+    public CallsApi getCalls() {
+        return this.calls;
     }
 
     public SocialApi getSocial() {

@@ -6,7 +6,7 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class DeleteContactTagResponse
     {
-        public string? TagId { get; set; }
-        public bool? Deleted { get; set; }
+        public string TagId { get; set; }
+        public bool Deleted { get; set; }
     }
 }

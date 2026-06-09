@@ -10,6 +10,7 @@ import {
 } from './session';
 
 let imSdkClient: ImSdkClient | null = null;
+let imSdkClientSessionKey: string | null = null;
 const SDKWORK_APP_API_PREFIX = '/app/v3/api';
 const SDKWORK_IM_API_PREFIX = '/im/v3/api';
 const SDKWORK_IM_REALTIME_WEBSOCKET_PATH = '/im/v3/api/realtime/ws';
@@ -216,8 +217,22 @@ export function createImSdkClientOptions(session?: SdkworkChatSession | null): I
   };
 }
 
+function createImSdkClientSessionKey(session?: SdkworkChatSession | null): string {
+  const currentSession = session ?? readAppSdkSessionTokens();
+  const context = currentSession?.context;
+  return JSON.stringify({
+    accessToken: resolveAppSdkAccessToken(currentSession) ?? null,
+    authToken: resolveAppSdkAuthToken(currentSession) ?? null,
+    organizationId: context?.organizationId ?? null,
+    sessionId: resolveAppSdkSessionId(currentSession) ?? null,
+    tenantId: context?.tenantId ?? null,
+    userId: context?.userId ?? currentSession?.user?.userId ?? currentSession?.user?.id ?? null,
+  });
+}
+
 export function initImSdkClient(options: ImSdkClientOptions = createImSdkClientOptions()): ImSdkClient {
   imSdkClient = new ImSdkClient(options);
+  imSdkClientSessionKey = null;
   return imSdkClient;
 }
 
@@ -226,9 +241,16 @@ export function getImSdkClient(): ImSdkClient {
 }
 
 export function getImSdkClientWithSession(session = readAppSdkSessionTokens()): ImSdkClient {
-  return initImSdkClient(createImSdkClientOptions(session));
+  const sessionKey = createImSdkClientSessionKey(session);
+  if (imSdkClient && imSdkClientSessionKey === sessionKey) {
+    return imSdkClient;
+  }
+  imSdkClient = new ImSdkClient(createImSdkClientOptions(session));
+  imSdkClientSessionKey = sessionKey;
+  return imSdkClient;
 }
 
 export function resetImSdkClient(): void {
   imSdkClient = null;
+  imSdkClientSessionKey = null;
 }

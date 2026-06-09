@@ -1,7 +1,7 @@
 from .http_client import HttpClient, SdkConfig
 from .api.presence import PresenceApi
 from .api.realtime import RealtimeApi
-from .api.rtc import RtcApi
+from .api.calls import CallsApi
 from .api.social import SocialApi
 from .api.chat import ChatApi
 from .api.streams import StreamsApi
@@ -14,7 +14,7 @@ class SdkworkImClient:
         self._client = HttpClient(config)
         self.presence: PresenceApi
         self.realtime: RealtimeApi
-        self.rtc: RtcApi
+        self.calls: CallsApi
         self.social: SocialApi
         self.chat: ChatApi
         self.streams: StreamsApi
@@ -22,7 +22,7 @@ class SdkworkImClient:
         # Initialize API modules
         self.presence = PresenceApi(self._client)
         self.realtime = RealtimeApi(self._client)
-        self.rtc = RtcApi(self._client)
+        self.calls = CallsApi(self._client)
         self.social = SocialApi(self._client)
         self.chat = ChatApi(self._client)
         self.streams = StreamsApi(self._client)

@@ -52,10 +52,43 @@ import {
 
 import { CommunitySettings } from "./CommunitySettings";
 
-export const CommunityView = () => {
+interface CommunityViewProps {
+  initialCommunityId?: string;
+  onInitialCommunityHandled?: () => void;
+}
+
+export const CommunityView = ({
+  initialCommunityId,
+  onInitialCommunityHandled,
+}: CommunityViewProps = {}) => {
   const [activeCommunity, setActiveCommunity] = useState<Community | null>(
     null,
   );
+
+  useEffect(() => {
+    if (!initialCommunityId) {
+      return;
+    }
+
+    let isMounted = true;
+    const openInitialCommunity = async () => {
+      try {
+        const community = await communityService.getCommunity(initialCommunityId);
+        if (isMounted && community) {
+          setActiveCommunity(community);
+        }
+      } finally {
+        if (isMounted) {
+          onInitialCommunityHandled?.();
+        }
+      }
+    };
+
+    void openInitialCommunity();
+    return () => {
+      isMounted = false;
+    };
+  }, [initialCommunityId, onInitialCommunityHandled]);
 
   if (activeCommunity) {
     return (

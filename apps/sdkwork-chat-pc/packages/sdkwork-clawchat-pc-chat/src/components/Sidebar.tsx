@@ -38,6 +38,7 @@ interface SidebarProps {
   onTabChange: (tab: string) => void;
   onOpenSettings?: () => void;
   chatUnreadCount?: number;
+  friendRequestUnreadCount?: number;
 }
 
 const SETTINGS_CHANGED_EVENT = "sdkwork-chat-pc:settings-changed";
@@ -50,6 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   onOpenSettings,
   chatUnreadCount = 0,
+  friendRequestUnreadCount = 0,
 }) => {
   const { t } = useTranslation();
   const [currentUser, setCurrentUser] = useState(() => contactService.getCurrentUser());
@@ -448,21 +450,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
               );
             if (modId === "contacts")
               return (
-                <IconButton
-                  key="contacts"
-                  active={activeTab === "contacts"}
-                  onClick={() => onTabChange("contacts")}
-                  title={t('sidebar.contacts')}
-                >
-                  <Users
-                    size={22}
-                    className={
-                      activeTab === "contacts"
-                        ? "fill-blue-500 text-blue-500"
-                        : ""
-                    }
-                  />
-                </IconButton>
+                <div key="contacts" className="relative">
+                  <IconButton
+                    active={activeTab === "contacts"}
+                    onClick={() => onTabChange("contacts")}
+                    title={t('sidebar.contacts')}
+                  >
+                    <Users
+                      size={22}
+                      className={
+                        activeTab === "contacts"
+                          ? "fill-blue-500 text-blue-500"
+                          : ""
+                      }
+                    />
+                  </IconButton>
+                  {friendRequestUnreadCount > 0 && (
+                    <div className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-[#181818] text-[9px] text-white flex items-center justify-center font-bold pointer-events-none">
+                      {friendRequestUnreadCount > 99 ? "99+" : friendRequestUnreadCount}
+                    </div>
+                  )}
+                </div>
               );
             if (modId === "favorites")
               return (

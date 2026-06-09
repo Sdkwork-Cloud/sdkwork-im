@@ -7,7 +7,7 @@ public class TransferConversationOwnerRequest {
     public String getMemberId() {
         return this.memberId;
     }
-    
+
     public void setMemberId(String memberId) {
         this.memberId = memberId;
     }

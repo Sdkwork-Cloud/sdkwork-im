@@ -94,10 +94,9 @@ function isImStandardPath(pathKey, prefix) {
   const route = pathWithoutPrefix(pathKey, prefix);
   return (
     route.startsWith('chat/')
+    || route.startsWith('calls/')
     || route.startsWith('presence/')
     || route.startsWith('realtime/')
-    || route === 'rtc/sessions'
-    || route === 'rtc/sessions/{}'
     || route.startsWith('social/')
     || route.startsWith('streams')
   );
@@ -697,7 +696,7 @@ for (const appPath of Object.keys(consolidatedApp.paths)) {
 }
 for (const appPath of Object.keys(consolidatedApp.paths)) {
   if (appPath.startsWith('/app/v3/api/rtc/')) {
-    fail(`App authority must not contain RTC route now owned by sdkwork-rtc: ${appPath}`);
+    fail(`App authority must not contain retired RTC app-api signaling route now owned by IM calls: ${appPath}`);
   }
 }
 if (consolidatedApp.paths['/app/v3/api/chat/conversations']) {

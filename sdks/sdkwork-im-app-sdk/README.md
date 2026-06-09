@@ -30,7 +30,7 @@ to `/app/v3/api` only.
 - `sdkwork-rtc-sdk` remains the owner of provider-standard RTC runtime contracts, provider catalogs,
   and runtime bridge semantics.
 - `sdkwork-im-app-sdk` owns app-business HTTP routes such as portal access, notifications,
-  automation, provider health, and RTC provider health/callback app APIs.
+  automation, media provider health, and principal-profile provider health app APIs.
 - Generated app transport must not import, vendor, or regenerate `sdkwork-appbase-app-sdk`,
   `sdkwork-aiot-app-sdk`, `sdkwork-im-sdk`, or `sdkwork-rtc-sdk`; consumers compose those SDKs at
   the app SDK boundary.

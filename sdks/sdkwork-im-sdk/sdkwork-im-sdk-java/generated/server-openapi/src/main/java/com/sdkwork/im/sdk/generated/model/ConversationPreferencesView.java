@@ -15,7 +15,7 @@ public class ConversationPreferencesView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -23,7 +23,7 @@ public class ConversationPreferencesView {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -31,7 +31,7 @@ public class ConversationPreferencesView {
     public String getPrincipalKind() {
         return this.principalKind;
     }
-    
+
     public void setPrincipalKind(String principalKind) {
         this.principalKind = principalKind;
     }
@@ -39,7 +39,7 @@ public class ConversationPreferencesView {
     public String getPrincipalId() {
         return this.principalId;
     }
-    
+
     public void setPrincipalId(String principalId) {
         this.principalId = principalId;
     }
@@ -47,7 +47,7 @@ public class ConversationPreferencesView {
     public Boolean getIsPinned() {
         return this.isPinned;
     }
-    
+
     public void setIsPinned(Boolean isPinned) {
         this.isPinned = isPinned;
     }
@@ -55,7 +55,7 @@ public class ConversationPreferencesView {
     public Boolean getIsMuted() {
         return this.isMuted;
     }
-    
+
     public void setIsMuted(Boolean isMuted) {
         this.isMuted = isMuted;
     }
@@ -63,7 +63,7 @@ public class ConversationPreferencesView {
     public Boolean getIsMarkedUnread() {
         return this.isMarkedUnread;
     }
-    
+
     public void setIsMarkedUnread(Boolean isMarkedUnread) {
         this.isMarkedUnread = isMarkedUnread;
     }
@@ -71,7 +71,7 @@ public class ConversationPreferencesView {
     public Boolean getIsHidden() {
         return this.isHidden;
     }
-    
+
     public void setIsHidden(Boolean isHidden) {
         this.isHidden = isHidden;
     }
@@ -79,7 +79,7 @@ public class ConversationPreferencesView {
     public String getUpdatedAt() {
         return this.updatedAt;
     }
-    
+
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }

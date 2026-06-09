@@ -48,10 +48,7 @@ async fn run() -> Result<(), String> {
     let registry = web_gateway::build_gateway_registry()?;
     let embedded_runtime_router =
         if config.runtime_mode == craw_chat_gateway_config::GatewayRuntimeMode::Embedded {
-            Some(
-                sdkwork_iam_http::build_sdkwork_appbase_app_api_router()
-                    .merge(local_minimal_node::build_default_app()),
-            )
+            Some(web_gateway::build_embedded_appbase_im_runtime_router())
         } else {
             None
         };

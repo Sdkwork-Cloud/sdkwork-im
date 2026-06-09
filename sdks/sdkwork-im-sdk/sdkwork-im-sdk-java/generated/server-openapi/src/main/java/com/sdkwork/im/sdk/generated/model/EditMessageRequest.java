@@ -10,7 +10,7 @@ public class EditMessageRequest {
     public String getText() {
         return this.text;
     }
-    
+
     public void setText(String text) {
         this.text = text;
     }
@@ -18,7 +18,7 @@ public class EditMessageRequest {
     public List<ContentPart> getParts() {
         return this.parts;
     }
-    
+
     public void setParts(List<ContentPart> parts) {
         this.parts = parts;
     }
@@ -26,7 +26,7 @@ public class EditMessageRequest {
     public MessageReplyReference getReplyTo() {
         return this.replyTo;
     }
-    
+
     public void setReplyTo(MessageReplyReference replyTo) {
         this.replyTo = replyTo;
     }

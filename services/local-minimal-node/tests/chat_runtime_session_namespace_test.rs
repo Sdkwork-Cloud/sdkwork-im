@@ -97,26 +97,28 @@ async fn test_public_app_does_not_expose_craw_chat_private_app_api_bootstrap_rou
             "/app/v3/api/system/iam/verification_policy",
             "",
         ),
+        (Method::POST, "/app/v3/api/oauth/authorization_urls", "{}"),
         (
             Method::POST,
-            "/app/v3/api/open_platform/qr_auth/sessions",
+            "/app/v3/api/oauth/device_authorizations",
             "{}",
         ),
         (
             Method::GET,
-            "/app/v3/api/open_platform/qr_auth/sessions/bootstrap-session",
+            "/app/v3/api/oauth/device_authorizations/bootstrap-session",
             "",
         ),
         (
             Method::POST,
-            "/app/v3/api/open_platform/qr_auth/sessions/bootstrap-session/scans",
+            "/app/v3/api/oauth/device_authorizations/bootstrap-session/scans",
             "{}",
         ),
         (
             Method::POST,
-            "/app/v3/api/open_platform/qr_auth/sessions/bootstrap-session/passwords",
+            "/app/v3/api/oauth/device_authorizations/bootstrap-session/password_completions",
             "{}",
         ),
+        (Method::POST, "/app/v3/api/oauth/sessions", "{}"),
     ] {
         let response = request_json(&app, method, path, body).await;
         assert_eq!(
@@ -208,9 +210,11 @@ async fn test_im_v3_api_uses_presence_realtime_namespace_and_does_not_expose_ide
         ),
         (
             Method::POST,
-            "/app/v3/api/open_platform/qr_auth/sessions",
+            "/app/v3/api/oauth/device_authorizations",
             "{}",
         ),
+        (Method::POST, "/app/v3/api/oauth/authorization_urls", "{}"),
+        (Method::POST, "/app/v3/api/oauth/sessions", "{}"),
     ] {
         let response = request_json(&app, method, path, body).await;
         assert_eq!(

@@ -58,7 +58,7 @@ to the matching HTTP reference:
 | Message send payloads and timeline schemas | message route groups and DTOs | [Messages](/api-reference/im/messages) |
 | Upload and attachment lifecycle | media route groups and DTOs | [Media](/api-reference/im/media) |
 | Realtime Presence, presence, and realtime coordination | session, presence, and realtime route groups | [Realtime Presence](/api-reference/im/session-and-realtime) |
-| RTC lifecycle and signaling-side HTTP operations | rtc route groups | [RTC](/api-reference/im/rtc) |
+| IM call lifecycle and signaling-side HTTP operations | calls route groups | [Calls](/api-reference/im/calls) |
 | Stream ingestion and checkpoints | stream route groups | [Streams](/api-reference/im/streams) |
 
 This keeps the C# page precise: the repo-standard delivery today is transport-first, so the API
@@ -123,5 +123,5 @@ C# workspace wrappers:
 - Read [Portal Access](/api-reference/app/portal-access), [Conversations](/api-reference/im/conversations),
   and [Messages](/api-reference/im/messages) when you need the exact HTTP contract behind the
   generated C# transport.
-- Read [Realtime Presence](/api-reference/im/session-and-realtime) and [RTC](/api-reference/im/rtc)
-  when you need the route-level transport contract for live coordination and RTC workflows.
+- Read [Realtime Presence](/api-reference/im/session-and-realtime) and [Calls](/api-reference/im/calls)
+  when you need the route-level transport contract for live coordination and call workflows.

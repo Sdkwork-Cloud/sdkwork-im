@@ -30,16 +30,17 @@
 | Route-level subscription sync and polling | `sdk.generated.realtime.syncRealtimeSubscriptions(...)`, `sdk.generated.realtime.listRealtimeEvents(...)`, `sdk.generated.realtime.ackRealtimeEvents(...)` |
 | Health probes | Direct HTTP `GET /healthz` and `GET /readyz` when you need infrastructure probes |
 
-On the live path, register `live.messages.on(...)`, `live.data.on(...)`, `live.signals.on(...)`,
-`live.events.on(...)`, `live.lifecycle.onStateChange(...)`, and
+On the live path, register `live.messages.onConversation(...)`,
+`live.events.onConversation(...)`, `live.lifecycle.onStateChange(...)`, and
 `live.lifecycle.onError(...)` after `sdk.connect(...)`. The live runtime is payload-first by
-domain stream: your callback receives the final `message`, `data`, or `signal` object first, then
+domain stream: your callback receives the final `message` object first, then
 the operational receive context second. Each receive context exposes `context.ack()` for per-event
 acknowledgement. When you want to advance the durable replay cursor explicitly, use
 `sdk.sync.ack(...)`.
 
-For one conversation or one RTC session, prefer scoped subscriptions such as
-`live.messages.onConversation(...)` and `live.signals.onRtcSession(...)`.
+For conversation-scoped receive, prefer `live.messages.onConversation(...)`. For IM call invites
+and signals, use `sdk.calls.subscribe(...)` with `sdk.calls.watchIncoming(...)`; call subscriptions
+are delivered through the same conversation realtime stream.
 
 When you need exact transport-level control, the semantic runtime and the generated route groups are
 designed to coexist:

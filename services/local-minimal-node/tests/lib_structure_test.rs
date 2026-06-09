@@ -665,6 +665,50 @@ fn test_local_minimal_node_effects_use_notification_service_message_posted_owner
 }
 
 #[test]
+fn test_local_minimal_node_social_friend_requests_publish_user_scope_realtime_events() {
+    let social_source = include_str!("../src/node/social.rs");
+    let effects_source = include_str!("../src/node/effects.rs");
+
+    assert!(
+        effects_source.contains("fn publish_realtime_event_to_principals("),
+        "services/local-minimal-node/src/node/effects.rs must expose a principal-targeted realtime helper for non-conversation social events"
+    );
+    assert!(
+        social_source.contains("publish_friend_request_realtime_event("),
+        "services/local-minimal-node/src/node/social.rs must centralize friend request realtime fanout"
+    );
+
+    for event_type in [
+        "friend_request.submitted",
+        "friend_request.accepted",
+        "friend_request.declined",
+        "friend_request.canceled",
+    ] {
+        assert!(
+            social_source.contains(event_type),
+            "friend request social flow must publish realtime event type {event_type}"
+        );
+    }
+
+    for payload_field in [
+        "\"friendRequest\": friend_request",
+        "\"requesterUserId\": friend_request.requester_user_id",
+        "\"targetUserId\": friend_request.target_user_id",
+    ] {
+        assert!(
+            social_source.contains(payload_field),
+            "friend request realtime payload must include {payload_field}"
+        );
+    }
+
+    assert!(
+        social_source.contains("principal_id: friend_request.requester_user_id.clone()")
+            && social_source.contains("principal_id: friend_request.target_user_id.clone()"),
+        "friend request realtime fanout must target both requester and target user scopes"
+    );
+}
+
+#[test]
 fn test_local_minimal_node_effects_do_not_thread_message_posted_recipient_ids() {
     let effects_source = include_str!("../src/node/effects.rs");
 

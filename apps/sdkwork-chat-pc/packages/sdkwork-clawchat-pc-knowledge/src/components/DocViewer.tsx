@@ -168,7 +168,7 @@ export const DocViewer: React.FC<DocViewerProps> = ({
                 {selectedBase.type === 'team' ? <Globe size={14} /> : <Lock size={14} />} 
                 {selectedBase.type === 'team' ? '团队可见' : '仅自己可见'}
               </span>
-              <span className="flex items-center gap-1.5"><Clock size={14} /> 更新于 {new Date(selectedDoc.updatedAt || Date.now()).toLocaleString()}</span>
+              <span className="flex items-center gap-1.5"><Clock size={14} /> 更新于 {selectedDoc.updatedAt ? new Date(selectedDoc.updatedAt).toLocaleString() : 'Unknown'}</span>
               <span className="flex items-center gap-1.5 border-l border-gray-300 dark:border-white/10 pl-4">{selectedDoc.author}</span>
            </div>
         </div>

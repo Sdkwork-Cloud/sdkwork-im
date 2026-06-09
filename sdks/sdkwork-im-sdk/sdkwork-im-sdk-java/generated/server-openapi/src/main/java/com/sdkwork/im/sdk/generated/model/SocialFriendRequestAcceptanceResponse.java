@@ -10,7 +10,7 @@ public class SocialFriendRequestAcceptanceResponse {
     public FriendRequest getFriendRequest() {
         return this.friendRequest;
     }
-    
+
     public void setFriendRequest(FriendRequest friendRequest) {
         this.friendRequest = friendRequest;
     }
@@ -18,7 +18,7 @@ public class SocialFriendRequestAcceptanceResponse {
     public Friendship getFriendship() {
         return this.friendship;
     }
-    
+
     public void setFriendship(Friendship friendship) {
         this.friendship = friendship;
     }
@@ -26,7 +26,7 @@ public class SocialFriendRequestAcceptanceResponse {
     public DirectChat getDirectChat() {
         return this.directChat;
     }
-    
+
     public void setDirectChat(DirectChat directChat) {
         this.directChat = directChat;
     }
@@ -34,7 +34,7 @@ public class SocialFriendRequestAcceptanceResponse {
     public CreateConversationResult getConversation() {
         return this.conversation;
     }
-    
+
     public void setConversation(CreateConversationResult conversation) {
         this.conversation = conversation;
     }

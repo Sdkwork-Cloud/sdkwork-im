@@ -12,7 +12,7 @@ public class CreateConversationRequest {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -20,7 +20,7 @@ public class CreateConversationRequest {
     public String getConversationType() {
         return this.conversationType;
     }
-    
+
     public void setConversationType(String conversationType) {
         this.conversationType = conversationType;
     }
@@ -28,7 +28,7 @@ public class CreateConversationRequest {
     public String getKind() {
         return this.kind;
     }
-    
+
     public void setKind(String kind) {
         this.kind = kind;
     }
@@ -36,7 +36,7 @@ public class CreateConversationRequest {
     public String getTitle() {
         return this.title;
     }
-    
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -44,7 +44,7 @@ public class CreateConversationRequest {
     public List<String> getMemberIds() {
         return this.memberIds;
     }
-    
+
     public void setMemberIds(List<String> memberIds) {
         this.memberIds = memberIds;
     }

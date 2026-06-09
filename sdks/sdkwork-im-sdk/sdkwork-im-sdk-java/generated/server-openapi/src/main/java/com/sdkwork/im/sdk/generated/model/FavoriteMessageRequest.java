@@ -11,7 +11,7 @@ public class FavoriteMessageRequest {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -19,7 +19,7 @@ public class FavoriteMessageRequest {
     public String getFavoriteType() {
         return this.favoriteType;
     }
-    
+
     public void setFavoriteType(String favoriteType) {
         this.favoriteType = favoriteType;
     }
@@ -27,7 +27,7 @@ public class FavoriteMessageRequest {
     public String getTitle() {
         return this.title;
     }
-    
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -35,7 +35,7 @@ public class FavoriteMessageRequest {
     public String getContentPreview() {
         return this.contentPreview;
     }
-    
+
     public void setContentPreview(String contentPreview) {
         this.contentPreview = contentPreview;
     }
@@ -43,7 +43,7 @@ public class FavoriteMessageRequest {
     public String getSourceDisplayName() {
         return this.sourceDisplayName;
     }
-    
+
     public void setSourceDisplayName(String sourceDisplayName) {
         this.sourceDisplayName = sourceDisplayName;
     }

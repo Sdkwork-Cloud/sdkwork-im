@@ -896,8 +896,8 @@ fn qualified_rtc_signal_key(record_key: &str, signal_index: usize) -> String {
 }
 
 fn summarize_rtc_signals(
-    signals: &[sdkwork_rtc_core::RtcSignalEvent],
-) -> BTreeMap<usize, sdkwork_rtc_core::RtcSignalEvent> {
+    signals: &[im_domain_core::rtc::RtcSignalEvent],
+) -> BTreeMap<usize, im_domain_core::rtc::RtcSignalEvent> {
     signals
         .iter()
         .enumerate()

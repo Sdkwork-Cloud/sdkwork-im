@@ -6,7 +6,7 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class SocialFriendRequestListResponse
     {
-        public List<FriendRequest>? Items { get; set; }
+        public List<FriendRequest> Items { get; set; }
         public string? NextCursor { get; set; }
     }
 }

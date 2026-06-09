@@ -63,10 +63,8 @@ The crate re-exports builder helpers for common payload creation:
 
 ```rust
 use im_sdk::{
-  JsonRtcSignalOptions,
   PostTextOptions,
   TextFrameOptions,
-  build_json_rtc_signal,
   build_text_message,
   build_text_stream_frame,
 };
@@ -77,5 +75,6 @@ use im_sdk::{
 - [Auth and Client Init](/sdk/auth-and-client-init)
 - [Module Map](/sdk/module-map)
 - [Messages Module](/sdk/modules/messages)
-- [Stream and RTC](/sdk/examples/stream-and-rtc)
+- [Streams](/api-reference/im/streams)
+- [Calls](/api-reference/im/calls)
 

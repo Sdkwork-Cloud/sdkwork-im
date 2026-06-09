@@ -275,7 +275,7 @@ fn validate_runtime_state_file(
             validate_stream_state_store_file(file_path).map_err(runtime_state_parse_failure)
         }
         "rtc-state.json" => {
-            validate_rtc_state_store_file(file_path).map_err(runtime_rtc_state_parse_failure)
+            validate_im_call_state_store_file(file_path).map_err(runtime_rtc_state_parse_failure)
         }
         "notification-tasks.json" => {
             validate_notification_task_store_file(file_path).map_err(runtime_state_parse_failure)

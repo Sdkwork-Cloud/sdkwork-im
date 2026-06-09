@@ -12,6 +12,7 @@ import { resetAiotAppSdkClient, getAiotAppSdkClient } from './aiotAppSdkClient';
 import { resetAppSdkClient, getAppSdkClient, resolveAppSdkBaseUrl } from './appSdkClient';
 import { resetAgentAppSdkClient, getAgentAppSdkClient } from './agentAppSdkClient';
 import { resetAppbaseAppSdkClient } from './appbaseAppSdkClient';
+import { resetDriveAppSdkClient, getDriveAppSdkClient } from './driveAppSdkClient';
 import { resetImSdkClient, getImSdkClient } from './imSdkClient';
 import {
   applyAppSdkSessionTokens,
@@ -92,6 +93,7 @@ export function resetSdkworkChatAuthenticatedSdkClients(): void {
   resetAiotAppSdkClient();
   resetAppSdkClient();
   resetAgentAppSdkClient();
+  resetDriveAppSdkClient();
   resetImSdkClient();
 }
 
@@ -105,6 +107,7 @@ function getAuthenticatedSdkClients(): SdkworkAppbasePcAuthRuntimeSdkClient[] {
     getAiotAppSdkClient(),
     getAppSdkClient(),
     getAgentAppSdkClient(),
+    getDriveAppSdkClient(),
     getImSdkClient(),
   ] as SdkworkAppbasePcAuthRuntimeSdkClient[];
 }
@@ -156,7 +159,9 @@ function resolveDevelopmentPrefill(): SdkworkAuthRuntimeConfig['developmentPrefi
     'VITE_SDKWORK_CHAT_AUTH_DEV_VERIFICATION_CODE',
     'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE',
   );
-  const verificationCodeBypassEnabled = parseBoolean(readEnvValue(
+  const verificationCodePrefillEnabled = parseBoolean(readEnvValue(
+    'VITE_SDKWORK_CHAT_AUTH_DEV_VERIFICATION_CODE_PREFILL_ENABLED',
+    'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE_PREFILL_ENABLED',
     'VITE_SDKWORK_CHAT_AUTH_DEV_VERIFICATION_CODE_ENABLED',
     'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE_ENABLED',
   ));
@@ -178,8 +183,8 @@ function resolveDevelopmentPrefill(): SdkworkAuthRuntimeConfig['developmentPrefi
     password,
     phone,
     verificationCode,
-    ...(typeof verificationCodeBypassEnabled === 'boolean'
-      ? { verificationCodeBypassEnabled }
+    ...(typeof verificationCodePrefillEnabled === 'boolean'
+      ? { verificationCodePrefillEnabled }
       : {}),
   };
 }

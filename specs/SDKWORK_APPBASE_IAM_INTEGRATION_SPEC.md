@@ -1,7 +1,7 @@
 # SDKWork Appbase IAM Integration Standard
 
 - Version: 1.0
-- Scope: app-side login, registration, sessions, verification codes, QR auth, appbase IAM UI integration, generated app SDK integration, Craw Chat gateway/local runtime parity
+- Scope: app-side login, registration, sessions, verification codes, OAuth device authorization QR login, appbase IAM UI integration, generated app SDK integration, Craw Chat gateway/local runtime parity
 - Related: `IAM_SPEC.md`, `SDK_SPEC.md`, `APP_PC_REACT_UI_SPEC.md`, `CONFIG_SPEC.md`, `SECURITY_SPEC.md`, `TEST_SPEC.md`, `DEPLOYMENT_SPEC.md`
 
 This standard defines how applications integrate `sdkwork-appbase` IAM login and registration. It is based on the current Craw Chat PC integration and is intended as the reusable reference for other SDKWork apps.
@@ -19,14 +19,14 @@ React Router / AuthGate
   -> product appAuthService
   -> @sdkwork/iam-sdk-adapter createIamAppSdkAdapter()
   -> generated app SDK client
-  -> /app/v3/api/auth | /iam | /open_platform | /system/iam
+  -> /app/v3/api/auth | /iam | /oauth | /system/iam
 ```
 
 Backend/gateway flow:
 
 ```text
 Browser, desktop renderer, or mobile app
-  -> /app/v3/api/auth | /iam | /open_platform | /system/iam
+  -> /app/v3/api/auth | /iam | /oauth | /system/iam
   -> web gateway route registry
   -> sdkwork-appbase-app-api upstream in split/server mode
   -> product local/private runtime only when embedded mode has no appbase upstream
@@ -122,13 +122,13 @@ auth.verificationCodes.create
 auth.verificationCodes.verify
 auth.passwordResetRequests.create, if enabled
 auth.passwordResets.create, if enabled
-auth.oauthAuthorizationUrls.retrieve, if enabled
-auth.oauthSessions.create, if enabled
 iam.users.current.retrieve
-openPlatform.qrAuth.sessions.create
-openPlatform.qrAuth.sessions.retrieve
-openPlatform.qrAuth.sessions.scans.create
-openPlatform.qrAuth.sessions.passwords.create
+oauth.authorizationUrls.create
+oauth.deviceAuthorizations.create
+oauth.deviceAuthorizations.retrieve
+oauth.deviceAuthorizations.scans.create
+oauth.deviceAuthorizations.passwordCompletions.create
+oauth.sessions.create
 system.iam.runtime.retrieve, when exposed by the UI
 system.iam.verificationPolicy.retrieve
 ```
@@ -159,10 +159,10 @@ refreshToken(refreshToken?)
 sendVerifyCode({ target, verifyType, scene })
 verifyCode({ target, verifyType, scene, code })
 getCurrentSession()
-createQrAuthSession({ purpose? })
-retrieveQrAuthSession(sessionKey)
-createQrAuthScan(sessionKey, input?)
-createQrAuthPassword(sessionKey, input)
+createOAuthDeviceAuthorization({ purpose? })
+retrieveOAuthDeviceAuthorization(deviceAuthorizationId)
+createOAuthDeviceAuthorizationScan(deviceAuthorizationId, input?)
+createOAuthDeviceAuthorizationPasswordCompletion(deviceAuthorizationId, input)
 ```
 
 Rules:
@@ -184,10 +184,10 @@ getIam().auth.sessions.refresh(body)
 getIam().auth.registrations.create(body)
 getIam().auth.verificationCodes.create(body)
 getIam().auth.verificationCodes.verify(body)
-getIam().openPlatform.qrAuth.sessions.create(body)
-getIam().openPlatform.qrAuth.sessions.retrieve(sessionKey)
-getIam().openPlatform.qrAuth.sessions.scans.create(sessionKey, body)
-getIam().openPlatform.qrAuth.sessions.passwords.create(sessionKey, body)
+getIam().oauth.deviceAuthorizations.create(body)
+getIam().oauth.deviceAuthorizations.retrieve(deviceAuthorizationId)
+getIam().oauth.deviceAuthorizations.scans.create(deviceAuthorizationId, body)
+getIam().oauth.deviceAuthorizations.passwordCompletions.create(deviceAuthorizationId, body)
 ```
 
 Reference implementation:
@@ -329,7 +329,7 @@ serviceId: sdkwork-appbase-app-api
 paths:
   /app/v3/api/auth/{*path}
   /app/v3/api/iam/{*path}
-  /app/v3/api/open_platform/{*path}
+  /app/v3/api/oauth/{*path}
   /app/v3/api/system/iam/{*path}
 sdk target:
   sdkwork-im-app-sdk or the app's generated app SDK target
@@ -367,15 +367,15 @@ POST   /app/v3/api/auth/verification_codes
 POST   /app/v3/api/auth/verification_codes/verify
 POST   /app/v3/api/auth/password_reset_requests
 POST   /app/v3/api/auth/password_resets
-GET    /app/v3/api/auth/oauth_authorization_urls
-POST   /app/v3/api/auth/oauth_sessions
 GET    /app/v3/api/iam/users/current
 GET    /app/v3/api/system/iam/runtime
 GET    /app/v3/api/system/iam/verification_policy
-POST   /app/v3/api/open_platform/qr_auth/sessions
-GET    /app/v3/api/open_platform/qr_auth/sessions/{sessionKey}
-POST   /app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans
-POST   /app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords
+POST   /app/v3/api/oauth/authorization_urls
+POST   /app/v3/api/oauth/device_authorizations
+GET    /app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}
+POST   /app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/scans
+POST   /app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/password_completions
+POST   /app/v3/api/oauth/sessions
 ```
 
 Forbidden legacy paths:
@@ -386,6 +386,10 @@ Forbidden legacy paths:
 /app/v3/api/auth/refresh
 /app/v3/api/auth/verify/send
 /app/v3/api/auth/verify/check
+/app/v3/api/open_platform/qr_auth/sessions
+/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}
+/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans
+/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords
 /auth/login
 /auth/register
 ```
@@ -457,7 +461,7 @@ Gateway/runtime checks:
 - `/app/v3/api/auth/sessions` routes to `sdkwork-appbase-app-api` in split/server mode.
 - Embedded mode delegates missing appbase upstream IAM requests to product runtime.
 - CORS preflight succeeds and allows auth/AppContext headers.
-- OpenAPI app schema includes standard IAM and QR auth paths.
+- OpenAPI app schema includes standard IAM and OAuth device authorization paths.
 - OpenAPI app schema excludes legacy auth paths.
 
 Reference commands for Craw Chat:

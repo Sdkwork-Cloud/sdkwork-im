@@ -55,7 +55,7 @@ val client = SdkworkImClient(config)
 
 - `client.presence` - presence API
 - `client.realtime` - realtime API
-- `client.rtc` - rtc API
+- `client.calls` - calls API
 - `client.social` - social API
 - `client.chat` - chat API
 - `client.streams` - streams API
@@ -82,15 +82,16 @@ val result = client.realtime.eventsList(params)
 println(result)
 ```
 
-### rtc
+### calls
 
 ```kotlin
-// Create an IM-backed RTC session
+// Create an IM call signaling session
 val body = CreateRtcSessionRequest(
+    rtcSessionId = "1",
     conversationId = "1",
-    mediaKind = "mediakind"
+    rtcMode = "rtcmode"
 )
-val result = client.rtc.sessionsCreate(body)
+val result = client.calls.sessionsCreate(body)
 println(result)
 ```
 

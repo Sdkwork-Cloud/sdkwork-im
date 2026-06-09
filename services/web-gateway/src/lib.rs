@@ -23,11 +23,20 @@ use craw_chat_openapi::{OpenApiServiceSpec, render_docs_html};
 use craw_chat_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
 use futures_util::{SinkExt, StreamExt};
 use im_app_context::sign_app_context_headers;
+use im_platform_contracts::{
+    ContractError, PrincipalProfile, PrincipalProfileProvider, ProviderDomain,
+    ProviderHealthSnapshot, ProviderPluginDescriptor,
+};
 use reqwest::Client;
+use sdkwork_iam_http::{
+    SdkworkAppbaseLocalIamDirectory, SdkworkAppbaseLocalIamRuntimeContext,
+    SdkworkAppbaseLocalIamUserProfile,
+};
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async, tungstenite,
@@ -41,6 +50,10 @@ const APPBASE_APP_API_SERVICE_ID: &str = "sdkwork-appbase-app-api";
 const APP_CONTEXT_SIGNATURE_SECRET_ENV: &str = "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET";
 const IM_REALTIME_WEBSOCKET_PATH: &str = "/im/v3/api/realtime/ws";
 const WEBSOCKET_AUTH_INIT_TIMEOUT_SECONDS: u64 = 10;
+const WEBSOCKET_UPSTREAM_CONNECT_TIMEOUT_SECONDS: u64 = 5;
+const GATEWAY_MAX_WEBSOCKET_MESSAGE_BYTES: usize = 512 * 1024;
+const GATEWAY_MAX_WEBSOCKET_FRAME_BYTES: usize = 256 * 1024;
+const WEBSOCKET_AUTH_INIT_MAX_BYTES: usize = 8 * 1024;
 
 #[derive(Clone)]
 struct GatewayState {
@@ -48,7 +61,19 @@ struct GatewayState {
     config: WebGatewayConfig,
     registry: RouteRegistry,
     embedded_runtime_router: Option<Router>,
+    embedded_runtime_websocket_upstream: Option<Arc<EmbeddedRuntimeWebsocketUpstream>>,
     product_runtime_router: Option<Router>,
+}
+
+struct EmbeddedRuntimeWebsocketUpstream {
+    base_url: String,
+    handle: tokio::task::JoinHandle<()>,
+}
+
+impl Drop for EmbeddedRuntimeWebsocketUpstream {
+    fn drop(&mut self) {
+        self.handle.abort();
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -94,6 +119,8 @@ pub fn build_app_with_registry_and_runtime_routers(
     embedded_runtime_router: Option<Router>,
     product_runtime_router: Option<Router>,
 ) -> Router {
+    let embedded_runtime_websocket_upstream =
+        spawn_embedded_runtime_websocket_upstream(&config, embedded_runtime_router.clone());
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
@@ -116,9 +143,155 @@ pub fn build_app_with_registry_and_runtime_routers(
             config,
             registry,
             embedded_runtime_router,
+            embedded_runtime_websocket_upstream,
             product_runtime_router,
         })
         .layer(build_browser_cors_layer())
+}
+
+pub fn build_embedded_appbase_im_runtime_router() -> Router {
+    let (appbase_router, principal_profile_provider) =
+        build_embedded_appbase_runtime_with_principal_profile_provider();
+    appbase_router.merge(
+        local_minimal_node::build_default_app_with_principal_profile_provider(
+            principal_profile_provider,
+        ),
+    )
+}
+
+pub fn build_embedded_appbase_runtime_with_principal_profile_provider()
+-> (Router, Arc<dyn PrincipalProfileProvider>) {
+    let (router, directory) =
+        sdkwork_iam_http::build_sdkwork_appbase_app_api_router_with_runtime_context_and_local_directory(
+            embedded_appbase_runtime_context(),
+        );
+    (
+        router,
+        Arc::new(AppbaseLocalIamPrincipalProfileProvider::new(directory)),
+    )
+}
+
+fn embedded_appbase_runtime_context() -> SdkworkAppbaseLocalIamRuntimeContext {
+    SdkworkAppbaseLocalIamRuntimeContext::new("chat", "20001", "30001")
+        .with_organization_name("SDKWork Chat Organization")
+        .with_department("dept_30001", "SDKWork Chat")
+        .with_position("pos_30001", "Member")
+}
+
+#[derive(Clone)]
+struct AppbaseLocalIamPrincipalProfileProvider {
+    directory: SdkworkAppbaseLocalIamDirectory,
+}
+
+impl AppbaseLocalIamPrincipalProfileProvider {
+    fn new(directory: SdkworkAppbaseLocalIamDirectory) -> Self {
+        Self { directory }
+    }
+}
+
+impl PrincipalProfileProvider for AppbaseLocalIamPrincipalProfileProvider {
+    fn descriptor(&self) -> ProviderPluginDescriptor {
+        ProviderPluginDescriptor::new(
+            "principal-profile-appbase-local-iam",
+            ProviderDomain::PrincipalProfile,
+            "appbase-local-iam",
+            "SDKWork Appbase Local IAM Principal Profile",
+        )
+        .with_default_selected(true)
+        .with_required_capabilities(["read", "profile", "iam-directory"])
+    }
+
+    fn get_profile(
+        &self,
+        tenant_id: &str,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> Result<Option<PrincipalProfile>, ContractError> {
+        if principal_kind != "user" {
+            return Ok(None);
+        }
+        Ok(self
+            .directory
+            .get_user_profile(tenant_id, principal_id)
+            .map(directory_user_to_principal_profile))
+    }
+
+    fn batch_get_profiles(
+        &self,
+        tenant_id: &str,
+        principal_kind: &str,
+        principal_ids: &[String],
+    ) -> Result<Vec<PrincipalProfile>, ContractError> {
+        if principal_kind != "user" {
+            return Ok(Vec::new());
+        }
+        Ok(principal_ids
+            .iter()
+            .filter_map(|principal_id| self.directory.get_user_profile(tenant_id, principal_id))
+            .map(directory_user_to_principal_profile)
+            .collect())
+    }
+
+    fn search_profiles(
+        &self,
+        tenant_id: &str,
+        principal_kind: &str,
+        keyword: &str,
+    ) -> Result<Vec<PrincipalProfile>, ContractError> {
+        if principal_kind != "user" {
+            return Ok(Vec::new());
+        }
+        Ok(self
+            .directory
+            .search_user_profiles(tenant_id, keyword)
+            .into_iter()
+            .map(directory_user_to_principal_profile)
+            .collect())
+    }
+
+    fn map_external_principal(
+        &self,
+        _tenant_id: &str,
+        _principal_kind: &str,
+        _external_system: &str,
+        _external_principal_id: &str,
+    ) -> Result<Option<PrincipalProfile>, ContractError> {
+        Ok(None)
+    }
+
+    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
+        ProviderHealthSnapshot {
+            plugin_id: "principal-profile-appbase-local-iam".to_owned(),
+            status: "healthy".to_owned(),
+            checked_at: "2026-06-08T00:00:00Z".to_owned(),
+            details: BTreeMap::from([("providerKind".to_owned(), "appbase-local-iam".to_owned())]),
+        }
+    }
+}
+
+fn directory_user_to_principal_profile(
+    user: SdkworkAppbaseLocalIamUserProfile,
+) -> PrincipalProfile {
+    let mut attributes = BTreeMap::from([
+        ("username".to_owned(), user.username.clone()),
+        ("source".to_owned(), "sdkwork-appbase-local-iam".to_owned()),
+    ]);
+    if let Some(email) = user.email.clone() {
+        attributes.insert("email".to_owned(), email);
+    }
+    if let Some(phone) = user.phone.clone() {
+        attributes.insert("phone".to_owned(), phone);
+    }
+
+    PrincipalProfile {
+        tenant_id: user.tenant_id,
+        principal_id: user.user_id,
+        display_name: user.display_name,
+        external_system: Some("sdkwork-appbase-local-iam".to_owned()),
+        external_principal_id: Some(user.username),
+        attributes,
+        inactive: user.inactive,
+    }
 }
 
 async fn healthz() -> Json<GatewayHealthResponse> {
@@ -222,7 +395,7 @@ async fn proxy_websocket_request(
     service_id: &str,
     websocket_subprotocols: &[String],
 ) -> Response {
-    let Some(upstream_base_url) = state.config.upstream_base_url(service_id) else {
+    let Some(upstream_base_url) = websocket_upstream_base_url(state, service_id) else {
         return json_error_response(
             StatusCode::BAD_GATEWAY,
             format!("upstream target is not configured for {service_id}").as_str(),
@@ -233,16 +406,10 @@ async fn proxy_websocket_request(
         request.uri().path(),
         request.headers(),
     ) {
-        let path_and_query = request
-            .uri()
-            .path_and_query()
-            .map(|value| value.as_str().to_owned())
-            .unwrap_or_else(|| "/".to_owned());
+        let path_and_query = sanitized_realtime_websocket_path_and_query(request.uri());
         let original_headers = request.headers().clone();
         let state = state.clone();
-        let upstream_base_url = upstream_base_url.to_owned();
-        return ws
-            .protocols(websocket_subprotocols.to_vec())
+        return bounded_websocket_upgrade(ws)
             .on_upgrade(move |downstream_socket| {
                 proxy_realtime_websocket_after_auth_init(
                     downstream_socket,
@@ -261,7 +428,7 @@ async fn proxy_websocket_request(
         return response;
     }
     let Ok(upstream_url) = upstream_websocket_url(
-        upstream_base_url,
+        upstream_base_url.as_str(),
         request
             .uri()
             .path_and_query()
@@ -292,8 +459,8 @@ async fn proxy_websocket_request(
     };
     copy_websocket_headers(request.headers(), upstream_request.headers_mut());
 
-    match connect_async(upstream_request).await {
-        Ok((upstream_socket, _)) => ws
+    match connect_upstream_websocket(upstream_request).await {
+        Ok(upstream_socket) => bounded_websocket_upgrade(ws)
             .protocols(websocket_subprotocols.to_vec())
             .on_upgrade(move |downstream_socket| {
                 proxy_websocket_streams(downstream_socket, upstream_socket)
@@ -580,8 +747,8 @@ fn should_resolve_proxied_context_from_appbase_session(service_id: &str, path: &
         "conversation-runtime" => path.starts_with("/im/v3/api/chat/"),
         "projection-service" => path.starts_with("/im/v3/api/chat/"),
         "streaming-service" => path.starts_with("/im/v3/api/streams"),
+        "im-calls-service" => path.starts_with("/im/v3/api/calls/"),
         "media-service" => path.starts_with("/im/v3/api/media/"),
-        "sdkwork-rtc-signaling-service" => path.starts_with("/app/v3/api/rtc/"),
         "sdkwork-drive-app-api" => path.starts_with("/app/v3/api/drive/"),
         "notification-service" => path.starts_with("/app/v3/api/notifications"),
         "automation-service" => path.starts_with("/app/v3/api/automation/"),
@@ -597,6 +764,45 @@ fn should_authenticate_realtime_websocket_with_init_frame(
     service_id == "session-gateway"
         && path == IM_REALTIME_WEBSOCKET_PATH
         && (!headers.contains_key(header::AUTHORIZATION) || !headers.contains_key("access-token"))
+}
+
+fn bounded_websocket_upgrade(ws: WebSocketUpgrade) -> WebSocketUpgrade {
+    ws.max_message_size(GATEWAY_MAX_WEBSOCKET_MESSAGE_BYTES)
+        .max_frame_size(GATEWAY_MAX_WEBSOCKET_FRAME_BYTES)
+}
+
+fn sanitized_realtime_websocket_path_and_query(uri: &axum::http::Uri) -> String {
+    let path = uri.path();
+    let Some(query) = uri.query() else {
+        return path.to_owned();
+    };
+    let safe_query = query
+        .split('&')
+        .filter(|pair| {
+            let pair = *pair;
+            let key = pair.split_once('=').map_or(pair, |(key, _)| key);
+            key.eq_ignore_ascii_case("deviceId")
+        })
+        .collect::<Vec<_>>();
+    if safe_query.is_empty() {
+        return path.to_owned();
+    }
+    format!("{path}?{}", safe_query.join("&"))
+}
+
+async fn connect_upstream_websocket(
+    upstream_request: tungstenite::handshake::client::Request,
+) -> Result<WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>, String> {
+    match tokio::time::timeout(
+        Duration::from_secs(WEBSOCKET_UPSTREAM_CONNECT_TIMEOUT_SECONDS),
+        connect_async(upstream_request),
+    )
+    .await
+    {
+        Ok(Ok((upstream_socket, _))) => Ok(upstream_socket),
+        Ok(Err(error)) => Err(error.to_string()),
+        Err(_) => Err("upstream websocket connection timed out".to_owned()),
+    }
 }
 
 async fn proxy_realtime_websocket_after_auth_init(
@@ -692,7 +898,7 @@ async fn proxy_realtime_websocket_after_auth_init(
             return;
         }
     };
-    copy_websocket_headers(&original_headers, upstream_request.headers_mut());
+    copy_websocket_headers_without_subprotocol(&original_headers, upstream_request.headers_mut());
     if let Err(()) = replace_sdkwork_context_headers_for_upstream(
         upstream_request.headers_mut(),
         context_headers,
@@ -707,17 +913,18 @@ async fn proxy_realtime_websocket_after_auth_init(
         return;
     }
 
-    match connect_async(upstream_request).await {
-        Ok((upstream_socket, _)) => {
+    match connect_upstream_websocket(upstream_request).await {
+        Ok(upstream_socket) => {
             send_websocket_auth_ok(&mut downstream_socket, &auth_init, &auth_ok_context).await;
             proxy_websocket_streams(downstream_socket, upstream_socket).await;
         }
-        Err(_) => {
+        Err(error) => {
             close_websocket_with_auth_error(
                 &mut downstream_socket,
                 auth_init.request_id.as_deref(),
                 "websocket_upstream_unavailable",
-                "gateway websocket upstream request failed after auth.init",
+                format!("gateway websocket upstream request failed after auth.init: {error}")
+                    .as_str(),
             )
             .await;
         }
@@ -744,6 +951,9 @@ async fn read_websocket_auth_init_frame(socket: &mut WebSocket) -> Option<Websoc
         }
         Message::Pong(_) => return None,
     };
+    if text.len() > WEBSOCKET_AUTH_INIT_MAX_BYTES {
+        return None;
+    }
     serde_json::from_str::<WebsocketAuthInitFrame>(text.as_str()).ok()
 }
 
@@ -1040,6 +1250,10 @@ fn json_string_array(value: &Value, names: &[&str]) -> Option<String> {
 }
 
 fn runtime_router_for_path(state: &GatewayState, path: &str) -> Option<Router> {
+    if is_legacy_appbase_identity_namespace(path) {
+        return state.embedded_runtime_router.clone();
+    }
+
     if should_delegate_to_product_runtime(path) {
         return state
             .product_runtime_router
@@ -1071,6 +1285,50 @@ fn runtime_router_for_missing_embedded_upstream(
         .or_else(|| state.product_runtime_router.clone())
 }
 
+fn spawn_embedded_runtime_websocket_upstream(
+    config: &WebGatewayConfig,
+    embedded_runtime_router: Option<Router>,
+) -> Option<Arc<EmbeddedRuntimeWebsocketUpstream>> {
+    if config.runtime_mode != GatewayRuntimeMode::Embedded
+        || config.upstream_base_url("session-gateway").is_some()
+    {
+        return None;
+    }
+    let router = embedded_runtime_router?;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").ok()?;
+    listener.set_nonblocking(true).ok()?;
+    let local_addr = listener.local_addr().ok()?;
+    let listener = tokio::net::TcpListener::from_std(listener).ok()?;
+    let handle = tokio::spawn(async move {
+        if let Err(error) = axum::serve(listener, router).await {
+            tracing::warn!("embedded runtime websocket loopback stopped: {error}");
+        }
+    });
+    Some(Arc::new(EmbeddedRuntimeWebsocketUpstream {
+        base_url: format!("http://{local_addr}"),
+        handle,
+    }))
+}
+
+fn websocket_upstream_base_url(state: &GatewayState, service_id: &str) -> Option<String> {
+    state
+        .config
+        .upstream_base_url(service_id)
+        .map(str::to_owned)
+        .or_else(|| {
+            if state.config.runtime_mode == GatewayRuntimeMode::Embedded
+                && service_id == "session-gateway"
+            {
+                state
+                    .embedded_runtime_websocket_upstream
+                    .as_ref()
+                    .map(|upstream| upstream.base_url.clone())
+            } else {
+                None
+            }
+        })
+}
+
 fn should_delegate_to_embedded_runtime(path: &str) -> bool {
     path == "/im/v3/openapi.json"
         || path == "/app/v3/openapi.json"
@@ -1082,6 +1340,11 @@ fn should_delegate_to_embedded_runtime(path: &str) -> bool {
 
 fn should_delegate_to_product_runtime(path: &str) -> bool {
     path.starts_with("/app/v3/api/portal/")
+}
+
+fn is_legacy_appbase_identity_namespace(path: &str) -> bool {
+    path == "/app/v3/api/open_platform/qr_auth"
+        || path.starts_with("/app/v3/api/open_platform/qr_auth/")
 }
 
 async fn proxy_websocket_streams(
@@ -1367,12 +1630,12 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         "streams",
     ));
     entries.extend(prefix_routes(
-        "sdkwork-rtc-signaling-service",
+        "im-calls-service",
         vec![HttpMethod::Get, HttpMethod::Post],
-        &["/app/v3/api/rtc/{*path}"],
+        &["/im/v3/api/calls/{*path}"],
         RouteVisibility::Public,
-        vec![SdkTarget::SdkworkRtcAppSdk],
-        "rtc",
+        vec![SdkTarget::SdkworkImSdk],
+        "calls",
     ));
     entries.extend(prefix_routes(
         "sdkwork-drive-app-api",
@@ -1396,7 +1659,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         &[
             "/app/v3/api/auth/{*path}",
             "/app/v3/api/iam/{*path}",
-            "/app/v3/api/open_platform/{*path}",
+            "/app/v3/api/oauth/{*path}",
             "/app/v3/api/system/iam/{*path}",
         ],
         RouteVisibility::Public,
@@ -1607,6 +1870,20 @@ fn copy_websocket_headers(
     target_headers: &mut header::HeaderMap,
 ) {
     for (name, value) in source_headers.iter() {
+        if websocket_header_should_forward(name) {
+            target_headers.insert(name, value.clone());
+        }
+    }
+}
+
+fn copy_websocket_headers_without_subprotocol(
+    source_headers: &header::HeaderMap,
+    target_headers: &mut header::HeaderMap,
+) {
+    for (name, value) in source_headers.iter() {
+        if *name == header::SEC_WEBSOCKET_PROTOCOL {
+            continue;
+        }
         if websocket_header_should_forward(name) {
             target_headers.insert(name, value.clone());
         }
@@ -2210,7 +2487,7 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
         "GatewaySdkTarget".to_owned(),
         json!({
             "type": "string",
-            "enum": ["sdkworkImSdk", "sdkworkImAppSdk", "sdkworkImBackendSdk", "sdkworkRtcAppSdk", "sdkworkDriveAppSdk", "none"]
+            "enum": ["sdkworkImSdk", "sdkworkImAppSdk", "sdkworkImBackendSdk", "sdkworkDriveAppSdk", "none"]
         }),
     );
     schemas.insert(

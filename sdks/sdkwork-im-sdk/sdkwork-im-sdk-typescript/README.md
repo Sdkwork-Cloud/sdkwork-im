@@ -61,7 +61,12 @@ const client = new ImSdkClient({
 });
 
 const connection = await client.connect({
+  connectionTimeoutMs: 15_000,
   deviceId,
+  heartbeat: {
+    intervalMs: 30_000,
+    timeoutMs: 75_000,
+  },
   subscriptions: {
     conversations: [conversationId],
   },
@@ -70,13 +75,21 @@ const connection = await client.connect({
 connection.messages.onConversation(conversationId, async (message, context) => {
   await context.ack();
 });
+
+connection.subscriptions.syncConversations([
+  conversationId,
+  anotherConversationId,
+]);
 ```
 
 The default wire mode is the backend legacy JSON websocket protocol:
 
 - Browser mode sends `auth.init` first and waits for `auth.ok` before reporting the connection open.
 - Node/Tauri injected websocket factories may still forward `Authorization`, `Access-Token`, and AppContext headers for trusted host runtimes.
-- `subscriptions.sync` is sent as a websocket frame for requested conversation subscriptions.
+- `subscriptions.sync` is sent as a websocket frame for requested conversation subscriptions. Call `connection.subscriptions.syncConversations(...)` to replace the active conversation subscription snapshot on an existing connection.
+- A connection that never reaches the native websocket `open` event emits `websocket_connect_timeout` and queues a close for the first safe moment. Application connection managers should treat this as a reconnectable transport error.
+- Heartbeats are enabled by default. The SDK sends `ping` frames and treats any inbound frame as liveness; if the socket stays silent past `timeoutMs`, it emits `websocket_heartbeat_timeout` and closes the connection so the app-level connection manager can reconnect. Pass `heartbeat: false` only for tests or runtimes with their own equivalent liveness checks.
+- Server `error` control frames are surfaced through `connection.lifecycle.onError(...)`. Fatal websocket auth, session, token, upstream, and connect errors also move the connection into `error` state and close the socket; non-fatal subscription or business errors leave the socket open.
 - `event.window` frames are decoded into `messages.onConversation(...)` callbacks.
 - `context.ack()` sends `events.ack` with the received realtime sequence.
 - Auth tokens are not sent as websocket URL query parameters or subprotocol names.

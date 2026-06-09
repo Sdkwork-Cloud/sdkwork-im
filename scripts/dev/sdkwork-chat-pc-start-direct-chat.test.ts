@@ -102,6 +102,44 @@ async function main(): Promise<void> {
     ['pc-direct-current-user-u_alice', 'Alice Chen', 'https://example.com/alice.png', 'single', 0],
   );
 
+  calls.length = 0;
+  const existingContactChat = await service.startDirectChat({
+    id: 'u_bob',
+    name: 'Bob Li',
+    avatar: 'https://example.com/bob.png',
+    conversationId: 'c_direct_friend_bob',
+    directChatId: 'dc_friend_bob',
+  });
+
+  assert.equal(
+    calls.some((call) => call.method === 'conversations.bindDirectChat'),
+    false,
+    'starting a chat from an existing contact projection must not call the privileged direct-chat binding route',
+  );
+  assert.deepEqual(
+    calls,
+    [
+      {
+        method: 'conversations.updatePreferences',
+        conversationId: 'c_direct_friend_bob',
+        body: {
+          isHidden: false,
+        },
+      },
+    ],
+    'starting a chat from an existing contact projection only needs to unhide the server-owned conversation',
+  );
+  assert.deepEqual(
+    [
+      existingContactChat.id,
+      existingContactChat.name,
+      existingContactChat.avatar,
+      existingContactChat.type,
+      existingContactChat.unreadCount,
+    ],
+    ['c_direct_friend_bob', 'Bob Li', 'https://example.com/bob.png', 'single', 0],
+  );
+
   console.log('sdkwork-chat-pc start direct chat contract passed');
 }
 

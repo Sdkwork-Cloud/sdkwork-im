@@ -6,8 +6,8 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class ContactsResponse
     {
-        public List<ContactView>? Items { get; set; }
+        public List<ContactView> Items { get; set; }
         public string? NextCursor { get; set; }
-        public bool? HasMore { get; set; }
+        public bool HasMore { get; set; }
     }
 }

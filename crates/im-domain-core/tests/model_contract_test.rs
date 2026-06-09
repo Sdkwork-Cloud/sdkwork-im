@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use im_domain_core::conversation::{
     ClientRouteSyncFeedEntry, ConversationActorView, ConversationAgentHandoffView,
@@ -23,10 +22,10 @@ use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEvent, RealtimeEventWindow, RealtimeSubscription,
     RealtimeSubscriptionSnapshot,
 };
+use im_domain_core::rtc::{RtcSession, RtcSessionState, RtcSignalEvent, RtcSignalSender};
 use im_domain_core::stream::{
     StreamDurabilityClass, StreamFrame, StreamSession, StreamSessionState,
 };
-use sdkwork_rtc_core::{RtcSession, RtcSessionState, RtcSignalEvent, RtcSignalSender};
 use serde_json::{Value, json};
 
 #[test]
@@ -424,19 +423,7 @@ fn test_rtc_session_serializes_signal_binding_fields() {
 #[test]
 fn test_stream_and_rtc_session_identity_kind_fields_are_required() {
     let stream_source = include_str!("../src/stream.rs");
-    let rtc_reexport_source = include_str!("../src/rtc.rs");
-    let rtc_core_source = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("..")
-            .join("..")
-            .join("sdkwork-rtc")
-            .join("crates")
-            .join("sdkwork-rtc-core")
-            .join("src")
-            .join("lib.rs"),
-    )
-    .expect("sdkwork-rtc-core source should be available as the RTC contract authority");
+    let rtc_source = include_str!("../src/rtc.rs");
 
     assert!(
         stream_source.contains("pub owner_principal_id: String,")
@@ -444,9 +431,9 @@ fn test_stream_and_rtc_session_identity_kind_fields_are_required() {
         "stream sessions must persist an explicit owner principal id and kind"
     );
     assert!(
-        rtc_reexport_source.contains("pub use sdkwork_rtc_core::{")
-            && rtc_core_source.contains("pub initiator_kind: String,"),
-        "rtc sessions must persist an explicit initiator kind"
+        rtc_source.contains("pub initiator_kind: String,")
+            && !rtc_source.contains("pub use sdkwork_rtc_core"),
+        "IM-owned rtc sessions must persist an explicit initiator kind without re-exporting sdkwork-rtc call signaling contracts"
     );
 
     for forbidden_symbol in [
@@ -455,8 +442,7 @@ fn test_stream_and_rtc_session_identity_kind_fields_are_required() {
         "pub initiator_kind: Option<String>",
     ] {
         assert!(
-            !stream_source.contains(forbidden_symbol)
-                && !rtc_core_source.contains(forbidden_symbol),
+            !stream_source.contains(forbidden_symbol) && !rtc_source.contains(forbidden_symbol),
             "session identity kind fields must not be optional: {forbidden_symbol}"
         );
     }

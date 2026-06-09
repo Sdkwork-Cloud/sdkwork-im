@@ -9,7 +9,7 @@ type SdkworkImClient struct {
     http *sdkhttp.Client
     Presence *api.PresenceApi
     Realtime *api.RealtimeApi
-    Rtc *api.RtcApi
+    Calls *api.CallsApi
     Social *api.SocialApi
     Chat *api.ChatApi
     Streams *api.StreamsApi
@@ -26,7 +26,7 @@ func NewSdkworkImClientWithConfig(config sdkhttp.Config) *SdkworkImClient {
         http: client,
         Presence: api.NewPresenceApi(client),
         Realtime: api.NewRealtimeApi(client),
-        Rtc: api.NewRtcApi(client),
+        Calls: api.NewCallsApi(client),
         Social: api.NewSocialApi(client),
         Chat: api.NewChatApi(client),
         Streams: api.NewStreamsApi(client),

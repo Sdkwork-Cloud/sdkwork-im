@@ -9,6 +9,7 @@ import {
   appAuthService,
   getSdkworkChatIamRuntime,
   isSdkworkChatDesktopRuntime,
+  isAppSdkSessionAuthenticated,
   readAppSdkSessionTokens,
   resolveSdkworkChatAuthAppearance,
   resolveSdkworkChatAuthRuntimeConfig,
@@ -25,7 +26,7 @@ const AUTH_BASE_PATH = '/auth';
 const CHAT_SETTINGS_STORAGE_KEY = 'clawchat-settings';
 
 function isAuthenticatedSession(session: SdkworkChatSession | null): boolean {
-  return Boolean(session?.authToken && session?.accessToken);
+  return isAppSdkSessionAuthenticated(session);
 }
 
 function isAuthRoute(pathname: string): boolean {
@@ -483,6 +484,16 @@ export function AuthGate({ children }: AuthGateProps) {
 
   useEffect(() => {
     let disposed = false;
+    const storedSession = readAppSdkSessionTokens();
+
+    if (!isAuthenticatedSession(storedSession)) {
+      setSession(null);
+      setIsBootstrapped(true);
+      return () => {
+        disposed = true;
+      };
+    }
+
     setIsBootstrapped(false);
 
     appAuthService.getCurrentSession()

@@ -11,7 +11,7 @@ public class PostedMessageResponse {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -19,7 +19,7 @@ public class PostedMessageResponse {
     public String getMessageId() {
         return this.messageId;
     }
-    
+
     public void setMessageId(String messageId) {
         this.messageId = messageId;
     }
@@ -27,7 +27,7 @@ public class PostedMessageResponse {
     public Integer getMessageSeq() {
         return this.messageSeq;
     }
-    
+
     public void setMessageSeq(Integer messageSeq) {
         this.messageSeq = messageSeq;
     }
@@ -35,7 +35,7 @@ public class PostedMessageResponse {
     public MessageBody getBody() {
         return this.body;
     }
-    
+
     public void setBody(MessageBody body) {
         this.body = body;
     }
@@ -43,7 +43,7 @@ public class PostedMessageResponse {
     public String getOccurredAt() {
         return this.occurredAt;
     }
-    
+
     public void setOccurredAt(String occurredAt) {
         this.occurredAt = occurredAt;
     }

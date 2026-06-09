@@ -1,22 +1,10 @@
+import type { ImCallSession, ImCallSessionMutationResponse, ImSdkClient } from '@sdkwork/im-sdk';
+import { getImSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/imSdkClient';
 import {
-  createRtcAppHttpClient,
-  createStandardRtcCallControllerStack,
-  type RtcCallControllerSnapshot,
-  type RtcDataSourceConfig,
-  type RtcSignalingTransportLike,
-} from '@sdkwork/rtc-sdk';
-import type { ImSdkClient, RtcSession } from '@sdkwork/im-sdk';
-import {
-  getImSdkClientWithSession,
-  resolveImSdkApiBaseUrl,
-} from '@sdkwork/clawchat-pc-core/sdk/imSdkClient';
-import {
-  buildSdkworkChatAppContextHeaders,
   readAppSdkSessionTokens,
-  resolveAppSdkAccessToken,
-  resolveAppSdkAuthToken,
   type SdkworkChatSession,
 } from '@sdkwork/clawchat-pc-core/sdk/session';
+import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
 
 export type SdkworkCallType = 'voice' | 'video';
 
@@ -29,15 +17,31 @@ export type SdkworkCallState =
   | 'rejected'
   | 'errored';
 
+export type SdkworkCallControllerState =
+  | 'idle'
+  | 'watching'
+  | 'incoming_ringing'
+  | 'outgoing_ringing'
+  | 'connecting'
+  | 'connected'
+  | 'ended'
+  | 'rejected'
+  | 'errored';
+
 export interface SdkworkCallSnapshot {
+  accessEndpoint?: string;
   state: SdkworkCallState;
-  controllerState?: RtcCallControllerSnapshot['controllerState'];
+  controllerState?: SdkworkCallControllerState;
   conversationId?: string;
-  direction?: RtcCallControllerSnapshot['direction'];
+  direction?: 'incoming' | 'outgoing';
   errorMessage?: string;
+  initiatorId?: string;
+  isParticipantCredentialReady?: boolean;
   isAudioMuted: boolean;
   isVideoMuted: boolean;
+  participantCredentialExpiresAt?: string;
   participantId?: string;
+  peerUserId?: string;
   providerKey?: string;
   roomId?: string;
   rtcMode?: string;
@@ -78,56 +82,7 @@ export interface CallService {
   watchIncomingCalls(conversationIds: string[]): Promise<SdkworkCallSnapshot>;
 }
 
-const DEFAULT_RTC_PROVIDER_KEY = 'volcengine';
-
-type SdkworkRtcStackLike = {
-  callController: {
-    acceptIncoming?(options: {
-      autoPublish?: {
-        audio?: boolean;
-        video?: boolean;
-      };
-      conversationId?: string;
-      participantId: string;
-      roomId?: string;
-      rtcMode?: string;
-      rtcSessionId: string;
-    }): Promise<RtcCallControllerSnapshot> | RtcCallControllerSnapshot;
-    end?(options?: EndCallOptions): Promise<RtcCallControllerSnapshot> | RtcCallControllerSnapshot;
-    getSnapshot(): RtcCallControllerSnapshot;
-    onSnapshot(handler: (snapshot: RtcCallControllerSnapshot) => void): () => void;
-    rejectIncoming?(options: {
-      reason?: string;
-      rtcSessionId: string;
-    }): Promise<RtcCallControllerSnapshot> | RtcCallControllerSnapshot;
-    replaceWatchedConversations?(conversationIds: readonly string[]): Promise<RtcCallControllerSnapshot> | RtcCallControllerSnapshot;
-    startOutgoing?(options: {
-      autoPublish?: {
-        audio?: boolean;
-        video?: boolean;
-      };
-      conversationId: string;
-      initiatorDisplayName?: string;
-      participantId: string;
-      roomId?: string;
-      rtcMode: string;
-      rtcSessionId: string;
-      signalingStreamId?: string;
-    }): Promise<RtcCallControllerSnapshot>;
-  };
-  close(): Promise<void> | void;
-  mediaClient: {
-    muteAudio?(muted: boolean): Promise<unknown> | unknown;
-    muteVideo?(muted: boolean): Promise<unknown> | unknown;
-  };
-};
-
-type SdkworkCreateRtcStack = (
-  options: Parameters<typeof createStandardRtcCallControllerStack>[0],
-) => Promise<SdkworkRtcStackLike>;
-
 export interface SdkworkCallServiceDependencies {
-  createStack?: SdkworkCreateRtcStack;
   getClient?: (session: SdkworkChatSession | null) => ImSdkClient;
   readSession?: () => SdkworkChatSession | null;
 }
@@ -135,14 +90,10 @@ export interface SdkworkCallServiceDependencies {
 function createIdleSnapshot(): SdkworkCallSnapshot {
   return {
     state: 'idle',
+    controllerState: 'idle',
     isAudioMuted: false,
     isVideoMuted: false,
   };
-}
-
-function readEnvValue(key: string): string | undefined {
-  const value = import.meta.env?.[key];
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 function normalizeIdSegment(value: string): string {
@@ -171,12 +122,7 @@ function resolveParticipantId(session: SdkworkChatSession | null): string {
   if (candidate) {
     return String(candidate);
   }
-  throw new Error('SDKWork Chat login session does not include a user id for RTC.');
-}
-
-function resolveDeviceId(session: SdkworkChatSession | null, participantId: string): string {
-  const sessionPart = session?.sessionId ?? session?.context?.sessionId ?? participantId;
-  return `sdkwork-chat-pc-${normalizeIdSegment(String(sessionPart)) || normalizeIdSegment(participantId) || 'device'}`;
+  throw new Error('SDKWork Chat login session does not include a user id for calls.');
 }
 
 function toRtcMode(type: SdkworkCallType): string {
@@ -187,7 +133,7 @@ function toCallType(rtcMode: string | undefined): SdkworkCallType {
   return rtcMode === 'video' || rtcMode === 'video_call' ? 'video' : 'voice';
 }
 
-function toRecoveredServiceState(state: RtcSession['state']): SdkworkCallState {
+function toRecoveredServiceState(state: ImCallSession['state']): SdkworkCallState {
   switch (state) {
     case 'accepted':
       return 'connected';
@@ -201,79 +147,56 @@ function toRecoveredServiceState(state: RtcSession['state']): SdkworkCallState {
   }
 }
 
-function isActiveRtcSession(session: RtcSession): boolean {
-  return session.state === 'started' || session.state === 'accepted';
-}
-
-function toServiceState(controllerState: RtcCallControllerSnapshot['controllerState']): SdkworkCallState {
-  switch (controllerState) {
-    case 'connected':
-      return 'connected';
+function toControllerState(state: SdkworkCallState, direction?: 'incoming' | 'outgoing'): SdkworkCallControllerState {
+  switch (state) {
+    case 'ringing':
+      return direction === 'incoming' ? 'incoming_ringing' : 'outgoing_ringing';
     case 'connecting':
-      return 'connecting';
+    case 'connected':
     case 'ended':
-      return 'ended';
     case 'rejected':
-      return 'rejected';
     case 'errored':
-      return 'errored';
-    case 'incoming_ringing':
-    case 'outgoing_ringing':
-      return 'ringing';
-    case 'watching':
+      return state;
     case 'idle':
     default:
       return 'idle';
   }
 }
 
+function resolvePeerUserId(session: ImCallSession, participantId: string | undefined): string | undefined {
+  if (!session.initiatorId) {
+    return undefined;
+  }
+  if (!participantId || session.initiatorId !== participantId) {
+    return session.initiatorId;
+  }
+  return undefined;
+}
+
+function resolveCallAccessEndpoint(session: ImCallSession): string | undefined {
+  return session.accessEndpoint ?? undefined;
+}
+
+function sessionFromMutation(response: ImCallSessionMutationResponse): ImCallSession {
+  return response;
+}
+
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
     return error.message;
   }
-  return typeof error === 'string' && error.trim().length > 0 ? error : 'RTC call failed.';
+  return typeof error === 'string' && error.trim().length > 0 ? error : 'Call signaling failed.';
 }
 
-function createRtcDataSourceConfig(): RtcDataSourceConfig {
-  const providerKey =
-    readEnvValue('VITE_CRAW_CHAT_RTC_PROVIDER_KEY') ?? DEFAULT_RTC_PROVIDER_KEY;
-  const providerUrl = readEnvValue('VITE_CRAW_CHAT_RTC_PROVIDER_URL');
-  const volcengineAppId = readEnvValue('VITE_CRAW_CHAT_RTC_VOLCENGINE_APP_ID');
-  const nativeConfig = volcengineAppId
-    ? {
-        appId: volcengineAppId,
-      }
-    : undefined;
-
-  return {
-    ...(providerKey ? { providerKey } : {}),
-    ...(providerUrl ? { providerUrl } : {}),
-    ...(nativeConfig ? { nativeConfig } : {}),
-  };
-}
-
-function createRtcSignalingTransport(session: SdkworkChatSession | null): RtcSignalingTransportLike {
-  const currentSession = session ?? readAppSdkSessionTokens();
-  return createRtcAppHttpClient({
-    baseUrl: resolveImSdkApiBaseUrl(),
-    accessToken: resolveAppSdkAccessToken(currentSession),
-    authToken: resolveAppSdkAuthToken(currentSession),
-    headerProvider: () => buildSdkworkChatAppContextHeaders(readAppSdkSessionTokens() ?? currentSession),
-  });
-}
-
-class SdkworkRtcCallService implements CallService {
+class SdkworkImCallService implements CallService {
   private readonly listeners = new Set<(snapshot: SdkworkCallSnapshot) => void>();
-  private readonly createStack: SdkworkCreateRtcStack;
   private readonly getClient: (session: SdkworkChatSession | null) => ImSdkClient;
   private readonly readSession: () => SdkworkChatSession | null;
+  private incomingSubscription?: () => void;
   private snapshot: SdkworkCallSnapshot = createIdleSnapshot();
-  private stack: SdkworkRtcStackLike | null = null;
-  private unsubscribeControllerSnapshot: (() => void) | undefined;
   private sequence = 0;
 
   constructor(dependencies: SdkworkCallServiceDependencies = {}) {
-    this.createStack = dependencies.createStack ?? (async (options) => createStandardRtcCallControllerStack(options));
     this.getClient = dependencies.getClient ?? ((session) => getImSdkClientWithSession(session));
     this.readSession = dependencies.readSession ?? readAppSdkSessionTokens;
   }
@@ -297,73 +220,54 @@ class SdkworkRtcCallService implements CallService {
     const session = this.readSession();
     const participantId = resolveParticipantId(session);
     const rtcMode = toRtcMode(options.type);
-    const rtcSessionId = createRuntimeId('rtc-pc', options.conversationId);
-    const signalingStreamId = createRuntimeId('signal', rtcSessionId);
-    const roomId = rtcSessionId;
+    const rtcSessionId = createRuntimeId('call-pc', options.conversationId);
+    const signalingStreamId = createRuntimeId('call-signal', rtcSessionId);
 
     this.applySnapshot({
       ...createIdleSnapshot(),
       state: 'ringing',
+      controllerState: 'outgoing_ringing',
       conversationId: options.conversationId,
       direction: 'outgoing',
       isAudioMuted: this.snapshot.isAudioMuted,
       isVideoMuted: options.type === 'voice' ? true : this.snapshot.isVideoMuted,
       participantId,
-      roomId,
+      roomId: rtcSessionId,
       rtcMode,
       rtcSessionId,
+      peerUserId: undefined,
       targetName: options.targetName,
       type: options.type,
     });
 
     try {
-      await this.closeStack();
-      if (sequence !== this.sequence) {
-        return this.getSnapshot();
-      }
-
-      const stack = await this.createStack({
-        transport: createRtcSignalingTransport(session),
-        deviceId: resolveDeviceId(session, participantId),
-        watchConversationIds: [options.conversationId],
-        dataSourceConfig: createRtcDataSourceConfig(),
-      });
-
-      if (sequence !== this.sequence) {
-        await stack.close();
-        return this.getSnapshot();
-      }
-
-      this.stack = stack;
-      this.unsubscribeControllerSnapshot = stack.callController.onSnapshot((controllerSnapshot) => {
-        this.applyControllerSnapshot(controllerSnapshot);
-      });
-
-      if (!stack.callController.startOutgoing) {
-        throw new Error('RTC call controller does not support outgoing calls.');
-      }
-
-      const controllerSnapshot = await stack.callController.startOutgoing({
-        rtcSessionId,
+      const imClient = this.getClient(session);
+      const created = await imClient.calls.start({
         conversationId: options.conversationId,
         rtcMode,
-        roomId,
-        participantId,
-        signalingStreamId,
-        initiatorDisplayName: session?.user?.displayName ?? session?.user?.name,
-        autoPublish: {
-          audio: !this.snapshot.isAudioMuted,
-          video: options.type === 'video' && !this.snapshot.isVideoMuted,
-        },
+        rtcSessionId,
       });
-      this.applyControllerSnapshot(controllerSnapshot);
+      if (sequence !== this.sequence) {
+        return this.getSnapshot();
+      }
+      await imClient.calls.invite(created.rtcSessionId, { signalingStreamId });
+      if (sequence !== this.sequence) {
+        return this.getSnapshot();
+      }
+      this.applySessionSnapshot(sessionFromMutation(created), {
+        direction: 'outgoing',
+        participantId,
+        state: 'ringing',
+        targetName: options.targetName,
+        type: options.type,
+      });
       return this.getSnapshot();
     } catch (error) {
       if (sequence === this.sequence) {
-        await this.closeStack();
         this.applySnapshot({
           ...this.snapshot,
           state: 'errored',
+          controllerState: 'errored',
           errorMessage: toErrorMessage(error),
         });
       }
@@ -372,9 +276,6 @@ class SdkworkRtcCallService implements CallService {
   }
 
   async setAudioMuted(muted: boolean): Promise<SdkworkCallSnapshot> {
-    if (this.stack?.mediaClient.muteAudio && this.snapshot.state === 'connected') {
-      await this.stack.mediaClient.muteAudio(muted);
-    }
     this.applySnapshot({
       ...this.snapshot,
       isAudioMuted: muted,
@@ -383,9 +284,6 @@ class SdkworkRtcCallService implements CallService {
   }
 
   async setVideoMuted(muted: boolean): Promise<SdkworkCallSnapshot> {
-    if (this.stack?.mediaClient.muteVideo && this.snapshot.state === 'connected') {
-      await this.stack.mediaClient.muteVideo(muted);
-    }
     this.applySnapshot({
       ...this.snapshot,
       isVideoMuted: muted,
@@ -405,42 +303,77 @@ class SdkworkRtcCallService implements CallService {
     }
 
     if (normalizedConversationIds.length === 0) {
-      await this.closeStack();
+      this.incomingSubscription?.();
+      this.incomingSubscription = undefined;
       this.applySnapshot(createIdleSnapshot());
       return this.getSnapshot();
     }
 
-    const session = this.readSession();
-    const participantId = resolveParticipantId(session);
-
     try {
-      if (this.stack?.callController.replaceWatchedConversations) {
-        const controllerSnapshot = await this.stack.callController.replaceWatchedConversations(normalizedConversationIds);
-        this.applyControllerSnapshot(controllerSnapshot);
-        return this.getSnapshot();
+      const session = this.readSession();
+      const imClient = this.getClient(session);
+      this.incomingSubscription?.();
+      this.incomingSubscription = imClient.calls.subscribe((callSession) => {
+        if (!normalizedConversationIds.includes(callSession.conversationId ?? '')) {
+          return;
+        }
+        if (this.snapshot.rtcSessionId && this.snapshot.rtcSessionId === callSession.rtcSessionId) {
+          const participantId = this.snapshot.participantId ?? resolveParticipantId(this.readSession());
+          this.applySessionSnapshot(callSession, {
+            direction: this.snapshot.direction,
+            participantId,
+          });
+          if (this.snapshot.state === 'connected') {
+            void this.ensureParticipantCredentialReady(callSession.rtcSessionId, this.readSession())
+              .catch((error) => {
+                if (this.snapshot.rtcSessionId !== callSession.rtcSessionId || this.snapshot.state !== 'connected') {
+                  return;
+                }
+                this.applySnapshot({
+                  ...this.snapshot,
+                  state: 'errored',
+                  controllerState: 'errored',
+                  errorMessage: toErrorMessage(error),
+                });
+              });
+          }
+          return;
+        }
+        if (this.hasActiveCall()) {
+          return;
+        }
+        const incomingState = toRecoveredServiceState(callSession.state);
+        if (incomingState !== 'ringing') {
+          return;
+        }
+        this.applySessionSnapshot(callSession, {
+          direction: 'incoming',
+          participantId: resolveParticipantId(this.readSession()),
+          state: incomingState,
+        });
+      });
+      const incoming = await imClient.calls.watchIncoming({
+        conversationIds: normalizedConversationIds,
+        deviceId: resolveSdkworkChatPcClientId(),
+      });
+      if (incoming && normalizedConversationIds.includes(incoming.conversationId ?? '')) {
+        this.applySessionSnapshot(incoming, {
+          direction: 'incoming',
+          participantId: resolveParticipantId(session),
+          state: 'ringing',
+        });
+      } else {
+        this.applySnapshot({
+          ...createIdleSnapshot(),
+          controllerState: 'watching',
+          participantId: resolveParticipantId(session),
+        });
       }
-
-      await this.closeStack();
-      const stack = await this.createStack({
-        transport: createRtcSignalingTransport(session),
-        deviceId: resolveDeviceId(session, participantId),
-        watchConversationIds: normalizedConversationIds,
-        dataSourceConfig: createRtcDataSourceConfig(),
-      });
-      this.stack = stack;
-      this.unsubscribeControllerSnapshot = stack.callController.onSnapshot((controllerSnapshot) => {
-        this.applyControllerSnapshot(controllerSnapshot);
-      });
-      this.applySnapshot({
-        ...createIdleSnapshot(),
-        controllerState: stack.callController.getSnapshot().controllerState,
-        participantId,
-      });
     } catch (error) {
-      await this.closeStack();
       this.applySnapshot({
         ...this.snapshot,
         state: 'errored',
+        controllerState: 'errored',
         errorMessage: toErrorMessage(error),
       });
     }
@@ -449,92 +382,89 @@ class SdkworkRtcCallService implements CallService {
   }
 
   async acceptIncomingCall(): Promise<SdkworkCallSnapshot> {
-    const stack = this.stack;
     const rtcSessionId = this.snapshot.rtcSessionId;
-    if (!stack?.callController.acceptIncoming || !rtcSessionId) {
-      this.applySnapshot({
-        ...this.snapshot,
-        state: 'errored',
-        errorMessage: 'RTC incoming call is not available.',
-      });
+    if (!rtcSessionId) {
+      this.applyUnavailableIncomingSnapshot();
       return this.getSnapshot();
     }
 
-    const session = this.readSession();
-    const participantId = resolveParticipantId(session);
-    const controllerSnapshot = await stack.callController.acceptIncoming({
-      rtcSessionId,
-      conversationId: this.snapshot.conversationId,
-      rtcMode: this.snapshot.rtcMode,
-      roomId: this.snapshot.roomId,
-      participantId,
-      autoPublish: {
-        audio: !this.snapshot.isAudioMuted,
-        video: this.snapshot.type === 'video' && !this.snapshot.isVideoMuted,
-      },
-    });
-    this.applyControllerSnapshot(controllerSnapshot);
-    return this.getSnapshot();
-  }
-
-  async rejectIncomingCall(options: EndCallOptions = {}): Promise<SdkworkCallSnapshot> {
-    const stack = this.stack;
-    const rtcSessionId = this.snapshot.rtcSessionId;
-    if (!stack?.callController.rejectIncoming || !rtcSessionId) {
+    try {
+      const session = this.readSession();
+      const imClient = this.getClient(session);
+      const accepted = await imClient.calls.accept(rtcSessionId);
+      this.applySessionSnapshot(sessionFromMutation(accepted), {
+        direction: this.snapshot.direction ?? 'incoming',
+        participantId: this.snapshot.participantId ?? resolveParticipantId(session),
+        state: 'connected',
+      });
+      await this.ensureParticipantCredentialReady(rtcSessionId, session);
+      return this.getSnapshot();
+    } catch (error) {
       this.applySnapshot({
         ...this.snapshot,
         state: 'errored',
-        errorMessage: 'RTC incoming call is not available.',
+        controllerState: 'errored',
+        errorMessage: toErrorMessage(error),
       });
       return this.getSnapshot();
     }
-
-    const controllerSnapshot = await stack.callController.rejectIncoming({
-      rtcSessionId,
-      reason: options.reason,
-    });
-    this.applyControllerSnapshot(controllerSnapshot);
-    return this.getSnapshot();
   }
 
-  async endCall(options: EndCallOptions = {}): Promise<void> {
-    const stack = this.stack;
+  async rejectIncomingCall(_options: EndCallOptions = {}): Promise<SdkworkCallSnapshot> {
+    const rtcSessionId = this.snapshot.rtcSessionId;
+    if (!rtcSessionId) {
+      this.applyUnavailableIncomingSnapshot();
+      return this.getSnapshot();
+    }
+
+    try {
+      const session = this.readSession();
+      const imClient = this.getClient(session);
+      const rejected = await imClient.calls.reject(rtcSessionId);
+      this.applySessionSnapshot(sessionFromMutation(rejected), {
+        direction: this.snapshot.direction ?? 'incoming',
+        participantId: this.snapshot.participantId ?? resolveParticipantId(session),
+        state: 'rejected',
+      });
+      return this.getSnapshot();
+    } catch (error) {
+      this.applySnapshot({
+        ...this.snapshot,
+        state: 'errored',
+        controllerState: 'errored',
+        errorMessage: toErrorMessage(error),
+      });
+      return this.getSnapshot();
+    }
+  }
+
+  async endCall(_options: EndCallOptions = {}): Promise<void> {
     ++this.sequence;
-    if (!stack) {
+    const rtcSessionId = this.snapshot.rtcSessionId;
+    if (!rtcSessionId) {
       this.applySnapshot({
         ...this.snapshot,
         state: this.snapshot.state === 'idle' ? 'idle' : 'ended',
+        controllerState: this.snapshot.state === 'idle' ? 'idle' : 'ended',
       });
       return;
     }
 
     try {
-      const controllerSnapshot = stack.callController.getSnapshot();
-      const hasActiveSession = Boolean(
-        controllerSnapshot.rtcSessionId ?? controllerSnapshot.activeInvitation?.rtcSessionId,
-      );
-      if (
-        hasActiveSession
-        && controllerSnapshot.controllerState !== 'ended'
-        && controllerSnapshot.controllerState !== 'rejected'
-        && controllerSnapshot.controllerState !== 'idle'
-        && stack.callController.end
-      ) {
-        await stack.callController.end({
-          reason: options.reason,
-        });
-      }
+      const session = this.readSession();
+      const imClient = this.getClient(session);
+      const ended = await imClient.calls.end(rtcSessionId);
+      this.applySessionSnapshot(sessionFromMutation(ended), {
+        direction: this.snapshot.direction,
+        participantId: this.snapshot.participantId ?? resolveParticipantId(session),
+        state: 'ended',
+      });
     } catch (error) {
       this.applySnapshot({
         ...this.snapshot,
         state: 'errored',
+        controllerState: 'errored',
         errorMessage: toErrorMessage(error),
-      });
-    } finally {
-      await this.closeStack();
-      this.applySnapshot({
-        ...this.snapshot,
-        state: this.snapshot.state === 'errored' ? 'errored' : 'ended',
       });
     }
   }
@@ -549,59 +479,28 @@ class SdkworkRtcCallService implements CallService {
 
     try {
       const imClient = this.getClient(session);
-      const rtcSession = await imClient.rtc.retrieve(rtcSessionId);
+      const callSession = await imClient.calls.retrieve(rtcSessionId);
       if (sequence !== this.sequence) {
         return this.getSnapshot();
       }
 
-      await this.closeStack();
-      if (sequence !== this.sequence) {
-        return this.getSnapshot();
-      }
-
-      const callType = options.type ?? toCallType(rtcSession.rtcMode);
-      this.applySnapshot({
-        ...createIdleSnapshot(),
-        state: toRecoveredServiceState(rtcSession.state),
-        ...(rtcSession.conversationId ? { conversationId: rtcSession.conversationId } : {}),
-        isAudioMuted: this.snapshot.isAudioMuted,
-        isVideoMuted: callType === 'voice' ? true : this.snapshot.isVideoMuted,
+      this.applySessionSnapshot(callSession, {
+        direction: this.snapshot.direction,
         participantId,
-        ...(rtcSession.providerPluginId ? { providerKey: rtcSession.providerPluginId } : {}),
-        roomId: rtcSession.providerSessionId ?? rtcSession.rtcSessionId,
-        rtcMode: rtcSession.rtcMode,
-        rtcSessionId: rtcSession.rtcSessionId,
-        ...(options.targetName ? { targetName: options.targetName } : {}),
-        type: callType,
+        state: toRecoveredServiceState(callSession.state),
+        targetName: options.targetName,
+        type: options.type ?? toCallType(callSession.rtcMode),
       });
-
-      if (!isActiveRtcSession(rtcSession) || !rtcSession.conversationId) {
-        return this.getSnapshot();
+      if (this.snapshot.state === 'connected') {
+        await this.ensureParticipantCredentialReady(rtcSessionId, session);
       }
-
-      const stack = await this.createStack({
-        transport: createRtcSignalingTransport(session),
-        deviceId: resolveDeviceId(session, participantId),
-        watchConversationIds: [rtcSession.conversationId],
-        dataSourceConfig: createRtcDataSourceConfig(),
-      });
-
-      if (sequence !== this.sequence) {
-        await stack.close();
-        return this.getSnapshot();
-      }
-
-      this.stack = stack;
-      this.unsubscribeControllerSnapshot = stack.callController.onSnapshot((controllerSnapshot) => {
-        this.applyControllerSnapshot(controllerSnapshot);
-      });
       return this.getSnapshot();
     } catch (error) {
       if (sequence === this.sequence) {
-        await this.closeStack();
         this.applySnapshot({
           ...this.snapshot,
           state: 'errored',
+          controllerState: 'errored',
           errorMessage: toErrorMessage(error),
         });
       }
@@ -609,34 +508,41 @@ class SdkworkRtcCallService implements CallService {
     }
   }
 
-  private applyControllerSnapshot(controllerSnapshot: RtcCallControllerSnapshot): void {
-    const activeInvitation = controllerSnapshot.activeInvitation;
-    const rtcMode = controllerSnapshot.rtcMode ?? activeInvitation?.rtcMode ?? this.snapshot.rtcMode;
-    const callType = toCallType(rtcMode);
+  private applySessionSnapshot(
+    session: ImCallSession,
+    options: {
+      direction?: 'incoming' | 'outgoing';
+      participantId?: string;
+      state?: SdkworkCallState;
+      targetName?: string;
+      type?: SdkworkCallType;
+    } = {},
+  ): void {
+    const callType = options.type ?? toCallType(session.rtcMode);
+    const state = options.state ?? toRecoveredServiceState(session.state);
+    const participantId = options.participantId ?? this.snapshot.participantId;
     this.applySnapshot({
       ...this.snapshot,
-      state: toServiceState(controllerSnapshot.controllerState),
-      controllerState: controllerSnapshot.controllerState,
-      conversationId:
-        controllerSnapshot.conversationId
-        ?? activeInvitation?.conversationId
-        ?? this.snapshot.conversationId,
-      direction: controllerSnapshot.direction ?? this.snapshot.direction,
-      errorMessage:
-        controllerSnapshot.lastError ? toErrorMessage(controllerSnapshot.lastError) : undefined,
-      participantId: controllerSnapshot.participantId ?? this.snapshot.participantId,
-      providerKey: controllerSnapshot.providerKey ?? this.snapshot.providerKey,
-      roomId: controllerSnapshot.roomId ?? this.snapshot.roomId,
-      rtcMode,
-      rtcSessionId:
-        controllerSnapshot.rtcSessionId
-        ?? activeInvitation?.rtcSessionId
-        ?? this.snapshot.rtcSessionId,
+      state,
+      controllerState: toControllerState(state, options.direction ?? this.snapshot.direction),
+      conversationId: session.conversationId ?? this.snapshot.conversationId,
+      direction: options.direction ?? this.snapshot.direction,
+      errorMessage: undefined,
+      initiatorId: session.initiatorId ?? this.snapshot.initiatorId,
+      accessEndpoint: resolveCallAccessEndpoint(session) ?? this.snapshot.accessEndpoint,
+      isParticipantCredentialReady: state === 'connected' ? this.snapshot.isParticipantCredentialReady : false,
+      participantCredentialExpiresAt: state === 'connected' ? this.snapshot.participantCredentialExpiresAt : undefined,
+      participantId,
+      peerUserId: resolvePeerUserId(session, participantId) ?? this.snapshot.peerUserId,
+      providerKey: session.providerPluginId ?? this.snapshot.providerKey,
+      roomId: session.providerSessionId ?? session.rtcSessionId,
+      rtcMode: session.rtcMode,
+      rtcSessionId: session.rtcSessionId,
       targetName:
-        controllerSnapshot.activeInvitation?.initiatorDisplayName
-        ?? controllerSnapshot.activeInvitation?.initiatorId
+        options.targetName
         ?? this.snapshot.targetName,
       type: callType,
+      isVideoMuted: callType === 'voice' ? true : this.snapshot.isVideoMuted,
     });
   }
 
@@ -651,6 +557,37 @@ class SdkworkRtcCallService implements CallService {
     );
   }
 
+  private applyUnavailableIncomingSnapshot(): void {
+    this.applySnapshot({
+      ...this.snapshot,
+      state: 'errored',
+      controllerState: 'errored',
+      errorMessage: 'Incoming call is not available.',
+    });
+  }
+
+  private async ensureParticipantCredentialReady(
+    rtcSessionId: string,
+    session: SdkworkChatSession | null,
+  ): Promise<void> {
+    if (this.snapshot.isParticipantCredentialReady && this.snapshot.rtcSessionId === rtcSessionId) {
+      return;
+    }
+    const participantId = this.snapshot.participantId ?? resolveParticipantId(session);
+    const credential = await this.getClient(session).calls.issueParticipantCredential(rtcSessionId, {
+      participantId,
+    });
+    if (this.snapshot.rtcSessionId !== rtcSessionId || this.snapshot.state !== 'connected') {
+      return;
+    }
+    this.applySnapshot({
+      ...this.snapshot,
+      isParticipantCredentialReady: true,
+      participantCredentialExpiresAt: credential.expiresAt,
+      participantId,
+    });
+  }
+
   private applySnapshot(snapshot: SdkworkCallSnapshot): void {
     this.snapshot = {
       ...snapshot,
@@ -659,20 +596,10 @@ class SdkworkRtcCallService implements CallService {
       listener(this.getSnapshot());
     }
   }
-
-  private async closeStack(): Promise<void> {
-    const stack = this.stack;
-    this.stack = null;
-    this.unsubscribeControllerSnapshot?.();
-    this.unsubscribeControllerSnapshot = undefined;
-    if (stack) {
-      await stack.close();
-    }
-  }
 }
 
 export function createSdkworkCallService(dependencies?: SdkworkCallServiceDependencies): CallService {
-  return new SdkworkRtcCallService(dependencies);
+  return new SdkworkImCallService(dependencies);
 }
 
 export const callService = createSdkworkCallService();

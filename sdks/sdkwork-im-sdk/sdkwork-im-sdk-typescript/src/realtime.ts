@@ -43,7 +43,25 @@ export interface ImDecodedMessage {
   [key: string]: unknown;
 }
 
+export interface ImRealtimeEventContext {
+  ack(): Promise<void>;
+  eventId?: string;
+  eventType?: string;
+  payload?: Record<string, unknown>;
+  rawEvent?: Record<string, unknown>;
+  receivedAt: string;
+  scopeId?: string;
+  scopeType?: string;
+  sequence: number;
+}
+
 export type ImSubscription = () => void;
+
+export interface ImRealtimeScopeSubscription {
+  eventTypes?: string[];
+  scopeId: string;
+  scopeType: string;
+}
 
 export interface ImLiveConnectionState {
   status: 'connecting' | 'open' | 'closed' | 'error';
@@ -52,6 +70,17 @@ export interface ImLiveConnectionState {
 
 export interface ImLiveConnection {
   disconnect(code?: number, reason?: string): void;
+  events: {
+    onConversation(
+      conversationId: string,
+      handler: (event: Record<string, unknown>, context: ImRealtimeEventContext) => void,
+    ): ImSubscription;
+    onScope(
+      scopeType: string,
+      scopeId: string,
+      handler: (event: Record<string, unknown>, context: ImRealtimeEventContext) => void,
+    ): ImSubscription;
+  };
   lifecycle: {
     onError(handler: (error: unknown) => void): ImSubscription;
     onStateChange(handler: (state: ImLiveConnectionState) => void): ImSubscription;
@@ -61,6 +90,10 @@ export interface ImLiveConnection {
       conversationId: string,
       handler: (message: ImDecodedMessage, context: ImMessageContext) => void,
     ): ImSubscription;
+  };
+  subscriptions: {
+    syncConversations(conversationIds: string[]): void;
+    syncScopes(scopes: ImRealtimeScopeSubscription[]): void;
   };
 }
 
@@ -84,10 +117,18 @@ export type ImWebSocketFactory = (
 ) => ImWebSocketLike;
 
 export interface ImConnectOptions {
+  connectionTimeoutMs?: number;
   deviceId?: string;
+  heartbeat?: false | ImRealtimeHeartbeatOptions;
   subscriptions?: {
     conversations?: string[];
+    scopes?: ImRealtimeScopeSubscription[];
   };
+}
+
+export interface ImRealtimeHeartbeatOptions {
+  intervalMs?: number;
+  timeoutMs?: number;
 }
 
 export interface ImWebSocketCredentialProvider {
@@ -97,6 +138,7 @@ export interface ImWebSocketCredentialProvider {
 export interface ImWebSocketAuthConfig {
   credentialProvider?: ImWebSocketCredentialProvider;
   mode: 'automatic' | 'none';
+  timeoutMs?: number;
 }
 
 export class ImWebSocketAuthOptions {
@@ -123,8 +165,14 @@ export interface ImCreateLiveConnectionParams {
 
 interface ListenerBag {
   errors: Set<(error: unknown) => void>;
+  events: Map<string, Set<(event: Record<string, unknown>, context: ImRealtimeEventContext) => void>>;
   messages: Map<string, Set<(message: ImDecodedMessage, context: ImMessageContext) => void>>;
   states: Set<(state: ImLiveConnectionState) => void>;
+}
+
+interface ParsedRealtimeEvent {
+  context: ImRealtimeEventContext;
+  event: Record<string, unknown>;
 }
 
 interface ParsedRealtimeMessage {
@@ -152,9 +200,24 @@ type BrowserWebSocketConstructor = new (
 ) => ImWebSocketLike;
 
 const IM_REALTIME_WEBSOCKET_PATH = '/im/v3/api/realtime/ws';
+const SOCKET_CONNECTING_STATE = 0;
 const SOCKET_OPEN_STATE = 1;
 const SOCKET_CLOSING_STATE = 2;
 const SOCKET_CLOSED_STATE = 3;
+const DEFAULT_WEBSOCKET_CONNECTION_TIMEOUT_MS = 15_000;
+const DEFAULT_WEBSOCKET_AUTH_TIMEOUT_MS = 10_000;
+const DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 30_000;
+const DEFAULT_WEBSOCKET_HEARTBEAT_TIMEOUT_MS = 75_000;
+const MIN_WEBSOCKET_CONNECTION_TIMEOUT_MS = 1;
+const MIN_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 1;
+const MIN_WEBSOCKET_HEARTBEAT_TIMEOUT_MS = 1;
+
+interface ImRealtimeControlError {
+  code: string;
+  message: string;
+  requestId?: string;
+  type: 'error';
+}
 
 function subscribe<T>(set: Set<T>, value: T): ImSubscription {
   set.add(value);
@@ -184,6 +247,60 @@ function pickStringArray(value: unknown): string[] {
     .filter((item): item is string => typeof item === 'string')
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+}
+
+function realtimeScopeKey(scopeType: string, scopeId: string): string {
+  return `${scopeType}:${scopeId}`;
+}
+
+function normalizeRealtimeScopeSubscriptions(
+  value: unknown,
+): ImRealtimeScopeSubscription[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const deduped = new Map<string, ImRealtimeScopeSubscription>();
+  for (const item of value) {
+    if (!isRecord(item)) {
+      continue;
+    }
+    const scopeType = pickString(item.scopeType, item.scope);
+    const scopeId = pickString(item.scopeId, item.conversationId);
+    if (!scopeType || !scopeId) {
+      continue;
+    }
+    const normalized = {
+      scopeId,
+      scopeType,
+      eventTypes: pickStringArray(item.eventTypes),
+    };
+    deduped.set(realtimeScopeKey(scopeType, scopeId), normalized);
+  }
+  return [...deduped.values()];
+}
+
+function mergeRealtimeScopeSubscriptions(
+  conversations: string[],
+  scopes: ImRealtimeScopeSubscription[],
+): ImRealtimeScopeSubscription[] {
+  const merged = new Map<string, ImRealtimeScopeSubscription>();
+  for (const conversationId of conversations) {
+    const item = {
+      scopeType: 'conversation',
+      scopeId: conversationId,
+      eventTypes: ['message.posted'],
+    };
+    merged.set(realtimeScopeKey(item.scopeType, item.scopeId), item);
+  }
+  for (const scope of scopes) {
+    merged.set(realtimeScopeKey(scope.scopeType, scope.scopeId), {
+      scopeType: scope.scopeType,
+      scopeId: scope.scopeId,
+      eventTypes: [...(scope.eventTypes ?? [])],
+    });
+  }
+  return [...merged.values()];
 }
 
 function pickNumber(...values: unknown[]): number | undefined {
@@ -397,6 +514,40 @@ function parseDirectRealtimePayload(frame: Record<string, unknown>): ParsedRealt
   };
 }
 
+function parseRealtimeEventEnvelope(
+  event: Record<string, unknown>,
+  frame: Record<string, unknown> = event,
+): ParsedRealtimeEvent | null {
+  const scopeType = resolveEventScopeType(event);
+  const scopeId = pickString(event.scopeId, event.conversationId);
+  if (!scopeId) {
+    return null;
+  }
+  const payload = parseRecordPayload(event.payload);
+  const sequence = pickNumber(
+    event.realtimeSeq,
+    event.sequence,
+    payload?.realtimeSeq,
+    payload?.messageSeq,
+    event.messageSeq,
+  ) ?? 0;
+
+  return {
+    context: {
+      ack: createNoopContextAck,
+      eventId: pickString(event.eventId),
+      eventType: pickString(event.eventType, event.type),
+      payload,
+      rawEvent: event,
+      receivedAt: pickString(frame.receivedAt, event.receivedAt, event.occurredAt) ?? new Date().toISOString(),
+      scopeId,
+      scopeType: scopeType ?? 'conversation',
+      sequence,
+    },
+    event,
+  };
+}
+
 function parseRealtimeEventWindow(frame: Record<string, unknown>): ParsedRealtimeMessage[] {
   const window = isRecord(frame.window) ? frame.window : undefined;
   const items = Array.isArray(window?.items) ? window.items.filter(isRecord) : [];
@@ -457,6 +608,27 @@ function parseRealtimeEventWindow(frame: Record<string, unknown>): ParsedRealtim
   return messages;
 }
 
+function parseRealtimeEvents(raw: string): ParsedRealtimeEvent[] {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) {
+      return [];
+    }
+    const frame = unwrapWirePayload(parsed);
+    if (pickString(frame.type) === 'event.window') {
+      const window = isRecord(frame.window) ? frame.window : undefined;
+      const items = Array.isArray(window?.items) ? window.items.filter(isRecord) : [];
+      return items
+        .map((item) => parseRealtimeEventEnvelope(item, frame))
+        .filter((item): item is ParsedRealtimeEvent => Boolean(item));
+    }
+    const event = parseRealtimeEventEnvelope(frame);
+    return event ? [event] : [];
+  } catch {
+    return [];
+  }
+}
+
 function parseRealtimePayloads(raw: string): ParsedRealtimeMessage[] {
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -477,19 +649,19 @@ function parseRealtimePayloads(raw: string): ParsedRealtimeMessage[] {
 
 function sendSubscriptionSync(
   socket: ImWebSocketLike,
-  conversations: string[],
+  scopes: ImRealtimeScopeSubscription[],
   requestId: string,
 ): void {
-  if (conversations.length === 0 || socket.readyState !== SOCKET_OPEN_STATE) {
+  if (socket.readyState !== SOCKET_OPEN_STATE) {
     return;
   }
   socket.send(JSON.stringify({
     type: 'subscriptions.sync',
     requestId,
-    items: conversations.map((conversationId) => ({
-      scopeType: 'conversation',
-      scopeId: conversationId,
-      eventTypes: ['message.posted'],
+    items: scopes.map((scope) => ({
+      scopeType: scope.scopeType,
+      scopeId: scope.scopeId,
+      eventTypes: scope.eventTypes ?? [],
     })),
   }));
 }
@@ -527,6 +699,72 @@ function isAuthOkFrame(raw: string, requestId: string): boolean {
     && (!pickString(frame?.requestId) || pickString(frame?.requestId) === requestId);
 }
 
+function parseRealtimeControlError(raw: string, requestId?: string): ImRealtimeControlError | undefined {
+  const frame = parseRealtimeControlFrame(raw);
+  if (pickString(frame?.type) !== 'error') {
+    return undefined;
+  }
+  const frameRequestId = pickString(frame?.requestId);
+  if (requestId && frameRequestId && frameRequestId !== requestId) {
+    return undefined;
+  }
+  return {
+    code: pickString(frame?.code) ?? 'websocket_error',
+    message: pickString(frame?.message, frame?.detail) ?? 'websocket error',
+    ...(frameRequestId ? { requestId: frameRequestId } : {}),
+    type: 'error',
+  };
+}
+
+function isFatalRealtimeControlError(error: ImRealtimeControlError): boolean {
+  return /^websocket_(?:auth|upstream|connect)/u.test(error.code)
+    || /(?:auth|session|token).*(?:failed|expired|invalid|required)/iu.test(error.code);
+}
+
+function websocketAuthTimeoutMs(auth: ImWebSocketAuthConfig | undefined): number {
+  if (typeof auth?.timeoutMs === 'number' && Number.isFinite(auth.timeoutMs) && auth.timeoutMs > 0) {
+    return auth.timeoutMs;
+  }
+  return DEFAULT_WEBSOCKET_AUTH_TIMEOUT_MS;
+}
+
+function websocketConnectionTimeoutMs(options: ImConnectOptions): number {
+  return normalizePositiveDuration(
+    options.connectionTimeoutMs,
+    DEFAULT_WEBSOCKET_CONNECTION_TIMEOUT_MS,
+    MIN_WEBSOCKET_CONNECTION_TIMEOUT_MS,
+  );
+}
+
+function normalizePositiveDuration(
+  value: unknown,
+  fallback: number,
+  minValue: number,
+): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < minValue) {
+    return fallback;
+  }
+  return value;
+}
+
+function resolveHeartbeatOptions(options: ImConnectOptions): Required<ImRealtimeHeartbeatOptions> | undefined {
+  if (options.heartbeat === false) {
+    return undefined;
+  }
+  return {
+    intervalMs: normalizePositiveDuration(
+      options.heartbeat?.intervalMs,
+      DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS,
+      MIN_WEBSOCKET_HEARTBEAT_INTERVAL_MS,
+    ),
+    timeoutMs: normalizePositiveDuration(
+      options.heartbeat?.timeoutMs,
+      DEFAULT_WEBSOCKET_HEARTBEAT_TIMEOUT_MS,
+      MIN_WEBSOCKET_HEARTBEAT_TIMEOUT_MS,
+    ),
+  };
+}
+
 function readCloseReason(event: unknown): string | undefined {
   return isRecord(event) ? pickString(event.reason) : undefined;
 }
@@ -544,14 +782,19 @@ export function createImLiveConnection({
 }: ImCreateLiveConnectionParams): ImLiveConnection {
   const listeners: ListenerBag = {
     errors: new Set(),
+    events: new Map(),
     messages: new Map(),
     states: new Set(),
   };
-  const subscriptionConversations = pickStringArray(options.subscriptions?.conversations);
+  let subscriptionConversations = pickStringArray(options.subscriptions?.conversations);
+  let subscriptionScopes = normalizeRealtimeScopeSubscriptions(options.subscriptions?.scopes);
   const credentials = resolveWebSocketCredentials({ accessToken, auth, authToken, tokenManager });
   const url = buildWebSocketUrl(websocketBaseUrl, {
     ...options,
-    subscriptions: { conversations: subscriptionConversations },
+    subscriptions: {
+      conversations: subscriptionConversations,
+      scopes: subscriptionScopes,
+    },
   });
   const usesBrowserWebSocket = !webSocketFactory;
   const socket = resolveWebSocketFactory(webSocketFactory)(url, {
@@ -564,55 +807,278 @@ export function createImLiveConnection({
     ? { accessToken: credentials.accessToken, authToken: credentials.authToken }
     : undefined;
   let awaitingAuthOk = frameAuthRequired;
+  let authTimeout: ReturnType<typeof setTimeout> | undefined;
+  let connectionTimeout: ReturnType<typeof setTimeout> | undefined;
+  let currentState: ImLiveConnectionState = { status: 'connecting' };
+  let pendingClose: { code: number; reason: string } | undefined;
+  let suppressNextClosedState = false;
+  let subscriptionSnapshotDirty = subscriptionConversations.length > 0 || subscriptionScopes.length > 0;
   let subscriptionSyncCounter = 0;
+  const heartbeatOptions = resolveHeartbeatOptions(options);
+  let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+  let heartbeatCounter = 0;
+  let lastHeartbeatRequestId: string | undefined;
+  let lastInboundAt = Date.now();
 
   const emitState = (state: ImLiveConnectionState): void => {
+    currentState = state;
     for (const handler of listeners.states) {
       handler(state);
     }
   };
 
+  const emitError = (error: unknown): void => {
+    for (const handler of listeners.errors) {
+      handler(error);
+    }
+  };
+
+  const clearAuthTimeout = (): void => {
+    if (!authTimeout) {
+      return;
+    }
+    clearTimeout(authTimeout);
+    authTimeout = undefined;
+  };
+
+  const clearConnectionTimeout = (): void => {
+    if (!connectionTimeout) {
+      return;
+    }
+    clearTimeout(connectionTimeout);
+    connectionTimeout = undefined;
+  };
+
+  const clearHeartbeatTimer = (): void => {
+    if (!heartbeatTimer) {
+      return;
+    }
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = undefined;
+  };
+
+  const closeSocket = (code: number, reason: string): void => {
+    if (socket.readyState === SOCKET_CLOSING_STATE || socket.readyState === SOCKET_CLOSED_STATE) {
+      return;
+    }
+    if (socket.readyState === SOCKET_CONNECTING_STATE) {
+      pendingClose = { code, reason };
+      return;
+    }
+    socket.close(code, reason);
+  };
+
+  const failAuth = (error: ImRealtimeControlError): void => {
+    awaitingAuthOk = false;
+    clearConnectionTimeout();
+    clearAuthTimeout();
+    clearHeartbeatTimer();
+    emitState({ status: 'error', reason: error.message });
+    emitError(error);
+    closeSocket(4401, error.code);
+  };
+
+  const failConnectionTimeout = (): void => {
+    if (socket.readyState !== SOCKET_CONNECTING_STATE) {
+      return;
+    }
+    suppressNextClosedState = true;
+    const error: ImRealtimeControlError = {
+      code: 'websocket_connect_timeout',
+      message: 'websocket connection was not established before timeout',
+      type: 'error',
+    };
+    emitState({ status: 'error', reason: error.message });
+    emitError(error);
+    closeSocket(4408, error.code);
+  };
+
+  const failHeartbeat = (): void => {
+    clearHeartbeatTimer();
+    const error: ImRealtimeControlError = {
+      code: 'websocket_heartbeat_timeout',
+      message: 'websocket heartbeat response was not received before timeout',
+      ...(lastHeartbeatRequestId ? { requestId: lastHeartbeatRequestId } : {}),
+      type: 'error',
+    };
+    emitState({ status: 'error', reason: error.message });
+    emitError(error);
+    closeSocket(4408, error.code);
+  };
+
+  const sendHeartbeat = (): void => {
+    if (!heartbeatOptions || socket.readyState !== SOCKET_OPEN_STATE) {
+      return;
+    }
+    if (lastHeartbeatRequestId && Date.now() - lastInboundAt > heartbeatOptions.timeoutMs) {
+      failHeartbeat();
+      return;
+    }
+    heartbeatCounter += 1;
+    lastHeartbeatRequestId = `sdkwork-im-heartbeat-${heartbeatCounter}`;
+    socket.send(JSON.stringify({
+      type: 'ping',
+      requestId: lastHeartbeatRequestId,
+    }));
+  };
+
+  const startHeartbeat = (): void => {
+    clearHeartbeatTimer();
+    if (!heartbeatOptions) {
+      return;
+    }
+    lastInboundAt = Date.now();
+    heartbeatTimer = setInterval(sendHeartbeat, heartbeatOptions.intervalMs);
+  };
+
+  const startAuthTimeout = (): void => {
+    clearAuthTimeout();
+    authTimeout = setTimeout(() => {
+      if (!awaitingAuthOk) {
+        return;
+      }
+      failAuth({
+        code: 'websocket_auth_timeout',
+        message: 'websocket auth.ok was not received before timeout',
+        requestId: authInitRequestId,
+        type: 'error',
+      });
+    }, websocketAuthTimeoutMs(auth));
+  };
+
   const emitOpenAndSyncSubscriptions = (): void => {
+    clearConnectionTimeout();
+    clearAuthTimeout();
     emitState({ status: 'open' });
+    startHeartbeat();
+    flushSubscriptionSync();
+  };
+
+  const flushSubscriptionSync = (): void => {
+    if (!subscriptionSnapshotDirty || socket.readyState !== SOCKET_OPEN_STATE) {
+      return;
+    }
+    subscriptionSnapshotDirty = false;
     subscriptionSyncCounter += 1;
     sendSubscriptionSync(
       socket,
-      subscriptionConversations,
+      mergeRealtimeScopeSubscriptions(subscriptionConversations, subscriptionScopes),
       `sdkwork-im-subscriptions-sync-${subscriptionSyncCounter}`,
     );
   };
 
+  const syncConversations = (conversationIds: string[]): void => {
+    subscriptionConversations = pickStringArray(conversationIds);
+    subscriptionSnapshotDirty = true;
+    flushSubscriptionSync();
+  };
+
+  const syncScopes = (scopes: ImRealtimeScopeSubscription[]): void => {
+    subscriptionScopes = normalizeRealtimeScopeSubscriptions(scopes);
+    subscriptionSnapshotDirty = true;
+    flushSubscriptionSync();
+  };
+
+  connectionTimeout = setTimeout(failConnectionTimeout, websocketConnectionTimeoutMs(options));
+
   socket.addEventListener('open', () => {
+    clearConnectionTimeout();
+    if (pendingClose) {
+      const { code, reason } = pendingClose;
+      pendingClose = undefined;
+      socket.close(code, reason);
+      return;
+    }
+
     if (frameAuthRequired) {
       if (!frameAuthCredentials) {
-        emitState({ status: 'error', reason: 'websocket auth tokens are not ready' });
-        socket.close(4401, 'websocket auth tokens are not ready');
+        failAuth({
+          code: 'websocket_auth_tokens_not_ready',
+          message: 'websocket auth tokens are not ready',
+          requestId: authInitRequestId,
+          type: 'error',
+        });
         return;
       }
       sendAuthInit(socket, frameAuthCredentials, options.deviceId, authInitRequestId);
+      startAuthTimeout();
       return;
     }
 
     emitOpenAndSyncSubscriptions();
   });
-  socket.addEventListener('close', (event: unknown) => emitState({ status: 'closed', reason: readCloseReason(event) }));
-  socket.addEventListener('error', (event: unknown) => {
-    emitState({ status: 'error' });
-    for (const handler of listeners.errors) {
-      handler(event);
+  socket.addEventListener('close', (event: unknown) => {
+    clearConnectionTimeout();
+    clearAuthTimeout();
+    clearHeartbeatTimer();
+    if (suppressNextClosedState) {
+      suppressNextClosedState = false;
+      return;
     }
+    emitState({ status: 'closed', reason: readCloseReason(event) });
+  });
+  socket.addEventListener('error', (event: unknown) => {
+    clearConnectionTimeout();
+    clearAuthTimeout();
+    clearHeartbeatTimer();
+    emitState({ status: 'error' });
+    emitError(event);
   });
   socket.addEventListener('message', (event: unknown) => {
     const raw = extractMessageData(event);
     if (!raw) {
       return;
     }
+    lastInboundAt = Date.now();
     if (awaitingAuthOk) {
       if (isAuthOkFrame(raw, authInitRequestId)) {
         awaitingAuthOk = false;
         emitOpenAndSyncSubscriptions();
+        return;
+      }
+      const authError = parseRealtimeControlError(raw, authInitRequestId);
+      if (authError) {
+        failAuth(authError);
       }
       return;
+    }
+    const controlError = parseRealtimeControlError(raw);
+    if (controlError) {
+      if (isFatalRealtimeControlError(controlError)) {
+        clearHeartbeatTimer();
+        emitState({ status: 'error', reason: controlError.message });
+        emitError(controlError);
+        closeSocket(4401, controlError.code);
+        return;
+      }
+      emitError(controlError);
+      return;
+    }
+    const decodedEvents = parseRealtimeEvents(raw);
+    for (const decoded of decodedEvents) {
+      if (!decoded.context.scopeId || !decoded.context.scopeType) {
+        continue;
+      }
+      decoded.context.ack = () => {
+        if (socket.readyState === SOCKET_OPEN_STATE) {
+          const ackedSeq = decoded.context.sequence;
+          socket.send(JSON.stringify({
+            type: 'events.ack',
+            requestId: `sdkwork-im-events-ack-${ackedSeq}`,
+            ackedSeq,
+          }));
+        }
+        return Promise.resolve();
+      };
+      const handlers = listeners.events.get(
+        realtimeScopeKey(decoded.context.scopeType, decoded.context.scopeId),
+      );
+      if (!handlers) {
+        continue;
+      }
+      for (const handler of handlers) {
+        handler(decoded.event, decoded.context);
+      }
     }
     const decodedMessages = parseRealtimePayloads(raw);
     for (const decoded of decodedMessages) {
@@ -640,21 +1106,35 @@ export function createImLiveConnection({
     }
   });
 
-  emitState({ status: 'connecting' });
-
   return {
     disconnect(code = 1000, reason = 'client disconnect') {
-      if (socket.readyState === SOCKET_CLOSING_STATE || socket.readyState === SOCKET_CLOSED_STATE) {
-        return;
-      }
-      socket.close(code, reason);
+      clearConnectionTimeout();
+      clearAuthTimeout();
+      clearHeartbeatTimer();
+      closeSocket(code, reason);
+    },
+    events: {
+      onConversation(conversationId, handler) {
+        const key = realtimeScopeKey('conversation', conversationId);
+        const handlers = listeners.events.get(key) ?? new Set();
+        listeners.events.set(key, handlers);
+        return subscribe(handlers, handler);
+      },
+      onScope(scopeType, scopeId, handler) {
+        const key = realtimeScopeKey(scopeType, scopeId);
+        const handlers = listeners.events.get(key) ?? new Set();
+        listeners.events.set(key, handlers);
+        return subscribe(handlers, handler);
+      },
     },
     lifecycle: {
       onError(handler) {
         return subscribe(listeners.errors, handler);
       },
       onStateChange(handler) {
-        return subscribe(listeners.states, handler);
+        const unsubscribe = subscribe(listeners.states, handler);
+        handler(currentState);
+        return unsubscribe;
       },
     },
     messages: {
@@ -663,6 +1143,10 @@ export function createImLiveConnection({
         listeners.messages.set(conversationId, handlers);
         return subscribe(handlers, handler);
       },
+    },
+    subscriptions: {
+      syncConversations,
+      syncScopes,
     },
   };
 }

@@ -14,7 +14,7 @@ public class MessageVisibilityMutationResult {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -22,7 +22,7 @@ public class MessageVisibilityMutationResult {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -30,7 +30,7 @@ public class MessageVisibilityMutationResult {
     public String getMessageId() {
         return this.messageId;
     }
-    
+
     public void setMessageId(String messageId) {
         this.messageId = messageId;
     }
@@ -38,7 +38,7 @@ public class MessageVisibilityMutationResult {
     public Integer getMessageSeq() {
         return this.messageSeq;
     }
-    
+
     public void setMessageSeq(Integer messageSeq) {
         this.messageSeq = messageSeq;
     }
@@ -46,7 +46,7 @@ public class MessageVisibilityMutationResult {
     public String getPrincipalKind() {
         return this.principalKind;
     }
-    
+
     public void setPrincipalKind(String principalKind) {
         this.principalKind = principalKind;
     }
@@ -54,7 +54,7 @@ public class MessageVisibilityMutationResult {
     public String getPrincipalId() {
         return this.principalId;
     }
-    
+
     public void setPrincipalId(String principalId) {
         this.principalId = principalId;
     }
@@ -62,7 +62,7 @@ public class MessageVisibilityMutationResult {
     public Boolean getIsDeleted() {
         return this.isDeleted;
     }
-    
+
     public void setIsDeleted(Boolean isDeleted) {
         this.isDeleted = isDeleted;
     }
@@ -70,7 +70,7 @@ public class MessageVisibilityMutationResult {
     public String getUpdatedAt() {
         return this.updatedAt;
     }
-    
+
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }

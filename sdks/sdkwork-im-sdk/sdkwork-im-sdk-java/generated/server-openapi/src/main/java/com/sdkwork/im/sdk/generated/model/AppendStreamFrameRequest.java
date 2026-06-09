@@ -7,7 +7,7 @@ public class AppendStreamFrameRequest {
     public String getPayload() {
         return this.payload;
     }
-    
+
     public void setPayload(String payload) {
         this.payload = payload;
     }

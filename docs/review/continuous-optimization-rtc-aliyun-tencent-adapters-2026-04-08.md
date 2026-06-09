@@ -22,7 +22,7 @@
   - `map_provider_callback`
   - `export_recording_artifact`
   - `provider_health_snapshot`
-- `services/rtc-signaling-service/src/lib.rs`
+- `services/im-call-runtime/src/lib.rs`
   - `RtcRuntime::with_store(...)` 默认内建 provider map 扩容为：
     - `rtc-volcengine`
     - `rtc-aliyun`
@@ -40,7 +40,7 @@
   - `test_aliyun_rtc_provider_implements_contract_surface`
 - `adapters/rtc-tencent/tests/adapter_contract_test.rs`
   - `test_tencent_rtc_provider_implements_contract_surface`
-- `services/rtc-signaling-service/tests/rtc_runtime_persistence_test.rs`
+- `services/im-call-runtime/tests/rtc_runtime_persistence_test.rs`
   - `test_runtime_can_route_to_tenant_selected_builtin_rtc_providers`
 
 ## 验证记录
@@ -51,8 +51,8 @@
 - `cargo fmt --all --check`
 - `cargo test -p im-adapter-rtc-aliyun --offline --test adapter_contract_test -- --nocapture`
 - `cargo test -p im-adapter-rtc-tencent --offline --test adapter_contract_test -- --nocapture`
-- `cargo test -p rtc-signaling-service --offline --test http_smoke_test -- --nocapture`
-- `cargo test -p rtc-signaling-service --offline --test rtc_runtime_persistence_test -- --nocapture`
+- `cargo test -p im-call-runtime --offline --test http_smoke_test -- --nocapture`
+- `cargo test -p im-call-runtime --offline --test rtc_runtime_persistence_test -- --nocapture`
 - `cargo test -p local-minimal-node --offline --test http_e2e_test test_local_minimal_profile_gets_rtc_provider_health_over_http -- --nocapture`
 - `cargo test -p local-minimal-node --offline --test rtc_runtime_persistence_test -- --nocapture`
 - `cargo test -p local-minimal-node --offline --test provider_plugin_docs_test -- --nocapture`

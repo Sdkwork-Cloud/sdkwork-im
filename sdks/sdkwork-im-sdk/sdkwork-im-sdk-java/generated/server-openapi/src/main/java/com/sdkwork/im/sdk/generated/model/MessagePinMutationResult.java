@@ -11,7 +11,7 @@ public class MessagePinMutationResult {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -19,7 +19,7 @@ public class MessagePinMutationResult {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -27,7 +27,7 @@ public class MessagePinMutationResult {
     public String getMessageId() {
         return this.messageId;
     }
-    
+
     public void setMessageId(String messageId) {
         this.messageId = messageId;
     }
@@ -35,7 +35,7 @@ public class MessagePinMutationResult {
     public Boolean getIsPinned() {
         return this.isPinned;
     }
-    
+
     public void setIsPinned(Boolean isPinned) {
         this.isPinned = isPinned;
     }
@@ -43,7 +43,7 @@ public class MessagePinMutationResult {
     public String getUpdatedAt() {
         return this.updatedAt;
     }
-    
+
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }

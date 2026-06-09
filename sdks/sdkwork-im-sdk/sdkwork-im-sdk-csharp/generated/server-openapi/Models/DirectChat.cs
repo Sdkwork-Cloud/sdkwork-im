@@ -6,9 +6,9 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class DirectChat
     {
-        public string? TenantId { get; set; }
-        public string? DirectChatId { get; set; }
-        public string? ConversationId { get; set; }
-        public string? Status { get; set; }
+        public string TenantId { get; set; }
+        public string DirectChatId { get; set; }
+        public string ConversationId { get; set; }
+        public string Status { get; set; }
     }
 }

@@ -12,10 +12,13 @@
     "preview": "vite preview",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
-    "lint": "node ../../scripts/dev/run-tsc-cli.mjs --noEmit"
+    "lint": "node ../../scripts/dev/run-tsc-cli.mjs --noEmit",
+    "test:qr-scan-standard": "tsx scripts/qr-scan-standard-contract.test.ts"
   },
   "dependencies": {
     "@google/genai": "catalog:",
+    "@zxing/browser": "catalog:",
+    "@zxing/library": "catalog:",
     "@sdkwork-internal/im-app-api-generated": "workspace:*",
     "@sdkwork-internal/im-backend-api-generated": "workspace:*",
     "@sdkwork/agent-app-sdk": "workspace:*",

@@ -18,13 +18,13 @@
 | Realtime delivery | Subscription sync, event polling, ack flow, and websocket upgrade | `services/local-minimal-node/src/node/build.rs`, `services/session-gateway/tests/websocket_smoke_test.rs` |
 | Route ownership | Reconnect-required recovery behavior survives persistence | `services/local-minimal-node/tests/*persistence_test.rs`, `services/session-gateway/tests/http_smoke_test.rs` |
 
-## Media, Streams, and RTC
+## Media, Streams, and Calls
 
 | Capability group | Current implementation | Evidence |
 | --- | --- | --- |
 | Media | Upload, complete, query, signed download URL, attach, and provider health | `services/local-minimal-node/tests/http_e2e_test.rs`, `services/local-minimal-node/tests/media_provider_http_test.rs` |
 | Streams | Open, append frame, list frames, checkpoint, complete, and abort | `services/local-minimal-node/tests/http_e2e_test.rs` |
-| RTC | Create, invite, accept, reject, end, signal, credential, recording artifact, provider callback, and provider health | `services/local-minimal-node/tests/http_e2e_test.rs`, `services/local-minimal-node/tests/rtc_runtime_persistence_test.rs` |
+| Calls | IM-owned create, invite, accept, reject, end, signal, and RTC participant credential handoff | `services/local-minimal-node/tests/http_e2e_test.rs`, `services/local-minimal-node/tests/rtc_runtime_persistence_test.rs` |
 
 ## Platform and Operations
 

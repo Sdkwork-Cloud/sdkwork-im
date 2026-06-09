@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { Edit2, Trash2, Bot, Plug, Zap, Activity, Battery, Wifi, Cpu, AlertCircle, SignalHigh, CheckCircle2, ChevronRight, ActivitySquare } from "lucide-react";
-import { Device } from "../services/DeviceService";
+import { Device, deviceService } from "../services/DeviceService";
 import { getDeviceIcon, getStatusDisplay } from "./DeviceSidebar";
 import { toast } from "@sdkwork/clawchat-pc-chat";
 
@@ -18,6 +18,24 @@ export const DeviceDetailPanel: React.FC<DeviceDetailPanelProps> = ({
   selectedDevice, setSelectedDevice, setShowBindModal, setShowActivationModal, onEdit, onDelete, onConfigureAgent
 }) => {
   const isOnline = selectedDevice.status === 'online';
+  const [unbindingAgent, setUnbindingAgent] = useState(false);
+
+  const handleUnbindAgent = async () => {
+    if (unbindingAgent) {
+      return;
+    }
+    setUnbindingAgent(true);
+    try {
+      await deviceService.unbindAgent(selectedDevice.id);
+      setSelectedDevice({ ...selectedDevice, agentId: undefined });
+      toast("Unbinding submitted", "success");
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : "Unbinding failed";
+      toast(message, "error");
+    } finally {
+      setUnbindingAgent(false);
+    }
+  };
   
   return (
     <div className="p-8 pb-32 max-w-5xl mx-auto w-full h-full overflow-y-auto custom-scrollbar">
@@ -204,12 +222,10 @@ export const DeviceDetailPanel: React.FC<DeviceDetailPanelProps> = ({
                   </button>
                   <button
                     className="flex-1 py-3 bg-red-50 dark:bg-red-500/5 hover:bg-red-100 dark:hover:bg-red-500/10 rounded-xl text-sm text-red-600 dark:text-red-500 font-medium transition-colors border border-red-200 dark:border-red-500/10 hover:border-red-300 dark:hover:border-red-500/30"
-                    onClick={() => {
-                      setSelectedDevice({ ...selectedDevice, agentId: undefined });
-                      toast("已解除 Agent 绑定", "success");
-                    }}
+                    onClick={handleUnbindAgent}
+                    disabled={unbindingAgent}
                   >
-                    解除绑定
+                    {unbindingAgent ? "Submitting..." : "解除绑定"}
                   </button>
                 </div>
               </div>

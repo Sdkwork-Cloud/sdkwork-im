@@ -6,6 +6,6 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class RealtimeSubscriptionSyncResponse
     {
-        public List<string>? Subscriptions { get; set; }
+        public List<string> Subscriptions { get; set; }
     }
 }

@@ -13,7 +13,7 @@ public class BindDirectChatRequest {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -21,7 +21,7 @@ public class BindDirectChatRequest {
     public String getDirectChatId() {
         return this.directChatId;
     }
-    
+
     public void setDirectChatId(String directChatId) {
         this.directChatId = directChatId;
     }
@@ -29,7 +29,7 @@ public class BindDirectChatRequest {
     public String getLeftActorId() {
         return this.leftActorId;
     }
-    
+
     public void setLeftActorId(String leftActorId) {
         this.leftActorId = leftActorId;
     }
@@ -37,7 +37,7 @@ public class BindDirectChatRequest {
     public String getLeftActorKind() {
         return this.leftActorKind;
     }
-    
+
     public void setLeftActorKind(String leftActorKind) {
         this.leftActorKind = leftActorKind;
     }
@@ -45,7 +45,7 @@ public class BindDirectChatRequest {
     public String getRightActorId() {
         return this.rightActorId;
     }
-    
+
     public void setRightActorId(String rightActorId) {
         this.rightActorId = rightActorId;
     }
@@ -53,7 +53,7 @@ public class BindDirectChatRequest {
     public String getRightActorKind() {
         return this.rightActorKind;
     }
-    
+
     public void setRightActorKind(String rightActorKind) {
         this.rightActorKind = rightActorKind;
     }
@@ -61,7 +61,7 @@ public class BindDirectChatRequest {
     public String getTargetUserId() {
         return this.targetUserId;
     }
-    
+
     public void setTargetUserId(String targetUserId) {
         this.targetUserId = targetUserId;
     }

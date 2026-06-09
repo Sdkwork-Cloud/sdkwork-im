@@ -13,7 +13,7 @@ public class ContactPreferencesView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -21,7 +21,7 @@ public class ContactPreferencesView {
     public String getOwnerUserId() {
         return this.ownerUserId;
     }
-    
+
     public void setOwnerUserId(String ownerUserId) {
         this.ownerUserId = ownerUserId;
     }
@@ -29,7 +29,7 @@ public class ContactPreferencesView {
     public String getTargetUserId() {
         return this.targetUserId;
     }
-    
+
     public void setTargetUserId(String targetUserId) {
         this.targetUserId = targetUserId;
     }
@@ -37,7 +37,7 @@ public class ContactPreferencesView {
     public Boolean getIsStarred() {
         return this.isStarred;
     }
-    
+
     public void setIsStarred(Boolean isStarred) {
         this.isStarred = isStarred;
     }
@@ -45,7 +45,7 @@ public class ContactPreferencesView {
     public String getRemark() {
         return this.remark;
     }
-    
+
     public void setRemark(String remark) {
         this.remark = remark;
     }
@@ -53,7 +53,7 @@ public class ContactPreferencesView {
     public Boolean getIsBlocked() {
         return this.isBlocked;
     }
-    
+
     public void setIsBlocked(Boolean isBlocked) {
         this.isBlocked = isBlocked;
     }
@@ -61,7 +61,7 @@ public class ContactPreferencesView {
     public String getUpdatedAt() {
         return this.updatedAt;
     }
-    
+
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }

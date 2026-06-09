@@ -1,4 +1,5 @@
 export interface CreateRtcSessionRequest {
+  rtcSessionId: string;
   conversationId?: string | null;
-  mediaKind?: string | null;
+  rtcMode: string;
 }

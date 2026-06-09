@@ -25,7 +25,7 @@ export const groupedPages = [
       { text: "Messages", link: "/api-reference/im/messages" },
       { text: "Media", link: "/api-reference/im/media" },
       { text: "Streams", link: "/api-reference/im/streams" },
-      { text: "RTC Signaling", link: "/api-reference/im/rtc" },
+      { text: "Calls", link: "/api-reference/im/calls" },
     ],
   },
   {
@@ -141,19 +141,19 @@ export const pageOperationGroups = {
     },
     { text: "Frame Transport", anchors: ["append-stream-frame", "list-stream-frames"] },
   ],
-  "/api-reference/im/rtc": [
+  "/api-reference/im/calls": [
     {
-      text: "RTC Lifecycle",
+      text: "Call Lifecycle",
       anchors: [
-        "create-rtc-session",
-        "invite-rtc-session",
-        "accept-rtc-session",
-        "reject-rtc-session",
-        "end-rtc-session",
+        "create-call-session",
+        "retrieve-call-session",
+        "invite-call-session",
+        "accept-call-session",
+        "reject-call-session",
+        "end-call-session",
       ],
     },
-    { text: "Signals and Credentials", anchors: ["post-rtc-signal", "issue-rtc-participant-credential"] },
-    { text: "Artifacts", anchors: ["get-rtc-recording-artifact"] },
+    { text: "Signals and Credentials", anchors: ["post-call-signal", "issue-call-credential"] },
   ],
   "/api-reference/app/notifications": [
     { text: "Submission", anchors: ["request-notification"] },
@@ -191,9 +191,7 @@ export const pageOperationGroups = {
       text: "Provider Probes",
       anchors: [
         "get-media-provider-health",
-        "get-rtc-provider-health",
         "get-principal-profile-provider-health",
-        "map-rtc-provider-callback",
       ],
     },
   ],

@@ -133,12 +133,12 @@
 
 ### 3.5 RTC 信令
 
-- `POST /im/v3/api/rtc/sessions`
-- `POST /im/v3/api/rtc/sessions/{id}/invite`
-- `POST /im/v3/api/rtc/sessions/{id}/accept`
-- `POST /im/v3/api/rtc/sessions/{id}/reject`
-- `POST /im/v3/api/rtc/sessions/{id}/end`
-- `POST /im/v3/api/rtc/sessions/{id}/signals`
+- `POST /im/v3/api/calls/sessions`
+- `POST /im/v3/api/calls/sessions/{id}/invite`
+- `POST /im/v3/api/calls/sessions/{id}/accept`
+- `POST /im/v3/api/calls/sessions/{id}/reject`
+- `POST /im/v3/api/calls/sessions/{id}/end`
+- `POST /im/v3/api/calls/sessions/{id}/signals`
 - 当前最小实现先通过 `invite/accept/reject/end` 写入信令状态，独立 `signals` 接口保留为后续扩展。
 - 当前最小实现中，当 RTC 会话已绑定 `conversationId` 时，`invite/accept/reject/end` 会额外提交一条 `messageType=signal` 的消息，消息体包含 `SignalPart`，并进入时间线与摘要投影。
 

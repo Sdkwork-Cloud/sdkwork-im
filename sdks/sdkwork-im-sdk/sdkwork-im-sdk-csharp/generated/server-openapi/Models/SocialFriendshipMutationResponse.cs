@@ -6,6 +6,6 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class SocialFriendshipMutationResponse
     {
-        public Friendship? Friendship { get; set; }
+        public Friendship Friendship { get; set; }
     }
 }

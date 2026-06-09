@@ -9,7 +9,7 @@ public class RealtimeSubscriptionSyncRequest {
     public String getDeviceId() {
         return this.deviceId;
     }
-    
+
     public void setDeviceId(String deviceId) {
         this.deviceId = deviceId;
     }
@@ -17,7 +17,7 @@ public class RealtimeSubscriptionSyncRequest {
     public List<String> getConversations() {
         return this.conversations;
     }
-    
+
     public void setConversations(List<String> conversations) {
         this.conversations = conversations;
     }

@@ -6,7 +6,7 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class OpenStreamRequest
     {
-        public string? StreamType { get; set; }
+        public string StreamType { get; set; }
         public string? ConversationId { get; set; }
     }
 }

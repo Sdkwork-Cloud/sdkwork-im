@@ -6,7 +6,7 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class InteractionActorView
     {
-        public string? Id { get; set; }
-        public string? Kind { get; set; }
+        public string Id { get; set; }
+        public string Kind { get; set; }
     }
 }

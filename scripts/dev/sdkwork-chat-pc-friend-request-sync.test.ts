@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import type { FriendRequest, ImSdkClient } from '@sdkwork/im-sdk';
+import type {
+  FriendRequest,
+  ImConnectOptions,
+  ImLiveConnection,
+  ImRealtimeEventContext,
+  ImSdkClient,
+} from '@sdkwork/im-sdk';
 import { createSdkworkContactService } from '../../apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/ContactService';
 
 type FriendRequestDirection = 'incoming' | 'outgoing';
@@ -13,10 +19,16 @@ type FriendRequestListParams = {
 
 const friendRequestCalls: FriendRequestListParams[] = [];
 const userSearchCalls: Array<{ limit?: number; q?: string }> = [];
+let incomingPendingCount = 2;
+let realtimeConnectOptions: ImConnectOptions | undefined;
+let realtimeEventHandler:
+  | ((event: Record<string, unknown>, context: ImRealtimeEventContext) => void)
+  | undefined;
 
 function createFriendRequest(
   requestId: string,
   direction: FriendRequestDirection,
+  status: FriendRequest['status'] = 'pending',
 ): FriendRequest {
   const currentUserId = 'current-user';
   const peerUserId = `${direction}-peer-${requestId}`;
@@ -25,7 +37,7 @@ function createFriendRequest(
     requestId,
     requestMessage: `request ${requestId}`,
     requesterUserId: direction === 'incoming' ? peerUserId : currentUserId,
-    status: 'pending',
+    status,
     targetUserId: direction === 'incoming' ? currentUserId : peerUserId,
     tenantId: 'tenant-1',
     updatedAt: '2026-06-04T00:00:00.000Z',
@@ -36,6 +48,11 @@ function pageFriendRequests(params: FriendRequestListParams): {
   items: FriendRequest[];
   nextCursor?: string;
 } {
+  if (params.direction === 'incoming' && incomingPendingCount === 1) {
+    return {
+      items: [createFriendRequest('incoming-1', 'incoming')],
+    };
+  }
   const page = params.cursor ?? '0';
   if (page === '0') {
     return {
@@ -52,6 +69,50 @@ function pageFriendRequests(params: FriendRequestListParams): {
 }
 
 const fakeClient = {
+  async connect(options?: ImConnectOptions) {
+    realtimeConnectOptions = options;
+    return {
+      disconnect() {
+        realtimeEventHandler = undefined;
+      },
+      events: {
+        onConversation() {
+          return () => undefined;
+        },
+        onScope(scopeType: string, scopeId: string, handler: (event: Record<string, unknown>, context: ImRealtimeEventContext) => void) {
+          assert.equal(scopeType, 'user', 'friend request realtime must subscribe to the current user scope');
+          assert.equal(scopeId, 'current-user', 'friend request realtime must use the current authenticated user id');
+          realtimeEventHandler = handler;
+          return () => {
+            if (realtimeEventHandler === handler) {
+              realtimeEventHandler = undefined;
+            }
+          };
+        },
+      },
+      lifecycle: {
+        onError() {
+          return () => undefined;
+        },
+        onStateChange() {
+          return () => undefined;
+        },
+      },
+      messages: {
+        onConversation() {
+          return () => undefined;
+        },
+      },
+      subscriptions: {
+        syncConversations() {
+          return undefined;
+        },
+        syncScopes() {
+          return undefined;
+        },
+      },
+    } satisfies ImLiveConnection;
+  },
   social: {
     users: {
       async list(params: { limit?: number; q?: string }) {
@@ -75,6 +136,24 @@ const fakeClient = {
       },
     },
     friendRequests: {
+      async accept() {
+        incomingPendingCount = 1;
+        return {
+          friendship: {
+            friendshipId: 'friendship-1',
+            initiatorUserId: 'incoming-peer-incoming-1',
+            tenantId: 'tenant-1',
+            userHighId: 'incoming-peer-incoming-1',
+            userLowId: 'current-user',
+          },
+        };
+      },
+      async decline() {
+        incomingPendingCount = 1;
+        return {
+          friendRequest: createFriendRequest('incoming-1', 'incoming', 'declined'),
+        };
+      },
       async list(params: FriendRequestListParams) {
         friendRequestCalls.push(params);
         return pageFriendRequests(params);
@@ -135,6 +214,67 @@ async function main(): Promise<void> {
       { q: 'outgoing-peer-outgoing-2', limit: 20 },
     ],
   );
+
+  const pendingCounts: number[] = [];
+  const unsubscribePendingCount = service.subscribePendingFriendRequestCount((count) => {
+    pendingCounts.push(count);
+  });
+  const pendingCount = await service.getPendingFriendRequestCount();
+  assert.equal(
+    pendingCount,
+    2,
+    'pending friend request red dot count must include only incoming pending requests',
+  );
+  assert.deepEqual(
+    realtimeConnectOptions?.subscriptions?.scopes,
+    [
+      {
+        scopeType: 'user',
+        scopeId: 'current-user',
+        eventTypes: [
+          'friend_request.submitted',
+          'friend_request.accepted',
+          'friend_request.declined',
+          'friend_request.canceled',
+        ],
+      },
+    ],
+    'pending friend request red dot count must subscribe to user-scope realtime friend request events',
+  );
+  assert.equal(typeof realtimeEventHandler, 'function', 'friend request realtime handler must be registered');
+  incomingPendingCount = 1;
+  realtimeEventHandler?.({
+    eventType: 'friend_request.submitted',
+  }, {
+    ack: () => Promise.resolve(),
+    eventId: 'event-friend-request-1',
+    eventType: 'friend_request.submitted',
+    payload: {
+      friendRequest: createFriendRequest('incoming-3', 'incoming'),
+    },
+    receivedAt: '2026-06-04T00:00:01.000Z',
+    scopeId: 'current-user',
+    scopeType: 'user',
+    sequence: 9,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(
+    pendingCounts.at(-1),
+    1,
+    'friend request red dot count must refresh immediately after user-scope realtime events',
+  );
+  assert.equal(
+    friendRequestCalls.filter((call) => call.direction === 'incoming').length >= 4,
+    true,
+    'friend request realtime refresh must reload incoming pending requests without waiting for the interval',
+  );
+  await service.handleFriendRequest(requests[0].id, 'accept');
+  assert.equal(
+    pendingCounts.at(-1),
+    1,
+    'friend request red dot count must refresh after accepting a request',
+  );
+  unsubscribePendingCount();
 
   console.log('sdkwork-chat-pc friend request sync contract passed');
 }

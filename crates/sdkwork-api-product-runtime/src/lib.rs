@@ -1420,12 +1420,12 @@ mod tests {
             ),
             (
                 reqwest::Method::POST,
-                "/app/v3/api/open_platform/qr_auth/sessions",
+                "/app/v3/api/oauth/device_authorizations",
                 serde_json::json!({}),
             ),
             (
                 reqwest::Method::POST,
-                "/app/v3/api/open_platform/qr_auth/sessions/session-1/passwords",
+                "/app/v3/api/oauth/device_authorizations/session-1/password_completions",
                 serde_json::json!({
                     "username": "local-default@sdkwork-iam.local",
                     "password": "wrong-password",
@@ -1451,7 +1451,7 @@ mod tests {
             "/app/v3/api/iam/users/current",
             "/app/v3/api/system/iam/runtime",
             "/app/v3/api/system/iam/verification_policy",
-            "/app/v3/api/open_platform/qr_auth/sessions/session-1",
+            "/app/v3/api/oauth/device_authorizations/session-1",
         ] {
             let response = fetch_response(base_url.as_str(), path).await;
             assert_eq!(

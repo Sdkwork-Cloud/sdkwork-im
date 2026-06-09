@@ -12,7 +12,7 @@ public class ContactRecommendationView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -20,7 +20,7 @@ public class ContactRecommendationView {
     public String getOwnerUserId() {
         return this.ownerUserId;
     }
-    
+
     public void setOwnerUserId(String ownerUserId) {
         this.ownerUserId = ownerUserId;
     }
@@ -28,7 +28,7 @@ public class ContactRecommendationView {
     public String getTargetUserId() {
         return this.targetUserId;
     }
-    
+
     public void setTargetUserId(String targetUserId) {
         this.targetUserId = targetUserId;
     }
@@ -36,7 +36,7 @@ public class ContactRecommendationView {
     public String getRecommendationId() {
         return this.recommendationId;
     }
-    
+
     public void setRecommendationId(String recommendationId) {
         this.recommendationId = recommendationId;
     }
@@ -44,7 +44,7 @@ public class ContactRecommendationView {
     public String getTargetConversationId() {
         return this.targetConversationId;
     }
-    
+
     public void setTargetConversationId(String targetConversationId) {
         this.targetConversationId = targetConversationId;
     }
@@ -52,7 +52,7 @@ public class ContactRecommendationView {
     public String getCreatedAt() {
         return this.createdAt;
     }
-    
+
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }

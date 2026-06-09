@@ -6,8 +6,6 @@ use serde_json::Value;
 const IM_OPENAPI_SCHEMA: &str = "../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml";
 const APP_OPENAPI_SCHEMA: &str =
     "../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml";
-const RTC_APP_OPENAPI_SCHEMA: &str =
-    "../../../sdkwork-rtc/sdks/sdkwork-rtc-app-sdk/openapi/sdkwork-rtc-app-api.openapi.json";
 const BACKEND_OPENAPI_SCHEMA: &str =
     "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml";
 const APP_SDK_ASSEMBLY: &str = "../../sdks/sdkwork-im-app-sdk/.sdkwork-assembly.json";
@@ -108,6 +106,13 @@ fn extract_runtime_route_paths(source_section: &str) -> BTreeSet<String> {
         .collect()
 }
 
+fn prefix_runtime_route_paths(prefix: &str, routes: BTreeSet<String>) -> BTreeSet<String> {
+    routes
+        .into_iter()
+        .map(|route| format!("{prefix}{route}"))
+        .collect()
+}
+
 fn extract_backend_admin_route_registry_paths(source: &str) -> BTreeSet<String> {
     let registry_section = extract_source_section(
         source,
@@ -157,30 +162,6 @@ fn assert_openapi_paths_match_runtime_routes(
         missing.is_empty() && extra.is_empty(),
         "{label} OpenAPI paths must match runtime route table exactly; missing={missing:?}, extra={extra:?}"
     );
-}
-
-fn assert_openapi_paths_include_runtime_routes(
-    label: &str,
-    schema: &Value,
-    api_prefix: &str,
-    runtime_routes: &BTreeSet<String>,
-) {
-    let openapi_paths = path_map(schema)
-        .keys()
-        .filter(|path| path.starts_with(api_prefix))
-        .cloned()
-        .collect::<BTreeSet<_>>();
-    for route in runtime_routes {
-        let expected_path = if route.starts_with(api_prefix) {
-            route.to_owned()
-        } else {
-            format!("{api_prefix}{route}")
-        };
-        assert!(
-            openapi_paths.contains(expected_path.as_str()),
-            "{label} OpenAPI schema must include local runtime route {expected_path}"
-        );
-    }
 }
 
 fn assert_sdkwork_v3_security_and_problem_details(schema: &Value, label: &str) {
@@ -587,8 +568,8 @@ fn test_im_openapi_tags_and_operation_ids_are_sdkwork_v3_resource_style() {
     }
 
     for expected in [
-        "rtc.sessions.create",
-        "rtc.sessions.retrieve",
+        "calls.sessions.create",
+        "calls.sessions.retrieve",
         "conversations.create",
         "conversations.threads.create",
         "conversations.directChats.bind",
@@ -618,36 +599,36 @@ fn test_im_openapi_tags_and_operation_ids_are_sdkwork_v3_resource_style() {
 }
 
 #[test]
-fn test_im_openapi_rtc_session_retrieve_supports_state_backfill() {
+fn test_im_openapi_call_session_retrieve_supports_state_backfill() {
     let schema = load_schema(IM_OPENAPI_SCHEMA);
     let operation = schema
-        .pointer("/paths/~1im~1v3~1api~1rtc~1sessions~1{rtcSessionId}/get")
+        .pointer("/paths/~1im~1v3~1api~1calls~1sessions~1{rtcSessionId}/get")
         .and_then(Value::as_object)
-        .expect("RTC session retrieve route must expose a GET operation");
+        .expect("IM call session retrieve route must expose a GET operation");
 
     assert_eq!(
         operation.get("operationId").and_then(Value::as_str),
-        Some("rtc.sessions.retrieve"),
-        "RTC session retrieve must expose a semantic SDKWork v3 operationId"
+        Some("calls.sessions.retrieve"),
+        "IM call session retrieve must expose a semantic SDKWork v3 operationId"
     );
 
     let parameters = operation
         .get("parameters")
         .and_then(Value::as_array)
-        .expect("RTC session retrieve route must define path parameters");
+        .expect("IM call session retrieve route must define path parameters");
     assert!(
         parameters
             .iter()
             .any(|parameter| parameter.get("$ref").and_then(Value::as_str)
                 == Some("#/components/parameters/RtcSessionIdPath")),
-        "RTC session retrieve route must use the standard RtcSessionIdPath parameter"
+        "IM call session retrieve route must use the standard RtcSessionIdPath parameter"
     );
     assert_eq!(
         Value::Object(operation.clone())
             .pointer("/responses/200/content/application~1json/schema/$ref")
             .and_then(Value::as_str),
         Some("#/components/schemas/RtcSession"),
-        "RTC session retrieve must return the standard RtcSession schema"
+        "IM call session retrieve must return the standard RtcSession schema"
     );
     for status in ["401", "403", "404"] {
         assert_eq!(
@@ -658,7 +639,7 @@ fn test_im_openapi_rtc_session_retrieve_supports_state_backfill() {
                 )
                 .and_then(Value::as_str),
             Some("#/components/schemas/ProblemDetail"),
-            "RTC session retrieve response {status} must expose ProblemDetail"
+            "IM call session retrieve response {status} must expose ProblemDetail"
         );
     }
 }
@@ -1914,7 +1895,12 @@ fn test_app_api_openapi_uses_sdkwork_im_app_sdk_owner_only_contract_with_depende
         "/app/v3/api/auth/verification_codes/verify",
         "/app/v3/api/system/iam/runtime",
         "/app/v3/api/system/iam/verification_policy",
-        "/app/v3/api/open_platform/qr_auth/sessions",
+        "/app/v3/api/oauth/authorization_urls",
+        "/app/v3/api/oauth/device_authorizations",
+        "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}",
+        "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/scans",
+        "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/password_completions",
+        "/app/v3/api/oauth/sessions",
         "/app/v3/api/iot/devices",
         "/app/v3/api/iot/devices/{deviceId}",
         "/app/v3/api/iot/devices/{deviceId}/twin",
@@ -1976,27 +1962,35 @@ fn test_openapi_paths_match_local_minimal_node_runtime_route_tables() {
     let build_source = load_local_minimal_node_source(LOCAL_MINIMAL_NODE_BUILD_RS);
     assert!(
         !build_source.contains(".nest(\"/app/v3/api\","),
-        "local-minimal-node must not mount the generic /app/v3/api route table; RTC is mounted as a dedicated /app/v3/api/rtc authority"
+        "local-minimal-node must not mount the generic /app/v3/api route table; IM calls are mounted under /im/v3/api/calls"
     );
     assert!(
-        build_source.contains(".nest(\"/app/v3/api/rtc\", rtc_app_api_routes())"),
-        "local-minimal-node RTC routes must move out of /im/v3/api and mount under /app/v3/api/rtc"
+        build_source.contains(".nest(\"/calls\", im_calls_routes())"),
+        "local-minimal-node call signaling routes must mount under /im/v3/api/calls"
+    );
+    assert!(
+        !build_source.contains("fn rtc_app_api_routes()")
+            && !build_source.contains(".nest(\"/app/v3/api/rtc\""),
+        "local-minimal-node must not preserve the retired RTC app-api route table"
     );
     assert!(
         !build_source.contains("fn app_business_api_routes()"),
         "local-minimal-node must not keep a private Craw Chat im-app-api route table"
     );
-    let im_routes = extract_runtime_route_paths(extract_source_section(
+    let mut im_routes = extract_runtime_route_paths(extract_source_section(
         &build_source,
         "fn im_standard_api_routes()",
-        "fn rtc_app_api_routes()",
+        "fn im_calls_routes()",
         "IM standard route table",
     ));
-    let rtc_routes = extract_runtime_route_paths(extract_source_section(
-        &build_source,
-        "fn rtc_app_api_routes()",
-        "fn backend_api_routes()",
-        "RTC app route table",
+    im_routes.extend(prefix_runtime_route_paths(
+        "/calls",
+        extract_runtime_route_paths(extract_source_section(
+            &build_source,
+            "fn im_calls_routes()",
+            "fn backend_api_routes()",
+            "IM call signaling route table",
+        )),
     ));
     let backend_routes = extract_runtime_route_paths(extract_source_section(
         &build_source,
@@ -2030,12 +2024,6 @@ fn test_openapi_paths_match_local_minimal_node_runtime_route_tables() {
         &load_schema(BACKEND_OPENAPI_SCHEMA),
         "/backend/v3/api",
         &backend_routes,
-    );
-    assert_openapi_paths_include_runtime_routes(
-        "rtc app",
-        &load_schema(RTC_APP_OPENAPI_SCHEMA),
-        "/app/v3/api/rtc",
-        &rtc_routes,
     );
 }
 

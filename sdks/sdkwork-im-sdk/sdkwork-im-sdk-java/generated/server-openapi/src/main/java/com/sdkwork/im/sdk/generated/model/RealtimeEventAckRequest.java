@@ -8,7 +8,7 @@ public class RealtimeEventAckRequest {
     public List<String> getEventIds() {
         return this.eventIds;
     }
-    
+
     public void setEventIds(List<String> eventIds) {
         this.eventIds = eventIds;
     }

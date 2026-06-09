@@ -11,7 +11,7 @@ This standard freezes the runtime-dir-backed private-deployment contract for RTC
 This standard applies to:
 
 - `local-minimal-node` managed runtime-dir builders
-- `rtc-signaling-service` runtime state persistence
+- `im-call-runtime` runtime state persistence
 - RTC session recovery after rebuild
 - RTC signal history recovery after rebuild
 - RTC store failure handling
@@ -64,11 +64,11 @@ Typical sequence:
 
 1. process restarts with the same runtime dir
 2. the client calls:
-   - `POST /im/v3/api/rtc/sessions/{id}/invite`
-   - `POST /im/v3/api/rtc/sessions/{id}/accept`
-   - `POST /im/v3/api/rtc/sessions/{id}/reject`
-   - `POST /im/v3/api/rtc/sessions/{id}/end`
-   - `POST /im/v3/api/rtc/sessions/{id}/signals`
+   - `POST /im/v3/api/calls/sessions/{id}/invite`
+   - `POST /im/v3/api/calls/sessions/{id}/accept`
+   - `POST /im/v3/api/calls/sessions/{id}/reject`
+   - `POST /im/v3/api/calls/sessions/{id}/end`
+   - `POST /im/v3/api/calls/sessions/{id}/signals`
 3. runtime loads persisted state for `tenant + rtc_session_id`
 4. the operation continues against the restored in-memory state
 

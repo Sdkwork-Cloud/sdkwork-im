@@ -928,6 +928,15 @@ await runSdkworkChatPcDev({
   argv: ['--target', 'desktop'],
   env: {},
   findAvailableDevPort: async () => 4179,
+  resolveServerBindEnv: async ({ env }) => ({
+    bindAddr: '127.0.0.1:18081',
+    env: {
+      ...env,
+      SDKWORK_CHAT_SERVER_BIND: '127.0.0.1:18081',
+      SDKWORK_CHAT_SERVER_API_BASE_URL: 'http://127.0.0.1:18081',
+    },
+    portChanged: true,
+  }),
   repoRoot,
   spawnImpl(command, args, options) {
     spawned.push({ command, args, options });
@@ -948,6 +957,41 @@ assert.equal(
   '4179',
   'dev runner must pass the resolved available port to the selected renderer target',
 );
+assert.equal(
+  spawned[0].options.env.SDKWORK_CHAT_SERVER_BIND,
+  '127.0.0.1:18081',
+  'dev runner must pass the resolved gateway bind to the unified server process',
+);
+assert.equal(
+  spawned[0].options.env.SDKWORK_CHAT_SERVER_API_BASE_URL,
+  'http://127.0.0.1:18081',
+  'dev runner must pass the resolved gateway API base URL to the unified server process',
+);
+assert.equal(
+  spawned[1].options.env.SDKWORK_CHAT_SERVER_API_BASE_URL,
+  'http://127.0.0.1:18081',
+  'dev runner must pass the resolved gateway API base URL to the renderer env resolver',
+);
+assert.equal(
+  spawned[1].options.env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
+  'http://127.0.0.1:18081',
+  'dev runner must point IAM traffic at the resolved Craw Chat gateway when 18079 is unavailable',
+);
+assert.equal(
+  spawned[1].options.env.VITE_CRAW_CHAT_APP_API_BASE_URL,
+  'http://127.0.0.1:18081',
+  'dev runner must point app API traffic at the resolved Craw Chat gateway when 18079 is unavailable',
+);
+assert.equal(
+  spawned[1].options.env.VITE_CRAW_CHAT_IM_API_BASE_URL,
+  'http://127.0.0.1:18081',
+  'dev runner must point IM HTTP traffic at the resolved Craw Chat gateway when 18079 is unavailable',
+);
+assert.equal(
+  spawned[1].options.env.VITE_CRAW_CHAT_IM_WEBSOCKET_BASE_URL,
+  'ws://127.0.0.1:18081',
+  'dev runner must point IM websocket traffic at the resolved Craw Chat gateway when 18079 is unavailable',
+);
 assert.deepEqual(
   spawned.map((entry) => entry.options.shell),
   [pnpmShell, pnpmShell],
@@ -956,6 +1000,16 @@ assert.deepEqual(
 const devRunnerSource = fs.readFileSync(
   path.join(repoRoot, 'scripts/dev/run-sdkwork-chat-pc-dev.mjs'),
   'utf8',
+);
+assert.match(
+  devRunnerSource,
+  /createCrawChatServerCargoEnv/u,
+  'dev runner plan must use the shared cargo target isolation helper',
+);
+assert.match(
+  devRunnerSource,
+  /resolveCrawChatServerBindEnv/u,
+  'dev runner must resolve the shared gateway bind before spawning server and renderer children',
 );
 assert.ok(
   devRunnerSource.includes('terminateProcessTree')

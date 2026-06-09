@@ -18,7 +18,7 @@ public class MessageFavoriteView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -26,7 +26,7 @@ public class MessageFavoriteView {
     public String getPrincipalKind() {
         return this.principalKind;
     }
-    
+
     public void setPrincipalKind(String principalKind) {
         this.principalKind = principalKind;
     }
@@ -34,7 +34,7 @@ public class MessageFavoriteView {
     public String getPrincipalId() {
         return this.principalId;
     }
-    
+
     public void setPrincipalId(String principalId) {
         this.principalId = principalId;
     }
@@ -42,7 +42,7 @@ public class MessageFavoriteView {
     public String getFavoriteId() {
         return this.favoriteId;
     }
-    
+
     public void setFavoriteId(String favoriteId) {
         this.favoriteId = favoriteId;
     }
@@ -50,7 +50,7 @@ public class MessageFavoriteView {
     public String getFavoriteType() {
         return this.favoriteType;
     }
-    
+
     public void setFavoriteType(String favoriteType) {
         this.favoriteType = favoriteType;
     }
@@ -58,7 +58,7 @@ public class MessageFavoriteView {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -66,7 +66,7 @@ public class MessageFavoriteView {
     public String getMessageId() {
         return this.messageId;
     }
-    
+
     public void setMessageId(String messageId) {
         this.messageId = messageId;
     }
@@ -74,7 +74,7 @@ public class MessageFavoriteView {
     public Integer getMessageSeq() {
         return this.messageSeq;
     }
-    
+
     public void setMessageSeq(Integer messageSeq) {
         this.messageSeq = messageSeq;
     }
@@ -82,7 +82,7 @@ public class MessageFavoriteView {
     public String getTitle() {
         return this.title;
     }
-    
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -90,7 +90,7 @@ public class MessageFavoriteView {
     public String getContentPreview() {
         return this.contentPreview;
     }
-    
+
     public void setContentPreview(String contentPreview) {
         this.contentPreview = contentPreview;
     }
@@ -98,7 +98,7 @@ public class MessageFavoriteView {
     public String getSourceDisplayName() {
         return this.sourceDisplayName;
     }
-    
+
     public void setSourceDisplayName(String sourceDisplayName) {
         this.sourceDisplayName = sourceDisplayName;
     }
@@ -106,7 +106,7 @@ public class MessageFavoriteView {
     public String getFavoritedAt() {
         return this.favoritedAt;
     }
-    
+
     public void setFavoritedAt(String favoritedAt) {
         this.favoritedAt = favoritedAt;
     }

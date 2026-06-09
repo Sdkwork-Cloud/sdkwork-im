@@ -66,16 +66,15 @@ assert.match(
   /groupService\.getGroups\(\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*setLoading\(false\)\s*\)/u,
   'Groups loading must always clear loading after success or failure',
 );
-const groupPromptBlock = sliceBetween(groupsSource, 'customPrompt(', 'className="flex items-center gap-2', 'GroupsContainer create prompt');
 assert.match(
-  groupPromptBlock,
-  /try\s*\{[\s\S]*?await\s+groupService\.createGroup/u,
-  'GroupsContainer must create groups through a handled async path',
+  groupsSource,
+  /<CreateGroupModal[\s\S]*?onCreated=\{async\s*\(group\)\s*=>\s*\{[\s\S]*?setGroups\(\s*\(\s*previousGroups\s*\)\s*=>\s*\[group,\s*\.\.\.previousGroups\]\s*\)[\s\S]*?onOpenGroup\?\.\(\s*group\s*\)/u,
+  'GroupsContainer must reuse CreateGroupModal and append through a functional state update so rapid group creation does not drop previous groups',
 );
-assert.match(
-  groupPromptBlock,
-  /catch\s*(?:\(|\{)/u,
-  'GroupsContainer must show a failure toast when backend group creation fails',
+assert.doesNotMatch(
+  groupsSource,
+  /customPrompt\s*\(|groupService\.createGroup\s*\([^)]*\[\s*\]\s*\)/u,
+  'GroupsContainer must not bypass CreateGroupModal with prompt-based empty group creation',
 );
 
 assert.match(

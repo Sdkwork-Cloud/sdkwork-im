@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::api::{PresenceApi, RealtimeApi, RtcApi, SocialApi, ChatApi, StreamsApi};
+use crate::api::{PresenceApi, RealtimeApi, CallsApi, SocialApi, ChatApi, StreamsApi};
 use crate::http::{SdkworkConfig, SdkworkError, SdkworkHttpClient};
 
 #[derive(Clone)]
@@ -45,8 +45,8 @@ impl SdkworkImClient {
             RealtimeApi::new(Arc::clone(&self.http))
         }
 
-    pub fn rtc(&self) -> RtcApi {
-            RtcApi::new(Arc::clone(&self.http))
+    pub fn calls(&self) -> CallsApi {
+            CallsApi::new(Arc::clone(&self.http))
         }
 
     pub fn social(&self) -> SocialApi {

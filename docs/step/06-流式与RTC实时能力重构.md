@@ -20,7 +20,7 @@
 ### 1.1 执行输入
 
 - step 05 已稳定的消息主链路与 sender / tenant 边界
-- 当前 `streaming-service`、`rtc-signaling-service`、`im-domain-core` 中的流与 RTC 实现
+- 当前 `streaming-service`、`im-call-runtime`、`im-domain-core` 中的流与 RTC 实现
 - `143` 统一协议总纲与当前 `CCP` 控制帧、envelope 能力
 - `150` 插件化提供商体系与设备接入标准
 - 当前 stream / rtc 生命周期相关测试资产
@@ -54,7 +54,7 @@
 当前仓库已经有：
 
 - `services/streaming-service`
-- `services/rtc-signaling-service`
+- `services/im-call-runtime`
 - `im-domain-core` 中的 `stream.rs`、`rtc.rs`
 
 但距离目标形态仍存在差距：
@@ -129,7 +129,7 @@ RTC 只负责信令：
 2. 补齐 `RtcProviderPort`、provider registry 和默认 provider 选择语义
 3. 拆分 `domain-stream` 与 `domain-rtc`
 4. 拆分 `app-stream` 与 `app-rtc`
-5. 让 `streaming-service`、`rtc-signaling-service` 接入新契约和新 runtime
+5. 让 `streaming-service`、`im-call-runtime` 接入新契约和新 runtime
 6. 建立 stream materialization 规则
 7. 建立 stream resume / checkpoint / finalize 行为校验
 
@@ -140,7 +140,7 @@ RTC 只负责信令：
 - `crates/im-domain-core/src/stream.rs`
 - `crates/im-domain-core/src/rtc.rs`
 - `services/streaming-service/`
-- `services/rtc-signaling-service/`
+- `services/im-call-runtime/`
 - `services/projection-service/`
 - `services/notification-service/`
 
@@ -176,8 +176,8 @@ RTC 只负责信令：
 建议优先复用或扩展：
 
 - `services/streaming-service/tests/stream_lifecycle_test.rs`
-- `services/rtc-signaling-service/tests/rtc_signal_flow_test.rs`
-- `services/rtc-signaling-service/tests/rtc_runtime_persistence_test.rs`
+- `services/im-call-runtime/tests/rtc_signal_flow_test.rs`
+- `services/im-call-runtime/tests/rtc_runtime_persistence_test.rs`
 - `services/local-minimal-node/tests/stream_runtime_persistence_test.rs`
 - `services/local-minimal-node/tests/rtc_runtime_persistence_test.rs`
 
@@ -262,7 +262,7 @@ RTC 只负责信令：
 
 - 已落地到真实代码的部分：
   - 新增 `adapters/rtc-volcengine`，提供默认 `rtc-volcengine` runtime adapter
-  - `services/rtc-signaling-service/src/lib.rs`
+  - `services/im-call-runtime/src/lib.rs`
     - `RtcRuntime` 已接入 `ProviderRegistry + RtcProviderPort`
     - 默认 `with_store(...)` 已装配 `rtc-volcengine`
     - `create_session(...)` 已真实调用 provider `create_session(...)`
@@ -275,9 +275,9 @@ RTC 只负责信令：
       - `access_endpoint`
       - `provider_region`
 - 自动化验证：
-  - `services/rtc-signaling-service/tests/rtc_runtime_persistence_test.rs`
+  - `services/im-call-runtime/tests/rtc_runtime_persistence_test.rs`
     - 新增 provider-aware runtime 测试，覆盖 `create_session / issue_participant_credential / provider_health_snapshot / close_session`
-  - `services/rtc-signaling-service/tests/rtc_signal_flow_test.rs`
+  - `services/im-call-runtime/tests/rtc_signal_flow_test.rs`
   - `services/local-minimal-node/tests/rtc_runtime_persistence_test.rs`
 - 对本 step 当前状态的判断：
   - `CP06-1` 已进入真实运行时闭环的第一阶段，不再只是契约与架构文档
@@ -285,16 +285,16 @@ RTC 只负责信令：
 
 ## 12. 2026-04-08 As-Built 补充（二）
 - 已继续把 Step 06 / Wave B 从“默认 provider runtime adapter 已接入”推进到“外部 RTC provider surface 已闭环”：
-  - `services/rtc-signaling-service/src/lib.rs`
-    - 新增 `POST /im/v3/api/rtc/sessions/{rtcSessionId}/credentials`
+  - `services/im-call-runtime/src/lib.rs`
+    - 新增 `POST /im/v3/api/calls/sessions/{rtcSessionId}/credentials`
     - 新增 `GET /backend/v3/api/rtc/provider_health`
     - 直接复用已有 `RtcRuntime::issue_participant_credential(...)` 与 `provider_health_snapshot(...)`
   - `services/local-minimal-node/src/node/rtc.rs`
     - 新增同名 handler，并沿用当前 conversation-bound access guard
   - `services/local-minimal-node/src/node/build.rs`
-    - 暴露与 `rtc-signaling-service` 一致的两条 RTC provider surface
+    - 暴露与 `im-call-runtime` 一致的两条 RTC provider surface
 - 自动化验证已补齐：
-  - `services/rtc-signaling-service/tests/http_smoke_test.rs`
+  - `services/im-call-runtime/tests/http_smoke_test.rs`
     - `test_issue_rtc_participant_credential_over_http`
     - `test_get_rtc_provider_health_over_http`
   - `services/local-minimal-node/tests/http_e2e_test.rs`
@@ -305,17 +305,17 @@ RTC 只负责信令：
   - 当前剩余缺口集中在 `callback / artifact` surface，以及 `rtc-aliyun / rtc-tencent` adapter。
 ## 12. 2026-04-08 As-Built（Wave B callback / artifact）
 
-- `services/rtc-signaling-service/src/lib.rs`
+- `services/im-call-runtime/src/lib.rs`
   - 新增 `RtcRuntime::map_provider_callback(...)`
   - 新增 `RtcRuntime::recording_artifact(...)`
   - 新增 `POST /backend/v3/api/rtc/provider_callbacks`
-  - 新增 `GET /im/v3/api/rtc/sessions/{rtcSessionId}/artifacts/recording`
+  - 新增 `Retired recording artifact HTTP read; call artifacts are delivered as Drive-backed IM records`
 - `services/local-minimal-node`
   - 镜像暴露同名 RTC provider surface
   - callback 保持 provider/integration 面，不引入厂商 DTO
   - artifact 继续受 session / conversation 边界约束
 - 新增验证
-  - `services/rtc-signaling-service/tests/http_smoke_test.rs`
+  - `services/im-call-runtime/tests/http_smoke_test.rs`
     - `test_map_rtc_provider_callback_over_http`
     - `test_get_rtc_recording_artifact_over_http`
   - `services/local-minimal-node/tests/http_e2e_test.rs`
@@ -335,7 +335,7 @@ RTC 只负责信令：
   - `callback`
   - `health`
   - `recording artifact`
-- `services/rtc-signaling-service/src/lib.rs`
+- `services/im-call-runtime/src/lib.rs`
   - `RtcRuntime::with_store(...)` 默认内建 provider map 已扩容到：
     - `rtc-volcengine`
     - `rtc-aliyun`
@@ -343,7 +343,7 @@ RTC 只负责信令：
 - 新增验证
   - `adapters/rtc-aliyun/tests/adapter_contract_test.rs`
   - `adapters/rtc-tencent/tests/adapter_contract_test.rs`
-  - `services/rtc-signaling-service/tests/rtc_runtime_persistence_test.rs`
+  - `services/im-call-runtime/tests/rtc_runtime_persistence_test.rs`
     - `test_runtime_can_route_to_tenant_selected_builtin_rtc_providers`
 - Step 06 / `06-B`
   - RTC provider external surface 与 provider matrix 已形成最小闭环

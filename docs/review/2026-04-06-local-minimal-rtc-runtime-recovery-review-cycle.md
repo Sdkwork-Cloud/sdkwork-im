@@ -12,9 +12,9 @@
   - stream runtime state
 - RTC state still rebuilt from empty memory after restart.
 - The operational effect was direct:
-  - `POST /im/v3/api/rtc/sessions/{id}/accept` returned `404 rtc_session_not_found`
-  - `POST /im/v3/api/rtc/sessions/{id}/signals` returned `404 rtc_session_not_found`
-  - `POST /im/v3/api/rtc/sessions/{id}/end` returned `404 rtc_session_not_found`
+  - `POST /im/v3/api/calls/sessions/{id}/accept` returned `404 rtc_session_not_found`
+  - `POST /im/v3/api/calls/sessions/{id}/signals` returned `404 rtc_session_not_found`
+  - `POST /im/v3/api/calls/sessions/{id}/end` returned `404 rtc_session_not_found`
   - conversation-bound RTC flows could not continue across restart unless clients recreated the same `rtcSessionId`
 
 ### 1.2 High: `RtcRuntime` had no durable seam and `local-minimal-node` always composed it as memory-only
@@ -66,7 +66,7 @@ This review cycle completed the missing RTC recovery path:
 
 ## 4. Regression Coverage
 
-- `services/rtc-signaling-service/tests/rtc_runtime_persistence_test.rs`
+- `services/im-call-runtime/tests/rtc_runtime_persistence_test.rs`
   - `test_runtime_restores_rtc_state_on_rebuild_with_shared_store`
 - `adapters/local-disk/src/lib.rs`
   - `test_file_rtc_state_store_persists_across_reopen`
@@ -77,14 +77,14 @@ This review cycle completed the missing RTC recovery path:
 
 Verified in this cycle with fresh command output:
 
-- `cargo test -p rtc-signaling-service --offline --test rtc_runtime_persistence_test -- --nocapture`
+- `cargo test -p im-call-runtime --offline --test rtc_runtime_persistence_test -- --nocapture`
 - `cargo test -p local-minimal-node --offline --test rtc_runtime_persistence_test -- --nocapture`
 - `cargo test -p im-adapters-local-disk --offline test_file_rtc_state_store_persists_across_reopen -- --nocapture`
 
 Additional broad verification ran after the implementation stabilized:
 
 - `cargo fmt --all --check`
-- `cargo test -p rtc-signaling-service --offline`
+- `cargo test -p im-call-runtime --offline`
 - `cargo test -p im-adapters-local-disk --offline`
 - `cargo test -p local-minimal-node --offline`
 

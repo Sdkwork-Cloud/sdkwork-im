@@ -387,6 +387,12 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Allows SDKWork Chat PC to decode QR code image files and camera frames through the native desktop shell.",
+          "type": "string",
+          "const": "allow-sdkwork-chat-pc-qr-code",
+          "markdownDescription": "Allows SDKWork Chat PC to decode QR code image files and camera frames through the native desktop shell."
+        },
+        {
           "description": "Allows the SDKWork Chat PC auth AppHeader to minimize, maximize, hide to tray, and restore the main desktop window through the native shell.",
           "type": "string",
           "const": "allow-sdkwork-chat-pc-window-control",

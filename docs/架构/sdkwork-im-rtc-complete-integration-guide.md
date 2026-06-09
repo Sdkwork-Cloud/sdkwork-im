@@ -22,16 +22,16 @@ application integration baselines.
 
 | Language | Consumer package | Status | Current integration reality |
 | --- | --- | --- | --- |
-| TypeScript | `@sdkwork/im-sdk` | executable | Full app-facing baseline, including HTTP modules, message-first API, `sdk.connect(...)`, `sdk.sync.catchUp(...)`, RTC route surface, and `sdkwork-im-chat` CLI |
-| Flutter | `im_sdk` | executable | App-facing baseline for HTTP modules, `sdk.connect(...)` live receive, WebSocket auth standardization, and RTC route surface |
+| TypeScript | `@sdkwork/im-sdk` | executable | Full app-facing baseline, including HTTP modules, message-first API, `sdk.connect(...)`, `sdk.sync.catchUp(...)`, IM calls route surface, and `sdkwork-im-chat` CLI |
+| Flutter | `im_sdk` | executable | App-facing baseline for HTTP modules, `sdk.connect(...)` live receive, WebSocket auth standardization, and IM calls route surface |
 | Rust / Java / C# / Swift / Kotlin / Go / Python | language workspace specific | standardized only | Official workspace family exists, but not the primary app-consumer baseline for Craw Chat today |
 
 ### RTC SDK
 
 | Language | Consumer package | Status | Current integration reality |
 | --- | --- | --- | --- |
-| TypeScript | `@sdkwork/rtc-sdk` | executable | Official web/browser runtime baseline, default provider `volcengine`, standard IM-signaled call flow ready |
-| Flutter | `rtc_sdk` | executable | Official mobile runtime baseline, default provider `volcengine`, standard IM-signaled call flow ready |
+| TypeScript | `@sdkwork/rtc-sdk` | executable | Official web/browser runtime baseline, default provider `volcengine`, media runtime ready for IM-owned call signaling |
+| Flutter | `rtc_sdk` | executable | Official mobile runtime baseline, default provider `volcengine`, media runtime ready for IM-owned call signaling |
 | Rust / Java / C# / Swift / Kotlin / Go / Python | language workspace specific | standardized only | Reserved runtime-bridge boundary, not the current runnable call baseline |
 
 ### RTC provider baseline
@@ -58,7 +58,7 @@ Its responsibility is:
 - auth/session/presence/device/inbox/conversation/message/media/stream/rtc route surfaces
 - TypeScript live receive runtime
 - Flutter composed consumer package and live receive runtime
-- app-facing RTC session lifecycle and signal route access
+- app-facing IM-owned call session lifecycle and signal route access
 
 It does not directly own vendor RTC media runtime behavior.
 
@@ -81,8 +81,8 @@ It does not reimplement vendor media engines.
 
 The current standard boundary is:
 
-- `sdkwork-im-sdk` owns app-facing signaling, RTC session routes, participant credential issuance, and realtime or sync receive
-- `sdkwork-rtc-sdk` owns provider-neutral media runtime contracts and call/session orchestration
+- `sdkwork-im-sdk` owns app-facing call signaling, IM-owned call session routes, participant credential issuance, and realtime or sync receive
+- `sdkwork-rtc-sdk` owns provider-neutral media runtime contracts and provider/runtime bridges
 - the vendor SDK owns actual media engine behavior
 - the application owns runtime environment, credentials, and package installation
 
@@ -126,8 +126,8 @@ Before integrating either SDK into a real app, the backend side must already pro
 - IM conversation routes
 - IM message routes
 - IM realtime routes
-- RTC session routes under the IM API
-- RTC signal posting routes under the IM API
+- IM-owned call session routes under the IM API
+- IM-owned call signal posting routes under the IM API
 - RTC participant credential issuance
 
 For the RTC full call flow, the backend must be able to support:
@@ -236,27 +236,28 @@ live.signals.onRtcSession('rtc-1', (signal, context) => {
 });
 ```
 
-### RTC route surface through IM
+### IM calls route surface through IM
 
-`@sdkwork/im-sdk` already exposes RTC lifecycle routes:
+`@sdkwork/im-sdk` exposes IM-owned call lifecycle routes:
 
 ```ts
-const session = await sdk.rtc.create({
+const session = await sdk.calls.start({
   rtcSessionId: 'rtc-1',
   conversationId: 'conversation-1',
   rtcMode: 'group_call',
 });
 
-await sdk.rtc.invite(session.rtcSessionId, {
+await sdk.calls.invite(session.rtcSessionId, {
   signalingStreamId: 'rtc-signal-1',
 });
 
-await sdk.rtc.postJsonSignal(session.rtcSessionId, 'offer', {
+await sdk.calls.sendSignal(session.rtcSessionId, {
   signalingStreamId: 'rtc-signal-1',
-  payload: { sdp: 'v=0...' },
+  signalType: 'rtc.offer',
+  payload: JSON.stringify({ sdp: 'v=0...' }),
 });
 
-const credential = await sdk.rtc.issueParticipantCredential(session.rtcSessionId, {
+const credential = await sdk.calls.issueParticipantCredential(session.rtcSessionId, {
   participantId: 'user-1',
 });
 ```
@@ -406,57 +407,63 @@ const dataSource = new RtcDataSource({
 const rtcClient = await dataSource.createClient();
 ```
 
-### Full RTC call flow with IM signaling
+### RTC media flow with IM-owned call signaling
 
-Use this when you want one standard stack that combines IM signaling and vendor media runtime:
+Use this when the application combines IM-owned call signaling with the vendor media runtime:
 
 ```ts
 import { ImSdkClient } from '@sdkwork/im-sdk';
-import { createStandardRtcCallControllerStack } from '@sdkwork/rtc-sdk';
+import {
+  RtcDataSource,
+  createBuiltinRtcDriverManager,
+} from '@sdkwork/rtc-sdk';
 
 const imSdk = new ImSdkClient({
   baseUrl: 'https://craw-chat.example.com',
   authToken: 'app-token',
 });
 
-const rtc = await createStandardRtcCallControllerStack({
-  sdk: imSdk,
-  connectOptions: {
-    clientRouteId: 'device-1',
-  },
-  watchConversationIds: ['conversation-1'],
-  dataSourceConfig: {
-    nativeConfig: {
-      appId: 'volc-app-id',
-    },
-  },
-});
-
-await rtc.callController.startOutgoing({
+const session = await imSdk.calls.start({
   rtcSessionId: 'rtc-session-1',
   conversationId: 'conversation-1',
   rtcMode: 'video_call',
-  roomId: 'room-1',
-  participantId: 'user-1',
+});
+
+await imSdk.calls.invite(session.rtcSessionId, {
   signalingStreamId: 'rtc-signal-1',
-  autoPublish: {
-    audio: true,
-    video: true,
+});
+
+await imSdk.calls.sendSignal(session.rtcSessionId, {
+  signalingStreamId: 'rtc-signal-1',
+  signalType: 'rtc.offer',
+  payload: JSON.stringify({ sdp: 'v=0...' }),
+});
+
+const credential = await imSdk.calls.issueParticipantCredential(session.rtcSessionId, {
+  participantId: 'user-1',
+});
+
+const rtcDataSource = new RtcDataSource({
+  driverManager: createBuiltinRtcDriverManager(),
+  nativeConfig: {
+    appId: 'volc-app-id',
   },
 });
+
+const rtcClient = await rtcDataSource.createClient();
 ```
 
-### Current TypeScript RTC signaling mapping
+### Current TypeScript IM calls signaling mapping
 
-The current IM-to-RTC adapter contract is:
+The current IM calls facade contract is:
 
-- `sdk.rtc.create(...)` -> create RTC session
-- `sdk.rtc.invite(...)` -> invite participant
-- `sdk.rtc.accept(...)` -> accept session
-- `sdk.rtc.reject(...)` -> reject session
-- `sdk.rtc.end(...)` -> end session
-- `sdk.rtc.postJsonSignal(...)` -> send offer, answer, and ICE
-- `sdk.rtc.issueParticipantCredential(...)` -> issue vendor join credential
+- `sdk.calls.start(...)` -> create an IM-owned call signaling session
+- `sdk.calls.invite(...)` -> invite participant
+- `sdk.calls.accept(...)` -> accept session
+- `sdk.calls.reject(...)` -> reject session
+- `sdk.calls.end(...)` -> end session
+- `sdk.calls.sendSignal(...)` -> send offer, answer, and ICE through IM
+- `sdk.calls.issueParticipantCredential(...)` -> issue vendor join credential after IM authorization
 - `sdk.connect(...).signals.onRtcSession(...)` -> subscribe RTC session signal stream
 - `sdk.createSignalMessage(...)` + `sdk.send(...)` -> publish conversation-scoped invite message
 
@@ -499,36 +506,53 @@ final dataSource = RtcDataSource(
 );
 ```
 
-### Full RTC call flow with IM signaling
+### RTC media flow with IM-owned call signaling
 
 ```dart
 import 'package:im_sdk/im_sdk.dart';
 import 'package:rtc_sdk/rtc_sdk.dart';
 
-final rtc = await createStandardRtcCallControllerStack<
-    RtcVolcengineFlutterNativeClient>(
-  CreateStandardRtcCallControllerStackOptions(
-    sdk: imSdk,
-    clientRouteId: 'device-1',
-    watchConversationIds: const <String>['conversation-1'],
-    dataSourceOptions: const RtcDataSourceOptions(
-      nativeConfig: RtcVolcengineFlutterNativeConfig(
-        appId: 'volc-app-id',
-      ),
+final session = await imSdk.calls.start(
+  rtcSessionId: 'rtc-session-1',
+  conversationId: 'conversation-1',
+  rtcMode: 'video_call',
+);
+
+await imSdk.calls.invite(
+  session.rtcSessionId,
+  signalingStreamId: 'rtc-signal-1',
+);
+
+await imSdk.calls.sendSignal(
+  session.rtcSessionId,
+  signalType: 'rtc.offer',
+  payload: '{"sdp":"v=0..."}',
+  signalingStreamId: 'rtc-signal-1',
+);
+
+final credential = await imSdk.calls.issueParticipantCredential(
+  session.rtcSessionId,
+  participantId: 'user-1',
+);
+
+final dataSource = RtcDataSource(
+  options: const RtcDataSourceOptions(
+    nativeConfig: RtcVolcengineFlutterNativeConfig(
+      appId: 'volc-app-id',
     ),
   ),
 );
 ```
 
-### Current Flutter RTC signaling reality
+### Current Flutter IM calls signaling reality
 
-Flutter RTC currently integrates with IM signaling through:
+Flutter RTC media runtime composes with IM-owned call signaling through:
 
-- `sdk.rtc.*` lifecycle routes
+- `sdk.calls.*` lifecycle routes
 - `sdk.connect(...)`
 - `sdk.realtime.replaceSubscriptions(...)`
 - `sdk.realtime.ackEvents(...)`
-- an internal shared `RtcImRealtimeDispatcher`
+- an IM realtime dispatcher in the IM SDK layer
 
 The checked-in Flutter call path is therefore WebSocket-push-backed for live signaling, with ACK
 state still committed through the HTTP realtime ACK route.
@@ -576,8 +600,6 @@ RTC:
 
 ```powershell
 node ../../../sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
-node ../../../sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\sdk-call-smoke.mjs --json
-node ../../../sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\sdk-call-smoke.mjs --language flutter --json
 node ../../../sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
 ```
 
@@ -729,8 +751,8 @@ Recommended language priority:
 RTC references:
 
 - `../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/usage-guide.md`
-- `../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/typescript-volcengine-im-usage.md`
-- `../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/flutter-volcengine-im-usage.md`
+- `../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/typescript-volcengine-runtime-usage.md`
+- `../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/docs/flutter-volcengine-runtime-usage.md`
 
 IM references:
 

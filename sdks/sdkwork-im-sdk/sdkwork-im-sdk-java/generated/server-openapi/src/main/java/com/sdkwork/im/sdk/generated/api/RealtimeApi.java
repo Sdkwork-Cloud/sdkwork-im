@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class RealtimeApi {
     private final HttpClient client;
-    
+
     public RealtimeApi(HttpClient client) {
         this.client = client;
     }

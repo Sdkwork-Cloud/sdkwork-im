@@ -10,7 +10,7 @@ public class StreamFramesResponse {
     public List<StreamFrameView> getItems() {
         return this.items;
     }
-    
+
     public void setItems(List<StreamFrameView> items) {
         this.items = items;
     }
@@ -18,7 +18,7 @@ public class StreamFramesResponse {
     public String getNextCursor() {
         return this.nextCursor;
     }
-    
+
     public void setNextCursor(String nextCursor) {
         this.nextCursor = nextCursor;
     }
@@ -26,7 +26,7 @@ public class StreamFramesResponse {
     public Boolean getHasMore() {
         return this.hasMore;
     }
-    
+
     public void setHasMore(Boolean hasMore) {
         this.hasMore = hasMore;
     }

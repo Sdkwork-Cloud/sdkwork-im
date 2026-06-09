@@ -64,7 +64,7 @@ External Client / Operator / SDK
 - `/im/v3/api/chat/messages/*`
 - `/im/v3/api/media/*`
 - `/im/v3/api/streams/*`
-- `/im/v3/api/rtc/*`
+- `/im/v3/api/calls/*`
 
 ### Platform and operator domains exposed by the same app node
 

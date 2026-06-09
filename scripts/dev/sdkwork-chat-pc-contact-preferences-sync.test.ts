@@ -31,7 +31,9 @@ const recommendationCreates: Array<{
 
 const contactItems: ContactView[] = [
   {
+    conversationId: 'c_direct_contact_alice',
     contactType: 'friendship',
+    directChatId: 'dc_contact_alice',
     establishedAt: '2026-06-04T00:00:00.000Z',
     friendshipId: 'fs_contact_alice',
     lastInteractionAt: '2026-06-04T00:00:00.000Z',
@@ -273,6 +275,22 @@ async function main(): Promise<void> {
     contacts[0]?.avatar,
     'https://cdn.example.test/alice.png',
     'contact list hydration must resolve avatars through the real social user search endpoint instead of local seed avatars',
+  );
+  assert.equal(
+    contacts[0]?.conversationId,
+    'c_direct_contact_alice',
+    'contact list hydration must preserve the projected direct chat conversation id for chat opening',
+  );
+  assert.equal(
+    contacts[0]?.directChatId,
+    'dc_contact_alice',
+    'contact list hydration must preserve the projected direct chat id for chat opening',
+  );
+  const cachedContact = await service.getUserById('u_alice');
+  assert.equal(
+    cachedContact?.conversationId,
+    'c_direct_contact_alice',
+    'contact lookup must keep the projected direct chat conversation id after profile cache hydration',
   );
   assert.deepEqual(
     userSearchCalls,

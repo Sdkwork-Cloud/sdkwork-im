@@ -6,7 +6,7 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class CreateAgentDialogRequest
     {
-        public string? AgentId { get; set; }
+        public string AgentId { get; set; }
         public string? ConversationId { get; set; }
         public string? Title { get; set; }
     }

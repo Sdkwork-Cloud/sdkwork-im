@@ -57,7 +57,7 @@ client.SetHeader("X-Custom-Header", "value")
 
 - `client.Presence` - presence API
 - `client.Realtime` - realtime API
-- `client.Rtc` - rtc API
+- `client.Calls` - calls API
 - `client.Social` - social API
 - `client.Chat` - chat API
 - `client.Streams` - streams API
@@ -90,15 +90,16 @@ if err != nil {
 fmt.Println(result)
 ```
 
-### rtc
+### calls
 
 ```go
-// Create an IM-backed RTC session
+// Create an IM call signaling session
 body := sdktypes.CreateRtcSessionRequest{
+    RtcSessionId: "rtcSessionId",
     ConversationId: "conversationId",
-    MediaKind: "mediaKind",
+    RtcMode: "rtcMode",
 }
-result, err := client.Rtc.SessionsCreate(body)
+result, err := client.Calls.SessionsCreate(body)
 if err != nil {
     panic(err)
 }

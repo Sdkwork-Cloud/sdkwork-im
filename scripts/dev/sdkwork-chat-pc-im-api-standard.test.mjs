@@ -56,16 +56,21 @@ for (const requiredText of [
   'sdkwork-im-backend-sdk',
   'SdkworkImBackendClient',
   '@sdkwork/im-sdk',
-  'openPlatform.qrAuth.sessions.create',
-  'openPlatform.qrAuth.sessions.retrieve',
+  'oauth.deviceAuthorizations.create',
+  'oauth.deviceAuthorizations.retrieve',
   'scans.create',
-  'passwords.create',
+  'passwordCompletions.create',
   'sqlite',
   'PostgreSQL',
   'SDKWORK_SHARED_SDK_MODE=git',
 ]) {
   assert.match(localSpec, new RegExp(requiredText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'));
 }
+assert.doesNotMatch(
+  localSpec,
+  /QR scan login is enabled through `openPlatform\.qrAuth|-> im-app-api auth\.sessions \/ registrations \/ verificationCodes \/ openPlatform\.qrAuth/u,
+  'local standard must not document legacy appbase QR auth as the current Craw Chat integration surface.',
+);
 
 assert.match(
   localSpec,

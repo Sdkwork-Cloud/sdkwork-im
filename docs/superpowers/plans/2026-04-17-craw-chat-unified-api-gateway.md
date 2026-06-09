@@ -25,8 +25,8 @@
 - `services/projection-service/src/main.rs`
 - `services/streaming-service/src/lib.rs`
 - `services/streaming-service/src/main.rs`
-- `services/rtc-signaling-service/src/lib.rs`
-- `services/rtc-signaling-service/src/main.rs`
+- `services/im-call-runtime/src/lib.rs`
+- `services/im-call-runtime/src/main.rs`
 - `services/media-service/src/lib.rs`
 - `services/media-service/src/main.rs`
 - `services/notification-service/src/lib.rs`
@@ -147,7 +147,7 @@ git commit -m "feat(api): add craw chat route registry"
 - Modify: `services/conversation-runtime/src/runtime/http.rs`
 - Modify: `services/projection-service/src/http.rs`
 - Modify: `services/streaming-service/src/lib.rs`
-- Modify: `services/rtc-signaling-service/src/lib.rs`
+- Modify: `services/im-call-runtime/src/lib.rs`
 - Modify: `services/media-service/src/lib.rs`
 - Modify: `services/notification-service/src/lib.rs`
 - Modify: `services/automation-service/src/lib.rs`
@@ -214,7 +214,7 @@ Expected: PASS for the new schema routes on the covered services.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add crates/craw-chat-openapi services/session-gateway services/control-plane-api services/conversation-runtime services/projection-service services/streaming-service services/rtc-signaling-service services/media-service services/notification-service services/automation-service services/audit-service services/ops-service
+git add crates/craw-chat-openapi services/session-gateway services/control-plane-api services/conversation-runtime services/projection-service services/streaming-service services/im-call-runtime services/media-service services/notification-service services/automation-service services/audit-service services/ops-service
 git commit -m "feat(api): add live openapi export to craw chat services"
 ```
 

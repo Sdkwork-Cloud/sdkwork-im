@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { contactService } from '../services/ContactService';
 import { chatService } from '../services/ChatService';
 import { favoriteService } from '../services/FavoriteService';
+import { parseGroupInviteDescriptor } from '../services/GroupService';
 import { Avatar, MediaViewer } from '@sdkwork/clawchat-pc-commons';
 import { cn } from '@sdkwork/clawchat-pc-commons';
 import type { Message, User } from '@sdkwork/clawchat-pc-types';
@@ -19,10 +20,23 @@ interface MessageListProps {
   searchQuery?: string;
   senderProfiles?: Record<string, User>;
   onReply?: (msg: Message, senderName: string) => void;
+  onOpenGroupInvite?: (groupId: string) => Promise<void>;
 }
 
 const EMPTY_MESSAGES: Message[] = [];
 const EMPTY_SENDER_PROFILES: Record<string, User> = {};
+const RTC_CALL_DESCRIPTOR_PREFIX = 'rtc-call:';
+
+type RtcCallDisplayState = 'accepted' | 'ended' | 'rejected' | 'started' | 'syncing';
+
+interface RtcCallDescriptor {
+  actorId?: string;
+  initiatorId?: string;
+  mode?: string;
+  receiverId?: string;
+  signalType: string;
+  state: RtcCallDisplayState;
+}
 
 function mergeDisplayMessages(messages: Message[], fallbackMessages: Message[]): Message[] {
   if (fallbackMessages.length === 0) {
@@ -36,6 +50,151 @@ function mergeDisplayMessages(messages: Message[], fallbackMessages: Message[]):
   ].sort((left, right) => left.timestamp - right.timestamp);
 }
 
+function parseJsonRecord(value: unknown): Record<string, unknown> | undefined {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined;
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function pickString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function readRtcCallDescriptor(message: Message): RtcCallDescriptor | undefined {
+  if (message.type !== 'video_call' || !message.desc?.startsWith(RTC_CALL_DESCRIPTOR_PREFIX)) {
+    return undefined;
+  }
+
+  try {
+    const parsed = parseJsonRecord(decodeURIComponent(message.desc.slice(RTC_CALL_DESCRIPTOR_PREFIX.length)));
+    const state = pickString(parsed?.state);
+    const signalType = pickString(parsed?.signalType) ?? 'rtc.signal';
+    if (
+      state === 'accepted'
+      || state === 'ended'
+      || state === 'rejected'
+      || state === 'started'
+      || state === 'syncing'
+    ) {
+      return {
+        actorId: pickString(parsed?.actorId),
+        initiatorId: pickString(parsed?.initiatorId),
+        mode: pickString(parsed?.mode),
+        receiverId: pickString(parsed?.receiverId),
+        signalType,
+        state,
+      };
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+function collectRtcParticipantIds(messages: Message[]): string[] {
+  const participantIds = new Set<string>();
+  for (const message of messages) {
+    const descriptor = readRtcCallDescriptor(message);
+    if (!descriptor) {
+      continue;
+    }
+    for (const participantId of [descriptor.actorId, descriptor.initiatorId, descriptor.receiverId]) {
+      if (participantId) {
+        participantIds.add(participantId);
+      }
+    }
+  }
+  return Array.from(participantIds);
+}
+
+function isVideoRtcMode(value: string | undefined): boolean {
+  return Boolean(value && /video/iu.test(value));
+}
+
+function formatRtcCallMode(value: string | undefined): string {
+  return isVideoRtcMode(value) ? '视频通话' : '语音通话';
+}
+
+function replaceParticipantId(content: string, participantId: string | undefined, displayName: string): string {
+  if (!participantId || participantId === displayName) {
+    return content;
+  }
+  return content.split(participantId).join(displayName);
+}
+
+function formatVideoCallMessageContent(
+  message: Message,
+  resolveDisplayName: (participantId: string | undefined, fallback: string) => string,
+): string {
+  const descriptor = readRtcCallDescriptor(message);
+  if (!descriptor) {
+    return message.content;
+  }
+
+  const mode = formatRtcCallMode(descriptor.mode);
+  const initiator = resolveDisplayName(descriptor.initiatorId ?? message.senderId, '发起方');
+  const receiver = descriptor.receiverId ? resolveDisplayName(descriptor.receiverId, descriptor.receiverId) : undefined;
+  const actor = resolveDisplayName(descriptor.actorId, '对方');
+  const callSubject = receiver
+    ? `${initiator} 向 ${receiver} 发起的${mode}`
+    : `${initiator} 发起的${mode}`;
+
+  switch (descriptor.state) {
+    case 'accepted':
+      return `${callSubject}，${actor} 已接通`;
+    case 'rejected':
+      return `${callSubject}，${actor} 已拒绝`;
+    case 'ended':
+      return `${callSubject}，${actor} 已挂断`;
+    case 'started':
+      return receiver
+        ? `${initiator} 向 ${receiver} 发起了${mode}`
+        : `${initiator} 发起了${mode}`;
+    case 'syncing':
+    default:
+      return `${callSubject}正在同步`;
+  }
+}
+
+function formatVideoCallMessage(
+  message: Message,
+  resolveDisplayName: (participantId: string | undefined, fallback: string) => string,
+): Message {
+  if (message.type !== 'video_call') {
+    return message;
+  }
+  const descriptor = readRtcCallDescriptor(message);
+  if (descriptor) {
+    return {
+      ...message,
+      content: formatVideoCallMessageContent(message, resolveDisplayName),
+    };
+  }
+
+  let content = message.content;
+  for (const participantId of [message.senderId]) {
+    content = replaceParticipantId(content, participantId, resolveDisplayName(participantId, participantId));
+  }
+  return { ...message, content };
+}
+
 export const MessageList: React.FC<MessageListProps> = ({
   chatId,
   fallbackMessages = EMPTY_MESSAGES,
@@ -43,6 +202,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   searchQuery = '',
   senderProfiles = EMPTY_SENDER_PROFILES,
   onReply,
+  onOpenGroupInvite,
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, User>>({});
@@ -70,7 +230,12 @@ export const MessageList: React.FC<MessageListProps> = ({
     contactService.getContacts()
       .then(users => {
         const map: Record<string, User> = {};
-        users.forEach(u => map[u.id] = u);
+        users.forEach(u => {
+          map[u.id] = u;
+          if (u.chatId) {
+            map[u.chatId] = u;
+          }
+        });
         setUsersMap(map);
       })
       .catch(() => {
@@ -127,9 +292,52 @@ export const MessageList: React.FC<MessageListProps> = ({
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    let isMounted = true;
+    const missingParticipantIds = collectRtcParticipantIds(messages)
+      .filter((participantId) => {
+        if (currentUser && (participantId === currentUser.id || participantId === currentUser.chatId)) {
+          return false;
+        }
+        return !usersMap[participantId] && !senderProfiles[participantId];
+      });
+
+    if (missingParticipantIds.length === 0) {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    void Promise.all(missingParticipantIds.map((participantId) => contactService.getUserById(participantId)))
+      .then((users) => {
+        if (!isMounted) {
+          return;
+        }
+        const resolvedUsers = users.filter((user): user is User => Boolean(user));
+        if (resolvedUsers.length === 0) {
+          return;
+        }
+        setUsersMap((previousUsersMap) => {
+          const nextUsersMap = { ...previousUsersMap };
+          for (const user of resolvedUsers) {
+            nextUsersMap[user.id] = user;
+            if (user.chatId) {
+              nextUsersMap[user.chatId] = user;
+            }
+          }
+          return nextUsersMap;
+        });
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser, messages, senderProfiles, usersMap]);
+
   const handleContextMenu = (e: React.MouseEvent, msg: Message) => {
     e.preventDefault();
-    if (isMultiSelect || fallbackMessageIds.has(msg.id)) return;
+    if (isMultiSelect) return;
     setContextMenu({ x: e.clientX, y: e.clientY, msg });
   };
 
@@ -152,12 +360,38 @@ export const MessageList: React.FC<MessageListProps> = ({
     setSelectedIds(new Set());
   };
 
+  const handleGroupInviteClick = async (msg: Message) => {
+    const descriptor = parseGroupInviteDescriptor(msg);
+    if (!descriptor || !onOpenGroupInvite) {
+      return;
+    }
+    try {
+      await onOpenGroupInvite(descriptor.groupId);
+    } catch {
+      toast('打开群聊失败', 'error');
+    }
+  };
+
   const getContextMenuItems = (): ContextMenuItem[] => {
     if (!contextMenu) return [];
     const sender = usersMap[contextMenu.msg.senderId];
+    const isFallbackMessage = fallbackMessageIds.has(contextMenu.msg.id);
+    const copyItem: ContextMenuItem = {
+      id: 'copy',
+      label: '复制',
+      icon: <Copy size={14} />,
+      onClick: () => {
+        navigator.clipboard.writeText(contextMenu.msg.content);
+        toast('已复制', 'success');
+      },
+    };
+    if (isFallbackMessage) {
+      return [copyItem];
+    }
     return [
-      { id: 'copy', label: '复制', icon: <Copy size={14} />, onClick: () => { navigator.clipboard.writeText(contextMenu.msg.content); toast('已复制', 'success'); } },
+      copyItem,
       { id: 'reply', label: '回复', icon: <Reply size={14} />, onClick: () => { if (onReply) onReply(contextMenu.msg, sender?.name || '未知用户'); } },
+      { id: 'reaction', label: '表情回应', icon: <Smile size={14} />, onClick: () => { void handleReaction(contextMenu.msg.id, '👍'); } },
       { id: 'forward', label: '转发', icon: <Forward size={14} />, onClick: () => handleForward([contextMenu.msg]) },
       { id: 'favorite', label: '收藏', icon: <Star size={14} />, onClick: async () => {
           try {
@@ -261,6 +495,18 @@ export const MessageList: React.FC<MessageListProps> = ({
         const sender = senderProfiles[msg.senderId] || usersMap[msg.senderId] || currentUser;
         const isMe = currentUser ? msg.senderId === currentUser.id : false;
         const showTime = index === 0 || msg.timestamp - filteredMessages[index - 1].timestamp > 1000 * 60 * 5;
+        const resolveDisplayName = (participantId: string | undefined, fallback: string) => {
+          if (!participantId) {
+            return fallback;
+          }
+          if (currentUser && (participantId === currentUser.id || participantId === currentUser.chatId)) {
+            return currentUser.name;
+          }
+          return senderProfiles[participantId]?.name
+            ?? usersMap[participantId]?.name
+            ?? fallback;
+        };
+        const displayMessage = formatVideoCallMessage(msg, resolveDisplayName);
 
         return (
           <React.Fragment key={msg.id}>
@@ -314,35 +560,22 @@ export const MessageList: React.FC<MessageListProps> = ({
                   </div>
                 )}
 
-                <div className="relative group/msg flex items-center">
-                  <div className={cn("hidden group-hover/msg:flex items-center gap-1 bg-[#2b2b2d] border border-white/10 rounded-lg p-1 shadow-lg absolute -top-4 z-10", isMe ? "right-full mr-2" : "left-full ml-2")}>
-                    <button 
-                      className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors" 
-                      title="回复"
-                      onClick={() => onReply && onReply(msg, sender?.name || '未知用户')}
-                    >
-                      <Reply size={14} />
-                    </button>
-                    <button 
-                      className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors" 
-                      title="添加表情回应"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleReaction(msg.id, '👍');
-                      }}
-                    >
-                      <Smile size={14} />
-                    </button>
-                  </div>
+                <div className="relative flex items-center">
                   <div>
                     {msg.type === 'text' && <TextMessageItem msg={msg} isMe={isMe} />}
                     {msg.type === 'image' && <ImageMessageItem msg={msg} isMe={isMe} onMediaClick={handleMediaClick} />}
                     {msg.type === 'video' && <VideoMessageItem msg={msg} isMe={isMe} onMediaClick={handleMediaClick} />}
                     {msg.type === 'voice' && <VoiceMessageItem msg={msg} isMe={isMe} />}
-                    {msg.type === 'video_call' && <VideoCallMessageItem msg={msg} isMe={isMe} />}
+                    {msg.type === 'video_call' && <VideoCallMessageItem msg={displayMessage} isMe={isMe} />}
                     {msg.type === 'link' && <LinkMessageItem msg={msg} isMe={isMe} />}
                     {msg.type === 'applet' && <AppletMessageItem msg={msg} isMe={isMe} />}
-                    {msg.type === 'card' && <CardMessageItem msg={msg} isMe={isMe} />}
+                    {msg.type === 'card' && <CardMessageItem
+                      msg={msg}
+                      isMe={isMe}
+                      onClick={parseGroupInviteDescriptor(msg) ? () => {
+                        void handleGroupInviteClick(msg);
+                      } : undefined}
+                    />}
                     {msg.type === 'file' && <FileMessageItem msg={msg} isMe={isMe} />}
                     {msg.type === 'music' && <MusicMessageItem msg={msg} isMe={isMe} allMessages={messages} />}
                   </div>

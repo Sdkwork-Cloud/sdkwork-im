@@ -102,35 +102,199 @@ public struct RtcSession: Codable {
     public let tenantId: String?
     public let rtcSessionId: String?
     public let conversationId: String?
+    public let initiatorId: String?
+    public let initiatorKind: String?
     public let providerPluginId: String?
     public let providerSessionId: String?
+    public let accessEndpoint: String?
+    public let providerRegion: String?
     public let rtcMode: String?
     public let state: String?
-    public let createdAt: String?
-    public let updatedAt: String?
+    public let signalingStreamId: String?
+    public let artifactMessageId: String?
+    public let startedAt: String?
+    public let endedAt: String?
 
 
-    public init(tenantId: String? = nil, rtcSessionId: String? = nil, conversationId: String? = nil, providerPluginId: String? = nil, providerSessionId: String? = nil, rtcMode: String? = nil, state: String? = nil, createdAt: String? = nil, updatedAt: String? = nil) {
+    public init(tenantId: String? = nil, rtcSessionId: String? = nil, conversationId: String? = nil, initiatorId: String? = nil, initiatorKind: String? = nil, providerPluginId: String? = nil, providerSessionId: String? = nil, accessEndpoint: String? = nil, providerRegion: String? = nil, rtcMode: String? = nil, state: String? = nil, signalingStreamId: String? = nil, artifactMessageId: String? = nil, startedAt: String? = nil, endedAt: String? = nil) {
         self.tenantId = tenantId
         self.rtcSessionId = rtcSessionId
         self.conversationId = conversationId
+        self.initiatorId = initiatorId
+        self.initiatorKind = initiatorKind
         self.providerPluginId = providerPluginId
         self.providerSessionId = providerSessionId
+        self.accessEndpoint = accessEndpoint
+        self.providerRegion = providerRegion
         self.rtcMode = rtcMode
         self.state = state
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
+        self.signalingStreamId = signalingStreamId
+        self.artifactMessageId = artifactMessageId
+        self.startedAt = startedAt
+        self.endedAt = endedAt
     }
 }
 
 public struct CreateRtcSessionRequest: Codable {
+    public let rtcSessionId: String?
     public let conversationId: String?
-    public let mediaKind: String?
+    public let rtcMode: String?
 
 
-    public init(conversationId: String? = nil, mediaKind: String? = nil) {
+    public init(rtcSessionId: String? = nil, conversationId: String? = nil, rtcMode: String? = nil) {
+        self.rtcSessionId = rtcSessionId
         self.conversationId = conversationId
-        self.mediaKind = mediaKind
+        self.rtcMode = rtcMode
+    }
+}
+
+public struct InviteRtcSessionRequest: Codable {
+    public let signalingStreamId: String?
+
+
+    public init(signalingStreamId: String? = nil) {
+        self.signalingStreamId = signalingStreamId
+    }
+}
+
+public struct UpdateRtcSessionRequest: Codable {
+    public let artifactMessageId: String?
+
+
+    public init(artifactMessageId: String? = nil) {
+        self.artifactMessageId = artifactMessageId
+    }
+}
+
+public struct PostRtcSignalRequest: Codable {
+    public let signalType: String?
+    public let schemaRef: String?
+    public let payload: String?
+    public let signalingStreamId: String?
+
+
+    public init(signalType: String? = nil, schemaRef: String? = nil, payload: String? = nil, signalingStreamId: String? = nil) {
+        self.signalType = signalType
+        self.schemaRef = schemaRef
+        self.payload = payload
+        self.signalingStreamId = signalingStreamId
+    }
+}
+
+public struct IssueRtcParticipantCredentialRequest: Codable {
+    public let participantId: String?
+
+
+    public init(participantId: String? = nil) {
+        self.participantId = participantId
+    }
+}
+
+public struct RtcSessionMutationResponse: Codable {
+    public let tenantId: String?
+    public let rtcSessionId: String?
+    public let conversationId: String?
+    public let initiatorId: String?
+    public let initiatorKind: String?
+    public let providerPluginId: String?
+    public let providerSessionId: String?
+    public let accessEndpoint: String?
+    public let providerRegion: String?
+    public let rtcMode: String?
+    public let state: String?
+    public let signalingStreamId: String?
+    public let artifactMessageId: String?
+    public let startedAt: String?
+    public let endedAt: String?
+    public let requestKey: String?
+    public let deliveryStatus: String?
+    public let proofVersion: String?
+
+
+    public init(tenantId: String? = nil, rtcSessionId: String? = nil, conversationId: String? = nil, initiatorId: String? = nil, initiatorKind: String? = nil, providerPluginId: String? = nil, providerSessionId: String? = nil, accessEndpoint: String? = nil, providerRegion: String? = nil, rtcMode: String? = nil, state: String? = nil, signalingStreamId: String? = nil, artifactMessageId: String? = nil, startedAt: String? = nil, endedAt: String? = nil, requestKey: String? = nil, deliveryStatus: String? = nil, proofVersion: String? = nil) {
+        self.tenantId = tenantId
+        self.rtcSessionId = rtcSessionId
+        self.conversationId = conversationId
+        self.initiatorId = initiatorId
+        self.initiatorKind = initiatorKind
+        self.providerPluginId = providerPluginId
+        self.providerSessionId = providerSessionId
+        self.accessEndpoint = accessEndpoint
+        self.providerRegion = providerRegion
+        self.rtcMode = rtcMode
+        self.state = state
+        self.signalingStreamId = signalingStreamId
+        self.artifactMessageId = artifactMessageId
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.requestKey = requestKey
+        self.deliveryStatus = deliveryStatus
+        self.proofVersion = proofVersion
+    }
+}
+
+public struct RtcSignalSender: Codable {
+    public let id: String?
+    public let kind: String?
+    public let memberId: String?
+    public let deviceId: String?
+    public let sessionId: String?
+    public let metadata: [String: Any]?
+
+
+    public init(id: String? = nil, kind: String? = nil, memberId: String? = nil, deviceId: String? = nil, sessionId: String? = nil, metadata: [String: Any]? = nil) {
+        self.id = id
+        self.kind = kind
+        self.memberId = memberId
+        self.deviceId = deviceId
+        self.sessionId = sessionId
+        self.metadata = metadata
+    }
+}
+
+public struct RtcSignalEvent: Codable {
+    public let tenantId: String?
+    public let rtcSessionId: String?
+    public let signalSeq: Int?
+    public let conversationId: String?
+    public let rtcMode: String?
+    public let signalType: String?
+    public let schemaRef: String?
+    public let payload: String?
+    public let sender: RtcSignalSender?
+    public let signalingStreamId: String?
+    public let occurredAt: String?
+
+
+    public init(tenantId: String? = nil, rtcSessionId: String? = nil, signalSeq: Int? = nil, conversationId: String? = nil, rtcMode: String? = nil, signalType: String? = nil, schemaRef: String? = nil, payload: String? = nil, sender: RtcSignalSender? = nil, signalingStreamId: String? = nil, occurredAt: String? = nil) {
+        self.tenantId = tenantId
+        self.rtcSessionId = rtcSessionId
+        self.signalSeq = signalSeq
+        self.conversationId = conversationId
+        self.rtcMode = rtcMode
+        self.signalType = signalType
+        self.schemaRef = schemaRef
+        self.payload = payload
+        self.sender = sender
+        self.signalingStreamId = signalingStreamId
+        self.occurredAt = occurredAt
+    }
+}
+
+public struct RtcParticipantCredential: Codable {
+    public let tenantId: String?
+    public let rtcSessionId: String?
+    public let participantId: String?
+    public let credential: String?
+    public let expiresAt: String?
+
+
+    public init(tenantId: String? = nil, rtcSessionId: String? = nil, participantId: String? = nil, credential: String? = nil, expiresAt: String? = nil) {
+        self.tenantId = tenantId
+        self.rtcSessionId = rtcSessionId
+        self.participantId = participantId
+        self.credential = credential
+        self.expiresAt = expiresAt
     }
 }
 
@@ -222,9 +386,40 @@ public struct MediaResource: Codable {
     }
 }
 
-public struct ContentPart: Codable {
+public enum ContentPart: Codable {
+    case text(TextContentPart)
+    case data(DataContentPart)
+    case media(MediaContentPart)
+    case signal(SignalContentPart)
+    case streamRef(StreamRefContentPart)
 
-    public init() {}
+    private enum CodingKeys: String, CodingKey {
+        case kind = "kind"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let kind = try container.decode(String.self, forKey: .kind)
+        switch kind {
+        case "text": self = .text(try TextContentPart(from: decoder))
+        case "data": self = .data(try DataContentPart(from: decoder))
+        case "media": self = .media(try MediaContentPart(from: decoder))
+        case "signal": self = .signal(try SignalContentPart(from: decoder))
+        case "stream_ref": self = .streamRef(try StreamRefContentPart(from: decoder))
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .kind, in: container, debugDescription: "Unknown kind discriminator: \(kind)")
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        switch self {
+        case .text(let value): try value.encode(to: encoder)
+        case .data(let value): try value.encode(to: encoder)
+        case .media(let value): try value.encode(to: encoder)
+        case .signal(let value): try value.encode(to: encoder)
+        case .streamRef(let value): try value.encode(to: encoder)
+        }
+    }
 }
 
 public struct MessageBody: Codable {
@@ -1296,24 +1491,24 @@ public struct ProblemDetail: Codable {
 }
 
 public struct TextContentPart: Codable {
-    public let kind: String?
-    public let text: String?
+    public let kind: String
+    public let text: String
 
 
-    public init(kind: String? = nil, text: String? = nil) {
+    public init(kind: String, text: String) {
         self.kind = kind
         self.text = text
     }
 }
 
 public struct DataContentPart: Codable {
-    public let kind: String?
-    public let schemaRef: String?
-    public let encoding: String?
-    public let payload: String?
+    public let kind: String
+    public let schemaRef: String
+    public let encoding: String
+    public let payload: String
 
 
-    public init(kind: String? = nil, schemaRef: String? = nil, encoding: String? = nil, payload: String? = nil) {
+    public init(kind: String, schemaRef: String, encoding: String, payload: String) {
         self.kind = kind
         self.schemaRef = schemaRef
         self.encoding = encoding
@@ -1322,13 +1517,13 @@ public struct DataContentPart: Codable {
 }
 
 public struct MediaContentPart: Codable {
-    public let kind: String?
-    public let drive: DriveReference?
-    public let resource: MediaResource?
+    public let kind: String
+    public let drive: DriveReference
+    public let resource: MediaResource
     public let mediaRole: String?
 
 
-    public init(kind: String? = nil, drive: DriveReference? = nil, resource: MediaResource? = nil, mediaRole: String? = nil) {
+    public init(kind: String, drive: DriveReference, resource: MediaResource, mediaRole: String? = nil) {
         self.kind = kind
         self.drive = drive
         self.resource = resource
@@ -1337,13 +1532,13 @@ public struct MediaContentPart: Codable {
 }
 
 public struct SignalContentPart: Codable {
-    public let kind: String?
-    public let signalType: String?
+    public let kind: String
+    public let signalType: String
     public let schemaRef: String?
-    public let payload: String?
+    public let payload: String
 
 
-    public init(kind: String? = nil, signalType: String? = nil, schemaRef: String? = nil, payload: String? = nil) {
+    public init(kind: String, signalType: String, schemaRef: String? = nil, payload: String) {
         self.kind = kind
         self.signalType = signalType
         self.schemaRef = schemaRef
@@ -1352,13 +1547,13 @@ public struct SignalContentPart: Codable {
 }
 
 public struct StreamRefContentPart: Codable {
-    public let kind: String?
-    public let streamId: String?
-    public let streamType: String?
-    public let state: String?
+    public let kind: String
+    public let streamId: String
+    public let streamType: String
+    public let state: String
 
 
-    public init(kind: String? = nil, streamId: String? = nil, streamType: String? = nil, state: String? = nil) {
+    public init(kind: String, streamId: String, streamType: String, state: String) {
         self.kind = kind
         self.streamId = streamId
         self.streamType = streamType

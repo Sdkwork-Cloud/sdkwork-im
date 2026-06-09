@@ -10,7 +10,7 @@ public class ContactTagsResponse {
     public List<ContactTagView> getItems() {
         return this.items;
     }
-    
+
     public void setItems(List<ContactTagView> items) {
         this.items = items;
     }
@@ -18,7 +18,7 @@ public class ContactTagsResponse {
     public String getNextCursor() {
         return this.nextCursor;
     }
-    
+
     public void setNextCursor(String nextCursor) {
         this.nextCursor = nextCursor;
     }
@@ -26,7 +26,7 @@ public class ContactTagsResponse {
     public Boolean getHasMore() {
         return this.hasMore;
     }
-    
+
     public void setHasMore(Boolean hasMore) {
         this.hasMore = hasMore;
     }

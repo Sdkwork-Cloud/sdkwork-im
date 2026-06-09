@@ -9,6 +9,7 @@ import { toast } from './Toast';
 interface BaseProps {
   msg: Message;
   isMe: boolean;
+  onClick?: () => void;
   onMediaClick?: (msg: Message) => void;
 }
 
@@ -161,7 +162,7 @@ export const AppletMessageItem: React.FC<BaseProps> = ({ msg }) => (
   </div>
 );
 
-export const CardMessageItem: React.FC<BaseProps> = ({ msg }) => (
+const LegacyCardMessageItem: React.FC<BaseProps> = ({ msg }) => (
   <div className="w-[260px] bg-[#2b2b2d] border border-white/10 rounded-xl overflow-hidden mt-1 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => {
      toast(`已添加 ${msg.fileName} 到通讯录`, 'success');
   }}>
@@ -175,6 +176,36 @@ export const CardMessageItem: React.FC<BaseProps> = ({ msg }) => (
     <div className="px-4 py-1.5 text-[10px] text-gray-500 uppercase tracking-widest bg-black/20">个人名片</div>
   </div>
 );
+
+function formatCardDescription(message: Message): string | undefined {
+  if (message.desc?.startsWith('group-invite:')) {
+    return 'Open group chat';
+  }
+  return message.desc;
+}
+
+export const CardMessageItem: React.FC<BaseProps> = ({ msg, onClick }) => {
+  if (!onClick) {
+    return <LegacyCardMessageItem msg={msg} isMe={false} />;
+  }
+
+  return (
+    <button
+      type="button"
+      className="w-[260px] bg-[#2b2b2d] border border-white/10 rounded-xl overflow-hidden mt-1 cursor-pointer hover:bg-white/5 transition-colors text-left"
+      onClick={onClick}
+    >
+      <div className="p-4 flex gap-4 border-b border-white/10">
+        <Avatar src={msg.appIcon} className="w-12 h-12 rounded-lg bg-[#3b3b3d]" />
+        <div className="flex flex-col justify-center min-w-0">
+          <div className="text-[15px] text-gray-200 truncate">{msg.fileName}</div>
+          <div className="text-[12px] text-gray-500 truncate mt-0.5">{formatCardDescription(msg)}</div>
+        </div>
+      </div>
+      <div className="px-4 py-1.5 text-[10px] text-gray-500 uppercase tracking-widest bg-black/20">Group Invite</div>
+    </button>
+  );
+};
 
 export const FileMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => (
   <div className={cn(

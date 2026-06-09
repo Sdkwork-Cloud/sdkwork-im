@@ -14,7 +14,7 @@ public class ConversationMember {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -22,7 +22,7 @@ public class ConversationMember {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -30,7 +30,7 @@ public class ConversationMember {
     public String getMemberId() {
         return this.memberId;
     }
-    
+
     public void setMemberId(String memberId) {
         this.memberId = memberId;
     }
@@ -38,7 +38,7 @@ public class ConversationMember {
     public String getPrincipalId() {
         return this.principalId;
     }
-    
+
     public void setPrincipalId(String principalId) {
         this.principalId = principalId;
     }
@@ -46,7 +46,7 @@ public class ConversationMember {
     public String getPrincipalKind() {
         return this.principalKind;
     }
-    
+
     public void setPrincipalKind(String principalKind) {
         this.principalKind = principalKind;
     }
@@ -54,7 +54,7 @@ public class ConversationMember {
     public String getRole() {
         return this.role;
     }
-    
+
     public void setRole(String role) {
         this.role = role;
     }
@@ -62,7 +62,7 @@ public class ConversationMember {
     public String getState() {
         return this.state;
     }
-    
+
     public void setState(String state) {
         this.state = state;
     }
@@ -70,7 +70,7 @@ public class ConversationMember {
     public String getJoinedAt() {
         return this.joinedAt;
     }
-    
+
     public void setJoinedAt(String joinedAt) {
         this.joinedAt = joinedAt;
     }

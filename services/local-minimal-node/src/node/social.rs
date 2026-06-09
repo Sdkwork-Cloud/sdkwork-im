@@ -266,9 +266,14 @@ pub(super) async fn submit_friend_request(
     )
     .await?;
     if response_status.is_success() {
-        return Ok(Json(SocialFriendRequestMutationResponse {
-            friend_request: parse_json_field(&response_value, "friendRequest")?,
-        }));
+        let friend_request: FriendRequest = parse_json_field(&response_value, "friendRequest")?;
+        publish_friend_request_realtime_event(
+            &state,
+            &auth,
+            "friend_request.submitted",
+            &friend_request,
+        );
+        return Ok(Json(SocialFriendRequestMutationResponse { friend_request }));
     }
     if response_status == axum::http::StatusCode::CONFLICT
         && let Some(existing_request_id) = control_plane_existing_request_id(&response_value)
@@ -282,9 +287,14 @@ pub(super) async fn submit_friend_request(
             None,
         )
         .await?;
-        return Ok(Json(SocialFriendRequestMutationResponse {
-            friend_request: parse_json_field(&snapshot, "friendRequest")?,
-        }));
+        let friend_request: FriendRequest = parse_json_field(&snapshot, "friendRequest")?;
+        publish_friend_request_realtime_event(
+            &state,
+            &auth,
+            "friend_request.submitted",
+            &friend_request,
+        );
+        return Ok(Json(SocialFriendRequestMutationResponse { friend_request }));
     }
     if response_status == axum::http::StatusCode::CONFLICT
         && let Some(existing_friendship_id) = control_plane_existing_friendship_id(&response_value)
@@ -499,6 +509,12 @@ pub(super) async fn accept_friend_request(
     )?;
 
     try_clear_pending_friend_request_accept_repair(&state, request_id.as_str()).await;
+    publish_friend_request_realtime_event(
+        &state,
+        &auth,
+        "friend_request.accepted",
+        &accepted_friend_request,
+    );
 
     Ok(Json(SocialFriendRequestAcceptanceResponse {
         friend_request: accepted_friend_request,
@@ -577,6 +593,12 @@ pub(super) async fn decline_friend_request(
                     )
                     .await?
             {
+                publish_friend_request_realtime_event(
+                    &state,
+                    &auth,
+                    "friend_request.declined",
+                    &latest_friend_request,
+                );
                 return Ok(Json(SocialFriendRequestMutationResponse {
                     friend_request: latest_friend_request,
                 }));
@@ -584,9 +606,16 @@ pub(super) async fn decline_friend_request(
             return Err(error);
         }
     };
+    let declined_friend_request: FriendRequest = parse_json_field(&response, "friendRequest")?;
+    publish_friend_request_realtime_event(
+        &state,
+        &auth,
+        "friend_request.declined",
+        &declined_friend_request,
+    );
 
     Ok(Json(SocialFriendRequestMutationResponse {
-        friend_request: parse_json_field(&response, "friendRequest")?,
+        friend_request: declined_friend_request,
     }))
 }
 
@@ -659,6 +688,12 @@ pub(super) async fn cancel_friend_request(
                     )
                     .await?
             {
+                publish_friend_request_realtime_event(
+                    &state,
+                    &auth,
+                    "friend_request.canceled",
+                    &latest_friend_request,
+                );
                 return Ok(Json(SocialFriendRequestMutationResponse {
                     friend_request: latest_friend_request,
                 }));
@@ -666,9 +701,16 @@ pub(super) async fn cancel_friend_request(
             return Err(error);
         }
     };
+    let canceled_friend_request: FriendRequest = parse_json_field(&response, "friendRequest")?;
+    publish_friend_request_realtime_event(
+        &state,
+        &auth,
+        "friend_request.canceled",
+        &canceled_friend_request,
+    );
 
     Ok(Json(SocialFriendRequestMutationResponse {
-        friend_request: parse_json_field(&response, "friendRequest")?,
+        friend_request: canceled_friend_request,
     }))
 }
 
@@ -943,6 +985,76 @@ fn ensure_direct_chat_matches_acceptance(
     }
 
     Ok(())
+}
+
+fn publish_friend_request_realtime_event(
+    state: &AppState,
+    auth: &AppContext,
+    event_type: &'static str,
+    friend_request: &FriendRequest,
+) {
+    let recipients = BTreeSet::from([
+        NotificationRecipientView {
+            principal_id: friend_request.requester_user_id.clone(),
+            principal_kind: "user".into(),
+        },
+        NotificationRecipientView {
+            principal_id: friend_request.target_user_id.clone(),
+            principal_kind: "user".into(),
+        },
+    ]);
+    let payload = serde_json::json!({
+        "friendRequest": friend_request,
+        "requestId": friend_request.request_id,
+        "requesterUserId": friend_request.requester_user_id,
+        "targetUserId": friend_request.target_user_id,
+        "status": friend_request.status,
+        "occurredAt": im_time::utc_now_rfc3339_millis(),
+    })
+    .to_string();
+
+    if let Err(error) = effects::publish_realtime_event_to_principals(
+        state,
+        auth,
+        recipients,
+        "user",
+        event_type,
+        payload,
+    ) {
+        record_friend_request_realtime_failure(state, auth, event_type, friend_request, &error);
+    }
+}
+
+fn record_friend_request_realtime_failure(
+    state: &AppState,
+    auth: &AppContext,
+    event_type: &str,
+    friend_request: &FriendRequest,
+    error: &ApiError,
+) {
+    let _ = state.audit_runtime.record_anchor(
+        auth,
+        RecordAuditAnchor {
+            record_id: stable_local_audit_record_id(
+                "audit_friend_request_realtime_failed_",
+                format!("{}:{event_type}", friend_request.request_id).as_str(),
+            ),
+            aggregate_type: "friend_request".into(),
+            aggregate_id: friend_request.request_id.clone(),
+            action: "friend_request.realtime_failed".into(),
+            payload: Some(
+                serde_json::json!({
+                    "eventType": event_type,
+                    "requestId": friend_request.request_id,
+                    "requesterUserId": friend_request.requester_user_id,
+                    "targetUserId": friend_request.target_user_id,
+                    "errorCode": error.code,
+                    "errorMessage": error.message,
+                })
+                .to_string(),
+            ),
+        },
+    );
 }
 
 pub(super) fn load_pending_friend_request_accept_repairs(

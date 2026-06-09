@@ -9,7 +9,7 @@ public class MessageReplyReference {
     public String getMessageId() {
         return this.messageId;
     }
-    
+
     public void setMessageId(String messageId) {
         this.messageId = messageId;
     }
@@ -17,7 +17,7 @@ public class MessageReplyReference {
     public String getSenderDisplayName() {
         return this.senderDisplayName;
     }
-    
+
     public void setSenderDisplayName(String senderDisplayName) {
         this.senderDisplayName = senderDisplayName;
     }
@@ -25,7 +25,7 @@ public class MessageReplyReference {
     public String getContentPreview() {
         return this.contentPreview;
     }
-    
+
     public void setContentPreview(String contentPreview) {
         this.contentPreview = contentPreview;
     }

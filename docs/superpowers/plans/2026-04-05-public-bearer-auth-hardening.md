@@ -37,7 +37,7 @@ Expected: list every suite still using `alg=none` bearer constants.
 - Modify: `services/notification-service/tests/public_auth_test.rs`
 - Modify: `services/ops-service/tests/public_auth_test.rs`
 - Modify: `services/projection-service/tests/public_auth_test.rs`
-- Modify: `services/rtc-signaling-service/tests/public_auth_test.rs`
+- Modify: `services/im-call-runtime/tests/public_auth_test.rs`
 - Modify: `services/session-gateway/tests/public_auth_test.rs`
 - Modify: `services/streaming-service/tests/public_auth_test.rs`
 - Modify: `services/local-minimal-node/tests/public_auth_e2e_test.rs`

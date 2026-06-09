@@ -9,7 +9,7 @@ public class SocialFriendRequestListResponse {
     public List<FriendRequest> getItems() {
         return this.items;
     }
-    
+
     public void setItems(List<FriendRequest> items) {
         this.items = items;
     }
@@ -17,7 +17,7 @@ public class SocialFriendRequestListResponse {
     public String getNextCursor() {
         return this.nextCursor;
     }
-    
+
     public void setNextCursor(String nextCursor) {
         this.nextCursor = nextCursor;
     }

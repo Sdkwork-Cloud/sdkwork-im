@@ -1,27 +1,47 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, MoreHorizontal } from 'lucide-react';
-import { Chat } from '@sdkwork/clawchat-pc-types';
+import { Search, Plus, MoreHorizontal, UserMinus } from 'lucide-react';
+import type { Chat, User } from '@sdkwork/clawchat-pc-types';
 import { Avatar } from '@sdkwork/clawchat-pc-commons';
 
 export interface ChatRightPanelProps {
   activeChat: Chat;
+  currentUserChatId?: string;
+  currentUserId?: string;
+  groupMemberProfiles?: User[];
   onSetModal: (modal: 'search'|'editName'|'editNotice'|'addMember'|null, inputVal: string) => void;
   onToggleMute: () => Promise<void>;
   onTogglePin: () => Promise<void>;
   onDeleteChat: () => Promise<void>;
+  onRemoveGroupMember: (memberId: string) => Promise<void>;
 }
 
 export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
   activeChat,
+  currentUserChatId,
+  currentUserId,
+  groupMemberProfiles = [],
   onSetModal,
   onToggleMute,
   onTogglePin,
-  onDeleteChat
+  onDeleteChat,
+  onRemoveGroupMember
 }) => {
   const { t } = useTranslation();
   const emptyNotice = t('chat.rightPanel.emptyNotice');
+  const groupMembers = activeChat.members ?? [];
+  const groupMemberCount = activeChat.memberCount ?? groupMembers.length;
+  const currentUserIdentifiers = new Set(
+    [currentUserId, currentUserChatId].filter((value): value is string => Boolean(value)),
+  );
+  const memberProfilesById = new Map<string, User>();
+  for (const profile of groupMemberProfiles) {
+    memberProfilesById.set(profile.id, profile);
+    if (profile.chatId) {
+      memberProfilesById.set(profile.chatId, profile);
+    }
+  }
 
   return (
     <motion.div
@@ -68,6 +88,49 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                    <span className="text-sm overflow-hidden text-ellipsis whitespace-nowrap max-w-[100px]">{activeChat.notice || emptyNotice}</span>
                    <MoreHorizontal size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                  </div>
+              </div>
+            )}
+            {activeChat.type === 'group' && (
+              <div className="border-b border-white/5 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm text-gray-300">{t('chat.rightPanel.fields.members')}</span>
+                  <span className="text-xs text-gray-500">{t('chat.rightPanel.memberCount', { count: groupMemberCount })}</span>
+                </div>
+                {activeChat.members?.map((memberId) => {
+                  const memberProfile = memberProfilesById.get(memberId);
+                  const memberName = memberProfile?.name ?? memberId;
+                  const memberSubtitle = memberProfile?.chatId && memberProfile.chatId !== memberId
+                    ? memberProfile.chatId
+                    : memberProfile?.email ?? memberProfile?.phone ?? memberId;
+                  const isCurrentUser = currentUserIdentifiers.has(memberId);
+                  return (
+                    <div key={memberId} className="flex min-h-[36px] items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5">
+                      <Avatar src={memberProfile?.avatar} alt={memberName} className="h-7 w-7 shrink-0 rounded bg-[#2b2b2d]" />
+                      <span className="min-w-0 flex-1" title={memberName}>
+                        <span className="block truncate text-xs text-gray-300">{memberName}</span>
+                        {memberSubtitle !== memberName && (
+                          <span className="block truncate text-[11px] text-gray-500">{memberSubtitle}</span>
+                        )}
+                      </span>
+                      {!isCurrentUser && (
+                        <button
+                          type="button"
+                          aria-label={t('chat.rightPanel.actions.removeMember')}
+                          title={t('chat.rightPanel.actions.removeMember')}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                          onClick={() => void onRemoveGroupMember(memberId)}
+                        >
+                          <UserMinus size={14} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                {groupMembers.length === 0 && (
+                  <div className="rounded bg-white/5 px-2 py-3 text-center text-xs text-gray-500">
+                    {t('chat.rightPanel.emptyMembers')}
+                  </div>
+                )}
               </div>
             )}
             <div className="flex items-center justify-between py-3 border-b border-white/5">

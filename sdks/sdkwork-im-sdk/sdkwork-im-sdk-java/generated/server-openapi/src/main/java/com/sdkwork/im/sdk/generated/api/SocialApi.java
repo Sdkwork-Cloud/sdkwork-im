@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class SocialApi {
     private final HttpClient client;
-    
+
     public SocialApi(HttpClient client) {
         this.client = client;
     }

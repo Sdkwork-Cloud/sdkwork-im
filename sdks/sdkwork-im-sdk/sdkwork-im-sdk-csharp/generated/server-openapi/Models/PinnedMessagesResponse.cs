@@ -6,6 +6,6 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class PinnedMessagesResponse
     {
-        public List<MessageInteractionSummaryView>? Items { get; set; }
+        public List<MessageInteractionSummaryView> Items { get; set; }
     }
 }

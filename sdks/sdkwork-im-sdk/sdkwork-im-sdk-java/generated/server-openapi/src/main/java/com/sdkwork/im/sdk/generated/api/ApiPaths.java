@@ -2,7 +2,7 @@ package com.sdkwork.im.sdk.generated.api;
 
 public class ApiPaths {
     public static final String API_PREFIX = "/im/v3/api";
-    
+
     public static String imPath(String path) {
         if (path == null || path.isEmpty()) {
             return API_PREFIX;

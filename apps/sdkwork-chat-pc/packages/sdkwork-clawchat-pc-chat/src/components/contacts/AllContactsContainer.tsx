@@ -5,13 +5,15 @@ import { cn } from '@sdkwork/clawchat-pc-commons';
 import { toast } from '../Toast';
 import { contactService } from '../../services/ContactService';
 import type { User as UserType } from '@sdkwork/clawchat-pc-types';
-import { PromptModal, usePrompt } from '../PromptModal';
 
-export const AllContactsContainer: React.FC<{ onUserSelect: (user: UserType, deptName: string) => void, selectedUserId: string | null, searchQuery: string }> = ({ onUserSelect, selectedUserId, searchQuery }) => {
+export const AllContactsContainer: React.FC<{
+  onAddFriend?: () => void;
+  onUserSelect: (user: UserType, deptName: string) => void;
+  searchQuery: string;
+  selectedUserId: string | null;
+}> = ({ onAddFriend, onUserSelect, selectedUserId, searchQuery }) => {
   const [contacts, setContacts] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const { promptConfig, customPrompt, closePrompt } = usePrompt();
 
   useEffect(() => {
     contactService.getContacts()
@@ -58,19 +60,7 @@ export const AllContactsContainer: React.FC<{ onUserSelect: (user: UserType, dep
              <p className="text-sm text-gray-500 mt-1">共 {filteredContacts.length} 个联系人</p>
            </div>
            <button 
-             onClick={() => {
-                customPrompt("请输入手机号或微信号进行添加：", "", async (qs) => {
-                  if (qs && qs.trim()) {
-                     try {
-                        await contactService.addFriendBySearchQuery(qs);
-                        toast('好友请求已发送', 'success');
-                     } catch (error) {
-                        toast('未找到该用户', 'error');
-                     }
-                  }
-                  closePrompt();
-                });
-             }}
+             onClick={() => onAddFriend?.()}
              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-sm font-medium rounded-lg transition-colors border border-indigo-500/20 shadow-sm"
            >
              <UserPlus size={16} /> 增加联系人
@@ -122,7 +112,6 @@ export const AllContactsContainer: React.FC<{ onUserSelect: (user: UserType, dep
               </button>
            ))}
         </div>
-        <PromptModal {...promptConfig} onCancel={closePrompt} />
      </div>
   );
 }

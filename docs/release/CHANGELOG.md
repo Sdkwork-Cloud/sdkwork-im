@@ -1749,7 +1749,7 @@
 - Loop：`20`
 - 影响 step：`S10`
 - 新增 `docs/review/S10-执行卡-2026-04-10.md`，正式冻结 `S10` 的目标、非目标、写集、CPR 与证据口径，纠正此前“只有准入判断、没有执行卡”的治理缺口。
-- 基于 fresh verification 重新审计 `streaming-service`、`rtc-signaling-service`、`media-service` 与 `local-minimal-node` 的 assembled 路径，确认当前仓库已具备 `CPR10-1/2/3` 的真实闭环，无需再补一个伪需求代码切片。
+- 基于 fresh verification 重新审计 `streaming-service`、`im-call-runtime`、`media-service` 与 `local-minimal-node` 的 assembled 路径，确认当前仓库已具备 `CPR10-1/2/3` 的真实闭环，无需再补一个伪需求代码切片。
 - 新增 `docs/review/S10-质量审计与复盘-2026-04-10.md`、`docs/review/S10-架构兑现与回写决议-2026-04-10.md`，并更新 `docs/review/S10-准入判断-2026-04-10.md`，把 `S10` 从“可准入”提升为 `step_closure`。
 - 更新 `docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md` 与 `docs/架构/152CJ-Loop20补充-2026-04-10.md`，将当前最准确的 as-built 表述明确为：
   - standalone service 保持 lifecycle/provider truth
@@ -1758,7 +1758,7 @@
 - 新增 `docs/release/2026-04-10-v0.0.20-loop-20.md`，固化本轮收口、验证与下一轮输入。
 - fresh verification：
   - `cargo test -p streaming-service --offline --tests`：`13 passed`
-  - `cargo test -p rtc-signaling-service --offline --tests`：`19 passed`
+  - `cargo test -p local-minimal-node --test openapi_im_v3_contract_test --offline --tests`：`19 passed`
   - `cargo test -p media-service --offline --tests`：`13 passed`
   - `cargo test -p local-minimal-node --offline --test stream_runtime_persistence_test`：`1 passed`
   - `cargo test -p local-minimal-node --offline --test rtc_runtime_persistence_test`：`1 passed`
@@ -1986,7 +1986,7 @@
 - 影响 step：`S08`、`S09`、`S10`
 - 新增 `docs/review/S08-执行卡-2026-04-10.md`，把新 `S08` 正式冻结为“projection / notification / read model” step，并明确旧 `step-08` 资料不再作为新编号闭环证据。
 - 新增 `docs/review/S10-准入判断-2026-04-10.md`，基于 fresh evidence 给出正式结论：`S10` 代码面可运行，但因 `S08 + S09` 未收口而 `暂不准入`。
-- fresh 执行 `projection-service`、`notification-service`、`control-plane-api`、`craw-chat-ccp-registry`、`im-platform-contracts`、`streaming-service`、`rtc-signaling-service`、`media-service`，把 `S08/S09/S10` 的判断统一建立在本轮证据上。
+- fresh 执行 `projection-service`、`notification-service`、`control-plane-api`、`craw-chat-ccp-registry`、`im-platform-contracts`、`streaming-service`、`im-call-runtime`、`media-service`，把 `S08/S09/S10` 的判断统一建立在本轮证据上。
 - 新增 `docs/release/2026-04-10-v0.0.5-loop-05.md`，固化本轮准入判断、阻塞项、评分与下一轮输入。
 
 ## v0.0.4 - 2026-04-10

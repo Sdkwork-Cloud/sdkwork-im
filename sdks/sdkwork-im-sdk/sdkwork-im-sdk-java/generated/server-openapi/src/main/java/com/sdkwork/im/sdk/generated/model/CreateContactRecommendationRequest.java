@@ -7,7 +7,7 @@ public class CreateContactRecommendationRequest {
     public String getTargetConversationId() {
         return this.targetConversationId;
     }
-    
+
     public void setTargetConversationId(String targetConversationId) {
         this.targetConversationId = targetConversationId;
     }

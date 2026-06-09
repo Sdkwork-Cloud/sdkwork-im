@@ -104,7 +104,7 @@ Observed green results:
 ## 6. Remaining Risks
 
 - `local-minimal-node` still passes raw `auth` into downstream streaming/RTC runtimes after the capability gate succeeds; this is acceptable only because the actor-kind-aware gate now rejects spoofed writes before mutation.
-- standalone `streaming-service` and `rtc-signaling-service` do not own conversation membership logic; if future deployment profiles bind them directly to conversation authorization, the same actor-kind-aware gate must be inserted ahead of them.
+- standalone `streaming-service` and `im-call-runtime` do not own conversation membership logic; if future deployment profiles bind them directly to conversation authorization, the same actor-kind-aware gate must be inserted ahead of them.
 - other generic conversation-bound delegation gates may still exist outside stream and RTC surfaces.
 
 ## 7. Next Wave

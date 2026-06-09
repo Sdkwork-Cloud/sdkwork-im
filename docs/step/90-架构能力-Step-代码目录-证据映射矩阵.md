@@ -39,7 +39,7 @@
 | 消息与会话主链路 | `130` `134` `136` `139` | `05` | `services/conversation-runtime/` `crates/im-domain-core/` `services/projection-service/` | conversation / message / read-cursor 测试、access control 测试 |
 | sender / tenant 权威收口 | `139` `143` `145` | `03` `05` | `crates/im-auth-context/` `contract-*` `interface-*` | 权威字段覆盖防护测试、接口兼容说明 |
 | 流式能力 | `130` `134` `143` | `06` | `services/streaming-service/` `domain-stream` `app-stream` | stream lifecycle、checkpoint、materialize 测试 |
-| RTC 信令 | `130` `136` `143` | `06` | `services/rtc-signaling-service/` `domain-rtc` | rtc signal flow、membership gate 测试 |
+| RTC 信令 | `130` `136` `143` | `06` | `services/im-call-runtime/` `domain-rtc` | rtc signal flow、membership gate 测试 |
 | 控制面治理 | `139` `142` `148` `149` | `07` | `services/control-plane-api/` `services/ops-service/` `services/audit-service/` | registry、rollout、drain、audit 测试 |
 | AI / Agent | `130` `134` `135` | `08` | `runtime-agent` `app-agent` `automation-service` | agent 对话、tool call、handoff 证据 |
 | IoT / 设备接入 | `130` `134` `143` `145` | `08` | `runtime-iot` `interface-mqtt` `app-iot` | device auth、telemetry、command 测试 |

@@ -75,14 +75,20 @@ fn signed_app_context_smoke_app(secret: &'static str) -> Router {
         .route(
             "/im/v3/api/chat/conversations",
             post(move |headers: HeaderMap| async move {
-                require_signed_app_context(headers, secret).map(|_| Json(serde_json::json!({})))
+                match require_signed_app_context(headers, secret) {
+                    Some(response) => response,
+                    None => Json(serde_json::json!({})).into_response(),
+                }
             }),
         )
         .route(
             "/im/v3/api/chat/conversations/{conversation_id}/messages",
             post(
                 move |headers: HeaderMap, AxumPath(_conversation_id): AxumPath<String>| async move {
-                    require_signed_app_context(headers, secret).map(|_| Json(serde_json::json!({})))
+                    match require_signed_app_context(headers, secret) {
+                        Some(response) => response,
+                        None => Json(serde_json::json!({})).into_response(),
+                    }
                 },
             ),
         )
@@ -90,18 +96,20 @@ fn signed_app_context_smoke_app(secret: &'static str) -> Router {
             "/im/v3/api/chat/conversations/{conversation_id}",
             get(
                 move |headers: HeaderMap, AxumPath(conversation_id): AxumPath<String>| async move {
-                    require_signed_app_context(headers, secret).map(|_| {
-                        Json(serde_json::json!({
+                    match require_signed_app_context(headers, secret) {
+                        Some(response) => response,
+                        None => Json(serde_json::json!({
                             "conversationId": conversation_id,
                             "lastSummary": "smoke"
                         }))
-                    })
+                        .into_response(),
+                    }
                 },
             ),
         )
 }
 
-fn require_signed_app_context(headers: HeaderMap, secret: &str) -> Result<(), Response> {
+fn require_signed_app_context(headers: HeaderMap, secret: &str) -> Option<Response> {
     resolve_app_context_with_signature_config(
         &headers,
         AppContextSignatureConfig {
@@ -109,8 +117,8 @@ fn require_signed_app_context(headers: HeaderMap, secret: &str) -> Result<(), Re
             shared_secret: Some(secret.to_owned()),
         },
     )
-    .map(|_| ())
-    .map_err(|error| {
+    .err()
+    .map(|error| {
         (
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({

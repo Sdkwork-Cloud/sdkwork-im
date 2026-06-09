@@ -72,6 +72,8 @@ function assertNoImDeviceApiUsage(source, label) {
 }
 
 const appPackageJson = readJson('apps/sdkwork-chat-pc/package.json');
+const chatEnUsMessages = readJson('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/i18n/locales/en-US.json');
+const chatZhCnMessages = readJson('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/i18n/locales/zh-CN.json');
 const runTauriCliSource = read('scripts/run-tauri-cli.mjs');
 const retiredGenericAppSdkPackage = `@sdkwork/${'app'}-sdk`;
 const retiredGenericBackendSdkPackage = `@sdkwork/${'backend'}-sdk`;
@@ -114,7 +116,7 @@ assert.ok(
   'PC app must not depend on the generic spring-ai-plus backend SDK package',
 );
 assert.ok(appPackageJson.dependencies['@sdkwork/im-sdk'], 'PC app must depend on generated @sdkwork/im-sdk');
-assert.ok(appPackageJson.dependencies['@sdkwork/rtc-sdk'], 'PC app must depend on standard @sdkwork/rtc-sdk for call capability');
+assert.ok(appPackageJson.dependencies['@sdkwork/rtc-sdk'], 'PC app may depend on standard @sdkwork/rtc-sdk for RTC media capability');
 assert.ok(appPackageJson.dependencies['@sdkwork/appbase-pc-react'], 'PC app must depend on sdkwork-appbase PC wrapper');
 assert.ok(appPackageJson.dependencies['@sdkwork/auth-runtime-pc-react'], 'PC app must depend on the appbase high-level auth runtime');
 assert.ok(appPackageJson.dependencies['@sdkwork/drive-app-sdk'], 'PC app must depend on sdkwork-drive app SDK for chat media uploads');
@@ -616,6 +618,81 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(driveAppSdkClientSource, /\bfetch\s*\(/u, 'Drive app SDK wrapper must not use raw fetch');
 
+const drivePackageJson = readJson('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-drive/package.json');
+assert.ok(
+  drivePackageJson.dependencies['@sdkwork/drive-app-sdk'],
+  'Drive package must declare the generated sdkwork-drive app SDK dependency',
+);
+assert.ok(
+  drivePackageJson.dependencies['@sdkwork/clawchat-pc-core'],
+  'Drive package must declare the PC core SDK wrapper dependency',
+);
+
+const driveServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-drive/src/services/DriveService.ts');
+const driveViewSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-drive/src/index.tsx');
+const driveDetailPanelSource = read(
+  'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-drive/src/components/DriveDetailPanel.tsx',
+);
+const driveUiSource = `${driveViewSource}\n${driveDetailPanelSource}`;
+const drivePackageSource = `${driveServiceSource}\n${driveUiSource}`;
+
+assert.match(
+  driveServiceSource,
+  /getDriveAppSdkClientWithSession/u,
+  'Drive package service must consume the shared generated Drive app SDK wrapper',
+);
+assert.match(driveServiceSource, /\.drive\.spaces\.list\s*\(/u, 'Drive package service must list spaces through Drive app SDK');
+assert.match(driveServiceSource, /\.drive\.nodes\.list\s*\(/u, 'Drive package service must list nodes through Drive app SDK');
+assert.match(
+  driveServiceSource,
+  /\.drive\.nodes\.folders\.create\s*\(/u,
+  'Drive package service must create folders through Drive app SDK',
+);
+assert.match(driveServiceSource, /\.drive\.nodes\.update\s*\(/u, 'Drive package service must rename nodes through Drive app SDK');
+assert.match(driveServiceSource, /\.drive\.nodes\.delete\s*\(/u, 'Drive package service must delete nodes through Drive app SDK');
+assert.match(driveServiceSource, /\.drive\.recent\.list\s*\(/u, 'Drive package service must list recent files through Drive app SDK');
+assert.match(
+  driveServiceSource,
+  /\.uploader\.uploadByProfile\s*\(/u,
+  'Drive package service must upload through the generated Drive app SDK uploader facade',
+);
+assert.match(
+  driveServiceSource,
+  /\.drive\.nodes\.downloadUrls\.create\s*\(/u,
+  'Drive package service must create download grants through Drive app SDK',
+);
+assert.match(
+  driveViewSource,
+  /driveService\.uploadFile\s*\(\s*file\s*\)/u,
+  'Drive package UI must pass the selected browser File object to the Drive service',
+);
+assert.match(
+  driveViewSource,
+  /driveService\.createDownload\s*\(\s*fileId\s*\)/u,
+  'Drive package UI must request Drive download grants through the service',
+);
+assert.match(
+  driveUiSource,
+  /handleShare/u,
+  'Drive package UI must route share actions through a fail-closed share handler until Drive returns a delivery URL contract',
+);
+assert.doesNotMatch(
+  drivePackageSource,
+  /URL\.createObjectURL|new Blob\s*\(|dummy file|drive\.sdkwork\.com\/share|setTimeout|Date\.now\s*\(\s*\)|Math\.random\s*\(/u,
+  'Drive package must not use local mock data, fake downloads, fake share links, or local time/random ids',
+);
+assert.doesNotMatch(drivePackageSource, /\bfetch\s*\(/u, 'Drive package must not bypass generated SDKs with raw fetch');
+assert.doesNotMatch(
+  drivePackageSource,
+  /\/(?:im|app|backend)\/v3/u,
+  'Drive package must not hand-code SDKWork API paths',
+);
+assert.doesNotMatch(
+  drivePackageSource,
+  /\b(Authorization|Access-Token|X-API-Key)\b/u,
+  'Drive package must not assemble auth or API-key headers manually',
+);
+
 assert.match(
   agentAppSdkClientSource,
   /from ['"]@sdkwork\/agent-app-sdk['"]/u,
@@ -680,10 +757,10 @@ for (const generatedMethod of [
   'auth.sessions.create',
   'auth.registrations.create',
   'auth.sessions.refresh',
-  'openPlatform.qrAuth.sessions.create',
-  'openPlatform.qrAuth.sessions.retrieve',
-  'openPlatform.qrAuth.sessions.scans.create',
-  'openPlatform.qrAuth.sessions.passwords.create',
+  'oauth.deviceAuthorizations.create',
+  'oauth.deviceAuthorizations.retrieve',
+  'oauth.deviceAuthorizations.scans.create',
+  'oauth.deviceAuthorizations.passwordCompletions.create',
 ]) {
   assert.doesNotMatch(
     `${appAuthSource}\n${appAuthRuntimeSource}`,
@@ -743,7 +820,7 @@ const imOpenApiSource = read('sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.y
 const imSdkSource = read('sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/sdk.ts');
 const imConversationsModuleSource = read('sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/conversations-module.ts');
 const imMessagesModuleSource = read('sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/messages-module.ts');
-const imRtcModuleSource = read('sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/rtc-module.ts');
+const imCallsModuleSource = read('sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/calls-module.ts');
 const imTransportClientLikeSource = read('sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/transport-client-like.ts');
 assert.match(chatServiceSource, /@sdkwork\/im-sdk/u, 'chat service must route IM behavior through @sdkwork/im-sdk types');
 assert.match(chatServiceSource, /getImSdkClientWithSession/u, 'chat service must use the shared IM SDK client wrapper');
@@ -880,9 +957,32 @@ assert.match(
 );
 assert.match(
   chatServiceSource,
-  /setTimeout\s*\(\s*\(\s*\)\s*=>\s*this\.restartLiveSubscription/u,
-  'chat service must schedule a realtime resubscribe after dropped IM live connections',
+  /setTimeout\s*\(\s*\(\s*\)\s*=>\s*this\.restartLiveSession/u,
+  'chat service must schedule a shared realtime session reconnect after dropped IM live connections',
 );
+assert.match(
+  chatServiceSource,
+  /connection\.subscriptions\.syncConversations\(conversationIds\)/u,
+  'chat service must synchronize active conversations over the shared IM realtime connection',
+);
+assert.match(
+  chatServiceSource,
+  /const\s+CHAT_LIST_REALTIME_EVENT_TYPES\s*=\s*\[[\s\S]*['"]conversation\.member_joined['"]/u,
+  'chat service conversation-list realtime subscription must include group member joined events so invitees refresh newly available groups',
+);
+for (const groupMemberEventType of [
+  'conversation.member_joined',
+  'conversation.member_role_changed',
+  'conversation.member_removed',
+  'conversation.member_left',
+  'conversation.owner_transferred',
+]) {
+  assert.match(
+    chatServiceSource,
+    new RegExp(`CHAT_LIST_REALTIME_EVENT_TYPES[\\s\\S]*['"]${groupMemberEventType.replaceAll('.', '\\.')}['"]`, 'u'),
+    `chat service conversation-list realtime subscription must include ${groupMemberEventType} so group management changes refresh the chat list`,
+  );
+}
 const messageInputSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/MessageInput.tsx');
 assert.doesNotMatch(
   messageInputSource,
@@ -966,6 +1066,40 @@ assert.ok(
   !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/DeviceSyncFeedService.ts')),
   'DeviceSyncFeedService must be removed because IM no longer owns device registration or device sync feed APIs',
 );
+const pcDevicesPackageJson = readJson('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-devices/package.json');
+const pcDevicesServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-devices/src/services/DeviceService.ts');
+assert.equal(
+  pcDevicesPackageJson.dependencies['@sdkwork/aiot-backend-sdk'],
+  undefined,
+  'pc-devices is not backend-admin and must not depend on sdkwork-aiot backend SDK',
+);
+assert.match(
+  pcDevicesServiceSource,
+  /getAiotAppSdkClientWithSession/u,
+  'pc-devices service must use the sdkwork-aiot app SDK wrapper',
+);
+assert.match(
+  pcDevicesServiceSource,
+  /\.iot\.devices\.commands\.create\s*\(/u,
+  'pc-devices user actions must submit real AIoT app SDK device commands',
+);
+assert.doesNotMatch(
+  pcDevicesServiceSource,
+  /@sdkwork\/aiot-backend-sdk|backendClient|BackendClient|getBackendClient|\.iot\.devices\.twin\.update|\.iot\.devices\.delete\s*\(/u,
+  'pc-devices non-admin service must not import, configure, or route through backend SDK clients',
+);
+const pcDevicesBindModalSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-devices/src/components/BindAgentModal.tsx');
+const pcDevicesDetailPanelSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-devices/src/components/DeviceDetailPanel.tsx');
+assert.match(
+  pcDevicesBindModalSource,
+  /deviceService\.bindAgent\s*\(/u,
+  'pc-devices bind modal must persist selected agent through the SDK-backed device service',
+);
+assert.match(
+  pcDevicesDetailPanelSource,
+  /deviceService\.unbindAgent\s*\(/u,
+  'pc-devices detail panel must persist agent unbinding through the SDK-backed device service',
+);
 assertNoImDeviceApiUsage(chatServiceSource, 'chat service');
 assert.match(chatServiceSource, /syncOfflineMessages/u, 'chat service must expose offline message window sync');
 assert.match(
@@ -1002,7 +1136,7 @@ for (const requiredOperation of [
   'social.contacts.tags.update',
   'social.contacts.tags.delete',
   'social.contacts.recommendations.create',
-  'rtc.sessions.retrieve',
+  'calls.sessions.retrieve',
 ]) {
   assert.match(
     imOpenApiSource,
@@ -1011,19 +1145,19 @@ for (const requiredOperation of [
   );
 }
 assert.match(
-  imRtcModuleSource,
+  imCallsModuleSource,
   /retrieve\s*\(\s*rtcSessionId:\s*string\s*\|\s*number\s*\)\s*:\s*Promise<RtcSession>/u,
-  'IM SDK RTC module must expose a semantic retrieve method for RTC session state backfill',
+  'IM SDK calls module must expose a semantic retrieve method for call session state backfill',
 );
 assert.match(
-  imRtcModuleSource,
-  /transportClient\.rtc\.sessions\.retrieve\s*\(\s*rtcSessionId\s*\)/u,
-  'IM SDK rtc.retrieve must delegate to the generated rtc.sessions.retrieve transport method',
+  imCallsModuleSource,
+  /transportClient\.calls\.sessions\.retrieve\s*\(\s*rtcSessionId\s*\)/u,
+  'IM SDK calls.retrieve must delegate to the generated calls.sessions.retrieve transport method',
 );
 assert.match(
   imTransportClientLikeSource,
   /retrieve\s*\(\s*rtcSessionId:\s*string\s*\|\s*number\s*\)\s*:\s*Promise<RtcSession>/u,
-  'IM SDK transport client contract must include generated rtc.sessions.retrieve',
+  'IM SDK transport client contract must include generated calls.sessions.retrieve',
 );
 for (const requiredSchema of [
   'MessageReactionRequest',
@@ -1847,6 +1981,16 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
+  /getPendingFriendRequestCount\s*\(/u,
+  'contact service must expose a pending friend request count for contacts red dot badges',
+);
+assert.match(
+  contactServiceSource,
+  /subscribePendingFriendRequestCount\s*\(/u,
+  'contact service must expose a pending friend request count subscription for realtime-friendly red dot updates',
+);
+assert.match(
+  contactServiceSource,
   /FRIEND_REQUESTS_PAGE_LIMIT/u,
   'contact service friend request sync must use a bounded SDK page size',
 );
@@ -2050,18 +2194,23 @@ assert.doesNotMatch(
 );
 
 const allContactsContainerSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/contacts/AllContactsContainer.tsx');
+const contactsPageSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/pages/ContactsView.tsx');
 assert.match(
   allContactsContainerSource,
-  /contactService\.addFriendBySearchQuery\s*\(\s*qs\s*\)/u,
-  'all contacts direct add entry must search real users before creating a friend request',
+  /onAddFriend\?:\s*\(\)\s*=>\s*void/u,
+  'all contacts add-friend entry must delegate to the shared AddFriendModal opener',
 );
 assert.doesNotMatch(
   allContactsContainerSource,
-  /contactService\.addFriend\s*\(\s*qs\s*\)/u,
-  'all contacts direct add entry must not submit raw input as the friend request target user id',
+  /customPrompt\s*\(|PromptModal|addFriendBySearchQuery|contactService\.addFriend\s*\(\s*qs\s*\)/u,
+  'all contacts add-friend entry must not keep a second prompt-based add-friend flow',
+);
+assert.match(
+  contactsPageSource,
+  /<AllContactsContainer[\s\S]*onAddFriend=\{onAddFriend\}/u,
+  'contacts page must route the all-contacts add-friend button to the shared AddFriendModal',
 );
 const orgContainerSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/contacts/OrgContainer.tsx');
-const contactsPageSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/pages/ContactsView.tsx');
 assert.match(
   orgContainerSource,
   /organizationDirectoryService\.getOrganizationDirectoryTree\s*\(\s*\)/u,
@@ -2170,6 +2319,13 @@ assert.doesNotMatch(
 );
 
 const createGroupModalSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/CreateGroupModal.tsx');
+assertFile(
+  'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/ContactMemberPickerPanel.tsx',
+  'group contact selection must live in a shared WeChat-style contact member picker panel',
+);
+const contactMemberPickerPanelSource = read(
+  'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/ContactMemberPickerPanel.tsx',
+);
 assert.match(
   createGroupModalSource,
   /onCreated\?:\s*\(group:\s*Chat\)\s*=>\s*void/u,
@@ -2182,6 +2338,81 @@ assert.match(
 );
 assert.match(
   createGroupModalSource,
+  /contactService\.getContacts\s*\(\s*\)[\s\S]*?\.catch\s*\(/u,
+  'create group modal must load selectable members from the address book and fail closed',
+);
+assert.match(
+  contactMemberPickerPanelSource,
+  /function\s+createContactSearchText[\s\S]*contact\.chatId[\s\S]*contact\.email[\s\S]*contact\.phone[\s\S]*contact\.company[\s\S]*contact\.position[\s\S]*contact\.py/u,
+  'shared contact member picker must search across address-book contact identity fields without calling user search',
+);
+assert.match(
+  contactMemberPickerPanelSource,
+  /function\s+createContactIndexKey[\s\S]*contact\.py[\s\S]*contact\.name[\s\S]*return\s+\/\[A-Z\]\//u,
+  'shared contact member picker must derive stable A-Z index keys from pinyin or contact names',
+);
+assert.match(
+  contactMemberPickerPanelSource,
+  /function\s+groupContactsByIndex[\s\S]*createContactIndexKey[\s\S]*groups\.sort/u,
+  'shared contact member picker must group address-book contacts for an indexed list',
+);
+assert.match(
+  contactMemberPickerPanelSource,
+  /const\s+selectedContacts\s*=\s*useMemo[\s\S]*contacts\.filter[\s\S]*selectedIds\.has\(contact\.id\)/u,
+  'shared contact member picker must project selected contacts for the right-side selected member column',
+);
+assert.match(
+  contactMemberPickerPanelSource,
+  /grid\s+h-full\s+min-h-0\s+grid-cols-2\s+gap-4/u,
+  'shared contact member picker must use equal-width columns with address-book list on the left and selected members on the right',
+);
+assert.match(
+  contactMemberPickerPanelSource,
+  /renderedIndexKeys\.map[\s\S]*scrollToIndexGroup/u,
+  'shared contact member picker must render a real-group index list that jumps to contact groups',
+);
+assert.match(
+  contactMemberPickerPanelSource,
+  /const\s+renderedIndexKeys\s*=\s*useMemo[\s\S]*groupedContacts\.map\(\(group\)\s*=>\s*group\.key\)/u,
+  'shared contact member picker must render only real contact group index keys instead of a full A-Z strip',
+);
+assert.match(
+  contactMemberPickerPanelSource,
+  /grid\s+h-full\s+min-h-0\s+grid-cols-\[minmax\(0,1fr\)_24px\]/u,
+  'shared contact member picker must reserve a dedicated narrow index column inside the list area so letters cannot overlap search input',
+);
+assert.doesNotMatch(
+  contactMemberPickerPanelSource,
+  /absolute\s+right-1\s+top-1\/2/u,
+  'shared contact member picker index strip must not be absolutely overlaid on top of the contact list',
+);
+assert.doesNotMatch(
+  contactMemberPickerPanelSource,
+  /CONTACT_INDEX_KEYS\.map/u,
+  'shared contact member picker must not render the full alphabet when only a few real contact groups exist',
+);
+assert.match(
+  contactMemberPickerPanelSource,
+  /selectedContacts\.map[\s\S]*onToggleContact\(contact\.id\)/u,
+  'shared contact member picker must render checked contacts on the right and allow removing them from that selected list',
+);
+assert.match(
+  contactMemberPickerPanelSource,
+  /t\(['"]chat\.modal\.selection\.selectedTitle['"]\)[\s\S]*t\(['"]chat\.modal\.selection\.emptySelected['"]\)/u,
+  'shared contact member picker selected column copy must be localized',
+);
+assert.match(
+  createGroupModalSource,
+  /<ContactMemberPickerPanel[\s\S]*contacts=\{contacts\}[\s\S]*selectedIds=\{selected\}[\s\S]*onToggleContact=\{toggleSelect\}/u,
+  'create group modal must reuse the shared indexed contact picker',
+);
+assert.match(
+  createGroupModalSource,
+  /width=["']w-\[760px\]["'][\s\S]*height=["']h-\[700px\]["']/u,
+  'create group modal must use a taller fixed height for equal-width two-column contact selection',
+);
+assert.match(
+  createGroupModalSource,
   /onCreated\?\.\(\s*group\s*\)/u,
   'create group modal must return the real backend-created group chat after creation',
 );
@@ -2189,6 +2420,11 @@ assert.doesNotMatch(
   createGroupModalSource,
   /chatService\.createChat|id:\s*['"]group-/u,
   'create group modal must not locally synthesize group chat records',
+);
+assert.doesNotMatch(
+  createGroupModalSource,
+  /addMembersBySearchQuery|social\.users\.list/u,
+  'create group modal must not resolve arbitrary text through user search',
 );
 
 const groupsContainerSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/contacts/GroupsContainer.tsx');
@@ -2204,8 +2440,13 @@ assert.match(
 );
 assert.match(
   groupsContainerSource,
-  /onOpenGroup\?\.\(\s*newGroup\s*\)/u,
-  'groups contacts container must open the real backend-created group chat after prompt creation',
+  /<CreateGroupModal[\s\S]*?onCreated=\{async\s*\(group\)\s*=>\s*\{[\s\S]*?setGroups\(\s*\(\s*previousGroups\s*\)\s*=>\s*\[group,\s*\.\.\.previousGroups\]\s*\)[\s\S]*?onOpenGroup\?\.\(\s*group\s*\)/u,
+  'groups contacts container must reuse the address-book create-group modal and open the real backend-created group chat without stale group-list closures',
+);
+assert.doesNotMatch(
+  groupsContainerSource,
+  /customPrompt\s*\(|groupService\.createGroup\s*\([^)]*\[\s*\]\s*\)/u,
+  'groups contacts container must not bypass the address-book create-group flow with prompt-based empty group creation',
 );
 assert.doesNotMatch(
   groupsContainerSource,
@@ -2247,11 +2488,6 @@ assert.match(
 );
 assert.match(
   groupServiceSource,
-  /addMembersBySearchQuery\s*\([\s\S]*?\.social\.users\.list\s*\([\s\S]*?this\.addMembers\s*\(\s*groupId\s*,\s*resolvedMemberIds\s*\)/u,
-  'group service add-by-input must resolve real users through social user search before inviting group members',
-);
-assert.match(
-  groupServiceSource,
   /\.conversations\.updateProfile\s*\(/u,
   'group service createGroup must persist group display profile through the IM SDK',
 );
@@ -2270,16 +2506,47 @@ assert.match(
   /\.conversations\.leave\s*\(/u,
   'group service deleteGroup must leave group conversations through the IM SDK',
 );
+assert.match(
+  groupServiceSource,
+  /async\s+deleteGroup\s*\(\s*groupId:\s*string\s*\)[\s\S]*?await\s+this\.client\(\)\.conversations\.leave\(groupId\)[\s\S]*?this\.chatClient\.deleteChat\(groupId\)/u,
+  'group service deleteGroup must clear ChatService local view and message caches after a successful group leave',
+);
 assertNoImDeviceApiUsage(groupServiceSource, 'group service');
 assert.match(
   groupServiceSource,
   /\.conversations\.list\s*\(/u,
   'group service sync must refresh group conversations through the generated IM SDK',
 );
+assert.match(
+  groupServiceSource,
+  /async\s+getGroups\s*\(\s*\)[\s\S]*?this\.chatClient\.getChats\(\)[\s\S]*?this\.listAllConversationEntries\(\)\.catch\(\(\)\s*=>\s*\[\]\)[\s\S]*?hydrateConversationEntryGroup\(entry\)[\s\S]*?this\.withMemberState\(group\)/u,
+  'group service getGroups must merge SDK inbox groups with conversation-list groups so invitees can see newly joined or empty groups',
+);
+assert.match(
+  groupServiceSource,
+  /hydrateConversationEntryGroup[\s\S]*?conversations\.getPreferences\(entry\.conversationId\)[\s\S]*?preferences\.isHidden[\s\S]*?return\s+null[\s\S]*?conversations\.getProfile\(entry\.conversationId\)[\s\S]*?profile\.displayName[\s\S]*?profile\.avatarUrl/u,
+  'group service getGroups must hydrate conversation-list-only groups with backend profile and preferences before showing invitee empty groups',
+);
+assert.match(
+  groupServiceSource,
+  /GROUP_INVITE_DESCRIPTOR_PREFIX/u,
+  'group service must define a stable group invitation card descriptor prefix for target-client click handling',
+);
+assert.match(
+  groupServiceSource,
+  /parseGroupInviteDescriptor/u,
+  'group service must expose group invitation descriptor parsing for received card messages',
+);
+assert.match(
+  groupServiceSource,
+  /async\s+inviteUserToGroup\s*\(\s*group:\s*Chat,\s*targetUser:\s*User\s*\)[\s\S]*?this\.addMembers\s*\(\s*group\.id,\s*\[[\s\S]*?targetUserId[\s\S]*?\]\s*\)[\s\S]*?this\.chatClient\.startDirectChat\s*\([\s\S]*?targetUser[\s\S]*?\)[\s\S]*?this\.chatClient\.sendMessage\s*\([\s\S]*?directChat\.id[\s\S]*?['"]card['"]/u,
+  'group service must add the non-contact invitee as a member, open a direct chat, and send a clickable group invitation card through ChatService',
+);
 assert.doesNotMatch(groupServiceSource, /class\s+MockGroupService/u, 'group service must not be mock-backed');
 assert.doesNotMatch(groupServiceSource, /mockGroups|setTimeout|console\.log/u, 'group service must not keep mock group branches');
 assert.doesNotMatch(groupServiceSource, /group-\$\{Date\.now\(\)\}-\$\{Math\.random/u, 'group service must not generate mock group ids with Date.now and Math.random');
 assert.doesNotMatch(createGroupSource, /chatService\.updateChat\s*\(/u, 'group service createGroup must not mask backend group creation with local updateChat fallbacks');
+assert.doesNotMatch(groupServiceSource, /addMembersBySearchQuery|social\.users\.list/u, 'group service must not resolve arbitrary text through social user search for group membership');
 assert.doesNotMatch(groupServiceSource, /\bfetch\s*\(/u, 'group service must not use raw fetch');
 assert.doesNotMatch(groupServiceSource, /\/im\/v3/u, 'group service must not hand-code IM HTTP paths');
 assert.doesNotMatch(groupServiceSource, /\b(Authorization|Access-Token|X-API-Key)\b/u, 'group service must not assemble auth headers manually');
@@ -2364,6 +2631,94 @@ assert.doesNotMatch(agentServiceSource, /\bfetch\s*\(/u, 'agent service must not
 assert.doesNotMatch(agentServiceSource, /\/(?:im|app|backend)\/v3/u, 'agent service must not hand-code SDK-owned API paths');
 assert.doesNotMatch(agentServiceSource, /\b(Authorization|Access-Token|X-API-Key)\b/u, 'agent service must not assemble auth headers manually');
 
+const knowledgeAiServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-knowledge/src/services/KnowledgeAiService.ts');
+const knowledgeServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-knowledge/src/services/KnowledgeService.ts');
+const knowledgeCreateKbModalSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-knowledge/src/components/CreateKBModal.tsx');
+const knowledgeDocEditorSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-knowledge/src/components/DocEditor.tsx');
+const knowledgeIndexSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-knowledge/src/index.tsx');
+assert.match(
+  knowledgeServiceSource,
+  /getAgentAppSdkClientWithSession/u,
+  'knowledge service must use the shared sdkwork-agent-app-sdk client wrapper',
+);
+assert.match(
+  knowledgeServiceSource,
+  /\.ai\.knowledgeBases\.list\s*\(/u,
+  'knowledge service must list knowledge bases through sdkwork-agent-app-sdk',
+);
+assert.match(
+  knowledgeServiceSource,
+  /\.ai\.knowledgeBases\.create\s*\(/u,
+  'knowledge service must create knowledge bases through sdkwork-agent-app-sdk',
+);
+assert.match(
+  knowledgeServiceSource,
+  /\.ai\.knowledgeList\.list\s*\(/u,
+  'knowledge service must list documents through sdkwork-agent-app-sdk',
+);
+assert.match(
+  knowledgeServiceSource,
+  /\.ai\.knowledgeDocuments\.create\s*\(/u,
+  'knowledge service must create documents through sdkwork-agent-app-sdk',
+);
+assert.doesNotMatch(
+  knowledgeServiceSource,
+  /setTimeout|mock|Date\.now\s*\(\s*\)|Math\.random\s*\(|performance\.now\s*\(|URL\.createObjectURL|w3\.org|unsplash|w3schools|storage\.googleapis/u,
+  'knowledge service must not use local mock data, local object URLs, demo media, or time/random generated resource state',
+);
+assert.match(
+  knowledgeIndexSource,
+  /await\s+knowledgeService\.createDoc\s*\(/u,
+  'knowledge UI must await real knowledge document creation before mutating local document state',
+);
+assert.match(
+  knowledgeIndexSource,
+  /await\s+knowledgeService\.createBase\s*\(/u,
+  'knowledge UI must await real knowledge base creation before mutating local base state',
+);
+assert.doesNotMatch(
+  knowledgeIndexSource,
+  /toast\s*\(\s*`[^`]*\$\{file\.name\}`\s*,\s*['"]success['"]\s*\)[\s\S]*?knowledgeService\.createDoc/u,
+  'knowledge file upload UI must not show success before the SDK-backed document creation completes',
+);
+assert.doesNotMatch(
+  knowledgeIndexSource,
+  /URL\.createObjectURL\s*\(/u,
+  'knowledge UI must not persist browser object URLs as document file references',
+);
+assert.match(
+  knowledgeAiServiceSource,
+  /getAgentAppSdkClientWithSession/u,
+  'knowledge AI assistant service must use the shared sdkwork-agent-app-sdk client wrapper',
+);
+assert.match(
+  knowledgeAiServiceSource,
+  /\.ai\.agents\.previewResponses\.create\s*\(/u,
+  'knowledge AI assistant service must execute through sdkwork-agent-app-sdk runtime preview responses',
+);
+assert.match(
+  knowledgeCreateKbModalSource,
+  /knowledgeAiService\.generateKnowledgeBaseIcon\s*\(/u,
+  'knowledge base icon generation must call the SDK-backed knowledge AI service',
+);
+assert.match(
+  knowledgeDocEditorSource,
+  /knowledgeAiService\.runDocumentAction\s*\(/u,
+  'knowledge document AI actions must call the SDK-backed knowledge AI service',
+);
+for (const [label, source] of [
+  ['knowledge service', knowledgeServiceSource],
+  ['knowledge AI service', knowledgeAiServiceSource],
+  ['knowledge create KB modal', knowledgeCreateKbModalSource],
+  ['knowledge doc editor', knowledgeDocEditorSource],
+  ['knowledge index view', knowledgeIndexSource],
+]) {
+  assert.doesNotMatch(source, /Math\.random\s*\(|performance\.now\s*\(/u, `${label} must not generate write or execution ids from local time/random fallbacks`);
+  assert.doesNotMatch(source, /\bfetch\s*\(/u, `${label} must not use raw fetch for SDKWork agent runtime capabilities`);
+  assert.doesNotMatch(source, /\/api\/agent|\/(?:im|app|backend)\/v3/u, `${label} must not hand-code SDK-owned API paths`);
+  assert.doesNotMatch(source, /\b(Authorization|Access-Token|X-API-Key)\b/u, `${label} must not assemble auth headers manually`);
+}
+
 const createAgentViewSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/pages/CreateAgentView.tsx');
 assert.match(
   createAgentViewSource,
@@ -2446,12 +2801,23 @@ assert.match(
 );
 
 const chatRightPanelSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/ChatRightPanel.tsx');
+const addGroupMembersModalSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/AddGroupMembersModal.tsx');
 const chatLayoutSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/pages/ChatLayout.tsx');
-const addMemberModalStart = chatLayoutSource.indexOf('{activeModal === "addMember" && (');
-assert.notEqual(addMemberModalStart, -1, 'chat layout must keep the add-member modal behavior auditable');
-const addMemberModalEnd = chatLayoutSource.indexOf('{activeModal === "editName"', addMemberModalStart);
-assert.notEqual(addMemberModalEnd, -1, 'chat layout add-member modal block must end before edit-name modal');
-const addMemberModalSource = chatLayoutSource.slice(addMemberModalStart, addMemberModalEnd);
+const mergeGroupProjectionsStart = chatLayoutSource.indexOf('const mergeGroupProjections = async');
+assert.notEqual(mergeGroupProjectionsStart, -1, 'chat layout must keep realtime group projection merge behavior auditable');
+const mergeGroupProjectionsEnd = chatLayoutSource.indexOf('  const refreshChats = async', mergeGroupProjectionsStart);
+assert.notEqual(mergeGroupProjectionsEnd, -1, 'chat layout group projection merge helper must end before refreshChats');
+const mergeGroupProjectionsSource = chatLayoutSource.slice(mergeGroupProjectionsStart, mergeGroupProjectionsEnd);
+const openHydratedChatStart = chatLayoutSource.indexOf('const openHydratedChat = async');
+assert.notEqual(openHydratedChatStart, -1, 'chat layout must keep backend-hydrated chat opening behavior auditable');
+const openHydratedChatEnd = chatLayoutSource.indexOf('  const loadChatStartup = async', openHydratedChatStart);
+assert.notEqual(openHydratedChatEnd, -1, 'chat layout backend-hydrated chat opening helper must end before startup loading');
+const openHydratedChatSource = chatLayoutSource.slice(openHydratedChatStart, openHydratedChatEnd);
+const subscribeChatsStart = chatLayoutSource.indexOf('return chatService.subscribeChats((nextChats) => {');
+assert.notEqual(subscribeChatsStart, -1, 'chat layout must keep realtime chat-list subscription behavior auditable');
+const subscribeChatsEnd = chatLayoutSource.indexOf('  }, []);', subscribeChatsStart);
+assert.notEqual(subscribeChatsEnd, -1, 'chat layout realtime chat-list subscription block must end at its effect dependency list');
+const subscribeChatsSource = chatLayoutSource.slice(subscribeChatsStart, subscribeChatsEnd);
 const editNameModalStart = chatLayoutSource.indexOf('{activeModal === "editName" && (');
 assert.notEqual(editNameModalStart, -1, 'chat layout must keep edit-name modal behavior auditable');
 const editNameModalEnd = chatLayoutSource.indexOf('{activeModal === "editNotice"', editNameModalStart);
@@ -2499,13 +2865,28 @@ assert.match(
 );
 assert.match(
   chatLayoutSource,
-  /<CreateGroupModal[\s\S]*?onCreated=\{async\s*\(group\)\s*=>\s*\{[\s\S]*?chatService\.getChats\s*\(\s*\)[\s\S]*?setActiveChat\s*\([\s\S]*?group[\s\S]*?setActiveTab\s*\(\s*["']chat["']\s*\)/u,
+  /<CreateGroupModal[\s\S]*?onCreated=\{async\s*\(group\)\s*=>\s*\{[\s\S]*?await\s+openHydratedChat\(group\)[\s\S]*?\}/u,
   'chat layout create-group flow must hydrate backend conversations and open the real group chat after creation',
 );
 assert.match(
+  chatLayoutSource,
+  /contactService\.getUserById\s*\(\s*user\.id\s*\)/u,
+  'chat layout contacts send-message flow must hydrate contact projection ids before starting a direct chat',
+);
+assert.match(
+  chatLayoutSource,
+  /contactService\.getContacts\s*\(\s*\)/u,
+  'chat layout contacts send-message flow must fall back to the contact projection list when a cached user lacks conversation ids',
+);
+assert.match(
   contactsSendMessageSource,
-  /chatService\.startDirectChat\s*\(\s*user\s*\)/u,
-  'chat layout contacts send-message flow must start a real SDK-backed direct chat',
+  /resolveContactChatTarget\s*\(\s*user\s*\)/u,
+  'chat layout contacts send-message flow must resolve a hydrated contact target before starting a direct chat',
+);
+assert.match(
+  contactsSendMessageSource,
+  /chatService\.startDirectChat\s*\(\s*chatTarget\s*\)/u,
+  'chat layout contacts send-message flow must start a real SDK-backed direct chat with the hydrated contact target',
 );
 assert.match(
   contactsSendMessageSource,
@@ -2514,7 +2895,7 @@ assert.match(
 );
 assert.match(
   contactsViewSource,
-  /onOpenGroup=\{async\s*\(group\)\s*=>\s*\{[\s\S]*?chatService\.getChats\s*\(\s*\)[\s\S]*?setActiveChat\s*\([\s\S]*?group[\s\S]*?setActiveTab\s*\(\s*["']chat["']\s*\)/u,
+  /onOpenGroup=\{async\s*\(group\)\s*=>\s*\{[\s\S]*?await\s+openHydratedChat\(group\)[\s\S]*?\}/u,
   'chat layout contacts group flow must hydrate backend conversations and open the selected real group chat',
 );
 assert.doesNotMatch(
@@ -2620,42 +3001,227 @@ assert.doesNotMatch(enterpriseServiceSource, /\bfetch\s*\(/u, 'enterprise servic
 assert.doesNotMatch(enterpriseServiceSource, /\/(?:im|app|backend)\/v3/u, 'enterprise service must not hand-code SDK-owned API paths');
 assert.doesNotMatch(enterpriseServiceSource, /\b(Authorization|Access-Token|X-API-Key)\b/u, 'enterprise service must not assemble auth headers manually');
 assert.match(
-  addMemberModalSource,
-  /groupService\.addMembersBySearchQuery\s*\(\s*activeChat\.id\s*,\s*addedIds\s*\)/u,
-  'chat layout add-member modal must resolve input through GroupService user search before inviting members',
+  chatLayoutSource,
+  /<AddGroupMembersModal[\s\S]*?chat=\{activeChat\}[\s\S]*?onAdded=\{async\s*\(\)\s*=>\s*\{[\s\S]*?groupService\.getGroups\s*\(\s*\)/u,
+  'chat layout add-member flow must render the contact-picker modal and refresh SDK-backed group projection after invites',
 );
 assert.match(
-  addMemberModalSource,
-  /groupService\.getGroups\s*\(\s*\)/u,
-  'chat layout add-member modal must refresh member projection from the SDK-backed group service after invites',
+  openHydratedChatSource,
+  /chatService\.getChats\s*\(\s*\)[\s\S]*?const\s+nextChat\s*=[\s\S]*?setChats\s*\(\s*\(\s*previousChats\s*\)\s*=>\s*mergeChatIntoList\(previousChats,\s*nextChat\)[\s\S]*?setActiveChat\s*\(\s*\(\s*previousActiveChat\s*\)\s*=>/u,
+  'chat layout create-group flow must hydrate backend conversations and merge the SDK-backed group into the latest chat list state instead of overwriting realtime updates with a stale closure',
+);
+assert.match(
+  chatLayoutSource,
+  /<AddGroupMembersModal[\s\S]*?onAdded=\{async\s*\(\)\s*=>\s*\{[\s\S]*?setChats\s*\(\s*\(\s*previousChats\s*\)\s*=>\s*previousChats\.map\(/u,
+  'chat layout add-member refresh must apply the refreshed group projection with a functional chat-list update',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /contactService\.getContacts\s*\(\s*\)[\s\S]*?\.catch\s*\(/u,
+  'group add-member modal must load selectable members from the address book and fail closed',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /width=["']w-\[820px\]["'][\s\S]*height=["']h-\[740px\]["']/u,
+  'group add-member modal must use a taller fixed height for equal-width member selection',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /type\s+InviteMemberTab\s*=\s*['"]contacts['"]\s*\|\s*['"]strangers['"]/u,
+  'group add-member modal must model address-book and stranger invite modes as explicit tabs',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /const\s+\[activeTab,\s*setActiveTab\]\s*=\s*useState<InviteMemberTab>\(['"]contacts['"]\)/u,
+  'group add-member modal must default to the address-book friends tab',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /t\(['"]chat\.modal\.tabs\.contacts['"]\)[\s\S]*t\(['"]chat\.modal\.tabs\.strangers['"]\)/u,
+  'group add-member modal must render separate tabs for address-book friends and strangers',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /if\s*\(\s*activeTab\s*!==\s*['"]contacts['"]\s*\)\s*\{[\s\S]*?return;[\s\S]*?contactService\.getContacts/u,
+  'group add-member modal must keep address-book contact loading inside the contacts tab flow',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /<ContactMemberPickerPanel[\s\S]*contacts=\{selectableContacts\}[\s\S]*selectedIds=\{selected\}[\s\S]*onToggleContact=\{toggleContact\}/u,
+  'group add-member contacts tab must reuse the shared indexed contact picker after filtering existing members',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /if\s*\(\s*activeTab\s*!==\s*['"]strangers['"][\s\S]*?return;[\s\S]*?contactService\.searchContacts\s*\(\s*nonContactSearchQuery/u,
+  'group add-member modal must keep global stranger search inside the strangers tab flow',
+);
+assert.equal(
+  chatEnUsMessages.chat?.modal?.tabs?.contacts,
+  'Address book friends',
+  'English chat modal messages must name the contacts add-member tab',
+);
+assert.equal(
+  chatEnUsMessages.chat?.modal?.tabs?.strangers,
+  'Strangers',
+  'English chat modal messages must name the strangers add-member tab',
+);
+assert.equal(
+  chatEnUsMessages.chat?.modal?.selection?.selectedTitle,
+  'Selected',
+  'English chat modal messages must name the selected contact column',
+);
+assert.equal(
+  chatEnUsMessages.chat?.modal?.selection?.emptySelected,
+  'Selected members will appear here',
+  'English chat modal messages must describe the empty selected contact column',
+);
+assert.equal(
+  chatZhCnMessages.chat?.modal?.tabs?.contacts,
+  '通讯录好友',
+  'Chinese chat modal messages must name the contacts add-member tab',
+);
+assert.equal(
+  chatZhCnMessages.chat?.modal?.tabs?.strangers,
+  '陌生人',
+  'Chinese chat modal messages must name the strangers add-member tab',
+);
+assert.equal(
+  chatZhCnMessages.chat?.modal?.selection?.selectedTitle,
+  '已选择',
+  'Chinese chat modal messages must name the selected contact column',
+);
+assert.equal(
+  chatZhCnMessages.chat?.modal?.selection?.emptySelected,
+  '已勾选成员会显示在这里',
+  'Chinese chat modal messages must describe the empty selected contact column',
+);
+assert.doesNotMatch(
+  addGroupMembersModalSource,
+  /<div\s+className=["'][^"']*border-t border-white\/10 pt-4["']/u,
+  'group add-member modal must not append the stranger invite section below contacts in the same panel',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /new\s+Set\s*\(\s*chat\.members\s*\?\?\s*\[\]\s*\)[\s\S]*!isExistingGroupMember\(existingMemberIds,\s*contact\)/u,
+  'group add-member modal must filter out members who are already in the group',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /function\s+isExistingGroupMember[\s\S]*existingMemberIds\.has\(contact\.id\)[\s\S]*existingMemberIds\.has\(contact\.chatId/u,
+  'group add-member modal must treat contact id and chat id as member identifiers when filtering existing group members',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /groupService\.addMembers\s*\(\s*chat\.id\s*,\s*Array\.from\(selected\)\s*\)/u,
+  'group add-member modal must invite selected contact ids through GroupService.addMembers',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /contactService\.searchContacts\s*\(\s*nonContactSearchQuery/u,
+  'group add-member modal must offer an explicit non-contact search path for owner invitations',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /groupService\.inviteUserToGroup\s*\(\s*chat,\s*selectedNonContactUser\s*\)/u,
+  'group add-member modal must send owner non-contact invites through GroupService.inviteUserToGroup',
+);
+assert.match(
+  addGroupMembersModalSource,
+  /groupService\.addMembers\s*\(\s*chat\.id,\s*Array\.from\(selected\)\s*\)[\s\S]*groupService\.inviteUserToGroup\s*\(\s*chat,\s*selectedNonContactUser\s*\)/u,
+  'group add-member modal must keep address-book member add and non-contact card invite as separate explicit flows',
+);
+assert.match(
+  chatRightPanelSource,
+  /activeChat\.type\s*===\s*['"]group['"][\s\S]*activeChat\.members\?\.map/u,
+  'chat right panel group management must render the backend-projected member list',
+);
+assert.match(
+  chatRightPanelSource,
+  /onRemoveGroupMember:\s*\(memberId:\s*string\)\s*=>\s*Promise<void>/u,
+  'chat right panel group management must expose an async remove-member command controlled by the parent flow',
+);
+assert.match(
+  chatRightPanelSource,
+  /onRemoveGroupMember\(memberId\)/u,
+  'chat right panel group management must invoke the parent remove-member command for selected group members',
+);
+assert.match(
+  chatRightPanelSource,
+  /groupMemberProfiles\?:\s*User\[\]/u,
+  'chat right panel group management must accept address-book member projections from the parent flow',
+);
+assert.match(
+  chatRightPanelSource,
+  /memberProfilesById\.get\(memberId\)[\s\S]*memberProfile\?\.name\s*\?\?\s*memberId/u,
+  'chat right panel group management must render readable address-book member names before falling back to raw ids',
+);
+assert.doesNotMatch(
+  chatRightPanelSource,
+  />\s*\{\s*memberId\s*\}\s*<\/span>/u,
+  'chat right panel group management must not display only raw backend member ids when address-book projections are available',
+);
+assert.match(
+  chatLayoutSource,
+  /contactService\.getContacts\s*\(\s*\)[\s\S]*setGroupMemberProfiles/u,
+  'chat layout must hydrate group member display profiles from the address book for the right-panel member list',
+);
+assert.match(
+  chatLayoutSource,
+  /profilesById\.set\(profile\.id,\s*profile\)[\s\S]*profile\.chatId[\s\S]*profilesById\.set\(profile\.chatId,\s*profile\)/u,
+  'chat layout group member profile hydration must index profiles by both user id and chat id before passing them to the right panel',
+);
+assert.match(
+  chatLayoutSource,
+  /currentUserChatId=\{currentUser\.chatId\}/u,
+  'chat layout must pass current user chat id so the right panel can hide self-removal for either user id shape',
+);
+assert.doesNotMatch(
+  addGroupMembersModalSource,
+  /addMembersBySearchQuery|social\.users\.list/u,
+  'group add-member modal must not resolve arbitrary text through user search',
+);
+assert.doesNotMatch(
+  chatLayoutSource,
+  /addMembersBySearchQuery\s*\(/u,
+  'chat layout add-member flow must not use arbitrary user search for group invites',
 );
 assert.match(
   editNameModalSource,
-  /onClick=\{async\s*\(\)\s*=>\s*\{[\s\S]*?await\s+chatService\.updateChat\s*\(\s*activeChat\.id,\s*\{[\s\S]*?name:\s*modalInput[\s\S]*?\}/u,
-  'chat layout edit-name flow must await the SDK-backed chat update before mutating local UI state',
+  /activeChat\.type\s*===\s*["']group["'][\s\S]*?await\s+groupService\.updateGroupInfo\s*\(\s*activeChat\.id,\s*\{[\s\S]*?name:\s*modalInput[\s\S]*?\}/u,
+  'chat layout group edit-name flow must await the SDK-backed group profile update before mutating local UI state',
+);
+assert.match(
+  editNameModalSource,
+  /activeChat\.type\s*===\s*["']group["'][\s\S]*?\?[\s\S]*?:\s*await\s+chatService\.updateChat\s*\(\s*activeChat\.id,\s*\{[\s\S]*?name:\s*modalInput[\s\S]*?\}/u,
+  'chat layout direct-chat edit-name flow must keep using the SDK-backed chat profile update',
 );
 assert.match(
   editNoticeModalSource,
-  /onClick=\{async\s*\(\)\s*=>\s*\{[\s\S]*?await\s+chatService\.updateChat\s*\(\s*activeChat\.id,\s*\{[\s\S]*?notice:\s*modalInput[\s\S]*?\}/u,
-  'chat layout edit-notice flow must await the SDK-backed chat update before mutating local UI state',
+  /await\s+groupService\.updateGroupInfo\s*\(\s*activeChat\.id,\s*\{[\s\S]*?notice:\s*modalInput[\s\S]*?\}/u,
+  'chat layout edit-notice flow must await the SDK-backed group notice update before mutating local UI state',
 );
 assert.doesNotMatch(
-  addMemberModalSource,
+  editNoticeModalSource,
+  /chatService\.updateChat\s*\(\s*activeChat\.id,\s*\{[\s\S]*?notice:/u,
+  'chat layout group notice edit flow must not bypass GroupService group state projection',
+);
+assert.doesNotMatch(
+  addGroupMembersModalSource,
   /groupService\.addMembers\s*\(\s*activeChat\.id\s*,\s*addedIds\s*\)/u,
   'chat layout add-member modal must not submit raw input as group member ids',
 );
 assert.doesNotMatch(
-  addMemberModalSource,
+  addGroupMembersModalSource,
   /new\s+Set\s*\(\s*\[\s*\.\.\.\(\s*activeChat\.members\s*\|\|\s*\[\]\s*\)\s*,\s*\.\.\.addedIds\s*\]\s*\)/u,
   'chat layout add-member modal must not locally synthesize group members after SDK invites',
 );
 assert.doesNotMatch(
-  addMemberModalSource,
+  addGroupMembersModalSource,
   /memberCount\s*:\s*updatedMembers\.length/u,
   'chat layout add-member modal must not locally synthesize group member counts after SDK invites',
 );
 assert.doesNotMatch(
-  addMemberModalSource,
+  addGroupMembersModalSource,
   /chatService\.updateChat\s*\(\s*activeChat\.id\s*,\s*\{[\s\S]*?\bmembers\s*:/u,
   'chat layout add-member modal must not mutate group members through local chat view-state updates',
 );
@@ -2692,7 +3258,37 @@ assert.match(
 assert.match(
   chatLayoutSource,
   /onDeleteChat=\{async\s*\(\)\s*=>\s*\{[\s\S]*?await\s+chatService\.deleteChat\s*\(/u,
-  'chat layout right-panel delete flow must await the SDK mutation before local state changes',
+  'chat layout right-panel direct-chat delete flow must await the SDK mutation before local state changes',
+);
+assert.match(
+  chatLayoutSource,
+  /activeChat\.type\s*===\s*["']group["'][\s\S]*?await\s+groupService\.deleteGroup\s*\(\s*activeChat\.id\s*\)/u,
+  'chat layout right-panel group leave flow must leave the SDK-backed group instead of only hiding the conversation',
+);
+assert.match(
+  chatLayoutSource,
+  /onRemoveGroupMember=\{async\s*\(memberId\)\s*=>\s*\{[\s\S]*?await\s+groupService\.removeMember\s*\(\s*activeChat\.id,\s*memberId\s*\)[\s\S]*?groupService\.getGroups\s*\(\s*\)/u,
+  'chat layout right-panel group member removal flow must await the SDK mutation and refresh group projection',
+);
+assert.match(
+  chatLayoutSource,
+  /onRemoveGroupMember=\{async\s*\(memberId\)\s*=>\s*\{[\s\S]*?setChats\s*\(\s*\(\s*previousChats\s*\)\s*=>\s*previousChats\.map\(/u,
+  'chat layout right-panel group member removal flow must update the latest chat list state after the SDK refresh',
+);
+assert.match(
+  editNameModalSource,
+  /setChats\s*\(\s*\(\s*previousChats\s*\)\s*=>\s*previousChats\.map\(/u,
+  'chat layout edit-name flow must merge the SDK profile result into the latest chat list state',
+);
+assert.match(
+  editNoticeModalSource,
+  /setChats\s*\(\s*\(\s*previousChats\s*\)\s*=>\s*previousChats\.map\(/u,
+  'chat layout edit-notice flow must merge the SDK notice result into the latest chat list state',
+);
+assert.match(
+  chatLayoutSource,
+  /activeChat\.type\s*!==\s*["']group["'][\s\S]*?await\s+chatService\.deleteChat\s*\(\s*activeChat\.id\s*\)/u,
+  'chat layout right-panel direct-chat delete flow must remain a hidden-conversation preference update',
 );
 
 const messageListSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/MessageList.tsx');
@@ -2700,6 +3296,61 @@ assert.match(
   messageListSource,
   /chatService\.subscribeMessages|chatService\.subscribeConversationMessages/u,
   'message list must subscribe to SDK realtime updates',
+);
+assert.match(
+  subscribeChatsSource,
+  /chatService\.subscribeChats\s*\(/u,
+  'chat layout must subscribe to conversation-list realtime updates so unknown incoming conversations appear without opening them first',
+);
+assert.match(
+  subscribeChatsSource,
+  /mergeGroupProjections\s*\(\s*nextChats\s*\)[\s\S]*?applyChats/u,
+  'chat layout realtime conversation-list refresh must merge SDK-backed group projections so group management data stays current',
+);
+assert.match(
+  chatLayoutSource,
+  /const\s+chatListProjectionRevisionRef\s*=\s*useRef\(0\)/u,
+  'chat layout realtime conversation-list refresh must track group projection revisions so stale async projections cannot resurrect removed groups',
+);
+assert.match(
+  subscribeChatsSource,
+  /const\s+projectionRevision\s*=\s*chatListProjectionRevisionRef\.current\s*\+\s*1[\s\S]*chatListProjectionRevisionRef\.current\s*=\s*projectionRevision/u,
+  'chat layout realtime conversation-list refresh must increment a projection revision for every SDK chat-list snapshot',
+);
+assert.match(
+  subscribeChatsSource,
+  /mergeGroupProjections\s*\(\s*nextChats\s*\)[\s\S]*?\.then\(\(projectedChats\)\s*=>\s*\{[\s\S]*?chatListProjectionRevisionRef\.current\s*!==\s*projectionRevision[\s\S]*?return[\s\S]*?applyChats\(projectedChats\)/u,
+  'chat layout realtime conversation-list refresh must discard stale async group projections before applying them to the chat list',
+);
+assert.doesNotMatch(
+  subscribeChatsSource,
+  /new\s+Map\s*\(\s*previousChats\.map\(/u,
+  'chat layout realtime conversation-list refresh must not retain stale chats that disappeared from the SDK inbox, such as groups left or removed on another device',
+);
+assert.match(
+  subscribeChatsSource,
+  /const\s+byId\s*=\s*new\s+Map\s*\(\s*sourceChats\.map\(/u,
+  'chat layout realtime conversation-list refresh must treat the latest SDK chat list as authoritative before applying local preserved projections',
+);
+assert.match(
+  subscribeChatsSource,
+  /\?\?\s*systemAssistantService\.selectInitialChat\(/u,
+  'chat layout realtime conversation-list refresh must clear or reselect active chat when the current group disappears from the SDK inbox',
+);
+assert.match(
+  mergeGroupProjectionsSource,
+  /groupService\.getGroups\s*\(\s*\)[\s\S]*?groupsById[\s\S]*?\{\s*\.\.\.chat,\s*\.\.\.group\s*\}/u,
+  'chat layout group projection merge helper must hydrate group management data from GroupService',
+);
+assert.match(
+  openHydratedChatSource,
+  /chatService\.getChats\s*\(\s*\)[\s\S]*?const\s+nextChat\s*=[\s\S]*?setChats\s*\(\s*\(\s*previousChats\s*\)\s*=>\s*mergeChatIntoList\(previousChats,\s*nextChat\)/u,
+  'chat layout backend-hydrated chat opening helper must merge hydrated conversations into the latest chat list state',
+);
+assert.match(
+  openHydratedChatSource,
+  /setActiveChat\s*\(\s*\(\s*previousActiveChat\s*\)\s*=>[\s\S]*?setActiveTab\s*\(\s*["']chat["']\s*\)/u,
+  'chat layout backend-hydrated chat opening helper must open the hydrated chat without discarding concurrent active-chat state for unrelated conversations',
 );
 assert.match(
   messageListSource,
@@ -2715,6 +3366,16 @@ assert.match(
   messageListSource,
   /favoriteService\.addFavorite\s*\(\s*\{[\s\S]*messageId:\s*contextMenu\.msg\.id/u,
   'message list favorite action must pass the backend message id into FavoriteService',
+);
+assert.match(
+  messageListSource,
+  /parseGroupInviteDescriptor\s*\(\s*msg\s*\)/u,
+  'message list must parse received group invite cards before invoking the open-group callback',
+);
+assert.match(
+  messageListSource,
+  /<CardMessageItem[\s\S]*?onClick=\{parseGroupInviteDescriptor\(msg\)\s*\?\s*\(\)\s*=>\s*\{[\s\S]*?handleGroupInviteClick\(msg\)[\s\S]*?:\s*undefined\}/u,
+  'message list must make group invitation cards clickable and route them through the group invite handler',
 );
 
 const chatListSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/ChatList.tsx');
@@ -2740,6 +3401,26 @@ assert.doesNotMatch(
 );
 
 const chatWindowSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/ChatWindow.tsx');
+assert.match(
+  chatWindowSource,
+  /onOpenGroupInvite\?:\s*\(groupId:\s*string\)\s*=>\s*Promise<void>/u,
+  'chat window must accept a group-invite click handler from the chat layout',
+);
+assert.match(
+  chatWindowSource,
+  /<MessageList[\s\S]*?onOpenGroupInvite=\{onOpenGroupInvite\}/u,
+  'chat window must pass group invitation card clicks down to the message list',
+);
+assert.match(
+  chatLayoutSource,
+  /<ChatWindow[\s\S]*?onOpenGroupInvite=\{handleOpenGroupInvite\}/u,
+  'chat layout must wire group invitation card clicks into backend-hydrated group opening',
+);
+assert.match(
+  chatLayoutSource,
+  /const\s+handleOpenGroupInvite\s*=\s*async\s*\(groupId:\s*string\)[\s\S]*?groupService\.getGroups\s*\(\s*\)[\s\S]*?openHydratedChat/u,
+  'chat layout group invite click handler must hydrate SDK-backed groups and open the invited group chat',
+);
 assert.doesNotMatch(
   chatWindowSource,
   /fakeAgentResponses|Mock a streaming response feel|setTimeout\s*\(\s*async\s*\(\s*\)\s*=>/u,
@@ -2748,11 +3429,12 @@ assert.doesNotMatch(
 
 assertFile('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/CallService.ts');
 const callServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/CallService.ts');
-assert.match(callServiceSource, /@sdkwork\/rtc-sdk/u, 'call service must use the standard RTC SDK call stack');
-assert.match(
+const imRealtimeSource = read('sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/realtime.ts');
+assert.doesNotMatch(callServiceSource, /@sdkwork\/rtc-sdk/u, 'call service must not import RTC SDK signaling or call-controller surfaces');
+assert.doesNotMatch(
   callServiceSource,
   /createStandardRtcCallControllerStack/u,
-  'call service must compose calls through the standard RTC call controller stack',
+  'call service must not compose IM calls through the RTC call controller stack',
 );
 assert.match(
   callServiceSource,
@@ -2763,8 +3445,8 @@ assert.match(callServiceSource, /startOutgoingCall/u, 'call service must expose 
 assert.match(callServiceSource, /recoverRtcSession/u, 'call service must expose RTC session recovery for backend state backfill');
 assert.match(
   callServiceSource,
-  /\.rtc\.retrieve\s*\(\s*rtcSessionId\s*\)/u,
-  'call service recoverRtcSession must read RTC session state through the composed IM SDK',
+  /\.calls\.retrieve\s*\(\s*rtcSessionId\s*\)/u,
+  'call service recoverRtcSession must read call session state through the composed IM SDK',
 );
 assert.match(
   callServiceSource,
@@ -2773,13 +3455,38 @@ assert.match(
 );
 assert.match(
   callServiceSource,
-  /providerSessionId\s*\?\?\s*rtcSession\.rtcSessionId/u,
+  /providerSessionId\s*\?\?\s*(?:rtcSession|session)\.rtcSessionId/u,
   'call service must recover provider room id from backend RTC session metadata',
 );
 assert.match(
   callServiceSource,
-  /watchConversationIds:\s*\[rtcSession\.conversationId\]/u,
-  'call service must watch the recovered RTC conversation for subsequent RTC state updates',
+  /\.calls\.watchIncoming\s*\(/u,
+  'call service must watch incoming call signaling through the composed IM SDK',
+);
+assert.match(
+  imRealtimeSource,
+  /onScope\s*\(/u,
+  'IM realtime authored facade must expose generic scope event subscriptions for social/user realtime events',
+);
+assert.match(
+  imRealtimeSource,
+  /syncScopes\s*\(/u,
+  'IM realtime authored facade must sync generic non-conversation scopes through the SDK boundary',
+);
+assert.match(
+  imOpenApiSource,
+  /RealtimeSubscriptionItemInput:[\s\S]*scopeType:[\s\S]*scopeId:[\s\S]*eventTypes:/u,
+  'IM OpenAPI source contract must describe generic realtime subscription items instead of only conversation shortcuts',
+);
+assert.match(
+  contactServiceSource,
+  /scopeType:\s*['"]user['"][\s\S]*eventTypes:\s*FRIEND_REQUEST_REALTIME_EVENT_TYPES/u,
+  'contact service must subscribe to current-user realtime friend request events through the IM SDK',
+);
+assert.match(
+  contactServiceSource,
+  /connection\.events\.onScope\(\s*['"]user['"]/u,
+  'contact service must handle user-scope friend request realtime events without raw websocket code',
 );
 assert.match(callServiceSource, /setAudioMuted/u, 'call service must expose audio mute through the RTC media client');
 assert.match(callServiceSource, /setVideoMuted/u, 'call service must expose video mute through the RTC media client');

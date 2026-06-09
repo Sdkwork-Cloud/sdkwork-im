@@ -45,7 +45,7 @@ client.set_header("X-Custom-Header", "value");
 
 - `client.presence()` - presence API
 - `client.realtime()` - realtime API
-- `client.rtc()` - rtc API
+- `client.calls()` - calls API
 - `client.social()` - social API
 - `client.chat()` - chat API
 - `client.streams()` - streams API
@@ -72,17 +72,18 @@ let result = client.realtime().events_list(Some(&query)).await?;
 println!("{result:?}");
 ```
 
-### rtc
+### calls
 
 ```rust
 use im_sdk_generated::*;
-// Create an IM-backed RTC session
+// Create an IM call signaling session
 let body = CreateRtcSessionRequest {
+    rtc_session_id: "1".to_string(),
     conversation_id: Some("1".to_string()),
-    media_kind: Some("mediakind".to_string()),
+    rtc_mode: "rtcmode".to_string(),
     ..Default::default()
 };
-let result = client.rtc().sessions_create(&body).await?;
+let result = client.calls().sessions_create(&body).await?;
 println!("{result:?}");
 ```
 

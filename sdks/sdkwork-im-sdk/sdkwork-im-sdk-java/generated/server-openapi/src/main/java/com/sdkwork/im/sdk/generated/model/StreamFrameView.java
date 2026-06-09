@@ -10,7 +10,7 @@ public class StreamFrameView {
     public String getStreamId() {
         return this.streamId;
     }
-    
+
     public void setStreamId(String streamId) {
         this.streamId = streamId;
     }
@@ -18,7 +18,7 @@ public class StreamFrameView {
     public Integer getFrameSeq() {
         return this.frameSeq;
     }
-    
+
     public void setFrameSeq(Integer frameSeq) {
         this.frameSeq = frameSeq;
     }
@@ -26,7 +26,7 @@ public class StreamFrameView {
     public String getPayload() {
         return this.payload;
     }
-    
+
     public void setPayload(String payload) {
         this.payload = payload;
     }
@@ -34,7 +34,7 @@ public class StreamFrameView {
     public String getCreatedAt() {
         return this.createdAt;
     }
-    
+
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }

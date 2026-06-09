@@ -33,7 +33,7 @@ The first executable landing is a TypeScript baseline that proves the standard t
 - app SDK workspace reference: `sdks/sdkwork-im-sdk`
 - SDK workspace overview: `sdks/README.md`
 - current provider contract: `crates/im-platform-contracts/src/provider.rs`
-- current RTC runtime provider selection: `services/rtc-signaling-service/src/lib.rs`
+- current RTC runtime provider selection: `services/im-call-runtime/src/lib.rs`
 - existing built-in RTC adapters:
   - `adapters/rtc-volcengine`
   - `adapters/rtc-aliyun`

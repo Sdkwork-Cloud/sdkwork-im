@@ -13,7 +13,8 @@ use craw_chat_contract_core::{
 use craw_chat_contract_message::{CommitJournal, CommitPosition, TimelineProjectionStore};
 use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
-use sdkwork_rtc_core::{RtcContractError, RtcStateRecord, RtcStateStore};
+use im_domain_core::rtc::{RtcStateRecord, RtcStateStore};
+use sdkwork_rtc_core::RtcContractError;
 
 struct NullAdminStore;
 struct NullMetadataStore;

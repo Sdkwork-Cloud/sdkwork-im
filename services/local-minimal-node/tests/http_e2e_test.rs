@@ -997,25 +997,72 @@ async fn sync_conversation_realtime_subscription_for_test(
         .expect("realtime subscription sync should return response")
 }
 
+async fn sync_user_realtime_subscription_for_test(
+    app: &axum::Router,
+    user_id: &str,
+    device_id: &str,
+    event_types: &[&str],
+) -> axum::response::Response {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", user_id)
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", device_id)
+                .header("x-sdkwork-session-id", format!("s_{device_id}"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "items": [
+                            {
+                                "scopeType": "user",
+                                "scopeId": user_id,
+                                "eventTypes": event_types,
+                            }
+                        ]
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("user realtime subscription sync should return response")
+}
+
 async fn list_realtime_events_for_test(
     app: &axum::Router,
     user_id: &str,
     device_id: &str,
     after_seq: u64,
 ) -> axum::response::Response {
+    list_realtime_events_with_session_for_test(app, user_id, device_id, None, after_seq).await
+}
+
+async fn list_realtime_events_with_session_for_test(
+    app: &axum::Router,
+    user_id: &str,
+    device_id: &str,
+    session_id: Option<&str>,
+    after_seq: u64,
+) -> axum::response::Response {
+    let mut request = Request::builder()
+        .uri(format!(
+            "/im/v3/api/realtime/events?afterSeq={after_seq}&limit=10"
+        ))
+        .header("x-sdkwork-tenant-id", "t_demo")
+        .header("x-sdkwork-user-id", user_id)
+        .header("x-sdkwork-actor-kind", "user")
+        .header("x-sdkwork-device-id", device_id);
+
+    if let Some(session_id) = session_id {
+        request = request.header("x-sdkwork-session-id", session_id);
+    }
+
     app.clone()
-        .oneshot(
-            Request::builder()
-                .uri(format!(
-                    "/im/v3/api/realtime/events?afterSeq={after_seq}&limit=10"
-                ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", user_id)
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", device_id)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(request.body(Body::empty()).unwrap())
         .await
         .expect("realtime events request should return response")
 }
@@ -1399,7 +1446,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1420,7 +1467,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_demo/invite")
+                .uri("/im/v3/api/calls/sessions/rtc_demo/invite")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1439,7 +1486,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_demo/signals")
+                .uri("/im/v3/api/calls/sessions/rtc_demo/signals")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1460,7 +1507,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_demo/accept")
+                .uri("/im/v3/api/calls/sessions/rtc_demo/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -1479,7 +1526,7 @@ async fn test_local_minimal_profile_runs_end_to_end_flow() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_demo/end")
+                .uri("/im/v3/api/calls/sessions/rtc_demo/end")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2757,7 +2804,7 @@ async fn test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idemp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2797,7 +2844,7 @@ async fn test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idemp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_local_idempotent/accept")
+                .uri("/im/v3/api/calls/sessions/rtc_local_idempotent/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2816,7 +2863,7 @@ async fn test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idemp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2855,7 +2902,7 @@ async fn test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idemp
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2910,7 +2957,7 @@ async fn test_local_minimal_profile_retrieves_rtc_session_for_state_backfill() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2931,7 +2978,7 @@ async fn test_local_minimal_profile_retrieves_rtc_session_for_state_backfill() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_retrieve/accept")
+                .uri("/im/v3/api/calls/sessions/rtc_retrieve/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -2950,7 +2997,7 @@ async fn test_local_minimal_profile_retrieves_rtc_session_for_state_backfill() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/app/v3/api/rtc/sessions/rtc_retrieve")
+                .uri("/im/v3/api/calls/sessions/rtc_retrieve")
                 .demo_app_context()
                 .body(Body::empty())
                 .unwrap(),
@@ -2979,7 +3026,7 @@ async fn test_local_minimal_profile_retrieves_rtc_session_for_state_backfill() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/app/v3/api/rtc/sessions/rtc_retrieve_missing")
+                .uri("/im/v3/api/calls/sessions/rtc_retrieve_missing")
                 .demo_app_context()
                 .body(Body::empty())
                 .unwrap(),
@@ -3007,7 +3054,7 @@ async fn test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "shared_actor")
                 .header("x-sdkwork-actor-kind", "user")
@@ -3043,7 +3090,7 @@ async fn test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "shared_actor")
                 .header("x-sdkwork-actor-kind", "system")
@@ -3099,7 +3146,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3120,7 +3167,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_state_side_effects/accept")
+                .uri("/im/v3/api/calls/sessions/rtc_state_side_effects/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3139,7 +3186,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_state_side_effects/accept")
+                .uri("/im/v3/api/calls/sessions/rtc_state_side_effects/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3177,7 +3224,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_state_side_effects/end")
+                .uri("/im/v3/api/calls/sessions/rtc_state_side_effects/end")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3196,7 +3243,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_state_side_effects/end")
+                .uri("/im/v3/api/calls/sessions/rtc_state_side_effects/end")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -3215,7 +3262,7 @@ async fn test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_state_side_effects/reject")
+                .uri("/im/v3/api/calls/sessions/rtc_state_side_effects/reject")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -4532,6 +4579,9 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_clien
     .expect("payload should be valid json");
     assert_eq!(payload["conversationId"], "c_realtime");
     assert_eq!(payload["messageType"], "standard");
+    assert_eq!(payload["body"]["summary"], "hello realtime");
+    assert_eq!(payload["body"]["parts"][0]["kind"], "text");
+    assert_eq!(payload["body"]["parts"][0]["text"], "hello realtime");
     assert_eq!(realtime_events_json["nextAfterSeq"], 1);
     assert_eq!(realtime_events_json["hasMore"], false);
 }
@@ -6882,6 +6932,1057 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
 }
 
 #[tokio::test]
+async fn test_local_minimal_profile_fanouts_member_joined_to_added_user_scope_for_unknown_group_lists()
+ {
+    let app = local_minimal_node::build_default_app();
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_member_joined_user_scope",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let register_other_device = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_other")
+                .header("x-sdkwork-session-id", "s_other")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("register other device should succeed");
+    assert_eq!(register_other_device.status(), StatusCode::OK);
+
+    let sync_subscriptions = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_other")
+                .header("x-sdkwork-session-id", "s_other")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "items":[
+                            {
+                                "scopeType":"user",
+                                "scopeId":"u_other_demo",
+                                "eventTypes":["conversation.member_joined"]
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("user-scope subscription sync should succeed");
+    assert_eq!(sync_subscriptions.status(), StatusCode::OK);
+
+    let add_member = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_member_joined_user_scope/members/add")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_other_demo",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member should succeed");
+    assert_eq!(add_member.status(), StatusCode::OK);
+
+    let inbox = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/inbox")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_other")
+                .header("x-sdkwork-session-id", "s_other")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("invitee inbox should succeed");
+    assert_eq!(inbox.status(), StatusCode::OK);
+    let inbox_body = inbox
+        .into_body()
+        .collect()
+        .await
+        .expect("invitee inbox body should collect")
+        .to_bytes();
+    let inbox_json: serde_json::Value =
+        serde_json::from_slice(&inbox_body).expect("invitee inbox should be valid json");
+    let inbox_items = inbox_json["items"]
+        .as_array()
+        .expect("inbox items should be array");
+    assert!(
+        inbox_items
+            .iter()
+            .any(|item| item["conversationId"] == "c_member_joined_user_scope"),
+        "added user inbox must contain the group immediately after membership join"
+    );
+
+    let realtime_events = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_other")
+                .header("x-sdkwork-session-id", "s_other")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("realtime events should succeed");
+    assert_eq!(realtime_events.status(), StatusCode::OK);
+    let realtime_events_body = realtime_events
+        .into_body()
+        .collect()
+        .await
+        .expect("realtime events body should collect")
+        .to_bytes();
+    let realtime_events_json: serde_json::Value = serde_json::from_slice(&realtime_events_body)
+        .expect("realtime events should be valid json");
+    assert_eq!(
+        realtime_events_json["items"].as_array().unwrap().len(),
+        1,
+        "user-scope chat-list subscriptions must receive member joined events for newly available groups"
+    );
+    assert_eq!(
+        realtime_events_json["items"][0]["eventType"],
+        "conversation.member_joined"
+    );
+    assert_eq!(realtime_events_json["items"][0]["scopeType"], "user");
+    assert_eq!(realtime_events_json["items"][0]["scopeId"], "u_other_demo");
+    let payload: serde_json::Value = serde_json::from_str(
+        realtime_events_json["items"][0]["payload"]
+            .as_str()
+            .expect("payload should be string"),
+    )
+    .expect("payload should be valid json");
+    assert_eq!(payload["conversationId"], "c_member_joined_user_scope");
+    assert_eq!(payload["member"]["principalId"], "u_other_demo");
+    assert_eq!(payload["member"]["state"], "joined");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_fanouts_owner_transfer_to_new_owner_user_scope_for_group_management_refresh()
+ {
+    let app = local_minimal_node::build_default_app();
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_owner_transfer_user_scope",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let add_new_owner = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_owner_transfer_user_scope/members/add")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_new_owner_demo",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add new owner should succeed");
+    assert_eq!(add_new_owner.status(), StatusCode::OK);
+
+    let register_new_owner_device = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_new_owner_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_new_owner")
+                .header("x-sdkwork-session-id", "s_new_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("register new owner device should succeed");
+    assert_eq!(register_new_owner_device.status(), StatusCode::OK);
+
+    let sync_subscriptions = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_new_owner_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_new_owner")
+                .header("x-sdkwork-session-id", "s_new_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "items":[
+                            {
+                                "scopeType":"user",
+                                "scopeId":"u_new_owner_demo",
+                                "eventTypes":["conversation.owner_transferred"]
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("new-owner user-scope subscription sync should succeed");
+    assert_eq!(sync_subscriptions.status(), StatusCode::OK);
+
+    let transfer_owner = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_owner_transfer_user_scope/members/transfer_owner")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "memberId":"cm_c_owner_transfer_user_scope_user_u_new_owner_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("transfer owner should succeed");
+    assert_eq!(transfer_owner.status(), StatusCode::OK);
+
+    let realtime_events = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_new_owner_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_new_owner")
+                .header("x-sdkwork-session-id", "s_new_owner")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("realtime events should succeed");
+    assert_eq!(realtime_events.status(), StatusCode::OK);
+    let realtime_events_body = realtime_events
+        .into_body()
+        .collect()
+        .await
+        .expect("realtime events body should collect")
+        .to_bytes();
+    let realtime_events_json: serde_json::Value = serde_json::from_slice(&realtime_events_body)
+        .expect("realtime events should be valid json");
+    assert_eq!(
+        realtime_events_json["items"].as_array().unwrap().len(),
+        1,
+        "new owner user-scope chat-list subscriptions must receive owner transfer events"
+    );
+    assert_eq!(
+        realtime_events_json["items"][0]["eventType"],
+        "conversation.owner_transferred"
+    );
+    assert_eq!(realtime_events_json["items"][0]["scopeType"], "user");
+    assert_eq!(
+        realtime_events_json["items"][0]["scopeId"],
+        "u_new_owner_demo"
+    );
+    let payload: serde_json::Value = serde_json::from_str(
+        realtime_events_json["items"][0]["payload"]
+            .as_str()
+            .expect("payload should be string"),
+    )
+    .expect("payload should be valid json");
+    assert_eq!(payload["conversationId"], "c_owner_transfer_user_scope");
+    assert_eq!(payload["previousOwner"]["principalId"], "u_demo");
+    assert_eq!(payload["newOwner"]["principalId"], "u_new_owner_demo");
+    assert_eq!(payload["actor"]["id"], "u_demo");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_fanouts_member_management_events_to_target_user_scopes_for_chat_list_refresh()
+ {
+    let app = local_minimal_node::build_default_app();
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_member_target_user_scope",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let add_target_member = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_member_target_user_scope/members/add")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_target_demo",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add target member should succeed");
+    assert_eq!(add_target_member.status(), StatusCode::OK);
+
+    let add_leaver_member = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_member_target_user_scope/members/add")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_target_leave_demo",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add leaver member should succeed");
+    assert_eq!(add_leaver_member.status(), StatusCode::OK);
+
+    register_client_route_for_test(&app, "u_target_demo", "d_target").await;
+    register_client_route_for_test(&app, "u_target_leave_demo", "d_target_leave").await;
+
+    let sync_target_subscriptions = sync_user_realtime_subscription_for_test(
+        &app,
+        "u_target_demo",
+        "d_target",
+        &[
+            "conversation.member_role_changed",
+            "conversation.member_removed",
+        ],
+    )
+    .await;
+    assert_eq!(sync_target_subscriptions.status(), StatusCode::OK);
+    let sync_leaver_subscriptions = sync_user_realtime_subscription_for_test(
+        &app,
+        "u_target_leave_demo",
+        "d_target_leave",
+        &["conversation.member_left"],
+    )
+    .await;
+    assert_eq!(sync_leaver_subscriptions.status(), StatusCode::OK);
+
+    let change_target_role = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_member_target_user_scope/members/change_role")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "memberId":"cm_c_member_target_user_scope_user_u_target_demo",
+                        "role":"admin"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("change target role should succeed");
+    assert_eq!(change_target_role.status(), StatusCode::OK);
+
+    let remove_target_member = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_member_target_user_scope/members/remove")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "memberId":"cm_c_member_target_user_scope_user_u_target_demo"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("remove target member should succeed");
+    assert_eq!(remove_target_member.status(), StatusCode::OK);
+
+    let leave_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_member_target_user_scope/members/leave")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_target_leave_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_target_leave")
+                .header("x-sdkwork-session-id", "s_d_target_leave")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("leave conversation should succeed");
+    assert_eq!(leave_conversation.status(), StatusCode::OK);
+
+    let target_realtime_events = list_realtime_events_with_session_for_test(
+        &app,
+        "u_target_demo",
+        "d_target",
+        Some("s_d_target"),
+        0,
+    )
+    .await;
+    assert_eq!(target_realtime_events.status(), StatusCode::OK);
+    let target_realtime_events_body = target_realtime_events
+        .into_body()
+        .collect()
+        .await
+        .expect("target realtime events body should collect")
+        .to_bytes();
+    let target_realtime_events_json: serde_json::Value =
+        serde_json::from_slice(&target_realtime_events_body)
+            .expect("target realtime events should be valid json");
+    let target_items = target_realtime_events_json["items"]
+        .as_array()
+        .expect("target items should be array");
+    assert_eq!(
+        target_items.len(),
+        2,
+        "target user-scope chat-list subscriptions must receive role and removal events"
+    );
+    assert_eq!(
+        target_items[0]["eventType"],
+        "conversation.member_role_changed"
+    );
+    assert_eq!(target_items[0]["scopeType"], "user");
+    assert_eq!(target_items[0]["scopeId"], "u_target_demo");
+    let role_payload: serde_json::Value = serde_json::from_str(
+        target_items[0]["payload"]
+            .as_str()
+            .expect("role changed payload should be string"),
+    )
+    .expect("role changed payload should be valid json");
+    assert_eq!(role_payload["conversationId"], "c_member_target_user_scope");
+    assert_eq!(
+        role_payload["updatedMember"]["principalId"],
+        "u_target_demo"
+    );
+    assert_eq!(role_payload["updatedMember"]["role"], "admin");
+    assert_eq!(target_items[1]["eventType"], "conversation.member_removed");
+    assert_eq!(target_items[1]["scopeType"], "user");
+    assert_eq!(target_items[1]["scopeId"], "u_target_demo");
+    let removed_payload: serde_json::Value = serde_json::from_str(
+        target_items[1]["payload"]
+            .as_str()
+            .expect("removed payload should be string"),
+    )
+    .expect("removed payload should be valid json");
+    assert_eq!(
+        removed_payload["conversationId"],
+        "c_member_target_user_scope"
+    );
+    assert_eq!(removed_payload["member"]["principalId"], "u_target_demo");
+    assert_eq!(removed_payload["member"]["state"], "removed");
+
+    let leaver_realtime_events = list_realtime_events_with_session_for_test(
+        &app,
+        "u_target_leave_demo",
+        "d_target_leave",
+        Some("s_d_target_leave"),
+        0,
+    )
+    .await;
+    let leaver_realtime_events_status = leaver_realtime_events.status();
+    let leaver_realtime_events_body = leaver_realtime_events
+        .into_body()
+        .collect()
+        .await
+        .expect("leaver realtime events body should collect")
+        .to_bytes();
+    assert_eq!(
+        leaver_realtime_events_status,
+        StatusCode::OK,
+        "leaver realtime events response: {}",
+        String::from_utf8_lossy(&leaver_realtime_events_body)
+    );
+    let leaver_realtime_events_json: serde_json::Value =
+        serde_json::from_slice(&leaver_realtime_events_body)
+            .expect("leaver realtime events should be valid json");
+    let leaver_items = leaver_realtime_events_json["items"]
+        .as_array()
+        .expect("leaver items should be array");
+    assert_eq!(
+        leaver_items.len(),
+        1,
+        "leaver user-scope chat-list subscriptions must receive member-left events"
+    );
+    assert_eq!(leaver_items[0]["eventType"], "conversation.member_left");
+    assert_eq!(leaver_items[0]["scopeType"], "user");
+    assert_eq!(leaver_items[0]["scopeId"], "u_target_leave_demo");
+    let left_payload: serde_json::Value = serde_json::from_str(
+        leaver_items[0]["payload"]
+            .as_str()
+            .expect("left payload should be string"),
+    )
+    .expect("left payload should be valid json");
+    assert_eq!(left_payload["conversationId"], "c_member_target_user_scope");
+    assert_eq!(left_payload["member"]["principalId"], "u_target_leave_demo");
+    assert_eq!(left_payload["member"]["state"], "left");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_fanouts_message_events_to_member_user_scope_for_unknown_conversation_lists()
+ {
+    let app = local_minimal_node::build_default_app();
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_realtime_user_scope_fanout",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let add_member = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_realtime_user_scope_fanout/members/add")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_other_demo",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member should succeed");
+    assert_eq!(add_member.status(), StatusCode::OK);
+
+    let register_other_device = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_other")
+                .header("x-sdkwork-session-id", "s_other")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("register other device should succeed");
+    assert_eq!(register_other_device.status(), StatusCode::OK);
+
+    let sync_subscriptions = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_other")
+                .header("x-sdkwork-session-id", "s_other")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "items":[
+                            {
+                                "scopeType":"user",
+                                "scopeId":"u_other_demo",
+                                "eventTypes":["message.posted"]
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("user-scope subscription sync should succeed");
+    assert_eq!(sync_subscriptions.status(), StatusCode::OK);
+
+    let post_message = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_realtime_user_scope_fanout/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_realtime_user_scope_fanout_1",
+                        "summary":"user scope fanout hello",
+                        "text":"user scope fanout hello"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("post message should succeed");
+    assert_eq!(post_message.status(), StatusCode::OK);
+
+    let realtime_events = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_other")
+                .header("x-sdkwork-session-id", "s_other")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("realtime events should succeed");
+    assert_eq!(realtime_events.status(), StatusCode::OK);
+    let realtime_events_body = realtime_events
+        .into_body()
+        .collect()
+        .await
+        .expect("realtime events body should collect")
+        .to_bytes();
+    let realtime_events_json: serde_json::Value = serde_json::from_slice(&realtime_events_body)
+        .expect("realtime events should be valid json");
+    assert_eq!(
+        realtime_events_json["items"].as_array().unwrap().len(),
+        1,
+        "user-scope chat-list subscriptions must receive message events even before the client knows the conversation id"
+    );
+    assert_eq!(
+        realtime_events_json["items"][0]["eventType"],
+        "message.posted"
+    );
+    assert_eq!(realtime_events_json["items"][0]["scopeType"], "user");
+    assert_eq!(realtime_events_json["items"][0]["scopeId"], "u_other_demo");
+    let payload: serde_json::Value = serde_json::from_str(
+        realtime_events_json["items"][0]["payload"]
+            .as_str()
+            .expect("payload should be string"),
+    )
+    .expect("payload should be valid json");
+    assert_eq!(payload["conversationId"], "c_realtime_user_scope_fanout");
+    assert_eq!(payload["summary"], "user scope fanout hello");
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_replays_pending_message_events_to_member_user_scope_for_unknown_conversation_lists()
+ {
+    let runtime_dir = unique_test_runtime_dir("realtime_user_scope_outbox_replay");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let app = local_minimal_node::build_default_app_with_runtime_dir(runtime_dir.as_path());
+
+    let create_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_realtime_user_scope_replay",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create conversation should succeed");
+    assert_eq!(create_conversation.status(), StatusCode::OK);
+
+    let add_member = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_realtime_user_scope_replay/members/add")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_other_demo",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member should succeed");
+    assert_eq!(add_member.status(), StatusCode::OK);
+
+    let create_trigger_conversation = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "conversationId":"c_realtime_user_scope_replay_trigger",
+                        "conversationType":"group"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("create trigger conversation should succeed");
+    assert_eq!(create_trigger_conversation.status(), StatusCode::OK);
+
+    let register_other_device = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/presence/heartbeat")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_other")
+                .header("x-sdkwork-session-id", "s_other")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{}"#))
+                .unwrap(),
+        )
+        .await
+        .expect("register other device should succeed");
+    assert_eq!(register_other_device.status(), StatusCode::OK);
+
+    let sync_subscriptions = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/realtime/subscriptions/sync")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_other")
+                .header("x-sdkwork-session-id", "s_other")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "items":[
+                            {
+                                "scopeType":"user",
+                                "scopeId":"u_other_demo",
+                                "eventTypes":["message.posted"]
+                            }
+                        ]
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("user-scope subscription sync should succeed");
+    assert_eq!(sync_subscriptions.status(), StatusCode::OK);
+
+    let pending_payload = serde_json::json!({
+        "body": {
+            "parts": [{ "kind": "text", "text": "pending user scope replay hello" }],
+            "summary": "pending user scope replay hello"
+        },
+        "conversationId": "c_realtime_user_scope_replay",
+        "deliveryMode": "discrete",
+        "messageId": "msg_pending_user_scope_replay",
+        "messageSeq": 7,
+        "messageType": "standard",
+        "occurredAt": "2026-06-08T10:00:00.000Z",
+        "sender": {
+            "id": "u_demo",
+            "kind": "user",
+            "metadata": {}
+        },
+        "summary": "pending user scope replay hello"
+    })
+    .to_string();
+    let outbox_path = runtime_dir
+        .join("state")
+        .join("message-side-effect-outbox.json");
+    fs::write(
+        outbox_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "outbox_pending_user_scope_replay": {
+                "outboxId": "outbox_pending_user_scope_replay",
+                "tenantId": "t_demo",
+                "actorId": "u_demo",
+                "actorKind": "user",
+                "actorSessionId": "s_owner",
+                "actorDeviceId": "d_owner",
+                "conversationId": "c_realtime_user_scope_replay",
+                "messageId": "msg_pending_user_scope_replay",
+                "messageSeq": 7,
+                "sideEffect": "realtime_delivery",
+                "scopeType": "conversation",
+                "scopeId": "c_realtime_user_scope_replay",
+                "eventType": "message.posted",
+                "payload": pending_payload,
+                "status": "pending",
+                "attemptCount": 0,
+                "lastErrorCode": null,
+                "lastErrorMessage": null,
+                "createdAt": "2026-06-08T10:00:00.000Z",
+                "updatedAt": "2026-06-08T10:00:00.000Z"
+            }
+        }))
+        .expect("outbox record should serialize"),
+    )
+    .expect("pending outbox record should be written");
+
+    let trigger_drain = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_realtime_user_scope_replay_trigger/messages")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_owner")
+                .header("x-sdkwork-session-id", "s_owner")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "clientMsgId":"client_realtime_user_scope_replay_trigger_1",
+                        "summary":"trigger outbox replay",
+                        "text":"trigger outbox replay"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("trigger message should succeed");
+    assert_eq!(trigger_drain.status(), StatusCode::OK);
+
+    let realtime_events = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_other_demo")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-device-id", "d_other")
+                .header("x-sdkwork-session-id", "s_other")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("realtime events should succeed");
+    assert_eq!(realtime_events.status(), StatusCode::OK);
+    let realtime_events_body = realtime_events
+        .into_body()
+        .collect()
+        .await
+        .expect("realtime events body should collect")
+        .to_bytes();
+    let realtime_events_json: serde_json::Value = serde_json::from_slice(&realtime_events_body)
+        .expect("realtime events should be valid json");
+    assert_eq!(
+        realtime_events_json["items"].as_array().unwrap().len(),
+        1,
+        "pending message realtime outbox replay must self-heal user-scope chat lists"
+    );
+    assert_eq!(
+        realtime_events_json["items"][0]["eventType"],
+        "message.posted"
+    );
+    assert_eq!(realtime_events_json["items"][0]["scopeType"], "user");
+    assert_eq!(realtime_events_json["items"][0]["scopeId"], "u_other_demo");
+    let payload: serde_json::Value = serde_json::from_str(
+        realtime_events_json["items"][0]["payload"]
+            .as_str()
+            .expect("payload should be string"),
+    )
+    .expect("payload should be valid json");
+    assert_eq!(payload["conversationId"], "c_realtime_user_scope_replay");
+    assert_eq!(payload["messageId"], "msg_pending_user_scope_replay");
+    assert_eq!(payload["summary"], "pending user scope replay hello");
+
+    let _ = fs::remove_dir_all(runtime_dir);
+}
+
+#[tokio::test]
 async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_other_conversation_member()
  {
     let app = local_minimal_node::build_default_app();
@@ -8485,7 +9586,7 @@ async fn test_local_minimal_profile_rejects_conflicting_invite_after_accept_with
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8506,7 +9607,7 @@ async fn test_local_minimal_profile_rejects_conflicting_invite_after_accept_with
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_invite_conflict/invite")
+                .uri("/im/v3/api/calls/sessions/rtc_invite_conflict/invite")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8525,7 +9626,7 @@ async fn test_local_minimal_profile_rejects_conflicting_invite_after_accept_with
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_invite_conflict/accept")
+                .uri("/im/v3/api/calls/sessions/rtc_invite_conflict/accept")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8544,7 +9645,7 @@ async fn test_local_minimal_profile_rejects_conflicting_invite_after_accept_with
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_invite_conflict/invite")
+                .uri("/im/v3/api/calls/sessions/rtc_invite_conflict/invite")
                 .demo_app_context()
                 .header("content-type", "application/json")
                 .body(Body::from(
@@ -8607,7 +9708,7 @@ async fn test_local_minimal_profile_issues_rtc_participant_credential_over_http(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -8628,7 +9729,7 @@ async fn test_local_minimal_profile_issues_rtc_participant_credential_over_http(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions/rtc_local_provider_http/credentials")
+                .uri("/im/v3/api/calls/sessions/rtc_local_provider_http/credentials")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_demo")
                 .header("x-sdkwork-actor-kind", "user")
@@ -8661,176 +9762,6 @@ async fn test_local_minimal_profile_issues_rtc_participant_credential_over_http(
         "volcengine-token:t_demo:rtc_local_provider_http:u_peer"
     );
     assert!(credential_json["expiresAt"].as_str().is_some());
-}
-
-#[tokio::test]
-async fn test_local_minimal_profile_gets_rtc_provider_health_over_http() {
-    let app = local_minimal_node::build_default_app();
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/app/v3/api/rtc/provider_health")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("provider health request should return response");
-
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = response
-        .into_body()
-        .collect()
-        .await
-        .expect("provider health body should collect")
-        .to_bytes();
-    let json: serde_json::Value =
-        serde_json::from_slice(&body).expect("provider health response should be valid json");
-
-    assert_eq!(json["pluginId"], "rtc-volcengine");
-    assert_eq!(json["status"], "healthy");
-    assert_eq!(json["details"]["providerKind"], "volcengine");
-    assert_eq!(
-        json["details"]["accessEndpoint"],
-        "wss://rtc.volcengine.local/session"
-    );
-    assert!(json["checkedAt"].as_str().is_some());
-}
-
-#[tokio::test]
-async fn test_local_minimal_profile_maps_rtc_provider_callback_over_http() {
-    let app = local_minimal_node::build_default_app();
-
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "rtcSessionId":"rtc_local_callback_http",
-                        "rtcMode":"voice"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create rtc session should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
-
-    let callback_response = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/app/v3/api/rtc/provider_callbacks")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "rtcSessionId":"rtc_local_callback_http",
-                        "callbackType":"room-ended",
-                        "payloadJson":"{\"reason\":\"host_left\"}"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("rtc provider callback request should return response");
-
-    assert_eq!(callback_response.status(), StatusCode::OK);
-    let callback_body = callback_response
-        .into_body()
-        .collect()
-        .await
-        .expect("callback body should collect")
-        .to_bytes();
-    let callback_json: serde_json::Value =
-        serde_json::from_slice(&callback_body).expect("callback response should be valid json");
-
-    assert_eq!(callback_json["rtcSessionId"], "rtc_local_callback_http");
-    assert_eq!(callback_json["eventType"], "room-ended");
-    assert_eq!(callback_json["participantId"], serde_json::Value::Null);
-    assert_eq!(callback_json["payloadJson"], "{\"reason\":\"host_left\"}");
-}
-
-#[tokio::test]
-async fn test_local_minimal_profile_gets_rtc_recording_artifact_over_http() {
-    let app = local_minimal_node::build_default_app();
-
-    let create_response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{
-                        "rtcSessionId":"rtc_local_recording_http",
-                        "rtcMode":"voice"
-                    }"#,
-                ))
-                .unwrap(),
-        )
-        .await
-        .expect("create rtc session should succeed");
-    assert_eq!(create_response.status(), StatusCode::OK);
-
-    let artifact_response = app
-        .oneshot(
-            Request::builder()
-                .uri("/app/v3/api/rtc/sessions/rtc_local_recording_http/artifacts/recording")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("recording artifact request should return response");
-
-    assert_eq!(artifact_response.status(), StatusCode::OK);
-    let artifact_body = artifact_response
-        .into_body()
-        .collect()
-        .await
-        .expect("recording artifact body should collect")
-        .to_bytes();
-    let artifact_json: serde_json::Value = serde_json::from_slice(&artifact_body)
-        .expect("recording artifact response should be valid json");
-
-    assert_eq!(artifact_json["tenantId"], "t_demo");
-    assert_eq!(artifact_json["rtcSessionId"], "rtc_local_recording_http");
-    assert_eq!(
-        artifact_json["drive"]["driveUri"],
-        "drive://spaces/space_rtc_recordings/nodes/node_rtc_local_recording_http"
-    );
-    assert_eq!(
-        artifact_json["resource"]["uri"],
-        "drive://spaces/space_rtc_recordings/nodes/node_rtc_local_recording_http"
-    );
-    assert_eq!(artifact_json["resource"]["kind"], "video");
-    assert_eq!(artifact_json["resource"]["source"], "drive");
-    assert_eq!(artifact_json["mediaRole"], "rtc_recording");
-    for forbidden in ["bucket", "objectKey", "storageProvider", "playbackUrl"] {
-        assert!(
-            artifact_json.get(forbidden).is_none(),
-            "local-minimal recording artifact must not expose object-storage field {forbidden}"
-        );
-    }
 }
 
 #[tokio::test]
@@ -14555,7 +15486,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_rtc_create_afte
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")
                 .header("x-sdkwork-actor-kind", "user")
@@ -14580,7 +15511,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_rtc_create_afte
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")
                 .header("x-sdkwork-actor-kind", "user")
@@ -14832,7 +15763,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/app/v3/api/rtc/sessions")
+                .uri("/im/v3/api/calls/sessions")
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")
                 .header("x-sdkwork-actor-kind", "user")
@@ -14857,7 +15788,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/app/v3/api/rtc/sessions/{rtc_session_id}/credentials"
+                    "/im/v3/api/calls/sessions/{rtc_session_id}/credentials"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")
@@ -14882,7 +15813,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
             Request::builder()
                 .method("POST")
                 .uri(format!(
-                    "/app/v3/api/rtc/sessions/{rtc_session_id}/credentials"
+                    "/im/v3/api/calls/sessions/{rtc_session_id}/credentials"
                 ))
                 .header("x-sdkwork-tenant-id", "t_demo")
                 .header("x-sdkwork-user-id", "u_alice")

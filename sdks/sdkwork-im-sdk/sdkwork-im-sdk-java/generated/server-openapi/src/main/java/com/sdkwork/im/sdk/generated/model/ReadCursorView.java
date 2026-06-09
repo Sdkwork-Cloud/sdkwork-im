@@ -11,7 +11,7 @@ public class ReadCursorView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -19,7 +19,7 @@ public class ReadCursorView {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -27,7 +27,7 @@ public class ReadCursorView {
     public String getPrincipalId() {
         return this.principalId;
     }
-    
+
     public void setPrincipalId(String principalId) {
         this.principalId = principalId;
     }
@@ -35,7 +35,7 @@ public class ReadCursorView {
     public Integer getReadSeq() {
         return this.readSeq;
     }
-    
+
     public void setReadSeq(Integer readSeq) {
         this.readSeq = readSeq;
     }
@@ -43,7 +43,7 @@ public class ReadCursorView {
     public String getUpdatedAt() {
         return this.updatedAt;
     }
-    
+
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
     }

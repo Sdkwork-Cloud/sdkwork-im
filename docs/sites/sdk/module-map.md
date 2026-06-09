@@ -16,7 +16,7 @@ to the exact App API page when needed.
 | send, edit, or recall messages | [/sdk/modules/messages](/sdk/modules/messages) | [/api-reference/im/messages](/api-reference/im/messages) | `conversations.postText`, `messages.editText`, `messages.recall` |
 | upload or attach media | [/sdk/modules/media](/sdk/modules/media) | [/api-reference/im/media](/api-reference/im/media) | `media.createUpload`, `media.completeUpload`, `media.attachText` |
 | open or append stream frames | [/sdk/modules/streams](/sdk/modules/streams) | [/api-reference/im/streams](/api-reference/im/streams) | `streams.open`, `streams.appendTextFrame`, `streams.checkpoint` |
-| create or coordinate RTC sessions | [/sdk/modules/rtc](/sdk/modules/rtc) | [/api-reference/im/rtc](/api-reference/im/rtc) | `rtc.create`, `rtc.postJsonSignal`, `rtc.issueParticipantCredential` |
+| create or coordinate calls | [/sdk/modules/calls](/sdk/modules/calls) | [/api-reference/im/calls](/api-reference/im/calls) | `calls.start`, `calls.sendSignal`, `calls.issueParticipantCredential` |
 
 ## API Alignment
 
@@ -36,4 +36,4 @@ Use both views together:
 - session and realtime bootstrap: [/sdk/examples/session-bootstrap](/sdk/examples/session-bootstrap)
 - conversations and membership flow: [/sdk/examples/conversation-workflow](/sdk/examples/conversation-workflow)
 - messages plus media: [/sdk/examples/message-and-media](/sdk/examples/message-and-media)
-- streams plus RTC: [/sdk/examples/stream-and-rtc](/sdk/examples/stream-and-rtc)
+- calls and realtime: [/api-reference/im/calls](/api-reference/im/calls)

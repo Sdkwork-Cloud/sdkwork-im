@@ -19,7 +19,7 @@ Control-plane and admin APIs are backend modules inside `sdkwork-im-backend-sdk`
 
 | API group | SDK family | Rule |
 | --- | --- | --- |
-| `/im/v3/api/*` | `sdkwork-im-sdk` | Use for standardized IM development: conversations, messages, realtime, media, streams, RTC signaling, portal snapshots, and IM runtime helpers. |
+| `/im/v3/api/*` | `sdkwork-im-sdk` | Use for standardized IM development: conversations, messages, realtime, media, streams, IM call signaling, portal snapshots, and IM runtime helpers. |
 | `/app/v3/api/*` | `sdkwork-im-app-sdk` | Use for app-business and non-management HTTP APIs that are not part of the IM standardized SDK. Provider health, IoT protocol, notifications, automation execution, and app-facing RTC provider callbacks belong here. |
 | `/backend/v3/api/*` | `sdkwork-im-backend-sdk` | Use for ops, audit, automation governance, control-plane governance, node operations, and every admin route. |
 | RTC provider runtime | `sdkwork-rtc-sdk` | Use for provider selection, provider package loading, native driver/runtime bridge contracts, and call runtime abstractions. |
@@ -55,7 +55,7 @@ repo-local generation state:
 
 The OpenAPI-generated families share the SDKWork dual-token standard and generate from OpenAPI 3.x.
 The RTC SDK is intentionally separate: it owns provider catalogs, provider package boundaries,
-provider selection, native driver expectations, signaling transport rules, and runtime bridge
+provider selection, native driver expectations, media runtime rules, and runtime bridge
 contracts.
 
 ## Language Matrix

@@ -4,7 +4,7 @@ import type { AuthTokenManager } from '@sdkwork/sdk-common';
 
 import { PresenceApi, createPresenceApi } from './api/presence';
 import { RealtimeApi, createRealtimeApi } from './api/realtime';
-import { RtcApi, createRtcApi } from './api/rtc';
+import { CallsApi, createCallsApi } from './api/calls';
 import { SocialApi, createSocialApi } from './api/social';
 import { ChatApi, createChatApi } from './api/chat';
 import { StreamsApi, createStreamsApi } from './api/streams';
@@ -14,7 +14,7 @@ export class SdkworkImClient {
 
   public readonly presence: PresenceApi;
   public readonly realtime: RealtimeApi;
-  public readonly rtc: RtcApi;
+  public readonly calls: CallsApi;
   public readonly social: SocialApi;
   public readonly chat: ChatApi;
   public readonly streams: StreamsApi;
@@ -25,7 +25,7 @@ export class SdkworkImClient {
 
     this.realtime = createRealtimeApi(this.httpClient);
 
-    this.rtc = createRtcApi(this.httpClient);
+    this.calls = createCallsApi(this.httpClient);
 
     this.social = createSocialApi(this.httpClient);
 

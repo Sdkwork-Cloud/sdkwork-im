@@ -8,7 +8,7 @@ public class MessageReactionCountView {
     public String getReactionKey() {
         return this.reactionKey;
     }
-    
+
     public void setReactionKey(String reactionKey) {
         this.reactionKey = reactionKey;
     }
@@ -16,7 +16,7 @@ public class MessageReactionCountView {
     public Integer getCount() {
         return this.count;
     }
-    
+
     public void setCount(Integer count) {
         this.count = count;
     }

@@ -6,19 +6,23 @@ use im_platform_contracts::{
     ObjectStorageProvider, ObjectStoragePutRequest, ObjectStorageUploadSession,
     ObjectStorageUploadUrlRequest, PrincipalProfile, PrincipalProfileProvider, ProviderDomain,
     ProviderHealthSnapshot, ProviderPluginDescriptor, ProviderRegistry, RtcCallbackEvent,
-    RtcCallbackRequest, RtcCreateSessionRequest, RtcParticipantCredential, RtcProviderPort,
-    RtcRecordingArtifact, RtcSessionHandle, RuntimeProviderRegistry, StaticProviderRegistry,
+    RtcCallbackRequest, RtcCreateMediaSessionRequest, RtcMediaSessionMode,
+    RtcParticipantCredential, RtcProviderPort, RtcRecordingArtifact, RtcSessionHandle,
+    RuntimeProviderRegistry, StaticProviderRegistry,
 };
-use sdkwork_rtc_core::RtcContractError;
+use sdkwork_rtc_core::{
+    ProviderDomain as RtcProviderDomain, ProviderHealthSnapshot as RtcProviderHealthSnapshot,
+    ProviderPluginDescriptor as RtcProviderPluginDescriptor, RtcContractError,
+};
 
 #[derive(Clone)]
 struct StubRtcProvider;
 
 impl RtcProviderPort for StubRtcProvider {
-    fn descriptor(&self) -> ProviderPluginDescriptor {
-        ProviderPluginDescriptor::new(
+    fn descriptor(&self) -> RtcProviderPluginDescriptor {
+        RtcProviderPluginDescriptor::new(
             "rtc-volcengine",
-            ProviderDomain::Rtc,
+            RtcProviderDomain::Rtc,
             "volcengine",
             "火山引擎",
         )
@@ -28,7 +32,7 @@ impl RtcProviderPort for StubRtcProvider {
 
     fn create_session(
         &self,
-        request: RtcCreateSessionRequest,
+        request: RtcCreateMediaSessionRequest,
     ) -> Result<RtcSessionHandle, RtcContractError> {
         Ok(RtcSessionHandle {
             tenant_id: request.tenant_id,
@@ -97,8 +101,8 @@ impl RtcProviderPort for StubRtcProvider {
         )))
     }
 
-    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
-        ProviderHealthSnapshot::healthy("rtc-volcengine", "2026-04-08T00:00:00Z")
+    fn provider_health_snapshot(&self) -> RtcProviderHealthSnapshot {
+        RtcProviderHealthSnapshot::healthy("rtc-volcengine", "2026-04-08T00:00:00Z")
     }
 }
 
@@ -847,12 +851,12 @@ fn test_provider_ports_can_be_implemented_without_vendor_sdk_types_leaking_into_
     let principal_profile = StubPrincipalProfileProvider;
 
     let rtc_session = rtc
-        .create_session(RtcCreateSessionRequest {
+        .create_session(RtcCreateMediaSessionRequest {
             tenant_id: "t_demo".into(),
             rtc_session_id: "rtc_demo".into(),
-            conversation_id: Some("c_demo".into()),
-            rtc_mode: "call".into(),
-            initiator_id: "u_demo".into(),
+            media_mode: RtcMediaSessionMode::Video,
+            room_id: Some("c_demo".into()),
+            region: Some("cn-beijing".into()),
         })
         .expect("rtc create_session should succeed");
     assert_eq!(rtc_session.provider_session_id, "volc-room-demo");
@@ -903,7 +907,7 @@ fn test_provider_ports_can_be_implemented_without_vendor_sdk_types_leaking_into_
 
     assert_eq!(
         rtc.provider_health_snapshot(),
-        ProviderHealthSnapshot::healthy("rtc-volcengine", "2026-04-08T00:00:00Z")
+        RtcProviderHealthSnapshot::healthy("rtc-volcengine", "2026-04-08T00:00:00Z")
     );
     assert_eq!(
         storage.provider_health_snapshot(),

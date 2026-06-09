@@ -3,8 +3,8 @@
 `sdks/` is the repository home for Craw Chat SDK workspaces. The directory is organized by public
 consumer SDK family and by authoritative API boundary, not by historical generated-package dumps.
 
-The current standard model has three OpenAPI-generated HTTP SDK families plus one independent RTC
-provider-standard SDK family:
+The current standard model has three OpenAPI-generated HTTP SDK families, one communication
+gRPC/RPC SDK family, plus one independent RTC provider-standard SDK family:
 
 - `sdkwork-im-sdk`
   IM standardized development SDKs for `/im/v3/api`; logical API authority:
@@ -15,6 +15,10 @@ provider-standard SDK family:
 - `sdkwork-im-backend-sdk`
   Backend management, operator, control-plane, and admin SDKs for `/backend/v3/api`; logical API
   authority: `sdkwork-im-backend-api`.
+- `sdkwork-im-rpc-sdk`
+  gRPC/protobuf SDK family for distributed communication service integration. It maps the current
+  IM app/backend/internal runtime capabilities into `sdkwork.communication.*` proto packages and is
+  generated with `sdkgen generate --protocol rpc`.
 - `sdkwork-rtc-sdk`
   Provider-standard RTC SDKs for multi-provider audio/video runtime integration.
 
@@ -39,6 +43,15 @@ The RTC workspace is intentionally separate from the OpenAPI-generated HTTP SDK 
   rules, and provider package boundaries.
 - It is not a route-generated SDK workspace and must not be collapsed into app or backend generated
   transport packages.
+
+The communication RPC workspace is intentionally separate from the OpenAPI-generated HTTP SDK
+families:
+
+- `sdkwork-im-rpc-sdk` owns proto contracts, the RPC manifest, and generated RPC SDK
+  scaffolds for distributed backend, private, local, native host, and service-to-service
+  integration.
+- It does not replace `sdkwork-im-sdk`, `sdkwork-im-app-sdk`, or `sdkwork-im-backend-sdk`; browser
+  and app UI packages continue to use those HTTP SDKs unless gRPC-Web is explicitly approved.
 
 ## API Boundary Rules
 
@@ -78,6 +91,14 @@ The official OpenAPI-generated language set for the three HTTP SDK families is:
 - Go
 - Python
 
+The official RPC SDK baseline language set for `sdkwork-im-rpc-sdk` is:
+
+- TypeScript
+- Go
+- Java
+- Python
+- Rust
+
 For OpenAPI-generated SDK families, generator-owned transport output is always under
 `generated/server-openapi`. Manual-owned consumer-facing facades live under `composed` only when a
 family has a semantic SDK layer.
@@ -100,6 +121,7 @@ transport package.
 | `sdkwork-im-sdk` | IM standardized development integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Semantic IM SDK package `@sdkwork/im-sdk` plus internal generated transports `@sdkwork-internal/im-sdk-generated` and `im_sdk_generated` |
 | `sdkwork-im-app-sdk` | App developers and app-business integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated app transport plus Flutter composed `im_app_sdk` with semantic `ImAppSdkClient`; family-level dependencies on `sdkwork-im-sdk` and `sdkwork-rtc-sdk` |
 | `sdkwork-im-backend-sdk` | Backend, operator, control-plane, and admin integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated backend transport plus Flutter composed `im_backend_sdk` with semantic `ImBackendSdkClient` |
+| `sdkwork-im-rpc-sdk` | Distributed backend, private, local, native-host, and service-to-service communication integrations | TypeScript, Go, Java, Python, Rust | gRPC/protobuf SDK family generated from `proto/` and `rpc/sdkwork-im-rpc.manifest.json` |
 | `sdkwork-rtc-sdk` | RTC provider-standard integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Provider-standard packages and adapters, not OpenAPI-generated transport |
 
 All current package lines remain `not_published` until a release freeze assigns publishable
@@ -158,6 +180,22 @@ Each OpenAPI workspace then owns its own wrappers under `bin/`:
 node .\sdks\sdkwork-im-sdk\bin\verify-sdk.mjs
 node .\sdks\sdkwork-im-app-sdk\bin\verify-sdk.mjs
 node .\sdks\sdkwork-im-backend-sdk\bin\verify-sdk.mjs
+```
+
+Run the RPC contract check before generating RPC SDK scaffolds:
+
+```powershell
+node .\scripts\dev\sdkwork-chat-rpc-contract.test.mjs
+node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-typescript --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language typescript --package-name @sdkwork/im-rpc-sdk --dry-run --no-sync-published-version
+node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-go --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language go --package-name github.com/sdkwork/im-rpc-sdk-go --dry-run --no-sync-published-version
+node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-java --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language java --package-name com.sdkwork.im.rpc --dry-run --no-sync-published-version
+node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-python --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language python --package-name sdkwork_im_rpc_sdk --dry-run --no-sync-published-version
+node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-rust --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language rust --package-name sdkwork-im-rpc-sdk-rust --dry-run --no-sync-published-version
+node ..\sdkwork-sdk-generator\bin\sdkgen.js inspect --protocol rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-typescript --json
+node ..\sdkwork-sdk-generator\bin\sdkgen.js inspect --protocol rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-go --json
+node ..\sdkwork-sdk-generator\bin\sdkgen.js inspect --protocol rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-java --json
+node ..\sdkwork-sdk-generator\bin\sdkgen.js inspect --protocol rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-python --json
+node ..\sdkwork-sdk-generator\bin\sdkgen.js inspect --protocol rpc --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-rust --json
 ```
 
 Use the RTC verifier for the independent provider-standard SDK:

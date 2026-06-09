@@ -122,7 +122,7 @@ export const ContactsView: React.FC<{
             {activeId === 'org' ? (
                <OrgContainer onUserSelect={(u, d) => setSelectedUser({user: u, deptName: d})} selectedUserId={selectedUser?.user.id || null} onSendMessage={onSendMessage} searchQuery={searchQuery} />
             ) : activeId === 'all' ? (
-               <AllContactsContainer onUserSelect={(u, d) => setSelectedUser({user: u, deptName: d})} selectedUserId={selectedUser?.user.id || null} searchQuery={searchQuery} />
+               <AllContactsContainer onAddFriend={onAddFriend} onUserSelect={(u, d) => setSelectedUser({user: u, deptName: d})} selectedUserId={selectedUser?.user.id || null} searchQuery={searchQuery} />
             ) : activeId === 'tags' ? (
                <TagsContainer searchQuery={searchQuery} />
             ) : activeId === 'new' ? (

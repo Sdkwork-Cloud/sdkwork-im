@@ -8,7 +8,7 @@ public class ChangeConversationMemberRoleRequest {
     public String getMemberId() {
         return this.memberId;
     }
-    
+
     public void setMemberId(String memberId) {
         this.memberId = memberId;
     }
@@ -16,7 +16,7 @@ public class ChangeConversationMemberRoleRequest {
     public String getRole() {
         return this.role;
     }
-    
+
     public void setRole(String role) {
         this.role = role;
     }

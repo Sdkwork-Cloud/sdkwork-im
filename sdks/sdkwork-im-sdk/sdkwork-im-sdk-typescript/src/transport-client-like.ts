@@ -2,6 +2,7 @@ import type {
   AckResponse,
   AddConversationMemberRequest,
   BindDirectChatRequest,
+  CreateRtcSessionRequest,
   ContactPreferencesView,
   ContactRecommendationView,
   ContactTagsResponse,
@@ -30,13 +31,20 @@ import type {
   PostedMessageResponse,
   QueryParams,
   ReadCursorView,
+  InviteRtcSessionRequest,
+  IssueRtcParticipantCredentialRequest,
+  PostRtcSignalRequest,
   RtcSession,
+  RtcSessionMutationResponse,
+  RtcSignalEvent,
+  RtcParticipantCredential,
   SocialFriendRequestAcceptanceResponse,
   SocialFriendRequestListResponse,
   SocialFriendRequestMutationResponse,
   SocialFriendshipMutationResponse,
   SocialUserSearchResponse,
   TimelineResponse,
+  UpdateRtcSessionRequest,
   UpdateContactPreferencesRequest,
   UpdateContactTagRequest,
   UpdateConversationPreferencesRequest,
@@ -110,9 +118,20 @@ export interface ImTransportClientLike {
       };
     };
   };
-  rtc: {
+  calls: {
     sessions: {
+      create(body: CreateRtcSessionRequest): Promise<RtcSessionMutationResponse>;
       retrieve(rtcSessionId: string | number): Promise<RtcSession>;
+      invite(rtcSessionId: string | number, body: InviteRtcSessionRequest): Promise<RtcSessionMutationResponse>;
+      accept(rtcSessionId: string | number, body: UpdateRtcSessionRequest): Promise<RtcSessionMutationResponse>;
+      reject(rtcSessionId: string | number, body: UpdateRtcSessionRequest): Promise<RtcSessionMutationResponse>;
+      end(rtcSessionId: string | number, body: UpdateRtcSessionRequest): Promise<RtcSessionMutationResponse>;
+      signals: {
+        create(rtcSessionId: string | number, body: PostRtcSignalRequest): Promise<RtcSignalEvent>;
+      };
+      credentials: {
+        create(rtcSessionId: string | number, body: IssueRtcParticipantCredentialRequest): Promise<RtcParticipantCredential>;
+      };
     };
   };
   social: {

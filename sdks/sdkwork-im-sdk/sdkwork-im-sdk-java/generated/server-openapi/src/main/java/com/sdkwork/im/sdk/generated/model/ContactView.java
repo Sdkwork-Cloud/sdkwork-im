@@ -16,7 +16,7 @@ public class ContactView {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -24,7 +24,7 @@ public class ContactView {
     public String getOwnerUserId() {
         return this.ownerUserId;
     }
-    
+
     public void setOwnerUserId(String ownerUserId) {
         this.ownerUserId = ownerUserId;
     }
@@ -32,7 +32,7 @@ public class ContactView {
     public String getTargetUserId() {
         return this.targetUserId;
     }
-    
+
     public void setTargetUserId(String targetUserId) {
         this.targetUserId = targetUserId;
     }
@@ -40,7 +40,7 @@ public class ContactView {
     public String getContactType() {
         return this.contactType;
     }
-    
+
     public void setContactType(String contactType) {
         this.contactType = contactType;
     }
@@ -48,7 +48,7 @@ public class ContactView {
     public String getRelationshipState() {
         return this.relationshipState;
     }
-    
+
     public void setRelationshipState(String relationshipState) {
         this.relationshipState = relationshipState;
     }
@@ -56,7 +56,7 @@ public class ContactView {
     public String getFriendshipId() {
         return this.friendshipId;
     }
-    
+
     public void setFriendshipId(String friendshipId) {
         this.friendshipId = friendshipId;
     }
@@ -64,7 +64,7 @@ public class ContactView {
     public String getDirectChatId() {
         return this.directChatId;
     }
-    
+
     public void setDirectChatId(String directChatId) {
         this.directChatId = directChatId;
     }
@@ -72,7 +72,7 @@ public class ContactView {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -80,7 +80,7 @@ public class ContactView {
     public String getEstablishedAt() {
         return this.establishedAt;
     }
-    
+
     public void setEstablishedAt(String establishedAt) {
         this.establishedAt = establishedAt;
     }
@@ -88,7 +88,7 @@ public class ContactView {
     public String getLastInteractionAt() {
         return this.lastInteractionAt;
     }
-    
+
     public void setLastInteractionAt(String lastInteractionAt) {
         this.lastInteractionAt = lastInteractionAt;
     }

@@ -16,26 +16,31 @@ pub(super) fn post_message_with_side_effects(
         MessageType::Signal => "signal",
         MessageType::System => "system",
     };
+    let sender = principal_profile::resolve_sender_from_auth_context(state, auth)?;
+    let body_for_realtime = body.clone();
+    let sender_for_realtime = sender.clone();
 
     let result = state
         .conversation_runtime
         .post_message(PostMessageCommand {
             tenant_id: auth.tenant_id.clone(),
             conversation_id: conversation_id.clone(),
-            sender: principal_profile::resolve_sender_from_auth_context(state, auth)?,
+            sender,
             client_msg_id,
             message_type,
             body,
         })?;
 
-    finalize_post_message_with_side_effects(
+    finalize_post_message_with_side_effects(PostedMessageSideEffects {
         state,
         auth,
         conversation_id,
         message_type_name,
         summary,
+        body: body_for_realtime,
+        sender: sender_for_realtime,
         result,
-    )
+    })
 }
 
 pub(super) fn publish_system_channel_message_with_side_effects(
@@ -47,34 +52,56 @@ pub(super) fn publish_system_channel_message_with_side_effects(
 ) -> Result<PostMessageResult, ApiError> {
     access::ensure_client_route_key(state, auth)?;
     let summary = body.summary.clone();
+    let publisher = principal_profile::resolve_sender_from_auth_context(state, auth)?;
+    let body_for_realtime = body.clone();
+    let sender_for_realtime = publisher.clone();
     let result = state.conversation_runtime.publish_system_channel_message(
         PublishSystemChannelMessageCommand {
             tenant_id: auth.tenant_id.clone(),
             conversation_id: conversation_id.clone(),
-            publisher: principal_profile::resolve_sender_from_auth_context(state, auth)?,
+            publisher,
             client_msg_id,
             body,
         },
     )?;
 
-    finalize_post_message_with_side_effects(
+    finalize_post_message_with_side_effects(PostedMessageSideEffects {
         state,
         auth,
         conversation_id,
-        "standard",
+        message_type_name: "standard",
         summary,
+        body: body_for_realtime,
+        sender: sender_for_realtime,
         result,
-    )
+    })
+}
+
+struct PostedMessageSideEffects<'a> {
+    state: &'a AppState,
+    auth: &'a AppContext,
+    conversation_id: String,
+    message_type_name: &'a str,
+    summary: Option<String>,
+    body: MessageBody,
+    sender: im_domain_core::message::Sender,
+    result: PostMessageResult,
 }
 
 fn finalize_post_message_with_side_effects(
-    state: &AppState,
-    auth: &AppContext,
-    conversation_id: String,
-    message_type_name: &str,
-    summary: Option<String>,
-    result: PostMessageResult,
+    command: PostedMessageSideEffects<'_>,
 ) -> Result<PostMessageResult, ApiError> {
+    let PostedMessageSideEffects {
+        state,
+        auth,
+        conversation_id,
+        message_type_name,
+        summary,
+        body,
+        sender,
+        result,
+    } = command;
+
     if !result.is_applied() {
         return Ok(result);
     }
@@ -123,10 +150,14 @@ fn finalize_post_message_with_side_effects(
     );
 
     let realtime_payload = serde_json::json!({
+        "body": body,
         "conversationId": conversation_scope_id,
+        "deliveryMode": "discrete",
         "messageId": result.message_id,
         "messageSeq": result.message_seq,
         "messageType": message_type_name,
+        "occurredAt": im_time::utc_now_rfc3339_millis(),
+        "sender": sender,
         "summary": summary,
     })
     .to_string();
@@ -381,12 +412,13 @@ pub(super) fn publish_realtime_conversation_message_event(
     publish_realtime_event_to_recipients(
         state,
         auth,
-        recipients,
+        recipients.clone(),
         "conversation",
         conversation_id,
         event_type,
-        payload,
-    )
+        payload.clone(),
+    )?;
+    publish_realtime_event_to_principals(state, auth, recipients, "user", event_type, payload)
 }
 
 pub(super) fn publish_realtime_event_to_scope(
@@ -410,6 +442,47 @@ pub(super) fn publish_realtime_event_to_scope(
     )
 }
 
+pub(super) fn publish_realtime_event_to_principals(
+    state: &AppState,
+    auth: &AppContext,
+    recipients: BTreeSet<NotificationRecipientView>,
+    scope_type: &str,
+    event_type: &str,
+    payload: String,
+) -> Result<(), ApiError> {
+    let mut delivery_errors = Vec::new();
+    for recipient in recipients {
+        let mut target = BTreeSet::new();
+        target.insert(recipient.clone());
+        let delivery = publish_realtime_event_to_recipients(
+            state,
+            auth,
+            target,
+            scope_type,
+            recipient.principal_id.as_str(),
+            event_type,
+            payload.clone(),
+        );
+        if let Err(error) = delivery {
+            delivery_errors.push(format!(
+                "principal_kind={} principal_id={} error_code={} error_message={}",
+                recipient.principal_kind, recipient.principal_id, error.code, error.message
+            ));
+        }
+    }
+    if !delivery_errors.is_empty() {
+        return Err(ApiError::service_unavailable(
+            "realtime_delivery_failed",
+            format!(
+                "realtime principal delivery failed for {} target(s): {}",
+                delivery_errors.len(),
+                delivery_errors.join("; ")
+            ),
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn publish_realtime_membership_event(
     state: &AppState,
     auth: &AppContext,
@@ -421,12 +494,21 @@ pub(super) fn publish_realtime_membership_event(
 ) -> Result<(), ApiError> {
     let mut recipients = base_recipients;
     recipients.extend(additional_recipients);
+    let user_scope_recipients = recipients.clone();
     publish_realtime_event_to_recipients(
         state,
         auth,
         recipients,
         "conversation",
         conversation_id,
+        event_type,
+        payload.clone(),
+    )?;
+    publish_realtime_event_to_principals(
+        state,
+        auth,
+        user_scope_recipients,
+        "user",
         event_type,
         payload,
     )
@@ -661,7 +743,7 @@ pub(super) fn build_message_body(
 pub(super) fn emit_rtc_signal_message(
     state: &AppState,
     auth: &AppContext,
-    session: &sdkwork_rtc_core::RtcSession,
+    session: &im_domain_core::rtc::RtcSession,
     signal_type: &'static str,
 ) -> Result<(), ApiError> {
     let Some(conversation_id) = session.conversation_id.clone() else {
@@ -701,7 +783,7 @@ pub(super) fn emit_rtc_signal_message(
 pub(super) fn emit_rtc_custom_signal_message(
     state: &AppState,
     auth: &AppContext,
-    signal: &sdkwork_rtc_core::RtcSignalEvent,
+    signal: &im_domain_core::rtc::RtcSignalEvent,
 ) -> Result<(), ApiError> {
     let Some(conversation_id) = signal.conversation_id.clone() else {
         return Ok(());

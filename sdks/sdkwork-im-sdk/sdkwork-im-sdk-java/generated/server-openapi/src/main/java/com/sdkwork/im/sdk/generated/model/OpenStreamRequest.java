@@ -8,7 +8,7 @@ public class OpenStreamRequest {
     public String getStreamType() {
         return this.streamType;
     }
-    
+
     public void setStreamType(String streamType) {
         this.streamType = streamType;
     }
@@ -16,7 +16,7 @@ public class OpenStreamRequest {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }

@@ -14,8 +14,6 @@ const appbaseRoot = path.resolve(crawChatRoot, '..', 'sdkwork-appbase');
 const appPrefix = '/app/v3/api';
 
 const appbaseOwnedAppRoutes = [
-  'auth/oauth_authorization_urls',
-  'auth/oauth_sessions',
   'auth/password_reset_requests',
   'auth/password_resets',
   'auth/registrations',
@@ -34,14 +32,17 @@ const appbaseOwnedAppRoutes = [
   'iam/role_bindings',
   'system/iam/runtime',
   'system/iam/verification_policy',
-  'open_platform/qr_auth/sessions',
-  'open_platform/qr_auth/sessions/{}',
-  'open_platform/qr_auth/sessions/{}/scans',
-  'open_platform/qr_auth/sessions/{}/passwords',
+  'oauth/authorization_urls',
+  'oauth/device_authorizations',
+  'oauth/device_authorizations/{}',
+  'oauth/device_authorizations/{}/scans',
+  'oauth/device_authorizations/{}/password_completions',
+  'oauth/sessions',
 ];
 
 const forbiddenGeneratedSurface = [
   /oauthAuthorization|OAuthAuthorization/u,
+  /deviceAuthorization|DeviceAuthorization|deviceAuthorizations|DeviceAuthorizations/u,
   /passwordReset|PasswordReset/u,
   /verificationCode|VerificationCode/u,
   /qrAuth|QrAuth/u,
@@ -95,7 +96,11 @@ function routeSet(document, prefix) {
 function assertRoutesPresent(label, document, prefix, expectedRoutes) {
   const routes = routeSet(document, prefix);
   const missing = expectedRoutes.filter((route) => !routes.has(route));
-  assert.deepEqual(missing, [], `${label} must own the appbase identity/session/IAM/QR auth routes.`);
+  assert.deepEqual(
+    missing,
+    [],
+    `${label} must own the appbase identity/session/IAM/OAuth device authorization routes.`,
+  );
 }
 
 function assertRoutesAbsent(label, document, prefix, forbiddenRoutes) {
@@ -148,7 +153,7 @@ function assertGeneratedSurfaceAbsent(label, generatedRoots) {
   assert.deepEqual(
     violations,
     [],
-    `${label} generated transport must not expose appbase auth/IAM/session/verification/QR auth surface.`,
+    `${label} generated transport must not expose appbase auth/IAM/session/verification/OAuth device authorization surface.`,
   );
 }
 

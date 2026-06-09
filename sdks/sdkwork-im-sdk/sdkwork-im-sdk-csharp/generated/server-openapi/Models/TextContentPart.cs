@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace Sdkwork.Im.Sdk.Generated.Models
 {
-    public class TextContentPart
+    public class TextContentPart : ContentPart
     {
-        public string? Kind { get; set; }
-        public string? Text { get; set; }
+        public string Kind { get; set; }
+        public string Text { get; set; }
     }
 }

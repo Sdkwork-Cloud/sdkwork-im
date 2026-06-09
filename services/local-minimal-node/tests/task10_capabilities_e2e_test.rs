@@ -385,9 +385,15 @@ async fn test_local_minimal_profile_exposes_im_and_backend_surfaces_without_loca
         ("GET", "/app/v3/api/iam/verification_policy", Body::empty()),
         (
             "GET",
-            "/app/v3/api/open_platform/qr_auth/sessions",
+            "/app/v3/api/oauth/device_authorizations",
             Body::empty(),
         ),
+        (
+            "POST",
+            "/app/v3/api/oauth/authorization_urls",
+            Body::from("{}"),
+        ),
+        ("POST", "/app/v3/api/oauth/sessions", Body::from("{}")),
         ("GET", "/app/v3/api/notifications", Body::empty()),
         (
             "POST",

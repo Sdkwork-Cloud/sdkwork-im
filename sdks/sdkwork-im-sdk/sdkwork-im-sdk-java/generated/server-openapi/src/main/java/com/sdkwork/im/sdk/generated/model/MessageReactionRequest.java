@@ -7,7 +7,7 @@ public class MessageReactionRequest {
     public String getReactionKey() {
         return this.reactionKey;
     }
-    
+
     public void setReactionKey(String reactionKey) {
         this.reactionKey = reactionKey;
     }

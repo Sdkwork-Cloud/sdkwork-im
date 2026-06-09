@@ -22,6 +22,16 @@ assert.match(
 );
 assert.match(
   source,
+  /<ModalWrapper[\s\S]*width=["']w-\[640px\]["'][\s\S]*height=["']h-\[520px\]["']/u,
+  'add friend modal must use a larger fixed dialog size so search feedback and result details do not feel cramped',
+);
+assert.match(
+  source,
+  /className=["'][^"']*flex h-full min-h-0 flex-col/u,
+  'add friend modal content must fill the larger dialog height with a stable vertical layout',
+);
+assert.match(
+  source,
   /setSearchNotice\(\{\s*type:\s*['"]loading['"],\s*message:\s*t\(['"]contacts\.addFriend\.notice\.searching['"]\)\s*\}\)/u,
   'add friend modal must show an in-modal loading notice while the SDK search request is in flight',
 );
@@ -44,6 +54,11 @@ assert.match(
   source,
   /animate-spin/u,
   'add friend modal must provide a visible search-in-progress indicator inside the modal',
+);
+assert.match(
+  source,
+  /className=["'][^"']*min-h-0 flex-1 overflow-y-auto/u,
+  'add friend modal must keep the searchable result area scrollable inside the larger dialog',
 );
 assert.match(
   source,

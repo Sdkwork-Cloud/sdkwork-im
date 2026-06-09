@@ -9,7 +9,7 @@ public class UpdateConversationProfileRequest {
     public String getDisplayName() {
         return this.displayName;
     }
-    
+
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
     }
@@ -17,7 +17,7 @@ public class UpdateConversationProfileRequest {
     public String getAvatarUrl() {
         return this.avatarUrl;
     }
-    
+
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
     }
@@ -25,7 +25,7 @@ public class UpdateConversationProfileRequest {
     public String getNotice() {
         return this.notice;
     }
-    
+
     public void setNotice(String notice) {
         this.notice = notice;
     }

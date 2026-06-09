@@ -69,7 +69,7 @@ const fakeClient = {
       return {
         avatarUrl: `https://cdn.example.test/${conversationId}.png`,
         conversationId,
-        displayName: conversationId === 'group-1' ? 'Backend Group' : 'Direct Chat',
+        displayName: conversationId === 'group-1' ? 'Backend Group' : 'Backend Invited Group',
         notice: '',
         tenantId: 'tenant-1',
         updatedAt: '2026-06-04T10:00:00.000Z',
@@ -81,7 +81,33 @@ const fakeClient = {
         hasMore: false,
         items: [
           createMember(conversationId, 'current-user'),
-          createMember(conversationId, 'u_alice'),
+          createMember(conversationId, conversationId === 'group-2' ? 'u_invited' : 'u_alice'),
+        ],
+      };
+    },
+    async list(params?: Record<string, unknown>) {
+      calls.push({ method: 'conversations.list', params });
+      return {
+        hasMore: false,
+        items: [
+          {
+            conversationId: 'group-1',
+            conversationType: 'group',
+            lastActivityAt: '2026-06-04T10:00:00.000Z',
+            lastMessageSeq: 2,
+            messageCount: 2,
+            tenantId: 'tenant-1',
+            unreadCount: 0,
+          },
+          {
+            conversationId: 'group-2',
+            conversationType: 'group',
+            lastActivityAt: '2026-06-04T08:00:00.000Z',
+            lastMessageSeq: 0,
+            messageCount: 0,
+            tenantId: 'tenant-1',
+            unreadCount: 0,
+          },
         ],
       };
     },
@@ -103,11 +129,13 @@ async function main(): Promise<void> {
       group.memberCount,
       group.activeCount,
       group.members,
+      group.avatar,
     ]),
     [
-      ['group-1', 'Backend Group', 2, 2, ['current-user', 'u_alice']],
+      ['group-1', 'Backend Group', 2, 2, ['current-user', 'u_alice'], 'https://cdn.example.test/group-1.png'],
+      ['group-2', 'Backend Invited Group', 2, 2, ['current-user', 'u_invited'], 'https://cdn.example.test/group-2.png'],
     ],
-    'group service must hydrate groups and member state through the same injected IM SDK client',
+    'group service must hydrate profile and member state for inbox groups and newly joined conversation-list groups through the same injected IM SDK client',
   );
   assert.deepEqual(
     calls.map((call) => call.method),
@@ -117,9 +145,13 @@ async function main(): Promise<void> {
       'conversations.getPreferences',
       'conversations.getProfile',
       'conversations.getProfile',
+      'conversations.list',
+      'conversations.getPreferences',
+      'conversations.getProfile',
+      'conversations.listMembers',
       'conversations.listMembers',
     ],
-    'group service must not bypass its injected IM SDK client through the global chatService singleton',
+    'group service must not bypass its injected IM SDK client and must profile-hydrate conversation-list groups beyond the inbox',
   );
 
   console.log('sdkwork-chat-pc group service client injection contract passed');

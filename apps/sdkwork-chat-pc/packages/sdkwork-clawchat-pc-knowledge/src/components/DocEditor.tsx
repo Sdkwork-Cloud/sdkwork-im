@@ -13,6 +13,8 @@ import { DocEditorMenus } from './DocEditorMenus';
 import { DocEditorContextMenu } from './DocEditorContextMenu';
 import { DocEditorPreview } from './DocEditorPreview';
 import { DocEditorAiSidebar } from './DocEditorAiSidebar';
+import { toast } from '@sdkwork/clawchat-pc-chat';
+import { knowledgeAiService } from '../services/KnowledgeAiService';
 
 interface DocEditorProps {
   selectedBase: KnowledgeBase;
@@ -78,7 +80,7 @@ export const DocEditor: React.FC<DocEditorProps> = ({
       isUpdating.current = true;
       const markdown = (editor.storage as any).markdown.getMarkdown();
       setEditDocData({ ...editDocData, content: markdown });
-      
+
       const { empty, from, to } = editor.state.selection;
       if (!empty) {
         setSelectionRange({ start: from, end: to });
@@ -86,9 +88,9 @@ export const DocEditor: React.FC<DocEditorProps> = ({
         setSelectionRange(null);
       }
 
-      setTimeout(() => {
+      queueMicrotask(() => {
         isUpdating.current = false;
-      }, 0);
+      });
     },
     onSelectionUpdate: ({ editor }) => {
       const { empty, from, to } = editor.state.selection;
@@ -108,7 +110,7 @@ export const DocEditor: React.FC<DocEditorProps> = ({
 
   const executeAiAction = async (action: string, customInstruction?: string) => {
     let contentToProcess = '';
-    
+
     if (selectionRange && editor) {
         const { from, to } = editor.state.selection;
         contentToProcess = editor.state.doc.textBetween(from, to, ' ');
@@ -117,7 +119,7 @@ export const DocEditor: React.FC<DocEditorProps> = ({
     }
 
     setAiLoading(true);
-    
+
     const plainText = editor ? editor.getText() : editDocData.content;
     const cursorPos = editor ? editor.state.selection.from : 0;
 
@@ -126,31 +128,22 @@ export const DocEditor: React.FC<DocEditorProps> = ({
     const contextContent = plainText.substring(contextStart, contextEnd);
 
     try {
-        const response = await fetch('/api/agent/doc', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action,
-                content: contentToProcess,
-                context: contextContent,
-                instruction: customInstruction
-            })
+        const result = await knowledgeAiService.runDocumentAction({
+            action,
+            content: contentToProcess,
+            context: contextContent,
+            instruction: customInstruction
         });
-
-        if (response.ok) {
-            const data = await response.json();
-            if (data.result) {
-                if (editor) {
-                   editor.commands.focus();
-                   editor.commands.insertContent(data.result);
-                }
-                
-                setSelectionRange(null);
-                setAiInstruction('');
-            }
+        if (editor) {
+           editor.commands.focus();
+           editor.commands.insertContent(result);
         }
+
+        setSelectionRange(null);
+        setAiInstruction('');
     } catch (e) {
-        console.error("AI Action Failed:", e);
+        const message = e instanceof Error && e.message ? e.message : 'AI action failed';
+        toast(message, 'error');
     } finally {
         setAiLoading(false);
     }
@@ -185,7 +178,7 @@ export const DocEditor: React.FC<DocEditorProps> = ({
         }
       `}</style>
       <div className="flex-1 flex flex-col bg-white dark:bg-[#1e1e1e] min-w-0 min-h-0">
-        <DocEditorHeader 
+        <DocEditorHeader
           selectedBase={selectedBase}
           selectedDoc={selectedDoc}
           activeTab={activeTab}
@@ -203,7 +196,7 @@ export const DocEditor: React.FC<DocEditorProps> = ({
             <div className={cn("flex flex-col min-h-0", activeTab === 'split' ? "w-1/2 border-r border-gray-200 dark:border-white/5" : "w-full")}>
                <div className="flex flex-col h-full bg-white dark:bg-[#1e1e1e]">
                  <div className="px-6 md:px-10 py-6 shrink-0">
-                   <input 
+                   <input
                      className="w-full text-3xl md:text-4xl lg:text-5xl font-bold bg-transparent border-none outline-none text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder:text-gray-600 transition-colors focus:placeholder-gray-400 dark:focus:placeholder:text-gray-500"
                      placeholder="输入文档标题..."
                      value={editDocData.title}
@@ -211,10 +204,10 @@ export const DocEditor: React.FC<DocEditorProps> = ({
                      autoFocus
                    />
                  </div>
-                 
+
                  <DocEditorFormattingToolbar editor={editor} />
-                 
-                 <div 
+
+                 <div
                    className="flex-1 overflow-auto custom-scrollbar relative p-6 md:p-10"
                    onContextMenu={(e) => {
                      e.preventDefault();
@@ -222,7 +215,7 @@ export const DocEditor: React.FC<DocEditorProps> = ({
                      setContextMenuInstruction('');
                    }}
                  >
-                     <DocEditorMenus 
+                     <DocEditorMenus
                         editor={editor}
                         setContextMenu={setContextMenu}
                         aiLoading={aiLoading}
@@ -230,10 +223,10 @@ export const DocEditor: React.FC<DocEditorProps> = ({
                         setBubbleAiOpen={setBubbleAiOpen}
                         executeAiAction={executeAiAction}
                      />
-                     
+
                      {editor && <EditorContent editor={editor} className="w-full h-full pb-32" />}
 
-                     <DocEditorContextMenu 
+                     <DocEditorContextMenu
                         contextMenu={contextMenu}
                         setContextMenu={setContextMenu}
                         contextMenuInstruction={contextMenuInstruction}
@@ -244,14 +237,14 @@ export const DocEditor: React.FC<DocEditorProps> = ({
                </div>
             </div>
           )}
-          
-          <DocEditorPreview 
+
+          <DocEditorPreview
             activeTab={activeTab}
             title={editDocData.title}
             content={editDocData.content}
           />
-          
-          <DocEditorAiSidebar 
+
+          <DocEditorAiSidebar
             isAiPanelOpen={isAiPanelOpen}
             aiInstruction={aiInstruction}
             setAiInstruction={setAiInstruction}

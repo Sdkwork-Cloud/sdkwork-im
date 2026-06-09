@@ -223,7 +223,7 @@ Network activity begins only with explicit methods such as:
 - `sdk.connect(...)`
 - `sdk.messages.send(...)`
 - `sdk.media.upload(...)`
-- `sdk.rtc.createCall(...)`
+- `sdk.calls.start(...)`
 
 ### Configuration Model
 
@@ -266,7 +266,7 @@ Required public modules:
 - `sdk.media`
 - `sdk.live`
 - `sdk.sync`
-- `sdk.rtc`
+- `sdk.calls`
 - `sdk.generated`
 
 Optional root convenience methods:
@@ -511,12 +511,12 @@ RTC must be treated as a domain, not as miscellaneous REST plus raw signal event
 
 Required module responsibilities:
 
-- `sdk.rtc.createCall(...)`
-- `sdk.rtc.invite(...)`
-- `sdk.rtc.accept(...)`
-- `sdk.rtc.reject(...)`
-- `sdk.rtc.end(...)`
-- `sdk.rtc.sendSignal(...)`
+- `sdk.calls.start(...)`
+- `sdk.calls.invite(...)`
+- `sdk.calls.accept(...)`
+- `sdk.calls.reject(...)`
+- `sdk.calls.end(...)`
+- `sdk.calls.sendSignal(...)`
 - participant credential issuance helpers
 - recording artifact helpers where the backend supports them
 
@@ -714,7 +714,7 @@ The new Craw Chat application should standardize on a professional semantic SDK 
 - `sdk.messages.createXxx()` plus `sdk.messages.send(...)`
 - `live.onMessage((ctx) => {})`
 - `sdk.sync` for durable replay
-- `sdk.rtc` for RTC domain workflows
+- `sdk.calls` for RTC domain workflows
 - OpenAPI 3.x live-schema-driven generation
 
 That is the correct target for an industry-standard, product-grade Chat IM SDK system.

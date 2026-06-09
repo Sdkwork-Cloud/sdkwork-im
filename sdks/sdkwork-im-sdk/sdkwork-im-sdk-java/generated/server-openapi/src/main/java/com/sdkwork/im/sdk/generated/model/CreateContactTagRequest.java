@@ -11,7 +11,7 @@ public class CreateContactTagRequest {
     public String getName() {
         return this.name;
     }
-    
+
     public void setName(String name) {
         this.name = name;
     }
@@ -19,7 +19,7 @@ public class CreateContactTagRequest {
     public String getColor() {
         return this.color;
     }
-    
+
     public void setColor(String color) {
         this.color = color;
     }
@@ -27,7 +27,7 @@ public class CreateContactTagRequest {
     public Integer getCount() {
         return this.count;
     }
-    
+
     public void setCount(Integer count) {
         this.count = count;
     }
@@ -35,7 +35,7 @@ public class CreateContactTagRequest {
     public String getBg() {
         return this.bg;
     }
-    
+
     public void setBg(String bg) {
         this.bg = bg;
     }
@@ -43,7 +43,7 @@ public class CreateContactTagRequest {
     public String getBorder() {
         return this.border;
     }
-    
+
     public void setBorder(String border) {
         this.border = border;
     }

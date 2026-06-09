@@ -402,14 +402,8 @@ pub(super) fn drain_pending_message_side_effect_outbox(
     for record in pending {
         let auth = record.auth_context();
         match record.side_effect.as_str() {
-            "realtime_delivery" => match effects::publish_realtime_event_to_scope(
-                state,
-                &auth,
-                record.scope_type.as_str(),
-                record.scope_id.as_str(),
-                record.event_type.as_str(),
-                record.payload.clone(),
-            ) {
+            "realtime_delivery" => match replay_message_realtime_side_effect(state, &auth, &record)
+            {
                 Ok(()) => state
                     .message_side_effect_outbox
                     .mark_delivered(record.outbox_id.as_str())?,
@@ -436,6 +430,31 @@ pub(super) fn drain_pending_message_side_effect_outbox(
         }
     }
     Ok(())
+}
+
+fn replay_message_realtime_side_effect(
+    state: &AppState,
+    auth: &AppContext,
+    record: &MessageSideEffectOutboxRecord,
+) -> Result<(), ApiError> {
+    if record.scope_type == "conversation" && record.event_type == "message.posted" {
+        return effects::publish_realtime_conversation_message_event(
+            state,
+            auth,
+            record.scope_id.as_str(),
+            record.event_type.as_str(),
+            record.payload.clone(),
+        );
+    }
+
+    effects::publish_realtime_event_to_scope(
+        state,
+        auth,
+        record.scope_type.as_str(),
+        record.scope_id.as_str(),
+        record.event_type.as_str(),
+        record.payload.clone(),
+    )
 }
 
 pub(super) fn record_pending_message_realtime_side_effect(

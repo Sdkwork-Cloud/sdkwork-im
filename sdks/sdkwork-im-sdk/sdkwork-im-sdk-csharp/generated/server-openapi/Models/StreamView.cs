@@ -6,9 +6,9 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class StreamView
     {
-        public string? TenantId { get; set; }
-        public string? StreamId { get; set; }
-        public string? State { get; set; }
-        public string? OpenedAt { get; set; }
+        public string TenantId { get; set; }
+        public string StreamId { get; set; }
+        public string State { get; set; }
+        public string OpenedAt { get; set; }
     }
 }

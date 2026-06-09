@@ -47,8 +47,8 @@ Expected: asset tests encode the missing lifecycle behavior that was verified ma
 ### Task 2: Review RTC State Machine Semantics
 
 **Files:**
-- Review/Modify: `services/rtc-signaling-service/src/lib.rs`
-- Test: `services/rtc-signaling-service/tests/http_smoke_test.rs`
+- Review/Modify: `services/im-call-runtime/src/lib.rs`
+- Test: `services/im-call-runtime/tests/http_smoke_test.rs`
 - Test: `services/local-minimal-node/tests/http_e2e_test.rs`
 
 - [ ] **Step 1: Reproduce invalid RTC transitions with failing tests**
@@ -65,7 +65,7 @@ Allow only valid transitions, preserve idempotent retries, and return explicit c
 
 - [ ] **Step 4: Re-run targeted RTC tests**
 
-Run: `cargo test -p rtc-signaling-service --offline`
+Run: `cargo test -p im-call-runtime --offline`
 Run: `cargo test -p local-minimal-node --offline`
 Expected: new regression coverage passes.
 

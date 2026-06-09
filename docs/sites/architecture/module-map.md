@@ -28,7 +28,7 @@ directories are stable enough to document as product surfaces.
 | `projection-service` | Inbox, timeline, summary, and read-model projection support |
 | `media-service` | Media upload lifecycle, lookup, attachment, and provider-aware download URLs |
 | `streaming-service` | Stream sessions, frames, checkpoints, completion, and abort flow |
-| `rtc-signaling-service` | RTC session lifecycle, signaling, credentials, artifacts, and provider interactions |
+| `im_calls` / `calls` | IM-owned call lifecycle, signaling, credentials, and RTC media handoff |
 | `notification-service` | Notification task submission and retrieval |
 | `automation-service` | Automation execution submission and retrieval |
 | `audit-service` | Audit record storage and export |

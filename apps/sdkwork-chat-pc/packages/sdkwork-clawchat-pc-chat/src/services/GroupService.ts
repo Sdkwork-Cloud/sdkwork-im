@@ -4,7 +4,7 @@ import type {
   ImSdkClient,
 } from '@sdkwork/im-sdk';
 import { getImSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/imSdkClient';
-import type { Chat } from '@sdkwork/clawchat-pc-types';
+import type { Chat, Message, User } from '@sdkwork/clawchat-pc-types';
 import { chatService, createSdkworkChatService, type ChatService } from './ChatService';
 import { contactService } from './ContactService';
 
@@ -13,7 +13,7 @@ export interface GroupService {
   getGroups(): Promise<Chat[]>;
   updateGroupInfo(groupId: string, updates: Partial<Chat>): Promise<Chat>;
   addMembers(groupId: string, memberIds: string[]): Promise<void>;
-  addMembersBySearchQuery(groupId: string, memberQueries: string[]): Promise<string[]>;
+  inviteUserToGroup(group: Chat, targetUser: User): Promise<Message>;
   removeMember(groupId: string, memberId: string): Promise<void>;
   deleteGroup(groupId: string): Promise<void>;
   syncGroupMembers(): Promise<GroupMemberSyncChange[]>;
@@ -26,7 +26,104 @@ export type GroupMemberSyncChange = Required<Pick<GroupViewState, 'activeCount' 
 type ConversationListEntry = InboxResponse['items'][number];
 const GROUP_MEMBERS_PAGE_LIMIT = 100;
 const GROUPS_PAGE_LIMIT = 100;
-const SOCIAL_USER_SEARCH_LIMIT = 20;
+export const GROUP_INVITE_DESCRIPTOR_PREFIX = 'group-invite:';
+
+export interface GroupInviteDescriptor {
+  groupAvatar?: string;
+  groupId: string;
+  groupName?: string;
+  inviterId?: string;
+  kind: 'group_invite';
+}
+
+function pickString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function parseJsonRecord(value: unknown): Record<string, unknown> | undefined {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined;
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function buildGroupInviteUrl(groupId: string): string {
+  return `sdkwork-chat://groups/${encodeURIComponent(groupId)}`;
+}
+
+function readGroupIdFromInviteUrl(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const match = /^sdkwork-chat:\/\/groups\/([^/?#]+)/u.exec(value.trim());
+  if (!match?.[1]) {
+    return undefined;
+  }
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+function buildGroupInviteDescriptor(group: Chat, inviterId: string): string {
+  const descriptor: GroupInviteDescriptor = {
+    groupId: group.id,
+    kind: 'group_invite',
+    ...(group.avatar ? { groupAvatar: group.avatar } : {}),
+    ...(group.name ? { groupName: group.name } : {}),
+    ...(inviterId ? { inviterId } : {}),
+  };
+  return `${GROUP_INVITE_DESCRIPTOR_PREFIX}${encodeURIComponent(JSON.stringify(descriptor))}`;
+}
+
+export function parseGroupInviteDescriptor(message: Message): GroupInviteDescriptor | undefined {
+  if (message.type !== 'card') {
+    return undefined;
+  }
+
+  if (message.desc?.startsWith(GROUP_INVITE_DESCRIPTOR_PREFIX)) {
+    const payload = message.desc.slice(GROUP_INVITE_DESCRIPTOR_PREFIX.length);
+    try {
+      const parsed = parseJsonRecord(decodeURIComponent(payload));
+      const groupId = pickString(parsed?.groupId);
+      if (groupId) {
+        return {
+          groupId,
+          kind: 'group_invite',
+          ...(pickString(parsed?.groupAvatar) ? { groupAvatar: pickString(parsed?.groupAvatar) } : {}),
+          ...(pickString(parsed?.groupName) ? { groupName: pickString(parsed?.groupName) } : {}),
+          ...(pickString(parsed?.inviterId) ? { inviterId: pickString(parsed?.inviterId) } : {}),
+        };
+      }
+    } catch {
+      return undefined;
+    }
+  }
+
+  const groupId = readGroupIdFromInviteUrl(message.content);
+  return groupId
+    ? {
+        groupId,
+        kind: 'group_invite',
+      }
+    : undefined;
+}
 
 function createGroupId(): string {
   const requestId =
@@ -63,6 +160,34 @@ function mapActiveMemberIds(members: ConversationMember[]): string[] {
   return members
     .filter((member) => member.state === 'joined' || member.state === 'invited')
     .map((member) => member.principalId);
+}
+
+function isGeneratedGroupName(group: Chat): boolean {
+  return group.name === `Group ${group.id}`;
+}
+
+function mergeCachedGroupViewState(group: Chat, state: GroupViewState | undefined): Chat {
+  return {
+    ...group,
+    ...(group.activeCount === undefined && state?.activeCount !== undefined ? { activeCount: state.activeCount } : {}),
+    ...(group.avatar === undefined && state?.avatar !== undefined ? { avatar: state.avatar } : {}),
+    ...(group.memberCount === undefined && state?.memberCount !== undefined ? { memberCount: state.memberCount } : {}),
+    ...(group.members === undefined && state?.members !== undefined ? { members: state.members } : {}),
+    ...(isGeneratedGroupName(group) && state?.name !== undefined ? { name: state.name } : {}),
+    ...(group.notice === undefined && state?.notice !== undefined ? { notice: state.notice } : {}),
+  };
+}
+
+function mapConversationEntryToGroup(entry: ConversationListEntry): Chat {
+  const updatedAt = new Date(entry.lastActivityAt).getTime();
+  return {
+    id: entry.conversationId,
+    name: `Group ${entry.conversationId}`,
+    avatar: createGroupAvatar(entry.conversationId),
+    type: 'group',
+    unreadCount: entry.unreadCount,
+    updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(),
+  };
 }
 
 class SdkworkGroupService implements GroupService {
@@ -121,6 +246,30 @@ class SdkworkGroupService implements GroupService {
     return items;
   }
 
+  private async hydrateConversationEntryGroup(entry: ConversationListEntry): Promise<Chat | null> {
+    const group = mapConversationEntryToGroup(entry);
+    try {
+      const preferences = await this.client().conversations.getPreferences(entry.conversationId);
+      if (preferences.isHidden) {
+        return null;
+      }
+    } catch {
+      // Keep newly available groups visible when preference hydration is temporarily unavailable.
+    }
+
+    try {
+      const profile = await this.client().conversations.getProfile(entry.conversationId);
+      return {
+        ...group,
+        ...(profile.displayName ? { name: profile.displayName } : {}),
+        ...(profile.avatarUrl ? { avatar: profile.avatarUrl } : {}),
+        notice: profile.notice,
+      };
+    } catch {
+      return group;
+    }
+  }
+
   async createGroup(name: string, memberIds: string[]): Promise<Chat> {
     const currentUserId = contactService.getCurrentUser().id;
     const invitedMemberIds = uniqueMemberIds(memberIds).filter((memberId) => memberId !== currentUserId);
@@ -133,14 +282,6 @@ class SdkworkGroupService implements GroupService {
     });
     const boundGroupId = result.conversationId;
 
-    for (const memberId of invitedMemberIds) {
-      await this.client().conversations.addMember(boundGroupId, {
-        principalId: memberId,
-        principalKind: 'user',
-        role: 'member',
-      });
-    }
-
     const groupName = normalizeGroupName(name, members.length);
     const groupAvatar = createGroupAvatar(boundGroupId);
     await this.client().conversations.updateProfile(boundGroupId, {
@@ -148,6 +289,14 @@ class SdkworkGroupService implements GroupService {
       displayName: groupName,
     });
     await this.client().conversations.updatePreferences(boundGroupId, { isHidden: false });
+
+    for (const memberId of invitedMemberIds) {
+      await this.client().conversations.addMember(boundGroupId, {
+        principalId: memberId,
+        principalKind: 'user',
+        role: 'member',
+      });
+    }
 
     const group: Chat = {
       id: boundGroupId,
@@ -174,25 +323,39 @@ class SdkworkGroupService implements GroupService {
 
   async getGroups(): Promise<Chat[]> {
     const chats = await this.chatClient.getChats();
-    const groups = chats.filter((chat) => chat.type === 'group');
-    return Promise.all(groups.map((group) => this.withMemberState(group)));
+    const groupsById = new Map(chats
+      .filter((chat) => chat.type === 'group')
+      .map((group) => [group.id, group]));
+    const entries = await this.listAllConversationEntries().catch(() => []);
+    for (const entry of entries) {
+      if (entry.conversationType.toLowerCase() !== 'group' || groupsById.has(entry.conversationId)) {
+        continue;
+      }
+      const group = await this.hydrateConversationEntryGroup(entry);
+      if (group) {
+        groupsById.set(entry.conversationId, group);
+      }
+    }
+    const groups = await Promise.all(Array.from(groupsById.values()).map((group) => this.withMemberState(group)));
+    return groups.sort((left, right) => right.updatedAt - left.updatedAt);
   }
 
   async updateGroupInfo(groupId: string, updates: Partial<Chat>): Promise<Chat> {
-    const existingState = this.groupViewState.get(groupId) ?? {};
-    this.groupViewState.set(groupId, {
-      ...existingState,
-      activeCount: updates.activeCount ?? existingState.activeCount,
-      avatar: updates.avatar ?? existingState.avatar,
-      memberCount: updates.memberCount ?? existingState.memberCount,
-      members: updates.members ?? existingState.members,
-      name: updates.name ?? existingState.name,
-      notice: updates.notice ?? existingState.notice,
-    });
-    return this.chatClient.updateChat(groupId, {
+    const updatedGroup = await this.chatClient.updateChat(groupId, {
       ...updates,
       type: 'group',
     });
+    const existingState = this.groupViewState.get(groupId) ?? {};
+    this.groupViewState.set(groupId, {
+      ...existingState,
+      activeCount: updatedGroup.activeCount ?? updates.activeCount ?? existingState.activeCount,
+      avatar: updatedGroup.avatar ?? updates.avatar ?? existingState.avatar,
+      memberCount: updatedGroup.memberCount ?? updates.memberCount ?? existingState.memberCount,
+      members: updatedGroup.members ?? updates.members ?? existingState.members,
+      name: updatedGroup.name ?? updates.name ?? existingState.name,
+      notice: updatedGroup.notice ?? updates.notice ?? existingState.notice,
+    });
+    return updatedGroup;
   }
 
   async addMembers(groupId: string, memberIds: string[]): Promise<void> {
@@ -212,39 +375,32 @@ class SdkworkGroupService implements GroupService {
     await this.syncMemberViewState(groupId);
   }
 
-  async addMembersBySearchQuery(groupId: string, memberQueries: string[]): Promise<string[]> {
-    const uniqueQueries = uniqueMemberIds(memberQueries);
-    if (uniqueQueries.length === 0) {
-      throw new Error('Group member search query is required');
+  async inviteUserToGroup(group: Chat, targetUser: User): Promise<Message> {
+    const targetUserId = targetUser.id.trim();
+    if (!targetUserId) {
+      throw new Error('Group invite target user id is required');
     }
 
-    const resolvedMemberIds: string[] = [];
-    const unresolvedQueries: string[] = [];
-    const seenMemberIds = new Set<string>();
-
-    for (const query of uniqueQueries) {
-      const response = await this.client().social.users.list({
-        q: query,
-        limit: SOCIAL_USER_SEARCH_LIMIT,
-      });
-      const [targetUser] = response.items;
-      if (!targetUser) {
-        unresolvedQueries.push(query);
-        continue;
-      }
-      if (seenMemberIds.has(targetUser.userId)) {
-        continue;
-      }
-      seenMemberIds.add(targetUser.userId);
-      resolvedMemberIds.push(targetUser.userId);
-    }
-
-    if (resolvedMemberIds.length === 0) {
-      throw new Error(`Group member search target not found: ${unresolvedQueries.join(', ')}`);
-    }
-
-    await this.addMembers(groupId, resolvedMemberIds);
-    return resolvedMemberIds;
+    await this.addMembers(group.id, [targetUserId]);
+    const directChat = await this.chatClient.startDirectChat({
+      avatar: targetUser.avatar,
+      conversationId: targetUser.conversationId,
+      directChatId: targetUser.directChatId,
+      id: targetUserId,
+      name: targetUser.name,
+    });
+    const currentUserId = contactService.getCurrentUser().id;
+    return this.chatClient.sendMessage(
+      directChat.id,
+      buildGroupInviteUrl(group.id),
+      'card',
+      undefined,
+      {
+        appIcon: group.avatar,
+        desc: buildGroupInviteDescriptor(group, currentUserId),
+        fileName: '邀请你加入群聊',
+      },
+    );
   }
 
   async removeMember(groupId: string, memberId: string): Promise<void> {
@@ -270,6 +426,7 @@ class SdkworkGroupService implements GroupService {
 
   async deleteGroup(groupId: string): Promise<void> {
     await this.client().conversations.leave(groupId);
+    await this.chatClient.deleteChat(groupId).catch(() => undefined);
     this.groupViewState.delete(groupId);
   }
 
@@ -295,17 +452,13 @@ class SdkworkGroupService implements GroupService {
     try {
       const memberState = await this.syncMemberViewState(group.id, false);
       return {
-        ...group,
+        ...mergeCachedGroupViewState(group, this.groupViewState.get(group.id)),
         activeCount: memberState.activeCount,
         memberCount: memberState.memberCount,
         members: memberState.members,
-        ...this.groupViewState.get(group.id),
       };
     } catch {
-      return {
-        ...group,
-        ...this.groupViewState.get(group.id),
-      };
+      return mergeCachedGroupViewState(group, this.groupViewState.get(group.id));
     }
   }
 
@@ -339,8 +492,8 @@ class SdkworkGroupService implements GroupService {
 
 }
 
-export function createSdkworkGroupService(getClient?: () => ImSdkClient): GroupService {
-  return new SdkworkGroupService(getClient);
+export function createSdkworkGroupService(getClient?: () => ImSdkClient, chatClient?: ChatService): GroupService {
+  return new SdkworkGroupService(getClient, chatClient);
 }
 
 export const groupService = createSdkworkGroupService();

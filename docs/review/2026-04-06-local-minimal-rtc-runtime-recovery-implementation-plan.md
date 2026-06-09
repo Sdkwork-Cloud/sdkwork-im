@@ -6,7 +6,7 @@
 
 **Architecture:** Introduce a pluggable `RtcStateStore` keyed by `tenant + rtc_session_id`, persist the full `RtcSession` plus ordered `RtcSignalEvent[]`, restore RTC state lazily inside `RtcRuntime`, and bind a file-backed store in managed `local-minimal` runtime-dir builders. Keep unmanaged/default builders memory-backed.
 
-**Tech Stack:** Rust, Axum, serde/serde_json, local file persistence, `rtc-signaling-service`, `local-minimal-node`, existing `im-platform-contracts` adapter model, runtime-dir deployment profile.
+**Tech Stack:** Rust, Axum, serde/serde_json, local file persistence, `im-call-runtime`, `local-minimal-node`, existing `im-platform-contracts` adapter model, runtime-dir deployment profile.
 
 ---
 
@@ -14,10 +14,10 @@
 
 **Files:**
 - Create: `services/local-minimal-node/tests/rtc_runtime_persistence_test.rs`
-- Modify: `services/rtc-signaling-service/tests/rtc_signal_flow_test.rs`
+- Modify: `services/im-call-runtime/tests/rtc_signal_flow_test.rs`
 
 - [ ] Add a managed `local-minimal` runtime-dir restart test that creates a conversation-bound RTC session, rebuilds the app with the same runtime dir, and proves `accept` plus custom signal posting still work.
-- [ ] Add an `rtc-signaling-service` rebuild test using a shared durable store seam once the contract exists.
+- [ ] Add an `im-call-runtime` rebuild test using a shared durable store seam once the contract exists.
 - [ ] Run the focused tests and capture the red state before runtime changes.
 
 ### Task 2: Add RTC State Store Contract And Adapters
@@ -35,9 +35,9 @@
 ### Task 3: Recover RTC State In Runtime
 
 **Files:**
-- Modify: `services/rtc-signaling-service/src/lib.rs`
-- Modify: `services/rtc-signaling-service/Cargo.toml`
-- Modify: `services/rtc-signaling-service/tests/rtc_signal_flow_test.rs`
+- Modify: `services/im-call-runtime/src/lib.rs`
+- Modify: `services/im-call-runtime/Cargo.toml`
+- Modify: `services/im-call-runtime/tests/rtc_signal_flow_test.rs`
 
 - [ ] Add `RtcRuntime::with_store(...)`.
 - [ ] Lazily restore RTC session state on access paths.

@@ -12,9 +12,10 @@ import { ChatHistoryModal } from './ChatHistoryModal';
 interface ChatWindowProps {
   chat: Chat;
   messageSearchQuery?: string;
+  onOpenGroupInvite?: (groupId: string) => Promise<void>;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery = '' }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery = '', onOpenGroupInvite }) => {
   const { t } = useTranslation();
   const [refreshKey, setRefreshKey] = useState(0);
   const [replyingTo, setReplyingTo] = useState<Message['replyTo'] | undefined>();
@@ -68,6 +69,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
         searchQuery={messageSearchQuery}
         senderProfiles={assistantSenderProfiles}
         onReply={(msg, senderName) => setReplyingTo({ id: msg.id, senderName, content: msg.content })}
+        onOpenGroupInvite={onOpenGroupInvite}
       />
 
       {/* Typing Indicator */}

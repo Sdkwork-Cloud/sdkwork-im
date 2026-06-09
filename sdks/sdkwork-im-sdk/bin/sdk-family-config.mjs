@@ -34,6 +34,7 @@ export const sdkFamilyConfig = {
     '/im/v3/api/chat/conversations',
     '/im/v3/api/chat/messages/{messageId}/edit',
     '/im/v3/api/social/friend_requests',
+    '/im/v3/api/calls/sessions',
     '/im/v3/api/streams',
   ],
   forbiddenPathParts: [

@@ -335,7 +335,6 @@ fn format_sdk_target(sdk_target: SdkTarget) -> &'static str {
         SdkTarget::SdkworkImSdk => "sdkworkImSdk",
         SdkTarget::SdkworkImAppSdk => "sdkworkImAppSdk",
         SdkTarget::SdkworkImBackendSdk => "sdkworkImBackendSdk",
-        SdkTarget::SdkworkRtcAppSdk => "sdkworkRtcAppSdk",
         SdkTarget::SdkworkDriveAppSdk => "sdkworkDriveAppSdk",
         SdkTarget::None => "none",
     }

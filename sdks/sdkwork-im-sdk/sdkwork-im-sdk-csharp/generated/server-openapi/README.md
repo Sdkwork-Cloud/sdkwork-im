@@ -52,7 +52,7 @@ client.SetHeader("X-Custom-Header", "value");
 
 - `client.Presence` - presence API
 - `client.Realtime` - realtime API
-- `client.Rtc` - rtc API
+- `client.Calls` - calls API
 - `client.Social` - social API
 - `client.Chat` - chat API
 - `client.Streams` - streams API
@@ -80,16 +80,17 @@ var result = await client.Realtime.EventsListAsync(query);
 Console.WriteLine(result);
 ```
 
-### rtc
+### calls
 
 ```csharp
-// Create an IM-backed RTC session
+// Create an IM call signaling session
 var body = new CreateRtcSessionRequest
 {
+    RtcSessionId = "1",
     ConversationId = "1",
-    MediaKind = "mediakind",
+    RtcMode = "rtcmode",
 };
-var result = await client.Rtc.SessionsCreateAsync(body);
+var result = await client.Calls.SessionsCreateAsync(body);
 Console.WriteLine(result);
 ```
 

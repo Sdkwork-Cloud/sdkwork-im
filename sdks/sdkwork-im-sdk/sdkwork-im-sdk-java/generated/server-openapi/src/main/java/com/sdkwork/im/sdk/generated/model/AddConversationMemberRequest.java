@@ -11,7 +11,7 @@ public class AddConversationMemberRequest {
     public String getPrincipalId() {
         return this.principalId;
     }
-    
+
     public void setPrincipalId(String principalId) {
         this.principalId = principalId;
     }
@@ -19,7 +19,7 @@ public class AddConversationMemberRequest {
     public String getPrincipalKind() {
         return this.principalKind;
     }
-    
+
     public void setPrincipalKind(String principalKind) {
         this.principalKind = principalKind;
     }
@@ -27,7 +27,7 @@ public class AddConversationMemberRequest {
     public String getRole() {
         return this.role;
     }
-    
+
     public void setRole(String role) {
         this.role = role;
     }
@@ -35,7 +35,7 @@ public class AddConversationMemberRequest {
     public Map<String, Object> getAttributes() {
         return this.attributes;
     }
-    
+
     public void setAttributes(Map<String, Object> attributes) {
         this.attributes = attributes;
     }

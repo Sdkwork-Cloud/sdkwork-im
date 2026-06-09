@@ -6,8 +6,8 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class Sender
     {
-        public string? Id { get; set; }
-        public string? Kind { get; set; }
+        public string Id { get; set; }
+        public string Kind { get; set; }
         public string? PrincipalId { get; set; }
         public string? PrincipalKind { get; set; }
         public string? DisplayName { get; set; }

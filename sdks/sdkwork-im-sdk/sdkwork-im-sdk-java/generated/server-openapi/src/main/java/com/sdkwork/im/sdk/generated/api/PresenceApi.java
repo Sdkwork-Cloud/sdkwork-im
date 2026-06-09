@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class PresenceApi {
     private final HttpClient client;
-    
+
     public PresenceApi(HttpClient client) {
         this.client = client;
     }

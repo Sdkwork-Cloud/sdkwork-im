@@ -16,7 +16,7 @@ public class SocialUserSearchResult {
     public String getTenantId() {
         return this.tenantId;
     }
-    
+
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
     }
@@ -24,7 +24,7 @@ public class SocialUserSearchResult {
     public String getUserId() {
         return this.userId;
     }
-    
+
     public void setUserId(String userId) {
         this.userId = userId;
     }
@@ -32,7 +32,7 @@ public class SocialUserSearchResult {
     public String getChatId() {
         return this.chatId;
     }
-    
+
     public void setChatId(String chatId) {
         this.chatId = chatId;
     }
@@ -40,7 +40,7 @@ public class SocialUserSearchResult {
     public String getDisplayName() {
         return this.displayName;
     }
-    
+
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
     }
@@ -48,7 +48,7 @@ public class SocialUserSearchResult {
     public String getRelationshipState() {
         return this.relationshipState;
     }
-    
+
     public void setRelationshipState(String relationshipState) {
         this.relationshipState = relationshipState;
     }
@@ -56,7 +56,7 @@ public class SocialUserSearchResult {
     public String getAvatarUrl() {
         return this.avatarUrl;
     }
-    
+
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
     }
@@ -64,7 +64,7 @@ public class SocialUserSearchResult {
     public String getEmail() {
         return this.email;
     }
-    
+
     public void setEmail(String email) {
         this.email = email;
     }
@@ -72,7 +72,7 @@ public class SocialUserSearchResult {
     public String getPhone() {
         return this.phone;
     }
-    
+
     public void setPhone(String phone) {
         this.phone = phone;
     }
@@ -80,7 +80,7 @@ public class SocialUserSearchResult {
     public Map<String, Object> getMetadata() {
         return this.metadata;
     }
-    
+
     public void setMetadata(Map<String, Object> metadata) {
         this.metadata = metadata;
     }

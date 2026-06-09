@@ -6,6 +6,6 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class MessageReactionRequest
     {
-        public string? ReactionKey { get; set; }
+        public string ReactionKey { get; set; }
     }
 }

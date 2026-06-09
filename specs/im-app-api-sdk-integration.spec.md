@@ -51,7 +51,7 @@ AuthGate
   -> getSdkworkChatIamRuntime()
   -> createAppAuthService(() => getAppSdkClientWithSession(readAppSdkSessionTokens()))
   -> createIamAppSdkAdapter(SdkworkImAppClient)
-  -> im-app-api auth.sessions / registrations / verificationCodes / openPlatform.qrAuth
+  -> sdkwork-appbase-app-sdk auth.sessions / registrations / verificationCodes / oauth.deviceAuthorizations
   -> persist authToken + accessToken + refreshToken + context + sessionId + user
   -> reset and recreate @sdkwork/im-sdk with the same token manager and AppContext
 ```
@@ -61,7 +61,8 @@ Rules:
 - Default login methods are password-only.
 - Verification-code login is disabled by default.
 - Registration verification for email and phone is required unless a documented deployment setting changes it.
-- QR scan login is enabled through `openPlatform.qrAuth.sessions.create`, `openPlatform.qrAuth.sessions.retrieve`, `openPlatform.qrAuth.sessions.scans.create`, and `openPlatform.qrAuth.sessions.passwords.create`.
+- QR scan login is enabled through the appbase OAuth device authorization resource: `oauth.deviceAuthorizations.create`, `oauth.deviceAuthorizations.retrieve`, `oauth.deviceAuthorizations.scans.create`, and `oauth.deviceAuthorizations.passwordCompletions.create`.
+- The legacy appbase QR auth resource `openPlatform.qrAuth` and `/app/v3/api/open_platform/qr_auth/*` paths are retired and must not be consumed, proxied, regenerated, or documented as current capabilities.
 - The current canonical appbase auth package exposes `qrLoginEnabled`; Craw Chat must not pass unsupported runtime-config fields such as `qrLoginType` until the canonical appbase type includes them.
 - A successful login must persist `authToken`, `accessToken`, optional `refreshToken`, `context`, `sessionId`, and normalized user data.
 - `@sdkwork/im-sdk` construction must receive the same auth token manager, `accessToken`, and platform identity derived from the persisted IAM session. Current `tenantId`, `organizationId`, `userId`, and `sessionId` are request context and must be attached through the dynamic request header provider, not passed as static SDK options.

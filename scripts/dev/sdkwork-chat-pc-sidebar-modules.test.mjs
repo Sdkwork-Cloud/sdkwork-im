@@ -19,6 +19,11 @@ const sidebarSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-ch
 const settingsServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/SettingsService.ts');
 const settingsModalSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/SettingsModal.tsx');
 const chatLayoutSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/pages/ChatLayout.tsx');
+const newFriendsContainerSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/contacts/NewFriendsContainer.tsx');
+const contactServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/ContactService.ts');
+const messageListSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/MessageList.tsx');
+const chatListSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/ChatList.tsx');
+const toastSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/Toast.tsx');
 const zhLocale = readJson('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/i18n/locales/zh-CN.json');
 const enLocale = readJson('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/i18n/locales/en-US.json');
 
@@ -174,6 +179,82 @@ assert.match(
   chatLayoutSource,
   /\[[\s\S]*["']drive["'][\s\S]*\]\.includes\(activeTab\)/u,
   'ChatLayout must treat drive as a full-screen module page instead of rendering an empty unified header',
+);
+
+assert.match(
+  chatLayoutSource,
+  /subscribePendingFriendRequestCount/u,
+  'ChatLayout must subscribe to pending friend request counts for the contacts red dot',
+);
+assert.match(
+  chatLayoutSource,
+  /friendRequestUnreadCount=\{friendRequestUnreadCount\}/u,
+  'ChatLayout must pass the pending friend request count into Sidebar',
+);
+assert.match(
+  sidebarSource,
+  /friendRequestUnreadCount\?:\s*number/u,
+  'Sidebar must accept the pending friend request count without owning SDK calls',
+);
+assert.match(
+  sidebarSource,
+  /modId\s*===\s*["']contacts["'][\s\S]*friendRequestUnreadCount\s*>\s*0[\s\S]*bg-red-500/u,
+  'Sidebar contacts icon must reuse the existing red badge style for pending friend requests',
+);
+assert.match(
+  newFriendsContainerSource,
+  /subscribePendingFriendRequestCount/u,
+  'NewFriendsContainer must refresh when friend request count changes so accepted/rejected requests disappear promptly',
+);
+assert.match(
+  contactServiceSource,
+  /startPendingFriendRequestRealtime/u,
+  'ContactService must start realtime friend request subscriptions when red dot listeners are active',
+);
+assert.match(
+  contactServiceSource,
+  /friend_request\.submitted/u,
+  'ContactService must listen for submitted friend request realtime events instead of relying only on polling',
+);
+assert.match(
+  toastSource,
+  /placement\?:\s*['"]top['"]\s*\|\s*['"]bottom-right['"]/u,
+  'Toast API must support an optional bottom-right placement for desktop notification-style reminders',
+);
+assert.match(
+  toastSource,
+  /bottom-6\s+right-6/u,
+  'ToastContainer must render bottom-right notifications as an overlay without changing the main layout',
+);
+assert.match(
+  chatLayoutSource,
+  /previousFriendRequestUnreadCountRef/u,
+  'ChatLayout must track the previous friend request count so first load does not spam notifications',
+);
+assert.match(
+  chatLayoutSource,
+  /toast\([^)]*friendRequest[^)]*\{[^}]*placement:\s*["']bottom-right["']/u,
+  'ChatLayout must show a bottom-right notification when pending friend requests increase',
+);
+assert.match(
+  messageListSource,
+  /formatVideoCallMessageContent/u,
+  'MessageList must format RTC call content through a display-name resolver instead of rendering raw participant ids',
+);
+assert.match(
+  messageListSource,
+  /resolveDisplayName/u,
+  'MessageList must resolve RTC call participant ids to current-user/contact display names before rendering',
+);
+assert.match(
+  chatListSource,
+  /formatChatListLastMessage/u,
+  'ChatList must format RTC call previews before rendering the last message so raw participant ids are not shown in the conversation list',
+);
+assert.match(
+  chatListSource,
+  /replaceRtcPreviewParticipantId/u,
+  'ChatList RTC call previews must replace known participant ids with the chat display name without changing the sidebar layout',
 );
 
 console.log('sdkwork-chat-pc sidebar modules refresh contract passed');

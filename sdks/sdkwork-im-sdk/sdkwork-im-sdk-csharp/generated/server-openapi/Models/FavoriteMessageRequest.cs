@@ -6,10 +6,10 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class FavoriteMessageRequest
     {
-        public string? ConversationId { get; set; }
-        public string? FavoriteType { get; set; }
-        public string? Title { get; set; }
-        public string? ContentPreview { get; set; }
-        public string? SourceDisplayName { get; set; }
+        public string ConversationId { get; set; }
+        public string FavoriteType { get; set; }
+        public string Title { get; set; }
+        public string ContentPreview { get; set; }
+        public string SourceDisplayName { get; set; }
     }
 }

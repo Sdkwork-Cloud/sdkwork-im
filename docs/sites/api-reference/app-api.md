@@ -24,7 +24,7 @@
   </div>
   <div class="api-card">
     <h3>Provider Health</h3>
-    <p>Check media, RTC, and principal-profile provider plugin health from the active node.</p>
+    <p>Check media and principal-profile provider plugin health from the active node.</p>
     <p><a href="/api-reference/app/provider-health">Open Provider Health APIs</a></p>
   </div>
 </div>
@@ -64,5 +64,5 @@ higher-level helper method on top of it.
   <a href="/api-reference/app/portal-access"><code>Portal</code> Tenant access snapshots and portal reads</a>
   <a href="/api-reference/app/notifications"><code>Notifications</code> Request, list, and inspect notification tasks</a>
   <a href="/api-reference/app/automation"><code>Automation</code> Request executions, drive agent responses, and complete tool calls</a>
-  <a href="/api-reference/app/provider-health"><code>Provider Health</code> Media, RTC, and principal-profile provider health snapshots</a>
+  <a href="/api-reference/app/provider-health"><code>Provider Health</code> Media and principal-profile provider health snapshots</a>
 </div>

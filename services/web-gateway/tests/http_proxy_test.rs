@@ -178,11 +178,12 @@ async fn gateway_routes_im_app_iam_requests_to_appbase_app_api() {
 }
 
 #[tokio::test]
-async fn embedded_gateway_delegates_appbase_iam_to_embedded_router_without_upstream() {
+async fn embedded_gateway_delegates_oauth_device_authorization_to_embedded_appbase_without_upstream()
+ {
     let embedded_runtime = sdkwork_iam_http::build_sdkwork_appbase_app_api_router();
     let product_runtime = Router::new()
         .route(
-            "/app/v3/api/open_platform/qr_auth/sessions",
+            "/app/v3/api/oauth/device_authorizations",
             any(echo_upstream),
         )
         .with_state(UpstreamState {
@@ -204,7 +205,7 @@ async fn embedded_gateway_delegates_appbase_iam_to_embedded_router_without_upstr
         .oneshot(
             Request::builder()
                 .method(Method::POST)
-                .uri("/app/v3/api/open_platform/qr_auth/sessions")
+                .uri("/app/v3/api/oauth/device_authorizations")
                 .header("content-type", "application/json")
                 .body(Body::from("{}"))
                 .unwrap(),
@@ -224,10 +225,27 @@ async fn embedded_gateway_delegates_appbase_iam_to_embedded_router_without_upstr
     .expect("response body should be valid json");
     assert_eq!(value["code"], "2000");
     assert_eq!(value["data"]["status"], "pending");
+    let session_key = value["data"]["sessionKey"]
+        .as_str()
+        .expect("OAuth device authorization response must include sessionKey");
     assert!(
-        value["data"]["sessionKey"]
-            .as_str()
-            .is_some_and(|value| value.starts_with("sdkwork-local-qr-"))
+        !session_key.starts_with("sdkwork-local-qr-"),
+        "embedded appbase OAuth device authorization must not expose a local sequence session key"
+    );
+    let qr_content = value["data"]["qrContent"]["content"]
+        .as_str()
+        .expect("OAuth device authorization response must include mobile-openable content");
+    assert_eq!(value["data"]["qrContent"]["mode"], "fallback_url");
+    assert_eq!(value["data"]["fallbackUrl"], qr_content);
+    assert!(
+        qr_content.starts_with("http://") || qr_content.starts_with("https://"),
+        "QR content must be a mobile-openable web URL: {qr_content}"
+    );
+    assert!(qr_content.contains("/auth/qr/"));
+    assert!(qr_content.contains(&format!("session_key={session_key}")));
+    assert!(
+        !qr_content.contains("/app/v3/api/oauth/device_authorizations"),
+        "QR content must not point at the session status API: {qr_content}"
     );
     assert!(
         value.get("serviceId").is_none(),
@@ -236,8 +254,56 @@ async fn embedded_gateway_delegates_appbase_iam_to_embedded_router_without_upstr
 }
 
 #[tokio::test]
+async fn embedded_gateway_keeps_retired_open_platform_qr_auth_namespace_out_of_product_fallback() {
+    let product_runtime = Router::new()
+        .route(
+            "/app/v3/api/open_platform/qr_auth/{*path}",
+            any(echo_upstream),
+        )
+        .with_state(UpstreamState {
+            service_id: Arc::<str>::from("sdkwork-api-product-runtime"),
+        });
+    let app = web_gateway::build_app_with_registry_and_runtime_routers(
+        WebGatewayConfig {
+            bind_addr: "127.0.0.1:0".to_owned(),
+            runtime_mode: GatewayRuntimeMode::Embedded,
+            strict_startup: true,
+            upstreams: Vec::new(),
+        },
+        web_gateway::build_gateway_registry().expect("gateway registry should build"),
+        None,
+        Some(product_runtime),
+    );
+
+    for path in [
+        "/app/v3/api/open_platform/qr_auth/sessions",
+        "/app/v3/api/open_platform/qr_auth/unknown",
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(path)
+                    .header("content-type", "application/json")
+                    .body(Body::from("{}"))
+                    .unwrap(),
+            )
+            .await
+            .expect("gateway request should return");
+
+        assert_eq!(
+            response.status(),
+            StatusCode::NOT_FOUND,
+            "retired appbase QR auth namespace must not be proxied to product runtime: {path}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn embedded_gateway_serves_appbase_iam_directory_from_local_store() {
-    let embedded_runtime = sdkwork_iam_http::build_sdkwork_appbase_app_api_router();
+    let (embedded_runtime, _) =
+        web_gateway::build_embedded_appbase_runtime_with_principal_profile_provider();
     let product_runtime = Router::new()
         .route(
             "/app/v3/api/iam/organization_memberships",
@@ -335,6 +401,41 @@ async fn embedded_gateway_serves_appbase_iam_directory_from_local_store() {
             "embedded gateway must not expose demo directory token {forbidden}: {value}"
         );
     }
+}
+
+#[tokio::test]
+async fn embedded_gateway_reports_configured_appbase_runtime_context() {
+    let app = web_gateway::build_app_with_registry_and_runtime_routers(
+        WebGatewayConfig {
+            bind_addr: "127.0.0.1:0".to_owned(),
+            runtime_mode: GatewayRuntimeMode::Embedded,
+            strict_startup: true,
+            upstreams: Vec::new(),
+        },
+        web_gateway::build_gateway_registry().expect("gateway registry should build"),
+        Some(web_gateway::build_embedded_appbase_im_runtime_router()),
+        Some(Router::new()),
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/app/v3/api/system/iam/runtime")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("gateway runtime context request should return response");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let value = read_json_body(response).await;
+    assert_eq!(value["code"], "2000");
+    assert_eq!(value["data"]["appId"], "chat");
+    assert_eq!(value["data"]["tenantId"], "20001");
+    assert_eq!(value["data"]["organizationId"], "30001");
+    assert_eq!(value["data"]["deploymentMode"], "local");
+    assert_eq!(value["data"]["runtime"], "embedded");
 }
 
 #[tokio::test]
@@ -444,10 +545,7 @@ async fn embedded_gateway_rejects_product_runtime_auth_registration_instead_of_s
             upstreams: Vec::new(),
         },
         web_gateway::build_gateway_registry().expect("gateway registry should build"),
-        Some(
-            sdkwork_iam_http::build_sdkwork_appbase_app_api_router()
-                .merge(local_minimal_node::build_default_app()),
-        ),
+        Some(web_gateway::build_embedded_appbase_im_runtime_router()),
         Some(product_runtime),
     );
 
@@ -577,9 +675,33 @@ async fn embedded_gateway_rejects_product_runtime_auth_registration_instead_of_s
     let items = search["items"]
         .as_array()
         .expect("social user search should return items");
+    let target_item = items
+        .iter()
+        .find(|item| item["userId"] == target_registration["data"]["user"]["userId"])
+        .unwrap_or_else(|| panic!("social search must return the appbase IAM user: {search}"));
     assert!(
-        items.is_empty(),
-        "social search must not be seeded by product-runtime auth registration; response: {search}"
+        target_item["userId"]
+            .as_str()
+            .is_some_and(|user_id| user_id.starts_with("iamu_")),
+        "social search must expose the real opaque IAM user id: {search}"
+    );
+    assert_ne!(target_item["userId"], "user_target_user");
+    assert_eq!(target_item["displayName"], "Target User");
+    assert_eq!(target_item["email"], "target-user@sdkwork-iam.local");
+    assert_eq!(
+        target_item["metadata"]["source"],
+        "sdkwork-appbase-local-iam"
+    );
+    assert_eq!(target_item["metadata"]["username"], "target-user");
+    assert_eq!(
+        target_item["tenantId"], searcher_session["data"]["context"]["tenantId"],
+        "social search must use the appbase token tenant"
+    );
+    assert_ne!(target_item["tenantId"], "t_demo");
+    assert_ne!(target_item["chatId"], target_item["userId"]);
+    assert!(
+        target_item.get("serviceId").is_none(),
+        "social search result must not be product-runtime echo data: {search}"
     );
 }
 
@@ -593,10 +715,7 @@ async fn embedded_gateway_derives_im_social_context_from_appbase_dual_tokens_not
             upstreams: Vec::new(),
         },
         web_gateway::build_gateway_registry().expect("gateway registry should build"),
-        Some(
-            sdkwork_iam_http::build_sdkwork_appbase_app_api_router()
-                .merge(local_minimal_node::build_default_app()),
-        ),
+        Some(web_gateway::build_embedded_appbase_im_runtime_router()),
         None,
     );
 
@@ -667,6 +786,169 @@ async fn embedded_gateway_derives_im_social_context_from_appbase_dual_tokens_not
         json!([]),
         "spoofed current user query must not synthesize a self search result: {value}"
     );
+}
+
+#[tokio::test]
+async fn embedded_gateway_searches_registered_iam_user_by_copied_public_chat_id() {
+    let app = web_gateway::build_app_with_registry_and_runtime_routers(
+        WebGatewayConfig {
+            bind_addr: "127.0.0.1:0".to_owned(),
+            runtime_mode: GatewayRuntimeMode::Embedded,
+            strict_startup: true,
+            upstreams: Vec::new(),
+        },
+        web_gateway::build_gateway_registry().expect("gateway registry should build"),
+        Some(web_gateway::build_embedded_appbase_im_runtime_router()),
+        None,
+    );
+
+    let target_registration = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/app/v3/api/auth/registrations")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "channel": "EMAIL",
+                        "confirmPassword": "dev123456",
+                        "email": "copy-target@sdkwork-iam.local",
+                        "name": "Copy Target",
+                        "password": "dev123456",
+                        "username": "copy-target"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("target appbase registration should return response");
+    assert_eq!(target_registration.status(), StatusCode::OK);
+    let target_registration = read_json_body(target_registration).await;
+    let target_user_id = target_registration["data"]["user"]["userId"]
+        .as_str()
+        .expect("target registration should return real IAM user id")
+        .to_owned();
+    assert!(
+        target_user_id.starts_with("iamu_"),
+        "target registration should return a real opaque IAM user id: {target_registration}"
+    );
+    assert_ne!(target_user_id, "user_copy_target");
+
+    let searcher_registration = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/app/v3/api/auth/registrations")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "channel": "EMAIL",
+                        "confirmPassword": "dev123456",
+                        "email": "copy-searcher@sdkwork-iam.local",
+                        "name": "Copy Searcher",
+                        "password": "dev123456",
+                        "username": "copy-searcher"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("searcher appbase registration should return response");
+    assert_eq!(searcher_registration.status(), StatusCode::OK);
+
+    let searcher_session = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/app/v3/api/auth/sessions")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "grantType": "password",
+                        "email": "copy-searcher@sdkwork-iam.local",
+                        "password": "dev123456"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("searcher login should return response");
+    assert_eq!(searcher_session.status(), StatusCode::OK);
+    let searcher_session = read_json_body(searcher_session).await;
+    let searcher_auth_token = searcher_session["data"]["authToken"]
+        .as_str()
+        .expect("searcher login should return auth token")
+        .to_owned();
+    let searcher_access_token = searcher_session["data"]["accessToken"]
+        .as_str()
+        .expect("searcher login should return access token")
+        .to_owned();
+
+    let target_lookup = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri("/im/v3/api/social/users?q=copy-target&limit=20")
+                .header("authorization", format!("Bearer {searcher_auth_token}"))
+                .header("access-token", searcher_access_token.as_str())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("target name lookup should return response");
+    assert_eq!(target_lookup.status(), StatusCode::OK);
+    let target_lookup = read_json_body(target_lookup).await;
+    let target_items = target_lookup["items"]
+        .as_array()
+        .expect("target name lookup should return items");
+    let target_item = target_items
+        .iter()
+        .find(|item| item["userId"] == target_user_id)
+        .unwrap_or_else(|| panic!("target user should be searchable by name: {target_lookup}"));
+    let copied_chat_id = target_item["chatId"]
+        .as_str()
+        .expect("target search result should expose copied public chat id")
+        .to_owned();
+    assert_ne!(copied_chat_id, target_user_id);
+
+    let copied_id_lookup = app
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri(format!(
+                    "/im/v3/api/social/users?q={copied_chat_id}&limit=20"
+                ))
+                .header("authorization", format!("Bearer {searcher_auth_token}"))
+                .header("access-token", searcher_access_token.as_str())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("copied chat id lookup should return response");
+    assert_eq!(copied_id_lookup.status(), StatusCode::OK);
+    let copied_id_lookup = read_json_body(copied_id_lookup).await;
+    let copied_id_items = copied_id_lookup["items"]
+        .as_array()
+        .expect("copied chat id lookup should return items");
+    assert_eq!(
+        copied_id_items.len(),
+        1,
+        "copied public chat id must resolve exactly one IAM user: {copied_id_lookup}"
+    );
+    assert_eq!(copied_id_items[0]["userId"], target_user_id);
+    assert_eq!(copied_id_items[0]["chatId"], copied_chat_id);
+    assert_eq!(
+        copied_id_items[0]["tenantId"], searcher_session["data"]["context"]["tenantId"],
+        "social search must use the appbase token tenant"
+    );
+    assert_ne!(copied_id_items[0]["tenantId"], "t_demo");
 }
 
 #[tokio::test]
@@ -849,20 +1131,19 @@ async fn gateway_accepts_numeric_appbase_session_context_ids_for_proxied_im_rout
 }
 
 #[tokio::test]
-async fn gateway_derives_proxied_rtc_signaling_context_from_appbase_dual_tokens_not_client_headers()
-{
+async fn gateway_derives_proxied_im_calls_context_from_appbase_dual_tokens_not_client_headers() {
     let appbase = spawn_app_upstream(Router::new().route(
         "/app/v3/api/auth/sessions/current",
         get(appbase_current_session),
     ))
     .await;
     let rtc = spawn_app_upstream(Router::new().route(
-        "/app/v3/api/rtc/sessions/rtc_demo/signals",
+        "/im/v3/api/calls/sessions/rtc_demo/signals",
         get(echo_context_upstream),
     ))
     .await;
     let app = web_gateway::build_app(test_gateway_config(vec![
-        service_upstream("sdkwork-rtc-signaling-service", rtc.base_url.as_str()),
+        service_upstream("im-calls-service", rtc.base_url.as_str()),
         service_upstream("sdkwork-appbase-app-api", appbase.base_url.as_str()),
     ]));
 
@@ -870,7 +1151,7 @@ async fn gateway_derives_proxied_rtc_signaling_context_from_appbase_dual_tokens_
         .oneshot(
             Request::builder()
                 .method(Method::GET)
-                .uri("/app/v3/api/rtc/sessions/rtc_demo/signals")
+                .uri("/im/v3/api/calls/sessions/rtc_demo/signals")
                 .header(header::AUTHORIZATION, "Bearer real-auth-token")
                 .header("access-token", "real-access-token")
                 .header("x-sdkwork-tenant-id", "t_demo")
@@ -880,7 +1161,7 @@ async fn gateway_derives_proxied_rtc_signaling_context_from_appbase_dual_tokens_
                 .unwrap(),
         )
         .await
-        .expect("gateway rtc signaling request should succeed");
+        .expect("gateway IM calls request should succeed");
 
     assert_eq!(response.status(), StatusCode::OK);
     let context = read_json_body(response).await;
@@ -981,10 +1262,10 @@ async fn gateway_fails_closed_for_protected_routes_without_appbase_session_conte
             "/im/v3/api/media/uploads",
         ),
         (
-            "sdkwork-rtc-signaling-service",
+            "im-calls-service",
             Method::GET,
-            "/app/v3/api/rtc/sessions/rtc_demo/signals",
-            "/app/v3/api/rtc/sessions/{id}/signals",
+            "/im/v3/api/calls/sessions/rtc_demo/signals",
+            "/im/v3/api/calls/sessions/{id}/signals",
         ),
         (
             "notification-service",
@@ -1028,7 +1309,7 @@ async fn gateway_handles_browser_cors_preflight_for_im_app_iam_routes() {
         .oneshot(
             Request::builder()
                 .method(Method::OPTIONS)
-                .uri("/app/v3/api/open_platform/qr_auth/sessions")
+                .uri("/app/v3/api/oauth/device_authorizations")
                 .header("origin", origin)
                 .header("access-control-request-method", "POST")
                 .header(
@@ -1101,7 +1382,7 @@ async fn gateway_adds_browser_cors_headers_to_im_app_iam_responses() {
         .oneshot(
             Request::builder()
                 .method(Method::POST)
-                .uri("/app/v3/api/open_platform/qr_auth/sessions")
+                .uri("/app/v3/api/oauth/device_authorizations")
                 .header("origin", origin)
                 .header("content-type", "application/json")
                 .body(Body::from("{}"))

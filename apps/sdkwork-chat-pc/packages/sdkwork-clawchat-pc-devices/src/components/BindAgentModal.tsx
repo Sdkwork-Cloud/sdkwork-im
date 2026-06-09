@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Bot, Search, Check, Filter } from "lucide-react";
-import { Device } from "../services/DeviceService";
+import { Device, deviceService } from "../services/DeviceService";
 import { toast, agentService, AgentConfig } from "@sdkwork/clawchat-pc-chat";
 import { cn } from "@sdkwork/clawchat-pc-commons";
 
@@ -18,6 +18,7 @@ export const BindAgentModal: React.FC<AgentSelectModalProps> = ({ device, onClos
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<string[]>(device.agentId ? [device.agentId] : []);
+  const [submitting, setSubmitting] = useState(false);
 
   const categories = [
     { id: 'all', name: '全部分类' },
@@ -61,10 +62,24 @@ export const BindAgentModal: React.FC<AgentSelectModalProps> = ({ device, onClos
     }
   };
 
-  const handleConfirm = () => {
-    onSelect(selectedIds);
-    toast(multiple ? `成功关联 ${selectedIds.length} 个智能体` : "Agent 关联成功", "success");
-    onClose();
+  const handleConfirm = async () => {
+    if (selectedIds.length === 0 || submitting) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      for (const agentId of selectedIds) {
+        await deviceService.bindAgent(device.id, agentId);
+      }
+      onSelect(selectedIds);
+      toast(multiple ? "Bindings submitted" : "Binding submitted", "success");
+      onClose();
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : "Binding failed";
+      toast(message, "error");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -202,10 +217,10 @@ export const BindAgentModal: React.FC<AgentSelectModalProps> = ({ device, onClos
             </button>
             <button
               onClick={handleConfirm}
-              disabled={selectedIds.length === 0}
+              disabled={selectedIds.length === 0 || submitting}
               className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/20"
             >
-              确认编排
+              {submitting ? "Submitting..." : "确认编排"}
             </button>
           </div>
         </div>

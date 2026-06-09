@@ -345,23 +345,35 @@ class RtcSession {
   final String tenantId;
   final String rtcSessionId;
   final String? conversationId;
+  final String initiatorId;
+  final String initiatorKind;
   final String? providerPluginId;
   final String? providerSessionId;
+  final String? accessEndpoint;
+  final String? providerRegion;
   final String rtcMode;
   final String state;
-  final String createdAt;
-  final String updatedAt;
+  final String? signalingStreamId;
+  final String? artifactMessageId;
+  final String startedAt;
+  final String? endedAt;
 
   RtcSession({
     required this.tenantId,
     required this.rtcSessionId,
     this.conversationId,
+    required this.initiatorId,
+    required this.initiatorKind,
     this.providerPluginId,
     this.providerSessionId,
+    this.accessEndpoint,
+    this.providerRegion,
     required this.rtcMode,
     required this.state,
-    required this.createdAt,
-    required this.updatedAt
+    this.signalingStreamId,
+    this.artifactMessageId,
+    required this.startedAt,
+    this.endedAt
   });
 
   factory RtcSession.fromJson(Map<String, dynamic> json) {
@@ -381,8 +393,24 @@ class RtcSession {
         return value;
       })(),
       conversationId: json['conversationId']?.toString(),
+      initiatorId: (() {
+        final value = json['initiatorId']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSession.initiatorId is required');
+        }
+        return value;
+      })(),
+      initiatorKind: (() {
+        final value = json['initiatorKind']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSession.initiatorKind is required');
+        }
+        return value;
+      })(),
       providerPluginId: json['providerPluginId']?.toString(),
       providerSessionId: json['providerSessionId']?.toString(),
+      accessEndpoint: json['accessEndpoint']?.toString(),
+      providerRegion: json['providerRegion']?.toString(),
       rtcMode: (() {
         final value = json['rtcMode']?.toString();
         if (value == null) {
@@ -397,17 +425,308 @@ class RtcSession {
         }
         return value;
       })(),
-      createdAt: (() {
-        final value = json['createdAt']?.toString();
+      signalingStreamId: json['signalingStreamId']?.toString(),
+      artifactMessageId: json['artifactMessageId']?.toString(),
+      startedAt: (() {
+        final value = json['startedAt']?.toString();
         if (value == null) {
-          throw FormatException('RtcSession.createdAt is required');
+          throw FormatException('RtcSession.startedAt is required');
         }
         return value;
       })(),
-      updatedAt: (() {
-        final value = json['updatedAt']?.toString();
+      endedAt: json['endedAt']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'tenantId': tenantId,
+      'rtcSessionId': rtcSessionId,
+      'conversationId': conversationId,
+      'initiatorId': initiatorId,
+      'initiatorKind': initiatorKind,
+      'providerPluginId': providerPluginId,
+      'providerSessionId': providerSessionId,
+      'accessEndpoint': accessEndpoint,
+      'providerRegion': providerRegion,
+      'rtcMode': rtcMode,
+      'state': state,
+      'signalingStreamId': signalingStreamId,
+      'artifactMessageId': artifactMessageId,
+      'startedAt': startedAt,
+      'endedAt': endedAt,
+    };
+  }
+}
+
+class CreateRtcSessionRequest {
+  final String rtcSessionId;
+  final String? conversationId;
+  final String rtcMode;
+
+  CreateRtcSessionRequest({
+    required this.rtcSessionId,
+    this.conversationId,
+    required this.rtcMode
+  });
+
+  factory CreateRtcSessionRequest.fromJson(Map<String, dynamic> json) {
+    return CreateRtcSessionRequest(
+      rtcSessionId: (() {
+        final value = json['rtcSessionId']?.toString();
         if (value == null) {
-          throw FormatException('RtcSession.updatedAt is required');
+          throw FormatException('CreateRtcSessionRequest.rtcSessionId is required');
+        }
+        return value;
+      })(),
+      conversationId: json['conversationId']?.toString(),
+      rtcMode: (() {
+        final value = json['rtcMode']?.toString();
+        if (value == null) {
+          throw FormatException('CreateRtcSessionRequest.rtcMode is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'rtcSessionId': rtcSessionId,
+      'conversationId': conversationId,
+      'rtcMode': rtcMode,
+    };
+  }
+}
+
+class InviteRtcSessionRequest {
+  final String? signalingStreamId;
+
+  InviteRtcSessionRequest({
+    this.signalingStreamId
+  });
+
+  factory InviteRtcSessionRequest.fromJson(Map<String, dynamic> json) {
+    return InviteRtcSessionRequest(
+      signalingStreamId: json['signalingStreamId']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'signalingStreamId': signalingStreamId,
+    };
+  }
+}
+
+class UpdateRtcSessionRequest {
+  final String? artifactMessageId;
+
+  UpdateRtcSessionRequest({
+    this.artifactMessageId
+  });
+
+  factory UpdateRtcSessionRequest.fromJson(Map<String, dynamic> json) {
+    return UpdateRtcSessionRequest(
+      artifactMessageId: json['artifactMessageId']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'artifactMessageId': artifactMessageId,
+    };
+  }
+}
+
+class PostRtcSignalRequest {
+  final String signalType;
+  final String? schemaRef;
+  final String payload;
+  final String? signalingStreamId;
+
+  PostRtcSignalRequest({
+    required this.signalType,
+    this.schemaRef,
+    required this.payload,
+    this.signalingStreamId
+  });
+
+  factory PostRtcSignalRequest.fromJson(Map<String, dynamic> json) {
+    return PostRtcSignalRequest(
+      signalType: (() {
+        final value = json['signalType']?.toString();
+        if (value == null) {
+          throw FormatException('PostRtcSignalRequest.signalType is required');
+        }
+        return value;
+      })(),
+      schemaRef: json['schemaRef']?.toString(),
+      payload: (() {
+        final value = json['payload']?.toString();
+        if (value == null) {
+          throw FormatException('PostRtcSignalRequest.payload is required');
+        }
+        return value;
+      })(),
+      signalingStreamId: json['signalingStreamId']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'signalType': signalType,
+      'schemaRef': schemaRef,
+      'payload': payload,
+      'signalingStreamId': signalingStreamId,
+    };
+  }
+}
+
+class IssueRtcParticipantCredentialRequest {
+  final String participantId;
+
+  IssueRtcParticipantCredentialRequest({
+    required this.participantId
+  });
+
+  factory IssueRtcParticipantCredentialRequest.fromJson(Map<String, dynamic> json) {
+    return IssueRtcParticipantCredentialRequest(
+      participantId: (() {
+        final value = json['participantId']?.toString();
+        if (value == null) {
+          throw FormatException('IssueRtcParticipantCredentialRequest.participantId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'participantId': participantId,
+    };
+  }
+}
+
+class RtcSessionMutationResponse {
+  final String tenantId;
+  final String rtcSessionId;
+  final String? conversationId;
+  final String initiatorId;
+  final String initiatorKind;
+  final String? providerPluginId;
+  final String? providerSessionId;
+  final String? accessEndpoint;
+  final String? providerRegion;
+  final String rtcMode;
+  final String state;
+  final String? signalingStreamId;
+  final String? artifactMessageId;
+  final String startedAt;
+  final String? endedAt;
+  final String requestKey;
+  final String deliveryStatus;
+  final String proofVersion;
+
+  RtcSessionMutationResponse({
+    required this.tenantId,
+    required this.rtcSessionId,
+    this.conversationId,
+    required this.initiatorId,
+    required this.initiatorKind,
+    this.providerPluginId,
+    this.providerSessionId,
+    this.accessEndpoint,
+    this.providerRegion,
+    required this.rtcMode,
+    required this.state,
+    this.signalingStreamId,
+    this.artifactMessageId,
+    required this.startedAt,
+    this.endedAt,
+    required this.requestKey,
+    required this.deliveryStatus,
+    required this.proofVersion
+  });
+
+  factory RtcSessionMutationResponse.fromJson(Map<String, dynamic> json) {
+    return RtcSessionMutationResponse(
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSessionMutationResponse.tenantId is required');
+        }
+        return value;
+      })(),
+      rtcSessionId: (() {
+        final value = json['rtcSessionId']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSessionMutationResponse.rtcSessionId is required');
+        }
+        return value;
+      })(),
+      conversationId: json['conversationId']?.toString(),
+      initiatorId: (() {
+        final value = json['initiatorId']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSessionMutationResponse.initiatorId is required');
+        }
+        return value;
+      })(),
+      initiatorKind: (() {
+        final value = json['initiatorKind']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSessionMutationResponse.initiatorKind is required');
+        }
+        return value;
+      })(),
+      providerPluginId: json['providerPluginId']?.toString(),
+      providerSessionId: json['providerSessionId']?.toString(),
+      accessEndpoint: json['accessEndpoint']?.toString(),
+      providerRegion: json['providerRegion']?.toString(),
+      rtcMode: (() {
+        final value = json['rtcMode']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSessionMutationResponse.rtcMode is required');
+        }
+        return value;
+      })(),
+      state: (() {
+        final value = json['state']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSessionMutationResponse.state is required');
+        }
+        return value;
+      })(),
+      signalingStreamId: json['signalingStreamId']?.toString(),
+      artifactMessageId: json['artifactMessageId']?.toString(),
+      startedAt: (() {
+        final value = json['startedAt']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSessionMutationResponse.startedAt is required');
+        }
+        return value;
+      })(),
+      endedAt: json['endedAt']?.toString(),
+      requestKey: (() {
+        final value = json['requestKey']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSessionMutationResponse.requestKey is required');
+        }
+        return value;
+      })(),
+      deliveryStatus: (() {
+        final value = json['deliveryStatus']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSessionMutationResponse.deliveryStatus is required');
+        }
+        return value;
+      })(),
+      proofVersion: (() {
+        final value = json['proofVersion']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSessionMutationResponse.proofVersion is required');
         }
         return value;
       })()
@@ -419,36 +738,253 @@ class RtcSession {
       'tenantId': tenantId,
       'rtcSessionId': rtcSessionId,
       'conversationId': conversationId,
+      'initiatorId': initiatorId,
+      'initiatorKind': initiatorKind,
       'providerPluginId': providerPluginId,
       'providerSessionId': providerSessionId,
+      'accessEndpoint': accessEndpoint,
+      'providerRegion': providerRegion,
       'rtcMode': rtcMode,
       'state': state,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
+      'signalingStreamId': signalingStreamId,
+      'artifactMessageId': artifactMessageId,
+      'startedAt': startedAt,
+      'endedAt': endedAt,
+      'requestKey': requestKey,
+      'deliveryStatus': deliveryStatus,
+      'proofVersion': proofVersion,
     };
   }
 }
 
-class CreateRtcSessionRequest {
-  final String? conversationId;
-  final String? mediaKind;
+class RtcSignalSender {
+  final String id;
+  final String kind;
+  final String? memberId;
+  final String? deviceId;
+  final String? sessionId;
+  final Map<String, dynamic> metadata;
 
-  CreateRtcSessionRequest({
-    this.conversationId,
-    this.mediaKind
+  RtcSignalSender({
+    required this.id,
+    required this.kind,
+    this.memberId,
+    this.deviceId,
+    this.sessionId,
+    required this.metadata
   });
 
-  factory CreateRtcSessionRequest.fromJson(Map<String, dynamic> json) {
-    return CreateRtcSessionRequest(
-      conversationId: json['conversationId']?.toString(),
-      mediaKind: json['mediaKind']?.toString()
+  factory RtcSignalSender.fromJson(Map<String, dynamic> json) {
+    return RtcSignalSender(
+      id: (() {
+        final value = json['id']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSignalSender.id is required');
+        }
+        return value;
+      })(),
+      kind: (() {
+        final value = json['kind']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSignalSender.kind is required');
+        }
+        return value;
+      })(),
+      memberId: json['memberId']?.toString(),
+      deviceId: json['deviceId']?.toString(),
+      sessionId: json['sessionId']?.toString(),
+      metadata: (() {
+        final map = _sdkworkAsMap(json['metadata']);
+        if (map == null) {
+          throw FormatException('RtcSignalSender.metadata is required');
+        }
+        return map;
+      })()
     );
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'id': id,
+      'kind': kind,
+      'memberId': memberId,
+      'deviceId': deviceId,
+      'sessionId': sessionId,
+      'metadata': metadata,
+    };
+  }
+}
+
+class RtcSignalEvent {
+  final String tenantId;
+  final String rtcSessionId;
+  final int signalSeq;
+  final String? conversationId;
+  final String rtcMode;
+  final String signalType;
+  final String? schemaRef;
+  final String payload;
+  final RtcSignalSender sender;
+  final String? signalingStreamId;
+  final String occurredAt;
+
+  RtcSignalEvent({
+    required this.tenantId,
+    required this.rtcSessionId,
+    required this.signalSeq,
+    this.conversationId,
+    required this.rtcMode,
+    required this.signalType,
+    this.schemaRef,
+    required this.payload,
+    required this.sender,
+    this.signalingStreamId,
+    required this.occurredAt
+  });
+
+  factory RtcSignalEvent.fromJson(Map<String, dynamic> json) {
+    return RtcSignalEvent(
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSignalEvent.tenantId is required');
+        }
+        return value;
+      })(),
+      rtcSessionId: (() {
+        final value = json['rtcSessionId']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSignalEvent.rtcSessionId is required');
+        }
+        return value;
+      })(),
+      signalSeq: (() {
+        final value = json['signalSeq'];
+        if (value is! int) {
+          throw FormatException('RtcSignalEvent.signalSeq is required');
+        }
+        return value;
+      })(),
+      conversationId: json['conversationId']?.toString(),
+      rtcMode: (() {
+        final value = json['rtcMode']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSignalEvent.rtcMode is required');
+        }
+        return value;
+      })(),
+      signalType: (() {
+        final value = json['signalType']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSignalEvent.signalType is required');
+        }
+        return value;
+      })(),
+      schemaRef: json['schemaRef']?.toString(),
+      payload: (() {
+        final value = json['payload']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSignalEvent.payload is required');
+        }
+        return value;
+      })(),
+      sender: (() {
+        final map = _sdkworkAsMap(json['sender']);
+        if (map == null) {
+          throw FormatException('RtcSignalEvent.sender is required');
+        }
+        return RtcSignalSender.fromJson(map);
+      })(),
+      signalingStreamId: json['signalingStreamId']?.toString(),
+      occurredAt: (() {
+        final value = json['occurredAt']?.toString();
+        if (value == null) {
+          throw FormatException('RtcSignalEvent.occurredAt is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'tenantId': tenantId,
+      'rtcSessionId': rtcSessionId,
+      'signalSeq': signalSeq,
       'conversationId': conversationId,
-      'mediaKind': mediaKind,
+      'rtcMode': rtcMode,
+      'signalType': signalType,
+      'schemaRef': schemaRef,
+      'payload': payload,
+      'sender': sender.toJson(),
+      'signalingStreamId': signalingStreamId,
+      'occurredAt': occurredAt,
+    };
+  }
+}
+
+class RtcParticipantCredential {
+  final String tenantId;
+  final String rtcSessionId;
+  final String participantId;
+  final String credential;
+  final String expiresAt;
+
+  RtcParticipantCredential({
+    required this.tenantId,
+    required this.rtcSessionId,
+    required this.participantId,
+    required this.credential,
+    required this.expiresAt
+  });
+
+  factory RtcParticipantCredential.fromJson(Map<String, dynamic> json) {
+    return RtcParticipantCredential(
+      tenantId: (() {
+        final value = json['tenantId']?.toString();
+        if (value == null) {
+          throw FormatException('RtcParticipantCredential.tenantId is required');
+        }
+        return value;
+      })(),
+      rtcSessionId: (() {
+        final value = json['rtcSessionId']?.toString();
+        if (value == null) {
+          throw FormatException('RtcParticipantCredential.rtcSessionId is required');
+        }
+        return value;
+      })(),
+      participantId: (() {
+        final value = json['participantId']?.toString();
+        if (value == null) {
+          throw FormatException('RtcParticipantCredential.participantId is required');
+        }
+        return value;
+      })(),
+      credential: (() {
+        final value = json['credential']?.toString();
+        if (value == null) {
+          throw FormatException('RtcParticipantCredential.credential is required');
+        }
+        return value;
+      })(),
+      expiresAt: (() {
+        final value = json['expiresAt']?.toString();
+        if (value == null) {
+          throw FormatException('RtcParticipantCredential.expiresAt is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'tenantId': tenantId,
+      'rtcSessionId': rtcSessionId,
+      'participantId': participantId,
+      'credential': credential,
+      'expiresAt': expiresAt,
     };
   }
 }

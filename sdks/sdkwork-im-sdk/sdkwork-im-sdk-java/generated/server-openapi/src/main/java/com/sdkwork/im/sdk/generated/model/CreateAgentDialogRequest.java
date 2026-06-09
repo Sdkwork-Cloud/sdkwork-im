@@ -9,7 +9,7 @@ public class CreateAgentDialogRequest {
     public String getAgentId() {
         return this.agentId;
     }
-    
+
     public void setAgentId(String agentId) {
         this.agentId = agentId;
     }
@@ -17,7 +17,7 @@ public class CreateAgentDialogRequest {
     public String getConversationId() {
         return this.conversationId;
     }
-    
+
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
     }
@@ -25,7 +25,7 @@ public class CreateAgentDialogRequest {
     public String getTitle() {
         return this.title;
     }
-    
+
     public void setTitle(String title) {
         this.title = title;
     }

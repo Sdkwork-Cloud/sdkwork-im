@@ -237,7 +237,7 @@ pub(super) fn ensure_rtc_create_access(
 ) -> Result<(), ApiError> {
     let rtc_auth = rtc_app_context_from_auth(auth);
     match state
-        .rtc_runtime
+        .call_runtime
         .session(&rtc_auth, request.rtc_session_id.as_str())
     {
         Ok(session) => {
@@ -263,7 +263,7 @@ pub(super) fn ensure_rtc_session_conversation_write_access(
     capability: &str,
 ) -> Result<(), ApiError> {
     let rtc_auth = rtc_app_context_from_auth(auth);
-    let session = state.rtc_runtime.session(&rtc_auth, rtc_session_id)?;
+    let session = state.call_runtime.session(&rtc_auth, rtc_session_id)?;
     if let Some(conversation_id) = session.conversation_id.as_deref() {
         ensure_conversation_bound_write_access(state, auth, conversation_id, capability)?;
     }

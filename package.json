@@ -24,10 +24,12 @@
     "tauri:dev:postgres": "node ./scripts/dev/run-sdkwork-chat-pc-dev.mjs --target desktop --database postgres",
     "tauri:dev:sqlite": "node ./scripts/dev/run-sdkwork-chat-pc-dev.mjs --target desktop --database sqlite",
     "test:database-naming-standard": "node scripts/dev/sdkwork-chat-database-naming-standard.test.mjs",
+    "test:rpc-contract": "node scripts/dev/sdkwork-chat-rpc-contract.test.mjs",
     "test:runtime-standard": "node scripts/dev/sdkwork-chat-runtime-standard.test.mjs",
     "test:workflow-commercial-gates": "node scripts/run-commercial-gates-governance-node-tests.mjs",
     "test:sdkwork-chat-pc-dev-command": "node scripts/dev/sdkwork-chat-pc-dev-command.test.mjs",
     "test:sdkwork-chat-pc-i18n": "node scripts/dev/sdkwork-chat-pc-i18n.test.mjs",
+    "test:sdkwork-chat-pc-message-actions": "node scripts/dev/sdkwork-chat-pc-message-actions.test.mjs",
     "test:sdkwork-chat-pc-sidebar-modules": "node scripts/dev/sdkwork-chat-pc-sidebar-modules.test.mjs",
     "server:dev": "node ./scripts/dev/start-craw-chat-unified-web.mjs"
   },

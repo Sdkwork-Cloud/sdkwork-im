@@ -15,7 +15,7 @@ This rule ensures:
 This standard applies to standalone service HTTP apps that expose generic infrastructure runtimes, including:
 
 - `streaming-service`
-- `rtc-signaling-service`
+- `im-call-runtime`
 - any future standalone service whose request can directly or indirectly bind work to a conversation
 
 ## 3. Required Boundary Rule

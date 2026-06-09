@@ -24,6 +24,10 @@ const calls: Array<{
 
 const driveUploadCalls: Array<Record<string, unknown>> = [];
 
+function lastMessageCreateCall(): typeof calls[number] | undefined {
+  return calls.filter((call) => call.method === 'chat.conversations.messages.create').at(-1);
+}
+
 const timelinePages = [
   {
     items: [
@@ -86,7 +90,53 @@ const timelinePages = [
 ];
 
 const fakeClient = {
+  chat: {
+    inbox: {
+      async retrieve() {
+        calls.push({ method: 'chat.inbox.retrieve' });
+        return {
+          hasMore: false,
+          items: [
+            {
+              conversationId: 'chat-1',
+              conversationType: 'group',
+              lastActivityAt: '2026-06-04T10:00:10.000Z',
+              lastMessageSeq: 3,
+              messageCount: 3,
+              tenantId: 'tenant-1',
+              unreadCount: 0,
+            },
+          ],
+        };
+      },
+    },
+  },
   conversations: {
+    async getPreferences(conversationId: string) {
+      calls.push({ method: 'conversations.getPreferences', conversationId });
+      return {
+        conversationId,
+        isHidden: false,
+        isMarkedUnread: false,
+        isMuted: false,
+        isPinned: false,
+        principalId: 'current-user',
+        principalKind: 'user',
+        tenantId: 'tenant-1',
+        updatedAt: '2026-06-04T10:00:00.000Z',
+      };
+    },
+    async getProfile(conversationId: string) {
+      calls.push({ method: 'conversations.getProfile', conversationId });
+      return {
+        avatarUrl: `https://cdn.example.test/${conversationId}.png`,
+        conversationId,
+        displayName: 'Backend Group',
+        notice: '',
+        tenantId: 'tenant-1',
+        updatedAt: '2026-06-04T10:00:00.000Z',
+      };
+    },
     async postText(
       conversationId: string,
       text: string,
@@ -336,14 +386,24 @@ async function main(): Promise<void> {
   );
 
   const replyTo = { id: 'message-2', senderName: 'Bob', content: 'second page body text' };
+  const locallyNotifiedMessages: string[] = [];
+  const unsubscribeMessages = service.subscribeMessages('chat-1', (message) => {
+    locallyNotifiedMessages.push(`${message.id}:${message.content}`);
+  });
+  const chatListSnapshots: string[][] = [];
+  const unsubscribeChats = service.subscribeChats((chats) => {
+    chatListSnapshots.push(chats.map((chat) => `${chat.id}:${chat.lastMessage?.content ?? ''}`));
+  });
   const postedReply = await service.sendMessage('chat-1', 'reply text', 'text', replyTo);
+  await Promise.resolve();
+  const postedReplyCreateCall = lastMessageCreateCall();
   assert.deepEqual(
-    calls.at(-1),
+    postedReplyCreateCall,
     {
       method: 'chat.conversations.messages.create',
       conversationId: 'chat-1',
       body: {
-        clientMsgId: (calls.at(-1) as { body?: { clientMsgId?: string } }).body?.clientMsgId,
+        clientMsgId: (postedReplyCreateCall as { body?: { clientMsgId?: string } } | undefined)?.body?.clientMsgId,
         summary: 'reply text',
         replyTo: {
           messageId: 'message-2',
@@ -359,6 +419,18 @@ async function main(): Promise<void> {
     replyTo,
     'PC sendMessage must keep reply preview in the local optimistic message',
   );
+  assert.deepEqual(
+    locallyNotifiedMessages,
+    ['message-3:reply text'],
+    'PC sendMessage must notify local opened-conversation subscribers immediately after the SDK accepts the message',
+  );
+  assert.deepEqual(
+    chatListSnapshots.at(-1),
+    ['chat-1:reply text'],
+    'PC sendMessage must refresh chat-list subscribers with the accepted local message before waiting for realtime echo',
+  );
+  unsubscribeMessages();
+  unsubscribeChats();
 
   await assert.rejects(
     () => service.sendMessage('chat-1', 'data:image/png;base64,local-preview', 'image', undefined, {
@@ -369,7 +441,7 @@ async function main(): Promise<void> {
     'PC media send must fail closed when no real file/blob is available for Drive upload',
   );
   assert.equal(
-    (calls.at(-1)?.body as Record<string, unknown>).summary,
+    (lastMessageCreateCall()?.body as Record<string, unknown> | undefined)?.summary,
     'reply text',
     'PC media send without a Drive upload source must not post a fake IM media message',
   );
@@ -483,7 +555,7 @@ async function main(): Promise<void> {
     desc: 'Promotion',
     fileName: 'Promo',
   });
-  const linkBody = calls.at(-1)?.body as Record<string, unknown>;
+  const linkBody = lastMessageCreateCall()?.body as Record<string, unknown>;
   assert.equal(
     linkBody.text,
     undefined,

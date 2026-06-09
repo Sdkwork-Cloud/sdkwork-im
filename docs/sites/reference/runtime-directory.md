@@ -26,7 +26,7 @@ configured.
 | `realtime-subscriptions.json` | Realtime subscription snapshots |
 | `presence-state.json` | Presence state |
 | `stream-state.json` | Stream session and frame state |
-| `rtc-state.json` | RTC session and signal state |
+| `rtc-state.json` | RTC media and IM call session state |
 | `notification-tasks.json` | Notification tasks |
 | `automation-executions.json` | Automation executions |
 | `projection-metadata.json` | Projection metadata |

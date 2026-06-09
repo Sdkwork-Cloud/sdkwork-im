@@ -7,7 +7,7 @@ public class AckResponse {
     public Boolean getOk() {
         return this.ok;
     }
-    
+
     public void setOk(Boolean ok) {
         this.ok = ok;
     }

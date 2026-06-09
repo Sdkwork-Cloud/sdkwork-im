@@ -9,12 +9,133 @@ import { Pin, BellOff, Trash2, CheckCircle, MessageCircle } from 'lucide-react';
 import { toast } from './Toast';
 import { chatService } from '../services/ChatService';
 
+const RTC_CALL_DESCRIPTOR_PREFIX = 'rtc-call:';
+
 interface ChatListProps {
   chats: Chat[];
   activeChatId?: string;
   onChatSelect: (chat: Chat) => void;
   onChatsChange?: () => void;
   searchQuery?: string;
+}
+
+interface RtcCallDescriptor {
+  actorId?: string;
+  initiatorId?: string;
+  mode?: string;
+  receiverId?: string;
+  state?: string;
+}
+
+type TranslationFunction = (key: string, options?: Record<string, unknown>) => string;
+
+function parseJsonRecord(value: unknown): Record<string, unknown> | undefined {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined;
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function pickString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function readRtcCallDescriptor(chat: Chat): RtcCallDescriptor | undefined {
+  const message = chat.lastMessage;
+  if (message?.type !== 'video_call' || !message.desc?.startsWith(RTC_CALL_DESCRIPTOR_PREFIX)) {
+    return undefined;
+  }
+
+  try {
+    const parsed = parseJsonRecord(decodeURIComponent(message.desc.slice(RTC_CALL_DESCRIPTOR_PREFIX.length)));
+    if (!parsed) {
+      return undefined;
+    }
+
+    return {
+      actorId: pickString(parsed.actorId),
+      initiatorId: pickString(parsed.initiatorId),
+      mode: pickString(parsed.mode),
+      receiverId: pickString(parsed.receiverId),
+      state: pickString(parsed.state),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function formatRtcCallMode(value: string | undefined, translate: TranslationFunction): string {
+  return value && /video/iu.test(value)
+    ? translate('chat.header.videoCall')
+    : translate('chat.header.voiceCall');
+}
+
+function replaceRtcPreviewParticipantId(content: string, participantId: string | undefined, displayName: string): string {
+  if (!participantId || participantId === displayName) {
+    return content;
+  }
+  return content.split(participantId).join(displayName);
+}
+
+function formatRtcCallPreviewContent(
+  chat: Chat,
+  descriptor: RtcCallDescriptor,
+  translate: TranslationFunction,
+): string {
+  const mode = formatRtcCallMode(descriptor.mode, translate);
+  switch (descriptor.state) {
+    case 'accepted':
+      return translate('chat.list.callPreview.accepted', {
+        defaultValue: '{{mode}} connected',
+        mode,
+      });
+    case 'rejected':
+      return translate('chat.list.callPreview.rejected', {
+        defaultValue: '{{mode}} rejected',
+        mode,
+      });
+    case 'ended':
+      return translate('chat.list.callPreview.ended', {
+        defaultValue: '{{mode}} ended',
+        mode,
+      });
+    case 'started':
+      return translate('chat.list.callPreview.started', {
+        defaultValue: '{{name}} started {{mode}}',
+        mode,
+        name: chat.name,
+      });
+    default:
+      return [descriptor.actorId, descriptor.initiatorId, descriptor.receiverId]
+        .reduce(
+          (preview, participantId) => replaceRtcPreviewParticipantId(preview, participantId, chat.name),
+          chat.lastMessage?.content ?? mode,
+        );
+  }
+}
+
+function formatChatListLastMessage(chat: Chat, translate: TranslationFunction): string | undefined {
+  const content = chat.lastMessage?.content;
+  if (typeof content !== 'string') {
+    return content;
+  }
+
+  const descriptor = readRtcCallDescriptor(chat);
+  if (!descriptor) {
+    return content;
+  }
+
+  return formatRtcCallPreviewContent(chat, descriptor, translate);
 }
 
 export const ChatList: React.FC<ChatListProps> = ({
@@ -134,11 +255,12 @@ export const ChatList: React.FC<ChatListProps> = ({
       .filter((chat) => {
         if (!searchQuery.trim()) return true;
         const query = searchQuery.toLowerCase();
+        const lastMessagePreview = formatChatListLastMessage(chat, t);
         return (
           chat.name.toLowerCase().includes(query)
           || (
-            typeof chat.lastMessage?.content === 'string'
-            && chat.lastMessage.content.toLowerCase().includes(query)
+            typeof lastMessagePreview === 'string'
+            && lastMessagePreview.toLowerCase().includes(query)
           )
         );
       })
@@ -149,7 +271,7 @@ export const ChatList: React.FC<ChatListProps> = ({
         if (!aPinned && bPinned) return 1;
         return b.updatedAt - a.updatedAt;
       });
-  }, [chats, searchQuery]);
+  }, [chats, searchQuery, t]);
 
   return (
     <div className="flex w-[280px] shrink-0 flex-col bg-[#202020] border-r border-white/5 min-h-0">
@@ -180,6 +302,7 @@ export const ChatList: React.FC<ChatListProps> = ({
               const openConversationLabel = t('chat.list.item.openConversation', { name: chat.name });
               const unreadLabel = t('chat.list.item.unreadCount', { count: unreadCount });
               const mutedLabel = t('chat.list.item.muted');
+              const lastMessagePreview = formatChatListLastMessage(chat, t);
 
               return (
                 <motion.button
@@ -235,7 +358,7 @@ export const ChatList: React.FC<ChatListProps> = ({
                       <span className="text-[12px] text-gray-500 shrink-0 ml-2">{formatTime(chat.updatedAt)}</span>
                     </div>
                     <div className="text-[12px] text-gray-500 truncate">
-                      {chat.lastMessage?.content}
+                      {lastMessagePreview}
                     </div>
                   </div>
                 </motion.button>

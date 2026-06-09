@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Avatar } from '@sdkwork/clawchat-pc-commons';
 import { toast } from '../Toast';
@@ -9,8 +9,11 @@ export const NewFriendsContainer: React.FC<{ onAddFriend?: () => void }> = ({ on
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    contactService.getFriendRequests()
+  const refreshRequests = useCallback((showLoading = false) => {
+    if (showLoading) {
+      setLoading(true);
+    }
+    return contactService.getFriendRequests()
       .then(data => {
         setRequests(data);
       })
@@ -20,6 +23,13 @@ export const NewFriendsContainer: React.FC<{ onAddFriend?: () => void }> = ({ on
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    void refreshRequests(true);
+    return contactService.subscribePendingFriendRequestCount(() => {
+      void refreshRequests();
+    });
+  }, [refreshRequests]);
 
   return (
     <div className="flex-1 flex flex-col bg-[#1e1e1e] min-w-0 h-full">

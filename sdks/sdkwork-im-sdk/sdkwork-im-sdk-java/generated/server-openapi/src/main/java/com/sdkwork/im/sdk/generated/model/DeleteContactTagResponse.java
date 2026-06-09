@@ -8,7 +8,7 @@ public class DeleteContactTagResponse {
     public String getTagId() {
         return this.tagId;
     }
-    
+
     public void setTagId(String tagId) {
         this.tagId = tagId;
     }
@@ -16,7 +16,7 @@ public class DeleteContactTagResponse {
     public Boolean getDeleted() {
         return this.deleted;
     }
-    
+
     public void setDeleted(Boolean deleted) {
         this.deleted = deleted;
     }

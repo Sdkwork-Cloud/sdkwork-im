@@ -8,7 +8,7 @@ public class MessagePinView {
     public InteractionActorView getPinnedBy() {
         return this.pinnedBy;
     }
-    
+
     public void setPinnedBy(InteractionActorView pinnedBy) {
         this.pinnedBy = pinnedBy;
     }
@@ -16,7 +16,7 @@ public class MessagePinView {
     public String getPinnedAt() {
         return this.pinnedAt;
     }
-    
+
     public void setPinnedAt(String pinnedAt) {
         this.pinnedAt = pinnedAt;
     }

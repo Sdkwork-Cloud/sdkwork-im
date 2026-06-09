@@ -46,7 +46,7 @@ client.setHeader('X-Custom-Header', 'value');
 
 - `client.presence` - presence API
 - `client.realtime` - realtime API
-- `client.rtc` - rtc API
+- `client.calls` - calls API
 - `client.social` - social API
 - `client.chat` - chat API
 - `client.streams` - streams API
@@ -71,14 +71,15 @@ final result = await client.realtime.eventsList(params);
 print(result);
 ```
 
-### rtc
+### calls
 ```dart
-// Create an IM-backed RTC session
+// Create an IM call signaling session
 final body = CreateRtcSessionRequest(
+  rtcSessionId: '1',
   conversationId: '1',
-  mediaKind: 'mediakind',
+  rtcMode: 'rtcmode',
 );
-final result = await client.rtc.sessionsCreate(body);
+final result = await client.calls.sessionsCreate(body);
 print(result);
 ```
 

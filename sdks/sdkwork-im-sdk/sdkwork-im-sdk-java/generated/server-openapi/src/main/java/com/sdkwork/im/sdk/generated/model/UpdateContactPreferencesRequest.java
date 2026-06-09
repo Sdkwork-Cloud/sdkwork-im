@@ -9,7 +9,7 @@ public class UpdateContactPreferencesRequest {
     public Boolean getIsStarred() {
         return this.isStarred;
     }
-    
+
     public void setIsStarred(Boolean isStarred) {
         this.isStarred = isStarred;
     }
@@ -17,7 +17,7 @@ public class UpdateContactPreferencesRequest {
     public String getRemark() {
         return this.remark;
     }
-    
+
     public void setRemark(String remark) {
         this.remark = remark;
     }
@@ -25,7 +25,7 @@ public class UpdateContactPreferencesRequest {
     public Boolean getIsBlocked() {
         return this.isBlocked;
     }
-    
+
     public void setIsBlocked(Boolean isBlocked) {
         this.isBlocked = isBlocked;
     }

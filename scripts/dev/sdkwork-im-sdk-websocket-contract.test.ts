@@ -1,12 +1,45 @@
 import assert from 'node:assert/strict';
-import {
-  ImSdkClient,
-  ImWebSocketAuthOptions,
-  type ImDecodedMessage,
-  type ImMessageContext,
-  type ImWebSocketFactoryOptions,
-  type ImWebSocketLike,
-} from '../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index';
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+type ImDecodedMessage = import('../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index').ImDecodedMessage;
+type ImCallSession = import('../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index').ImCallSession;
+type ImMessageContext = import('../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index').ImMessageContext;
+type ImRealtimeEventContext =
+  import('../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index').ImRealtimeEventContext;
+type ImWebSocketFactoryOptions =
+  import('../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index').ImWebSocketFactoryOptions;
+type ImWebSocketLike = import('../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index').ImWebSocketLike;
+
+const tsxReentryEnv = 'SDKWORK_IM_SDK_WEBSOCKET_CONTRACT_TSX';
+const scriptPath = fileURLToPath(import.meta.url);
+const repoRoot = path.resolve(path.dirname(scriptPath), '..', '..');
+const tsxCliPath = path.join(repoRoot, 'apps', 'sdkwork-chat-pc', 'node_modules', 'tsx', 'dist', 'cli.mjs');
+
+if (process.env[tsxReentryEnv] !== '1') {
+  if (!existsSync(tsxCliPath)) {
+    console.error(`[sdkwork-im-sdk-websocket-contract] missing tsx runner: ${tsxCliPath}`);
+    console.error('[sdkwork-im-sdk-websocket-contract] run pnpm install from apps/sdkwork-chat-pc first');
+    process.exit(1);
+  }
+
+  const result = spawnSync(process.execPath, [tsxCliPath, scriptPath], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      [tsxReentryEnv]: '1',
+    },
+    stdio: 'inherit',
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  process.exit(result.status ?? (result.signal ? 1 : 0));
+}
 
 type FakeWebSocketEventName = 'close' | 'error' | 'message' | 'open';
 
@@ -53,6 +86,7 @@ class FakeWebSocket implements ImWebSocketLike {
 class FakeBrowserWebSocket implements ImWebSocketLike {
   static readonly instances: FakeBrowserWebSocket[] = [];
 
+  readonly closeCalls: Array<{ code?: number; reason?: string }> = [];
   readonly sent: string[] = [];
   readonly protocols?: string | string[];
   readonly url: string;
@@ -73,6 +107,7 @@ class FakeBrowserWebSocket implements ImWebSocketLike {
   }
 
   close(code?: number, reason?: string): void {
+    this.closeCalls.push({ code, reason });
     this.readyState = 3;
     this.emit('close', { code, reason });
   }
@@ -106,6 +141,9 @@ function parseBrowserSent(socket: FakeBrowserWebSocket, index: number): Record<s
 }
 
 async function main(): Promise<void> {
+  const { ImSdkClient, ImWebSocketAuthOptions } = await import(
+    '../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index'
+  );
   const originalWebSocket = Object.getOwnPropertyDescriptor(globalThis, 'WebSocket');
   Object.defineProperty(globalThis, 'WebSocket', {
     configurable: true,
@@ -163,14 +201,18 @@ async function main(): Promise<void> {
 
     const lifecycleStates: string[] = [];
     const received: Array<{ context: ImMessageContext; message: ImDecodedMessage }> = [];
+    const userScopeEvents: Array<{ context: ImRealtimeEventContext; event: Record<string, unknown> }> = [];
     connection.lifecycle.onStateChange((state) => lifecycleStates.push(state.status));
     connection.messages.onConversation('conversation-1', (message, context) => {
       received.push({ context, message });
     });
+    connection.events.onScope('user', 'user-1', (event, context) => {
+      userScopeEvents.push({ context, event });
+    });
 
     socket.open();
 
-    assert.deepEqual(lifecycleStates, ['open']);
+    assert.deepEqual(lifecycleStates, ['connecting', 'open']);
     assert.deepEqual(parseSent(socket, 0), {
       type: 'subscriptions.sync',
       requestId: 'sdkwork-im-subscriptions-sync-1',
@@ -186,6 +228,134 @@ async function main(): Promise<void> {
           eventTypes: ['message.posted'],
         },
       ],
+    });
+    connection.subscriptions.syncConversations(['conversation-1', 'conversation-3']);
+    assert.deepEqual(parseSent(socket, 1), {
+      type: 'subscriptions.sync',
+      requestId: 'sdkwork-im-subscriptions-sync-2',
+      items: [
+        {
+          scopeType: 'conversation',
+          scopeId: 'conversation-1',
+          eventTypes: ['message.posted'],
+        },
+        {
+          scopeType: 'conversation',
+          scopeId: 'conversation-3',
+          eventTypes: ['message.posted'],
+        },
+      ],
+    });
+    connection.subscriptions.syncConversations([]);
+    assert.deepEqual(parseSent(socket, 2), {
+      type: 'subscriptions.sync',
+      requestId: 'sdkwork-im-subscriptions-sync-3',
+      items: [],
+    });
+    connection.subscriptions.syncConversations(['conversation-1', 'conversation-3']);
+    assert.deepEqual(parseSent(socket, 3), {
+      type: 'subscriptions.sync',
+      requestId: 'sdkwork-im-subscriptions-sync-4',
+      items: [
+        {
+          scopeType: 'conversation',
+          scopeId: 'conversation-1',
+          eventTypes: ['message.posted'],
+        },
+        {
+          scopeType: 'conversation',
+          scopeId: 'conversation-3',
+          eventTypes: ['message.posted'],
+        },
+      ],
+    });
+    connection.subscriptions.syncScopes([
+      {
+        scopeType: 'user',
+        scopeId: 'user-1',
+        eventTypes: [
+          'friend_request.submitted',
+          'friend_request.accepted',
+          'friend_request.declined',
+          'friend_request.canceled',
+        ],
+      },
+    ]);
+    assert.deepEqual(parseSent(socket, 4), {
+      type: 'subscriptions.sync',
+      requestId: 'sdkwork-im-subscriptions-sync-5',
+      items: [
+        {
+          scopeType: 'conversation',
+          scopeId: 'conversation-1',
+          eventTypes: ['message.posted'],
+        },
+        {
+          scopeType: 'conversation',
+          scopeId: 'conversation-3',
+          eventTypes: ['message.posted'],
+        },
+        {
+          scopeType: 'user',
+          scopeId: 'user-1',
+          eventTypes: [
+            'friend_request.submitted',
+            'friend_request.accepted',
+            'friend_request.declined',
+            'friend_request.canceled',
+          ],
+        },
+      ],
+    });
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        type: 'event.window',
+        requestId: null,
+        reason: 'push',
+        window: {
+          deviceId: 'device-1',
+          items: [
+            {
+              eventId: 'event-friend-request-1',
+              eventType: 'friend_request.submitted',
+              occurredAt: '2026-06-06T09:59:00.000Z',
+              payload: JSON.stringify({
+                friendRequest: {
+                  requestId: 'friend-request-1',
+                  requesterUserId: 'user-2',
+                  targetUserId: 'user-1',
+                  status: 'pending',
+                },
+              }),
+              realtimeSeq: 6,
+              scopeType: 'user',
+              scopeId: 'user-1',
+            },
+          ],
+          nextAfterSeq: 6,
+        },
+      }),
+    });
+
+    assert.equal(userScopeEvents.length, 1, 'IM SDK must dispatch non-conversation user-scope realtime events');
+    assert.equal(userScopeEvents[0].context.scopeType, 'user');
+    assert.equal(userScopeEvents[0].context.scopeId, 'user-1');
+    assert.equal(userScopeEvents[0].context.eventType, 'friend_request.submitted');
+    assert.equal(userScopeEvents[0].context.sequence, 6);
+    assert.deepEqual(userScopeEvents[0].context.payload, {
+      friendRequest: {
+        requestId: 'friend-request-1',
+        requesterUserId: 'user-2',
+        targetUserId: 'user-1',
+        status: 'pending',
+      },
+    });
+    await userScopeEvents[0].context.ack();
+    assert.deepEqual(parseSent(socket, 5), {
+      type: 'events.ack',
+      requestId: 'sdkwork-im-events-ack-6',
+      ackedSeq: 6,
     });
 
     socket.emit('message', {
@@ -259,8 +429,577 @@ async function main(): Promise<void> {
       summary: 'hello over websocket',
     });
 
+    const incomingSessions: ImCallSession[] = [];
+    const unsubscribeIncoming = client.calls.subscribe((session) => {
+      incomingSessions.push(session);
+    });
+    const initialIncoming = await client.calls.watchIncoming({
+      conversationIds: ['conversation-1'],
+      connection,
+    });
+    assert.equal(initialIncoming, null, 'IM calls watcher should start empty before RTC invite signaling arrives');
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        type: 'event.window',
+        requestId: null,
+        reason: 'push',
+        window: {
+          deviceId: 'device-1',
+          items: [
+            {
+              eventId: 'event-rtc-invite-1',
+              eventType: 'message.posted',
+              occurredAt: '2026-06-06T10:01:00.000Z',
+              payload: JSON.stringify({
+                body: {
+                  parts: [
+                    {
+                      kind: 'signal',
+                      payload: JSON.stringify({
+                        artifactMessageId: null,
+                        conversationId: 'conversation-1',
+                        rtcMode: 'video',
+                        rtcSessionId: 'rtc-session-incoming-1',
+                        signalingStreamId: 'signal-stream-1',
+                        state: 'started',
+                      }),
+                      schemaRef: 'rtc.signal.v1',
+                      signalType: 'rtc.invite',
+                    },
+                  ],
+                  renderHints: {
+                    channel: 'rtc',
+                  },
+                  summary: 'rtc.invite',
+                },
+                conversationId: 'conversation-1',
+                deliveryMode: 'discrete',
+                messageId: 'message-rtc-invite-1',
+                messageSeq: 43,
+                messageType: 'signal',
+                occurredAt: '2026-06-06T10:01:00.000Z',
+                sender: {
+                  id: 'user-caller',
+                  kind: 'user',
+                  metadata: {},
+                },
+                summary: 'rtc.invite',
+              }),
+              realtimeSeq: 8,
+              scope: 'conversation',
+              scopeId: 'conversation-1',
+            },
+          ],
+          nextAfterSeq: 8,
+        },
+      }),
+    });
+
+    assert.equal(incomingSessions.length, 1, 'IM SDK calls facade must publish RTC invite sessions from realtime signal messages');
+    assert.equal(incomingSessions[0].rtcSessionId, 'rtc-session-incoming-1');
+    assert.equal(incomingSessions[0].conversationId, 'conversation-1');
+    assert.equal(incomingSessions[0].rtcMode, 'video');
+    assert.equal(incomingSessions[0].state, 'started');
+    assert.equal(incomingSessions[0].initiatorId, 'user-caller');
+    assert.equal(incomingSessions[0].initiatorKind, 'user');
+    const watchedIncoming = await client.calls.watchIncoming();
+    assert.equal(watchedIncoming?.rtcSessionId, 'rtc-session-incoming-1');
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        type: 'event.window',
+        window: {
+          deviceId: 'device-1',
+          items: [
+            {
+              eventId: 'event-rtc-end-1',
+              eventType: 'message.posted',
+              occurredAt: '2026-06-06T10:02:00.000Z',
+              payload: JSON.stringify({
+                body: {
+                  parts: [
+                    {
+                      kind: 'signal',
+                      payload: JSON.stringify({
+                        artifactMessageId: null,
+                        conversationId: 'conversation-1',
+                        rtcMode: 'video',
+                        rtcSessionId: 'rtc-session-incoming-1',
+                        signalingStreamId: 'signal-stream-1',
+                        state: 'ended',
+                      }),
+                      schemaRef: 'rtc.signal.v1',
+                      signalType: 'rtc.end',
+                    },
+                  ],
+                  renderHints: {
+                    channel: 'rtc',
+                  },
+                  summary: 'rtc.end',
+                },
+                conversationId: 'conversation-1',
+                deliveryMode: 'discrete',
+                messageId: 'message-rtc-end-1',
+                messageSeq: 44,
+                messageType: 'signal',
+                occurredAt: '2026-06-06T10:02:00.000Z',
+                sender: {
+                  id: 'user-caller',
+                  kind: 'user',
+                  metadata: {},
+                },
+                summary: 'rtc.end',
+              }),
+              realtimeSeq: 9,
+              scope: 'conversation',
+              scopeId: 'conversation-1',
+            },
+          ],
+          nextAfterSeq: 9,
+        },
+      }),
+    });
+
+    assert.equal(
+      incomingSessions.length,
+      2,
+      'IM SDK calls facade must publish closing RTC signals so PC call state can sync accept/reject/end actions',
+    );
+    assert.equal(incomingSessions[1].rtcSessionId, 'rtc-session-incoming-1');
+    assert.equal(incomingSessions[1].state, 'ended');
+    assert.equal((await client.calls.watchIncoming())?.rtcSessionId, undefined);
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        type: 'event.window',
+        window: {
+          deviceId: 'device-1',
+          items: [
+            {
+              eventId: 'event-rtc-nested-invite-1',
+              eventType: 'message.posted',
+              occurredAt: '2026-06-06T10:03:00.000Z',
+              payload: JSON.stringify({
+                body: {
+                  parts: [
+                    {
+                      kind: 'signal',
+                      payload: JSON.stringify({
+                        signalPayload: JSON.stringify({
+                          artifactMessageId: null,
+                          conversationId: 'conversation-1',
+                          rtcMode: 'voice',
+                          rtcSessionId: 'rtc-session-incoming-2',
+                          signalingStreamId: 'signal-stream-2',
+                          state: 'started',
+                        }),
+                      }),
+                      schemaRef: 'rtc.signal.v1',
+                      signalType: 'rtc.invite',
+                    },
+                  ],
+                  renderHints: {
+                    channel: 'rtc',
+                  },
+                  summary: 'rtc.invite',
+                },
+                conversationId: 'conversation-1',
+                deliveryMode: 'discrete',
+                messageId: 'message-rtc-nested-invite-1',
+                messageSeq: 45,
+                messageType: 'signal',
+                occurredAt: '2026-06-06T10:03:00.000Z',
+                sender: {
+                  id: 'user-nested-caller',
+                  kind: 'user',
+                  metadata: {},
+                },
+                summary: 'rtc.invite',
+              }),
+              realtimeSeq: 10,
+              scope: 'conversation',
+              scopeId: 'conversation-1',
+            },
+          ],
+          nextAfterSeq: 10,
+        },
+      }),
+    });
+
+    assert.equal(
+      incomingSessions.length,
+      3,
+      'IM SDK calls facade must publish RTC invite sessions when signal fields are nested in signalPayload',
+    );
+    assert.equal(incomingSessions[2].rtcSessionId, 'rtc-session-incoming-2');
+    assert.equal(incomingSessions[2].rtcMode, 'voice');
+    assert.equal(incomingSessions[2].initiatorId, 'user-nested-caller');
+    assert.equal((await client.calls.watchIncoming())?.rtcSessionId, 'rtc-session-incoming-2');
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        type: 'event.window',
+        window: {
+          deviceId: 'device-1',
+          items: [
+            {
+              eventId: 'event-rtc-nested-end-1',
+              eventType: 'message.posted',
+              occurredAt: '2026-06-06T10:04:00.000Z',
+              payload: JSON.stringify({
+                body: {
+                  parts: [
+                    {
+                      kind: 'signal',
+                      payload: JSON.stringify({
+                        signalPayload: JSON.stringify({
+                          rtcSessionId: 'rtc-session-incoming-2',
+                          state: 'ended',
+                        }),
+                      }),
+                      schemaRef: 'rtc.signal.v1',
+                      signalType: 'rtc.end',
+                    },
+                  ],
+                  renderHints: {
+                    channel: 'rtc',
+                  },
+                  summary: 'rtc.end',
+                },
+                conversationId: 'conversation-1',
+                deliveryMode: 'discrete',
+                messageId: 'message-rtc-nested-end-1',
+                messageSeq: 46,
+                messageType: 'signal',
+                occurredAt: '2026-06-06T10:04:00.000Z',
+                sender: {
+                  id: 'user-nested-caller',
+                  kind: 'user',
+                  metadata: {},
+                },
+                summary: 'rtc.end',
+              }),
+              realtimeSeq: 11,
+              scope: 'conversation',
+              scopeId: 'conversation-1',
+            },
+          ],
+          nextAfterSeq: 11,
+        },
+      }),
+    });
+
+    assert.equal(
+      incomingSessions.length,
+      4,
+      'IM SDK calls facade must reuse cached invite metadata when closing RTC signals only carry session id and state',
+    );
+    assert.equal(incomingSessions[3].rtcSessionId, 'rtc-session-incoming-2');
+    assert.equal(incomingSessions[3].state, 'ended');
+    assert.equal(incomingSessions[3].rtcMode, 'voice');
+    assert.equal((await client.calls.watchIncoming())?.rtcSessionId, undefined);
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        type: 'event.window',
+        window: {
+          deviceId: 'device-1',
+          items: [
+            {
+              eventId: 'event-rtc-type-only-invite-1',
+              eventType: 'message.posted',
+              occurredAt: '2026-06-06T10:05:00.000Z',
+              payload: JSON.stringify({
+                body: {
+                  parts: [
+                    {
+                      kind: 'signal',
+                      payload: JSON.stringify({
+                        conversationId: 'conversation-1',
+                        rtcMode: 'video',
+                        rtcSessionId: 'rtc-session-type-only-1',
+                        signalingStreamId: 'signal-stream-type-only-1',
+                      }),
+                      schemaRef: 'rtc.signal.v1',
+                      signalType: 'rtc.invite',
+                    },
+                  ],
+                  renderHints: {
+                    channel: 'rtc',
+                  },
+                  summary: 'rtc.invite',
+                },
+                conversationId: 'conversation-1',
+                deliveryMode: 'discrete',
+                messageId: 'message-rtc-type-only-invite-1',
+                messageSeq: 47,
+                messageType: 'signal',
+                occurredAt: '2026-06-06T10:05:00.000Z',
+                sender: {
+                  id: 'user-type-only-caller',
+                  kind: 'user',
+                  metadata: {},
+                },
+                summary: 'rtc.invite',
+              }),
+              realtimeSeq: 12,
+              scope: 'conversation',
+              scopeId: 'conversation-1',
+            },
+          ],
+          nextAfterSeq: 12,
+        },
+      }),
+    });
+
+    assert.equal(
+      incomingSessions.length,
+      5,
+      'IM SDK calls facade must infer a started RTC session from rtc.invite even when payload omits state',
+    );
+    assert.equal(incomingSessions[4].rtcSessionId, 'rtc-session-type-only-1');
+    assert.equal(incomingSessions[4].state, 'started');
+    assert.equal((await client.calls.watchIncoming())?.rtcSessionId, 'rtc-session-type-only-1');
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        type: 'event.window',
+        window: {
+          deviceId: 'device-1',
+          items: [
+            {
+              eventId: 'event-rtc-type-only-accept-1',
+              eventType: 'message.posted',
+              occurredAt: '2026-06-06T10:06:00.000Z',
+              payload: JSON.stringify({
+                body: {
+                  parts: [
+                    {
+                      kind: 'signal',
+                      payload: JSON.stringify({
+                        rtcSessionId: 'rtc-session-type-only-1',
+                      }),
+                      schemaRef: 'rtc.signal.v1',
+                      signalType: 'rtc.accept',
+                    },
+                  ],
+                  renderHints: {
+                    channel: 'rtc',
+                  },
+                  summary: 'rtc.accept',
+                },
+                conversationId: 'conversation-1',
+                deliveryMode: 'discrete',
+                messageId: 'message-rtc-type-only-accept-1',
+                messageSeq: 48,
+                messageType: 'signal',
+                occurredAt: '2026-06-06T10:06:00.000Z',
+                sender: {
+                  id: 'user-type-only-callee',
+                  kind: 'user',
+                  metadata: {},
+                },
+                summary: 'rtc.accept',
+              }),
+              realtimeSeq: 13,
+              scope: 'conversation',
+              scopeId: 'conversation-1',
+            },
+          ],
+          nextAfterSeq: 13,
+        },
+      }),
+    });
+
+    assert.equal(
+      incomingSessions.length,
+      6,
+      'IM SDK calls facade must infer accepted state from rtc.accept when payload omits state',
+    );
+    assert.equal(incomingSessions[5].rtcSessionId, 'rtc-session-type-only-1');
+    assert.equal(incomingSessions[5].state, 'accepted');
+    assert.equal(incomingSessions[5].rtcMode, 'video');
+    assert.equal((await client.calls.watchIncoming())?.rtcSessionId, undefined);
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        type: 'event.window',
+        window: {
+          deviceId: 'device-1',
+          items: [
+            {
+              eventId: 'event-rtc-type-only-end-1',
+              eventType: 'message.posted',
+              occurredAt: '2026-06-06T10:06:30.000Z',
+              payload: JSON.stringify({
+                body: {
+                  parts: [
+                    {
+                      kind: 'signal',
+                      payload: JSON.stringify({
+                        rtcSessionId: 'rtc-session-type-only-1',
+                      }),
+                      schemaRef: 'rtc.signal.v1',
+                      signalType: 'rtc.end',
+                    },
+                  ],
+                  renderHints: {
+                    channel: 'rtc',
+                  },
+                  summary: 'rtc.end',
+                },
+                conversationId: 'conversation-1',
+                deliveryMode: 'discrete',
+                messageId: 'message-rtc-type-only-end-1',
+                messageSeq: 49,
+                messageType: 'signal',
+                occurredAt: '2026-06-06T10:06:30.000Z',
+                sender: {
+                  id: 'user-type-only-caller',
+                  kind: 'user',
+                  metadata: {},
+                },
+                summary: 'rtc.end',
+              }),
+              realtimeSeq: 14,
+              scope: 'conversation',
+              scopeId: 'conversation-1',
+            },
+          ],
+          nextAfterSeq: 14,
+        },
+      }),
+    });
+
+    assert.equal(
+      incomingSessions.length,
+      7,
+      'IM SDK calls facade must keep accepted session metadata so a later rtc.end with only rtcSessionId can close the active call',
+    );
+    assert.equal(incomingSessions[6].rtcSessionId, 'rtc-session-type-only-1');
+    assert.equal(incomingSessions[6].state, 'ended');
+    assert.equal(incomingSessions[6].rtcMode, 'video');
+    assert.equal((await client.calls.watchIncoming())?.rtcSessionId, undefined);
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        type: 'event.window',
+        window: {
+          deviceId: 'device-1',
+          items: [
+            {
+              eventId: 'event-rtc-type-only-invite-2',
+              eventType: 'message.posted',
+              occurredAt: '2026-06-06T10:07:00.000Z',
+              payload: JSON.stringify({
+                body: {
+                  parts: [
+                    {
+                      kind: 'signal',
+                      payload: JSON.stringify({
+                        conversationId: 'conversation-1',
+                        rtcMode: 'voice',
+                        rtcSessionId: 'rtc-session-type-only-2',
+                      }),
+                      schemaRef: 'rtc.signal.v1',
+                      signalType: 'rtc.invite',
+                    },
+                  ],
+                  renderHints: {
+                    channel: 'rtc',
+                  },
+                  summary: 'rtc.invite',
+                },
+                conversationId: 'conversation-1',
+                deliveryMode: 'discrete',
+                messageId: 'message-rtc-type-only-invite-2',
+                messageSeq: 50,
+                messageType: 'signal',
+                occurredAt: '2026-06-06T10:07:00.000Z',
+                sender: {
+                  id: 'user-type-only-caller',
+                  kind: 'user',
+                  metadata: {},
+                },
+                summary: 'rtc.invite',
+              }),
+              realtimeSeq: 15,
+              scope: 'conversation',
+              scopeId: 'conversation-1',
+            },
+          ],
+          nextAfterSeq: 15,
+        },
+      }),
+    });
+
+    assert.equal(incomingSessions.length, 8);
+    assert.equal((await client.calls.watchIncoming())?.rtcSessionId, 'rtc-session-type-only-2');
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        type: 'event.window',
+        window: {
+          deviceId: 'device-1',
+          items: [
+            {
+              eventId: 'event-rtc-type-only-end-2',
+              eventType: 'message.posted',
+              occurredAt: '2026-06-06T10:08:00.000Z',
+              payload: JSON.stringify({
+                body: {
+                  parts: [
+                    {
+                      kind: 'signal',
+                      payload: JSON.stringify({
+                        rtcSessionId: 'rtc-session-type-only-2',
+                      }),
+                      schemaRef: 'rtc.signal.v1',
+                      signalType: 'rtc.end',
+                    },
+                  ],
+                  renderHints: {
+                    channel: 'rtc',
+                  },
+                  summary: 'rtc.end',
+                },
+                conversationId: 'conversation-1',
+                deliveryMode: 'discrete',
+                messageId: 'message-rtc-type-only-end-2',
+                messageSeq: 51,
+                messageType: 'signal',
+                occurredAt: '2026-06-06T10:08:00.000Z',
+                sender: {
+                  id: 'user-type-only-caller',
+                  kind: 'user',
+                  metadata: {},
+                },
+                summary: 'rtc.end',
+              }),
+              realtimeSeq: 16,
+              scope: 'conversation',
+              scopeId: 'conversation-1',
+            },
+          ],
+          nextAfterSeq: 16,
+        },
+      }),
+    });
+
+    assert.equal(
+      incomingSessions.length,
+      9,
+      'IM SDK calls facade must infer ended state from rtc.end when payload omits state',
+    );
+    assert.equal(incomingSessions[8].rtcSessionId, 'rtc-session-type-only-2');
+    assert.equal(incomingSessions[8].state, 'ended');
+    assert.equal(incomingSessions[8].rtcMode, 'voice');
+    assert.equal((await client.calls.watchIncoming())?.rtcSessionId, undefined);
+    unsubscribeIncoming();
+
     await received[0].context.ack();
-    assert.deepEqual(parseSent(socket, 1), {
+    assert.deepEqual(parseSent(socket, 6), {
       type: 'events.ack',
       requestId: 'sdkwork-im-events-ack-7',
       ackedSeq: 7,
@@ -269,12 +1008,263 @@ async function main(): Promise<void> {
     connection.disconnect(1000, 'test complete');
     assert.equal(socket.readyState, 3);
 
+    const heartbeatSockets: FakeWebSocket[] = [];
+    const heartbeatClient = new ImSdkClient({
+      accessToken: 'heartbeat-access-token',
+      authToken: 'heartbeat-auth-token',
+      webSocketAuth: ImWebSocketAuthOptions.none(),
+      webSocketFactory: (url, options) => {
+        const heartbeatSocket = new FakeWebSocket(url, options);
+        heartbeatSockets.push(heartbeatSocket);
+        return heartbeatSocket;
+      },
+      websocketBaseUrl: 'wss://chat.example.com/sdkwork/chat/',
+    });
+    const heartbeatConnection = await heartbeatClient.connect({
+      deviceId: 'heartbeat-device-1',
+      heartbeat: {
+        intervalMs: 5,
+        timeoutMs: 30,
+      },
+      subscriptions: {
+        conversations: [],
+      },
+    });
+    const heartbeatSocket = heartbeatSockets[0];
+    const heartbeatErrors: unknown[] = [];
+    heartbeatConnection.lifecycle.onError((error) => heartbeatErrors.push(error));
+    heartbeatSocket.open();
+    await new Promise((resolve) => setTimeout(resolve, 12));
+    const heartbeatPing = parseSent(heartbeatSocket, 0);
+    assert.equal(heartbeatPing.type, 'ping', 'IM realtime connection must send app-level heartbeat pings after opening');
+    assert.equal(heartbeatPing.requestId, 'sdkwork-im-heartbeat-1');
+    heartbeatSocket.emit('message', {
+      data: JSON.stringify({
+        type: 'pong',
+        requestId: heartbeatPing.requestId,
+      }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 18));
+    assert.equal(heartbeatErrors.length, 0, 'IM realtime heartbeat must treat any inbound frame as connection liveness');
+    assert.equal(heartbeatSocket.readyState, 1);
+    heartbeatConnection.disconnect(1000, 'heartbeat test complete');
+
+    const staleHeartbeatSockets: FakeWebSocket[] = [];
+    const staleHeartbeatClient = new ImSdkClient({
+      accessToken: 'stale-heartbeat-access-token',
+      authToken: 'stale-heartbeat-auth-token',
+      webSocketAuth: ImWebSocketAuthOptions.none(),
+      webSocketFactory: (url, options) => {
+        const staleHeartbeatSocket = new FakeWebSocket(url, options);
+        staleHeartbeatSockets.push(staleHeartbeatSocket);
+        return staleHeartbeatSocket;
+      },
+      websocketBaseUrl: 'wss://chat.example.com/sdkwork/chat/',
+    });
+    const staleHeartbeatConnection = await staleHeartbeatClient.connect({
+      deviceId: 'stale-heartbeat-device-1',
+      heartbeat: {
+        intervalMs: 5,
+        timeoutMs: 12,
+      },
+      subscriptions: {
+        conversations: [],
+      },
+    });
+    const staleHeartbeatSocket = staleHeartbeatSockets[0];
+    const staleHeartbeatStates: string[] = [];
+    const staleHeartbeatErrors: unknown[] = [];
+    staleHeartbeatConnection.lifecycle.onStateChange((state) => staleHeartbeatStates.push(state.status));
+    staleHeartbeatConnection.lifecycle.onError((error) => staleHeartbeatErrors.push(error));
+    staleHeartbeatSocket.open();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.deepEqual(staleHeartbeatStates, ['connecting', 'open', 'error', 'closed']);
+    assert.deepEqual(staleHeartbeatErrors[0], {
+      code: 'websocket_heartbeat_timeout',
+      message: 'websocket heartbeat response was not received before timeout',
+      requestId: 'sdkwork-im-heartbeat-1',
+      type: 'error',
+    });
+    assert.equal(staleHeartbeatSocket.readyState, 3, 'IM realtime heartbeat timeout must close stale sockets');
+    staleHeartbeatConnection.disconnect(1000, 'stale heartbeat test complete');
+
+    const runtimeErrorSockets: FakeWebSocket[] = [];
+    const runtimeErrorClient = new ImSdkClient({
+      accessToken: 'runtime-error-access-token',
+      authToken: 'runtime-error-auth-token',
+      webSocketAuth: ImWebSocketAuthOptions.none(),
+      webSocketFactory: (url, options) => {
+        const runtimeErrorSocket = new FakeWebSocket(url, options);
+        runtimeErrorSockets.push(runtimeErrorSocket);
+        return runtimeErrorSocket;
+      },
+      websocketBaseUrl: 'wss://chat.example.com/sdkwork/chat/',
+    });
+    const runtimeErrorConnection = await runtimeErrorClient.connect({
+      deviceId: 'runtime-error-device-1',
+      heartbeat: false,
+      subscriptions: {
+        conversations: [],
+      },
+    });
+    const runtimeErrorSocket = runtimeErrorSockets[0];
+    const runtimeErrors: unknown[] = [];
+    runtimeErrorConnection.lifecycle.onError((error) => runtimeErrors.push(error));
+    runtimeErrorSocket.open();
+    runtimeErrorSocket.emit('message', {
+      data: JSON.stringify({
+        type: 'error',
+        requestId: 'server-error-1',
+        code: 'subscription_forbidden',
+        message: 'conversation access denied',
+      }),
+    });
+    assert.deepEqual(runtimeErrors, [
+      {
+        code: 'subscription_forbidden',
+        message: 'conversation access denied',
+        requestId: 'server-error-1',
+        type: 'error',
+      },
+    ], 'IM realtime SDK must surface server control error frames after the connection is open');
+    assert.equal(runtimeErrorSocket.readyState, 1, 'non-fatal realtime control errors must not close an otherwise healthy socket');
+    runtimeErrorConnection.disconnect(1000, 'runtime error test complete');
+
+    const fatalRuntimeErrorSockets: FakeWebSocket[] = [];
+    const fatalRuntimeErrorClient = new ImSdkClient({
+      accessToken: 'fatal-runtime-error-access-token',
+      authToken: 'fatal-runtime-error-auth-token',
+      webSocketAuth: ImWebSocketAuthOptions.none(),
+      webSocketFactory: (url, options) => {
+        const fatalRuntimeErrorSocket = new FakeWebSocket(url, options);
+        fatalRuntimeErrorSockets.push(fatalRuntimeErrorSocket);
+        return fatalRuntimeErrorSocket;
+      },
+      websocketBaseUrl: 'wss://chat.example.com/sdkwork/chat/',
+    });
+    const fatalRuntimeErrorConnection = await fatalRuntimeErrorClient.connect({
+      deviceId: 'fatal-runtime-error-device-1',
+      heartbeat: false,
+      subscriptions: {
+        conversations: [],
+      },
+    });
+    const fatalRuntimeErrorSocket = fatalRuntimeErrorSockets[0];
+    const fatalRuntimeErrorStates: string[] = [];
+    const fatalRuntimeErrors: unknown[] = [];
+    fatalRuntimeErrorConnection.lifecycle.onStateChange((state) => fatalRuntimeErrorStates.push(state.status));
+    fatalRuntimeErrorConnection.lifecycle.onError((error) => fatalRuntimeErrors.push(error));
+    fatalRuntimeErrorSocket.open();
+    fatalRuntimeErrorSocket.emit('message', {
+      data: JSON.stringify({
+        type: 'error',
+        requestId: 'fatal-server-error-1',
+        code: 'websocket_auth_failed',
+        message: 'session expired after connection opened',
+      }),
+    });
+    assert.deepEqual(fatalRuntimeErrorStates, ['connecting', 'open', 'error', 'closed']);
+    assert.deepEqual(fatalRuntimeErrors, [
+      {
+        code: 'websocket_auth_failed',
+        message: 'session expired after connection opened',
+        requestId: 'fatal-server-error-1',
+        type: 'error',
+      },
+    ]);
+    assert.equal(fatalRuntimeErrorSocket.readyState, 3, 'fatal realtime control errors must close the socket so app reconnect can recover');
+
+    const connectTimeoutSockets: FakeWebSocket[] = [];
+    const connectTimeoutClient = new ImSdkClient({
+      accessToken: 'connect-timeout-access-token',
+      authToken: 'connect-timeout-auth-token',
+      webSocketAuth: ImWebSocketAuthOptions.none(),
+      webSocketFactory: (url, options) => {
+        const connectTimeoutSocket = new FakeWebSocket(url, options);
+        connectTimeoutSockets.push(connectTimeoutSocket);
+        return connectTimeoutSocket;
+      },
+      websocketBaseUrl: 'wss://chat.example.com/sdkwork/chat/',
+    });
+    const connectTimeoutConnection = await connectTimeoutClient.connect({
+      connectionTimeoutMs: 1,
+      deviceId: 'connect-timeout-device-1',
+      heartbeat: false,
+      subscriptions: {
+        conversations: [],
+      },
+    });
+    const connectTimeoutSocket = connectTimeoutSockets[0];
+    const connectTimeoutStates: string[] = [];
+    const connectTimeoutErrors: unknown[] = [];
+    connectTimeoutConnection.lifecycle.onStateChange((state) => connectTimeoutStates.push(state.status));
+    connectTimeoutConnection.lifecycle.onError((error) => connectTimeoutErrors.push(error));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.deepEqual(connectTimeoutStates, ['connecting', 'error']);
+    assert.deepEqual(connectTimeoutErrors, [
+      {
+        code: 'websocket_connect_timeout',
+        message: 'websocket connection was not established before timeout',
+        type: 'error',
+      },
+    ]);
+    assert.equal(
+      connectTimeoutSocket.readyState,
+      0,
+      'IM realtime SDK must not call native close while a browser-compatible socket is still CONNECTING',
+    );
+    connectTimeoutSocket.open();
+    assert.equal(connectTimeoutSocket.readyState, 3, 'pending connect-timeout close must be applied once the socket opens');
+
     FakeBrowserWebSocket.instances.length = 0;
     Object.defineProperty(globalThis, 'WebSocket', {
       configurable: true,
       value: FakeBrowserWebSocket,
     });
 
+    const closingBrowserClient = new ImSdkClient({
+      accessToken: 'closing-browser-access-token',
+      authToken: 'closing-browser-auth-token',
+      tokenManager: {
+        getAccessToken: () => 'closing-browser-access-token',
+        getAuthToken: () => 'closing-browser-auth-token',
+      },
+      webSocketAuth: ImWebSocketAuthOptions.automatic(),
+      websocketBaseUrl: 'wss://chat.example.com/sdkwork/chat/',
+    });
+    const closingBrowserConnection = await closingBrowserClient.connect({
+      deviceId: 'closing-browser-device-1',
+      subscriptions: {
+        conversations: ['closing-browser-conversation-1'],
+      },
+    });
+    const closingBrowserSocket = FakeBrowserWebSocket.instances[0];
+    const closingBrowserStates: string[] = [];
+    closingBrowserConnection.lifecycle.onStateChange((state) => closingBrowserStates.push(state.status));
+    closingBrowserConnection.disconnect(1000, 'conversation subscription closed');
+
+    assert.equal(
+      closingBrowserSocket.closeCalls.length,
+      0,
+      'browser websocket must not call native close while the socket is still CONNECTING',
+    );
+    assert.deepEqual(closingBrowserStates, ['connecting']);
+    closingBrowserSocket.open();
+    assert.deepEqual(closingBrowserSocket.closeCalls, [
+      {
+        code: 1000,
+        reason: 'conversation subscription closed',
+      },
+    ]);
+    assert.deepEqual(closingBrowserStates, ['connecting', 'closed']);
+    assert.equal(
+      closingBrowserSocket.sent.length,
+      0,
+      'browser websocket must not send auth.init or subscriptions after a pending disconnect',
+    );
+
+    FakeBrowserWebSocket.instances.length = 0;
     const browserClient = new ImSdkClient({
       accessToken: 'stale-browser-access-token',
       authToken: 'stale-browser-auth-token',
@@ -305,8 +1295,9 @@ async function main(): Promise<void> {
     const browserStates: string[] = [];
     browserConnection.lifecycle.onStateChange((state) => browserStates.push(state.status));
 
+    assert.deepEqual(browserStates, ['connecting']);
     browserSocket.open();
-    assert.deepEqual(browserStates, [], 'browser websocket must wait for auth.ok before reporting open');
+    assert.deepEqual(browserStates, ['connecting'], 'browser websocket must wait for auth.ok before reporting open');
     assert.deepEqual(parseBrowserSent(browserSocket, 0), {
       type: 'auth.init',
       requestId: 'sdkwork-im-auth-init-1',
@@ -330,7 +1321,7 @@ async function main(): Promise<void> {
         deviceId: 'browser-device-1',
       }),
     });
-    assert.deepEqual(browserStates, ['open']);
+    assert.deepEqual(browserStates, ['connecting', 'open']);
     assert.deepEqual(parseBrowserSent(browserSocket, 1), {
       type: 'subscriptions.sync',
       requestId: 'sdkwork-im-subscriptions-sync-1',
@@ -344,6 +1335,104 @@ async function main(): Promise<void> {
     });
 
     browserConnection.disconnect(1000, 'browser test complete');
+
+    FakeBrowserWebSocket.instances.length = 0;
+    const failedAuthClient = new ImSdkClient({
+      accessToken: 'failed-browser-access-token',
+      authToken: 'failed-browser-auth-token',
+      tokenManager: {
+        getAccessToken: () => 'failed-browser-access-token',
+        getAuthToken: () => 'failed-browser-auth-token',
+      },
+      webSocketAuth: ImWebSocketAuthOptions.automatic(),
+      websocketBaseUrl: 'wss://chat.example.com/sdkwork/chat/',
+    });
+    const failedAuthConnection = await failedAuthClient.connect({
+      deviceId: 'failed-browser-device-1',
+      subscriptions: {
+        conversations: ['failed-browser-conversation-1'],
+      },
+    });
+    const failedBrowserSocket = FakeBrowserWebSocket.instances[0];
+    const failedBrowserStates: string[] = [];
+    const failedBrowserErrors: unknown[] = [];
+    failedAuthConnection.lifecycle.onStateChange((state) => failedBrowserStates.push(state.status));
+    failedAuthConnection.lifecycle.onError((error) => failedBrowserErrors.push(error));
+
+    assert.deepEqual(failedBrowserStates, ['connecting']);
+    failedBrowserSocket.open();
+    assert.deepEqual(parseBrowserSent(failedBrowserSocket, 0), {
+      type: 'auth.init',
+      requestId: 'sdkwork-im-auth-init-1',
+      authToken: 'failed-browser-auth-token',
+      accessToken: 'failed-browser-access-token',
+      deviceId: 'failed-browser-device-1',
+    });
+    failedBrowserSocket.emit('message', {
+      data: JSON.stringify({
+        type: 'error',
+        requestId: 'sdkwork-im-auth-init-1',
+        code: 'websocket_auth_failed',
+        message: 'session expired',
+      }),
+    });
+
+    assert.deepEqual(failedBrowserStates, ['connecting', 'error', 'closed']);
+    assert.equal(failedBrowserErrors.length, 1, 'browser auth error frame must notify lifecycle error handlers');
+    assert.deepEqual(failedBrowserErrors[0], {
+      code: 'websocket_auth_failed',
+      message: 'session expired',
+      requestId: 'sdkwork-im-auth-init-1',
+      type: 'error',
+    });
+    assert.equal(
+      failedBrowserSocket.sent.some((frame) => frame.includes('subscriptions.sync')),
+      false,
+      'browser websocket must not subscribe after auth error',
+    );
+
+    FakeBrowserWebSocket.instances.length = 0;
+    const timeoutAuthClient = new ImSdkClient({
+      accessToken: 'timeout-browser-access-token',
+      authToken: 'timeout-browser-auth-token',
+      tokenManager: {
+        getAccessToken: () => 'timeout-browser-access-token',
+        getAuthToken: () => 'timeout-browser-auth-token',
+      },
+      webSocketAuth: ImWebSocketAuthOptions.automatic({
+        timeoutMs: 1,
+      }),
+      websocketBaseUrl: 'wss://chat.example.com/sdkwork/chat/',
+    });
+    const timeoutAuthConnection = await timeoutAuthClient.connect({
+      deviceId: 'timeout-browser-device-1',
+      subscriptions: {
+        conversations: ['timeout-browser-conversation-1'],
+      },
+    });
+    const timeoutBrowserSocket = FakeBrowserWebSocket.instances[0];
+    const timeoutBrowserStates: string[] = [];
+    const timeoutBrowserErrors: unknown[] = [];
+    timeoutAuthConnection.lifecycle.onStateChange((state) => timeoutBrowserStates.push(state.status));
+    timeoutAuthConnection.lifecycle.onError((error) => timeoutBrowserErrors.push(error));
+    timeoutBrowserSocket.open();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.deepEqual(timeoutBrowserStates, ['connecting', 'error', 'closed']);
+    assert.equal(timeoutBrowserErrors.length, 1, 'browser auth timeout must notify lifecycle error handlers');
+    assert.deepEqual(timeoutBrowserErrors[0], {
+      code: 'websocket_auth_timeout',
+      message: 'websocket auth.ok was not received before timeout',
+      requestId: 'sdkwork-im-auth-init-1',
+      type: 'error',
+    });
+    assert.equal(timeoutBrowserSocket.readyState, 3);
+    assert.equal(
+      timeoutBrowserSocket.sent.some((frame) => frame.includes('subscriptions.sync')),
+      false,
+      'browser websocket must not subscribe after auth timeout',
+    );
+    timeoutAuthConnection.disconnect(1000, 'timeout test complete');
   } finally {
     if (originalWebSocket) {
       Object.defineProperty(globalThis, 'WebSocket', originalWebSocket);

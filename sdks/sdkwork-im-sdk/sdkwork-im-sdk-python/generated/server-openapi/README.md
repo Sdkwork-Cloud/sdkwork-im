@@ -50,7 +50,7 @@ client.set_header('X-Custom-Header', 'value')
 
 - `client.presence` - presence API
 - `client.realtime` - realtime API
-- `client.rtc` - rtc API
+- `client.calls` - calls API
 - `client.social` - social API
 - `client.chat` - chat API
 - `client.streams` - streams API
@@ -77,15 +77,16 @@ result = client.realtime.events.list(params)
 print(result)
 ```
 
-### rtc
+### calls
 
 ```python
-# Create an IM-backed RTC session
+# Create an IM call signaling session
 body = {
+    'rtcSessionId': 'rtcSessionId',
     'conversationId': 'conversationId',
-    'mediaKind': 'mediaKind',
+    'rtcMode': 'rtcMode',
 }
-result = client.rtc.sessions.create(body)
+result = client.calls.sessions.create(body)
 print(result)
 ```
 

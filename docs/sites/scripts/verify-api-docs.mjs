@@ -421,7 +421,7 @@ for (const relativePath of [
   "api-reference/im/conversations.md",
   "api-reference/im/messages.md",
   "api-reference/im/media.md",
-  "api-reference/im/rtc.md",
+  "api-reference/im/calls.md",
   "api-reference/im/session-and-realtime.md",
   "api-reference/im/streams.md",
   "api-reference/im/membership-and-read-state.md",

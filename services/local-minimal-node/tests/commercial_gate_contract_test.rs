@@ -35,7 +35,6 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
         "cargo test -p projection-service --tests",
         "cargo test -p projection-service --test http_smoke_test test_timeline_query_rejects_same_actor_id_with_different_actor_kind_over_http -- --exact",
         "cargo test -p projection-service --test http_smoke_test test_contacts_query_rejects_same_actor_id_with_different_actor_kind_over_http -- --exact",
-        "cargo test --manifest-path ../../../../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --tests",
         "cargo test -p media-service --tests",
         "cargo test -p streaming-service --tests",
         "cargo test -p audit-service --tests",
@@ -83,9 +82,6 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
         "node --test tests/portal-build-smoke.test.mjs",
         "node --test tests/portal-real-auth.test.mjs",
         "node ./scripts/docs-verify.mjs",
-        "cargo test --manifest-path ../../../../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_is_idempotent_and_conflicting_retry_is_rejected -- --exact",
-        "cargo test --manifest-path ../../../../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_duplicate_rtc_session_create_with_same_actor_id_but_different_actor_kind_is_conflict -- --exact",
-        "cargo test --manifest-path ../../../../sdkwork-rtc/Cargo.toml -p sdkwork-rtc-signaling-service --test http_smoke_test test_map_rtc_provider_callback_rejects_oversized_payload_json_over_http -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idempotent -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_actor_kind -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects -- --exact",
@@ -119,7 +115,6 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
         "cargo clippy -p notification-service -p automation-service -p local-minimal-node --tests -- -D warnings",
         "cargo clippy --no-deps -p conversation-runtime -p local-minimal-node --tests -- -D warnings",
         "cargo clippy --no-deps -p media-service -p streaming-service -p audit-service -p local-minimal-node --tests -- -D warnings",
-        "cargo clippy --manifest-path ../../../../sdkwork-rtc/Cargo.toml --no-deps -p sdkwork-rtc-signaling-service --tests -- -D warnings",
     ] {
         assert!(
             workflow.contains(required_command),
@@ -133,7 +128,8 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
         ) && !workflow.contains("test_get_media_download_url_rejects_zero_ttl_over_http")
             && !workflow.contains(
                 "test_local_minimal_profile_treats_duplicate_media_upload_requests_as_idempotent"
-            ),
+            )
+            && !workflow.contains("sdkwork-rtc-signaling-service"),
         "commercial gate workflow must not preserve removed IM-owned media upload/download lifecycle tests"
     );
     assert!(

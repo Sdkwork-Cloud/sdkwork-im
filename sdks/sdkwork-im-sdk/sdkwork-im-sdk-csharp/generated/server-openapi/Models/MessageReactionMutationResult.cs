@@ -6,11 +6,11 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class MessageReactionMutationResult
     {
-        public string? TenantId { get; set; }
-        public string? ConversationId { get; set; }
-        public string? MessageId { get; set; }
-        public string? ReactionKey { get; set; }
-        public int? Count { get; set; }
-        public string? UpdatedAt { get; set; }
+        public string TenantId { get; set; }
+        public string ConversationId { get; set; }
+        public string MessageId { get; set; }
+        public string ReactionKey { get; set; }
+        public int Count { get; set; }
+        public string UpdatedAt { get; set; }
     }
 }

@@ -21,7 +21,7 @@ import {
   type ImWebSocketAuthConfig,
   type ImWebSocketFactory,
 } from './realtime';
-import { ImRtcModule } from './rtc-module';
+import { ImCallsModule } from './calls-module';
 import type { ImTransportClientLike } from './transport-client-like';
 
 export interface ImSdkClientOptions {
@@ -75,9 +75,9 @@ function createSocialFacade(transportClient: ImTransportClientLike): ImTransport
 
 export class ImSdkClient {
   readonly chat: ImTransportClientLike['chat'];
+  readonly calls: ImCallsModule;
   readonly conversations: ImConversationsModule;
   readonly messages: ImMessagesModule;
-  readonly rtc: ImRtcModule;
   readonly social: ImTransportClientLike['social'];
 
   private readonly options: ImSdkClientOptions;
@@ -92,7 +92,9 @@ export class ImSdkClient {
     this.social = createSocialFacade(this.transportClient);
     this.messages = new ImMessagesModule(this.transportClient);
     this.conversations = new ImConversationsModule(this.transportClient);
-    this.rtc = new ImRtcModule(this.transportClient);
+    this.calls = new ImCallsModule(this.transportClient, {
+      connect: (connectOptions) => this.connect(connectOptions),
+    });
   }
 
   get transport(): ImTransportClientLike {

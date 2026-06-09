@@ -155,8 +155,8 @@ assert.equal(
 );
 assert.equal(
   crawChatDevicePackageJson.dependencies?.['@sdkwork/aiot-backend-sdk'],
-  'workspace:*',
-  'Craw Chat device bridge must depend on @sdkwork/aiot-backend-sdk for AIoT device mutations.',
+  undefined,
+  'Craw Chat user-facing device package must not depend on the AIoT backend SDK.',
 );
 
 const crawChatDeviceServiceSource = readText(crawChatDeviceService);
@@ -165,29 +165,41 @@ assert.match(
   /from\s+["']@sdkwork\/aiot-app-sdk["']/u,
   'Craw Chat device bridge must consume sdkwork-aiot app SDK for user-visible reads.',
 );
-assert.match(
+assert.doesNotMatch(
   crawChatDeviceServiceSource,
   /from\s+["']@sdkwork\/aiot-backend-sdk["']/u,
-  'Craw Chat device bridge must consume sdkwork-aiot backend SDK for device operations.',
+  'Craw Chat user-facing device service must not import sdkwork-aiot backend SDK.',
 );
-for (const requiredCall of [
+for (const forbiddenUserFacingBackendCall of [
   /\.iot\.devices\.create\s*\(/u,
   /\.iot\.devices\.update\s*\(/u,
   /\.iot\.devices\.delete\s*\(/u,
   /\.iot\.devices\.twin\.update\s*\(/u,
   /\.iot\.devices\.commands\.list\s*\(/u,
   /\.iot\.devices\.commands\.cancel\s*\(/u,
+  /\/backend\/v3\/api\/iot/u,
+]) {
+  assert.doesNotMatch(
+    crawChatDeviceServiceSource,
+    forbiddenUserFacingBackendCall,
+    `Craw Chat user-facing device service must not route through AIoT backend-admin operations: ${forbiddenUserFacingBackendCall}`,
+  );
+}
+for (const requiredAppSdkCall of [
+  /\.iot\.devices\.list\s*\(/u,
+  /\.iot\.devices\.retrieve\s*\(/u,
+  /\.iot\.devices\.commands\.create\s*\(/u,
 ]) {
   assert.match(
     crawChatDeviceServiceSource,
-    requiredCall,
-    `Craw Chat device bridge must route device operations through AIoT backend SDK: ${requiredCall}`,
+    requiredAppSdkCall,
+    `Craw Chat device service must route user-visible device operations through AIoT app SDK: ${requiredAppSdkCall}`,
   );
 }
-assert.doesNotMatch(
+assert.match(
   crawChatDeviceServiceSource,
-  /unsupportedAiotAppMethod/u,
-  'Craw Chat device bridge must not keep unsupported AIoT app method placeholders.',
+  /unsupportedAppDeviceManagementCapability/u,
+  'Craw Chat device service must fail closed for backend-admin device management gaps in the user-facing package.',
 );
 assert.doesNotMatch(
   crawChatDeviceServiceSource,

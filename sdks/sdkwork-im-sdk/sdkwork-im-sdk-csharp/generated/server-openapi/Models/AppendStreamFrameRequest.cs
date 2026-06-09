@@ -6,6 +6,6 @@ namespace Sdkwork.Im.Sdk.Generated.Models
 {
     public class AppendStreamFrameRequest
     {
-        public string? Payload { get; set; }
+        public string Payload { get; set; }
     }
 }

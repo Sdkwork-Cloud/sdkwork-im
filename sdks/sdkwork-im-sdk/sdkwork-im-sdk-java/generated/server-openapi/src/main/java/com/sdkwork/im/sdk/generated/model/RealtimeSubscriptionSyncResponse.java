@@ -8,7 +8,7 @@ public class RealtimeSubscriptionSyncResponse {
     public List<String> getSubscriptions() {
         return this.subscriptions;
     }
-    
+
     public void setSubscriptions(List<String> subscriptions) {
         this.subscriptions = subscriptions;
     }

@@ -132,7 +132,7 @@
       "boundedContext": "instant_messaging",
       "tableProfile": "rtc_session",
       "systemOfRecord": true,
-      "writeOwner": "sdkwork-rtc-signaling-service",
+      "writeOwner": "im-call-runtime",
       "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
     },
     {
@@ -141,7 +141,7 @@
       "boundedContext": "instant_messaging",
       "tableProfile": "rtc_signal_log",
       "systemOfRecord": true,
-      "writeOwner": "sdkwork-rtc-signaling-service",
+      "writeOwner": "im-call-runtime",
       "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
     },
     {

@@ -15,6 +15,7 @@ members = [
     "crates/craw-chat-gateway-config",
     "crates/craw-chat-gateway-observability",
     "crates/craw-chat-openapi",
+    "crates/sdkwork-im-rpc-service-rust",
     "crates/im-storage-contracts",
     "crates/im-storage-runtime",
     "crates/craw-chat-runtime-link",
@@ -53,6 +54,7 @@ members = [
     "tools/chat-cli",
 ]
 exclude = [
+    "sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust",
     "vendor/ciborium-0.2.2",
     "vendor/ciborium-io-0.2.2",
     "vendor/ciborium-ll-0.2.2",
@@ -82,10 +84,13 @@ sdkwork-api-config = { path = "crates/sdkwork-api-config" }
 # Cross-repository SDKWork dependencies
 sdkwork_id = { path = "../sdkwork-appbase/packages/native-rust/foundation/sdkwork-id-rust" }
 sdkwork_iam_http = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-http-rust" }
+sdkwork-rtc-adapter-agora = { path = "../sdkwork-rtc/adapters/rtc-agora" }
+sdkwork-rtc-adapter-aliyun = { path = "../sdkwork-rtc/adapters/rtc-aliyun" }
+sdkwork-rtc-adapter-livekit = { path = "../sdkwork-rtc/adapters/rtc-livekit" }
+sdkwork-rtc-adapter-tencent = { path = "../sdkwork-rtc/adapters/rtc-tencent" }
+sdkwork-rtc-adapter-volcengine = { path = "../sdkwork-rtc/adapters/rtc-volcengine" }
 sdkwork-rtc-core = { path = "../sdkwork-rtc/crates/sdkwork-rtc-core" }
 sdkwork-rtc-app-context = { path = "../sdkwork-rtc/crates/sdkwork-rtc-app-context" }
-sdkwork-rtc-signaling-service = { path = "../sdkwork-rtc/services/sdkwork-rtc-signaling-service" }
-sdkwork-rtc-state-store = { path = "../sdkwork-rtc/crates/sdkwork-rtc-state-store" }
 sdkwork-agent-business = { path = "../sdkwork-kernel/sdkwork-agent-business", features = ["http-axum"] }
 sdkwork-aiot-contract = { path = "../sdkwork-aiot/crates/sdkwork-aiot-contract" }
 sdkwork-aiot-http-api = { path = "../sdkwork-aiot/crates/sdkwork-aiot-http-api" }

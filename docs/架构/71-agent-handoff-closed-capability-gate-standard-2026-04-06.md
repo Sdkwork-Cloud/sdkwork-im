@@ -80,7 +80,7 @@ Therefore:
 This prevents:
 
 - duplicated lifecycle logic in `streaming-service`
-- duplicated lifecycle logic in `rtc-signaling-service`
+- duplicated lifecycle logic in `im-call-runtime`
 - partial-side-effect mutations where sub-service state changes before conversation-layer rejection
 
 ## 7. Error Rule

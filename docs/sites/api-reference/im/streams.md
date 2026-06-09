@@ -1,13 +1,13 @@
 # Streams
 
 <p class="api-page-intro">
-  Stream endpoints expose the transport used for long-running structured payload delivery, RTC
-  signaling coordination, and app-business streaming workflows. The wire model follows the current
+  Stream endpoints expose the transport used for long-running structured payload delivery,
+  call-related streaming payloads, and app-business streaming workflows. The wire model follows the current
   `streaming-service`.
 </p>
 
 <div class="api-link-list">
-  <a href="/api-reference/im/rtc"><code>RTC</code> RTC lifecycle and signaling resources are documented separately</a>
+  <a href="/api-reference/im/calls"><code>Calls</code> IM call lifecycle and signaling resources are documented separately</a>
   <a href="/sdk/app-sdk"><code>SDK</code> <code>@sdkwork/im-sdk</code> currently exposes stream routes through the generated transport boundary; Flutter consumers access the same contract through <code>im_sdk</code></a>
 </div>
 

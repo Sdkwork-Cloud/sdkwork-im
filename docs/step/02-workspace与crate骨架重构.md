@@ -128,7 +128,7 @@
 - `services/conversation-runtime/`
 - `services/session-gateway/`
 - `services/streaming-service/`
-- `services/rtc-signaling-service/`
+- `services/im-call-runtime/`
 - `tools/chat-cli/`
 
 ### 5.3 过渡期策略

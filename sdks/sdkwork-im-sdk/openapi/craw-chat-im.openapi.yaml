@@ -8,7 +8,7 @@ info:
 tags:
   - name: presence
   - name: realtime
-  - name: rtc
+  - name: calls
   - name: social
   - name: chat
   - name: streams
@@ -286,18 +286,64 @@ paths:
           AccessToken: []
       x-sdkwork-owner: craw-chat
       x-sdkwork-api-authority: craw-chat.im
-  /im/v3/api/rtc/sessions:
+  /im/v3/api/calls/sessions:
     post:
       tags:
-        - rtc
-      operationId: rtc.sessions.create
-      summary: Create an IM-backed RTC session
+        - calls
+      operationId: calls.sessions.create
+      summary: Create an IM call signaling session
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateRtcSessionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RtcSessionMutationResponse'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.im
+  /im/v3/api/calls/sessions/{rtcSessionId}:
+    parameters:
+      - $ref: '#/components/parameters/RtcSessionIdPath'
+    get:
+      tags:
+        - calls
+      operationId: calls.sessions.retrieve
+      summary: Retrieve IM call signaling session state
+      parameters:
+        - $ref: '#/components/parameters/RtcSessionIdPath'
       responses:
         '200':
           description: OK
@@ -334,23 +380,289 @@ paths:
           AccessToken: []
       x-sdkwork-owner: craw-chat
       x-sdkwork-api-authority: craw-chat.im
-  /im/v3/api/rtc/sessions/{rtcSessionId}:
+  /im/v3/api/calls/sessions/{rtcSessionId}/invite:
     parameters:
       - $ref: '#/components/parameters/RtcSessionIdPath'
-    get:
+    post:
       tags:
-        - rtc
-      operationId: rtc.sessions.retrieve
-      summary: Retrieve IM-backed RTC session state
+        - calls
+      operationId: calls.sessions.invite
+      summary: Invite participants into an IM call signaling session
       parameters:
         - $ref: '#/components/parameters/RtcSessionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteRtcSessionRequest'
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RtcSession'
+                $ref: '#/components/schemas/RtcSessionMutationResponse'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.im
+  /im/v3/api/calls/sessions/{rtcSessionId}/accept:
+    parameters:
+      - $ref: '#/components/parameters/RtcSessionIdPath'
+    post:
+      tags:
+        - calls
+      operationId: calls.sessions.accept
+      summary: Accept an IM call signaling session
+      parameters:
+        - $ref: '#/components/parameters/RtcSessionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRtcSessionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RtcSessionMutationResponse'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.im
+  /im/v3/api/calls/sessions/{rtcSessionId}/reject:
+    parameters:
+      - $ref: '#/components/parameters/RtcSessionIdPath'
+    post:
+      tags:
+        - calls
+      operationId: calls.sessions.reject
+      summary: Reject an IM call signaling session
+      parameters:
+        - $ref: '#/components/parameters/RtcSessionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRtcSessionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RtcSessionMutationResponse'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.im
+  /im/v3/api/calls/sessions/{rtcSessionId}/end:
+    parameters:
+      - $ref: '#/components/parameters/RtcSessionIdPath'
+    post:
+      tags:
+        - calls
+      operationId: calls.sessions.end
+      summary: End an IM call signaling session
+      parameters:
+        - $ref: '#/components/parameters/RtcSessionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRtcSessionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RtcSessionMutationResponse'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.im
+  /im/v3/api/calls/sessions/{rtcSessionId}/signals:
+    parameters:
+      - $ref: '#/components/parameters/RtcSessionIdPath'
+    post:
+      tags:
+        - calls
+      operationId: calls.sessions.signals.create
+      summary: Post an IM call signaling event
+      parameters:
+        - $ref: '#/components/parameters/RtcSessionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostRtcSignalRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RtcSignalEvent'
+        '400':
+          description: HTTP 400 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: HTTP 401 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: HTTP 403 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: HTTP 404 problem
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+      security:
+        - AuthToken: []
+          AccessToken: []
+      x-sdkwork-owner: craw-chat
+      x-sdkwork-api-authority: craw-chat.im
+  /im/v3/api/calls/sessions/{rtcSessionId}/credentials:
+    parameters:
+      - $ref: '#/components/parameters/RtcSessionIdPath'
+    post:
+      tags:
+        - calls
+      operationId: calls.sessions.credentials.create
+      summary: Issue an RTC media participant credential for an IM call
+      parameters:
+        - $ref: '#/components/parameters/RtcSessionIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IssueRtcParticipantCredentialRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RtcParticipantCredential'
         '400':
           description: HTTP 400 problem
           content:
@@ -3455,6 +3767,25 @@ components:
           type: array
           items:
             type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RealtimeSubscriptionItemInput'
+    RealtimeSubscriptionItemInput:
+      type: object
+      additionalProperties: false
+      properties:
+        scopeType:
+          type: string
+        scopeId:
+          type: string
+        eventTypes:
+          type: array
+          items:
+            type: string
+      required:
+        - scopeType
+        - scopeId
     RealtimeSubscriptionSyncResponse:
       type: object
       additionalProperties: false
@@ -3537,39 +3868,250 @@ components:
         conversationId:
           type: string
           nullable: true
+        initiatorId:
+          type: string
+        initiatorKind:
+          type: string
         providerPluginId:
           type: string
           nullable: true
         providerSessionId:
           type: string
           nullable: true
+        accessEndpoint:
+          type: string
+          nullable: true
+        providerRegion:
+          type: string
+          nullable: true
         rtcMode:
           type: string
         state:
           type: string
-        createdAt:
+        signalingStreamId:
+          type: string
+          nullable: true
+        artifactMessageId:
+          type: string
+          nullable: true
+        startedAt:
           type: string
           format: date-time
-        updatedAt:
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - tenantId
+        - rtcSessionId
+        - rtcMode
+        - initiatorId
+        - initiatorKind
+        - state
+        - startedAt
+    CreateRtcSessionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        rtcSessionId:
+          type: string
+        conversationId:
+          type: string
+          nullable: true
+        rtcMode:
+          type: string
+      required:
+        - rtcSessionId
+        - rtcMode
+    InviteRtcSessionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        signalingStreamId:
+          type: string
+          nullable: true
+    UpdateRtcSessionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        artifactMessageId:
+          type: string
+          nullable: true
+    PostRtcSignalRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        signalType:
+          type: string
+        schemaRef:
+          type: string
+          nullable: true
+        payload:
+          type: string
+        signalingStreamId:
+          type: string
+          nullable: true
+      required:
+        - signalType
+        - payload
+    IssueRtcParticipantCredentialRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        participantId:
+          type: string
+      required:
+        - participantId
+    RtcSessionMutationResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        tenantId:
+          type: string
+        rtcSessionId:
+          type: string
+        conversationId:
+          type: string
+          nullable: true
+        initiatorId:
+          type: string
+        initiatorKind:
+          type: string
+        providerPluginId:
+          type: string
+          nullable: true
+        providerSessionId:
+          type: string
+          nullable: true
+        accessEndpoint:
+          type: string
+          nullable: true
+        providerRegion:
+          type: string
+          nullable: true
+        rtcMode:
+          type: string
+        state:
+          type: string
+        signalingStreamId:
+          type: string
+          nullable: true
+        artifactMessageId:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        requestKey:
+          type: string
+        deliveryStatus:
+          type: string
+          enum:
+            - applied
+            - replayed
+        proofVersion:
+          type: string
+      required:
+        - tenantId
+        - rtcSessionId
+        - rtcMode
+        - initiatorId
+        - initiatorKind
+        - state
+        - startedAt
+        - requestKey
+        - deliveryStatus
+        - proofVersion
+    RtcSignalSender:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        memberId:
+          type: string
+          nullable: true
+        deviceId:
+          type: string
+          nullable: true
+        sessionId:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - kind
+        - metadata
+    RtcSignalEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        tenantId:
+          type: string
+        rtcSessionId:
+          type: string
+        signalSeq:
+          type: integer
+          format: int64
+          minimum: 0
+        conversationId:
+          type: string
+          nullable: true
+        rtcMode:
+          type: string
+        signalType:
+          type: string
+        schemaRef:
+          type: string
+          nullable: true
+        payload:
+          type: string
+        sender:
+          $ref: '#/components/schemas/RtcSignalSender'
+        signalingStreamId:
+          type: string
+          nullable: true
+        occurredAt:
           type: string
           format: date-time
       required:
         - tenantId
         - rtcSessionId
+        - signalSeq
         - rtcMode
-        - state
-        - createdAt
-        - updatedAt
-    CreateRtcSessionRequest:
+        - signalType
+        - payload
+        - sender
+        - occurredAt
+    RtcParticipantCredential:
       type: object
       additionalProperties: false
       properties:
-        conversationId:
+        tenantId:
           type: string
-          nullable: true
-        mediaKind:
+        rtcSessionId:
           type: string
-          nullable: true
+        participantId:
+          type: string
+        credential:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - tenantId
+        - rtcSessionId
+        - participantId
+        - credential
+        - expiresAt
     Sender:
       type: object
       additionalProperties: false

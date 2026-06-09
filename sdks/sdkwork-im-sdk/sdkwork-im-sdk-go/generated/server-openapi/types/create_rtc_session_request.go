@@ -2,6 +2,7 @@ package types
 
 
 type CreateRtcSessionRequest struct {
+	RtcSessionId string `json:"rtcSessionId"`
 	ConversationId string `json:"conversationId"`
-	MediaKind string `json:"mediaKind"`
+	RtcMode string `json:"rtcMode"`
 }

@@ -8,7 +8,7 @@ public class SubmitFriendRequestRequest {
     public String getTargetUserId() {
         return this.targetUserId;
     }
-    
+
     public void setTargetUserId(String targetUserId) {
         this.targetUserId = targetUserId;
     }
@@ -16,7 +16,7 @@ public class SubmitFriendRequestRequest {
     public String getRequestMessage() {
         return this.requestMessage;
     }
-    
+
     public void setRequestMessage(String requestMessage) {
         this.requestMessage = requestMessage;
     }

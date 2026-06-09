@@ -10,7 +10,7 @@ public class UpdateConversationPreferencesRequest {
     public Boolean getIsPinned() {
         return this.isPinned;
     }
-    
+
     public void setIsPinned(Boolean isPinned) {
         this.isPinned = isPinned;
     }
@@ -18,7 +18,7 @@ public class UpdateConversationPreferencesRequest {
     public Boolean getIsMuted() {
         return this.isMuted;
     }
-    
+
     public void setIsMuted(Boolean isMuted) {
         this.isMuted = isMuted;
     }
@@ -26,7 +26,7 @@ public class UpdateConversationPreferencesRequest {
     public Boolean getIsMarkedUnread() {
         return this.isMarkedUnread;
     }
-    
+
     public void setIsMarkedUnread(Boolean isMarkedUnread) {
         this.isMarkedUnread = isMarkedUnread;
     }
@@ -34,7 +34,7 @@ public class UpdateConversationPreferencesRequest {
     public Boolean getIsHidden() {
         return this.isHidden;
     }
-    
+
     public void setIsHidden(Boolean isHidden) {
         this.isHidden = isHidden;
     }

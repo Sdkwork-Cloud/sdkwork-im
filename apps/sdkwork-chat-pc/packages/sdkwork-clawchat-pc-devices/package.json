@@ -5,7 +5,6 @@
   "types": "./src/index.tsx",
   "dependencies": {
     "@sdkwork/aiot-app-sdk": "workspace:*",
-    "@sdkwork/aiot-backend-sdk": "workspace:*",
     "@sdkwork/clawchat-pc-core": "workspace:*",
     "lucide-react": "catalog:",
     "motion": "catalog:",

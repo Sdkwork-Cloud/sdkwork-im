@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class StreamsApi {
     private final HttpClient client;
-    
+
     public StreamsApi(HttpClient client) {
         this.client = client;
     }
