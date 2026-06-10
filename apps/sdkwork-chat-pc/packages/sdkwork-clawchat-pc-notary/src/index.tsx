@@ -1,13 +1,16 @@
+const EMPTY_NOTARY_PRINT_IMAGE_URL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, ShieldCheck, Download, ChevronLeft, ChevronRight, FileText, CheckCircle2, Clock, AlertCircle, FileSignature, X, MoreHorizontal, FileCheck, CheckSquare, Shield, Activity, Hash, Layers, User as UserIcon, Video, Printer, Edit, Folder, Cloud, Plus, Upload, PenTool } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CreateNotaryTaskView } from './CreateNotaryTaskView';
-import { NotaryTask, Party } from '@sdkwork/clawchat-pc-types';
+import { NotaryTask, Party, NotaryDocument } from '@sdkwork/clawchat-pc-types';
 import { notaryService } from './services/NotaryService';
-import { CallOverlay, toast } from '@sdkwork/clawchat-pc-chat';
+import { CallOverlay, createDefaultAvatar, toast } from '@sdkwork/clawchat-pc-chat';
 import { MediaViewer } from '@sdkwork/clawchat-pc-commons';
 import { PartyDrawer } from './PartyDrawer';
 import { SignaturePad } from './SignaturePad';
+
+const DEFAULT_NOTARY_CALLER_AVATAR = createDefaultAvatar('user');
 
 const getStatusBadge = (status: NotaryTask['status']) => {
   switch (status) {
@@ -29,11 +32,15 @@ export const NotaryView: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [expandedParty, setExpandedParty] = useState<string | null>(null);
   const [printTask, setPrintTask] = useState<NotaryTask | null>(null);
+  const [partyIdentityMediaUrls, setPartyIdentityMediaUrls] = useState<Record<string, { identityFrontUrl?: string; identityBackUrl?: string; faceImageUrl?: string }>>({});
 
   const [editingPartyId, setEditingPartyId] = useState<string | null>(null);
-  const [activeCall, setActiveCall] = useState<{isOpen: boolean, name: string}>({ isOpen: false, name: '' });
+  const [activeCall, setActiveCall] = useState<{isOpen: boolean, name: string, conversationId?: string, inviteUrl?: string}>({ isOpen: false, name: '' });
   const [activeDriveParty, setActiveDriveParty] = useState<Party | null>(null);
+  const [partyDriveDocuments, setPartyDriveDocuments] = useState<NotaryDocument[]>([]);
+  const [partyDriveLoading, setPartyDriveLoading] = useState(false);
   const [activeSignParty, setActiveSignParty] = useState<Party | null>(null);
+  const [activeSignInviteUrl, setActiveSignInviteUrl] = useState<string | undefined>(undefined);
   const [previewMedia, setPreviewMedia] = useState<{isOpen: boolean, type: 'image' | 'video', url: string, name: string}>({ isOpen: false, type: 'image', url: '', name: '' });
 
   const [tasks, setTasks] = useState<NotaryTask[]>([]);
@@ -76,6 +83,28 @@ export const NotaryView: React.FC = () => {
     }
   }, [tasks, selectedTask]);
 
+  useEffect(() => {
+    let disposed = false;
+    const loadPartyIdentityMediaUrls = async () => {
+      if (!printTask?.id || !printTask.parties?.length) {
+        setPartyIdentityMediaUrls({});
+        return;
+      }
+      const entries = await Promise.all(
+        printTask.parties.map(async (party) => [
+          party.id,
+          await notaryService.getPartyIdentityMediaUrls(printTask.id, party.id, { disposition: 'inline' }),
+        ] as const),
+      );
+      if (!disposed) {
+        setPartyIdentityMediaUrls(Object.fromEntries(entries));
+      }
+    };
+    void loadPartyIdentityMediaUrls();
+    return () => {
+      disposed = true;
+    };
+  }, [printTask]);
   const handleCreateSuccess = async () => {
     setActiveView('list');
     await fetchTasks();
@@ -93,12 +122,65 @@ export const NotaryView: React.FC = () => {
     setSelectedTask(updatedTask);
     setEditingPartyId(null);
     try {
-      await notaryService.updateTask(selectedTask.id, { parties: newParties });
+      const savedTask = await notaryService.updateTask(selectedTask.id, { parties: newParties });
+      setSelectedTask(savedTask);
+      setTasks(prev => prev.map((task) => task.id === savedTask.id ? savedTask : task));
     } catch (error) {
       console.error("Failed to save edited party", error);
     }
   };
 
+  const loadPartyDriveDocuments = async () => {
+    if (!selectedTask?.id || !activeDriveParty?.id) {
+      setPartyDriveDocuments([]);
+      return;
+    }
+    setPartyDriveLoading(true);
+    try {
+      const documents = await notaryService.listPartyDocuments(selectedTask.id, activeDriveParty.id);
+      setPartyDriveDocuments(documents);
+    } catch (error) {
+      console.error('Failed to load party Drive documents:', error);
+      toast('当事人网盘目录加载失败', 'error');
+    } finally {
+      setPartyDriveLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadPartyDriveDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTask?.id, activeDriveParty?.id]);
+
+  const handlePartyDriveUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedTask?.id || !activeDriveParty?.id) {
+      event.target.value = '';
+      return;
+    }
+    const files = Array.from<File>(event.target.files ?? []);
+    if (files.length === 0) {
+      event.target.value = '';
+      return;
+    }
+    setPartyDriveLoading(true);
+    try {
+      let refreshedTask = selectedTask;
+      for (const file of files) {
+        refreshedTask = await notaryService.uploadPartyDocument(selectedTask.id, activeDriveParty.id, file);
+      }
+      setSelectedTask(refreshedTask);
+      setTasks(prev => prev.map((task) => task.id === refreshedTask.id ? refreshedTask : task));
+      const documents = await notaryService.listPartyDocuments(refreshedTask.id, activeDriveParty.id);
+      setPartyDriveDocuments(documents);
+      toast('附件已上传到当事人网盘目录', 'success');
+    } catch (error) {
+      console.error('Failed to upload party Drive document:', error);
+      toast('当事人网盘附件上传失败', 'error');
+    } finally {
+      setPartyDriveLoading(false);
+      event.target.value = '';
+    }
+  };
   if (activeView === 'create') {
     return <CreateNotaryTaskView onBack={() => setActiveView('list')} onSuccess={handleCreateSuccess} />;
   }
@@ -108,10 +190,15 @@ export const NotaryView: React.FC = () => {
       <SignaturePad 
         title={`当事人在线签名 - ${activeSignParty.name}`}
         subtitle={<><PenTool size={16} /> 请当事人 <span className="text-indigo-400 font-medium">"{activeSignParty.name}"</span> 使用正楷书写姓名</>}
-        onCancel={() => setActiveSignParty(null)}
+        mobileSignatureUrl={activeSignInviteUrl}
+        onCancel={() => {
+          setActiveSignInviteUrl(undefined);
+          setActiveSignParty(null);
+        }}
         onSave={(imgUrl) => {
           toast('签名已保存', 'success');
           handleSaveParty({ ...activeSignParty, signatureUrl: imgUrl });
+          setActiveSignInviteUrl(undefined);
           setActiveSignParty(null);
         }}
       />
@@ -278,7 +365,7 @@ export const NotaryView: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 text-indigo-400 font-medium">
                           <FileCheck size={16} />
-                          {task.id}
+                          {(task as any).caseNo ?? task.id}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-gray-200 font-medium max-w-[200px] truncate" title={task.title}>
@@ -322,25 +409,26 @@ export const NotaryView: React.FC = () => {
                             </button>
                             <AnimatePresence>
                                {activeDropdown === task.id && (
-                                 <motion.div 
+                                 <motion.div
                                    initial={{ opacity: 0, y: 5 }}
                                    animate={{ opacity: 1, y: 0 }}
                                    exit={{ opacity: 0, y: 5 }}
                                    transition={{ duration: 0.15 }}
                                    className="absolute right-0 top-full mt-1 w-40 bg-[#2b2b2d] border border-white/10 shadow-xl rounded-lg py-1 z-50 overflow-hidden"
                                  >
-                                   <div 
-                                     onClick={(e) => { 
-                                       e.stopPropagation(); 
-                                       setActiveDropdown(null); 
-                                       toast('开始下载材料...', 'success'); 
-                                       const blob = new Blob([JSON.stringify(task.documents, null, 2)], { type: 'application/json' });
-                                       const url = URL.createObjectURL(blob);
-                                       const a = document.createElement('a');
-                                       a.href = url;
-                                       a.download = `documents_${task.id}.zip`; 
-                                       a.click();
-                                       URL.revokeObjectURL(url);
+                                   <div
+                                     onClick={async (e) => {
+                                       e.stopPropagation();
+                                       setActiveDropdown(null);
+                                       toast('开始下载材料...', 'success');
+
+                                       const { downloadUrl } = await notaryService.downloadDocuments(task.id);
+
+                                       if (downloadUrl) {
+
+                                         window.open(downloadUrl, '_blank');
+
+                                       }
                                      }}
                                      className="px-4 py-2 hover:bg-white/10 cursor-pointer text-gray-300 hover:text-white transition-colors flex items-center gap-2"
                                    >
@@ -469,7 +557,7 @@ export const NotaryView: React.FC = () => {
                   </div>
                   <div>
                     <h2 className="text-lg font-medium text-gray-100 leading-tight">公证详情</h2>
-                    <p className="text-xs text-gray-400 font-mono mt-1">{selectedTask.id}</p>
+                    <p className="text-xs text-gray-400 font-mono mt-1">{(selectedTask as any).caseNo ?? selectedTask.id}</p>
                   </div>
                 </div>
                 <button 
@@ -493,7 +581,7 @@ export const NotaryView: React.FC = () => {
                     </div>
                     <div>
                        <div className="text-gray-500 mb-1 flex items-center gap-1.5"><Hash size={14}/> 公证编号</div>
-                       <div className="text-gray-200 font-mono text-xs mt-0.5 pl-5">{selectedTask.id}</div>
+                       <div className="text-gray-200 font-mono text-xs mt-0.5 pl-5">{(selectedTask as any).caseNo ?? selectedTask.id}</div>
                     </div>
                     <div>
                        <div className="text-gray-500 mb-1 flex items-center gap-1.5"><UserIcon size={14}/> 申请主体</div>
@@ -585,7 +673,11 @@ export const NotaryView: React.FC = () => {
                                    </div>
                                  )}
                                  {selectedTask.status !== 'COMPLETED' && selectedTask.status !== 'REJECTED' && (
-                                   <button onClick={() => setActiveSignParty(party)} className="px-2 py-1 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 rounded-lg transition-colors border border-orange-500/20 shrink-0 text-[11px] font-medium flex items-center gap-1 " title="签名">
+                                   <button onClick={async () => {
+                                      const invite = await notaryService.createSignatureInvite(selectedTask.id, party.id);
+                                      setActiveSignInviteUrl(invite.signingUrl ?? invite.inviteUrl);
+                                      setActiveSignParty(party);
+                                    }} className="px-2 py-1 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 rounded-lg transition-colors border border-orange-500/20 shrink-0 text-[11px] font-medium flex items-center gap-1 " title="签名">
                                      <PenTool size={14} /> 签名
                                    </button>
                                  )}
@@ -596,10 +688,18 @@ export const NotaryView: React.FC = () => {
                                    <Edit size={14} />
                                  </button>
                                  <button 
-                                   onClick={() => {
-                                     if (!selectedTask.notary || selectedTask.notary === '系统分配' || selectedTask.notary === '未分配') toast('请先选择承办公证员后再发起视频通话。', 'error');
-                                     else setActiveCall({ isOpen: true, name: party.name });
-                                   }}
+                                   onClick={async () => {
+            if (!selectedTask.notary || selectedTask.notary === '系统分配' || selectedTask.notary === '未分配') toast('请先选择承办公证员后再发起视频通话。', 'error');
+            else {
+              const invite = await notaryService.createVideoInvite(selectedTask.id, party.id);
+              setActiveCall({
+                isOpen: true,
+                name: party.name,
+                conversationId: invite.conversationId,
+                inviteUrl: invite.inviteUrl,
+              });
+            }
+          }}
                                    className="px-3 py-1.5 bg-green-500/10 text-green-500 hover:bg-green-500/20 rounded-lg text-[11px] font-medium transition-colors flex items-center gap-1.5 shrink-0"
                                  >
                                     <Video size={14} /> 视频
@@ -669,13 +769,18 @@ export const NotaryView: React.FC = () => {
                     <div className="flex flex-col gap-6">
                       <div className="flex justify-end">
                         <button 
-                          onClick={() => {
+                          onClick={async () => {
                             toast('服务端正在打包所有附件...', 'success');
-                            setTimeout(() => {
+
+                            const { downloadUrl } = await notaryService.downloadDocuments(selectedTask.id);
+
+                            if (downloadUrl) {
+
                               toast('附件包准备就绪，开始下载。', 'success');
-                              // Mock download behavior
-                              window.open('https://picsum.photos/seed/notary_docs/1200/800', '_blank');
-                            }, 1500);
+
+                              window.open(downloadUrl, '_blank');
+
+                            }
                           }}
                           className="px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded flex items-center gap-1.5 text-xs font-medium cursor-pointer transition-colors border border-indigo-500/20"
                         >
@@ -703,7 +808,13 @@ export const NotaryView: React.FC = () => {
                                    <div className="flex items-center gap-3 min-w-0">
                                      <FileText size={18} className="text-gray-400 group-hover:text-indigo-400 transition-colors shrink-0" />
                                      <div className="min-w-0">
-                                       <div className="text-sm text-gray-300 group-hover:text-gray-100 transition-colors truncate cursor-pointer hover:underline" onClick={() => setPreviewMedia({isOpen: true, type: doc.name.endsWith('.mp4') ? 'video' : 'image', url: 'https://picsum.photos/seed/doc/800/1000', name: doc.name})}>{doc.name}</div>
+                                       <div className="text-sm text-gray-300 group-hover:text-gray-100 transition-colors truncate cursor-pointer hover:underline" onClick={async () => {
+                                         const { previewUrl, downloadUrl, url } = await notaryService.getDocumentUrl(selectedTask.id, doc.name, { disposition: 'inline' });
+                                         const resolvedUrl = previewUrl ?? downloadUrl ?? url;
+                                         if (resolvedUrl) {
+                                           setPreviewMedia({isOpen: true, type: doc.name.endsWith('.mp4') ? 'video' : 'image', url: resolvedUrl, name: doc.name});
+                                         }
+                                       }}>{doc.name}</div>
                                        <div className="text-xs text-gray-500">{doc.size}</div>
                                      </div>
                                    </div>
@@ -714,9 +825,13 @@ export const NotaryView: React.FC = () => {
                                        {doc.status === 'error' && <span className="text-red-500 flex items-center gap-1"><AlertCircle size={12}/> 异常</span>}
                                      </div>
                                      <button 
-                                       onClick={() => {
+                                       onClick={async () => {
                                          toast(`开始下载: ${doc.name}`, 'success');
-                                         window.open('https://picsum.photos/seed/doc/800/1000', '_blank');
+                                         const { downloadUrl, url } = await notaryService.getDocumentUrl(selectedTask.id, doc.name, { disposition: 'attachment' });
+                                         const resolvedUrl = downloadUrl ?? url;
+                                         if (resolvedUrl) {
+                                           window.open(resolvedUrl, '_blank');
+                                         }
                                        }}
                                        className="p-1.5 text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded transition-colors opacity-0 group-hover:opacity-100"
                                        title="下载此附件"
@@ -751,6 +866,8 @@ export const NotaryView: React.FC = () => {
                         onClick={async () => {
                           const updated = await notaryService.updateTaskStatus(selectedTask.id, 'REJECTED');
                           setSelectedTask(updated);
+
+                          setTasks(prev => prev.map((task) => task.id === updated.id ? updated : task));
                           fetchTasks();
                         }}
                         className="px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded border border-red-500/20 transition-colors"
@@ -761,6 +878,8 @@ export const NotaryView: React.FC = () => {
                         onClick={async () => {
                           const updated = await notaryService.updateTaskStatus(selectedTask.id, 'PROCESSING');
                           setSelectedTask(updated);
+
+                          setTasks(prev => prev.map((task) => task.id === updated.id ? updated : task));
                           fetchTasks();
                         }}
                         className="px-6 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded shadow-md transition-colors"
@@ -774,6 +893,8 @@ export const NotaryView: React.FC = () => {
                         onClick={async () => {
                           const updated = await notaryService.updateTaskStatus(selectedTask.id, 'COMPLETED');
                           setSelectedTask(updated);
+
+                          setTasks(prev => prev.map((task) => task.id === updated.id ? updated : task));
                           fetchTasks();
                         }}
                         className="px-6 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded shadow-md transition-colors"
@@ -789,6 +910,94 @@ export const NotaryView: React.FC = () => {
           )}
         </AnimatePresence>
 
+        {/* Party Drive Directory */}
+        <AnimatePresence>
+          {activeDriveParty && selectedTask && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-8">
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setActiveDriveParty(null)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative w-full max-w-5xl h-full max-h-[800px] bg-[#1e1e1e] rounded-2xl shadow-2xl border border-white/10 flex flex-col overflow-hidden"
+              >
+                <input type="file" multiple className="hidden" onChange={handlePartyDriveUpload} accept="image/*,video/*,application/pdf" id="notary-party-drive-upload" />
+                <div className="h-16 px-6 border-b border-white/5 bg-[#181818] flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3 text-lg font-medium text-gray-200">
+                    <Cloud size={24} className="text-cyan-400" />
+                    企业云盘
+                    <span className="text-gray-500">/</span>
+                    <span className="text-gray-400 font-normal">公证业务-当事人目录</span>
+                    <span className="text-gray-500">/</span>
+                    <span className="text-indigo-400">{activeDriveParty.name}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button onClick={() => document.getElementById('notary-party-drive-upload')?.click()} className="bg-cyan-600 hover:bg-cyan-700 text-white font-medium px-4 py-2 flex items-center gap-2 rounded-lg transition-colors text-sm shadow-md">
+                      <Upload size={16} /> 在该目录中上传
+                    </button>
+                    <button onClick={() => setActiveDriveParty(null)} className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/10">
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 p-8 overflow-y-auto bg-[#1e1e1e] flex flex-col items-center justify-center border-t border-black/20">
+                  <div className="w-24 h-24 rounded-full bg-[#2b2b2d] flex items-center justify-center mb-6 border border-white/5 shadow-inner">
+                    <Folder size={48} className="text-cyan-500/50" />
+                  </div>
+                  <h3 className="text-xl font-medium text-gray-300 mb-2">"{activeDriveParty.name}" 的专属存证网盘目录</h3>
+                  <p className="text-gray-500 text-sm max-w-md text-center mb-8">
+                    此目录用于存放该当事人在本次业务中的所有关联附件信息。上传的文件将自动归档至公证专属文件夹。
+                  </p>
+                  {partyDriveDocuments.length === 0 ? (
+                    <button onClick={() => document.getElementById('notary-party-drive-upload')?.click()} className="px-6 py-3 bg-[#2b2b2d] border border-cyan-500/30 text-cyan-400 rounded-xl hover:bg-cyan-500/10 transition-colors flex items-center gap-2">
+                      <Plus size={18} /> {partyDriveLoading ? '目录加载中...' : '点击上传附件到当前目录'}
+                    </button>
+                  ) : (
+                    <div className="w-full max-w-3xl flex flex-col gap-2">
+                      {partyDriveDocuments.map((doc, index) => (
+                        <div key={`${doc.name}-${index}`} className="bg-[#181818] p-3 rounded-lg border border-white/5 flex items-center justify-between group w-full">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <FileText size={18} className="text-gray-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                            <div className="min-w-0">
+                              <div className="text-sm text-gray-300 group-hover:text-gray-100 transition-colors truncate cursor-pointer hover:underline" onClick={async () => {
+                                const { previewUrl, downloadUrl, url } = await notaryService.getDocumentUrl(selectedTask.id, doc.name, { disposition: 'inline' });
+                                const resolvedUrl = previewUrl ?? downloadUrl ?? url;
+                                if (resolvedUrl) {
+                                  setPreviewMedia({isOpen: true, type: doc.name.endsWith('.mp4') ? 'video' : 'image', url: resolvedUrl, name: doc.name});
+                                }
+                              }}>{doc.name}</div>
+                              <div className="text-xs text-gray-500">{doc.size}</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              const { downloadUrl, url } = await notaryService.getDocumentUrl(selectedTask.id, doc.name, { disposition: 'attachment' });
+                              const resolvedUrl = downloadUrl ?? url;
+                              if (resolvedUrl) {
+                                window.open(resolvedUrl, '_blank');
+                              }
+                            }}
+                            className="p-1.5 text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 rounded transition-colors opacity-0 group-hover:opacity-100"
+                            title="下载此附件"
+                          >
+                            <Download size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button onClick={() => document.getElementById('notary-party-drive-upload')?.click()} className="mt-4 self-center px-6 py-3 bg-[#2b2b2d] border border-cyan-500/30 text-cyan-400 rounded-xl hover:bg-cyan-500/10 transition-colors flex items-center gap-2">
+                        <Plus size={18} /> {partyDriveLoading ? '上传处理中...' : '继续上传附件到当前目录'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
         {/* Print Overlay */}
         <AnimatePresence>
           {printTask && (
@@ -870,14 +1079,14 @@ export const NotaryView: React.FC = () => {
                                 </div>
                                 
                                 <div className="w-[124px] h-[164px] border border-gray-300 bg-gray-50 flex-shrink-0 p-1">
-                                   <img src={`https://picsum.photos/seed/id_${party.id}/240/320`} className="w-full h-full object-cover grayscale-[0.2]" alt="身份证照片" />
+                                   <img src={partyIdentityMediaUrls[party.id]?.identityFrontUrl ?? EMPTY_NOTARY_PRINT_IMAGE_URL} className="w-full h-full object-cover grayscale-[0.2]" alt="身份证照片" />
                                 </div>
                              </div>
                       
                              <div className="flex text-[15px] mb-12">
                                 <div className="w-24 font-bold text-gray-600 pt-[140px] leading-7 text-left">现场采集照<br/>片</div>
                                 <div className="pl-[50px] flex-1">
-                                   <img src={`https://picsum.photos/seed/live_${party.id}/400/530`} className="w-[280px] h-[360px] object-cover border border-gray-300 shadow-sm" alt="现场采集" />
+                                   <img src={partyIdentityMediaUrls[party.id]?.faceImageUrl ?? EMPTY_NOTARY_PRINT_IMAGE_URL} className="w-[280px] h-[360px] object-cover border border-gray-300 shadow-sm" alt="现场采集" />
                                 </div>
                              </div>
                       
@@ -922,11 +1131,11 @@ export const NotaryView: React.FC = () => {
         />
         
         <CallOverlay 
-          conversationId={`notary-${activeCall.name || 'video-call'}`}
+          conversationId={activeCall.conversationId ?? `notary-${activeCall.name || 'video-call'}`}
           isOpen={activeCall.isOpen}
           type="video"
           callerName={activeCall.name}
-          callerAvatar="https://api.dicebear.com/7.x/avataaars/svg?seed=caller"
+          callerAvatar={DEFAULT_NOTARY_CALLER_AVATAR}
           onClose={() => setActiveCall({ isOpen: false, name: '' })}
         />
 

@@ -1,5 +1,7 @@
 import type {
+  ContactPreferencesView,
   ContentPart,
+  ConversationMember,
   DriveReference,
   InboxResponse,
   ConversationProfileView,
@@ -14,6 +16,7 @@ import type {
   ImSubscription,
   MessageInteractionSummaryView,
   MessageReplyReference,
+  SocialUserSearchResult,
   TimelineResponse,
   UpdateConversationProfileRequest,
 } from '@sdkwork/im-sdk';
@@ -39,6 +42,7 @@ import {
 import type { Chat, Message } from '@sdkwork/clawchat-pc-types';
 import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
 import { contactService } from './ContactService';
+import { createDefaultAvatar } from './DefaultAvatarService';
 
 type ConversationInboxEntry = InboxResponse['items'][number];
 type TimelineViewEntry = TimelineResponse['items'][number];
@@ -56,6 +60,12 @@ interface ChatMediaUploadResult {
   content: string;
   drive: DriveReference;
   resource: MediaResource;
+}
+
+interface DirectChatPeerProfile {
+  avatar?: string;
+  name: string;
+  userId: string;
 }
 
 interface ChatServiceDependencies {
@@ -114,17 +124,19 @@ export interface ChatService {
   updateChat(chatId: string, updates: Partial<Chat>): Promise<Chat>;
   createChat(chat: Chat): Promise<void>;
   startDirectChat(user: Pick<Chat, 'avatar' | 'name'> & { conversationId?: string; directChatId?: string; id: string }): Promise<Chat>;
-  startAgentChat(agent: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat>;
+  startAgentChat(agent: Pick<Chat, 'avatar' | 'name' | 'welcomeMessage'> & { id: string }): Promise<Chat>;
   startEnterpriseChat(enterprise: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat>;
   recoverRealtimeConnection(reason?: string): void;
   syncOfflineMessages(): Promise<ChatOfflineSyncResult>;
 }
 
-type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'isMarkedUnread' | 'isMuted' | 'isPinned' | 'memberCount' | 'members' | 'name' | 'notice' | 'type'>> & {
+type ConversationViewState = Partial<Pick<Chat, 'activeCount' | 'avatar' | 'isMarkedUnread' | 'isMuted' | 'isPinned' | 'memberCount' | 'members' | 'name' | 'notice' | 'type' | 'welcomeMessage'>> & {
   isHidden?: boolean;
 };
 const INBOX_PAGE_LIMIT = 100;
 const MESSAGE_PAGE_LIMIT = 100;
+const CONVERSATION_MEMBERS_PAGE_LIMIT = 100;
+const CHAT_LIST_HYDRATION_CONCURRENCY = 4;
 const CHAT_LIST_REALTIME_EVENT_TYPES = [
   'message.posted',
   'conversation.updated',
@@ -188,12 +200,36 @@ function computeLiveReconnectDelay(attempt: number): number {
   return Math.round(exponentialDelay - jitterSpan + Math.random() * jitterSpan * 2);
 }
 
+async function mapWithConcurrencyLimit<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  const workerCount = Math.min(Math.max(1, Math.floor(concurrency)), items.length);
+  let nextIndex = 0;
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await mapper(items[currentIndex] as T, currentIndex);
+    }
+  }));
+
+  return results;
+}
+
 function normalizeConversationType(value: string | undefined): Chat['type'] {
   return value?.toLowerCase() === 'group' ? 'group' : 'single';
 }
 
-function createConversationAvatar(conversationId: string): string {
-  return `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(conversationId)}`;
+function createFallbackConversationAvatar(conversationType: Chat['type']): string | undefined {
+  return createDefaultAvatar(conversationType === 'group' ? 'group' : 'direct');
+}
+
+function createFallbackAgentConversationAvatar(): string {
+  return createDefaultAvatar('agent');
 }
 
 function toRecord(value: unknown): Record<string, unknown> {
@@ -807,6 +843,10 @@ function buildAgentDialogStableId(currentUserId: string, agentId: string): strin
   return `pc-agent-${normalizeDirectChatIdSegment(currentUserId)}-${normalizeDirectChatIdSegment(agentId)}`;
 }
 
+function isAgentDialogConversationId(conversationId: string): boolean {
+  return /^pc-agent-[a-z0-9._-]+-agent[._-][a-z0-9._-]+$/iu.test(conversationId.trim());
+}
+
 function buildEnterpriseDialogStableIds(currentUserId: string, enterpriseId: string): {
   conversationId: string;
   directChatId: string;
@@ -1182,12 +1222,40 @@ function mapLiveMessageToMessage(
 }
 
 function buildConversationName(entry: ConversationInboxEntry): string {
+  const entryRecord = toRecord(entry);
+  const displayName = pickString(entryRecord.displayName, entryRecord.display_name);
+  if (displayName) {
+    return displayName;
+  }
   if (entry.agentHandoff) {
-    return `Agent Handoff ${entry.conversationId}`;
+    return 'Support conversation';
+  }
+  if (isAgentDialogConversationId(entry.conversationId)) {
+    return 'AI assistant chat';
   }
   return normalizeConversationType(entry.conversationType) === 'group'
-    ? `Group ${entry.conversationId}`
-    : `Chat ${entry.conversationId}`;
+    ? 'Group chat'
+    : 'Direct chat';
+}
+
+function buildLegacyDirectConversationName(conversationId: string): string {
+  return `Chat ${conversationId}`;
+}
+
+function isInternalConversationIdentifier(value: string): boolean {
+  return /^(?:c_direct|pc-direct|direct[-_:]|conversation[-_:])[a-z0-9._:-]*/iu.test(value.trim());
+}
+
+function isGeneratedDirectConversationName(name: string | undefined, conversationId: string): boolean {
+  const normalizedName = pickString(name);
+  if (!normalizedName) {
+    return true;
+  }
+
+  return normalizedName === buildLegacyDirectConversationName(conversationId)
+    || normalizedName === 'Direct chat'
+    || normalizedName === conversationId
+    || isInternalConversationIdentifier(normalizedName);
 }
 
 function buildLastMessage(entry: ConversationInboxEntry, timestamp: number): Message | undefined {
@@ -1264,11 +1332,12 @@ function mapLiveEventToMessage(context: ImRealtimeEventContext): Message | undef
 
 function mapInboxEntryToChat(entry: ConversationInboxEntry, viewState: ConversationViewState | undefined): Chat {
   const updatedAt = parseTimestamp(entry.lastActivityAt);
+  const conversationType = viewState?.type ?? normalizeConversationType(entry.conversationType);
   return {
     id: entry.conversationId,
     name: viewState?.name ?? buildConversationName(entry),
-    avatar: viewState?.avatar ?? createConversationAvatar(entry.conversationId),
-    type: viewState?.type ?? normalizeConversationType(entry.conversationType),
+    avatar: viewState?.avatar ?? createFallbackConversationAvatar(conversationType),
+    type: conversationType,
     unreadCount: entry.unreadCount,
     updatedAt,
     activeCount: viewState?.activeCount,
@@ -1278,16 +1347,72 @@ function mapInboxEntryToChat(entry: ConversationInboxEntry, viewState: Conversat
     isMuted: viewState?.isMuted,
     isPinned: viewState?.isPinned,
     notice: viewState?.notice,
+    welcomeMessage: viewState?.welcomeMessage,
     lastMessage: buildLastMessage(entry, updatedAt),
   };
 }
 
+function applyInboxProjectionToViewState(
+  viewState: ConversationViewState | undefined,
+  entry: ConversationInboxEntry,
+): ConversationViewState | undefined {
+  const entryRecord = toRecord(entry);
+  const peerRecord = toRecord(entryRecord.peer);
+  const projectedPreferences = toRecord(entryRecord.preferences);
+  const projectedName = pickString(entryRecord.displayName, entryRecord.display_name)
+    ?? (normalizeConversationType(entry.conversationType) === 'single'
+      ? pickString(peerRecord.displayName, peerRecord.display_name)
+      : undefined);
+  const projectedAvatar = pickString(entryRecord.avatarUrl, entryRecord.avatar_url);
+  const hasProjection = projectedName
+    || projectedAvatar
+    || Object.keys(projectedPreferences).length > 0;
+  if (!hasProjection) {
+    return viewState;
+  }
+
+  return {
+    ...viewState,
+    ...(projectedName ? { name: projectedName } : {}),
+    ...(projectedAvatar ? { avatar: projectedAvatar } : {}),
+    ...(typeof projectedPreferences.isPinned === 'boolean' ? { isPinned: projectedPreferences.isPinned } : {}),
+    ...(typeof projectedPreferences.isMuted === 'boolean' ? { isMuted: projectedPreferences.isMuted } : {}),
+    ...(typeof projectedPreferences.isMarkedUnread === 'boolean'
+      ? { isMarkedUnread: projectedPreferences.isMarkedUnread }
+      : {}),
+    ...(typeof projectedPreferences.isHidden === 'boolean' ? { isHidden: projectedPreferences.isHidden } : {}),
+    type: normalizeConversationType(entry.conversationType),
+  };
+}
+
+function hasInboxPreferencesProjection(entry: ConversationInboxEntry): boolean {
+  const preferences = toRecord(toRecord(entry).preferences);
+  return ['isPinned', 'isMuted', 'isMarkedUnread', 'isHidden']
+    .every((field) => typeof preferences[field] === 'boolean');
+}
+
+function hasInboxDisplayProjection(entry: ConversationInboxEntry): boolean {
+  const entryRecord = toRecord(entry);
+  const projectedName = pickString(entryRecord.displayName, entryRecord.display_name);
+  if (projectedName) {
+    return true;
+  }
+
+  if (normalizeConversationType(entry.conversationType) !== 'single') {
+    return false;
+  }
+
+  const peerRecord = toRecord(entryRecord.peer);
+  return Boolean(pickString(peerRecord.displayName, peerRecord.display_name));
+}
+
 function mapLocalMessageToChat(message: Message, viewState: ConversationViewState | undefined): Chat {
+  const conversationType = viewState?.type ?? 'single';
   return {
     id: message.chatId,
-    name: viewState?.name ?? `Chat ${message.chatId}`,
-    avatar: viewState?.avatar ?? createConversationAvatar(message.chatId),
-    type: viewState?.type ?? 'single',
+    name: viewState?.name ?? 'Direct chat',
+    avatar: viewState?.avatar ?? createFallbackConversationAvatar(conversationType),
+    type: conversationType,
     unreadCount: viewState?.isMarkedUnread ? 1 : 0,
     updatedAt: message.timestamp,
     activeCount: viewState?.activeCount,
@@ -1297,6 +1422,7 @@ function mapLocalMessageToChat(message: Message, viewState: ConversationViewStat
     isMuted: viewState?.isMuted,
     isPinned: viewState?.isPinned,
     notice: viewState?.notice,
+    welcomeMessage: viewState?.welcomeMessage,
     lastMessage: message,
   };
 }
@@ -1324,6 +1450,18 @@ function applyConversationProfile(
     ...(pickString(profile.displayName) ? { name: pickString(profile.displayName) } : {}),
     ...(pickString(profile.avatarUrl) ? { avatar: pickString(profile.avatarUrl) } : {}),
     notice: profile.notice,
+  };
+}
+
+function mapSocialUserResultToDirectPeerProfile(
+  result: SocialUserSearchResult,
+  preferences?: ContactPreferencesView,
+): DirectChatPeerProfile {
+  const name = pickString(preferences?.remark, result.displayName, result.userId) ?? result.userId;
+  return {
+    userId: result.userId,
+    name,
+    ...(pickString(result.avatarUrl) ? { avatar: pickString(result.avatarUrl) } : {}),
   };
 }
 
@@ -1535,6 +1673,22 @@ class SdkworkChatService implements ChatService {
       ?? contactService.getCurrentUser().id;
   }
 
+  private resolveCurrentUserIdentifiers(): Set<string> {
+    const session = this.getSession();
+    const sessionUserRecord = toRecord(session?.user);
+    const sessionContextRecord = toRecord(session?.context);
+    const currentUser = contactService.getCurrentUser();
+    return new Set([
+      resolveAppSdkUserId(session),
+      pickString(sessionUserRecord.userId, sessionUserRecord.id),
+      pickString(sessionUserRecord.chatId, sessionUserRecord.chat_id),
+      pickString(sessionContextRecord.userId, sessionContextRecord.user_id),
+      pickString(sessionContextRecord.chatId, sessionContextRecord.chat_id),
+      currentUser.id,
+      currentUser.chatId,
+    ].filter((identifier): identifier is string => Boolean(identifier)));
+  }
+
   private async listAllInboxEntries(): Promise<ConversationInboxEntry[]> {
     const items: ConversationInboxEntry[] = [];
     let cursor: string | undefined;
@@ -1549,6 +1703,136 @@ class SdkworkChatService implements ChatService {
     } while (cursor);
 
     return items;
+  }
+
+  private async listAllConversationMembers(conversationId: string): Promise<ConversationMember[]> {
+    const items: ConversationMember[] = [];
+    let cursor: string | undefined;
+
+    while (true) {
+      const response = await this.client().conversations.listMembers(conversationId, {
+        limit: CONVERSATION_MEMBERS_PAGE_LIMIT,
+        ...(cursor ? { cursor } : {}),
+      });
+      items.push(...response.items);
+
+      if (!response.hasMore || !response.nextCursor || response.nextCursor === cursor) {
+        break;
+      }
+
+      cursor = response.nextCursor;
+    }
+
+    return items;
+  }
+
+  private isDisplayableDirectMember(member: ConversationMember): boolean {
+    const state = String(member.state).trim().toLowerCase();
+    return member.principalKind === 'user'
+      && Boolean(pickString(member.principalId))
+      && state !== 'left'
+      && state !== 'removed';
+  }
+
+  private findDirectPeerMember(members: ConversationMember[]): ConversationMember | undefined {
+    const currentUserIdentifiers = this.resolveCurrentUserIdentifiers();
+    return members
+      .filter((member) => this.isDisplayableDirectMember(member))
+      .find((member) => !currentUserIdentifiers.has(member.principalId));
+  }
+
+  private async resolveDirectPeerSocialProfile(peerUserId: string): Promise<SocialUserSearchResult | undefined> {
+    const response = await this.client().social.users.list({
+      q: peerUserId,
+      limit: 20,
+    });
+    return response.items.find((item) => {
+      const itemRecord = toRecord(item);
+      const metadata = toRecord(itemRecord.metadata);
+      const chatId = pickString(item.chatId, itemRecord.chat_id, metadata.chatId, metadata.chat_id);
+      return item.userId === peerUserId || chatId === peerUserId;
+    });
+  }
+
+  private async resolveDirectPeerContactPreferences(peerUserId: string): Promise<ContactPreferencesView | undefined> {
+    try {
+      return await this.client().social.contacts.preferences.retrieve(peerUserId);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async resolveDirectChatPeerProfile(conversationId: string): Promise<DirectChatPeerProfile | undefined> {
+    const members = await this.listAllConversationMembers(conversationId);
+    const peerMember = this.findDirectPeerMember(members);
+    const peerUserId = pickString(peerMember?.principalId);
+    if (!peerUserId) {
+      return undefined;
+    }
+
+    const [socialProfile, preferences] = await Promise.all([
+      this.resolveDirectPeerSocialProfile(peerUserId).catch(() => undefined),
+      this.resolveDirectPeerContactPreferences(peerUserId),
+    ]);
+    if (!socialProfile) {
+      const remark = pickString(preferences?.remark);
+      return remark ? { userId: peerUserId, name: remark } : undefined;
+    }
+
+    return mapSocialUserResultToDirectPeerProfile(socialProfile, preferences);
+  }
+
+  private async hydrateDirectConversationViewState(
+    entry: ConversationInboxEntry,
+    viewState: ConversationViewState | undefined,
+  ): Promise<ConversationViewState | undefined> {
+    if (entry.agentHandoff) {
+      const handoffViewState = {
+        ...viewState,
+        name: viewState?.name ?? 'Support conversation',
+        type: 'single' as const,
+      };
+      this.conversationViewState.set(entry.conversationId, handoffViewState);
+      return handoffViewState;
+    }
+
+    if (isAgentDialogConversationId(entry.conversationId)) {
+      const agentViewState = {
+        ...viewState,
+        avatar: viewState?.avatar ?? createFallbackAgentConversationAvatar(),
+        name: viewState?.name ?? 'AI assistant chat',
+        type: 'single' as const,
+      };
+      this.conversationViewState.set(entry.conversationId, agentViewState);
+      return agentViewState;
+    }
+
+    if (
+      normalizeConversationType(entry.conversationType) !== 'single'
+      || !isGeneratedDirectConversationName(viewState?.name, entry.conversationId)
+    ) {
+      return viewState;
+    }
+
+    try {
+      const peerProfile = await this.resolveDirectChatPeerProfile(entry.conversationId);
+      const hydratedViewState = {
+        ...viewState,
+        name: peerProfile?.name ?? 'Direct chat',
+        ...(peerProfile?.avatar ? { avatar: peerProfile.avatar } : {}),
+        type: 'single' as const,
+      };
+      this.conversationViewState.set(entry.conversationId, hydratedViewState);
+      return hydratedViewState;
+    } catch {
+      const fallbackViewState = {
+        ...viewState,
+        name: 'Direct chat',
+        type: 'single' as const,
+      };
+      this.conversationViewState.set(entry.conversationId, fallbackViewState);
+      return fallbackViewState;
+    }
   }
 
   private async listAllTimelineEntries(chatId: string): Promise<TimelineViewEntry[]> {
@@ -1578,41 +1862,58 @@ class SdkworkChatService implements ChatService {
 
   async getChats(): Promise<Chat[]> {
     const inboxEntries = await this.listAllInboxEntries();
-    const chatResults = await Promise.all(inboxEntries
-      .map(async (entry): Promise<Chat | undefined> => {
+    const chatResults = await mapWithConcurrencyLimit(
+      inboxEntries,
+      CHAT_LIST_HYDRATION_CONCURRENCY,
+      async (entry): Promise<Chat | undefined> => {
         this.latestReadSeq.set(entry.conversationId, Math.max(
           this.latestReadSeq.get(entry.conversationId) ?? 0,
           entry.lastMessageSeq,
         ));
-        let viewState = this.conversationViewState.get(entry.conversationId);
-        try {
-          const preferences = await this.client().conversations.getPreferences(entry.conversationId);
-          viewState = {
-            ...viewState,
-            isMuted: preferences.isMuted,
-            isMarkedUnread: preferences.isMarkedUnread,
-            isPinned: preferences.isPinned,
-            isHidden: preferences.isHidden,
-          };
+        let viewState = applyInboxProjectionToViewState(
+          this.conversationViewState.get(entry.conversationId),
+          entry,
+        );
+        if (viewState) {
           this.conversationViewState.set(entry.conversationId, viewState);
-        } catch {
-          // Keep the chat list usable if a preference sync request fails.
+        }
+        if (!hasInboxPreferencesProjection(entry)) {
+          try {
+            const preferences = await this.client().conversations.getPreferences(entry.conversationId);
+            viewState = {
+              ...viewState,
+              isMuted: preferences.isMuted,
+              isMarkedUnread: preferences.isMarkedUnread,
+              isPinned: preferences.isPinned,
+              isHidden: preferences.isHidden,
+            };
+            this.conversationViewState.set(entry.conversationId, viewState);
+          } catch {
+            // Keep the chat list usable if a preference sync request fails.
+          }
         }
         if (viewState?.isHidden) {
           return undefined;
         }
-        try {
-          const profile = await this.client().conversations.getProfile(entry.conversationId);
-          viewState = applyConversationProfile(viewState, profile);
-          this.conversationViewState.set(entry.conversationId, viewState);
-        } catch {
-          // Keep local naming/avatar fallbacks usable if profile sync is temporarily unavailable.
+        if (
+          normalizeConversationType(entry.conversationType) !== 'single'
+          && !hasInboxDisplayProjection(entry)
+        ) {
+          try {
+            const profile = await this.client().conversations.getProfile(entry.conversationId);
+            viewState = applyConversationProfile(viewState, profile);
+            this.conversationViewState.set(entry.conversationId, viewState);
+          } catch {
+            // Keep local naming/avatar fallbacks usable if profile sync is temporarily unavailable.
+          }
         }
+        viewState = await this.hydrateDirectConversationViewState(entry, viewState);
         return applyLocalLastMessageToChat(
           mapInboxEntryToChat(entry, viewState),
           this.localMessages.get(entry.conversationId)?.at(-1),
         );
-      }));
+      },
+    );
     const chats = chatResults.filter((chat): chat is Chat => Boolean(chat));
 
     for (const [chatId, localMessages] of this.localMessages.entries()) {
@@ -1970,7 +2271,7 @@ class SdkworkChatService implements ChatService {
     };
   }
 
-  async startAgentChat(agent: Pick<Chat, 'avatar' | 'name'> & { id: string }): Promise<Chat> {
+  async startAgentChat(agent: Pick<Chat, 'avatar' | 'name' | 'welcomeMessage'> & { id: string }): Promise<Chat> {
     const agentId = requireStandardAgentChatId(agent.id);
     const currentUser = contactService.getCurrentUser();
     const currentUserId = currentUser.id.trim();
@@ -1998,6 +2299,7 @@ class SdkworkChatService implements ChatService {
       isHidden: false,
       name: agent.name,
       type: 'single',
+      welcomeMessage: agent.welcomeMessage,
     });
     return {
       id: boundConversationId,
@@ -2006,6 +2308,7 @@ class SdkworkChatService implements ChatService {
       type: 'single',
       unreadCount: 0,
       updatedAt: Date.now(),
+      welcomeMessage: agent.welcomeMessage,
     };
   }
 

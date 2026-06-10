@@ -20,7 +20,18 @@ export const SDKWORK_CHAT_PC_DEV_HOST_ENV = 'SDKWORK_CHAT_PC_DEV_HOST';
 export const SDKWORK_CHAT_PC_DEV_PORT_ENV = 'SDKWORK_CHAT_PC_DEV_PORT';
 export const DEFAULT_SDKWORK_CHAT_PC_DEV_HOST = '127.0.0.1';
 export const DEFAULT_SDKWORK_CHAT_PC_DEV_PORT = 4176;
+export const DEFAULT_SDKWORK_DRIVE_APP_API_UPSTREAM = 'http://127.0.0.1:18080';
+const DEFAULT_SDKWORK_DRIVE_APP_API_DATABASE_URL = 'sqlite://target/sdkwork-drive-chat-pc.sqlite';
 const MAX_DEV_PORT_ATTEMPTS = 50;
+const DRIVE_APP_API_UPSTREAM_ENV_KEYS = [
+  'CRAW_CHAT_DRIVE_APP_API_UPSTREAM',
+  'SDKWORK_DRIVE_APP_API_UPSTREAM',
+  'SDKWORK_DRIVE_APP_API_BASE_URL',
+];
+const DRIVE_APP_API_AUTOSTART_ENV_KEYS = [
+  'CRAW_CHAT_DRIVE_APP_API_AUTOSTART',
+  'SDKWORK_DRIVE_APP_API_AUTOSTART',
+];
 
 const TARGETS = Object.freeze({
   browser: {
@@ -41,9 +52,94 @@ function pnpmShell() {
   return process.platform === 'win32';
 }
 
+function cargoCommand() {
+  return process.platform === 'win32' ? 'cargo.exe' : 'cargo';
+}
+
 function normalizeText(value) {
   const normalized = String(value ?? '').trim();
   return normalized || undefined;
+}
+
+function normalizeUpstreamBaseUrl(value, label) {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return undefined;
+  }
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(normalized);
+  } catch {
+    throw new Error(`${label} must be a valid absolute http(s) URL`);
+  }
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new Error(`${label} must be a valid absolute http(s) URL`);
+  }
+  return normalized.replace(/\/+$/u, '');
+}
+
+export function resolveDriveAppApiUpstream(env = process.env) {
+  for (const key of DRIVE_APP_API_UPSTREAM_ENV_KEYS) {
+    const upstream = normalizeUpstreamBaseUrl(env[key], key);
+    if (upstream) {
+      return upstream;
+    }
+  }
+  return DEFAULT_SDKWORK_DRIVE_APP_API_UPSTREAM;
+}
+
+function hasConfiguredDriveAppApiUpstream(env) {
+  return DRIVE_APP_API_UPSTREAM_ENV_KEYS.some((key) => Boolean(normalizeText(env[key])));
+}
+
+function shouldAutostartDriveAppApi(env) {
+  for (const key of DRIVE_APP_API_AUTOSTART_ENV_KEYS) {
+    const value = normalizeText(env[key]);
+    if (!value) {
+      continue;
+    }
+    return !['0', 'false', 'off', 'no'].includes(value.toLowerCase());
+  }
+  return true;
+}
+
+function createManagedDriveAppApiProcess({
+  env,
+  explicitDriveAppApiUpstream,
+  repoRoot: resolvedRepoRoot,
+}) {
+  const driveAppApiUpstream = resolveDriveAppApiUpstream(env);
+  if (
+    explicitDriveAppApiUpstream
+    || driveAppApiUpstream !== DEFAULT_SDKWORK_DRIVE_APP_API_UPSTREAM
+    || !shouldAutostartDriveAppApi(env)
+  ) {
+    return undefined;
+  }
+
+  const driveWorkspaceRoot = path.resolve(resolvedRepoRoot, '..', 'sdkwork-drive');
+  const driveEnv = {
+    ...env,
+    CARGO_TARGET_DIR: normalizeText(env.SDKWORK_DRIVE_CARGO_TARGET_DIR)
+      ?? path.join(driveWorkspaceRoot, 'target', 'chat-pc-dev'),
+    SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS:
+      normalizeText(env.SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS) ?? '1',
+    SDKWORK_DRIVE_DATABASE_URL:
+      normalizeText(env.SDKWORK_DRIVE_DATABASE_URL) ?? DEFAULT_SDKWORK_DRIVE_APP_API_DATABASE_URL,
+  };
+  if (!normalizeText(driveEnv.SDKWORK_DRIVE_IAM_CONTEXT_SIGNATURE_SECRET)) {
+    driveEnv.SDKWORK_DRIVE_IAM_ALLOW_UNSIGNED_CONTEXT =
+      normalizeText(driveEnv.SDKWORK_DRIVE_IAM_ALLOW_UNSIGNED_CONTEXT) ?? 'true';
+  }
+
+  return {
+    args: ['run', '-p', 'sdkwork-drive-app-api'],
+    command: cargoCommand(),
+    cwd: driveWorkspaceRoot,
+    env: driveEnv,
+    label: 'sdkwork-drive-app-api',
+    shell: false,
+  };
 }
 
 function normalizePort(value, label = 'port') {
@@ -263,10 +359,17 @@ export function createSdkworkChatPcDevPlan({
   const defaultEnvFile = databaseProfile === 'postgres'
     ? resolveDefaultPostgresEnvFile(resolvedRepoRoot)
     : undefined;
+  const devEnvFile = loadSdkworkChatPcDevEnvFile(options.envFile ?? defaultEnvFile, {
+    repoRoot: resolvedRepoRoot,
+  });
+  const requestedEnv = {
+    ...env,
+    ...devEnvFile,
+  };
+  const explicitDriveAppApiUpstream = hasConfiguredDriveAppApiUpstream(requestedEnv);
   const cargoEnv = createCrawChatServerCargoEnv({
     env: {
-      ...env,
-      ...loadSdkworkChatPcDevEnvFile(options.envFile ?? defaultEnvFile, { repoRoot: resolvedRepoRoot }),
+      ...requestedEnv,
       ...serverEnv,
     },
     repoRoot: resolvedRepoRoot,
@@ -325,26 +428,36 @@ export function createSdkworkChatPcDevPlan({
     ...resolveCrawChatSharedDatabaseConfig({ env: mergedEnv, repoRoot: resolvedRepoRoot }).env,
     CRAW_CHAT_BROWSER_ORIGINS: mergedEnv.CRAW_CHAT_BROWSER_ORIGINS
       ?? createSdkworkChatBrowserOrigins(devServer),
+    CRAW_CHAT_DRIVE_APP_API_UPSTREAM: resolveDriveAppApiUpstream(mergedEnv),
     CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE: 'embedded',
   };
+  const managedDriveAppApiProcess = createManagedDriveAppApiProcess({
+    env: mergedEnv,
+    explicitDriveAppApiUpstream,
+    repoRoot: resolvedRepoRoot,
+  });
+  const processes = [
+    {
+      ...shared,
+      args: ['server:dev'],
+      env: unifiedServerEnv,
+      label: 'craw-chat-server',
+    },
+    {
+      ...shared,
+      env: resolvedRendererEnv.env,
+      args: target.pnpmArgs,
+      label: target.label,
+    },
+  ];
+  if (managedDriveAppApiProcess) {
+    processes.push(managedDriveAppApiProcess);
+  }
   return {
     devServer,
     dryRun: options.dryRun,
     target: options.target,
-    processes: [
-      {
-        ...shared,
-        args: ['server:dev'],
-        env: unifiedServerEnv,
-        label: 'craw-chat-server',
-      },
-      {
-        ...shared,
-        env: resolvedRendererEnv.env,
-        args: target.pnpmArgs,
-        label: target.label,
-      },
-    ],
+    processes,
   };
 }
 

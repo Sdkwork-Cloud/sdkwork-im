@@ -131,6 +131,23 @@ assert.equal(assembly.rpcManifest, 'rpc/sdkwork-im-rpc.manifest.json');
 assert.equal(assembly.httpFamilyMapping.openApiSdkFamily, 'sdkwork-im-sdk');
 assert.equal(assembly.httpFamilyMapping.appApiSdkFamily, 'sdkwork-im-app-sdk');
 assert.equal(assembly.httpFamilyMapping.backendApiSdkFamily, 'sdkwork-im-backend-sdk');
+assert.deepEqual(
+  assembly.inspectionPolicy,
+  {
+    mode: 'convention',
+    protocol: 'rpc',
+    optionalControlPlane: {
+      emitFlag: '--emit-control-plane',
+      purpose: ['release', 'ci', 'audit', 'migration'],
+    },
+  },
+  'assembly must declare the optional RPC control-plane policy once at the family level.',
+);
+assert.doesNotMatch(
+  read('sdks/sdkwork-im-rpc-sdk/.sdkwork-assembly.json'),
+  /sdkwork-generator-(manifest|changes|report)\.json/u,
+  'assembly must not duplicate derived optional control-plane file names per language.',
+);
 
 const expectedRpcLanguages = ['go', 'java', 'python', 'rust', 'typescript'];
 assert.deepEqual(
@@ -158,8 +175,11 @@ for (const language of expectedRpcLanguages) {
     entry.inspection.requiredEvidence.includes('../rpc/sdkwork-im-rpc.manifest.json'),
     `${language} assembly entry must declare the RPC manifest as convention evidence.`,
   );
-  assert.equal(entry.inspection.optionalControlPlane.emitFlag, '--emit-control-plane');
-  assert.equal(entry.inspection.optionalControlPlane.protocol, 'rpc');
+  assert.equal(
+    Object.hasOwn(entry.inspection, 'optionalControlPlane'),
+    false,
+    `${language} assembly entry must not duplicate optional control-plane policy.`,
+  );
 }
 
 const packageVersionByLanguage = {
@@ -225,6 +245,23 @@ assert.equal(
 );
 assert.deepEqual(componentSpec.contracts.sdkDependencies, []);
 assert.deepEqual(
+  componentSpec.contracts.inspectionPolicy,
+  {
+    mode: 'convention',
+    protocol: 'rpc',
+    optionalControlPlane: {
+      emitFlag: '--emit-control-plane',
+      purpose: ['release', 'ci', 'audit', 'migration'],
+    },
+  },
+  'component spec must declare the optional RPC control-plane policy once at the family level.',
+);
+assert.doesNotMatch(
+  read('sdks/sdkwork-im-rpc-sdk/specs/component.spec.json'),
+  /sdkwork-generator-(manifest|changes|report)\.json/u,
+  'component spec must not duplicate derived optional control-plane file names per language.',
+);
+assert.deepEqual(
   componentSpec.contracts.generatedSdkWorkspaces.map((entry) => entry.language).sort(),
   expectedRpcLanguages,
   'component spec must list every generated RPC SDK workspace.',
@@ -246,8 +283,11 @@ for (const language of expectedRpcLanguages) {
     entry.inspection.requiredEvidence.includes('../rpc/sdkwork-im-rpc.manifest.json'),
     `${language} component spec entry must declare the RPC manifest as convention evidence.`,
   );
-  assert.equal(entry.inspection.optionalControlPlane.emitFlag, '--emit-control-plane');
-  assert.equal(entry.inspection.optionalControlPlane.protocol, 'rpc');
+  assert.equal(
+    Object.hasOwn(entry.inspection, 'optionalControlPlane'),
+    false,
+    `${language} component spec entry must not duplicate optional control-plane policy.`,
+  );
 }
 for (const language of expectedRpcLanguages) {
   assert.ok(
@@ -392,6 +432,11 @@ for (const [key, method] of manifestMethods) {
 }
 
 const readme = read('sdks/sdkwork-im-rpc-sdk/README.md');
+assert.doesNotMatch(
+  readme,
+  /\.sdkwork\/sdkwork-generator/u,
+  'RPC SDK README must not list derived optional control-plane paths as day-to-day source evidence.',
+);
 for (const requiredText of [
   'Current Capability Inventory',
   'conversation-runtime',
@@ -439,6 +484,11 @@ assert.match(sdkReadme, /sdkgen\.js inspect --protocol rpc/u, 'sdks README must 
 const componentReadme = read('sdks/sdkwork-im-rpc-sdk/specs/README.md');
 assert.match(componentReadme, /convention evidence/u, 'component README must document RPC convention evidence.');
 assert.match(componentReadme, /sdkgen\.js inspect --protocol rpc/u, 'component README must document RPC inspect verification.');
+assert.doesNotMatch(
+  componentReadme,
+  /\.sdkwork\/sdkwork-generator/u,
+  'component README must keep optional RPC control-plane paths convention-derived instead of listing them.',
+);
 for (const language of expectedRpcLanguages) {
   assert.match(
     componentReadme,

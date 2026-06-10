@@ -1,8 +1,9 @@
 import type { Chat } from '@sdkwork/clawchat-pc-types';
 import { chatService, type ChatService } from './ChatService';
+import { createDefaultAvatar } from './DefaultAvatarService';
 
 export const SYSTEM_ASSISTANT_AGENT = {
-  avatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=System%20Assistant',
+  avatar: createDefaultAvatar('agent'),
   id: 'agent.sdkwork_assistant',
   name: 'System Assistant',
 } as const;

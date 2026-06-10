@@ -19,9 +19,12 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
   });
 
   const [idFront, setIdFront] = useState<string | null>(null);
+  const [idFrontFile, setIdFrontFile] = useState<File | null>(null);
   const [idBack, setIdBack] = useState<string | null>(null);
+  const [idBackFile, setIdBackFile] = useState<File | null>(null);
   const [faceImage, setFaceImage] = useState<string | null>(null);
-  const [attachments, setAttachments] = useState<{ id: string, url: string, name: string }[]>([]);
+  const [faceImageDataUrl, setFaceImageDataUrl] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<{ id: string, url: string, name: string, file: File }[]>([]);
   
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
@@ -54,8 +57,11 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
         setNewParty({ name: '', phone: '', identityId: '', address: '', role: '申请人', gender: '男', birthDate: '', remarks: '', identityValidDateStart: '', identityValidDateEnd: '' });
       }
       setIdFront(null);
+      setIdFrontFile(null);
       setIdBack(null);
+      setIdBackFile(null);
       setFaceImage(null);
+      setFaceImageDataUrl(null);
       setAttachments([]);
       setCompareResult(null);
     }
@@ -69,33 +75,17 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
     };
   }, []);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string | null) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-      setter(URL.createObjectURL(file));
+      const previewUrl = URL.createObjectURL(file);
+      setter(previewUrl);
       if (setter === setIdFront) {
+        setIdFrontFile(file);
         setCompareResult(null);
-        // Simulate auto-recognition for id front
-        setTimeout(() => {
-            setNewParty(prev => ({
-                ...prev,
-                name: prev.name || '张三',
-                identityId: prev.identityId || '110105199001011234',
-                gender: prev.gender || '男',
-                birthDate: prev.birthDate || '1990-01-01',
-                address: prev.address || '北京市朝阳区某某路X号'
-            }));
-        }, 800);
       }
       if (setter === setIdBack) {
-          // Simulate auto-recognition for id back (validity dates)
-          setTimeout(() => {
-              setNewParty(prev => ({
-                  ...prev,
-                  identityValidDateStart: prev.identityValidDateStart || '2023-01-01',
-                  identityValidDateEnd: prev.identityValidDateEnd || '2043-01-01'
-              }));
-          }, 800);
+        setIdBackFile(file);
       }
     }
     e.target.value = '';
@@ -106,7 +96,8 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
     const newItems = files.map(file => ({
       id: Date.now() + Math.random().toString(),
       url: URL.createObjectURL(file),
-      name: file.name
+      name: file.name,
+      file
     }));
     setAttachments(prev => [...prev, ...newItems]);
     e.target.value = '';
@@ -141,7 +132,9 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
         canvasRef.current.width = videoRef.current.videoWidth;
         canvasRef.current.height = videoRef.current.videoHeight;
         ctx.drawImage(videoRef.current, 0, 0);
-        setFaceImage(canvasRef.current.toDataURL('image/jpeg'));
+        const capturedFaceImage = canvasRef.current.toDataURL('image/jpeg');
+        setFaceImage(capturedFaceImage);
+        setFaceImageDataUrl(capturedFaceImage);
         setCompareResult(null);
         stopCamera();
       }
@@ -161,8 +154,11 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
     if (!newParty.name || !newParty.identityId) return;
     const submittedParty: Party = {
       ...newParty,
-      id: party?.id || Date.now().toString()
-    };
+      id: party?.id || Date.now().toString(),
+      identityFrontFile: idFrontFile ?? undefined,
+      identityBackFile: idBackFile ?? undefined,
+      faceImageDataUrl: faceImageDataUrl ?? undefined
+    } as Party;
     onSave(submittedParty);
   };
 
@@ -205,7 +201,7 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
                      {idFront ? (
                        <div className="border border-white/10 bg-black/50 rounded-xl relative overflow-hidden aspect-[1.58/1] group">
                          <img src={idFront} alt="人像面" className="w-full h-full object-contain" />
-                         {!readOnly && <button onClick={() => { setIdFront(null); setCompareResult(null); }} className="absolute top-1 right-1 p-1 bg-red-500/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12}/></button>}
+                         {!readOnly && <button onClick={() => { setIdFront(null); setIdFrontFile(null); setCompareResult(null); }} className="absolute top-1 right-1 p-1 bg-red-500/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12}/></button>}
                        </div>
                      ) : (
                        <div onClick={() => !readOnly && idFrontRef.current?.click()} className={`border border-dashed border-white/10 bg-[#181818]/50 rounded-xl flex flex-col items-center justify-center p-4 text-gray-500 ${readOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-white/30 hover:bg-white/5'} transition-colors aspect-[1.58/1]`}>
@@ -219,7 +215,7 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
                      {idBack ? (
                        <div className="border border-white/10 bg-black/50 rounded-xl relative overflow-hidden aspect-[1.58/1] group">
                          <img src={idBack} alt="国徽面" className="w-full h-full object-contain" />
-                         {!readOnly && <button onClick={() => setIdBack(null)} className="absolute top-1 right-1 p-1 bg-red-500/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12}/></button>}
+                         {!readOnly && <button onClick={() => { setIdBack(null); setIdBackFile(null); }} className="absolute top-1 right-1 p-1 bg-red-500/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12}/></button>}
                        </div>
                      ) : (
                        <div onClick={() => !readOnly && idBackRef.current?.click()} className={`border border-dashed border-white/10 bg-[#181818]/50 rounded-xl flex flex-col items-center justify-center p-4 text-gray-500 ${readOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-white/30 hover:bg-white/5'} transition-colors aspect-[1.58/1]`}>
@@ -232,7 +228,7 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
                      {faceImage ? (
                        <div className="border border-indigo-500/30 bg-black/50 rounded-xl relative overflow-hidden aspect-[1.58/1] group">
                          <img src={faceImage} alt="现场人脸" className="w-full h-full object-cover" />
-                         {!readOnly && <button onClick={() => { setFaceImage(null); setCompareResult(null); }} className="absolute top-1 right-1 p-1 bg-red-500/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12}/></button>}
+                         {!readOnly && <button onClick={() => { setFaceImage(null); setFaceImageDataUrl(null); setCompareResult(null); }} className="absolute top-1 right-1 p-1 bg-red-500/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12}/></button>}
                        </div>
                      ) : (
                        <div onClick={() => !readOnly && startCamera()} className={`border ${readOnly ? 'border-dashed border-white/10 bg-white/5 text-gray-600 cursor-not-allowed' : 'border-dashed border-indigo-500/30 bg-indigo-500/5 cursor-pointer hover:border-indigo-500/50 hover:bg-indigo-500/10 text-indigo-400'} rounded-xl flex flex-col items-center justify-center p-4 transition-colors aspect-[1.58/1] relative`}>

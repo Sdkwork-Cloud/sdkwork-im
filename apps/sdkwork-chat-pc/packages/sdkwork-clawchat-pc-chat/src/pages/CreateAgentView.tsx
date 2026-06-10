@@ -11,6 +11,8 @@ import { SelectModelPopover } from '../components/SelectModelPopover';
 import { SelectKnowledgeModal } from '../components/SelectKnowledgeModal';
 import { SelectToolsModal, AVAILABLE_TOOLS } from '../components/SelectToolsModal';
 import { SelectSkillsModal, AVAILABLE_SKILLS } from '../components/SelectSkillsModal';
+import { DEFAULT_AGENT_CONFIG } from '../components/AgentDefaults';
+import { createDefaultAvatar } from '../services/DefaultAvatarService';
 import { voiceService, VoiceConfig } from '@sdkwork/clawchat-pc-voice';
 import { knowledgeService, KnowledgeBase } from '@sdkwork/clawchat-pc-knowledge';
 
@@ -32,6 +34,20 @@ interface SectionProps {
   defaultExpanded?: boolean;
   children: React.ReactNode;
   extra?: React.ReactNode;
+}
+
+const DEFAULT_AGENT_WELCOME_MESSAGE = DEFAULT_AGENT_CONFIG.welcomeMessage;
+const DEFAULT_AGENT_SUGGESTED_PROMPTS = DEFAULT_AGENT_CONFIG.suggestedPrompts;
+const DEFAULT_AGENT_AVATAR = createDefaultAvatar('agent');
+const DEFAULT_TEST_USER_AVATAR = createDefaultAvatar('user');
+
+function createAgentWelcomeTestMessage(content: string): TestMessage {
+  return {
+    id: Date.now().toString(),
+    role: 'assistant',
+    content,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  };
 }
 
 const AccordionSection: React.FC<SectionProps> = ({ title, icon, defaultExpanded = false, children, extra }) => {
@@ -150,14 +166,15 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
   const [name, setName] = useState('新智能体');
   const [desc, setDesc] = useState('这是一个新创建的智能体');
   const [avatar, setAvatar] = useState('');
-  const [model, setModel] = useState('gpt-4');
-  const [temperature, setTemperature] = useState(0.7);
-  const [memoryEnabled, setMemoryEnabled] = useState(true);
-  const [jsonMode, setJsonMode] = useState(false);
-  const [debugMode, setDebugMode] = useState(true);
+  const [agentType, setAgentType] = useState<AgentConfig['type']>('normal');
+  const [model, setModel] = useState(DEFAULT_AGENT_CONFIG.model);
+  const [temperature, setTemperature] = useState(DEFAULT_AGENT_CONFIG.temperature);
+  const [memoryEnabled, setMemoryEnabled] = useState<boolean>(DEFAULT_AGENT_CONFIG.memoryEnabled);
+  const [jsonMode, setJsonMode] = useState<boolean>(DEFAULT_AGENT_CONFIG.jsonMode);
+  const [debugMode, setDebugMode] = useState<boolean>(DEFAULT_AGENT_CONFIG.debugMode);
   
-  const [welcomeMessage, setWelcomeMessage] = useState('你好！我是你的智能体，我们可以开始测试了。');
-  const [suggestedPrompts, setSuggestedPrompts] = useState(['你能帮我做什么？', '给我讲个笑话']);
+  const [welcomeMessage, setWelcomeMessage] = useState(DEFAULT_AGENT_WELCOME_MESSAGE);
+  const [suggestedPrompts, setSuggestedPrompts] = useState(DEFAULT_AGENT_SUGGESTED_PROMPTS);
   const [showPromptOptimizer, setShowPromptOptimizer] = useState(false);
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -168,10 +185,10 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
   const [isSkillsModalOpen, setIsSkillsModalOpen] = useState(false);
   const modelTriggerRef = useRef<HTMLDivElement>(null);
   
-  const [selectedVoiceIds, setSelectedVoiceIds] = useState<string[]>(['voice-1']);
-  const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>([]);
-  const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
-  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
+  const [selectedVoiceIds, setSelectedVoiceIds] = useState<string[]>(DEFAULT_AGENT_CONFIG.voiceIds);
+  const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>(DEFAULT_AGENT_CONFIG.knowledgeBaseIds);
+  const [selectedToolIds, setSelectedToolIds] = useState<string[]>(DEFAULT_AGENT_CONFIG.toolIds);
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>(DEFAULT_AGENT_CONFIG.skillIds);
   const [draftId, setDraftId] = useState<string | null>(initialAgentId || null);
   
   const [availableVoices, setAvailableVoices] = useState<VoiceConfig[]>([]);
@@ -199,13 +216,8 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
   const selectedToolsData = AVAILABLE_TOOLS.filter(t => selectedToolIds.includes(t.id));
   const selectedSkillsData = AVAILABLE_SKILLS.filter(s => selectedSkillIds.includes(s.id));
   
-  const [testMessages, setTestMessages] = useState<TestMessage[]>([
-    { 
-      id: '1', 
-      role: 'assistant', 
-      content: '你好！我是你的智能体，我们可以开始测试了。',
-      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-    }
+  const [testMessages, setTestMessages] = useState<TestMessage[]>(() => [
+    createAgentWelcomeTestMessage(DEFAULT_AGENT_WELCOME_MESSAGE),
   ]);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -215,20 +227,30 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
 
   useEffect(() => {
     if (initialAgentId) {
-      setDraftId(initialAgentId);
+      setDraftId(null);
       // Load agent data if editing
-      Promise.all([
-        agentService.getAgents(),
-        agentService.getMarketAgents()
-      ]).then(([myAgents, marketAgents]) => {
-        const allAgents = [...myAgents, ...marketAgents];
-        const agent = allAgents.find(a => a.id === initialAgentId);
-        if (agent) {
+      agentService.getAgents().then((myAgents) => {
+        const agent = myAgents.find(a => a.id === initialAgentId);
+        if (agent?.id) {
+          setDraftId(agent.id);
           setName(agent.name);
           setDesc(agent.description || '');
-          setPrompt(agent.systemPrompt || '');
+          setPrompt(agent.systemPrompt ?? '');
           setAvatar(agent.avatar || '');
-          setWelcomeMessage(agent.welcomeMessage || '你好！我是你的智能体，我们可以开始测试了。');
+          setAgentType(agent.type);
+          setModel(agent.model || DEFAULT_AGENT_CONFIG.model);
+          setTemperature(agent.temperature ?? DEFAULT_AGENT_CONFIG.temperature);
+          setMemoryEnabled(agent.memoryEnabled ?? DEFAULT_AGENT_CONFIG.memoryEnabled);
+          setJsonMode(agent.jsonMode ?? DEFAULT_AGENT_CONFIG.jsonMode);
+          setDebugMode(agent.debugMode ?? DEFAULT_AGENT_CONFIG.debugMode);
+          setSuggestedPrompts(agent.suggestedPrompts ?? DEFAULT_AGENT_SUGGESTED_PROMPTS);
+          setSelectedVoiceIds(agent.voiceIds ?? DEFAULT_AGENT_CONFIG.voiceIds);
+          setSelectedKnowledgeIds(agent.knowledgeBaseIds ?? DEFAULT_AGENT_CONFIG.knowledgeBaseIds);
+          setSelectedToolIds(agent.toolIds ?? DEFAULT_AGENT_CONFIG.toolIds);
+          setSelectedSkillIds(agent.skillIds ?? DEFAULT_AGENT_CONFIG.skillIds);
+          const nextWelcomeMessage = agent.welcomeMessage ?? DEFAULT_AGENT_WELCOME_MESSAGE;
+          setWelcomeMessage(nextWelcomeMessage);
+          setTestMessages([createAgentWelcomeTestMessage(nextWelcomeMessage)]);
         }
       });
     } else {
@@ -237,22 +259,54 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
       setDesc('这是一个新创建的智能体');
       setPrompt('');
       setAvatar('');
+      setAgentType('normal');
+      setModel(DEFAULT_AGENT_CONFIG.model);
+      setTemperature(DEFAULT_AGENT_CONFIG.temperature);
+      setMemoryEnabled(DEFAULT_AGENT_CONFIG.memoryEnabled);
+      setJsonMode(DEFAULT_AGENT_CONFIG.jsonMode);
+      setDebugMode(DEFAULT_AGENT_CONFIG.debugMode);
+      setWelcomeMessage(DEFAULT_AGENT_WELCOME_MESSAGE);
+      setTestMessages([createAgentWelcomeTestMessage(DEFAULT_AGENT_WELCOME_MESSAGE)]);
+      setSuggestedPrompts(DEFAULT_AGENT_SUGGESTED_PROMPTS);
+      setSelectedVoiceIds(DEFAULT_AGENT_CONFIG.voiceIds);
+      setSelectedKnowledgeIds(DEFAULT_AGENT_CONFIG.knowledgeBaseIds);
+      setSelectedToolIds(DEFAULT_AGENT_CONFIG.toolIds);
+      setSelectedSkillIds(DEFAULT_AGENT_CONFIG.skillIds);
       setDraftId(null);
     }
   }, [initialAgentId]);
 
-  const resolveAgentAvatar = () => avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${name}`;
+  const resolveAgentAvatar = () => avatar || DEFAULT_AGENT_AVATAR;
 
   const buildCurrentAgentConfig = (agentId?: string): AgentConfig => ({
     ...(agentId ? { id: agentId } : {}),
     name,
     description: desc,
     avatar: resolveAgentAvatar(),
-    type: 'normal',
+    type: agentType,
     systemPrompt: prompt,
     knowledgeBaseIds: selectedKnowledgeIds,
     welcomeMessage,
+    debugMode,
+    jsonMode,
+    memoryEnabled,
+    model,
+    temperature,
+    suggestedPrompts,
+    voiceIds: selectedVoiceIds,
+    toolIds: selectedToolIds,
+    skillIds: selectedSkillIds,
   });
+
+  const resolveMutableAgentId = (): string | undefined => {
+    if (draftId) {
+      return draftId;
+    }
+    if (initialAgentId) {
+      throw new Error('Editable agent is not owned by the current user');
+    }
+    return undefined;
+  };
 
   const persistCurrentAgentConfig = async (agentId?: string): Promise<AgentConfig> => {
     const config = buildCurrentAgentConfig(agentId);
@@ -278,13 +332,13 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
   };
 
   const ensurePersistedAgentForRuntime = async (): Promise<AgentConfig> => {
-    return persistCurrentAgentConfig(draftId ?? initialAgentId);
+    return persistCurrentAgentConfig(resolveMutableAgentId());
   };
 
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      const savedAgent = await persistCurrentAgentConfig(draftId ?? initialAgentId);
+      const savedAgent = await persistCurrentAgentConfig(resolveMutableAgentId());
       if (savedAgent.id) {
         setDraftId(savedAgent.id);
       }
@@ -303,7 +357,7 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
     }
     setPublishing(true);
     try {
-      const savedAgent = await persistCurrentAgentConfig(draftId ?? initialAgentId);
+      const savedAgent = await persistCurrentAgentConfig(resolveMutableAgentId());
       if (!savedAgent.id) {
         throw new Error('Created agent id is required');
       }
@@ -368,14 +422,7 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
   };
 
   const handleRestartTest = () => {
-    setTestMessages([
-      { 
-        id: Date.now().toString(), 
-        role: 'assistant', 
-        content: welcomeMessage,
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-      }
-    ]);
+    setTestMessages([createAgentWelcomeTestMessage(welcomeMessage)]);
     setIsTyping(false);
   };
 
@@ -480,7 +527,7 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
             
             {/* Basic Info */}
             <div className="bg-transparent border-b border-white/5 p-4 flex gap-3 items-center cursor-pointer hover:bg-white/5 transition-colors shadow-sm" onClick={() => setIsEditModalOpen(true)}>
-              <Avatar src={avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${name}`} alt={name} className="w-12 h-12 rounded-lg bg-[#2b2b2d] shadow-sm shrink-0" />
+              <Avatar src={resolveAgentAvatar()} alt={name} className="w-12 h-12 rounded-lg bg-[#2b2b2d] shadow-sm shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
                   <div className="text-[15px] font-semibold text-gray-200 truncate pr-4">{name}</div>
@@ -859,7 +906,7 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
                     className={`flex gap-3 group ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
                   >
                     <Avatar 
-                      src={msg.role === 'user' ? 'https://api.dicebear.com/7.x/avataaars/svg?seed=user' : (avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${name}`)} 
+                      src={msg.role === 'user' ? DEFAULT_TEST_USER_AVATAR : resolveAgentAvatar()}
                       alt={msg.role} 
                       className="w-9 h-9 rounded-lg shrink-0 mt-1 bg-[#2b2b2d]" 
                     />
@@ -907,7 +954,7 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
                 className="flex gap-3"
               >
                 <Avatar 
-                  src={avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${name}`} 
+                  src={resolveAgentAvatar()}
                   alt="assistant" 
                   className="w-9 h-9 rounded-lg shrink-0 mt-1 bg-[#2b2b2d]" 
                 />
@@ -961,7 +1008,7 @@ export const CreateAgentView: React.FC<CreateAgentViewProps> = ({ onBack, initia
         onClose={() => setIsEditModalOpen(false)} 
         initialName={name}
         initialDesc={desc}
-        initialAvatar={avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${name}`}
+        initialAvatar={resolveAgentAvatar()}
         onSave={(newName, newDesc, newAvatar) => {
            setName(newName);
            setDesc(newDesc);

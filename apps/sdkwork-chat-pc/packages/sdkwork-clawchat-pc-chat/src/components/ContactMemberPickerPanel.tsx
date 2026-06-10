@@ -6,6 +6,8 @@ import type { User } from '@sdkwork/clawchat-pc-types';
 
 export interface ContactMemberPickerPanelProps {
   contacts: User[];
+  disabledContactIds?: Set<string>;
+  disabledReason?: string;
   emptyText: string;
   isLoading: boolean;
   onSearchQueryChange: (query: string) => void;
@@ -68,6 +70,8 @@ function getContactSubtitle(contact: User): string | undefined {
 
 export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> = ({
   contacts,
+  disabledContactIds = new Set<string>(),
+  disabledReason,
   emptyText,
   isLoading,
   onSearchQueryChange,
@@ -91,8 +95,8 @@ export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> =
     groupedContacts.map((group) => group.key)
   ), [groupedContacts]);
   const selectedContacts = useMemo(() => (
-    contacts.filter((contact) => selectedIds.has(contact.id))
-  ), [contacts, selectedIds]);
+    contacts.filter((contact) => selectedIds.has(contact.id) && !disabledContactIds.has(contact.id))
+  ), [contacts, disabledContactIds, selectedIds]);
 
   const scrollToIndexGroup = (indexKey: string) => {
     groupRefs.current[indexKey]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -135,15 +139,21 @@ export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> =
                     </div>
                     <div className="py-1">
                       {group.contacts.map((contact) => {
-                        const checked = selectedIds.has(contact.id);
+                        const disabled = disabledContactIds.has(contact.id);
+                        const checked = !disabled && selectedIds.has(contact.id);
                         const subtitle = getContactSubtitle(contact);
 
                         return (
                           <button
                             key={contact.id}
                             type="button"
-                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-white/5"
-                            onClick={() => onToggleContact(contact.id)}
+                            disabled={disabled}
+                            className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${disabled ? 'cursor-not-allowed opacity-60' : 'hover:bg-white/5'}`}
+                            onClick={() => {
+                              if (!disabled) {
+                                onToggleContact(contact.id);
+                              }
+                            }}
                           >
                             <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${checked ? 'border-[#00b42a] bg-[#00b42a]' : 'border-gray-500'}`}>
                               {checked && <Check size={12} className="text-white" />}
@@ -153,6 +163,11 @@ export const ContactMemberPickerPanel: React.FC<ContactMemberPickerPanelProps> =
                               <span className="block truncate text-sm text-gray-200">{contact.name}</span>
                               {subtitle && (
                                 <span className="mt-0.5 block truncate text-xs text-gray-500">{subtitle}</span>
+                              )}
+                              {disabled && disabledReason && (
+                                <span className="mt-1 inline-flex max-w-full rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs text-gray-400">
+                                  {disabledReason}
+                                </span>
                               )}
                             </span>
                           </button>

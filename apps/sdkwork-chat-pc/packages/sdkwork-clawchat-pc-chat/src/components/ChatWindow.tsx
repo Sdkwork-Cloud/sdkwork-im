@@ -48,6 +48,34 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
         ]
       : []
   ), [chat.id, chat.updatedAt, isSystemAssistantChat, t]);
+  const agentSenderProfiles = useMemo<Record<string, User>>(() => (
+    !isSystemAssistantChat && chat.welcomeMessage
+      ? {
+          [chat.id]: {
+            avatar: chat.avatar,
+            id: chat.id,
+            name: chat.name,
+            status: 'online',
+          },
+        }
+      : {}
+  ), [chat.avatar, chat.id, chat.name, chat.welcomeMessage, isSystemAssistantChat]);
+  const agentWelcomeMessages = useMemo<Message[]>(() => (
+    !isSystemAssistantChat && chat.welcomeMessage
+      ? [
+          {
+            chatId: chat.id,
+            content: chat.welcomeMessage,
+            id: `${chat.id}:agent-welcome`,
+            senderId: chat.id,
+            timestamp: Math.max(0, chat.updatedAt - 1),
+            type: 'text',
+          },
+        ]
+      : []
+  ), [chat.id, chat.updatedAt, chat.welcomeMessage, isSystemAssistantChat]);
+  const displaySenderProfiles = isSystemAssistantChat ? assistantSenderProfiles : agentSenderProfiles;
+  const displayWelcomeMessages = isSystemAssistantChat ? assistantWelcomeMessages : agentWelcomeMessages;
 
   const handleSend = async (content: string, type: Message['type'] = 'text', extraInfo?: Partial<Message>) => {
     try {
@@ -64,10 +92,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
       {/* Messages */}
       <MessageList
         chatId={chat.id}
-        fallbackMessages={assistantWelcomeMessages}
+        fallbackMessages={displayWelcomeMessages}
         refreshKey={refreshKey}
         searchQuery={messageSearchQuery}
-        senderProfiles={assistantSenderProfiles}
+        senderProfiles={displaySenderProfiles}
         onReply={(msg, senderName) => setReplyingTo({ id: msg.id, senderName, content: msg.content })}
         onOpenGroupInvite={onOpenGroupInvite}
       />
@@ -107,9 +135,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
       />
 
       <ChatHistoryModal
+        chat={chat}
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         chatId={chat.id}
+        chatName={chat.name}
+        senderProfiles={displaySenderProfiles}
       />
     </div>
   );

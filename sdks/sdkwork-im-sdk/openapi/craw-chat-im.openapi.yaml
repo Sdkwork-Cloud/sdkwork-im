@@ -4782,6 +4782,49 @@ components:
         - conversationId
         - messageCount
         - lastMessageSeq
+    ConversationInboxPeerView:
+      type: object
+      additionalProperties: false
+      properties:
+        principalKind:
+          type: string
+        principalId:
+          type: string
+        userId:
+          type: string
+          nullable: true
+        chatId:
+          type: string
+          nullable: true
+        displayName:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        relationshipState:
+          type: string
+          nullable: true
+      required:
+        - principalKind
+        - principalId
+    ConversationInboxPreferencesView:
+      type: object
+      additionalProperties: false
+      properties:
+        isPinned:
+          type: boolean
+        isMuted:
+          type: boolean
+        isMarkedUnread:
+          type: boolean
+        isHidden:
+          type: boolean
+      required:
+        - isPinned
+        - isMuted
+        - isMarkedUnread
+        - isHidden
     ConversationInboxEntry:
       type: object
       additionalProperties: false
@@ -4794,6 +4837,19 @@ components:
           type: boolean
         conversationType:
           type: string
+        displayName:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        displaySource:
+          type: string
+          nullable: true
+        peer:
+          $ref: '#/components/schemas/ConversationInboxPeerView'
+        preferences:
+          $ref: '#/components/schemas/ConversationInboxPreferencesView'
         lastActivityAt:
           type: string
           format: date-time

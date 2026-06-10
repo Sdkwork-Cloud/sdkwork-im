@@ -51,7 +51,8 @@ use im_adapters_local_disk::{
 use im_adapters_local_memory::{MemoryCommitJournal, MemoryRealtimeCheckpointStore};
 use im_app_context::{AppContext, AppContextError};
 use im_domain_core::conversation::{
-    ConversationInboxEntry, ConversationMember, ConversationReadCursorView, MembershipRole,
+    ConversationInboxEntry, ConversationInboxPreferencesView, ConversationMember,
+    ConversationReadCursorView, MembershipRole,
 };
 use im_domain_core::message::{ContentPart, MessageBody, MessageType, SignalPart};
 use im_domain_core::presence::PresenceSnapshotView;

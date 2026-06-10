@@ -59,6 +59,17 @@ function useTauriTrayNavigationBridge() {
       }
     });
 
+    void listen('sdkwork-chat-pc://tray/show-active-call', () => {
+      navigate('/', { replace: false });
+      window.dispatchEvent(new CustomEvent('sdkwork-chat-pc:show-active-call'));
+    }).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+      } else {
+        unlisteners.push(unlisten);
+      }
+    });
+
     return () => {
       disposed = true;
       for (const unlisten of unlisteners.splice(0)) {

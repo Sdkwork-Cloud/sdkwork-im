@@ -69,6 +69,22 @@ assert.equal(
   'server:dev must report when it had to move off the default gateway port',
 );
 
+const reservedDrivePortBindEnv = await resolveCrawChatServerBindEnv({
+  env: {},
+  isPortAvailable: async (port) => port >= 18080,
+  maxAttempts: 3,
+});
+assert.equal(
+  reservedDrivePortBindEnv.bindAddr,
+  '127.0.0.1:18081',
+  'server:dev must skip 18080 because the default Drive app-api dependency binds there',
+);
+assert.equal(
+  reservedDrivePortBindEnv.portChanged,
+  true,
+  'server:dev must report the reserved Drive port skip as an automatic port fallback',
+);
+
 const explicitBindEnv = await resolveCrawChatServerBindEnv({
   env: {
     SDKWORK_CHAT_SERVER_BIND: '127.0.0.1:28079',

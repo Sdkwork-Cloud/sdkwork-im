@@ -3,10 +3,6 @@ import type {
   SdkworkAppClient as SdkworkAgentAppClient,
 } from '@sdkwork/agent-app-sdk';
 import { getAgentAppSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/agentAppSdkClient';
-import {
-  readAppSdkSessionTokens,
-  resolveAppSdkTenantId,
-} from '@sdkwork/clawchat-pc-core/sdk/session';
 
 export interface KnowledgeAiDocumentActionRequest {
   action: string;
@@ -26,10 +22,8 @@ export interface KnowledgeAiService {
 
 interface KnowledgeAiServiceOptions {
   client?: SdkworkAgentAppClient;
-  tenantId?: string;
 }
 
-const DEFAULT_TENANT_ID = '0';
 const KNOWLEDGE_ASSISTANT_AGENT_ID = 'agent.pc.knowledge.assistant';
 
 function createExecutionId(kind: string): string {
@@ -70,10 +64,6 @@ function pickOutputString(output: unknown): string | undefined {
     }
   }
   return undefined;
-}
-
-function resolveTenantId(explicitTenantId?: string): string {
-  return explicitTenantId ?? resolveAppSdkTenantId(readAppSdkSessionTokens()) ?? DEFAULT_TENANT_ID;
 }
 
 class SdkworkKnowledgeAiService implements KnowledgeAiService {
@@ -123,7 +113,6 @@ class SdkworkKnowledgeAiService implements KnowledgeAiService {
     const response = await client.ai.agents.previewResponses.create(
       KNOWLEDGE_ASSISTANT_AGENT_ID,
       body,
-      { tenantId: resolveTenantId(this.options.tenantId) },
     );
     const result = pickOutputString(response.data.outputPayload);
     if (!result) {

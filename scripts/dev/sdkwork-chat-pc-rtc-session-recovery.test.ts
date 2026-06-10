@@ -1,12 +1,22 @@
 import assert from 'node:assert/strict';
 import type { ImSdkClient } from '@sdkwork/im-sdk';
 import { createSdkworkCallService } from '../../apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/CallService';
+import type { SdkworkRtcMediaService } from '../../apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/RtcMediaService';
 
 const calls: Array<{
   method: string;
   participantId?: string;
   rtcSessionId?: string;
 }> = [];
+
+const noopRtcMediaService: SdkworkRtcMediaService = {
+  async bindLocalVideoElement() {},
+  async join() {},
+  async publish() {},
+  async muteAudio() {},
+  async muteVideo() {},
+  async leave() {},
+};
 
 const fakeClient = {
   calls: {
@@ -96,6 +106,7 @@ function createDeferred<T>(): {
 async function main(): Promise<void> {
   const service = createSdkworkCallService({
     getClient: () => fakeClient,
+    rtcMediaService: noopRtcMediaService,
     readSession: () => ({
       authToken: 'auth-token-1',
       sessionId: 'session-1',
@@ -210,6 +221,7 @@ async function main(): Promise<void> {
   } as unknown as ImSdkClient;
   const watchService = createSdkworkCallService({
     getClient: () => watchClient,
+    rtcMediaService: noopRtcMediaService,
     readSession: () => ({
       authToken: 'auth-token-1',
       sessionId: 'session-1',
@@ -285,6 +297,7 @@ async function main(): Promise<void> {
   } as unknown as ImSdkClient;
   const liveIncomingService = createSdkworkCallService({
     getClient: () => liveIncomingClient,
+    rtcMediaService: noopRtcMediaService,
     readSession: () => ({
       authToken: 'auth-token-1',
       sessionId: 'session-1',
@@ -378,6 +391,7 @@ async function main(): Promise<void> {
 
   const closingOnlyService = createSdkworkCallService({
     getClient: () => liveIncomingClient,
+    rtcMediaService: noopRtcMediaService,
     readSession: () => ({
       authToken: 'auth-token-1',
       sessionId: 'session-1',
@@ -406,6 +420,58 @@ async function main(): Promise<void> {
     'CallService must ignore closing signals for calls that were not active instead of opening a false incoming overlay',
   );
   assert.equal(closingOnlyService.getSnapshot().rtcSessionId, undefined);
+
+  const watchRaceDeferred = createDeferred<null>();
+  const watchRaceListeners: CallSessionListener[] = [];
+  const watchRaceClient = {
+    calls: {
+      subscribe(handler: CallSessionListener) {
+        watchRaceListeners.push(handler);
+        return () => undefined;
+      },
+      watchIncoming() {
+        return watchRaceDeferred.promise;
+      },
+    },
+  } as unknown as ImSdkClient;
+  const watchRaceService = createSdkworkCallService({
+    getClient: () => watchRaceClient,
+    rtcMediaService: noopRtcMediaService,
+    readSession: () => ({
+      authToken: 'auth-token-1',
+      sessionId: 'session-1',
+      context: {
+        appId: 'app-1',
+        tenantId: 'tenant-1',
+        userId: 'u_alice',
+        sessionId: 'session-1',
+        environment: 'dev',
+        deploymentMode: 'local',
+        authLevel: 'password',
+        dataScope: [],
+        permissionScope: [],
+      },
+      user: {
+        userId: 'u_alice',
+        displayName: 'Alice',
+      },
+    }),
+  });
+  const watchRaceTask = watchRaceService.watchIncomingCalls(['conversation-rtc-1']);
+  watchRaceListeners[0]?.(createSession('rtc-watch-race-1', 'started'));
+  assert.equal(
+    watchRaceService.getSnapshot().state,
+    'ringing',
+    'CallService must apply subscription call invites while watchIncoming is still connecting.',
+  );
+  watchRaceDeferred.resolve(null);
+  await watchRaceTask;
+  assert.equal(
+    watchRaceService.getSnapshot().state,
+    'ringing',
+    'A late empty watchIncoming result must not overwrite a subscription-delivered incoming call.',
+  );
+  assert.equal(watchRaceService.getSnapshot().rtcSessionId, 'rtc-watch-race-1');
 
   const outgoingSessionListeners: CallSessionListener[] = [];
   const outgoingCalls: Array<{
@@ -476,6 +542,7 @@ async function main(): Promise<void> {
   } as unknown as ImSdkClient;
   const outgoingService = createSdkworkCallService({
     getClient: () => outgoingClient,
+    rtcMediaService: noopRtcMediaService,
     readSession: () => ({
       authToken: 'auth-token-1',
       sessionId: 'session-1',
@@ -586,6 +653,7 @@ async function main(): Promise<void> {
   } as unknown as ImSdkClient;
   const racingService = createSdkworkCallService({
     getClient: () => racingClient,
+    rtcMediaService: noopRtcMediaService,
     readSession: () => ({
       authToken: 'auth-token-1',
       sessionId: 'session-1',
@@ -651,6 +719,7 @@ async function main(): Promise<void> {
   } as unknown as ImSdkClient;
   const failingCredentialService = createSdkworkCallService({
     getClient: () => failingCredentialClient,
+    rtcMediaService: noopRtcMediaService,
     readSession: () => ({
       authToken: 'auth-token-1',
       sessionId: 'session-1',

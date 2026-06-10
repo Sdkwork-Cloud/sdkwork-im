@@ -1003,6 +1003,64 @@ async fn embedded_gateway_derives_drive_context_from_embedded_appbase_current_se
 }
 
 #[tokio::test]
+async fn embedded_gateway_fails_closed_when_drive_app_api_upstream_is_missing() {
+    let embedded_runtime = Router::new()
+        .route(
+            "/app/v3/api/auth/sessions/current",
+            get(appbase_current_session),
+        )
+        .route(
+            "/app/v3/api/drive/uploader/uploads",
+            any(echo_context_upstream),
+        );
+    let app = web_gateway::build_app_with_registry_and_runtime_routers(
+        WebGatewayConfig {
+            bind_addr: "127.0.0.1:0".to_owned(),
+            runtime_mode: GatewayRuntimeMode::Embedded,
+            strict_startup: true,
+            upstreams: Vec::new(),
+        },
+        web_gateway::build_gateway_registry().expect("gateway registry should build"),
+        Some(embedded_runtime),
+        None,
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/app/v3/api/drive/uploader/uploads")
+                .header(header::AUTHORIZATION, "Bearer real-auth-token")
+                .header("access-token", "real-access-token")
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .expect("gateway drive upload request should return");
+
+    assert_eq!(
+        response.status(),
+        StatusCode::BAD_GATEWAY,
+        "missing Drive dependency must fail before falling through to embedded runtime routes"
+    );
+    assert!(
+        response
+            .headers()
+            .get("x-craw-chat-upstream-service")
+            .is_none(),
+        "missing Drive dependency must not be treated as a proxied upstream"
+    );
+    let value = read_json_body(response).await;
+    assert_eq!(value["code"], "gateway_proxy_error");
+    assert!(
+        value["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("sdkwork-drive-app-api")),
+        "missing Drive dependency error should identify the unconfigured upstream: {value}"
+    );
+}
+
+#[tokio::test]
 async fn gateway_derives_proxied_im_http_context_from_appbase_dual_tokens_not_client_headers() {
     let appbase = spawn_app_upstream(Router::new().route(
         "/app/v3/api/auth/sessions/current",
@@ -1137,39 +1195,69 @@ async fn gateway_derives_proxied_im_calls_context_from_appbase_dual_tokens_not_c
         get(appbase_current_session),
     ))
     .await;
-    let rtc = spawn_app_upstream(Router::new().route(
-        "/im/v3/api/calls/sessions/rtc_demo/signals",
-        get(echo_context_upstream),
-    ))
+    let rtc = spawn_app_upstream(
+        Router::new()
+            .route(
+                "/im/v3/api/calls/sessions/rtc_demo/signals",
+                any(echo_context_upstream),
+            )
+            .route(
+                "/im/v3/api/calls/sessions/rtc_demo/credentials",
+                any(echo_context_upstream),
+            ),
+    )
     .await;
     let app = web_gateway::build_app(test_gateway_config(vec![
         service_upstream("im-calls-service", rtc.base_url.as_str()),
         service_upstream("sdkwork-appbase-app-api", appbase.base_url.as_str()),
     ]));
 
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method(Method::GET)
-                .uri("/im/v3/api/calls/sessions/rtc_demo/signals")
-                .header(header::AUTHORIZATION, "Bearer real-auth-token")
-                .header("access-token", "real-access-token")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "user_test006_a_com")
-                .header("x-sdkwork-session-id", "spoofed_session")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .expect("gateway IM calls request should succeed");
+    for (method, path) in [
+        (Method::GET, "/im/v3/api/calls/sessions/rtc_demo/signals"),
+        (
+            Method::POST,
+            "/im/v3/api/calls/sessions/rtc_demo/credentials",
+        ),
+    ] {
+        let body = if method == Method::GET {
+            Body::empty()
+        } else {
+            Body::from(json!({ "participantId": "user_real" }).to_string())
+        };
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri(path)
+                    .header(header::AUTHORIZATION, "Bearer real-auth-token")
+                    .header("access-token", "real-access-token")
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "user_test006_a_com")
+                    .header("x-sdkwork-session-id", "spoofed_session")
+                    .body(body)
+                    .unwrap(),
+            )
+            .await
+            .unwrap_or_else(|error| {
+                panic!("gateway IM calls request should succeed for {path}: {error}")
+            });
 
-    assert_eq!(response.status(), StatusCode::OK);
-    let context = read_json_body(response).await;
-    assert_eq!(context["tenantId"], "tenant_real");
-    assert_eq!(context["userId"], "user_real");
-    assert_eq!(context["sessionId"], "session_real");
-    assert_ne!(context["tenantId"], "t_demo");
-    assert_ne!(context["userId"], "user_test006_a_com");
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "gateway IM calls request should succeed for {path}"
+        );
+        let context = read_json_body(response).await;
+        assert_eq!(context["tenantId"], "tenant_real", "{path} tenant context");
+        assert_eq!(context["userId"], "user_real", "{path} user context");
+        assert_eq!(
+            context["sessionId"], "session_real",
+            "{path} session context"
+        );
+        assert_ne!(context["tenantId"], "t_demo");
+        assert_ne!(context["userId"], "user_test006_a_com");
+    }
 }
 
 #[tokio::test]

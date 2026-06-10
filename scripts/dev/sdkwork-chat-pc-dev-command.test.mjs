@@ -129,6 +129,11 @@ assert.ok(
   'root server:dev must create local dev site fallbacks when admin or portal sources are absent',
 );
 assert.ok(
+  unifiedWebSource.includes('resolveDriveAppApiUpstream')
+    && unifiedWebSource.includes('CRAW_CHAT_DRIVE_APP_API_UPSTREAM'),
+  'root server:dev must configure the Drive app-api dependency upstream for the embedded gateway',
+);
+assert.ok(
   unifiedWebSource.includes('cargo')
     && unifiedWebSource.includes('web-gateway')
     && unifiedWebSource.includes('craw-chat-server')
@@ -543,6 +548,8 @@ for (const packageJsonPath of packageJsonFiles) {
 
 const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const pnpmShell = process.platform === 'win32';
+const cargoCommand = process.platform === 'win32' ? 'cargo.exe' : 'cargo';
+const driveWorkspaceRoot = path.resolve(repoRoot, '..', 'sdkwork-drive');
 
 const browserPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
@@ -561,8 +568,29 @@ assert.deepEqual(
 );
 assert.deepEqual(
   browserPlan.processes.map((entry) => entry.label),
-  ['craw-chat-server', 'sdkwork-chat-pc-browser'],
-  'browser dev must start one unified Craw Chat server process and the browser renderer only',
+  ['craw-chat-server', 'sdkwork-chat-pc-browser', 'sdkwork-drive-app-api'],
+  'browser dev must start the unified server, browser renderer, and managed Drive app-api dependency',
+);
+const browserDriveProcess = browserPlan.processes.find(
+  (entry) => entry.label === 'sdkwork-drive-app-api',
+);
+assert.deepEqual(browserDriveProcess, {
+  args: ['run', '-p', 'sdkwork-drive-app-api'],
+  command: cargoCommand,
+  cwd: driveWorkspaceRoot,
+  env: browserDriveProcess.env,
+  label: 'sdkwork-drive-app-api',
+  shell: false,
+});
+assert.equal(
+  browserDriveProcess.env.SDKWORK_DRIVE_DATABASE_URL,
+  'sqlite://target/sdkwork-drive-chat-pc.sqlite',
+  'managed Drive app-api must use an isolated local SQLite database by default',
+);
+assert.equal(
+  browserDriveProcess.env.SDKWORK_DRIVE_IAM_ALLOW_UNSIGNED_CONTEXT,
+  'true',
+  'managed Drive app-api must accept the local gateway unsigned context projection in development',
 );
 assert.ok(
   !('SDKWORK_APPBASE_APP_API_BIND_ADDR' in browserPlan.processes[0].env)
@@ -574,6 +602,11 @@ assert.equal(
   browserPlan.processes[0].env.CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE,
   'embedded',
   'unified server must embed Craw Chat local IM/backend runtime instead of requiring per-service dev ports',
+);
+assert.equal(
+  browserPlan.processes[0].env.CRAW_CHAT_DRIVE_APP_API_UPSTREAM,
+  'http://127.0.0.1:18080',
+  'unified server must route Drive app SDK traffic through the Drive app-api dependency upstream by default',
 );
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_CHAT_DATABASE_URL,
@@ -635,6 +668,24 @@ assert.equal(
   browserPlan.processes[1].env.VITE_CRAW_CHAT_IM_WEBSOCKET_BASE_URL,
   'ws://127.0.0.1:18079',
   'browser renderer must point IM websocket traffic at the Craw Chat gateway/server',
+);
+
+const customDriveUpstreamPlan = createSdkworkChatPcDevPlan({
+  argv: ['--target', 'browser'],
+  env: {
+    SDKWORK_DRIVE_APP_API_UPSTREAM: 'http://127.0.0.1:28080/',
+  },
+  repoRoot,
+});
+assert.equal(
+  customDriveUpstreamPlan.processes[0].env.CRAW_CHAT_DRIVE_APP_API_UPSTREAM,
+  'http://127.0.0.1:28080',
+  'PC dev must allow the Drive app-api dependency upstream to be overridden for split Drive deployments',
+);
+assert.deepEqual(
+  customDriveUpstreamPlan.processes.map((entry) => entry.label),
+  ['craw-chat-server', 'sdkwork-chat-pc-browser'],
+  'PC dev must not start a managed local Drive app-api process when an external Drive upstream is configured',
 );
 assert.equal(
   createSdkworkChatBrowserOrigins({ port: 4188 }),
@@ -871,8 +922,8 @@ const desktopPlan = createSdkworkChatPcDevPlan({
 assert.equal(desktopPlan.target, 'desktop');
 assert.deepEqual(
   desktopPlan.processes.map((entry) => entry.label),
-  ['craw-chat-server', 'sdkwork-chat-pc-desktop'],
-  'desktop dev must start one unified Craw Chat server process and the Tauri desktop process only',
+  ['craw-chat-server', 'sdkwork-chat-pc-desktop', 'sdkwork-drive-app-api'],
+  'desktop dev must start the unified server, Tauri desktop process, and managed Drive app-api dependency',
 );
 assert.deepEqual(desktopPlan.processes[1], {
   args: ['--dir', 'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-desktop', 'desktop:dev:local'],
@@ -946,7 +997,11 @@ await runSdkworkChatPcDev({
   stderr: { write() {} },
 });
 
-assert.equal(spawned.length, 2, 'desktop dev runner must spawn unified server and desktop processes only');
+assert.equal(
+  spawned.length,
+  3,
+  'desktop dev runner must spawn unified server, desktop, and managed Drive app-api processes',
+);
 assert.equal(
   spawned[0].options.env.CRAW_CHAT_BROWSER_ORIGINS,
   'http://127.0.0.1:4179,http://localhost:4179',
@@ -966,6 +1021,11 @@ assert.equal(
   spawned[0].options.env.SDKWORK_CHAT_SERVER_API_BASE_URL,
   'http://127.0.0.1:18081',
   'dev runner must pass the resolved gateway API base URL to the unified server process',
+);
+assert.equal(
+  spawned[0].options.env.CRAW_CHAT_DRIVE_APP_API_UPSTREAM,
+  'http://127.0.0.1:18080',
+  'dev runner must pass the Drive app-api dependency upstream to the unified server process',
 );
 assert.equal(
   spawned[1].options.env.SDKWORK_CHAT_SERVER_API_BASE_URL,
@@ -993,8 +1053,23 @@ assert.equal(
   'dev runner must point IM websocket traffic at the resolved Craw Chat gateway when 18079 is unavailable',
 );
 assert.deepEqual(
+  spawned[2].args,
+  ['run', '-p', 'sdkwork-drive-app-api'],
+  'dev runner must spawn the managed Drive app-api Cargo package for default local uploads',
+);
+assert.equal(
+  spawned[2].options.cwd,
+  driveWorkspaceRoot,
+  'managed Drive app-api must run from the sibling sdkwork-drive workspace',
+);
+assert.equal(
+  spawned[2].options.env.SDKWORK_DRIVE_DATABASE_URL,
+  'sqlite://target/sdkwork-drive-chat-pc.sqlite',
+  'managed Drive app-api must receive the local SQLite database URL',
+);
+assert.deepEqual(
   spawned.map((entry) => entry.options.shell),
-  [pnpmShell, pnpmShell],
+  [pnpmShell, pnpmShell, false],
   'dev runner must pass the planned shell mode to every child process',
 );
 const devRunnerSource = fs.readFileSync(

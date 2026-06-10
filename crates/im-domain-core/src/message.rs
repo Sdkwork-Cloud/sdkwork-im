@@ -199,6 +199,25 @@ impl ConversationMessageLog {
         self.high_watermark.saturating_sub(read_seq)
     }
 
+    pub fn received_unread_count_since(
+        &self,
+        read_seq: u64,
+        principal_id: &str,
+        principal_kind: &str,
+    ) -> u64 {
+        self.message_ids_by_seq
+            .range((
+                std::ops::Bound::Excluded(read_seq),
+                std::ops::Bound::Unbounded,
+            ))
+            .filter_map(|(_, message_id)| self.messages.get(message_id.as_str()))
+            .filter(|stored| {
+                stored.message.sender.id != principal_id
+                    || stored.message.sender.kind != principal_kind
+            })
+            .count() as u64
+    }
+
     pub fn message(&self, message_id: &str) -> Option<&StoredMessage> {
         self.messages.get(message_id)
     }

@@ -533,6 +533,40 @@ fn test_projection_service_member_store_uses_principal_inbox_index() {
 }
 
 #[test]
+fn test_projection_service_uses_received_message_index_for_unread_counts() {
+    let lib_source = include_str!("../src/lib.rs");
+    let inbox_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/inbox.rs"))
+            .expect("services/projection-service/src/inbox.rs should exist");
+    let snapshot_source =
+        std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/snapshot.rs"))
+            .expect("services/projection-service/src/snapshot.rs should exist");
+
+    assert!(
+        lib_source.contains("received_messages: Mutex<ReceivedMessageIndex>"),
+        "projection-service should keep an internal received-message index for high-frequency unread counts"
+    );
+    assert!(
+        lib_source.contains(".append_message("),
+        "message projection should update the received-message unread index once when messages are posted"
+    );
+    assert!(
+        snapshot_source.contains(".rebuild_conversation("),
+        "snapshot restore should rebuild the derived unread index from persisted timeline and members"
+    );
+    assert!(
+        lib_source.contains(".unread_count_after(")
+            && inbox_source.contains(".unread_count_after("),
+        "read cursor and inbox views should read unread counts from the received-message index"
+    );
+    assert!(
+        !lib_source.contains(".range((Excluded(cursor.read_seq), Unbounded))")
+            && !inbox_source.contains(".range((Excluded(read_seq), Unbounded))"),
+        "high-frequency read cursor and inbox paths must not scan timeline entries to calculate unread counts"
+    );
+}
+
+#[test]
 fn test_projection_service_source_does_not_keep_legacy_device_sync_symbols() {
     let source_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     let forbidden_symbols = [

@@ -2,18 +2,55 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Check, Plus, Video, Trash2, User as UserIcon, ShieldCheck, FileText, Camera, Loader2, X, Edit, Folder, Cloud, Upload, QrCode, Smartphone, PenTool } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@sdkwork/clawchat-pc-commons';
-import { CallOverlay, toast } from '@sdkwork/clawchat-pc-chat';
-import { Party } from '@sdkwork/clawchat-pc-types';
+import { CallOverlay, createDefaultAvatar, toast } from '@sdkwork/clawchat-pc-chat';
+import { Party, NotaryDocument } from '@sdkwork/clawchat-pc-types';
 import { notaryService } from './services/NotaryService';
 
 import { PartyDrawer } from './PartyDrawer';
 
 import { SignaturePad } from './SignaturePad';
 
+const DEFAULT_NOTARY_CALLER_AVATAR = createDefaultAvatar('user');
+
 export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: () => void }> = ({ onBack, onSuccess }) => {
   const [step, setStep] = useState(1);
   const [businessType, setBusinessType] = useState('');
   const [notary, setNotary] = useState('');
+
+  const [notaryStaffMembers, setNotaryStaffMembers] = useState<Array<{ membershipId: string; userId?: string; displayName: string; status?: string; roles?: string[]; positions?: string[]; departments?: string[]; notaryStaffRole?: string }>>([]);
+
+  const [selectedNotaryStaff, setSelectedNotaryStaff] = useState<{ membershipId: string; userId?: string; displayName: string; status?: string; roles?: string[]; positions?: string[]; departments?: string[]; notaryStaffRole?: string } | null>(null);
+
+
+  useEffect(() => {
+
+    let disposed = false;
+
+    notaryService.getStaff({ staffRole: 'notary' })
+
+      .then((staff) => {
+
+        if (!disposed) {
+
+          setNotaryStaffMembers(staff);
+
+        }
+
+      })
+
+      .catch((error) => {
+
+        console.error('Failed to load notary staff', error);
+
+      });
+
+    return () => {
+
+      disposed = true;
+
+    };
+
+  }, []);
   const [showNotaryDrawer, setShowNotaryDrawer] = useState(false);
   const [parties, setParties] = useState<Party[]>([]);
   const [appInfo, setAppInfo] = useState('');
@@ -27,8 +64,9 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
   const [activeQrCodeParty, setActiveQrCodeParty] = useState<Party | null>(null);
   
   // Attachments
-  const [attachments, setAttachments] = useState<{ id: string; name: string; url: string; type: string }[]>([]);
+  const [attachments, setAttachments] = useState<{ id: string; name: string; url: string; type: string; file: File; partyId?: string }[]>([]);
   const taskAttachRef = useRef<HTMLInputElement>(null);
+  const partyDriveUploadRef = useRef<HTMLInputElement>(null);
   const [activePreview, setActivePreview] = useState<{ url: string; type: string; name: string } | null>(null);
   
   const handleTaskAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,7 +78,8 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
         id: Date.now() + Math.random().toString(),
         url: URL.createObjectURL(file),
         name: file.name,
-        type: isVideo ? 'video' : isPdf ? 'pdf' : 'image'
+        type: isVideo ? 'video' : isPdf ? 'pdf' : 'image',
+        file
       };
     });
     setAttachments(prev => [...prev, ...newItems]);
@@ -49,6 +88,29 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
   
   // Party Drive Directory
   const [activeDriveParty, setActiveDriveParty] = useState<Party | null>(null);
+  const partyDriveDocuments = attachments.filter((attachment) => attachment.partyId === activeDriveParty?.id);
+
+  const handlePartyDriveAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activeDriveParty?.id) {
+      e.target.value = '';
+      return;
+    }
+    const files = Array.from<File>(e.target.files || []);
+    const newItems = files.map(file => {
+      const isVideo = file.type.startsWith('video/');
+      const isPdf = file.type === 'application/pdf';
+      return {
+        id: Date.now() + Math.random().toString(),
+        url: URL.createObjectURL(file),
+        name: file.name,
+        type: isVideo ? 'video' : isPdf ? 'pdf' : 'image',
+        file,
+        partyId: activeDriveParty.id
+      };
+    });
+    setAttachments(prev => [...prev, ...newItems]);
+    e.target.value = '';
+  };
 
   const [activeSignParty, setActiveSignParty] = useState<Party | null>(null);
 
@@ -242,40 +304,25 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
                           </div>
 
                           <div className="flex-1 overflow-y-auto custom-scrollbar">
-                             {['A', 'L', 'W', 'Z'].map(char => (
-                               <div key={char} className="mb-4">
-                                  <div className="sticky top-0 bg-[#222224]/90 backdrop-blur px-6 py-1.5 text-xs font-bold text-gray-500 border-b border-white/5">{char}</div>
-                                  <div className="px-4 py-2 flex flex-col gap-1">
-                                    {char === 'A' && (
-                                      <div onClick={() => { setNotary('AI预审节点'); setShowNotaryDrawer(false); }} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-medium">AI</div>
-                                        <div>
-                                          <div className="text-sm font-medium text-gray-200 group-hover:text-indigo-400 transition-colors">AI预审节点</div>
-                                          <div className="text-xs text-gray-500">智能辅助审查</div>
-                                        </div>
-                                      </div>
-                                    )}
-                                    {char === 'L' && (
-                                      <div onClick={() => { setNotary('李明'); setShowNotaryDrawer(false); }} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
-                                        <div className="w-10 h-10 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center font-medium">李</div>
-                                        <div>
-                                          <div className="text-sm font-medium text-gray-200 group-hover:text-indigo-400 transition-colors">李明</div>
-                                          <div className="text-xs text-gray-500">中级公证员</div>
-                                        </div>
-                                      </div>
-                                    )}
-                                    {char === 'W' && (
-                                      <div onClick={() => { setNotary('王华'); setShowNotaryDrawer(false); }} className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
-                                        <div className="w-10 h-10 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center font-medium">王</div>
-                                        <div>
-                                          <div className="text-sm font-medium text-gray-200 group-hover:text-indigo-400 transition-colors">王华</div>
-                                          <div className="text-xs text-gray-500">高级公证员</div>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                               </div>
-                             ))}
+                             <div className="px-4 py-2 flex flex-col gap-1">
+                               {notaryStaffMembers.map((staff) => (
+                                 <div
+                                   key={staff.membershipId}
+                                   onClick={() => {
+                                     setSelectedNotaryStaff(staff);
+                                     setNotary(staff.displayName);
+                                     setShowNotaryDrawer(false);
+                                   }}
+                                   className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group"
+                                 >
+                                   <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-medium">{(staff.displayName || staff.membershipId).slice(0, 1).toUpperCase()}</div>
+                                   <div>
+                                     <div className="text-sm font-medium text-gray-200 group-hover:text-indigo-400 transition-colors">{staff.displayName}</div>
+                                     <div className="text-xs text-gray-500">{[staff.notaryStaffRole, ...(staff.positions ?? []), ...(staff.departments ?? [])].filter(Boolean).join(' / ') || staff.status}</div>
+                                   </div>
+                                 </div>
+                               ))}
+                             </div>
                           </div>
                         </motion.div>
                       </>
@@ -517,7 +564,16 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
                         notary: notary,
                         parties: parties,
                         remarks: appInfo,
-                        title: businessType + '办理'
+                        title: businessType + '办理',
+                        primaryNotaryMembershipId: selectedNotaryStaff?.membershipId,
+                        documents: attachments.map((attachment) => ({
+                          name: attachment.file.name,
+                          size: `${Math.max(1, Math.round(attachment.file.size / 1024))} KB`,
+                          category: 'evidence',
+                          materialCode: attachment.file.name,
+                          partyId: attachment.partyId,
+                          file: attachment.file,
+                        } as unknown as NotaryDocument))
                       });
                       if (onSuccess) {
                         onSuccess();
@@ -545,7 +601,7 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
               isOpen={activeCall.isOpen} 
               type="video" 
               callerName={activeCall.name} 
-              callerAvatar={`https://api.dicebear.com/7.x/avataaars/svg?seed=${activeCall.name}`}
+              callerAvatar={DEFAULT_NOTARY_CALLER_AVATAR}
               onClose={() => setActiveCall({ isOpen: false, name: '' })} 
             />
 
@@ -598,7 +654,8 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
                     exit={{ opacity: 0, scale: 0.95 }}
                     className="relative w-full max-w-5xl h-full max-h-[800px] bg-[#1e1e1e] rounded-2xl shadow-2xl border border-white/10 flex flex-col overflow-hidden"
                   >
-                    {/* Fake Drive Header */}
+                    {/* Party staged file header */}
+                    <input id="notary-party-create-drive-upload" type="file" multiple className="hidden" ref={partyDriveUploadRef} onChange={handlePartyDriveAttachmentUpload} accept="image/*,video/*,application/pdf" />
                     <div className="h-16 px-6 border-b border-white/5 bg-[#181818] flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-3 text-lg font-medium text-gray-200">
                         <Cloud size={24} className="text-cyan-400" />
@@ -609,7 +666,7 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
                         <span className="text-indigo-400">{activeDriveParty.name}</span>
                       </div>
                       <div className="flex items-center gap-4">
-                        <button className="bg-cyan-600 hover:bg-cyan-700 text-white font-medium px-4 py-2 flex items-center gap-2 rounded-lg transition-colors text-sm shadow-md">
+                        <button onClick={() => partyDriveUploadRef.current?.click()} className="bg-cyan-600 hover:bg-cyan-700 text-white font-medium px-4 py-2 flex items-center gap-2 rounded-lg transition-colors text-sm shadow-md">
                           <Upload size={16} /> 在该目录中上传
                         </button>
                         <button onClick={() => setActiveDriveParty(null)} className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/10">
@@ -617,7 +674,7 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
                         </button>
                       </div>
                     </div>
-                    {/* Drive Content */}
+                    {/* Party staged file content */}
                     <div className="flex-1 p-8 overflow-y-auto bg-[#1e1e1e] flex flex-col items-center justify-center border-t border-black/20">
                       <div className="w-24 h-24 rounded-full bg-[#2b2b2d] flex items-center justify-center mb-6 border border-white/5 shadow-inner">
                          <Folder size={48} className="text-cyan-500/50" />
@@ -627,9 +684,28 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
                         此目录用于存放该当事人在本次业务中的所有关联附件信息。上传的文件将自动归档至涉密保险箱。
                       </p>
                       
-                      <button className="px-6 py-3 bg-[#2b2b2d] border border-cyan-500/30 text-cyan-400 rounded-xl hover:bg-cyan-500/10 transition-colors flex items-center gap-2">
+                      {partyDriveDocuments.length === 0 ? (
+                      <button onClick={() => partyDriveUploadRef.current?.click()} className="px-6 py-3 bg-[#2b2b2d] border border-cyan-500/30 text-cyan-400 rounded-xl hover:bg-cyan-500/10 transition-colors flex items-center gap-2">
                          <Plus size={18} /> 点击上传附件到当前目录
                       </button>
+                      ) : (
+                        <div className="w-full max-w-3xl flex flex-col gap-2">
+                          {partyDriveDocuments.map((attachment) => (
+                            <div key={attachment.id} className="bg-[#181818] p-3 rounded-lg border border-white/5 flex items-center justify-between group w-full">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <FileText size={18} className="text-gray-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                                <div className="min-w-0">
+                                  <div className="text-sm text-gray-300 group-hover:text-gray-100 transition-colors truncate">{attachment.name}</div>
+                                  <div className="text-xs text-gray-500">{`${Math.max(1, Math.round(attachment.file.size / 1024))} KB`}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          <button onClick={() => partyDriveUploadRef.current?.click()} className="mt-4 self-center px-6 py-3 bg-[#2b2b2d] border border-cyan-500/30 text-cyan-400 rounded-xl hover:bg-cyan-500/10 transition-colors flex items-center gap-2">
+                            <Plus size={18} /> 继续上传附件到当前目录
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 </div>

@@ -2133,6 +2133,107 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
 }
 
 #[test]
+fn test_read_cursor_unread_count_excludes_messages_sent_by_current_principal() {
+    let journal = InMemoryJournal::default();
+    let runtime = ConversationRuntime::new(journal);
+
+    runtime
+        .create_conversation(CreateConversationCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_received_unread_only".into(),
+            creator_id: "u_owner".into(),
+            conversation_type: "group".into(),
+        })
+        .expect("create conversation should succeed");
+    runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_received_unread_only".into(),
+            principal_id: "u_friend".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "u_owner".into(),
+        })
+        .expect("add friend member should succeed");
+
+    runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_received_unread_only".into(),
+            sender: Sender {
+                id: "u_owner".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: None,
+                session_id: Some("s_owner".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_received_unread_owner_1".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("owner note".into()),
+                parts: vec![ContentPart::text("owner note")],
+                render_hints: Default::default(),
+                reply_to: None,
+            },
+        })
+        .expect("owner message should succeed");
+
+    let owner_cursor_after_own_message = runtime
+        .read_cursor_view("t_demo", "c_received_unread_only", "u_owner")
+        .expect("owner cursor view should succeed");
+    assert_eq!(
+        owner_cursor_after_own_message.unread_count, 0,
+        "a principal's own sent message must not become unread for that same principal"
+    );
+    let friend_cursor_after_owner_message = runtime
+        .read_cursor_view("t_demo", "c_received_unread_only", "u_friend")
+        .expect("friend cursor view should succeed");
+    assert_eq!(
+        friend_cursor_after_owner_message.unread_count, 1,
+        "the same message must remain unread for receiving members"
+    );
+
+    runtime
+        .post_message(PostMessageCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_received_unread_only".into(),
+            sender: Sender {
+                id: "u_friend".into(),
+                kind: "user".into(),
+                member_id: None,
+                device_id: None,
+                session_id: Some("s_friend".into()),
+                metadata: Default::default(),
+            },
+            client_msg_id: Some("client_received_unread_friend_1".into()),
+            message_type: MessageType::Standard,
+            body: MessageBody {
+                summary: Some("friend reply".into()),
+                parts: vec![ContentPart::text("friend reply")],
+                render_hints: Default::default(),
+                reply_to: None,
+            },
+        })
+        .expect("friend message should succeed");
+
+    let owner_cursor_after_friend_message = runtime
+        .read_cursor_view("t_demo", "c_received_unread_only", "u_owner")
+        .expect("owner cursor view should still succeed");
+    assert_eq!(
+        owner_cursor_after_friend_message.unread_count, 1,
+        "only the friend's received message should be unread for the owner"
+    );
+    let friend_cursor_after_reply = runtime
+        .read_cursor_view("t_demo", "c_received_unread_only", "u_friend")
+        .expect("friend cursor view should still succeed");
+    assert_eq!(
+        friend_cursor_after_reply.unread_count, 1,
+        "the friend should keep the owner's received message unread while excluding their own reply"
+    );
+}
+
+#[test]
 fn test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind() {
     let journal = InMemoryJournal::default();
     let runtime = ConversationRuntime::new(journal);
@@ -3573,7 +3674,7 @@ fn test_role_change_does_not_leak_updated_role_when_journal_append_fails() {
 
 #[test]
 fn test_read_cursor_does_not_advance_when_journal_append_fails() {
-    let journal = FailAfterNJournal::new(4);
+    let journal = FailAfterNJournal::new(5);
     let runtime = ConversationRuntime::new(journal.clone());
 
     runtime
@@ -3585,15 +3686,25 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
         })
         .expect("create conversation should succeed before forced failure");
     runtime
+        .add_member(AddConversationMemberCommand {
+            tenant_id: "t_demo".into(),
+            conversation_id: "c_group_cursor_commit_fail".into(),
+            principal_id: "u_member".into(),
+            principal_kind: "user".into(),
+            role: MembershipRole::Member,
+            invited_by: "u_owner".into(),
+        })
+        .expect("member add should succeed before forced failure");
+    runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
             conversation_id: "c_group_cursor_commit_fail".into(),
             sender: Sender {
-                id: "u_owner".into(),
+                id: "u_member".into(),
                 kind: "user".into(),
                 member_id: None,
-                device_id: Some("d_owner".into()),
-                session_id: Some("s_owner".into()),
+                device_id: Some("d_member".into()),
+                session_id: Some("s_member".into()),
                 metadata: Default::default(),
             },
             client_msg_id: Some("client_cursor_commit_fail".into()),
@@ -3631,7 +3742,7 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
         cursor.unread_count, 1,
         "failed update must preserve unread count until durable commit succeeds"
     );
-    assert_eq!(journal.recorded().len(), 3);
+    assert_eq!(journal.recorded().len(), 4);
 }
 
 #[test]

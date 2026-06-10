@@ -1,10 +1,20 @@
-import type { ImCallSession, ImCallSessionMutationResponse, ImSdkClient } from '@sdkwork/im-sdk';
+import type {
+  ImCallParticipantCredential,
+  ImCallSession,
+  ImCallSessionMutationResponse,
+  ImSdkClient,
+} from '@sdkwork/im-sdk';
 import { getImSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/imSdkClient';
 import {
   readAppSdkSessionTokens,
   type SdkworkChatSession,
 } from '@sdkwork/clawchat-pc-core/sdk/session';
 import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
+import {
+  resolveRtcMediaPublishKinds,
+  rtcMediaService,
+  type SdkworkRtcMediaService,
+} from './RtcMediaService';
 
 export type SdkworkCallType = 'voice' | 'video';
 
@@ -43,6 +53,7 @@ export interface SdkworkCallSnapshot {
   participantId?: string;
   peerUserId?: string;
   providerKey?: string;
+  providerRegion?: string;
   roomId?: string;
   rtcMode?: string;
   rtcSessionId?: string;
@@ -71,6 +82,7 @@ export interface WatchIncomingCallsOptions {
 
 export interface CallService {
   acceptIncomingCall(): Promise<SdkworkCallSnapshot>;
+  bindLocalVideoElement(element: HTMLElement | null): Promise<void>;
   endCall(options?: EndCallOptions): Promise<void>;
   getSnapshot(): SdkworkCallSnapshot;
   recoverRtcSession(rtcSessionId: string, options?: RecoverRtcSessionOptions): Promise<SdkworkCallSnapshot>;
@@ -85,6 +97,7 @@ export interface CallService {
 export interface SdkworkCallServiceDependencies {
   getClient?: (session: SdkworkChatSession | null) => ImSdkClient;
   readSession?: () => SdkworkChatSession | null;
+  rtcMediaService?: SdkworkRtcMediaService;
 }
 
 function createIdleSnapshot(): SdkworkCallSnapshot {
@@ -192,13 +205,17 @@ class SdkworkImCallService implements CallService {
   private readonly listeners = new Set<(snapshot: SdkworkCallSnapshot) => void>();
   private readonly getClient: (session: SdkworkChatSession | null) => ImSdkClient;
   private readonly readSession: () => SdkworkChatSession | null;
+  private readonly rtcMediaService: SdkworkRtcMediaService;
+  private activeMediaRtcSessionId?: string;
   private incomingSubscription?: () => void;
+  private participantCredential?: ImCallParticipantCredential;
   private snapshot: SdkworkCallSnapshot = createIdleSnapshot();
   private sequence = 0;
 
   constructor(dependencies: SdkworkCallServiceDependencies = {}) {
     this.getClient = dependencies.getClient ?? ((session) => getImSdkClientWithSession(session));
     this.readSession = dependencies.readSession ?? readAppSdkSessionTokens;
+    this.rtcMediaService = dependencies.rtcMediaService ?? rtcMediaService;
   }
 
   getSnapshot(): SdkworkCallSnapshot {
@@ -276,19 +293,37 @@ class SdkworkImCallService implements CallService {
   }
 
   async setAudioMuted(muted: boolean): Promise<SdkworkCallSnapshot> {
+    const previousSnapshot = this.snapshot;
     this.applySnapshot({
       ...this.snapshot,
       isAudioMuted: muted,
     });
+    try {
+      await this.rtcMediaService.muteAudio(muted);
+    } catch (error) {
+      this.applySnapshot(previousSnapshot);
+      throw error;
+    }
     return this.getSnapshot();
   }
 
   async setVideoMuted(muted: boolean): Promise<SdkworkCallSnapshot> {
+    const previousSnapshot = this.snapshot;
     this.applySnapshot({
       ...this.snapshot,
       isVideoMuted: muted,
     });
+    try {
+      await this.rtcMediaService.muteVideo(muted);
+    } catch (error) {
+      this.applySnapshot(previousSnapshot);
+      throw error;
+    }
     return this.getSnapshot();
+  }
+
+  async bindLocalVideoElement(element: HTMLElement | null): Promise<void> {
+    await this.rtcMediaService.bindLocalVideoElement(element);
   }
 
   async watchIncomingCalls(conversationIds: string[]): Promise<SdkworkCallSnapshot> {
@@ -356,6 +391,9 @@ class SdkworkImCallService implements CallService {
         conversationIds: normalizedConversationIds,
         deviceId: resolveSdkworkChatPcClientId(),
       });
+      if (this.snapshot.rtcSessionId && this.snapshot.controllerState !== 'watching') {
+        return this.getSnapshot();
+      }
       if (incoming && normalizedConversationIds.includes(incoming.conversationId ?? '')) {
         this.applySessionSnapshot(incoming, {
           direction: 'incoming',
@@ -426,6 +464,7 @@ class SdkworkImCallService implements CallService {
         participantId: this.snapshot.participantId ?? resolveParticipantId(session),
         state: 'rejected',
       });
+      await this.releaseRtcMedia();
       return this.getSnapshot();
     } catch (error) {
       this.applySnapshot({
@@ -459,12 +498,16 @@ class SdkworkImCallService implements CallService {
         participantId: this.snapshot.participantId ?? resolveParticipantId(session),
         state: 'ended',
       });
+      await this.releaseRtcMedia();
     } catch (error) {
+      await this.releaseRtcMedia();
       this.applySnapshot({
         ...this.snapshot,
         state: 'errored',
         controllerState: 'errored',
         errorMessage: toErrorMessage(error),
+        isParticipantCredentialReady: false,
+        participantCredentialExpiresAt: undefined,
       });
     }
   }
@@ -535,6 +578,7 @@ class SdkworkImCallService implements CallService {
       participantId,
       peerUserId: resolvePeerUserId(session, participantId) ?? this.snapshot.peerUserId,
       providerKey: session.providerPluginId ?? this.snapshot.providerKey,
+      providerRegion: session.providerRegion ?? this.snapshot.providerRegion,
       roomId: session.providerSessionId ?? session.rtcSessionId,
       rtcMode: session.rtcMode,
       rtcSessionId: session.rtcSessionId,
@@ -544,6 +588,12 @@ class SdkworkImCallService implements CallService {
       type: callType,
       isVideoMuted: callType === 'voice' ? true : this.snapshot.isVideoMuted,
     });
+    if (state !== 'connected') {
+      this.participantCredential = undefined;
+      if (state === 'ended' || state === 'rejected' || state === 'errored') {
+        void this.releaseRtcMedia().catch(() => undefined);
+      }
+    }
   }
 
   private hasActiveCall(): boolean {
@@ -570,7 +620,12 @@ class SdkworkImCallService implements CallService {
     rtcSessionId: string,
     session: SdkworkChatSession | null,
   ): Promise<void> {
-    if (this.snapshot.isParticipantCredentialReady && this.snapshot.rtcSessionId === rtcSessionId) {
+    if (
+      this.snapshot.isParticipantCredentialReady
+      && this.snapshot.rtcSessionId === rtcSessionId
+      && this.participantCredential
+    ) {
+      await this.ensureRtcMediaReady(rtcSessionId, this.participantCredential);
       return;
     }
     const participantId = this.snapshot.participantId ?? resolveParticipantId(session);
@@ -586,6 +641,86 @@ class SdkworkImCallService implements CallService {
       participantCredentialExpiresAt: credential.expiresAt,
       participantId,
     });
+    this.participantCredential = credential;
+    await this.ensureRtcMediaReady(rtcSessionId, credential);
+  }
+
+  private async ensureRtcMediaReady(
+    rtcSessionId: string,
+    credential: ImCallParticipantCredential,
+  ): Promise<void> {
+    if (this.activeMediaRtcSessionId === rtcSessionId) {
+      return;
+    }
+    const snapshot = this.getSnapshot();
+    if (snapshot.rtcSessionId !== rtcSessionId || snapshot.state !== 'connected') {
+      return;
+    }
+    const participantId = snapshot.participantId ?? credential.participantId;
+    const roomId = snapshot.roomId ?? snapshot.rtcSessionId;
+    if (!participantId || !roomId) {
+      throw new Error('RTC media runtime requires a participant id and room id before joining.');
+    }
+    const joinOptions = {
+      accessEndpoint: snapshot.accessEndpoint,
+      credential,
+      metadata: {
+        conversationId: snapshot.conversationId,
+        direction: snapshot.direction,
+        type: snapshot.type,
+      },
+      participantId,
+      providerKey: snapshot.providerKey,
+      providerRegion: snapshot.providerRegion,
+      roomId,
+      rtcMode: snapshot.rtcMode,
+      rtcSessionId,
+    };
+    try {
+      await this.rtcMediaService.join(joinOptions);
+      if (this.snapshot.rtcSessionId !== rtcSessionId || this.snapshot.state !== 'connected') {
+        await this.releaseRtcMedia({ force: true });
+        return;
+      }
+      this.activeMediaRtcSessionId = rtcSessionId;
+      const publishKinds = resolveRtcMediaPublishKinds(joinOptions);
+      await this.rtcMediaService.publish({
+        kinds: publishKinds,
+        rtcSessionId,
+      });
+      if (this.snapshot.isAudioMuted) {
+        await this.rtcMediaService.muteAudio(true);
+      }
+      if (this.snapshot.isVideoMuted && publishKinds.includes('video')) {
+        await this.rtcMediaService.muteVideo(true);
+      }
+    } catch (error) {
+      const shouldReportMediaError =
+        this.snapshot.rtcSessionId === rtcSessionId
+        && this.snapshot.state === 'connected';
+      await this.releaseRtcMedia({ force: true });
+      if (!shouldReportMediaError) {
+        return;
+      }
+      this.applySnapshot({
+        ...this.snapshot,
+        state: 'errored',
+        controllerState: 'errored',
+        errorMessage: toErrorMessage(error),
+        isParticipantCredentialReady: false,
+        participantCredentialExpiresAt: undefined,
+      });
+      await this.releaseRtcMedia();
+    }
+  }
+
+  private async releaseRtcMedia(options: { force?: boolean } = {}): Promise<void> {
+    if (!options.force && !this.activeMediaRtcSessionId && !this.participantCredential) {
+      return;
+    }
+    this.activeMediaRtcSessionId = undefined;
+    this.participantCredential = undefined;
+    await this.rtcMediaService.leave().catch(() => undefined);
   }
 
   private applySnapshot(snapshot: SdkworkCallSnapshot): void {

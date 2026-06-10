@@ -1014,12 +1014,7 @@ fn publish_friend_request_realtime_event(
     .to_string();
 
     if let Err(error) = effects::publish_realtime_event_to_principals(
-        state,
-        auth,
-        recipients,
-        "user",
-        event_type,
-        payload,
+        state, auth, recipients, "user", event_type, payload,
     ) {
         record_friend_request_realtime_failure(state, auth, event_type, friend_request, &error);
     }

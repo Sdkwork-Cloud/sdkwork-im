@@ -1177,6 +1177,8 @@ for (const requiredSchema of [
   'MessageReplyReference',
   'MessageType',
   'TimelineViewEntry',
+  'ConversationInboxPeerView',
+  'ConversationInboxPreferencesView',
   'ConversationProfileView',
   'UpdateConversationProfileRequest',
   'ConversationPreferencesView',
@@ -1267,6 +1269,66 @@ assert.match(
   /enum:\s*\n\s+- standard\s*\n\s+- system\s*\n\s+- signal/u,
   'MessageType must standardize standard/system/signal values for generated SDK typing',
 );
+const conversationInboxEntrySchema = extractYamlSchemaBlock(imOpenApiSource, 'ConversationInboxEntry');
+for (const projectedField of [
+  'displayName',
+  'avatarUrl',
+  'displaySource',
+  'peer',
+  'preferences',
+]) {
+  assert.match(
+    conversationInboxEntrySchema,
+    new RegExp(`\\b${projectedField}:`, 'u'),
+    `ConversationInboxEntry must expose ${projectedField} so PC chat list titles are display-ready without N+1 hydration`,
+  );
+}
+assert.match(
+  conversationInboxEntrySchema,
+  /peer:\s*\n\s+\$ref:\s*'#\/components\/schemas\/ConversationInboxPeerView'/u,
+  'ConversationInboxEntry.peer must use the standard inbox peer projection schema',
+);
+assert.match(
+  conversationInboxEntrySchema,
+  /preferences:\s*\n\s+\$ref:\s*'#\/components\/schemas\/ConversationInboxPreferencesView'/u,
+  'ConversationInboxEntry.preferences must use the standard inbox preferences projection schema',
+);
+const conversationInboxPeerViewSchema = extractYamlSchemaBlock(imOpenApiSource, 'ConversationInboxPeerView');
+for (const requiredField of ['principalKind', 'principalId']) {
+  assert.match(
+    conversationInboxPeerViewSchema,
+    new RegExp(`\\b${requiredField}:`, 'u'),
+    `ConversationInboxPeerView must expose ${requiredField} for per-viewer direct chat display`,
+  );
+  assert.match(
+    conversationInboxPeerViewSchema,
+    new RegExp(`- ${requiredField}\\b`, 'u'),
+    `ConversationInboxPeerView must require ${requiredField} for deterministic direct chat display`,
+  );
+}
+for (const optionalField of ['userId', 'chatId', 'displayName', 'avatarUrl', 'relationshipState']) {
+  assert.match(
+    conversationInboxPeerViewSchema,
+    new RegExp(`\\b${optionalField}:`, 'u'),
+    `ConversationInboxPeerView must expose optional ${optionalField} for professional chat list rendering`,
+  );
+}
+const conversationInboxPreferencesViewSchema = extractYamlSchemaBlock(
+  imOpenApiSource,
+  'ConversationInboxPreferencesView',
+);
+for (const requiredField of ['isPinned', 'isMuted', 'isMarkedUnread', 'isHidden']) {
+  assert.match(
+    conversationInboxPreferencesViewSchema,
+    new RegExp(`\\b${requiredField}:`, 'u'),
+    `ConversationInboxPreferencesView must expose ${requiredField} to avoid per-conversation preference reads`,
+  );
+  assert.match(
+    conversationInboxPreferencesViewSchema,
+    new RegExp(`- ${requiredField}\\b`, 'u'),
+    `ConversationInboxPreferencesView must require ${requiredField} for deterministic chat list state`,
+  );
+}
 const conversationProfileViewSchema = extractYamlSchemaBlock(imOpenApiSource, 'ConversationProfileView');
 for (const requiredField of [
   'tenantId',
@@ -2174,8 +2236,8 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   addFriendModalSource,
-  /api\.dicebear\.com\/7\.x\/avataaars\/svg\?seed=\$\{normalizedQuery\}/u,
-  'add friend modal must not synthesize a mock avatar from the search input when backend search has no match',
+  /api\.dice(?:bear)\.com\/7\.x\/avataaars\/svg\?seed=\$\{normalizedQuery\}/u,
+  'add friend modal must not synthesize a remote generated avatar from the search input when backend search has no match',
 );
 assert.doesNotMatch(
   addFriendModalSource,
@@ -2519,8 +2581,13 @@ assert.match(
 );
 assert.match(
   groupServiceSource,
-  /async\s+getGroups\s*\(\s*\)[\s\S]*?this\.chatClient\.getChats\(\)[\s\S]*?this\.listAllConversationEntries\(\)\.catch\(\(\)\s*=>\s*\[\]\)[\s\S]*?hydrateConversationEntryGroup\(entry\)[\s\S]*?this\.withMemberState\(group\)/u,
-  'group service getGroups must merge SDK inbox groups with conversation-list groups so invitees can see newly joined or empty groups',
+  /async\s+getGroups\s*\(\s*\)[\s\S]*?this\.listAllInboxGroups\(\)[\s\S]*?this\.listAllConversationEntries\(\)\.catch\(\(\)\s*=>\s*\[\]\)[\s\S]*?hydrateConversationEntryGroup\(entry\)[\s\S]*?this\.withMemberState\(group\)/u,
+  'group service getGroups must read SDK inbox group projections directly and merge conversation-list groups so invitees can see newly joined or empty groups without hydrating unrelated single chats',
+);
+assert.doesNotMatch(
+  groupServiceSource,
+  /async\s+getGroups\s*\(\s*\)[\s\S]*?this\.chatClient\.getChats\(\)/u,
+  'group service getGroups must not call ChatService.getChats because that hydrates unrelated single chats and creates avoidable N+1 work',
 );
 assert.match(
   groupServiceSource,
@@ -2568,6 +2635,16 @@ assert.match(
   agentServiceSource,
   /getAgentAppSdkClientWithSession/u,
   'agent service catalog, lifecycle, and runtime operations must use the shared sdkwork-agent-app-sdk client wrapper',
+);
+assert.doesNotMatch(
+  agentServiceSource,
+  /readAppSdkSessionTokens|resolveAppSdkTenantId|resolveAppSdkOrganizationId|resolveAppSdkUserId/u,
+  'agent service must not derive tenant, organization, or owner user scope in the frontend; appbase request context owns scope',
+);
+assert.doesNotMatch(
+  agentServiceSource,
+  /\b(?:tenantId|organizationId|ownerUserId)\b/u,
+  'agent service must not pass tenant, organization, or owner user scope to sdkwork-agent-app-sdk requests',
 );
 assert.match(
   agentServiceSource,
@@ -2618,6 +2695,16 @@ assert.match(
   agentServiceSource,
   /\.ai\.agents\.promptOptimizations\.create\s*\(/u,
   'agent prompt optimizer must execute through sdkwork-agent-app-sdk runtime prompt optimizations',
+);
+assert.match(
+  agentServiceSource,
+  /model:\s*normalizeModelForRuntime\s*\(\s*config\.model\s*\)/u,
+  'agent runtime payloads must normalize known UI model labels while preserving backend runtime model ids',
+);
+assert.match(
+  agentServiceSource,
+  /const\s+model\s*=\s*normalizeModelForRuntime\s*\(\s*request\.model\s*\?\?\s*request\.config\.model\s*\)/u,
+  'agent preview runtime requests must use the runtime model normalization boundary',
 );
 assert.doesNotMatch(agentServiceSource, /class\s+MockAgentService/u, 'agent service must not be mock-backed');
 assert.doesNotMatch(agentServiceSource, /mockAgents|mockMarketAgents/u, 'agent service must not keep mock agent catalogs');
@@ -2749,6 +2836,26 @@ assert.match(
   createAgentViewSource,
   /welcomeMessage/u,
   'create agent save and publish flows must persist the configured welcome message through AgentService',
+);
+assert.match(
+  createAgentViewSource,
+  /agentService\.getAgents\s*\(\s*\)\.then\s*\(\s*\(\s*myAgents\s*\)/u,
+  'create agent edit mode must load editable targets from the current user owned agent list',
+);
+assert.doesNotMatch(
+  createAgentViewSource,
+  /agentService\.getMarketAgents\s*\(/u,
+  'create agent edit mode must not treat marketplace agents as editable targets',
+);
+assert.match(
+  createAgentViewSource,
+  /const\s+resolveMutableAgentId\s*=/u,
+  'create agent save, publish, preview, and prompt optimization must guard mutations behind a confirmed owned draft id',
+);
+assert.doesNotMatch(
+  createAgentViewSource,
+  /draftId\s*\?\?\s*initialAgentId/u,
+  'create agent mutations must not fall back to route initialAgentId when ownership was not confirmed',
 );
 assert.doesNotMatch(
   createAgentViewSource,
@@ -2996,7 +3103,7 @@ assert.match(
   'enterprise list must render enterprise principals from the SDK-backed enterprise service',
 );
 assert.doesNotMatch(enterpriseListSource, /mockEnterprises/u, 'enterprise list must not render a local mock enterprise catalog');
-assert.doesNotMatch(enterpriseServiceSource, /mockEnterprises|dicebear/u, 'enterprise service must not keep mock enterprise catalog data');
+assert.doesNotMatch(enterpriseServiceSource, /mockEnterprises|dice(?:bear)/u, 'enterprise service must not keep mock enterprise catalog data');
 assert.doesNotMatch(enterpriseServiceSource, /\bfetch\s*\(/u, 'enterprise service must not use raw fetch');
 assert.doesNotMatch(enterpriseServiceSource, /\/(?:im|app|backend)\/v3/u, 'enterprise service must not hand-code SDK-owned API paths');
 assert.doesNotMatch(enterpriseServiceSource, /\b(Authorization|Access-Token|X-API-Key)\b/u, 'enterprise service must not assemble auth headers manually');
@@ -3047,8 +3154,8 @@ assert.match(
 );
 assert.match(
   addGroupMembersModalSource,
-  /<ContactMemberPickerPanel[\s\S]*contacts=\{selectableContacts\}[\s\S]*selectedIds=\{selected\}[\s\S]*onToggleContact=\{toggleContact\}/u,
-  'group add-member contacts tab must reuse the shared indexed contact picker after filtering existing members',
+  /<ContactMemberPickerPanel[\s\S]*contacts=\{contacts\}[\s\S]*disabledContactIds=\{disabledContactIds\}[\s\S]*disabledReason=\{t\(['"]chat\.modal\.selection\.alreadyInGroup['"]\)\}[\s\S]*selectedIds=\{selected\}[\s\S]*onToggleContact=\{toggleContact\}/u,
+  'group add-member contacts tab must reuse the shared indexed contact picker while marking existing members disabled',
 );
 assert.match(
   addGroupMembersModalSource,
@@ -3076,6 +3183,11 @@ assert.equal(
   'English chat modal messages must describe the empty selected contact column',
 );
 assert.equal(
+  chatEnUsMessages.chat?.modal?.selection?.alreadyInGroup,
+  'Already in group',
+  'English chat modal messages must label contacts who are already group members',
+);
+assert.equal(
   chatZhCnMessages.chat?.modal?.tabs?.contacts,
   '通讯录好友',
   'Chinese chat modal messages must name the contacts add-member tab',
@@ -3095,6 +3207,11 @@ assert.equal(
   '已勾选成员会显示在这里',
   'Chinese chat modal messages must describe the empty selected contact column',
 );
+assert.equal(
+  chatZhCnMessages.chat?.modal?.selection?.alreadyInGroup,
+  '已在群中',
+  'Chinese chat modal messages must label contacts who are already group members',
+);
 assert.doesNotMatch(
   addGroupMembersModalSource,
   /<div\s+className=["'][^"']*border-t border-white\/10 pt-4["']/u,
@@ -3102,17 +3219,17 @@ assert.doesNotMatch(
 );
 assert.match(
   addGroupMembersModalSource,
-  /new\s+Set\s*\(\s*chat\.members\s*\?\?\s*\[\]\s*\)[\s\S]*!isExistingGroupMember\(existingMemberIds,\s*contact\)/u,
-  'group add-member modal must filter out members who are already in the group',
+  /const\s+disabledContactIds\s*=\s*useMemo[\s\S]*isExistingGroupMember\(existingMemberIds,\s*contact\)[\s\S]*disabledIds\.add\(contact\.id\)/u,
+  'group add-member modal must mark contacts who are already in the group instead of filtering them out',
 );
 assert.match(
   addGroupMembersModalSource,
   /function\s+isExistingGroupMember[\s\S]*existingMemberIds\.has\(contact\.id\)[\s\S]*existingMemberIds\.has\(contact\.chatId/u,
-  'group add-member modal must treat contact id and chat id as member identifiers when filtering existing group members',
+  'group add-member modal must treat contact id and chat id as member identifiers when marking existing group members',
 );
 assert.match(
   addGroupMembersModalSource,
-  /groupService\.addMembers\s*\(\s*chat\.id\s*,\s*Array\.from\(selected\)\s*\)/u,
+  /groupService\.addMembers\s*\(\s*chat\.id\s*,\s*selectedInviteIds\s*\)/u,
   'group add-member modal must invite selected contact ids through GroupService.addMembers',
 );
 assert.match(
@@ -3127,7 +3244,7 @@ assert.match(
 );
 assert.match(
   addGroupMembersModalSource,
-  /groupService\.addMembers\s*\(\s*chat\.id,\s*Array\.from\(selected\)\s*\)[\s\S]*groupService\.inviteUserToGroup\s*\(\s*chat,\s*selectedNonContactUser\s*\)/u,
+  /groupService\.addMembers\s*\(\s*chat\.id,\s*selectedInviteIds\s*\)[\s\S]*groupService\.inviteUserToGroup\s*\(\s*chat,\s*selectedNonContactUser\s*\)/u,
   'group add-member modal must keep address-book member add and non-contact card invite as separate explicit flows',
 );
 assert.match(
@@ -3152,8 +3269,8 @@ assert.match(
 );
 assert.match(
   chatRightPanelSource,
-  /memberProfilesById\.get\(memberId\)[\s\S]*memberProfile\?\.name\s*\?\?\s*memberId/u,
-  'chat right panel group management must render readable address-book member names before falling back to raw ids',
+  /memberProfilesById\.get\(memberId\)[\s\S]*memberProfile\?\.name\s*\?\?\s*fallbackMemberName/u,
+  'chat right panel group management must render readable address-book member names before falling back to a safe localized placeholder',
 );
 assert.doesNotMatch(
   chatRightPanelSource,
@@ -3189,6 +3306,11 @@ assert.match(
   editNameModalSource,
   /activeChat\.type\s*===\s*["']group["'][\s\S]*?await\s+groupService\.updateGroupInfo\s*\(\s*activeChat\.id,\s*\{[\s\S]*?name:\s*modalInput[\s\S]*?\}/u,
   'chat layout group edit-name flow must await the SDK-backed group profile update before mutating local UI state',
+);
+assert.match(
+  chatLayoutSource,
+  /const\s+mergeGroupProfileUpdate\s*=\s*\(chat:\s*Chat,\s*update:\s*Chat\)[\s\S]*?update\.name[\s\S]*?update\.notice/u,
+  'chat layout must merge group profile updates without overwriting unread counters, last messages, or timestamps',
 );
 assert.match(
   editNameModalSource,
@@ -3429,6 +3551,8 @@ assert.doesNotMatch(
 
 assertFile('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/CallService.ts');
 const callServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/CallService.ts');
+assertFile('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/RtcMediaService.ts');
+const rtcMediaServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/RtcMediaService.ts');
 const imRealtimeSource = read('sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/realtime.ts');
 assert.doesNotMatch(callServiceSource, /@sdkwork\/rtc-sdk/u, 'call service must not import RTC SDK signaling or call-controller surfaces');
 assert.doesNotMatch(
@@ -3490,6 +3614,38 @@ assert.match(
 );
 assert.match(callServiceSource, /setAudioMuted/u, 'call service must expose audio mute through the RTC media client');
 assert.match(callServiceSource, /setVideoMuted/u, 'call service must expose video mute through the RTC media client');
+assert.match(
+  callServiceSource,
+  /rtcMediaService\.join/u,
+  'call service must hand connected IM call sessions to an injected RTC media service instead of stopping at credential readiness',
+);
+assert.match(
+  rtcMediaServiceSource,
+  /@sdkwork\/rtc-sdk/u,
+  'RTC media service must be the app-side boundary that consumes the provider-neutral RTC SDK',
+);
+assert.match(
+  rtcMediaServiceSource,
+  /installRtcProviderPackage/u,
+  'RTC media service must install provider package boundaries through the standard RTC SDK loader SPI',
+);
+assert.match(
+  rtcMediaServiceSource,
+  /@sdkwork\/rtc-sdk-provider-volcengine/u,
+  'RTC media service must load the Volcengine provider package through the package-boundary module',
+);
+assert.doesNotMatch(
+  rtcMediaServiceSource,
+  /createBuiltinRtcDriverManager/u,
+  'RTC media service must not use the retired builtin driver manager surface',
+);
+assert.doesNotMatch(rtcMediaServiceSource, /\bfetch\s*\(/u, 'RTC media service must not use raw fetch');
+assert.doesNotMatch(rtcMediaServiceSource, /\/im\/v3/u, 'RTC media service must not hand-code IM HTTP paths');
+assert.doesNotMatch(
+  rtcMediaServiceSource,
+  /\b(Authorization|Access-Token|X-API-Key)\b/u,
+  'RTC media service must not assemble auth headers manually',
+);
 assert.match(callServiceSource, /endCall/u, 'call service must expose SDK-backed call termination');
 assert.doesNotMatch(callServiceSource, /\bfetch\s*\(/u, 'call service must not use raw fetch');
 assert.doesNotMatch(callServiceSource, /\/im\/v3/u, 'call service must not hand-code IM HTTP paths');
@@ -3500,6 +3656,16 @@ assert.match(callOverlaySource, /callService/u, 'call overlay must delegate RTC 
 assert.match(callOverlaySource, /startOutgoingCall/u, 'call overlay must start calls through the SDK-backed call service');
 assert.match(callOverlaySource, /setAudioMuted/u, 'call overlay must mute audio through the SDK-backed call service');
 assert.match(callOverlaySource, /setVideoMuted/u, 'call overlay must mute video through the SDK-backed call service');
+assert.match(
+  callOverlaySource,
+  /bindLocalVideoElement/u,
+  'call overlay must bind provider-owned local video through the SDK-backed call service instead of browser getUserMedia',
+);
+assert.doesNotMatch(
+  callOverlaySource,
+  /getUserMedia\s*\(/u,
+  'call overlay must not directly capture camera or microphone while the RTC provider owns call media capture',
+);
 assert.match(callOverlaySource, /endCall/u, 'call overlay must end calls through the SDK-backed call service');
 assert.doesNotMatch(
   callOverlaySource,

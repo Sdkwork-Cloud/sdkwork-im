@@ -9,9 +9,11 @@ use tauri::{
 const MAIN_WINDOW_LABEL: &str = "main";
 const TRAY_ICON_ID: &str = "sdkwork_chat_pc_main_tray";
 const TRAY_MENU_CHAT_ID: &str = "sdkwork_chat_pc_tray_chat";
+const TRAY_MENU_CALL_ID: &str = "sdkwork_chat_pc_tray_call";
 const TRAY_MENU_SETTINGS_ID: &str = "sdkwork_chat_pc_tray_settings";
 const TRAY_MENU_QUIT_ID: &str = "sdkwork_chat_pc_tray_quit";
 const TRAY_EVENT_OPEN_CHAT: &str = "sdkwork-chat-pc://tray/open-chat";
+const TRAY_EVENT_SHOW_ACTIVE_CALL: &str = "sdkwork-chat-pc://tray/show-active-call";
 const TRAY_EVENT_OPEN_SETTINGS: &str = "sdkwork-chat-pc://tray/open-settings";
 
 static IS_EXITING: AtomicBool = AtomicBool::new(false);
@@ -41,6 +43,7 @@ fn create_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
         .ok_or_else(|| "default window icon is unavailable".to_string())?;
     let menu = MenuBuilder::new(app)
         .text(TRAY_MENU_CHAT_ID, "\u{804a}\u{5929}")
+        .text(TRAY_MENU_CALL_ID, "\u{663e}\u{793a}\u{901a}\u{8bdd}")
         .text(TRAY_MENU_SETTINGS_ID, "\u{8bbe}\u{7f6e}")
         .separator()
         .text(TRAY_MENU_QUIT_ID, "\u{9000}\u{51fa}")
@@ -86,6 +89,9 @@ fn handle_tray_menu_event<R: Runtime>(app: &AppHandle<R>, event: tauri::menu::Me
     if event.id() == TRAY_MENU_CHAT_ID {
         let _ = show_main_window(app);
         let _ = app.emit(TRAY_EVENT_OPEN_CHAT, ());
+    } else if event.id() == TRAY_MENU_CALL_ID {
+        let _ = show_main_window(app);
+        let _ = app.emit(TRAY_EVENT_SHOW_ACTIVE_CALL, ());
     } else if event.id() == TRAY_MENU_SETTINGS_ID {
         let _ = show_main_window(app);
         let _ = app.emit(TRAY_EVENT_OPEN_SETTINGS, ());

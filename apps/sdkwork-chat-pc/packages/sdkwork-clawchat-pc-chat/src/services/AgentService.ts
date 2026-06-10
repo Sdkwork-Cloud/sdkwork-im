@@ -3,6 +3,7 @@ import {
   type SdkworkAgentAppClient,
 } from '@sdkwork/clawchat-pc-core/sdk/agentAppSdkClient';
 import type {
+  AgentManagementProfile,
   AgentRecord,
   CreateAgentProviderBindingRequest,
   CreateAgentRequest,
@@ -23,6 +24,15 @@ export interface AgentConfig {
   iconName?: string;
   categoryId?: string;
   welcomeMessage?: string;
+  debugMode?: boolean;
+  jsonMode?: boolean;
+  memoryEnabled?: boolean;
+  model?: string;
+  temperature?: number;
+  suggestedPrompts?: string[];
+  voiceIds?: string[];
+  toolIds?: string[];
+  skillIds?: string[];
 }
 
 export interface AgentPreviewResponseRequest {
@@ -72,14 +82,50 @@ export class AgentRuntimeExecutionUnavailableError extends Error {
 type AgentCatalogScope = 'market' | 'mine';
 type RecordLike = Record<string, unknown>;
 
-const DEFAULT_AGENT_TENANT_ID = '0';
-const DEFAULT_AGENT_ORGANIZATION_ID = '0';
-const DEFAULT_AGENT_OWNER_USER_ID = '0';
 const DEFAULT_AGENT_BINDING_ID = 'binding.manifest.default';
 const DEFAULT_AGENT_PROVIDER_ID = 'provider.agent.manifest';
 const DEFAULT_AGENT_CONFIGURATION_PROFILE_ID = 'profile.agent.manifest.default';
 const DEFAULT_AGENT_PROVIDER_CAPABILITIES = ['model.chat', 'tool.invoke'] as const;
 const AGENT_UI_CONFIG_CONSTRAINT_PREFIX = 'sdkwork.agent.pc.config:';
+
+const MODEL_ID_BY_UI_VALUE = new Map<string, string>([
+  ['gpt-4', 'model.openai.gpt-4'],
+  ['gpt-4o', 'model.openai.gpt-4o'],
+  ['gpt-4 turbo', 'model.openai.gpt-4-turbo'],
+  ['gpt-4-turbo', 'model.openai.gpt-4-turbo'],
+  ['gpt-3.5 turbo', 'model.openai.gpt-3.5-turbo'],
+  ['gpt-3.5-turbo', 'model.openai.gpt-3.5-turbo'],
+  ['claude 3 opus', 'model.anthropic.claude-3-opus'],
+  ['claude-3-opus', 'model.anthropic.claude-3-opus'],
+  ['claude 3.5 sonnet', 'model.anthropic.claude-3.5-sonnet'],
+  ['claude-3.5-sonnet', 'model.anthropic.claude-3.5-sonnet'],
+  ['claude 3 haiku', 'model.anthropic.claude-3-haiku'],
+  ['claude-3-haiku', 'model.anthropic.claude-3-haiku'],
+  ['gemini 1.5 pro', 'model.google.gemini-1.5-pro'],
+  ['gemini-1.5-pro', 'model.google.gemini-1.5-pro'],
+  ['gemini 1.5 flash', 'model.google.gemini-1.5-flash'],
+  ['gemini-1.5-flash', 'model.google.gemini-1.5-flash'],
+  ['deepseek-v2', 'model.deepseek.deepseek-chat'],
+  ['deepseek-chat', 'model.deepseek.deepseek-chat'],
+  ['deepseek-coder', 'model.deepseek.deepseek-coder'],
+  ['llama 3 70b', 'model.custom.llama-3'],
+  ['custom-llama-3', 'model.custom.llama-3'],
+]);
+
+const MODEL_UI_VALUE_BY_ID = new Map<string, string>([
+  ['model.openai.gpt-4', 'GPT-4'],
+  ['model.openai.gpt-4o', 'GPT-4o'],
+  ['model.openai.gpt-4-turbo', 'GPT-4 Turbo'],
+  ['model.openai.gpt-3.5-turbo', 'GPT-3.5 Turbo'],
+  ['model.anthropic.claude-3-opus', 'Claude 3 Opus'],
+  ['model.anthropic.claude-3.5-sonnet', 'Claude 3.5 Sonnet'],
+  ['model.anthropic.claude-3-haiku', 'Claude 3 Haiku'],
+  ['model.google.gemini-1.5-pro', 'Gemini 1.5 Pro'],
+  ['model.google.gemini-1.5-flash', 'Gemini 1.5 Flash'],
+  ['model.deepseek.deepseek-chat', 'DeepSeek-V2'],
+  ['model.deepseek.deepseek-coder', 'DeepSeek-Coder'],
+  ['model.custom.llama-3', 'Llama 3 70B'],
+]);
 
 function createExecutionId(prefix: string): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -96,6 +142,10 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
 function asStringArray(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
@@ -103,7 +153,19 @@ function asStringArray(value: unknown): string[] | undefined {
   const strings = value
     .map((item) => asString(item))
     .filter((item): item is string => Boolean(item));
-  return strings.length > 0 ? strings : undefined;
+  return strings;
+}
+
+function cleanStringArray(value: unknown): string[] | undefined {
+  return Array.isArray(value) ? asStringArray(value) ?? [] : undefined;
+}
+
+function asBoolean(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function asStringFrom(record: RecordLike, keys: string[]): string | undefined {
@@ -141,6 +203,86 @@ function pickOutputString(output: unknown, keys: string[]): string | undefined {
   }
 
   return undefined;
+}
+
+function normalizeStandardToken(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/gu, '-')
+    .replace(/^[._-]+|[._-]+$/gu, '')
+    .replace(/\.{2,}/gu, '.')
+    .slice(0, 96);
+}
+
+function normalizeStandardId(value: unknown, prefix: string): string | undefined {
+  const raw = asString(value);
+  if (!raw) {
+    return undefined;
+  }
+  if (raw.startsWith(prefix)) {
+    return raw;
+  }
+  const normalized = normalizeStandardToken(raw);
+  return normalized ? `${prefix}${normalized}` : undefined;
+}
+
+function normalizeStandardIdArray(value: unknown, prefix: string): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const ids = value
+    .map((item) => normalizeStandardId(item, prefix))
+    .filter((item): item is string => Boolean(item));
+  return ids.length > 0 ? ids : [];
+}
+
+function stripStandardIdPrefix(value: string, prefix: string): string {
+  return value.startsWith(prefix) ? value.slice(prefix.length) : value;
+}
+
+function stripStandardIdPrefixArray(value: unknown, prefix: string): string[] | undefined {
+  const ids = asStringArray(value);
+  return ids?.map((item) => stripStandardIdPrefix(item, prefix));
+}
+
+function normalizeModelForApi(value: unknown): string | undefined {
+  const model = asString(value);
+  if (!model) {
+    return undefined;
+  }
+  if (model.startsWith('model.')) {
+    return model;
+  }
+  const mapped = MODEL_ID_BY_UI_VALUE.get(model.trim().toLowerCase());
+  if (mapped) {
+    return mapped;
+  }
+  const normalized = normalizeStandardToken(model);
+  return normalized ? `model.${normalized}` : undefined;
+}
+
+function normalizeModelForRuntime(value: unknown): string | undefined {
+  const model = asString(value);
+  if (!model) {
+    return undefined;
+  }
+  if (model.startsWith('model.')) {
+    return model;
+  }
+  const mapped = MODEL_ID_BY_UI_VALUE.get(model.trim().toLowerCase());
+  if (mapped) {
+    return mapped;
+  }
+  return model;
+}
+
+function normalizeModelForUi(value: unknown): string | undefined {
+  const model = asString(value);
+  if (!model) {
+    return undefined;
+  }
+  return MODEL_UI_VALUE_BY_ID.get(model) ?? stripStandardIdPrefix(model, 'model.');
 }
 
 function requireAgentId(config: AgentConfig): string {
@@ -193,6 +335,15 @@ function buildAgentRuntimeInputPayload(
       knowledgeBaseIds: config.knowledgeBaseIds,
       categoryId: config.categoryId,
       welcomeMessage: config.welcomeMessage,
+      debugMode: config.debugMode,
+      jsonMode: config.jsonMode,
+      memoryEnabled: config.memoryEnabled,
+      model: normalizeModelForRuntime(config.model),
+      temperature: config.temperature,
+      suggestedPrompts: config.suggestedPrompts,
+      voiceIds: config.voiceIds,
+      toolIds: config.toolIds,
+      skillIds: config.skillIds,
     },
     ...extra,
   };
@@ -200,6 +351,13 @@ function buildAgentRuntimeInputPayload(
 
 function asAgentType(value: unknown): AgentConfig['type'] {
   return value === 'independent' ? 'independent' : 'normal';
+}
+
+function asOptionalAgentType(value: unknown): AgentConfig['type'] | undefined {
+  if (value === 'independent' || value === 'normal') {
+    return value;
+  }
+  return undefined;
 }
 
 function normalizeManifest(value: unknown): RecordLike {
@@ -224,9 +382,46 @@ function parseAgentUiConfigFromIntent(value: unknown): Partial<AgentConfig> {
   }
 }
 
+function normalizeAgentManagementProfile(value: unknown): Partial<AgentConfig> {
+  if (!isRecord(value)) {
+    return {};
+  }
+  return {
+    author: asString(value.author),
+    avatar: asString(value.avatar),
+    categoryId: asString(value.categoryId),
+    color: asString(value.color),
+    debugMode: asBoolean(value.debugMode),
+    iconName: asString(value.iconName),
+    jsonMode: asBoolean(value.jsonMode),
+    knowledgeBaseIds: asStringArray(value.knowledgeBaseIds),
+    memoryEnabled: asBoolean(value.memoryEnabled),
+    model: normalizeModelForUi(value.model),
+    skillIds: stripStandardIdPrefixArray(value.skillIds, 'skill.'),
+    suggestedPrompts: asStringArray(value.suggestedPrompts),
+    systemPrompt: asOptionalString(value.systemPrompt),
+    temperature: asNumber(value.temperature),
+    toolIds: stripStandardIdPrefixArray(value.toolIds, 'tool.'),
+    type: asOptionalAgentType(value.type),
+    users: asString(value.users),
+    voiceIds: stripStandardIdPrefixArray(value.voiceIds, 'voice.'),
+    welcomeMessage: asOptionalString(value.welcomeMessage),
+  };
+}
+
+function definedAgentConfig(config: Partial<AgentConfig>): Partial<AgentConfig> {
+  return Object.fromEntries(
+    Object.entries(config).filter(([, value]) => value !== undefined),
+  ) as Partial<AgentConfig>;
+}
+
 function normalizeAgentFromAgentRecord(record: AgentRecord): AgentConfig {
   const manifest = normalizeManifest(record.manifest);
-  const uiConfig = parseAgentUiConfigFromIntent(record.defaultCodeTaskIntent);
+  const legacyConfig = normalizeAgentManagementProfile(
+    parseAgentUiConfigFromIntent(record.defaultCodeTaskIntent),
+  );
+  const profileConfig = normalizeAgentManagementProfile(record.managementProfile);
+  const uiConfig = { ...definedAgentConfig(legacyConfig), ...definedAgentConfig(profileConfig) };
   const categoryId = asString(uiConfig.categoryId) ?? (Array.isArray(record.tags) ? record.tags[0] : undefined);
   return {
     id: record.agentId,
@@ -234,14 +429,23 @@ function normalizeAgentFromAgentRecord(record: AgentRecord): AgentConfig {
     description: record.description ?? '',
     avatar: asString(uiConfig.avatar) ?? '',
     type: asAgentType(uiConfig.type ?? record.implementationKind),
-    systemPrompt: asString(uiConfig.systemPrompt) ?? asString(manifest.description),
+    systemPrompt: asOptionalString(uiConfig.systemPrompt) ?? asString(manifest.description),
     knowledgeBaseIds: asStringArray(uiConfig.knowledgeBaseIds),
     author: asString(uiConfig.author),
     users: asString(uiConfig.users),
     color: asString(uiConfig.color),
     iconName: asString(uiConfig.iconName),
     categoryId,
-    welcomeMessage: asString(uiConfig.welcomeMessage),
+    welcomeMessage: asOptionalString(uiConfig.welcomeMessage),
+    debugMode: asBoolean(uiConfig.debugMode),
+    jsonMode: asBoolean(uiConfig.jsonMode),
+    memoryEnabled: asBoolean(uiConfig.memoryEnabled),
+    model: asString(uiConfig.model),
+    temperature: asNumber(uiConfig.temperature),
+    suggestedPrompts: asStringArray(uiConfig.suggestedPrompts),
+    voiceIds: asStringArray(uiConfig.voiceIds),
+    toolIds: asStringArray(uiConfig.toolIds),
+    skillIds: asStringArray(uiConfig.skillIds),
   };
 }
 
@@ -272,24 +476,35 @@ function buildAgentManifest(config: Partial<AgentConfig>, agentId: string): Reco
   };
 }
 
-function buildAgentUiConfig(config: Partial<AgentConfig>): Record<string, unknown> {
+function buildAgentManagementProfile(config: Partial<AgentConfig>): AgentManagementProfile {
   return {
+    author: config.author,
     avatar: config.avatar,
     categoryId: config.categoryId,
     color: config.color,
+    debugMode: config.debugMode,
     iconName: config.iconName,
-    knowledgeBaseIds: config.knowledgeBaseIds,
+    knowledgeBaseIds: cleanStringArray(config.knowledgeBaseIds),
+    jsonMode: config.jsonMode,
+    memoryEnabled: config.memoryEnabled,
+    model: normalizeModelForApi(config.model),
+    skillIds: normalizeStandardIdArray(config.skillIds, 'skill.'),
+    suggestedPrompts: cleanStringArray(config.suggestedPrompts),
     systemPrompt: config.systemPrompt,
+    temperature: config.temperature,
+    toolIds: normalizeStandardIdArray(config.toolIds, 'tool.'),
     type: config.type,
+    users: config.users,
+    voiceIds: normalizeStandardIdArray(config.voiceIds, 'voice.'),
     welcomeMessage: config.welcomeMessage,
   };
 }
 
 function buildAgentDefaultCodeTaskIntent(config: Partial<AgentConfig>): Record<string, unknown> {
-  const uiConfig = buildAgentUiConfig(config);
+  const uiConfig = buildAgentManagementProfile(config);
   return {
     prompt: config.systemPrompt ?? config.description ?? 'Run the managed agent according to its manifest.',
-    contextPaths: config.knowledgeBaseIds ?? [],
+    contextPaths: cleanStringArray(config.knowledgeBaseIds) ?? [],
     constraints: [
       `agent.type=${config.type ?? 'normal'}`,
       `${AGENT_UI_CONFIG_CONSTRAINT_PREFIX}${JSON.stringify(uiConfig)}`,
@@ -297,17 +512,19 @@ function buildAgentDefaultCodeTaskIntent(config: Partial<AgentConfig>): Record<s
   };
 }
 
-function buildCreateAgentRequest(config: AgentConfig, agentId: string): CreateAgentRequest {
+function buildCreateAgentRequest(
+  config: AgentConfig,
+  agentId: string,
+): CreateAgentRequest {
   const categoryId = asString(config.categoryId);
   return {
     agentId,
-    organizationId: DEFAULT_AGENT_ORGANIZATION_ID,
-    ownerUserId: DEFAULT_AGENT_OWNER_USER_ID,
     code: agentId,
     displayName: config.name,
     description: config.description,
     manifest: buildAgentManifest(config, agentId),
     defaultCodeTaskIntent: buildAgentDefaultCodeTaskIntent(config),
+    managementProfile: buildAgentManagementProfile(config),
     implementationProviderId: null,
     implementationKind: 'manifest-only',
     visibility: 'private',
@@ -324,7 +541,22 @@ function buildUpdateAgentRequest(id: string, config: Partial<AgentConfig>): Upda
     ...(categoryId ? { tags: [categoryId] } : {}),
     manifest: buildAgentManifest({ ...config, id }, id),
     defaultCodeTaskIntent: buildAgentDefaultCodeTaskIntent(config),
+    managementProfile: buildAgentManagementProfile(config),
     requestedAt: new Date().toISOString(),
+  };
+}
+
+function mergeAgentConfig(
+  currentConfig: AgentConfig,
+  updatedConfig: Partial<AgentConfig>,
+  id: string,
+): AgentConfig {
+  return {
+    ...currentConfig,
+    ...Object.fromEntries(
+      Object.entries(updatedConfig).filter(([, value]) => value !== undefined),
+    ),
+    id,
   };
 }
 
@@ -352,12 +584,33 @@ function isExistingProviderBindingConflict(error: unknown): boolean {
 
   const response = isRecord(error.response) ? error.response : undefined;
   const body = isRecord(error.body) ? error.body : undefined;
+  const code =
+    asString(error.code) ??
+    (response ? asString(response.code) : undefined) ??
+    (body ? asString(body.code) : undefined);
+  const errorCategory =
+    asString(error.errorCategory) ??
+    (response ? asString(response.errorCategory) : undefined) ??
+    (body ? asString(body.errorCategory) : undefined);
   const detail =
     asString(error.detail) ??
     asString(error.message) ??
     (response ? asString(response.detail) ?? asString(response.message) : undefined) ??
     (body ? asString(body.detail) ?? asString(body.message) : undefined);
-  return detail?.toLowerCase().includes('provider binding already exists') ?? false;
+  const normalizedText = [code, errorCategory, detail]
+    .filter((item): item is string => Boolean(item))
+    .join(' ')
+    .toLowerCase();
+  const referencesProviderBinding =
+    normalizedText.includes('provider binding') ||
+    normalizedText.includes('provider_binding') ||
+    normalizedText.includes(DEFAULT_AGENT_BINDING_ID);
+
+  if (referencesProviderBinding && (normalizedText.includes('already exists') || normalizedText.includes('cannot be created again'))) {
+    return true;
+  }
+
+  return referencesProviderBinding && code === 'conflict';
 }
 
 function asCatalogScope(record: RecordLike): AgentCatalogScope | undefined {
@@ -429,19 +682,35 @@ function normalizeAgent(record: RecordLike): AgentConfig | undefined {
     return undefined;
   }
 
+  const legacyConfig = normalizeAgentManagementProfile(
+    parseAgentUiConfigFromIntent(record.defaultCodeTaskIntent),
+  );
+  const profileConfig = normalizeAgentManagementProfile(record.managementProfile);
+  const uiConfig = { ...definedAgentConfig(legacyConfig), ...definedAgentConfig(profileConfig) };
+
   return {
     id,
     name,
     description: asStringFrom(record, ['description', 'desc', 'summary', 'intro']) ?? '',
-    avatar: asStringFrom(record, ['avatar', 'avatarUrl', 'avatar_url', 'iconUrl', 'icon_url']) ?? '',
-    type: asAgentType(record.type),
-    systemPrompt: asStringFrom(record, ['systemPrompt', 'system_prompt', 'prompt']),
-    author: asStringFrom(record, ['author', 'authorName', 'author_name', 'ownerName', 'owner_name']),
-    users: asStringFrom(record, ['users', 'usageCountText', 'usage_count_text', 'installCountText', 'install_count_text']),
-    color: asStringFrom(record, ['color', 'colorClass', 'color_class']),
-    iconName: asStringFrom(record, ['iconName', 'icon_name', 'icon']),
-    categoryId: asStringFrom(record, ['categoryId', 'category_id', 'category']),
-    welcomeMessage: asStringFrom(record, ['welcomeMessage', 'welcome_message', 'greeting']),
+    avatar: asString(uiConfig.avatar) ?? asStringFrom(record, ['avatar', 'avatarUrl', 'avatar_url', 'iconUrl', 'icon_url']) ?? '',
+    type: asAgentType(uiConfig.type ?? record.type),
+    systemPrompt: asOptionalString(uiConfig.systemPrompt) ?? asStringFrom(record, ['systemPrompt', 'system_prompt', 'prompt']),
+    knowledgeBaseIds: asStringArray(uiConfig.knowledgeBaseIds),
+    author: asString(uiConfig.author) ?? asStringFrom(record, ['author', 'authorName', 'author_name', 'ownerName', 'owner_name']),
+    users: asString(uiConfig.users) ?? asStringFrom(record, ['users', 'usageCountText', 'usage_count_text', 'installCountText', 'install_count_text']),
+    color: asString(uiConfig.color) ?? asStringFrom(record, ['color', 'colorClass', 'color_class']),
+    iconName: asString(uiConfig.iconName) ?? asStringFrom(record, ['iconName', 'icon_name', 'icon']),
+    categoryId: asString(uiConfig.categoryId) ?? asStringFrom(record, ['categoryId', 'category_id', 'category']),
+    welcomeMessage: asOptionalString(uiConfig.welcomeMessage) ?? asStringFrom(record, ['welcomeMessage', 'welcome_message', 'greeting']),
+    debugMode: asBoolean(uiConfig.debugMode),
+    jsonMode: asBoolean(uiConfig.jsonMode),
+    memoryEnabled: asBoolean(uiConfig.memoryEnabled),
+    model: asString(uiConfig.model),
+    temperature: asNumber(uiConfig.temperature),
+    suggestedPrompts: asStringArray(uiConfig.suggestedPrompts),
+    voiceIds: asStringArray(uiConfig.voiceIds),
+    toolIds: asStringArray(uiConfig.toolIds),
+    skillIds: asStringArray(uiConfig.skillIds),
   };
 }
 
@@ -480,8 +749,6 @@ class SdkworkAgentService implements AgentService {
 
   async getAgents(): Promise<AgentConfig[]> {
     const response = await this.getAgentClient().ai.agents.list({
-      tenantId: DEFAULT_AGENT_TENANT_ID,
-      ownerUserId: DEFAULT_AGENT_OWNER_USER_ID,
       page: 1,
       pageSize: 100,
     });
@@ -490,7 +757,6 @@ class SdkworkAgentService implements AgentService {
 
   async getMarketAgents(): Promise<AgentConfig[]> {
     const response = await this.getAgentClient().ai.agents.list({
-      tenantId: DEFAULT_AGENT_TENANT_ID,
       page: 1,
       pageSize: 100,
     });
@@ -503,16 +769,20 @@ class SdkworkAgentService implements AgentService {
     const agentId = asString(config.id) ?? createAgentId(config.name);
     const response = await this.getAgentClient().ai.agents.create(
       buildCreateAgentRequest(config, agentId),
-      { tenantId: DEFAULT_AGENT_TENANT_ID },
     );
     return normalizeAgentFromAgentRecord(response.data);
   }
 
   async updateAgent(id: string, config: Partial<AgentConfig>): Promise<AgentConfig> {
+    const currentResponse = await this.getAgentClient().ai.agents.retrieve(id);
+    const mergedConfig = mergeAgentConfig(
+      normalizeAgentFromAgentRecord(currentResponse.data),
+      config,
+      id,
+    );
     const response = await this.getAgentClient().ai.agents.update(
       id,
-      buildUpdateAgentRequest(id, config),
-      { tenantId: DEFAULT_AGENT_TENANT_ID },
+      buildUpdateAgentRequest(id, mergedConfig),
     );
     return normalizeAgentFromAgentRecord(response.data);
   }
@@ -522,7 +792,6 @@ class SdkworkAgentService implements AgentService {
       await this.getAgentClient().ai.agents.providerBindings.create(
         id,
         buildDefaultProviderBindingRequest(),
-        { tenantId: DEFAULT_AGENT_TENANT_ID },
       );
     } catch (error) {
       if (!isExistingProviderBindingConflict(error)) {
@@ -537,17 +806,17 @@ class SdkworkAgentService implements AgentService {
         bindingId: DEFAULT_AGENT_BINDING_ID,
         requestedAt: new Date().toISOString(),
       },
-      { tenantId: DEFAULT_AGENT_TENANT_ID },
     );
   }
 
   async deleteAgent(id: string): Promise<void> {
-    await this.getAgentClient().ai.agents.delete(id, { tenantId: DEFAULT_AGENT_TENANT_ID });
+    await this.getAgentClient().ai.agents.delete(id);
   }
 
   async requestPreviewResponse(request: AgentPreviewResponseRequest): Promise<AgentPreviewResponse> {
     const agentId = requireAgentId(request.config);
     const executionId = createExecutionId('execution.pc.agent.preview');
+    const model = normalizeModelForRuntime(request.model ?? request.config.model);
     const response = await this.getAgentClient().ai.agents.previewResponses.create(
       agentId,
       {
@@ -555,18 +824,17 @@ class SdkworkAgentService implements AgentService {
         content: request.content,
         debugMode: request.debugMode ?? false,
         memoryEnabled: request.memoryEnabled ?? false,
-        model: request.model,
+        model,
         temperature: request.temperature,
         inputPayload: buildAgentRuntimeInputPayload(request.config, {
           content: request.content,
           debugMode: request.debugMode ?? false,
           memoryEnabled: request.memoryEnabled ?? false,
-          model: request.model,
+          model,
           temperature: request.temperature,
         }),
         requestedAt: new Date().toISOString(),
       },
-      { tenantId: DEFAULT_AGENT_TENANT_ID },
     );
     const outputPayload = response.data.outputPayload;
     const content = pickOutputString(outputPayload, [
@@ -591,17 +859,21 @@ class SdkworkAgentService implements AgentService {
   async optimizePrompt(request: AgentPromptOptimizeRequest): Promise<AgentPromptOptimizeResult> {
     const agentId = requireAgentId(request.config);
     const executionId = createExecutionId('execution.pc.agent.prompt');
+    const model = normalizeModelForRuntime(request.config.model);
     const response = await this.getAgentClient().ai.agents.promptOptimizations.create(
       agentId,
       {
         executionId,
         prompt: request.prompt,
-        inputPayload: buildAgentRuntimeInputPayload(request.config, {
-          prompt: request.prompt,
-        }),
+        inputPayload: buildAgentRuntimeInputPayload(
+          request.config,
+          {
+            ...(model ? { model } : {}),
+            prompt: request.prompt,
+          },
+        ),
         requestedAt: new Date().toISOString(),
       },
-      { tenantId: DEFAULT_AGENT_TENANT_ID },
     );
     const outputPayload = response.data.outputPayload;
     const optimizedPrompt = pickOutputString(outputPayload, [

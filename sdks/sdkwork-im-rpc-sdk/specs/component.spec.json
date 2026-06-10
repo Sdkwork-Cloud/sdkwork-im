@@ -74,6 +74,19 @@
       "rpc/sdkwork-im-rpc.manifest.json"
     ],
     "sdkDependencies": [],
+    "inspectionPolicy": {
+      "mode": "convention",
+      "protocol": "rpc",
+      "optionalControlPlane": {
+        "emitFlag": "--emit-control-plane",
+        "purpose": [
+          "release",
+          "ci",
+          "audit",
+          "migration"
+        ]
+      }
+    },
     "generatedSdkWorkspaces": [
       {
         "language": "go",
@@ -92,14 +105,7 @@
             "buf.gen.yaml",
             "rpc-methods.json",
             "sdkwork-im-rpc-sdk-go/generated/proto"
-          ],
-          "optionalControlPlane": {
-            "emitFlag": "--emit-control-plane",
-            "manifest": "sdkwork-im-rpc-sdk-go/.sdkwork/sdkwork-generator-manifest.json",
-            "changes": "sdkwork-im-rpc-sdk-go/.sdkwork/sdkwork-generator-changes.json",
-            "report": "sdkwork-im-rpc-sdk-go/.sdkwork/sdkwork-generator-report.json",
-            "protocol": "rpc"
-          }
+          ]
         }
       },
       {
@@ -119,14 +125,7 @@
             "buf.gen.yaml",
             "rpc-methods.json",
             "sdkwork-im-rpc-sdk-java/generated/proto/java"
-          ],
-          "optionalControlPlane": {
-            "emitFlag": "--emit-control-plane",
-            "manifest": "sdkwork-im-rpc-sdk-java/.sdkwork/sdkwork-generator-manifest.json",
-            "changes": "sdkwork-im-rpc-sdk-java/.sdkwork/sdkwork-generator-changes.json",
-            "report": "sdkwork-im-rpc-sdk-java/.sdkwork/sdkwork-generator-report.json",
-            "protocol": "rpc"
-          }
+          ]
         }
       },
       {
@@ -146,14 +145,7 @@
             "buf.gen.yaml",
             "rpc-methods.json",
             "sdkwork-im-rpc-sdk-python/generated/proto"
-          ],
-          "optionalControlPlane": {
-            "emitFlag": "--emit-control-plane",
-            "manifest": "sdkwork-im-rpc-sdk-python/.sdkwork/sdkwork-generator-manifest.json",
-            "changes": "sdkwork-im-rpc-sdk-python/.sdkwork/sdkwork-generator-changes.json",
-            "report": "sdkwork-im-rpc-sdk-python/.sdkwork/sdkwork-generator-report.json",
-            "protocol": "rpc"
-          }
+          ]
         }
       },
       {
@@ -173,14 +165,7 @@
             "buf.gen.yaml",
             "rpc-methods.json",
             "sdkwork-im-rpc-sdk-rust/generated/proto"
-          ],
-          "optionalControlPlane": {
-            "emitFlag": "--emit-control-plane",
-            "manifest": "sdkwork-im-rpc-sdk-rust/.sdkwork/sdkwork-generator-manifest.json",
-            "changes": "sdkwork-im-rpc-sdk-rust/.sdkwork/sdkwork-generator-changes.json",
-            "report": "sdkwork-im-rpc-sdk-rust/.sdkwork/sdkwork-generator-report.json",
-            "protocol": "rpc"
-          }
+          ]
         }
       },
       {
@@ -200,14 +185,7 @@
             "buf.gen.yaml",
             "rpc-methods.json",
             "sdkwork-im-rpc-sdk-typescript/generated/proto"
-          ],
-          "optionalControlPlane": {
-            "emitFlag": "--emit-control-plane",
-            "manifest": "sdkwork-im-rpc-sdk-typescript/.sdkwork/sdkwork-generator-manifest.json",
-            "changes": "sdkwork-im-rpc-sdk-typescript/.sdkwork/sdkwork-generator-changes.json",
-            "report": "sdkwork-im-rpc-sdk-typescript/.sdkwork/sdkwork-generator-report.json",
-            "protocol": "rpc"
-          }
+          ]
         }
       }
     ],

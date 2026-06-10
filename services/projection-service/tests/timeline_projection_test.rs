@@ -536,7 +536,7 @@ fn test_read_cursor_event_projects_into_cursor_view_with_unread_count() {
             "conversationId":"c_cursor",
             "messageId":"m_cursor_2",
             "messageSeq":2,
-            "sender":{"id":"u_demo","kind":"user","memberId":"cm_demo","deviceId":null,"sessionId":"s_demo","metadata":{}},
+            "sender":{"id":"u_other","kind":"user","memberId":"cm_other","deviceId":null,"sessionId":"s_other","metadata":{}},
             "messageType":"standard",
             "deliveryMode":"discrete",
             "clientMsgId":"client_2",
@@ -788,6 +788,277 @@ fn test_inbox_view_projects_member_summary_and_unread_count() {
     assert_eq!(inbox[0].last_message_id.as_deref(), Some("m_inbox_2"));
     assert_eq!(inbox[0].last_sender_id.as_deref(), Some("u_other"));
     assert_eq!(inbox[0].unread_count, 1);
+}
+
+#[test]
+fn test_inbox_view_projects_direct_peer_display_from_member_attributes() {
+    let service = TimelineProjectionService::default();
+
+    let conversation_created = im_domain_events::CommitEnvelope::minimal(
+        "evt_direct_display_conversation",
+        "t_demo",
+        "conversation.created",
+        "conversation",
+        "c_direct_display",
+        0,
+    )
+    .with_payload(
+        "conversation.created.v1",
+        r#"{
+            "conversationId":"c_direct_display",
+            "conversationType":"single"
+        }"#,
+    );
+    let current_member_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_direct_display_current",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_direct_display",
+        1,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_direct_display",
+            "memberId":"cm_direct_display_current",
+            "principalId":"u_current",
+            "principalKind":"user",
+            "role":"owner",
+            "state":"joined",
+            "invitedBy":null,
+            "joinedAt":"2026-04-05T10:00:00Z",
+            "removedAt":null,
+            "attributes":{"directChatRole":"initiator","peerActorId":"u_alice","peerActorKind":"user"}
+        }"#,
+    );
+    let peer_member_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_direct_display_peer",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_direct_display",
+        2,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_direct_display",
+            "memberId":"cm_direct_display_alice",
+            "principalId":"u_alice",
+            "principalKind":"user",
+            "role":"member",
+            "state":"joined",
+            "invitedBy":"u_current",
+            "joinedAt":"2026-04-05T10:00:01Z",
+            "removedAt":null,
+            "attributes":{
+                "directChatRole":"peer",
+                "peerActorId":"u_current",
+                "peerActorKind":"user",
+                "chatId":"alice-chat-id",
+                "displayName":"Alice Chen",
+                "avatarUrl":"https://cdn.example.test/alice.png",
+                "relationshipState":"active"
+            }
+        }"#,
+    );
+
+    for event in [
+        &conversation_created,
+        &current_member_joined,
+        &peer_member_joined,
+    ] {
+        service.apply(event).expect("projection event should apply");
+    }
+
+    let inbox = service.inbox_for_principal_kind("t_demo", "u_current", "user");
+    assert_eq!(inbox.len(), 1);
+    assert_eq!(inbox[0].conversation_id, "c_direct_display");
+    assert_eq!(inbox[0].conversation_type, "single");
+    assert_eq!(inbox[0].display_name.as_deref(), Some("Alice Chen"));
+    assert_eq!(
+        inbox[0].avatar_url.as_deref(),
+        Some("https://cdn.example.test/alice.png")
+    );
+    assert_eq!(
+        inbox[0].display_source.as_deref(),
+        Some("member_projection")
+    );
+
+    let peer = inbox[0]
+        .peer
+        .as_ref()
+        .expect("direct inbox should expose peer");
+    assert_eq!(peer.principal_kind, "user");
+    assert_eq!(peer.principal_id, "u_alice");
+    assert_eq!(peer.user_id.as_deref(), Some("u_alice"));
+    assert_eq!(peer.chat_id.as_deref(), Some("alice-chat-id"));
+    assert_eq!(peer.display_name.as_deref(), Some("Alice Chen"));
+    assert_eq!(
+        peer.avatar_url.as_deref(),
+        Some("https://cdn.example.test/alice.png")
+    );
+    assert_eq!(peer.relationship_state.as_deref(), Some("active"));
+}
+
+#[test]
+fn test_inbox_unread_count_excludes_messages_sent_by_current_principal() {
+    let service = TimelineProjectionService::default();
+
+    let conversation_created = im_domain_events::CommitEnvelope::minimal(
+        "evt_received_unread_conversation",
+        "t_demo",
+        "conversation.created",
+        "conversation",
+        "c_received_unread_projection",
+        0,
+    )
+    .with_payload(
+        "conversation.created.v1",
+        r#"{
+            "conversationId":"c_received_unread_projection",
+            "conversationType":"group"
+        }"#,
+    );
+    let owner_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_received_unread_owner",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_received_unread_projection",
+        1,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_received_unread_projection",
+            "memberId":"cm_received_unread_owner",
+            "principalId":"u_owner",
+            "principalKind":"user",
+            "role":"owner",
+            "state":"joined",
+            "invitedBy":null,
+            "joinedAt":"2026-04-05T10:00:00Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let friend_joined = im_domain_events::CommitEnvelope::minimal(
+        "evt_received_unread_friend",
+        "t_demo",
+        "conversation.member_joined",
+        "conversation",
+        "c_received_unread_projection",
+        2,
+    )
+    .with_payload(
+        "conversation.member.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_received_unread_projection",
+            "memberId":"cm_received_unread_friend",
+            "principalId":"u_friend",
+            "principalKind":"user",
+            "role":"member",
+            "state":"joined",
+            "invitedBy":"u_owner",
+            "joinedAt":"2026-04-05T10:00:01Z",
+            "removedAt":null,
+            "attributes":{}
+        }"#,
+    );
+    let owner_message = im_domain_events::CommitEnvelope::minimal(
+        "evt_received_unread_owner_message",
+        "t_demo",
+        "message.posted",
+        "conversation",
+        "c_received_unread_projection",
+        1,
+    )
+    .with_payload(
+        "message.posted.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_received_unread_projection",
+            "messageId":"m_received_unread_1",
+            "messageSeq":1,
+            "sender":{"id":"u_owner","kind":"user","memberId":"cm_received_unread_owner","deviceId":null,"sessionId":"s_owner","metadata":{}},
+            "messageType":"standard",
+            "deliveryMode":"discrete",
+            "clientMsgId":"client_received_unread_owner",
+            "streamSessionId":null,
+            "rtcSessionId":null,
+            "body":{"summary":"owner note","parts":[{"kind":"text","text":"owner note"}],"renderHints":{}},
+            "attributes":{},
+            "metadata":{},
+            "occurredAt":"2026-04-05T10:00:02Z",
+            "committedAt":"2026-04-05T10:00:02Z"
+        }"#,
+    );
+    let friend_message = im_domain_events::CommitEnvelope::minimal(
+        "evt_received_unread_friend_message",
+        "t_demo",
+        "message.posted",
+        "conversation",
+        "c_received_unread_projection",
+        2,
+    )
+    .with_payload(
+        "message.posted.v1",
+        r#"{
+            "tenantId":"t_demo",
+            "conversationId":"c_received_unread_projection",
+            "messageId":"m_received_unread_2",
+            "messageSeq":2,
+            "sender":{"id":"u_friend","kind":"user","memberId":"cm_received_unread_friend","deviceId":null,"sessionId":"s_friend","metadata":{}},
+            "messageType":"standard",
+            "deliveryMode":"discrete",
+            "clientMsgId":"client_received_unread_friend",
+            "streamSessionId":null,
+            "rtcSessionId":null,
+            "body":{"summary":"friend reply","parts":[{"kind":"text","text":"friend reply"}],"renderHints":{}},
+            "attributes":{},
+            "metadata":{},
+            "occurredAt":"2026-04-05T10:00:03Z",
+            "committedAt":"2026-04-05T10:00:03Z"
+        }"#,
+    );
+
+    for event in [
+        &conversation_created,
+        &owner_joined,
+        &friend_joined,
+        &owner_message,
+        &friend_message,
+    ] {
+        service.apply(event).expect("projection event should apply");
+    }
+
+    let owner_inbox = service.inbox_for_principal_kind("t_demo", "u_owner", "user");
+    assert_eq!(owner_inbox.len(), 1);
+    assert_eq!(
+        owner_inbox[0].unread_count, 1,
+        "owner inbox should count only the friend's received message as unread"
+    );
+
+    let friend_inbox = service.inbox_for_principal_kind("t_demo", "u_friend", "user");
+    assert_eq!(friend_inbox.len(), 1);
+    assert_eq!(
+        friend_inbox[0].unread_count, 1,
+        "friend inbox should count only the owner's received message as unread"
+    );
+
+    let owner_cursor = service
+        .read_cursor_for_principal_kind("t_demo", "c_received_unread_projection", "u_owner", "user")
+        .expect("owner cursor should exist");
+    assert_eq!(
+        owner_cursor.unread_count, 1,
+        "read cursor unreadCount should share the same received-message semantics"
+    );
 }
 
 #[test]

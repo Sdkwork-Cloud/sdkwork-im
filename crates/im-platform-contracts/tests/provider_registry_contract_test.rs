@@ -5,10 +5,11 @@ use im_platform_contracts::{
     EffectiveProviderBinding, ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor,
     ObjectStorageProvider, ObjectStoragePutRequest, ObjectStorageUploadSession,
     ObjectStorageUploadUrlRequest, PrincipalProfile, PrincipalProfileProvider, ProviderDomain,
-    ProviderHealthSnapshot, ProviderPluginDescriptor, ProviderRegistry, RtcCallbackEvent,
-    RtcCallbackRequest, RtcCreateMediaSessionRequest, RtcMediaSessionMode,
-    RtcParticipantCredential, RtcProviderPort, RtcRecordingArtifact, RtcSessionHandle,
-    RuntimeProviderRegistry, StaticProviderRegistry,
+    ProviderHealthSnapshot, ProviderPluginDescriptor, ProviderRegistry,
+    RtcCreateMediaSessionRequest, RtcMediaSessionMode, RtcParticipantCredential,
+    RtcProviderEventKind, RtcProviderPort, RtcProviderWebhookEvent, RtcProviderWebhookParseRequest,
+    RtcRecordingArtifact, RtcSessionHandle, RuntimeProviderRegistry, StaticProviderRegistry,
+    rtc_provider_payload_hash,
 };
 use sdkwork_rtc_core::{
     ProviderDomain as RtcProviderDomain, ProviderHealthSnapshot as RtcProviderHealthSnapshot,
@@ -27,7 +28,12 @@ impl RtcProviderPort for StubRtcProvider {
             "火山引擎",
         )
         .with_default_selected(true)
-        .with_required_capabilities(["session", "credential", "callback", "health"])
+        .with_required_capabilities([
+            "session",
+            "credential",
+            "provider.webhook",
+            "health",
+        ])
     }
 
     fn create_session(
@@ -75,15 +81,31 @@ impl RtcProviderPort for StubRtcProvider {
         self.issue_participant_credential(tenant_id, rtc_session_id, participant_id)
     }
 
-    fn map_provider_callback(
+    fn parse_provider_webhook(
         &self,
-        request: RtcCallbackRequest,
-    ) -> Result<RtcCallbackEvent, RtcContractError> {
-        Ok(RtcCallbackEvent {
-            rtc_session_id: request.rtc_session_id,
-            event_type: request.callback_type,
+        request: RtcProviderWebhookParseRequest,
+    ) -> Result<RtcProviderWebhookEvent, RtcContractError> {
+        Ok(RtcProviderWebhookEvent {
+            provider: request.provider,
+            provider_profile_id: request.provider_profile_id,
+            external_event_id: Some("event_demo".into()),
+            event_type: "participant_joined".into(),
+            event_kind: RtcProviderEventKind::ParticipantJoined,
+            room_id: Some("room_demo".into()),
+            rtc_session_id: Some("rtc_demo".into()),
+            provider_session_id: Some("volc-room-demo".into()),
             participant_id: Some("u_demo".into()),
-            payload_json: request.payload_json,
+            recording_id: None,
+            occurred_at: Some("2026-04-08T12:00:00Z".into()),
+            received_at: request.received_at,
+            payload_hash: rtc_provider_payload_hash(request.raw_payload.as_str()),
+            signature_header: request
+                .headers
+                .iter()
+                .find(|(name, _)| name.eq_ignore_ascii_case("x-demo-signature"))
+                .map(|(_, value)| value.clone()),
+            raw_payload: request.raw_payload,
+            normalized_event_json: "{\"eventKind\":\"participant_joined\"}".into(),
         })
     }
 
@@ -294,6 +316,24 @@ fn test_provider_registry_platform_default_freezes_provider_matrix_and_override_
     );
 
     let plugins = snapshot.plugins;
+    let rtc_volcengine = plugins
+        .iter()
+        .find(|plugin| plugin.plugin_id == "rtc-volcengine")
+        .expect("rtc-volcengine plugin should exist");
+    assert!(
+        rtc_volcengine
+            .required_capabilities
+            .iter()
+            .any(|capability| capability == "provider.webhook"),
+        "RTC providers should advertise the current provider.webhook capability"
+    );
+    assert!(
+        !rtc_volcengine
+            .required_capabilities
+            .iter()
+            .any(|capability| capability == "callback"),
+        "RTC providers must not advertise the retired callback capability"
+    );
     assert!(
         plugins
             .iter()

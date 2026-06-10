@@ -9,6 +9,7 @@ interface SignaturePadProps {
   onCancel: () => void;
   title: string;
   subtitle?: React.ReactNode;
+  mobileSignatureUrl?: string;
 }
 
 const PEN_COLORS = [
@@ -24,7 +25,7 @@ const ASPECT_RATIOS = [
   { label: '1:1', value: 'aspect-square' },
 ];
 
-export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, title, subtitle }) => {
+export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, title, subtitle, mobileSignatureUrl }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const signaturePadRef = useRef<SignaturePadLibrary | null>(null);
@@ -153,7 +154,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ onSave, onCancel, ti
               />
             </div>
 
-            <SignaturePadMobileQR />
+            <SignaturePadMobileQR signatureUrl={mobileSignatureUrl} />
         </div>
     </div>
   );

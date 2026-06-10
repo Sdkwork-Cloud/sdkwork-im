@@ -662,6 +662,34 @@ async fn test_read_cursor_query_returns_projected_cursor_view() {
     service
         .apply(
             &im_domain_events::CommitEnvelope::minimal(
+                "evt_peer_member",
+                "t_demo",
+                "conversation.member_joined",
+                "conversation",
+                "c_cursor",
+                1,
+            )
+            .with_payload(
+                "conversation.member.v1",
+                r#"{
+                    "tenantId":"t_demo",
+                    "conversationId":"c_cursor",
+                    "memberId":"cm_peer",
+                    "principalId":"u_peer",
+                    "principalKind":"user",
+                    "role":"member",
+                    "state":"joined",
+                    "invitedBy":"u_demo",
+                    "joinedAt":"2026-04-05T10:00:01Z",
+                    "removedAt":null,
+                    "attributes":{}
+                }"#,
+            ),
+        )
+        .expect("peer member projection should succeed");
+    service
+        .apply(
+            &im_domain_events::CommitEnvelope::minimal(
                 "evt_message",
                 "t_demo",
                 "message.posted",
@@ -676,7 +704,7 @@ async fn test_read_cursor_query_returns_projected_cursor_view() {
                     "conversationId":"c_cursor",
                     "messageId":"m_demo_2",
                     "messageSeq":2,
-                    "sender":{"id":"u_demo","kind":"user","memberId":"cm_demo","deviceId":null,"sessionId":"s_demo","metadata":{}},
+                    "sender":{"id":"u_peer","kind":"user","memberId":"cm_peer","deviceId":null,"sessionId":"s_peer","metadata":{}},
                     "messageType":"standard",
                     "deliveryMode":"discrete",
                     "clientMsgId":"client_demo_2",

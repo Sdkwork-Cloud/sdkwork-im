@@ -7,6 +7,15 @@ const calls: Array<{
   method: string;
   params?: Record<string, unknown>;
 }> = [];
+let scenario: 'default' | 'many-projected-groups' = 'default';
+let activeMemberLookups = 0;
+let maxActiveMemberLookups = 0;
+
+async function delay(): Promise<void> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, 5);
+  });
+}
 
 function createMember(conversationId: string, principalId: string): ConversationMember {
   return {
@@ -27,6 +36,20 @@ const fakeClient = {
     inbox: {
       async retrieve(params?: Record<string, unknown>) {
         calls.push({ method: 'chat.inbox.retrieve', params });
+        if (scenario === 'many-projected-groups') {
+          return {
+            hasMore: false,
+            items: Array.from({ length: 9 }, (_, index) => ({
+              avatarUrl: `https://cdn.example.test/group-perf-${index}.png`,
+              conversationId: `group-perf-${index}`,
+              conversationType: 'group',
+              displayName: `Projected Group ${index}`,
+              lastActivityAt: `2026-06-04T10:00:0${index}.000Z`,
+              lastMessageSeq: 2 + index,
+              unreadCount: 0,
+            })),
+          };
+        }
         return {
           hasMore: false,
           items: [
@@ -77,6 +100,15 @@ const fakeClient = {
     },
     async listMembers(conversationId: string, params?: Record<string, unknown>) {
       calls.push({ method: 'conversations.listMembers', conversationId, params });
+      if (scenario === 'many-projected-groups') {
+        activeMemberLookups += 1;
+        maxActiveMemberLookups = Math.max(maxActiveMemberLookups, activeMemberLookups);
+        try {
+          await delay();
+        } finally {
+          activeMemberLookups -= 1;
+        }
+      }
       return {
         hasMore: false,
         items: [
@@ -87,6 +119,12 @@ const fakeClient = {
     },
     async list(params?: Record<string, unknown>) {
       calls.push({ method: 'conversations.list', params });
+      if (scenario === 'many-projected-groups') {
+        return {
+          hasMore: false,
+          items: [],
+        };
+      }
       return {
         hasMore: false,
         items: [
@@ -142,8 +180,6 @@ async function main(): Promise<void> {
     [
       'chat.inbox.retrieve',
       'conversations.getPreferences',
-      'conversations.getPreferences',
-      'conversations.getProfile',
       'conversations.getProfile',
       'conversations.list',
       'conversations.getPreferences',
@@ -151,7 +187,23 @@ async function main(): Promise<void> {
       'conversations.listMembers',
       'conversations.listMembers',
     ],
-    'group service must not bypass its injected IM SDK client and must profile-hydrate conversation-list groups beyond the inbox',
+    'group service must read group inbox projections directly and must not trigger chatClient.getChats single-chat hydration while still profile-hydrating missing group names',
+  );
+
+  scenario = 'many-projected-groups';
+  calls.length = 0;
+  activeMemberLookups = 0;
+  maxActiveMemberLookups = 0;
+  const projectedGroups = await service.getGroups();
+  assert.equal(projectedGroups.length, 9);
+  assert.ok(
+    maxActiveMemberLookups <= 4,
+    `group member-state hydration must be bounded to 4 concurrent member lookups, saw ${maxActiveMemberLookups}`,
+  );
+  assert.equal(
+    calls.filter((call) => call.method === 'conversations.getProfile').length,
+    0,
+    'complete group inbox projection must not perform per-group profile hydration',
   );
 
   console.log('sdkwork-chat-pc group service client injection contract passed');

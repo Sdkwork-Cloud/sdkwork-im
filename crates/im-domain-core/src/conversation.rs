@@ -782,6 +782,32 @@ pub struct ConversationAgentHandoffView {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ConversationInboxPeerView {
+    pub principal_kind: String,
+    pub principal_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relationship_state: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationInboxPreferencesView {
+    pub is_pinned: bool,
+    pub is_muted: bool,
+    pub is_marked_unread: bool,
+    pub is_hidden: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ConversationInboxEntry {
     pub tenant_id: String,
     pub principal_id: String,
@@ -796,6 +822,17 @@ pub struct ConversationInboxEntry {
     pub last_summary: Option<String>,
     pub unread_count: u64,
     pub last_activity_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peer: Option<ConversationInboxPeerView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preferences: Option<ConversationInboxPreferencesView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_handoff: Option<ConversationAgentHandoffView>,
 }
 

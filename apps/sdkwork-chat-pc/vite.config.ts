@@ -42,6 +42,11 @@ const generatedDriveAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-drive'),
   'sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts',
 );
+
+const generatedNotaryAppSdkEntry = path.resolve(
+  dependencyRoot('sdkwork-notary'),
+  'sdks/sdkwork-notary-app-sdk/sdkwork-notary-app-sdk-typescript/src/index.ts',
+);
 const generatedImSdkEntry = path.resolve(
   __dirname,
   '../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts',
@@ -151,6 +156,7 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/appbase-app-sdk', replacement: generatedAppbaseAppSdkEntry },
         { find: '@sdkwork/appbase-backend-sdk', replacement: generatedAppbaseBackendSdkEntry },
         { find: '@sdkwork/drive-app-sdk', replacement: generatedDriveAppSdkEntry },
+        { find: '@sdkwork/notary-app-sdk', replacement: generatedNotaryAppSdkEntry },
         { find: '@sdkwork/im-sdk', replacement: generatedImSdkEntry },
         { find: '@sdkwork/rtc-sdk', replacement: generatedRtcSdkEntry },
         { find: '@sdkwork/appbase-pc-react', replacement: appbasePcReactEntry },
@@ -231,6 +237,7 @@ export default defineConfig(({mode}) => {
         '@sdkwork/appbase-app-sdk',
         '@sdkwork/appbase-backend-sdk',
         '@sdkwork/drive-app-sdk',
+        '@sdkwork/notary-app-sdk',
         '@sdkwork/im-sdk',
         '@sdkwork/rtc-sdk',
         '@sdkwork/appbase-pc-react',

@@ -4,6 +4,7 @@ import path from 'node:path';
 const DEFAULT_SERVER_HOST = '127.0.0.1';
 const DEFAULT_SERVER_PORT = 18079;
 const DEFAULT_MAX_SERVER_PORT_ATTEMPTS = 50;
+const DEFAULT_RESERVED_SERVER_PORTS = new Set([18080]);
 
 function normalizeText(value) {
   const normalized = String(value ?? '').trim();
@@ -38,6 +39,19 @@ function parseBindAddr(value) {
     host: normalizeText(host) ?? DEFAULT_SERVER_HOST,
     port: normalizePort(normalized.slice(lastColonIndex + 1), 'SDKWORK_CHAT_SERVER_BIND'),
   };
+}
+
+function isReservedPort(reservedPorts, port) {
+  if (!reservedPorts) {
+    return false;
+  }
+  if (typeof reservedPorts.has === 'function') {
+    return reservedPorts.has(port);
+  }
+  if (Array.isArray(reservedPorts)) {
+    return reservedPorts.includes(port);
+  }
+  return false;
 }
 
 export function isTcpPortAvailable(port, host = DEFAULT_SERVER_HOST) {
@@ -77,6 +91,7 @@ export async function resolveCrawChatServerBindEnv({
   env = process.env,
   isPortAvailable = isTcpPortAvailable,
   maxAttempts = DEFAULT_MAX_SERVER_PORT_ATTEMPTS,
+  reservedPorts = DEFAULT_RESERVED_SERVER_PORTS,
 } = {}) {
   const explicitBind = parseBindAddr(env.SDKWORK_CHAT_SERVER_BIND);
   if (explicitBind) {
@@ -96,6 +111,9 @@ export async function resolveCrawChatServerBindEnv({
     const candidatePort = DEFAULT_SERVER_PORT + offset;
     if (candidatePort > 65535) {
       break;
+    }
+    if (isReservedPort(reservedPorts, candidatePort)) {
+      continue;
     }
     if (await isPortAvailable(candidatePort, DEFAULT_SERVER_HOST)) {
       const bindAddr = `${DEFAULT_SERVER_HOST}:${candidatePort}`;

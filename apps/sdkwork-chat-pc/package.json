@@ -35,6 +35,7 @@
     "@sdkwork/iam-sdk-ports": "workspace:*",
     "@sdkwork/im-sdk": "workspace:*",
     "@sdkwork/i18n-pc-react": "workspace:*",
+    "@sdkwork/rtc-sdk-provider-volcengine": "workspace:*",
     "@sdkwork/rtc-sdk": "workspace:*",
     "@sdkwork/sdk-common": "catalog:",
     "@sdkwork/ui-pc-react": "workspace:*",
@@ -48,6 +49,7 @@
     "@tiptap/pm": "catalog:",
     "@tiptap/react": "catalog:",
     "@tiptap/starter-kit": "catalog:",
+    "@volcengine/rtc": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
@@ -69,7 +71,8 @@
     "signature_pad": "catalog:",
     "tailwind-merge": "catalog:",
     "tiptap-markdown": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "@sdkwork/notary-app-sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/express": "catalog:",
@@ -94,7 +97,9 @@
       "@sdkwork/appbase-backend-sdk": "workspace:*",
       "@sdkwork/drive-app-sdk": "workspace:*",
       "@sdkwork/im-sdk": "workspace:*",
-      "@sdkwork/rtc-sdk": "workspace:*"
+      "@sdkwork/rtc-sdk-provider-volcengine": "workspace:*",
+      "@sdkwork/rtc-sdk": "workspace:*",
+      "@sdkwork/notary-app-sdk": "workspace:*"
     }
   },
   "workspaces": [

@@ -7,6 +7,7 @@ import { getImSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/imSdkCl
 import type { Chat, Message, User } from '@sdkwork/clawchat-pc-types';
 import { chatService, createSdkworkChatService, type ChatService } from './ChatService';
 import { contactService } from './ContactService';
+import { createDefaultAvatar } from './DefaultAvatarService';
 
 export interface GroupService {
   createGroup(name: string, members: string[]): Promise<Chat>;
@@ -24,8 +25,10 @@ export type GroupMemberSyncChange = Required<Pick<GroupViewState, 'activeCount' 
   groupId: string;
 };
 type ConversationListEntry = InboxResponse['items'][number];
+const GROUP_INBOX_PAGE_LIMIT = 100;
 const GROUP_MEMBERS_PAGE_LIMIT = 100;
 const GROUPS_PAGE_LIMIT = 100;
+const GROUP_LIST_HYDRATION_CONCURRENCY = 4;
 export const GROUP_INVITE_DESCRIPTOR_PREFIX = 'group-invite:';
 
 export interface GroupInviteDescriptor {
@@ -45,6 +48,12 @@ function pickString(...values: unknown[]): string | undefined {
   return undefined;
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
 function parseJsonRecord(value: unknown): Record<string, unknown> | undefined {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     return value as Record<string, unknown>;
@@ -60,6 +69,26 @@ function parseJsonRecord(value: unknown): Record<string, unknown> | undefined {
   } catch {
     return undefined;
   }
+}
+
+async function mapWithConcurrencyLimit<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  const workerCount = Math.min(Math.max(1, Math.floor(concurrency)), items.length);
+  let nextIndex = 0;
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await mapper(items[currentIndex] as T, currentIndex);
+    }
+  }));
+
+  return results;
 }
 
 function buildGroupInviteUrl(groupId: string): string {
@@ -133,8 +162,8 @@ function createGroupId(): string {
   return `pc-group-${requestId}`;
 }
 
-function createGroupAvatar(groupId: string): string {
-  return `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(groupId)}`;
+function createGroupAvatar(): string {
+  return createDefaultAvatar('group');
 }
 
 function normalizeGroupName(name: string, memberCount: number): string {
@@ -163,7 +192,10 @@ function mapActiveMemberIds(members: ConversationMember[]): string[] {
 }
 
 function isGeneratedGroupName(group: Chat): boolean {
-  return group.name === `Group ${group.id}`;
+  return group.name === 'Group chat'
+    || group.name === `Group ${group.id}`
+    || group.name === group.id
+    || /^(?:Group\s+c_|c_group|pc-group-|conversation[-_:])/iu.test(group.name.trim());
 }
 
 function mergeCachedGroupViewState(group: Chat, state: GroupViewState | undefined): Chat {
@@ -180,14 +212,22 @@ function mergeCachedGroupViewState(group: Chat, state: GroupViewState | undefine
 
 function mapConversationEntryToGroup(entry: ConversationListEntry): Chat {
   const updatedAt = new Date(entry.lastActivityAt).getTime();
+  const entryRecord = toRecord(entry);
+  const projectedName = pickString(entryRecord.displayName, entryRecord.display_name);
+  const projectedAvatar = pickString(entryRecord.avatarUrl, entryRecord.avatar_url);
   return {
     id: entry.conversationId,
-    name: `Group ${entry.conversationId}`,
-    avatar: createGroupAvatar(entry.conversationId),
+    name: projectedName ?? 'Group chat',
+    avatar: projectedAvatar ?? createGroupAvatar(),
     type: 'group',
     unreadCount: entry.unreadCount,
     updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(),
   };
+}
+
+function hasGroupDisplayProjection(entry: ConversationListEntry): boolean {
+  const entryRecord = toRecord(entry);
+  return Boolean(pickString(entryRecord.displayName, entryRecord.display_name));
 }
 
 class SdkworkGroupService implements GroupService {
@@ -226,6 +266,25 @@ class SdkworkGroupService implements GroupService {
 
       cursor = response.nextCursor;
     }
+
+    return items;
+  }
+
+  private async listAllInboxGroups(): Promise<ConversationListEntry[]> {
+    const items: ConversationListEntry[] = [];
+    let cursor: string | undefined;
+
+    do {
+      const response = await this.client().chat?.inbox?.retrieve({
+        limit: GROUP_INBOX_PAGE_LIMIT,
+        ...(cursor ? { cursor } : {}),
+      });
+      if (!response) {
+        break;
+      }
+      items.push(...response.items.filter((entry) => entry.conversationType.toLowerCase() === 'group'));
+      cursor = response.hasMore ? response.nextCursor : undefined;
+    } while (cursor);
 
     return items;
   }
@@ -283,9 +342,9 @@ class SdkworkGroupService implements GroupService {
     const boundGroupId = result.conversationId;
 
     const groupName = normalizeGroupName(name, members.length);
-    const groupAvatar = createGroupAvatar(boundGroupId);
+    const groupAvatar = createGroupAvatar();
     await this.client().conversations.updateProfile(boundGroupId, {
-      avatarUrl: groupAvatar,
+      ...(groupAvatar ? { avatarUrl: groupAvatar } : {}),
       displayName: groupName,
     });
     await this.client().conversations.updatePreferences(boundGroupId, { isHidden: false });
@@ -322,29 +381,118 @@ class SdkworkGroupService implements GroupService {
   }
 
   async getGroups(): Promise<Chat[]> {
-    const chats = await this.chatClient.getChats();
-    const groupsById = new Map(chats
-      .filter((chat) => chat.type === 'group')
-      .map((group) => [group.id, group]));
-    const entries = await this.listAllConversationEntries().catch(() => []);
-    for (const entry of entries) {
-      if (entry.conversationType.toLowerCase() !== 'group' || groupsById.has(entry.conversationId)) {
-        continue;
-      }
-      const group = await this.hydrateConversationEntryGroup(entry);
+    const inboxGroups = await this.listAllInboxGroups();
+    const groupsById = new Map<string, Chat>();
+    const hydratedInboxGroups = await mapWithConcurrencyLimit(
+      inboxGroups,
+      GROUP_LIST_HYDRATION_CONCURRENCY,
+      async (entry) => (hasGroupDisplayProjection(entry)
+        ? mapConversationEntryToGroup(entry)
+        : await this.hydrateConversationEntryGroup(entry)),
+    );
+    for (const group of hydratedInboxGroups) {
       if (group) {
-        groupsById.set(entry.conversationId, group);
+        groupsById.set(group.id, group);
       }
     }
-    const groups = await Promise.all(Array.from(groupsById.values()).map((group) => this.withMemberState(group)));
+    const entries = await this.listAllConversationEntries().catch(() => []);
+    const missingGroupEntries = entries.filter((entry) => (
+      entry.conversationType.toLowerCase() === 'group'
+      && !groupsById.has(entry.conversationId)
+    ));
+    const hydratedMissingGroups = await mapWithConcurrencyLimit(
+      missingGroupEntries,
+      GROUP_LIST_HYDRATION_CONCURRENCY,
+      async (entry) => this.hydrateConversationEntryGroup(entry),
+    );
+    for (const group of hydratedMissingGroups) {
+      if (group) {
+        groupsById.set(group.id, group);
+      }
+    }
+    const groups = await mapWithConcurrencyLimit(
+      Array.from(groupsById.values()),
+      GROUP_LIST_HYDRATION_CONCURRENCY,
+      async (group) => this.withMemberState(group),
+    );
     return groups.sort((left, right) => right.updatedAt - left.updatedAt);
   }
 
+  async syncGroupMembers(): Promise<GroupMemberSyncChange[]> {
+    const entries = await this.listAllConversationEntries();
+    const groupIds = entries
+      .filter((entry) => entry.conversationType.toLowerCase() === 'group')
+      .map((entry) => entry.conversationId);
+    const changes = await mapWithConcurrencyLimit(
+      groupIds,
+      GROUP_LIST_HYDRATION_CONCURRENCY,
+      async (groupId): Promise<GroupMemberSyncChange> => {
+        const state = await this.syncMemberViewState(groupId, false);
+        return {
+          ...state,
+          groupId,
+        };
+      },
+    );
+
+    return changes.sort((left, right) => left.groupId.localeCompare(right.groupId));
+  }
+
+  private async withMemberState(group: Chat): Promise<Chat> {
+    try {
+      const memberState = await this.syncMemberViewState(group.id, false);
+      return {
+        ...mergeCachedGroupViewState(group, this.groupViewState.get(group.id)),
+        activeCount: memberState.activeCount,
+        memberCount: memberState.memberCount,
+        members: memberState.members,
+      };
+    } catch {
+      return mergeCachedGroupViewState(group, this.groupViewState.get(group.id));
+    }
+  }
+
+  private async syncMemberViewState(
+    groupId: string,
+    _syncChatView = false,
+  ): Promise<Required<Pick<GroupViewState, 'activeCount' | 'memberCount' | 'members'>>> {
+    const members = mapActiveMemberIds(await this.listAllConversationMembers(groupId));
+    const existingState = this.groupViewState.get(groupId) ?? {};
+    const nextState = {
+      ...existingState,
+      activeCount: members.length,
+      memberCount: members.length,
+      members,
+    };
+    this.groupViewState.set(groupId, nextState);
+    return {
+      activeCount: nextState.activeCount,
+      memberCount: nextState.memberCount,
+      members: nextState.members,
+    };
+  }
+
   async updateGroupInfo(groupId: string, updates: Partial<Chat>): Promise<Chat> {
-    const updatedGroup = await this.chatClient.updateChat(groupId, {
-      ...updates,
+    const profileUpdate = {
+      ...(updates.avatar !== undefined ? { avatarUrl: updates.avatar } : {}),
+      ...(updates.name !== undefined ? { displayName: updates.name } : {}),
+      ...(updates.notice !== undefined ? { notice: updates.notice } : {}),
+    };
+    const profile = Object.keys(profileUpdate).length > 0
+      ? await this.client().conversations.updateProfile(groupId, profileUpdate)
+      : undefined;
+    const updatedGroup: Chat = {
+      id: groupId,
+      name: pickString(profile?.displayName, updates.name) ?? 'Group chat',
+      avatar: pickString(profile?.avatarUrl, updates.avatar) ?? createGroupAvatar(),
       type: 'group',
-    });
+      unreadCount: 0,
+      updatedAt: Date.now(),
+      activeCount: updates.activeCount,
+      memberCount: updates.memberCount,
+      members: updates.members,
+      notice: profile?.notice ?? updates.notice,
+    };
     const existingState = this.groupViewState.get(groupId) ?? {};
     this.groupViewState.set(groupId, {
       ...existingState,
@@ -428,66 +576,6 @@ class SdkworkGroupService implements GroupService {
     await this.client().conversations.leave(groupId);
     await this.chatClient.deleteChat(groupId).catch(() => undefined);
     this.groupViewState.delete(groupId);
-  }
-
-  async syncGroupMembers(): Promise<GroupMemberSyncChange[]> {
-    const entries = await this.listAllConversationEntries();
-    const groupIds = entries
-      .filter((entry) => entry.conversationType.toLowerCase() === 'group')
-      .map((entry) => entry.conversationId);
-    const changes: GroupMemberSyncChange[] = [];
-
-    for (const groupId of groupIds) {
-      const state = await this.syncMemberViewState(groupId, false);
-      changes.push({
-        ...state,
-        groupId,
-      });
-    }
-
-    return changes.sort((left, right) => left.groupId.localeCompare(right.groupId));
-  }
-
-  private async withMemberState(group: Chat): Promise<Chat> {
-    try {
-      const memberState = await this.syncMemberViewState(group.id, false);
-      return {
-        ...mergeCachedGroupViewState(group, this.groupViewState.get(group.id)),
-        activeCount: memberState.activeCount,
-        memberCount: memberState.memberCount,
-        members: memberState.members,
-      };
-    } catch {
-      return mergeCachedGroupViewState(group, this.groupViewState.get(group.id));
-    }
-  }
-
-  private async syncMemberViewState(
-    groupId: string,
-    syncChatView = true,
-  ): Promise<Required<Pick<GroupViewState, 'activeCount' | 'memberCount' | 'members'>>> {
-    const members = mapActiveMemberIds(await this.listAllConversationMembers(groupId));
-    const existingState = this.groupViewState.get(groupId) ?? {};
-    const nextState = {
-      ...existingState,
-      activeCount: members.length,
-      memberCount: members.length,
-      members,
-    };
-    this.groupViewState.set(groupId, nextState);
-    if (syncChatView) {
-      await this.chatClient.updateChat(groupId, {
-        activeCount: nextState.activeCount,
-        memberCount: nextState.memberCount,
-        members: nextState.members,
-        type: 'group',
-      }).catch(() => undefined);
-    }
-    return {
-      activeCount: nextState.activeCount,
-      memberCount: nextState.memberCount,
-      members: nextState.members,
-    };
   }
 
 }

@@ -3,8 +3,12 @@ import { Camera, Bot, Server } from 'lucide-react';
 import { toast } from './Toast';
 import { agentService } from '../services/AgentService';
 import { ModalWrapper } from './ModalWrapper';
+import { DEFAULT_AGENT_CONFIG } from './AgentDefaults';
+import { createDefaultAvatar } from '../services/DefaultAvatarService';
 
-export const CreateAgentModal: React.FC<{ isOpen: boolean; onClose: () => void; onSuccess: () => void }> = ({ isOpen, onClose, onSuccess }) => {
+const DEFAULT_AGENT_AVATAR = createDefaultAvatar('agent');
+
+export const CreateAgentModal: React.FC<{ isOpen: boolean; onClose: () => void; onSuccess: (agentId?: string) => void }> = ({ isOpen, onClose, onSuccess }) => {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [type, setType] = useState<'normal' | 'independent'>('normal');
@@ -34,14 +38,15 @@ export const CreateAgentModal: React.FC<{ isOpen: boolean; onClose: () => void; 
             onClick={async () => {
               setCreating(true);
               try {
-                await agentService.createAgent({
+                const createdAgent = await agentService.createAgent({
+                  ...DEFAULT_AGENT_CONFIG,
                   name,
                   description: desc,
                   type,
-                  avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${name}`
+                  avatar: DEFAULT_AGENT_AVATAR
                 });
                 toast(`智能体 "${name}" 创建成功`, 'success');
-                onSuccess();
+                onSuccess(createdAgent.id);
               } catch (error) {
                 toast('创建智能体失败', 'error');
               } finally {

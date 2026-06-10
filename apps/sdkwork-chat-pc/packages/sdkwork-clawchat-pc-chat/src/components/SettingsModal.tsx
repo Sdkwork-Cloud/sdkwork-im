@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   X,
   Bell,
+  BellRing,
   Shield,
   Paintbrush,
   MonitorSmartphone,
@@ -27,6 +28,8 @@ import {
   Building2,
   Mic,
   Cloud,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { cn } from "@sdkwork/clawchat-pc-commons";
 import { toast } from "./Toast";
@@ -37,6 +40,13 @@ import {
   ALL_APP_MODULES,
   DEFAULT_SIDEBAR_MODULES,
 } from "../services/SettingsService";
+import { notaryAccessService } from "../services/NotaryAccessService";
+import {
+  getSystemNotificationPermission,
+  querySystemNotificationPermission,
+  requestSystemNotificationPermission,
+  type SystemNotificationPermission,
+} from "../services/NotificationService";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -71,17 +81,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   onLogout,
 }) => {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [serverModules, setServerModules] = useState<string[]>(ALL_APP_MODULES);
+  const [canShowNotaryMenu, setCanShowNotaryMenu] = useState(false);
+  const [systemNotificationPermission, setSystemNotificationPermission] =
+    useState<SystemNotificationPermission>(() => getSystemNotificationPermission());
 
   useEffect(() => {
     if (isOpen) {
       settingsService.getSettings().then(setSettings);
       settingsService.getDevices().then(setDevices);
       settingsService.getServerModules().then(setServerModules);
+      notaryAccessService.canShowNotaryMenu(true).then(setCanShowNotaryMenu);
+      setSystemNotificationPermission(getSystemNotificationPermission());
+      querySystemNotificationPermission()
+        .then(setSystemNotificationPermission)
+        .catch(() => setSystemNotificationPermission("unsupported"));
     }
   }, [isOpen]);
 
@@ -98,6 +116,57 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       notifyLanguageChanged(nextUpdate.lang);
     }
   };
+
+  const toggleSystemNotifications = async () => {
+    if (!settings) return;
+    if (settings.notifySystem) {
+      await updateSetting({ notifySystem: false });
+      return;
+    }
+
+    const permission = await requestSystemNotificationPermission();
+    setSystemNotificationPermission(permission);
+    if (permission === "granted") {
+      await updateSetting({ notifySystem: true });
+      toast(t("chat.notification.settings.toast.systemEnabled"), "success");
+      return;
+    }
+    await updateSetting({ notifySystem: false });
+    toast(
+      permission === "denied"
+        ? t("chat.notification.settings.toast.systemDenied")
+        : t("chat.notification.settings.toast.systemUnsupported"),
+      "error",
+      { placement: "bottom-right" },
+    );
+  };
+
+  const renderNotificationSwitch = (
+    checked: boolean,
+    onToggle: () => void,
+    disabled = false,
+  ) => (
+    <button
+      type="button"
+      disabled={disabled}
+      aria-pressed={checked}
+      className={cn(
+        "relative h-6 w-11 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        checked ? "bg-indigo-500" : "bg-gray-600",
+      )}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+    >
+      <span
+        className={cn(
+          "absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform",
+          checked ? "translate-x-5" : "",
+        )}
+      />
+    </button>
+  );
 
   return (
     <AnimatePresence>
@@ -302,7 +371,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           </p>
                           <div className="flex flex-col gap-3">
                             {(() => {
-                              const allAvailable = [
+                              const configuredAvailable = [
                                 {
                                   id: "chat",
                                   name: "聊天",
@@ -363,7 +432,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 },
                                 { id: "contacts", name: "通讯录", icon: Users },
                                 { id: "favorites", name: "收藏", icon: Star },
-                              ].filter(
+                              ];
+
+                              const filterNotaryModules = (modules: typeof configuredAvailable) =>
+                                canShowNotaryMenu ? modules : modules.filter((mod) => mod.id !== "notary");
+
+                              const allAvailable = filterNotaryModules(configuredAvailable).filter(
                                 (mod) =>
                                   mod.id === "chat" ||
                                   DEFAULT_SIDEBAR_MODULES.includes(mod.id) ||
@@ -373,7 +447,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               const currentModules =
                                 settings.sidebarModules?.length
                                   ? settings.sidebarModules
-                                  : DEFAULT_SIDEBAR_MODULES;
+                                  : DEFAULT_SIDEBAR_MODULES.filter((moduleId) => canShowNotaryMenu || moduleId !== "notary");
                               const currentOrder = currentModules.filter((id) =>
                                 allAvailable.some((m) => m.id === id),
                               );
@@ -529,87 +603,182 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         className="space-y-6"
                       >
                         <div className="space-y-6">
-                          <div className="space-y-2">
-                            <div
-                              className="flex items-center justify-between p-4 bg-[#2b2b2d] rounded-xl border border-white/5 hover:border-indigo-500/30 transition-colors cursor-pointer"
-                              onClick={() =>
-                                updateSetting({
-                                  notifySound: !settings.notifySound,
-                                })
-                              }
-                            >
+                          <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-4">
+                            <div className="flex items-start gap-3">
+                              <BellRing size={18} className="mt-0.5 shrink-0 text-indigo-300" />
                               <div>
-                                <div className="text-sm font-medium text-gray-200 mb-1">
-                                  新消息提示音
+                                <div className="text-sm font-medium text-gray-100">
+                                  {t("chat.notification.settings.title")}
                                 </div>
-                                <div className="text-xs text-gray-500">
-                                  收到新消息时播放声音
+                                <div className="mt-1 text-xs leading-5 text-gray-400">
+                                  {t("chat.notification.settings.description")}
                                 </div>
-                              </div>
-                              <div
-                                className={cn(
-                                  "w-11 h-6 rounded-full transition-colors relative",
-                                  settings.notifySound
-                                    ? "bg-indigo-500"
-                                    : "bg-gray-600",
-                                )}
-                              >
-                                <div
-                                  className={cn(
-                                    "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform",
-                                    settings.notifySound ? "translate-x-5" : "",
-                                  )}
-                                ></div>
                               </div>
                             </div>
                           </div>
-                          <div className="space-y-2">
+
+                          <div className="space-y-3">
                             <div
-                              className="flex items-center justify-between p-4 bg-[#2b2b2d] rounded-xl border border-white/5 hover:border-indigo-500/30 transition-colors cursor-pointer"
-                              onClick={() =>
-                                updateSetting({
-                                  notifyDesktop: !settings.notifyDesktop,
-                                })
-                              }
+                              className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-white/5 bg-[#2b2b2d] p-4 transition-colors hover:border-indigo-500/30"
+                              onClick={() => updateSetting({ notifyDesktop: !settings.notifyDesktop })}
                             >
-                              <div>
-                                <div className="text-sm font-medium text-gray-200 mb-1">
-                                  桌面通知
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  在屏幕右上角显示新消息提示
+                              <div className="flex min-w-0 items-start gap-3">
+                                <Bell size={18} className="mt-0.5 shrink-0 text-gray-400" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-200">
+                                    {t("chat.notification.settings.appPopup.title")}
+                                  </div>
+                                  <div className="mt-1 text-xs leading-5 text-gray-500">
+                                    {t("chat.notification.settings.appPopup.description")}
+                                  </div>
                                 </div>
                               </div>
-                              <div
-                                className={cn(
-                                  "w-11 h-6 rounded-full transition-colors relative",
-                                  settings.notifyDesktop
-                                    ? "bg-indigo-500"
-                                    : "bg-gray-600",
-                                )}
-                              >
-                                <div
-                                  className={cn(
-                                    "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform",
-                                    settings.notifyDesktop
-                                      ? "translate-x-5"
-                                      : "",
-                                  )}
-                                ></div>
+                              {renderNotificationSwitch(
+                                settings.notifyDesktop,
+                                () => updateSetting({ notifyDesktop: !settings.notifyDesktop }),
+                              )}
+                            </div>
+
+                            <div
+                              className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-white/5 bg-[#2b2b2d] p-4 transition-colors hover:border-indigo-500/30"
+                              onClick={() => updateSetting({ notifySound: !settings.notifySound })}
+                            >
+                              <div className="flex min-w-0 items-start gap-3">
+                                <Volume2 size={18} className="mt-0.5 shrink-0 text-gray-400" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-200">
+                                    {t("chat.notification.settings.sound.title")}
+                                  </div>
+                                  <div className="mt-1 text-xs leading-5 text-gray-500">
+                                    {t("chat.notification.settings.sound.description")}
+                                  </div>
+                                </div>
                               </div>
+                              {renderNotificationSwitch(
+                                settings.notifySound,
+                                () => updateSetting({ notifySound: !settings.notifySound }),
+                              )}
+                            </div>
+
+                            <div
+                              className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-white/5 bg-[#2b2b2d] p-4 transition-colors hover:border-indigo-500/30"
+                              onClick={() => {
+                                void toggleSystemNotifications();
+                              }}
+                            >
+                              <div className="flex min-w-0 items-start gap-3">
+                                <MonitorSmartphone size={18} className="mt-0.5 shrink-0 text-gray-400" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-200">
+                                    {t("chat.notification.settings.system.title")}
+                                  </div>
+                                  <div className="mt-1 text-xs leading-5 text-gray-500">
+                                    {t("chat.notification.settings.system.description", {
+                                      permission: t(`chat.notification.settings.permission.${systemNotificationPermission}`),
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                              {renderNotificationSwitch(
+                                settings.notifySystem && systemNotificationPermission === "granted",
+                                () => {
+                                  void toggleSystemNotifications();
+                                },
+                                systemNotificationPermission === "unsupported",
+                              )}
+                            </div>
+
+                            <div
+                              className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-white/5 bg-[#2b2b2d] p-4 transition-colors hover:border-indigo-500/30"
+                              onClick={() => updateSetting({
+                                notificationWhenFocused: !settings.notificationWhenFocused,
+                              })}
+                            >
+                              <div className="flex min-w-0 items-start gap-3">
+                                <MessageSquare size={18} className="mt-0.5 shrink-0 text-gray-400" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-200">
+                                    {t("chat.notification.settings.focused.title")}
+                                  </div>
+                                  <div className="mt-1 text-xs leading-5 text-gray-500">
+                                    {t("chat.notification.settings.focused.description")}
+                                  </div>
+                                </div>
+                              </div>
+                              {renderNotificationSwitch(
+                                settings.notificationWhenFocused,
+                                () => updateSetting({
+                                  notificationWhenFocused: !settings.notificationWhenFocused,
+                                }),
+                              )}
                             </div>
                           </div>
+
+                          <div className="space-y-3 rounded-xl border border-white/5 bg-[#2b2b2d] p-4">
+                            <div className="flex items-center gap-2 text-sm font-medium text-gray-200">
+                              {settings.notificationPreview === "hidden" ? (
+                                <EyeOff size={16} className="text-gray-400" />
+                              ) : (
+                                <Eye size={16} className="text-gray-400" />
+                              )}
+                              {t("chat.notification.settings.preview.title")}
+                            </div>
+                            <div className="grid gap-2 sm:grid-cols-3">
+                              {[
+                                {
+                                  description: t("chat.notification.settings.preview.senderAndPreview.description"),
+                                  label: t("chat.notification.settings.preview.senderAndPreview.label"),
+                                  value: "sender-and-preview",
+                                },
+                                {
+                                  description: t("chat.notification.settings.preview.senderOnly.description"),
+                                  label: t("chat.notification.settings.preview.senderOnly.label"),
+                                  value: "sender-only",
+                                },
+                                {
+                                  description: t("chat.notification.settings.preview.hidden.description"),
+                                  label: t("chat.notification.settings.preview.hidden.label"),
+                                  value: "hidden",
+                                },
+                              ].map((option) => (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  className={cn(
+                                    "rounded-lg border p-3 text-left transition-colors",
+                                    settings.notificationPreview === option.value
+                                      ? "border-indigo-500/60 bg-indigo-500/15 text-gray-100"
+                                      : "border-white/5 bg-[#202022] text-gray-400 hover:border-white/15 hover:text-gray-200",
+                                  )}
+                                  onClick={() => updateSetting({
+                                    notificationPreview: option.value as AppSettings["notificationPreview"],
+                                  })}
+                                >
+                                  <div className="text-xs font-medium">
+                                    {option.label}
+                                  </div>
+                                  <div className="mt-1 text-[11px] leading-4 text-gray-500">
+                                    {option.description}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
                           <button
                             onClick={async () => {
                               await updateSetting({
-                                notifySound: true,
                                 notifyDesktop: true,
+                                notifySound: true,
+                                notifySystem: false,
+                                notificationPreview: "sender-and-preview",
+                                notificationWhenFocused: false,
                               });
-                              toast("通知设置已重置为默认", "success");
+                              toast(t("chat.notification.settings.toast.reset"), "success", { placement: "bottom-right" });
                             }}
-                            className="text-sm text-indigo-400 hover:text-indigo-300 font-medium"
+                            className="text-sm font-medium text-indigo-400 hover:text-indigo-300"
                           >
-                            恢复默认通知设置
+                            {t("chat.notification.settings.reset")}
                           </button>
                         </div>
                       </motion.div>

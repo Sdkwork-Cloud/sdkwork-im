@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, MoreHorizontal, UserMinus } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, UserMinus, X } from 'lucide-react';
 import type { Chat, User } from '@sdkwork/clawchat-pc-types';
 import { Avatar } from '@sdkwork/clawchat-pc-commons';
 
@@ -10,6 +10,7 @@ export interface ChatRightPanelProps {
   currentUserChatId?: string;
   currentUserId?: string;
   groupMemberProfiles?: User[];
+  onClose: () => void;
   onSetModal: (modal: 'search'|'editName'|'editNotice'|'addMember'|null, inputVal: string) => void;
   onToggleMute: () => Promise<void>;
   onTogglePin: () => Promise<void>;
@@ -22,6 +23,7 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
   currentUserChatId,
   currentUserId,
   groupMemberProfiles = [],
+  onClose,
   onSetModal,
   onToggleMute,
   onTogglePin,
@@ -30,6 +32,8 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const emptyNotice = t('chat.rightPanel.emptyNotice');
+  const fallbackMemberName = t('chat.fallback.memberName');
+  const fallbackMemberSubtitle = t('chat.fallback.memberSubtitle');
   const groupMembers = activeChat.members ?? [];
   const groupMemberCount = activeChat.memberCount ?? groupMembers.length;
   const currentUserIdentifiers = new Set(
@@ -51,10 +55,23 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
       transition={{ duration: 0.2 }}
       className="h-full border-l border-white/5 bg-[#181818] overflow-y-auto custom-scrollbar flex-shrink-0"
     >
-      <div className="p-6 flex flex-col items-center">
+      <div className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-white/5 bg-[#181818]/95 px-5 backdrop-blur">
+        <h2 className="truncate text-sm font-medium text-gray-200">
+          {t('chat.rightPanel.title')}
+        </h2>
+        <button
+          type="button"
+          aria-label={t('chat.rightPanel.actions.close')}
+          title={t('chat.rightPanel.actions.close')}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-100"
+          onClick={onClose}
+        >
+          <X size={18} />
+        </button>
+      </div>
+      <div className="flex flex-col items-center px-6 pb-6 pt-7">
          <Avatar src={activeChat.avatar} alt={activeChat.name} className="w-20 h-20 rounded-2xl bg-[#2b2b2d] mb-4 shadow-lg" />
-         <h3 className="text-lg font-medium text-gray-200 mb-1">{activeChat.name}</h3>
-         <p className="text-xs text-gray-500 mb-6">ID: {activeChat.id}</p>
+         <h3 className="mb-6 max-w-full truncate text-lg font-medium text-gray-200">{activeChat.name}</h3>
          
          <div className="w-full flex justify-center gap-6 mb-8">
             <div className="flex flex-col items-center gap-2 cursor-pointer group" onClick={() => onSetModal('search', '')}>
@@ -98,10 +115,8 @@ export const ChatRightPanel: React.FC<ChatRightPanelProps> = ({
                 </div>
                 {activeChat.members?.map((memberId) => {
                   const memberProfile = memberProfilesById.get(memberId);
-                  const memberName = memberProfile?.name ?? memberId;
-                  const memberSubtitle = memberProfile?.chatId && memberProfile.chatId !== memberId
-                    ? memberProfile.chatId
-                    : memberProfile?.email ?? memberProfile?.phone ?? memberId;
+                  const memberName = memberProfile?.name ?? fallbackMemberName;
+                  const memberSubtitle = memberProfile?.email ?? memberProfile?.phone ?? fallbackMemberSubtitle;
                   const isCurrentUser = currentUserIdentifiers.has(memberId);
                   return (
                     <div key={memberId} className="flex min-h-[36px] items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5">

@@ -6,6 +6,7 @@ import { Sidebar } from "../components/Sidebar";
 import { ChatList } from "../components/ChatList";
 import { ChatWindow } from "../components/ChatWindow";
 import { ChatEmptyHome } from "../components/ChatEmptyHome";
+import { ChatHistoryModal } from "../components/ChatHistoryModal";
 import { ChatRightPanel } from "../components/ChatRightPanel";
 import { WindowControls } from "../components/WindowControls";
 import { CallOverlay, CallType } from "../components/CallOverlay";
@@ -15,6 +16,11 @@ import { AddFriendModal } from "../components/AddFriendModal";
 import { CreateAgentModal } from "../components/CreateAgentModal";
 import { ScanQrCodeModal } from "../components/ScanQrCodeModal";
 import { SettingsModal } from "../components/SettingsModal";
+import {
+  NotificationCenter,
+  publishAppNotification,
+  publishMessageNotification,
+} from "../components/NotificationCenter";
 import { AgentView, Agent } from "./AgentView";
 import { CreateAgentView } from "./CreateAgentView";
 import { VoiceMarketView, Voice } from "@sdkwork/clawchat-pc-voice";
@@ -45,6 +51,19 @@ import { callService } from "../services/CallService";
 import { contactService } from "../services/ContactService";
 import { groupService } from "../services/GroupService";
 import { imSyncCoordinatorService } from "../services/ImSyncCoordinatorService";
+import {
+  buildIncomingCallNotification,
+  createSdkworkNotificationService,
+  dispatchNotificationOpenCall,
+  playMessageNotificationSound,
+  restoreDesktopMainWindow,
+  showSystemNotification,
+  type IncomingCallNotification,
+  type IncomingMessageNotification,
+  type NotificationTextProvider,
+} from "../services/NotificationService";
+import { settingsService, type AppSettings } from "../services/SettingsService";
+import { notaryAccessService, type NotaryAccessState } from "../services/NotaryAccessService";
 import { systemAssistantService } from "../services/SystemAssistantService";
 import { appAuthService, isSdkworkChatDesktopRuntime } from "@sdkwork/clawchat-pc-core";
 import type { Chat, User } from "@sdkwork/clawchat-pc-types";
@@ -72,6 +91,7 @@ const ChatLayoutComponent: React.FC = () => {
   const navigate = useNavigate();
   const shouldRenderDesktopAppHeader = isSdkworkChatDesktopRuntime();
   const [activeTab, setActiveTab] = useState("chat");
+  const [notaryAccess, setNotaryAccess] = useState<NotaryAccessState | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [isChatStartupLoading, setIsChatStartupLoading] = useState(true);
@@ -79,7 +99,19 @@ const ChatLayoutComponent: React.FC = () => {
   const [isAssistantAvailable, setIsAssistantAvailable] = useState(false);
   const [friendRequestUnreadCount, setFriendRequestUnreadCount] = useState(0);
   const chatListProjectionRevisionRef = useRef(0);
+  const chatsRef = useRef<Chat[]>([]);
+  const activeChatIdRef = useRef<string | undefined>(undefined);
+  const currentSettingsRef = useRef<AppSettings | null>(null);
+  const notificationTextsRef = useRef<NotificationTextProvider | null>(null);
+  const hasHydratedNotificationBaselineRef = useRef(false);
+  const notifiedIncomingCallIdsRef = useRef(new Set<string>());
+  const seenNotificationMessageIdsRef = useRef(new Set<string>());
   const previousFriendRequestUnreadCountRef = useRef<number | undefined>(undefined);
+  const windowFocusedRef = useRef(
+    typeof document === "undefined"
+      ? false
+      : document.visibilityState === "visible" && typeof document.hasFocus === "function" && document.hasFocus(),
+  );
 
   // Call State
   const [isCallOpen, setIsCallOpen] = useState(false);
@@ -129,11 +161,122 @@ const ChatLayoutComponent: React.FC = () => {
       : activeChat;
   }, [activeChat, t]);
   const currentUser = useMemo(() => contactService.getCurrentUser(), []);
+
+  useEffect(() => {
+    let disposed = false;
+    const unsubscribe = notaryAccessService.subscribe((access) => {
+      if (!disposed) {
+        setNotaryAccess(access);
+      }
+    });
+    void notaryAccessService.getAccess(true).then((access) => {
+      if (!disposed) {
+        setNotaryAccess(access);
+      }
+    });
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "notary" && notaryAccess?.canUseNotary === false) {
+      setActiveTab("chat");
+    }
+  }, [activeTab, notaryAccess?.canUseNotary]);
+
+  const handleTabChange = (tab: string) => {
+    if (tab !== "notary") {
+      setActiveTab(tab);
+      return;
+    }
+    void notaryAccessService.canUseNotary(true).then((canUseNotary) => {
+      if (canUseNotary) {
+        setActiveTab("notary");
+        return;
+      }
+      setActiveTab("chat");
+      toast("Notary access is not enabled for this account.", "error");
+    });
+  };
   const currentUserId = currentUser.id;
   const activeGroupMemberSignature = useMemo(
     () => activeChat?.type === "group" ? (activeChat.members ?? []).join("|") : "",
     [activeChat?.members, activeChat?.type],
   );
+  chatsRef.current = chats;
+  activeChatIdRef.current = activeChat?.id;
+  notificationTextsRef.current = {
+    callLabels: {
+      video: t("chat.notification.call.video"),
+      voice: t("chat.notification.call.voice"),
+    },
+    hiddenBody: t("chat.notification.message.hiddenBody"),
+    messageTypeLabels: {
+      applet: t("chat.notification.message.type.applet"),
+      card: t("chat.notification.message.type.card"),
+      file: t("chat.notification.message.type.file"),
+      image: t("chat.notification.message.type.image"),
+      link: t("chat.notification.message.type.link"),
+      music: t("chat.notification.message.type.music"),
+      system: t("chat.notification.message.type.system"),
+      video: t("chat.notification.message.type.video"),
+      video_call: t("chat.notification.message.type.videoCall"),
+      voice: t("chat.notification.message.type.voice"),
+    },
+    titleFallback: t("chat.notification.message.titleFallback"),
+  };
+
+  const notificationService = useMemo(() => createSdkworkNotificationService({
+    deliver(notification: IncomingMessageNotification) {
+      publishMessageNotification(notification);
+      if (currentSettingsRef.current?.notifySound) {
+        playMessageNotificationSound();
+      }
+      if (currentSettingsRef.current?.notifySystem) {
+        void showSystemNotification(notification);
+      }
+    },
+    getActiveConversationId: () => activeChatIdRef.current,
+    getCurrentUserId: () => currentUserId,
+    getSettings: () => currentSettingsRef.current ?? {
+      notificationPreview: "sender-and-preview",
+      notificationWhenFocused: false,
+      notifyDesktop: true,
+    },
+    getTexts: () => notificationTextsRef.current as NotificationTextProvider,
+    isWindowFocused: () => windowFocusedRef.current,
+  }), [currentUserId]);
+
+  const publishCallWakeupNotification = (notification: IncomingCallNotification) => {
+    publishAppNotification(notification);
+    if (currentSettingsRef.current?.notifySound) {
+      playMessageNotificationSound();
+    }
+    if (currentSettingsRef.current?.notifySystem) {
+      void showSystemNotification(notification);
+    }
+  };
+
+  const handlePotentialIncomingNotifications = (sourceChats: Chat[]) => {
+    for (const chat of sourceChats) {
+      const message = chat.lastMessage;
+      if (!message) {
+        continue;
+      }
+      if (!hasHydratedNotificationBaselineRef.current) {
+        seenNotificationMessageIdsRef.current.add(message.id);
+        continue;
+      }
+      if (seenNotificationMessageIdsRef.current.has(message.id)) {
+        continue;
+      }
+      seenNotificationMessageIdsRef.current.add(message.id);
+      notificationService.handleIncomingMessage(chat, message);
+    }
+    hasHydratedNotificationBaselineRef.current = true;
+  };
 
   const mergeChatIntoList = (sourceChats: Chat[], nextChat: Chat | null): Chat[] => {
     if (!nextChat) {
@@ -144,7 +287,26 @@ const ChatLayoutComponent: React.FC = () => {
       : [nextChat, ...sourceChats];
   };
 
+  const mergeGroupProfileUpdate = (chat: Chat, update: Chat): Chat => ({
+    ...chat,
+    ...(update.avatar !== undefined ? { avatar: update.avatar } : {}),
+    ...(update.name !== undefined ? { name: update.name } : {}),
+    ...(update.notice !== undefined ? { notice: update.notice } : {}),
+  });
+
+  const needsGroupProjectionMerge = (sourceChats: Chat[]): boolean => sourceChats.some((chat) => (
+    chat.type === "group"
+    && (
+      !chat.name.trim()
+      || chat.name === chat.id
+      || /^Group\s+c_/u.test(chat.name)
+    )
+  ));
+
   const mergeGroupProjections = async (sourceChats: Chat[]): Promise<Chat[]> => {
+    if (!needsGroupProjectionMerge(sourceChats)) {
+      return sourceChats;
+    }
     const groups = await groupService.getGroups();
     if (groups.length === 0) {
       return sourceChats;
@@ -198,11 +360,119 @@ const ChatLayoutComponent: React.FC = () => {
     setActiveTab("chat");
   };
 
+  const openConversationById = async (conversationId: string): Promise<void> => {
+    const knownChat = chatsRef.current.find((chat) => chat.id === conversationId);
+    if (knownChat) {
+      await openHydratedChat(knownChat);
+      return;
+    }
+    const refreshedChats = await chatService.getChats().catch(() => []);
+    const refreshedChat = refreshedChats.find((chat) => chat.id === conversationId);
+    if (refreshedChat) {
+      await openHydratedChat(refreshedChat);
+    }
+  };
+
+  const openIncomingCallOverlay = async (options: {
+    avatar?: string;
+    callId: string;
+    conversationId?: string;
+    name?: string;
+    notify?: boolean;
+    type?: CallType;
+  }): Promise<void> => {
+    const activeSnapshot = callService.getSnapshot();
+    const conversationId = options.conversationId
+      ?? activeSnapshot.conversationId
+      ?? activeChatIdRef.current
+      ?? options.callId;
+    const incomingChat = chatsRef.current.find((chat) => chat.id === conversationId);
+    const callerName = options.name
+      ?? activeSnapshot.targetName
+      ?? incomingChat?.name
+      ?? activeChat?.name
+      ?? t("chat.call.incoming");
+    const callerAvatar = options.avatar
+      ?? incomingChat?.avatar
+      ?? activeChat?.avatar
+      ?? "";
+    const callType = options.type ?? activeSnapshot.type ?? "voice";
+
+    setCallMode("incoming");
+    setCallType(callType);
+    setCallTarget({
+      id: conversationId,
+      name: callerName,
+      avatar: callerAvatar,
+      rtcSessionId: options.callId,
+    });
+    setIsCallOpen(true);
+
+    const shouldNotifyCall = Boolean(options.notify && !notifiedIncomingCallIdsRef.current.has(options.callId));
+    if (shouldNotifyCall) {
+      notifiedIncomingCallIdsRef.current.add(options.callId);
+      await restoreDesktopMainWindow();
+    }
+
+    if (incomingChat) {
+      await openHydratedChat(incomingChat);
+    } else if (conversationId !== options.callId) {
+      void openConversationById(conversationId);
+    }
+
+    if (shouldNotifyCall) {
+      publishCallWakeupNotification(buildIncomingCallNotification({
+        callId: options.callId,
+        callerAvatar,
+        callerName,
+        conversationId,
+        previewMode: currentSettingsRef.current?.notificationPreview ?? "sender-and-preview",
+        texts: notificationTextsRef.current ?? undefined,
+        type: callType,
+      }));
+    }
+  };
+
+  const openActiveCallOverlay = async (): Promise<void> => {
+    const snapshot = callService.getSnapshot();
+    if (!snapshot.rtcSessionId || snapshot.state === "idle" || snapshot.state === "ended" || snapshot.state === "rejected") {
+      return;
+    }
+
+    const conversationId = snapshot.conversationId
+      ?? activeChatIdRef.current
+      ?? snapshot.rtcSessionId;
+    const activeCallChat = chatsRef.current.find((chat) => chat.id === conversationId);
+    const targetName = snapshot.targetName
+      ?? activeCallChat?.name
+      ?? activeChat?.name
+      ?? t("chat.call.incoming");
+    const targetAvatar = activeCallChat?.avatar
+      ?? activeChat?.avatar
+      ?? "";
+
+    setCallMode(snapshot.direction === "outgoing" ? "outgoing" : "incoming");
+    setCallType(snapshot.type ?? "voice");
+    setCallTarget({
+      id: conversationId,
+      name: targetName,
+      avatar: targetAvatar,
+      rtcSessionId: snapshot.rtcSessionId,
+    });
+    setIsCallOpen(true);
+
+    if (activeCallChat) {
+      await openHydratedChat(activeCallChat);
+    } else if (conversationId !== snapshot.rtcSessionId) {
+      void openConversationById(conversationId);
+    }
+  };
+
   const handleOpenGroupInvite = async (groupId: string): Promise<void> => {
     const groups = await groupService.getGroups();
     const group = groups.find((item) => item.id === groupId) ?? {
       id: groupId,
-      name: `Group ${groupId}`,
+      name: t("chat.fallback.groupName"),
       type: "group" as const,
       unreadCount: 0,
       updatedAt: Date.now(),
@@ -250,6 +520,50 @@ const ChatLayoutComponent: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
+    const syncSettings = (nextSettings: AppSettings) => {
+      if (isMounted) {
+        currentSettingsRef.current = nextSettings;
+      }
+    };
+    void settingsService.getSettings().then(syncSettings).catch(() => undefined);
+
+    const handleSettingsChanged = (event: Event) => {
+      const settings = event instanceof CustomEvent
+        ? (event.detail as { settings?: AppSettings } | undefined)?.settings
+        : undefined;
+      if (settings) {
+        syncSettings(settings);
+        return;
+      }
+      void settingsService.getSettings().then(syncSettings).catch(() => undefined);
+    };
+
+    window.addEventListener("sdkwork-chat-pc:settings-changed", handleSettingsChanged);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("sdkwork-chat-pc:settings-changed", handleSettingsChanged);
+    };
+  }, []);
+
+  useEffect(() => {
+    const updateWindowFocusState = () => {
+      windowFocusedRef.current = document.visibilityState === "visible"
+        && (typeof document.hasFocus !== "function" || document.hasFocus());
+    };
+
+    updateWindowFocusState();
+    window.addEventListener("focus", updateWindowFocusState);
+    window.addEventListener("blur", updateWindowFocusState);
+    document.addEventListener("visibilitychange", updateWindowFocusState);
+    return () => {
+      window.removeEventListener("focus", updateWindowFocusState);
+      window.removeEventListener("blur", updateWindowFocusState);
+      document.removeEventListener("visibilitychange", updateWindowFocusState);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
     if (activeChat?.type !== "group") {
       setGroupMemberProfiles([]);
       return () => {
@@ -290,6 +604,7 @@ const ChatLayoutComponent: React.FC = () => {
 
   useEffect(() => {
     return chatService.subscribeChats((nextChats) => {
+      handlePotentialIncomingNotifications(nextChats);
       const projectionRevision = chatListProjectionRevisionRef.current + 1;
       chatListProjectionRevisionRef.current = projectionRevision;
       const applyChats = (sourceChats: Chat[]) => {
@@ -329,6 +644,22 @@ const ChatLayoutComponent: React.FC = () => {
         })
         .catch(() => undefined);
     });
+  }, []);
+
+  useEffect(() => {
+    const handleOpenConversation = (event: Event) => {
+      const conversationId = event instanceof CustomEvent
+        ? (event.detail as { conversationId?: unknown } | undefined)?.conversationId
+        : undefined;
+      if (typeof conversationId === "string" && conversationId.trim()) {
+        void openConversationById(conversationId);
+      }
+    };
+
+    window.addEventListener("sdkwork-chat-pc:open-conversation", handleOpenConversation);
+    return () => {
+      window.removeEventListener("sdkwork-chat-pc:open-conversation", handleOpenConversation);
+    };
   }, []);
 
   useEffect(() => {
@@ -434,18 +765,13 @@ const ChatLayoutComponent: React.FC = () => {
   useEffect(() => {
     return callService.subscribe((snapshot) => {
       if (snapshot.direction === 'incoming' && snapshot.state === 'ringing' && snapshot.rtcSessionId) {
-        const incomingChat = snapshot.conversationId
-          ? chats.find((chat) => chat.id === snapshot.conversationId)
-          : undefined;
-        setCallMode('incoming');
-        setCallType(snapshot.type ?? 'voice');
-        setCallTarget({
-          id: snapshot.conversationId ?? activeChat?.id ?? snapshot.rtcSessionId,
-          name: snapshot.targetName ?? incomingChat?.name ?? activeChat?.name ?? t("chat.call.incoming"),
-          avatar: incomingChat?.avatar ?? activeChat?.avatar ?? '',
-          rtcSessionId: snapshot.rtcSessionId,
+        void openIncomingCallOverlay({
+          callId: snapshot.rtcSessionId,
+          conversationId: snapshot.conversationId,
+          name: snapshot.targetName,
+          notify: true,
+          type: snapshot.type ?? "voice",
         });
-        setIsCallOpen(true);
         if (snapshot.peerUserId) {
           void contactService.getUserById(snapshot.peerUserId)
             .then((peerUser) => {
@@ -468,6 +794,41 @@ const ChatLayoutComponent: React.FC = () => {
       }
     });
   }, [activeChat?.avatar, activeChat?.id, activeChat?.name, chats, t]);
+
+  useEffect(() => {
+    const handleOpenCall = (event: Event) => {
+      const detail = event instanceof CustomEvent
+        ? event.detail as {
+          callId?: unknown;
+          conversationId?: unknown;
+          type?: unknown;
+        } | undefined
+        : undefined;
+      const callId = typeof detail?.callId === "string" && detail.callId.trim()
+        ? detail.callId
+        : callService.getSnapshot().rtcSessionId;
+      if (!callId) {
+        return;
+      }
+      void openIncomingCallOverlay({
+        callId,
+        conversationId: typeof detail?.conversationId === "string" ? detail.conversationId : undefined,
+        notify: false,
+        type: detail?.type === "video" ? "video" : detail?.type === "voice" ? "voice" : undefined,
+      });
+    };
+
+    const handleShowActiveCall = () => {
+      void openActiveCallOverlay();
+    };
+
+    window.addEventListener("sdkwork-chat-pc:open-call", handleOpenCall);
+    window.addEventListener("sdkwork-chat-pc:show-active-call", handleShowActiveCall);
+    return () => {
+      window.removeEventListener("sdkwork-chat-pc:open-call", handleOpenCall);
+      window.removeEventListener("sdkwork-chat-pc:show-active-call", handleShowActiveCall);
+    };
+  }, [activeChat?.avatar, activeChat?.id, activeChat?.name, t]);
 
   const handleStartAgentChat = async (agent: Agent) => {
     try {
@@ -629,7 +990,7 @@ const ChatLayoutComponent: React.FC = () => {
           {activeTab === "chat" && localizedActiveChat ? (
             <>
               <div className="flex items-center gap-3">
-                <div className="text-[18px] text-gray-200 font-medium tracking-wide">
+                <div className="text-[16px] text-gray-200 font-medium tracking-wide">
                   {localizedActiveChat.name}
                 </div>
               </div>
@@ -637,7 +998,7 @@ const ChatLayoutComponent: React.FC = () => {
               <div className="flex items-center gap-1 text-gray-400 mr-4">
                 <IconButton
                   title={t("chat.header.search")}
-                  className="w-[36px] h-[36px] hover:bg-white/5"
+                  className="w-[32px] h-[32px] hover:bg-white/5"
                   onClick={() => {
                     setActiveModal("search");
                     setModalInput("");
@@ -647,21 +1008,21 @@ const ChatLayoutComponent: React.FC = () => {
                 </IconButton>
                 <IconButton
                   title={t("chat.header.voiceCall")}
-                  className="w-[36px] h-[36px] hover:bg-white/5"
+                  className="w-[32px] h-[32px] hover:bg-white/5"
                   onClick={() => handleStartCall("voice")}
                 >
                   <Phone size={18} />
                 </IconButton>
                 <IconButton
                   title={t("chat.header.videoCall")}
-                  className="w-[36px] h-[36px] hover:bg-white/5"
+                  className="w-[32px] h-[32px] hover:bg-white/5"
                   onClick={() => handleStartCall("video")}
                 >
                   <Video size={18} />
                 </IconButton>
                 <IconButton
                   title={t("chat.header.more")}
-                  className="w-[36px] h-[36px] hover:bg-white/5"
+                  className="w-[32px] h-[32px] hover:bg-white/5"
                   onClick={() => setShowRHSPanel(!showRHSPanel)}
                 >
                   <MoreHorizontal size={18} />
@@ -669,7 +1030,7 @@ const ChatLayoutComponent: React.FC = () => {
               </div>
             </>
           ) : (
-            <div className="text-[18px] text-gray-200 font-medium tracking-wide">
+            <div className="text-[16px] text-gray-200 font-medium tracking-wide">
               {titles[activeTab] || ""}
             </div>
           )}
@@ -711,7 +1072,7 @@ const ChatLayoutComponent: React.FC = () => {
         return (
           <WorkspaceView
             onAppSelect={(appId) => {
-              if (appId === "notary") setActiveTab("notary");
+              if (appId === "notary") handleTabChange("notary");
               else if (appId === "mail") setActiveTab("mail");
               else if (appId === "drive") setActiveTab("drive");
               else if (appId === "calendar") setActiveTab("calendar");
@@ -735,7 +1096,7 @@ const ChatLayoutComponent: React.FC = () => {
       case "shop":
         return <ShopView onNavigateToOrders={() => setActiveTab("orders")} />;
       case "notary":
-        return <NotaryView />;
+        return notaryAccess?.canUseNotary === false ? null : <NotaryView />;
       case "mail":
         return <MailView />;
       case "drive":
@@ -858,7 +1219,7 @@ const ChatLayoutComponent: React.FC = () => {
         <div className="h-full shrink-0 flex flex-col z-20 print:hidden">
           <Sidebar
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={handleTabChange}
             onLogout={handleLogout}
             onOpenSettings={() => setIsSettingsOpen(true)}
             chatUnreadCount={chats.reduce(
@@ -893,7 +1254,7 @@ const ChatLayoutComponent: React.FC = () => {
             "musicgen",
             "writing",
           ].includes(activeTab) && (
-            <div className="h-[64px] w-full flex items-center shrink-0 border-b border-white/5 bg-[#1e1e1e] relative print:hidden">
+            <div className="h-[52px] w-full flex items-center shrink-0 border-b border-white/5 bg-[#1e1e1e] relative print:hidden">
               {renderHeaderContent()}
             </div>
           )}
@@ -943,6 +1304,7 @@ const ChatLayoutComponent: React.FC = () => {
                   currentUserChatId={currentUser.chatId}
                   currentUserId={currentUserId}
                   groupMemberProfiles={groupMemberProfiles}
+                  onClose={() => setShowRHSPanel(false)}
                   onSetModal={(modal, inputVal) => {
                     setActiveModal(modal);
                     setModalInput(inputVal);
@@ -1103,6 +1465,14 @@ const ChatLayoutComponent: React.FC = () => {
           isOpen={isAddFriendOpen}
           onClose={() => setIsAddFriendOpen(false)}
         />
+        <ChatHistoryModal
+          chat={localizedActiveChat ?? undefined}
+          chatId={localizedActiveChat?.id ?? ""}
+          chatName={localizedActiveChat?.name}
+          groupMemberProfiles={groupMemberProfiles}
+          isOpen={activeModal === "search" && Boolean(localizedActiveChat)}
+          onClose={() => setActiveModal(null)}
+        />
         <ScanQrCodeModal
           isOpen={isScanQrOpen}
           onClose={() => setIsScanQrOpen(false)}
@@ -1122,14 +1492,15 @@ const ChatLayoutComponent: React.FC = () => {
         <CreateAgentModal
           isOpen={isCreateAgentModalOpen}
           onClose={() => setIsCreateAgentModalOpen(false)}
-          onSuccess={() => {
+          onSuccess={(agentId) => {
             setIsCreateAgentModalOpen(false);
+            setEditAgentId(agentId);
             setActiveTab("create-agent");
           }}
         />
         {/* Custom inline Modals */}
         <AnimatePresence>
-          {activeModal && activeModal !== "addMember" && activeChat && (
+          {activeModal && activeModal !== "addMember" && activeModal !== "search" && activeChat && (
             <div className="fixed inset-0 z-50 flex items-center justify-center">
               <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -1143,7 +1514,6 @@ const ChatLayoutComponent: React.FC = () => {
               >
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-medium text-gray-100">
-                    {activeModal === "search" && t("chat.modal.title.searchMessages")}
                     {activeModal === "editName" &&
                       (activeChat.type === "group"
                         ? t("chat.modal.title.editGroupName")
@@ -1157,45 +1527,6 @@ const ChatLayoutComponent: React.FC = () => {
                     <X size={20} />
                   </button>
                 </div>
-
-                {activeModal === "search" && (
-                  <div>
-                    <input
-                      type="text"
-                      placeholder={t("chat.modal.placeholder.searchMessages")}
-                      className="w-full bg-[#181818] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-200 outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all mb-4"
-                      value={modalInput}
-                      onChange={(e) => setModalInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          if (!modalInput.trim()) return;
-                          setActiveModal(null);
-                          toast(t("chat.modal.toast.searching", { query: modalInput }), "success");
-                        }
-                      }}
-                      autoFocus
-                    />
-                    <div className="flex justify-end gap-3 mt-4">
-                      <button
-                        onClick={() => setActiveModal(null)}
-                        className="px-5 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors"
-                      >
-                        {t("chat.modal.actions.cancel")}
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (!modalInput.trim()) return;
-                          setActiveModal(null);
-                          toast(t("chat.modal.toast.searching", { query: modalInput }), "success");
-                        }}
-                        disabled={!modalInput.trim()}
-                        className="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/10 disabled:text-gray-500 text-white rounded-xl transition-colors font-medium"
-                      >
-                        {t("chat.modal.actions.search")}
-                      </button>
-                    </div>
-                  </div>
-                )}
 
                 {activeModal === "editName" && (
                   <div>
@@ -1231,13 +1562,17 @@ const ChatLayoutComponent: React.FC = () => {
                             setChats((previousChats) =>
                               previousChats.map((c) =>
                                 c.id === activeChat.id
-                                  ? { ...c, ...updatedChat }
+                                  ? activeChat.type === "group"
+                                    ? mergeGroupProfileUpdate(c, updatedChat)
+                                    : { ...c, ...updatedChat }
                                   : c,
                               ),
                             );
                             setActiveChat((previousActiveChat) =>
                               previousActiveChat?.id === activeChat.id
-                                ? { ...previousActiveChat, ...updatedChat }
+                                ? activeChat.type === "group"
+                                  ? mergeGroupProfileUpdate(previousActiveChat, updatedChat)
+                                  : { ...previousActiveChat, ...updatedChat }
                                 : previousActiveChat,
                             );
                             toast(
@@ -1283,13 +1618,13 @@ const ChatLayoutComponent: React.FC = () => {
                             setChats((previousChats) =>
                               previousChats.map((c) =>
                                 c.id === activeChat.id
-                                  ? { ...c, ...updatedChat }
+                                  ? mergeGroupProfileUpdate(c, updatedChat)
                                   : c,
                               ),
                             );
                             setActiveChat((previousActiveChat) =>
                               previousActiveChat?.id === activeChat.id
-                                ? { ...previousActiveChat, ...updatedChat }
+                                ? mergeGroupProfileUpdate(previousActiveChat, updatedChat)
                                 : previousActiveChat,
                             );
                             toast(t("chat.modal.toast.noticeUpdated"), "success");
@@ -1310,6 +1645,14 @@ const ChatLayoutComponent: React.FC = () => {
         </AnimatePresence>
 
         <ToastContainer />
+        <NotificationCenter
+          onOpenCall={(notification) => {
+            dispatchNotificationOpenCall(notification);
+          }}
+          onOpenConversation={(conversationId) => {
+            void openConversationById(conversationId);
+          }}
+        />
         <MusicPlayer />
       </div>
     </div>

@@ -3427,6 +3427,29 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
         .expect("create conversation request should succeed");
     assert_eq!(create_response.status(), StatusCode::OK);
 
+    let add_member_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_cursor_http/members/add")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_owner")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_member",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member request should succeed");
+    assert_eq!(add_member_response.status(), StatusCode::OK);
+
     for (client_msg_id, summary) in [("client_1", "one"), ("client_2", "two")] {
         let post_response = app
             .clone()
@@ -3435,7 +3458,7 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
                     .method("POST")
                     .uri("/im/v3/api/chat/conversations/c_cursor_http/messages")
                     .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_owner")
+                    .header("x-sdkwork-user-id", "u_member")
                     .header("x-sdkwork-actor-kind", "user")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(

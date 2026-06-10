@@ -59,6 +59,77 @@ const fakeClient = {
   },
 } as unknown as ImSdkClient;
 
+function createGroupProjectionClient(options: {
+  getProfileName: () => string;
+  updateProfile?: (conversationId: string, body: Record<string, unknown>) => Promise<unknown>;
+}): ImSdkClient {
+  return {
+    conversations: {
+      async getPreferences(conversationId: string) {
+        calls.push({ method: 'conversations.getPreferences', conversationId });
+        return {
+          conversationId,
+          isHidden: false,
+          isMarkedUnread: false,
+          isMuted: false,
+          isPinned: false,
+          principalId: 'current-user',
+          principalKind: 'user',
+          tenantId: 'tenant-1',
+          updatedAt: '2026-06-04T00:00:00.000Z',
+        };
+      },
+      async getProfile(conversationId: string) {
+        calls.push({ method: 'conversations.getProfile', conversationId });
+        return {
+          avatarUrl: '',
+          conversationId,
+          displayName: options.getProfileName(),
+          notice: '',
+          tenantId: 'tenant-1',
+          updatedAt: '2026-06-04T00:00:00.000Z',
+        };
+      },
+      async list() {
+        calls.push({ method: 'conversations.list' });
+        return {
+          hasMore: false,
+          items: [
+            {
+              conversationId: 'group-1',
+              conversationType: 'group',
+              lastActivityAt: '2026-06-04T00:00:00.000Z',
+              lastMessageSeq: 1,
+              messageCount: 1,
+              tenantId: 'tenant-1',
+              unreadCount: 0,
+            },
+          ],
+        };
+      },
+      async listMembers(conversationId: string, params?: Record<string, unknown>) {
+        calls.push({ method: 'conversations.listMembers', conversationId, params });
+        return {
+          hasMore: false,
+          items: [createMember(conversationId, 'current-user')],
+        };
+      },
+      async updateProfile(conversationId: string, body: Record<string, unknown>) {
+        if (options.updateProfile) {
+          return options.updateProfile(conversationId, body);
+        }
+        calls.push({ method: 'conversations.updateProfile', conversationId, body });
+        return {
+          conversationId,
+          displayName: String(body.displayName ?? ''),
+          tenantId: 'tenant-1',
+          updatedAt: '2026-06-04T00:00:00.000Z',
+        };
+      },
+    },
+  } as unknown as ImSdkClient;
+}
+
 async function main(): Promise<void> {
   const service = createSdkworkGroupService(() => fakeClient);
 
@@ -111,23 +182,14 @@ async function main(): Promise<void> {
     'group remove-member flow must resolve the backend conversation member id before removing the selected member',
   );
 
-  const failingChatService = {
-    async getChats() {
-      return [
-        {
-          id: 'group-1',
-          name: 'Original Group',
-          type: 'group',
-          unreadCount: 0,
-          updatedAt: 1,
-        },
-      ];
-    },
-    async updateChat() {
+  let backendGroupName = 'Original Group';
+  const failingProfileClient = createGroupProjectionClient({
+    getProfileName: () => backendGroupName,
+    async updateProfile() {
       throw new Error('profile update failed');
     },
-  } as unknown as ChatService;
-  const updateService = createSdkworkGroupService(() => fakeClient, failingChatService);
+  });
+  const updateService = createSdkworkGroupService(() => failingProfileClient);
   await assert.rejects(
     () => updateService.updateGroupInfo('group-1', { name: 'Failed Name' }),
     /profile update failed/u,
@@ -140,37 +202,28 @@ async function main(): Promise<void> {
     'failed group profile updates must not pollute the GroupService group projection cache',
   );
 
-  let backendGroupName = 'Cached Group Name';
-  const profileRefreshChatService = {
-    async getChats() {
-      return [
-        {
-          id: 'group-1',
-          name: backendGroupName,
-          type: 'group',
-          unreadCount: 0,
-          updatedAt: 1,
-        },
-      ];
-    },
-    async updateChat(_groupId: string, updates: Record<string, unknown>) {
+  backendGroupName = 'Cached Group Name';
+  const profileRefreshClient = createGroupProjectionClient({
+    getProfileName: () => backendGroupName,
+    async updateProfile(conversationId: string, body: Record<string, unknown>) {
+      calls.push({ method: 'conversations.updateProfile', conversationId, body });
+      backendGroupName = String(body.displayName ?? backendGroupName);
       return {
-        id: 'group-1',
-        name: String(updates.name ?? 'Cached Group Name'),
-        type: 'group',
-        unreadCount: 0,
-        updatedAt: 1,
+        conversationId,
+        displayName: backendGroupName,
+        tenantId: 'tenant-1',
+        updatedAt: '2026-06-04T00:00:00.000Z',
       };
     },
-  } as unknown as ChatService;
-  const profileRefreshService = createSdkworkGroupService(() => fakeClient, profileRefreshChatService);
+  });
+  const profileRefreshService = createSdkworkGroupService(() => profileRefreshClient);
   await profileRefreshService.updateGroupInfo('group-1', { name: 'Cached Group Name' });
   backendGroupName = 'Backend Renamed Group';
   const groupsAfterBackendProfileRefresh = await profileRefreshService.getGroups();
   assert.equal(
     groupsAfterBackendProfileRefresh[0]?.name,
     'Backend Renamed Group',
-    'group member projection refresh must not let stale cached group profile fields override the latest SDK chat profile',
+    'group member projection refresh must not let stale cached group profile fields override the latest SDK conversation profile',
   );
 
   backendGroupName = 'Group group-1';

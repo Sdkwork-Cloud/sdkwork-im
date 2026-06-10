@@ -44,6 +44,11 @@ export const DEFAULT_SIDEBAR_MODULES = [
 ];
 
 const SUPPORTED_LANGUAGES = new Set(["zh-CN", "en-US"]);
+const NOTIFICATION_PREVIEW_MODES = new Set([
+  "sender-and-preview",
+  "sender-only",
+  "hidden",
+]);
 const SETTINGS_CHANGED_EVENT = "sdkwork-chat-pc:settings-changed";
 const SETTINGS_STORAGE_KEY = "clawchat-settings";
 const LEGACY_AUTOFILLED_SIDEBAR_MODULES = [
@@ -70,6 +75,12 @@ function normalizeSettingsLanguage(lang: unknown) {
     : "zh-CN";
 }
 
+function normalizeNotificationPreviewMode(value: unknown): AppSettings["notificationPreview"] {
+  return typeof value === "string" && NOTIFICATION_PREVIEW_MODES.has(value)
+    ? value as AppSettings["notificationPreview"]
+    : "sender-and-preview";
+}
+
 function getLocalStorage(): Storage | undefined {
   return typeof localStorage === "undefined" ? undefined : localStorage;
 }
@@ -86,6 +97,9 @@ export interface AppSettings {
   autoStart: boolean;
   notifySound: boolean;
   notifyDesktop: boolean;
+  notifySystem: boolean;
+  notificationPreview: "hidden" | "sender-and-preview" | "sender-only";
+  notificationWhenFocused: boolean;
   privacyRequireAuth: boolean;
   privacyShowOnline: boolean;
   theme: "system" | "dark" | "light";
@@ -300,6 +314,9 @@ class SdkworkSettingsService implements SettingsService {
       autoStart: true,
       notifySound: true,
       notifyDesktop: true,
+      notifySystem: false,
+      notificationPreview: "sender-and-preview",
+      notificationWhenFocused: false,
       privacyRequireAuth: true,
       privacyShowOnline: true,
       theme: "system",
@@ -326,6 +343,7 @@ class SdkworkSettingsService implements SettingsService {
           ...this.defaultSettings,
           ...parsed,
           lang: normalizeSettingsLanguage(parsed.lang),
+          notificationPreview: normalizeNotificationPreviewMode(parsed.notificationPreview),
           sidebarModules: normalizeSidebarModules(parsed.sidebarModules, {
             migrateLegacyAllModules: true,
           }),
@@ -368,6 +386,9 @@ class SdkworkSettingsService implements SettingsService {
       ...this.settings,
       ...updates,
       lang: normalizeSettingsLanguage(updates.lang ?? this.settings.lang),
+      notificationPreview: normalizeNotificationPreviewMode(
+        updates.notificationPreview ?? this.settings.notificationPreview,
+      ),
       sidebarModules,
     };
     try {

@@ -80,12 +80,30 @@ export const AddGroupMembersModal: React.FC<AddGroupMembersModalProps> = ({
     return new Set(chat.members ?? []);
   }, [chat]);
 
-  const selectableContacts = useMemo(() => (
-    contacts.filter((contact) => !isExistingGroupMember(existingMemberIds, contact))
-  ), [contacts, existingMemberIds]);
+  const disabledContactIds = useMemo(() => {
+    const disabledIds = new Set<string>();
+    for (const contact of contacts) {
+      if (isExistingGroupMember(existingMemberIds, contact)) {
+        disabledIds.add(contact.id);
+      }
+    }
+    return disabledIds;
+  }, [contacts, existingMemberIds]);
+
+  const selectedInviteIds = useMemo(() => (
+    Array.from(selected).filter((contactId) => !disabledContactIds.has(contactId))
+  ), [disabledContactIds, selected]);
+
+  const canInviteSelectedNonContact = Boolean(
+    selectedNonContactUser && !isExistingGroupMember(existingMemberIds, selectedNonContactUser),
+  );
 
   const toggleContact = (contactId: string) => {
     setSelected((previousSelected) => {
+      if (disabledContactIds.has(contactId)) {
+        return previousSelected;
+      }
+
       const nextSelected = new Set(previousSelected);
       if (nextSelected.has(contactId)) {
         nextSelected.delete(contactId);
@@ -97,14 +115,14 @@ export const AddGroupMembersModal: React.FC<AddGroupMembersModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!chat || selected.size === 0 || isSubmitting) {
+    if (!chat || selectedInviteIds.length === 0 || isSubmitting) {
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const selectedCount = selected.size;
-      await groupService.addMembers(chat.id, Array.from(selected));
+      const selectedCount = selectedInviteIds.length;
+      await groupService.addMembers(chat.id, selectedInviteIds);
       await onAdded?.(selectedCount);
       toast(t('chat.modal.toast.invitedMembers', { count: selectedCount }), 'success');
       onClose();
@@ -125,7 +143,7 @@ export const AddGroupMembersModal: React.FC<AddGroupMembersModalProps> = ({
     setSelectedNonContactUser(null);
     try {
       const results = await contactService.searchContacts(nonContactSearchQuery);
-      setNonContactSearchResults(results.filter((user) => !isExistingGroupMember(existingMemberIds, user)));
+      setNonContactSearchResults(results);
     } catch {
       setNonContactSearchResults([]);
       toast(t('chat.modal.toast.contactsLoadFailed'), 'error');
@@ -135,7 +153,12 @@ export const AddGroupMembersModal: React.FC<AddGroupMembersModalProps> = ({
   };
 
   const handleInviteNonContact = async () => {
-    if (!chat || !selectedNonContactUser || isInvitingNonContact) {
+    if (
+      !chat
+      || !selectedNonContactUser
+      || isExistingGroupMember(existingMemberIds, selectedNonContactUser)
+      || isInvitingNonContact
+    ) {
       return;
     }
 
@@ -154,7 +177,9 @@ export const AddGroupMembersModal: React.FC<AddGroupMembersModalProps> = ({
 
   const renderContactsTab = () => (
     <ContactMemberPickerPanel
-      contacts={selectableContacts}
+      contacts={contacts}
+      disabledContactIds={disabledContactIds}
+      disabledReason={t('chat.modal.selection.alreadyInGroup')}
       emptyText={t('chat.modal.state.noContactsToInvite')}
       isLoading={isLoading}
       searchPlaceholder={t('chat.modal.placeholder.memberSearch')}
@@ -195,27 +220,42 @@ export const AddGroupMembersModal: React.FC<AddGroupMembersModalProps> = ({
       </div>
 
       <div className="min-h-[220px] space-y-1 overflow-y-auto">
-        {nonContactSearchResults.map((user) => (
-          <button
-            key={user.id}
-            type="button"
-            className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-white/5"
-            onClick={() => setSelectedNonContactUser(user)}
-          >
-            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${selectedNonContactUser?.id === user.id ? 'border-[#00b42a] bg-[#00b42a]' : 'border-gray-500'}`}>
-              {selectedNonContactUser?.id === user.id && <Check size={12} className="text-white" />}
-            </span>
-            <Avatar src={user.avatar} alt={user.name} className="h-8 w-8 shrink-0 rounded bg-[#2b2b2d]" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm text-gray-200">{user.name}</span>
-              {(user.chatId || user.email || user.phone || user.id) && (
-                <span className="mt-0.5 block truncate text-xs text-gray-500">
-                  {user.chatId ?? user.email ?? user.phone ?? user.id}
-                </span>
-              )}
-            </span>
-          </button>
-        ))}
+        {nonContactSearchResults.map((user) => {
+          const isAlreadyInGroup = isExistingGroupMember(existingMemberIds, user);
+          const selectedUser = !isAlreadyInGroup && selectedNonContactUser?.id === user.id;
+
+          return (
+            <button
+              key={user.id}
+              type="button"
+              disabled={isAlreadyInGroup}
+              className={`flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors ${isAlreadyInGroup ? 'cursor-not-allowed opacity-60' : 'hover:bg-white/5'}`}
+              onClick={() => {
+                if (!isAlreadyInGroup) {
+                  setSelectedNonContactUser(user);
+                }
+              }}
+            >
+              <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${selectedUser ? 'border-[#00b42a] bg-[#00b42a]' : 'border-gray-500'}`}>
+                {selectedUser && <Check size={12} className="text-white" />}
+              </span>
+              <Avatar src={user.avatar} alt={user.name} className="h-8 w-8 shrink-0 rounded bg-[#2b2b2d]" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm text-gray-200">{user.name}</span>
+                {(user.chatId || user.email || user.phone || user.id) && (
+                  <span className="mt-0.5 block truncate text-xs text-gray-500">
+                    {user.chatId ?? user.email ?? user.phone ?? user.id}
+                  </span>
+                )}
+                {isAlreadyInGroup && (
+                  <span className="mt-1 inline-flex max-w-full rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs text-gray-400">
+                    {t('chat.modal.selection.alreadyInGroup')}
+                  </span>
+                )}
+              </span>
+            </button>
+          );
+        })}
         {!isSearchingNonContacts && nonContactSearchQuery.trim() && nonContactSearchResults.length === 0 && (
           <div className="py-8 text-center text-sm text-gray-500">
             {t('chat.modal.state.noNonContactResults')}
@@ -242,18 +282,18 @@ export const AddGroupMembersModal: React.FC<AddGroupMembersModalProps> = ({
           </button>
           {activeTab === 'contacts' ? (
             <button
-              disabled={selected.size === 0 || isSubmitting}
+              disabled={selectedInviteIds.length === 0 || isSubmitting}
               onClick={() => void handleSubmit()}
               className="rounded bg-[#00b42a] px-4 py-2 text-sm text-white transition-colors hover:bg-[#009a24] disabled:cursor-not-allowed disabled:bg-[#00b42a]/50"
             >
               {isSubmitting
                 ? t('chat.modal.actions.inviting')
-                : t('chat.modal.actions.inviteWithCount', { count: selected.size })}
+                : t('chat.modal.actions.inviteWithCount', { count: selectedInviteIds.length })}
             </button>
           ) : (
             <button
               type="button"
-              disabled={!selectedNonContactUser || isInvitingNonContact}
+              disabled={!canInviteSelectedNonContact || isInvitingNonContact}
               onClick={() => void handleInviteNonContact()}
               className="flex items-center gap-2 rounded bg-[#00b42a] px-4 py-2 text-sm text-white transition-colors hover:bg-[#009a24] disabled:cursor-not-allowed disabled:bg-[#00b42a]/50"
             >

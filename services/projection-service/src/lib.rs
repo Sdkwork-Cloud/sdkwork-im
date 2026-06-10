@@ -20,6 +20,7 @@ mod member_store;
 mod model;
 mod observability;
 mod projection;
+mod received_message_index;
 mod scope;
 mod snapshot;
 mod summary_updates;
@@ -34,6 +35,7 @@ use projection::{
     ConversationMemberRoleChangedPayload, handoff_view_from_created_payload,
     handoff_view_from_state_payload,
 };
+use received_message_index::ReceivedMessageIndex;
 use scope::{
     ClientRouteFeedScopeKey, ClientRoutePrincipalScopeKey, ContactOwnerScopeKey, scope_key,
     tracked_live_projection_lag_scope_id,
@@ -70,6 +72,7 @@ pub struct TimelineProjectionService {
     summaries: Mutex<HashMap<String, ConversationSummaryView>>,
     members: Mutex<ProjectionMemberRuntimeStore>,
     read_cursors: Mutex<HashMap<String, HashMap<String, ConversationReadCursor>>>,
+    received_messages: Mutex<ReceivedMessageIndex>,
     conversations: Mutex<HashMap<String, ConversationCatalogEntry>>,
     contacts: Mutex<HashMap<ContactOwnerScopeKey, HashMap<String, ContactView>>>,
     direct_chat_bindings: Mutex<contacts::ContactDirectChatBindingRuntimeStore>,
@@ -89,6 +92,7 @@ impl TimelineProjectionService {
         lock_projection_mutex(&self.summaries, "summary store").clear();
         lock_projection_mutex(&self.members, "member store").clear();
         lock_projection_mutex(&self.read_cursors, "cursor store").clear();
+        lock_projection_mutex(&self.received_messages, "received message index").clear();
         lock_projection_mutex(&self.conversations, "conversation store").clear();
         lock_projection_mutex(&self.contacts, "contact store").clear();
         lock_projection_mutex(
@@ -289,6 +293,12 @@ impl TimelineProjectionService {
         let mut entries = lock_projection_mutex(&self.entries, "projection store");
         entries.entry(key).or_default().insert(message_seq, entry);
         drop(entries);
+        lock_projection_mutex(&self.received_messages, "received message index").append_message(
+            scope_key(tenant_id.as_str(), conversation_id.as_str()).as_str(),
+            message_seq,
+            sender_id.as_str(),
+            sender_kind.as_str(),
+        );
 
         let mut summaries = lock_projection_mutex(&self.summaries, "summary store");
         let existing_handoff = summaries
@@ -593,10 +603,13 @@ impl TimelineProjectionService {
             .and_then(|scope_cursors| scope_cursors.get(member.member_id.as_str()))
             .cloned()?;
 
-        let unread_count = self
-            .conversation_summary(tenant_id, conversation_id)
-            .map(|summary| summary.last_message_seq.saturating_sub(cursor.read_seq))
-            .unwrap_or_default();
+        let unread_count = lock_projection_mutex(&self.received_messages, "received message index")
+            .unread_count_after(
+                key.as_str(),
+                member.principal_id.as_str(),
+                member.principal_kind.as_str(),
+                cursor.read_seq,
+            );
 
         Some(ConversationReadCursorView::from_cursor(
             &cursor,

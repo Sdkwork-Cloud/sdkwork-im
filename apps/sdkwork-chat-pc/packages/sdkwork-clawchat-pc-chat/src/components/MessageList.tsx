@@ -195,6 +195,13 @@ function formatVideoCallMessage(
   return { ...message, content };
 }
 
+function isCurrentUserMessage(message: Message, currentUser: User | null): boolean {
+  if (!currentUser) {
+    return false;
+  }
+  return message.senderId === currentUser.id || message.senderId === currentUser.chatId;
+}
+
 export const MessageList: React.FC<MessageListProps> = ({
   chatId,
   fallbackMessages = EMPTY_MESSAGES,
@@ -492,8 +499,10 @@ export const MessageList: React.FC<MessageListProps> = ({
       
       <AnimatePresence initial={false}>
       {filteredMessages.map((msg, index) => {
-        const sender = senderProfiles[msg.senderId] || usersMap[msg.senderId] || currentUser;
-        const isMe = currentUser ? msg.senderId === currentUser.id : false;
+        const isMe = isCurrentUserMessage(msg, currentUser);
+        const sender = isMe ? currentUser : (
+          senderProfiles[msg.senderId] ?? usersMap[msg.senderId]
+        );
         const showTime = index === 0 || msg.timestamp - filteredMessages[index - 1].timestamp > 1000 * 60 * 5;
         const resolveDisplayName = (participantId: string | undefined, fallback: string) => {
           if (!participantId) {
@@ -537,9 +546,11 @@ export const MessageList: React.FC<MessageListProps> = ({
               <Avatar src={sender?.avatar} alt={sender?.name} className={cn("w-[36px] h-[36px] rounded shrink-0 bg-[#2b2b2d] text-white text-[12px] mt-1", isMe ? "ml-3" : "mr-3")} />
               
               <div className={cn("flex flex-col flex-1 min-w-0", isMe ? "items-end" : "items-start")}>
-                <div className="flex items-center gap-2 mb-1 px-1">
-                  <span className="text-[12px] text-gray-400 font-medium">{sender?.name}</span>
-                </div>
+                {!isMe && sender?.name && (
+                  <div className="flex items-center gap-2 mb-1 px-1">
+                    <span className="text-[12px] text-gray-400 font-medium">{sender.name}</span>
+                  </div>
+                )}
                 
                 {msg.replyTo && (
                   <div 

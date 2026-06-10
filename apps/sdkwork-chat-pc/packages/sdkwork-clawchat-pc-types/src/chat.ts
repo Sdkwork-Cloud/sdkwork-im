@@ -14,5 +14,6 @@ export interface Chat {
   isMuted?: boolean;
   isMarkedUnread?: boolean;
   notice?: string;
+  welcomeMessage?: string;
   members?: string[];
 }

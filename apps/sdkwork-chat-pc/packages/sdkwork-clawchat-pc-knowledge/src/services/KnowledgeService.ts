@@ -8,12 +8,6 @@ import type {
   UpdateKnowledgeDocumentRequest,
 } from '@sdkwork/agent-app-sdk';
 import { getAgentAppSdkClientWithSession } from '@sdkwork/clawchat-pc-core/sdk/agentAppSdkClient';
-import {
-  readAppSdkSessionTokens,
-  resolveAppSdkOrganizationId,
-  resolveAppSdkTenantId,
-  resolveAppSdkUserId,
-} from '@sdkwork/clawchat-pc-core/sdk/session';
 
 export interface KnowledgeBase {
   id: string;
@@ -56,16 +50,10 @@ export interface KnowledgeService {
 
 interface KnowledgeServiceOptions {
   client?: SdkworkAgentAppClient;
-  organizationId?: string;
-  ownerUserId?: string;
-  tenantId?: string;
 }
 
 type RecordLike = Record<string, unknown>;
 
-const DEFAULT_TENANT_ID = '0';
-const DEFAULT_ORGANIZATION_ID = '0';
-const DEFAULT_OWNER_USER_ID = '0';
 const DEFAULT_PROVIDER_ID = 'provider.knowledge.pc.local';
 const DEFAULT_CONFIGURATION_PROFILE_ID = 'profile.knowledge.pc.default';
 const DEFAULT_RETRIEVAL_MODES = ['wiki', 'keyword'] as const;
@@ -185,25 +173,13 @@ function codeFromKnowledgeBaseId(knowledgeBaseId: string): string {
   return knowledgeBaseId.replace(/\./gu, '-').slice(0, 128);
 }
 
-function pickTenantId(explicit?: string): string {
-  return explicit ?? resolveAppSdkTenantId(readAppSdkSessionTokens()) ?? DEFAULT_TENANT_ID;
-}
-
-function pickOrganizationId(explicit?: string): string {
-  return explicit ?? resolveAppSdkOrganizationId(readAppSdkSessionTokens()) ?? DEFAULT_ORGANIZATION_ID;
-}
-
-function pickOwnerUserId(explicit?: string): string {
-  return explicit ?? resolveAppSdkUserId(readAppSdkSessionTokens()) ?? DEFAULT_OWNER_USER_ID;
-}
-
 function metadataOf(value: unknown): RecordLike {
   return isRecord(value) ? value : {};
 }
 
 function mapKnowledgeBase(record: KnowledgeBaseRecord): KnowledgeBase {
   return {
-    count: 0,
+    count: record.documentCount,
     description: record.description ?? '',
     id: record.knowledgeBaseId,
     logo: '',
@@ -292,11 +268,7 @@ function assertFileDocumentHasDriveReference(data: Partial<KnowledgeDoc>): void 
   }
 }
 
-function buildCreateBaseRequest(
-  data: Partial<KnowledgeBase>,
-  organizationId: string,
-  ownerUserId: string,
-): CreateKnowledgeBaseRequest {
+function buildCreateBaseRequest(data: Partial<KnowledgeBase>): CreateKnowledgeBaseRequest {
   const knowledgeBaseId = requireKnowledgeBaseId(data.id);
   const name = asString(data.name);
   if (!name) {
@@ -310,8 +282,6 @@ function buildCreateBaseRequest(
     description: data.description ?? '',
     displayName: name,
     knowledgeBaseId,
-    organizationId,
-    ownerUserId,
     providerId: DEFAULT_PROVIDER_ID,
     requestedAt: requestTimestamp(),
     retrievalModes: [...DEFAULT_RETRIEVAL_MODES],
@@ -329,10 +299,7 @@ function buildUpdateBaseRequest(data: Partial<KnowledgeBase>): UpdateKnowledgeBa
   };
 }
 
-function buildCreateDocumentRequest(
-  data: Partial<KnowledgeDoc>,
-  organizationId: string,
-): CreateKnowledgeDocumentRequest {
+function buildCreateDocumentRequest(data: Partial<KnowledgeDoc>): CreateKnowledgeDocumentRequest {
   assertFileDocumentHasDriveReference(data);
   const knowledgeDocumentId = requireKnowledgeDocumentId(data.id);
   const title = asString(data.title);
@@ -348,7 +315,6 @@ function buildCreateDocumentRequest(
     knowledgeDocumentId,
     knowledgeSourceId: null,
     metadata: buildDocumentMetadata(data),
-    organizationId,
     redactionClassification: 'internal',
     requestedAt: requestTimestamp(),
     summary: summarizeContent(content),
@@ -385,15 +351,13 @@ class SdkworkKnowledgeService implements KnowledgeService {
     const response = await this.client().ai.knowledgeBases.list({
       page: 1,
       pageSize: 100,
-      tenantId: this.tenantId(),
     });
     return extractKnowledgeBaseRecords(response).map(mapKnowledgeBase);
   }
 
   async createBase(data: Partial<KnowledgeBase>): Promise<KnowledgeBase> {
     const response = await this.client().ai.knowledgeBases.create(
-      buildCreateBaseRequest(data, this.organizationId(), this.ownerUserId()),
-      { tenantId: this.tenantId() },
+      buildCreateBaseRequest(data),
     );
     return mapKnowledgeBase(response.data);
   }
@@ -402,7 +366,6 @@ class SdkworkKnowledgeService implements KnowledgeService {
     const response = await this.client().ai.knowledgeBases.update(
       requireKnowledgeBaseId(id),
       buildUpdateBaseRequest(data),
-      { tenantId: this.tenantId() },
     );
     return mapKnowledgeBase(response.data);
   }
@@ -411,7 +374,6 @@ class SdkworkKnowledgeService implements KnowledgeService {
     await this.client().ai.knowledgeBases.delete(requireKnowledgeBaseId(id), {
       expectedVersion,
       requestedAt: requestTimestamp(),
-      tenantId: this.tenantId(),
     });
     return true;
   }
@@ -420,7 +382,6 @@ class SdkworkKnowledgeService implements KnowledgeService {
     const response = await this.client().ai.knowledgeList.list(requireKnowledgeBaseId(baseId), {
       page: 1,
       pageSize: 100,
-      tenantId: this.tenantId(),
     });
     return extractKnowledgeDocumentRecords(response).map(mapKnowledgeDocument);
   }
@@ -429,8 +390,7 @@ class SdkworkKnowledgeService implements KnowledgeService {
     const baseId = requireKnowledgeBaseId(data.baseId);
     const response = await this.client().ai.knowledgeDocuments.create(
       baseId,
-      buildCreateDocumentRequest(data, this.organizationId()),
-      { tenantId: this.tenantId() },
+      buildCreateDocumentRequest(data),
     );
     return mapKnowledgeDocument(response.data);
   }
@@ -440,7 +400,6 @@ class SdkworkKnowledgeService implements KnowledgeService {
     const response = await this.client().ai.knowledgeDocuments.update(
       documentId,
       buildUpdateDocumentRequest({ ...data, id: documentId }),
-      { tenantId: this.tenantId() },
     );
     return mapKnowledgeDocument(response.data);
   }
@@ -449,25 +408,12 @@ class SdkworkKnowledgeService implements KnowledgeService {
     await this.client().ai.knowledgeDocuments.delete(requireKnowledgeDocumentId(id), {
       expectedVersion,
       requestedAt: requestTimestamp(),
-      tenantId: this.tenantId(),
     });
     return true;
   }
 
   private client(): SdkworkAgentAppClient {
     return this.options.client ?? getAgentAppSdkClientWithSession();
-  }
-
-  private tenantId(): string {
-    return pickTenantId(this.options.tenantId);
-  }
-
-  private organizationId(): string {
-    return pickOrganizationId(this.options.organizationId);
-  }
-
-  private ownerUserId(): string {
-    return pickOwnerUserId(this.options.ownerUserId);
   }
 }
 

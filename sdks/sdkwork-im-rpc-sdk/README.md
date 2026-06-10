@@ -161,7 +161,7 @@ node ..\sdkwork-sdk-generator\bin\sdkgen.js generate `
 
 RPC SDK source workspaces use convention mode by default. The authoritative source evidence is the `sdkwork-im-rpc-sdk` family root, `rpc/sdkwork-im-rpc.manifest.json`, the proto source under `proto/`, each generated language workspace name, `rpc-methods.json`, and the native package manifest such as `package.json`, `go.mod`, `pom.xml`, `pyproject.toml`, or `Cargo.toml`.
 
-Use `sdkgen inspect --protocol rpc` for every RPC SDK workspace. Inspect validates the convention evidence and reports `evidenceMode: "convention"` for normal source output. Release, CI, audit, or migration workflows may request optional generator evidence with `--emit-control-plane`; only then are `.sdkwork/sdkwork-generator-manifest.json`, `.sdkwork/sdkwork-generator-changes.json`, and `.sdkwork/sdkwork-generator-report.json` written, with `sdk.protocol: "rpc"`.
+Use `sdkgen inspect --protocol rpc` for every RPC SDK workspace. Inspect validates the convention evidence and reports `evidenceMode: "convention"` for normal source output. Release, CI, audit, or migration workflows may request optional generator evidence with `--emit-control-plane`; those files are derived by generator convention and are not normal source-control evidence for this RPC SDK family.
 
 ## HTTP SDK Compatibility
 

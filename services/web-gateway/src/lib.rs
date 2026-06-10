@@ -47,6 +47,7 @@ use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
 const BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
 const APPBASE_APP_API_SERVICE_ID: &str = "sdkwork-appbase-app-api";
+const DRIVE_APP_API_SERVICE_ID: &str = "sdkwork-drive-app-api";
 const APP_CONTEXT_SIGNATURE_SECRET_ENV: &str = "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET";
 const IM_REALTIME_WEBSOCKET_PATH: &str = "/im/v3/api/realtime/ws";
 const WEBSOCKET_AUTH_INIT_TIMEOUT_SECONDS: u64 = 10;
@@ -749,7 +750,7 @@ fn should_resolve_proxied_context_from_appbase_session(service_id: &str, path: &
         "streaming-service" => path.starts_with("/im/v3/api/streams"),
         "im-calls-service" => path.starts_with("/im/v3/api/calls/"),
         "media-service" => path.starts_with("/im/v3/api/media/"),
-        "sdkwork-drive-app-api" => path.starts_with("/app/v3/api/drive/"),
+        DRIVE_APP_API_SERVICE_ID => path.starts_with("/app/v3/api/drive/"),
         "notification-service" => path.starts_with("/app/v3/api/notifications"),
         "automation-service" => path.starts_with("/app/v3/api/automation/"),
         _ => false,
@@ -1279,10 +1280,18 @@ fn runtime_router_for_missing_embedded_upstream(
         return state.embedded_runtime_router.clone();
     }
 
+    if requires_configured_embedded_dependency_upstream(service_id) {
+        return None;
+    }
+
     state
         .embedded_runtime_router
         .clone()
         .or_else(|| state.product_runtime_router.clone())
+}
+
+fn requires_configured_embedded_dependency_upstream(service_id: &str) -> bool {
+    matches!(service_id, DRIVE_APP_API_SERVICE_ID)
 }
 
 fn spawn_embedded_runtime_websocket_upstream(

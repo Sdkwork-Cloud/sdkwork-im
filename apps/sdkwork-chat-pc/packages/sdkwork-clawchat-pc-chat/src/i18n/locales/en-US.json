@@ -183,6 +183,69 @@
     }
   },
   "chat": {
+    "historySearch": {
+      "title": "Search chat history",
+      "currentChat": "Current chat",
+      "resultCount": "{{count}} results",
+      "tabsAria": "Chat history search categories",
+      "dateAria": "Filter chat history by date",
+      "tabs": {
+        "all": "All",
+        "messages": "Messages",
+        "media": "Photos & videos",
+        "files": "Files",
+        "links": "Links",
+        "music": "Music",
+        "voice": "Voice",
+        "apps": "Mini apps & cards"
+      },
+      "placeholder": {
+        "all": "Search all chat content",
+        "messages": "Search message text",
+        "media": "Search photos and videos",
+        "files": "Search file names",
+        "links": "Search link title, summary, or URL",
+        "music": "Search music messages",
+        "voice": "Search voice messages",
+        "apps": "Search mini apps and cards"
+      },
+      "actions": {
+        "clearDate": "Clear date filter",
+        "clearSearch": "Clear search",
+        "close": "Close chat history search"
+      },
+      "sender": {
+        "me": "Me",
+        "other": "Member"
+      },
+      "state": {
+        "loading": "Loading chat history...",
+        "emptyTitle": "No matching records",
+        "emptyDescription": "Change the keyword, date, or content type to search this conversation again."
+      },
+      "type": {
+        "app": "App/Card",
+        "file": "File",
+        "link": "Link",
+        "media": "Media",
+        "message": "Message",
+        "music": "Music",
+        "voice": "Voice"
+      },
+      "preview": {
+        "applet": "Mini app",
+        "card": "Contact card",
+        "file": "File",
+        "image": "Image",
+        "message": "Message",
+        "music": "Music",
+        "video": "Video",
+        "voice": "Voice message"
+      },
+      "toast": {
+        "loadFailed": "Failed to load chat history"
+      }
+    },
     "emptyHome": {
       "eyebrow": "Inbox ready",
       "title": "Start a conversation",
@@ -300,6 +363,80 @@
     "call": {
       "incoming": "Incoming call"
     },
+    "notification": {
+      "call": {
+        "video": "Incoming video call",
+        "voice": "Incoming voice call"
+      },
+      "center": {
+        "dismiss": "Dismiss notification",
+        "now": "Now"
+      },
+      "message": {
+        "hiddenBody": "New message",
+        "titleFallback": "SDKWork Chat",
+        "type": {
+          "applet": "[Mini app]",
+          "card": "[Card]",
+          "file": "[File]",
+          "image": "[Image]",
+          "link": "[Link]",
+          "music": "[Music]",
+          "system": "[System message]",
+          "video": "[Video]",
+          "videoCall": "[Call]",
+          "voice": "[Voice message]"
+        }
+      },
+      "settings": {
+        "title": "Professional message alerts",
+        "description": "New messages appear in the bottom-right by default. Muted conversations, your own messages, and the focused conversation you are already viewing do not interrupt you again.",
+        "appPopup": {
+          "title": "In-app message popups",
+          "description": "Show instant message cards in the bottom-right on desktop and web. Click a card to open the conversation."
+        },
+        "sound": {
+          "title": "New message sound",
+          "description": "Play a subtle sound for messages that pass notification rules, without affecting muted conversations."
+        },
+        "system": {
+          "title": "System notifications",
+          "description": "Use browser or desktop system notifications after permission is granted. Current permission: {{permission}}"
+        },
+        "focused": {
+          "title": "Notify current conversation",
+          "description": "When enabled, message popups still appear while the window is focused and you are viewing the same conversation."
+        },
+        "preview": {
+          "title": "Notification content",
+          "senderAndPreview": {
+            "label": "Name and content",
+            "description": "Show conversation name and message preview"
+          },
+          "senderOnly": {
+            "label": "Name only",
+            "description": "Show conversation name without message content"
+          },
+          "hidden": {
+            "label": "Hide all",
+            "description": "Hide conversation and message content"
+          }
+        },
+        "permission": {
+          "default": "Not asked",
+          "denied": "Blocked",
+          "granted": "Allowed",
+          "unsupported": "Unsupported"
+        },
+        "reset": "Restore default notification settings",
+        "toast": {
+          "reset": "Notification settings restored",
+          "systemDenied": "System notification permission is blocked by the browser or operating system. Allow notifications in system settings.",
+          "systemEnabled": "System notifications enabled",
+          "systemUnsupported": "System notifications are not supported in this runtime"
+        }
+      }
+    },
     "header": {
       "search": "Search",
       "voiceCall": "Voice call",
@@ -313,13 +450,20 @@
       "createAssistant": "Create assistant",
       "scanQrCode": "Scan QR"
     },
+    "fallback": {
+      "groupName": "Group chat",
+      "memberName": "Member",
+      "memberSubtitle": "Profile unavailable"
+    },
     "rightPanel": {
+      "title": "Chat details",
       "actions": {
         "searchChat": "Search chat",
         "addMember": "Add member",
         "removeMember": "Remove member",
         "leaveGroup": "Leave group",
-        "deleteChat": "Delete chat"
+        "deleteChat": "Delete chat",
+        "close": "Close details panel"
       },
       "fields": {
         "groupName": "Group name",
@@ -387,6 +531,7 @@
         "selectedCount": "{{count}} selected",
         "emptySelected": "Selected members will appear here",
         "noSearchResults": "No matching contacts",
+        "alreadyInGroup": "Already in group",
         "indexAria": "Jump to {{index}} contacts",
         "removeSelected": "Remove {{name}}"
       },
@@ -450,10 +595,14 @@
       "source": "Source: {{source}}"
     },
     "group": {
-      "memberCount": "{{count}} members"
+      "memberCount": "{{count}} members",
+      "unknownName": "Unknown group",
+      "unresolved": "Group details unavailable"
     },
     "community": {
-      "memberCount": "{{count}} members"
+      "memberCount": "{{count}} members",
+      "unknownName": "Unknown circle",
+      "unresolved": "Circle details unavailable"
     },
     "actions": {
       "chooseFile": "Choose file",

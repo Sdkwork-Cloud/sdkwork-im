@@ -635,20 +635,240 @@ pub(super) async fn get_inbox(
     State(state): State<AppState>,
 ) -> Result<Json<InboxResponse>, ApiError> {
     let auth = access::resolve_active_auth_context(&state, auth, &headers)?;
-    let items = state
-        .projection_service
-        .inbox_from_auth_context(&auth)
-        .into_iter()
-        .filter(|item| {
-            access::direct_chat_access_block_for_conversation(
-                &state,
-                auth.tenant_id.as_str(),
-                item.conversation_id.as_str(),
-            )
-            .is_none()
-        })
-        .collect();
+    let items = enrich_inbox_entries_for_current_principal(
+        &state,
+        &auth,
+        state
+            .projection_service
+            .inbox_from_auth_context(&auth)
+            .into_iter()
+            .filter(|item| {
+                access::direct_chat_access_block_for_conversation(
+                    &state,
+                    auth.tenant_id.as_str(),
+                    item.conversation_id.as_str(),
+                )
+                .is_none()
+            })
+            .collect(),
+    );
     Ok(Json(InboxResponse { items }))
+}
+
+fn enrich_inbox_entries_for_current_principal(
+    state: &AppState,
+    auth: &AppContext,
+    mut items: Vec<ConversationInboxEntry>,
+) -> Vec<ConversationInboxEntry> {
+    let conversation_preferences = state
+        .conversation_preferences
+        .lock()
+        .expect("conversation preferences mutex should not be poisoned")
+        .clone();
+    let conversation_profiles = state
+        .conversation_profiles
+        .lock()
+        .expect("conversation profiles mutex should not be poisoned")
+        .clone();
+    let contact_preferences = state
+        .contact_preferences
+        .lock()
+        .expect("contact preferences mutex should not be poisoned")
+        .clone();
+    let peer_profiles = batch_inbox_peer_profiles(state, auth, items.as_slice());
+
+    for item in &mut items {
+        let preferences_key = conversation_preferences_key(
+            auth.tenant_id.as_str(),
+            item.conversation_id.as_str(),
+            auth.actor_kind.as_str(),
+            auth.actor_id.as_str(),
+        );
+        let preferences = conversation_preferences
+            .get(preferences_key.as_str())
+            .cloned()
+            .unwrap_or_else(|| {
+                default_conversation_preferences(auth, item.conversation_id.clone())
+            });
+        item.preferences = Some(ConversationInboxPreferencesView {
+            is_pinned: preferences.is_pinned,
+            is_muted: preferences.is_muted,
+            is_marked_unread: preferences.is_marked_unread,
+            is_hidden: preferences.is_hidden,
+        });
+
+        if normalize_inbox_conversation_type(item.conversation_type.as_str()) == "group" {
+            enrich_group_inbox_entry(item, &conversation_profiles);
+            continue;
+        }
+
+        enrich_direct_inbox_entry(item, auth, &contact_preferences, &peer_profiles);
+    }
+
+    items
+}
+
+fn enrich_group_inbox_entry(
+    item: &mut ConversationInboxEntry,
+    conversation_profiles: &BTreeMap<String, ConversationProfileView>,
+) {
+    let profile_key =
+        conversation_profile_key(item.tenant_id.as_str(), item.conversation_id.as_str());
+    let Some(profile) = conversation_profiles.get(profile_key.as_str()) else {
+        return;
+    };
+    if let Some(display_name) = normalized_inbox_string(profile.display_name.as_str()) {
+        item.display_name = Some(display_name);
+        item.display_source = Some("conversation_profile".into());
+    }
+    if let Some(avatar_url) = normalized_inbox_string(profile.avatar_url.as_str()) {
+        item.avatar_url = Some(avatar_url);
+    }
+}
+
+fn enrich_direct_inbox_entry(
+    item: &mut ConversationInboxEntry,
+    auth: &AppContext,
+    contact_preferences: &BTreeMap<String, ContactPreferencesView>,
+    peer_profiles: &BTreeMap<String, im_platform_contracts::PrincipalProfile>,
+) {
+    let Some(peer) = item.peer.as_ref() else {
+        return;
+    };
+    let peer_user_id =
+        normalized_inbox_string(peer.user_id.as_deref().unwrap_or("")).or_else(|| {
+            (peer.principal_kind == "user")
+                .then(|| normalized_inbox_string(peer.principal_id.as_str()))
+                .flatten()
+        });
+    let profile = peer_user_id
+        .as_ref()
+        .and_then(|user_id| peer_profiles.get(user_id.as_str()));
+    let profile_chat_id = profile.map(principal_profile::public_chat_id_for_profile);
+    let profile_avatar_url = profile.and_then(|profile| {
+        profile_attribute(&profile.attributes, &["avatarUrl", "avatar_url", "avatar"])
+    });
+
+    let contact_remark = peer_user_id.as_ref().and_then(|user_id| {
+        let key = contact_preferences_key(auth.tenant_id.as_str(), auth.actor_id.as_str(), user_id);
+        contact_preferences
+            .get(key.as_str())
+            .filter(|preferences| !preferences.is_blocked)
+            .and_then(|preferences| normalized_inbox_string(preferences.remark.as_str()))
+    });
+    let profile_name =
+        profile.and_then(|profile| normalized_inbox_string(profile.display_name.as_str()));
+    let member_name = peer
+        .display_name
+        .as_deref()
+        .and_then(normalized_inbox_string);
+    let display_projection = if let Some(display_name) = contact_remark {
+        Some((display_name, "contact_remark"))
+    } else if let Some(display_name) = profile_name {
+        Some((display_name, "peer_profile"))
+    } else {
+        member_name.map(|display_name| (display_name, "member_projection"))
+    };
+    let avatar_url = item
+        .avatar_url
+        .as_deref()
+        .and_then(normalized_inbox_string)
+        .or_else(|| peer.avatar_url.as_deref().and_then(normalized_inbox_string))
+        .or(profile_avatar_url);
+
+    let Some(peer) = item.peer.as_mut() else {
+        return;
+    };
+    if let Some(profile) = profile {
+        peer.user_id = Some(profile.principal_id.clone());
+        if peer
+            .display_name
+            .as_deref()
+            .and_then(normalized_inbox_string)
+            .is_none()
+        {
+            peer.display_name = Some(profile.display_name.clone());
+        }
+        if peer
+            .chat_id
+            .as_deref()
+            .and_then(normalized_inbox_string)
+            .is_none()
+        {
+            peer.chat_id = profile_chat_id;
+        }
+        if peer
+            .avatar_url
+            .as_deref()
+            .and_then(normalized_inbox_string)
+            .is_none()
+        {
+            peer.avatar_url = avatar_url.clone();
+        }
+    }
+    if let Some((display_name, source)) = display_projection {
+        item.display_name = Some(display_name);
+        item.display_source = Some(source.into());
+    }
+    if let Some(avatar_url) = avatar_url {
+        item.avatar_url = Some(avatar_url);
+    }
+}
+
+fn batch_inbox_peer_profiles(
+    state: &AppState,
+    auth: &AppContext,
+    items: &[ConversationInboxEntry],
+) -> BTreeMap<String, im_platform_contracts::PrincipalProfile> {
+    let mut peer_user_ids = items
+        .iter()
+        .filter_map(|item| item.peer.as_ref())
+        .filter(|peer| peer.principal_kind == "user")
+        .filter_map(|peer| {
+            normalized_inbox_string(
+                peer.user_id
+                    .as_deref()
+                    .unwrap_or(peer.principal_id.as_str()),
+            )
+        })
+        .collect::<Vec<_>>();
+    peer_user_ids.sort();
+    peer_user_ids.dedup();
+    if peer_user_ids.is_empty() {
+        return BTreeMap::new();
+    }
+
+    state
+        .principal_profile_provider
+        .batch_get_profiles(auth.tenant_id.as_str(), "user", peer_user_ids.as_slice())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|profile| !profile.inactive)
+        .map(|profile| (profile.principal_id.clone(), profile))
+        .collect()
+}
+
+fn normalize_inbox_conversation_type(value: &str) -> &'static str {
+    if value.eq_ignore_ascii_case("group") {
+        "group"
+    } else {
+        "single"
+    }
+}
+
+fn normalized_inbox_string(value: &str) -> Option<String> {
+    let normalized = value.trim();
+    (!normalized.is_empty()).then(|| normalized.to_owned())
+}
+
+fn profile_attribute(attributes: &BTreeMap<String, String>, keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| {
+        attributes
+            .get(*key)
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+    })
 }
 
 pub(super) async fn get_read_cursor(

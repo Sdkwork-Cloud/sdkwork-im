@@ -12,6 +12,16 @@ interface AgentSelectModalProps {
   multiple?: boolean;
 }
 
+function mergeUniqueAgents(myAgents: AgentConfig[], marketAgents: AgentConfig[]): AgentConfig[] {
+  const merged = new Map<string, AgentConfig>();
+  for (const agent of [...myAgents, ...marketAgents]) {
+    if (agent.id && !merged.has(agent.id)) {
+      merged.set(agent.id, agent);
+    }
+  }
+  return Array.from(merged.values());
+}
+
 export const BindAgentModal: React.FC<AgentSelectModalProps> = ({ device, onClose, onSelect, multiple = false }) => {
   const [agents, setAgents] = useState<AgentConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,9 +41,12 @@ export const BindAgentModal: React.FC<AgentSelectModalProps> = ({ device, onClos
     let mounted = true;
     const fetchAgents = async () => {
       try {
-        const data = await agentService.getMarketAgents();
+        const [myAgents, marketAgents] = await Promise.all([
+          agentService.getAgents(),
+          agentService.getMarketAgents(),
+        ]);
         if (mounted) {
-          setAgents(data);
+          setAgents(mergeUniqueAgents(myAgents, marketAgents));
           setLoading(false);
         }
       } catch (err) {

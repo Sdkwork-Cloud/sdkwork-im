@@ -1196,7 +1196,11 @@ where
 
         Ok(ConversationReadCursorView::from_cursor(
             cursor,
-            conversation.message_log.unread_count_since(cursor.read_seq),
+            conversation.message_log.received_unread_count_since(
+                cursor.read_seq,
+                cursor.principal_id.as_str(),
+                cursor.principal_kind.as_str(),
+            ),
         ))
     }
 
@@ -1227,7 +1231,11 @@ where
 
         Ok(ConversationReadCursorView::from_cursor(
             cursor,
-            conversation.message_log.unread_count_since(cursor.read_seq),
+            conversation.message_log.received_unread_count_since(
+                cursor.read_seq,
+                cursor.principal_id.as_str(),
+                cursor.principal_kind.as_str(),
+            ),
         ))
     }
 

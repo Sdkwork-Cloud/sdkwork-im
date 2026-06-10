@@ -154,15 +154,15 @@ assert.match(
   /truncate/u,
   'CallOverlay must keep long peer names on one line with ellipsis instead of wrapping and breaking the modal layout.',
 );
-assert.match(
+assert.doesNotMatch(
   callOverlaySource,
   /getUserMedia\s*\(/u,
-  'CallOverlay must request browser camera/microphone media for real voice/video call controls.',
+  'CallOverlay must not request browser camera/microphone directly; the RTC provider owns call media capture.',
 );
 assert.match(
   callOverlaySource,
-  /localMediaStreamRef/u,
-  'CallOverlay must retain the local media stream so mute/camera controls affect real tracks and cleanup can stop them.',
+  /bindLocalVideoElement/u,
+  'CallOverlay must bind the local preview container through CallService so provider-owned media can render without double capture.',
 );
 assert.match(
   callOverlaySource,
@@ -172,32 +172,37 @@ assert.match(
 assert.match(
   callOverlaySource,
   /getTracks\s*\(\s*\)\.forEach[\s\S]*\.stop\s*\(/u,
-  'CallOverlay must stop all local camera, microphone, and screen-share tracks when a call ends or closes.',
+  'CallOverlay must stop screen-share tracks when a call ends or closes.',
 );
 assert.match(
   callOverlaySource,
-  /\.enabled\s*=/u,
-  'CallOverlay mute/camera toggles must update MediaStreamTrack.enabled instead of only updating UI state.',
+  /localPreviewContainerRef/u,
+  'CallOverlay must keep a local preview container ref so the provider can render the camera preview.',
 );
 assert.match(
   callOverlaySource,
-  /localPreviewVideoRef/u,
-  'CallOverlay must keep a local video element ref so the existing picture-in-picture area can show the real camera preview.',
+  /bindLocalVideoElement\s*\(\s*localPreviewContainerRef\.current/u,
+  'CallOverlay must bind the provider-owned local video renderer to the picture-in-picture preview container.',
 );
 assert.match(
   callOverlaySource,
-  /\.srcObject\s*=\s*stream/u,
-  'CallOverlay must bind the browser local media stream to a video element instead of showing only a static placeholder.',
+  /bindLocalVideoElement\s*\(\s*localPreviewContainerRef\.current[\s\S]*\},\s*\[\s*callState,\s*isOpen,\s*isVideoOff,\s*type\s*\]\s*\)/u,
+  'CallOverlay local video binding effect must depend on isOpen so preview bind/unbind follows modal lifecycle changes.',
 );
 assert.match(
   callOverlaySource,
-  /autoPlay[\s\S]*playsInline[\s\S]*muted/u,
-  'CallOverlay local camera preview must be autoplaying, inline, and muted to avoid echo.',
+  /bindLocalVideoElement\s*\(\s*localPreviewContainerRef\.current[\s\S]*return\s*\(\s*\)\s*=>\s*\{[\s\S]*bindLocalVideoElement\s*\(\s*null\s*\)[\s\S]*\};[\s\S]*\},\s*\[\s*callState,\s*isOpen,\s*isVideoOff,\s*type\s*\]\s*\)/u,
+  'CallOverlay local video binding effect must return a cleanup that unbinds provider-owned preview during StrictMode remounts and fast lifecycle changes.',
+);
+assert.match(
+  callOverlaySource,
+  /bindLocalVideoElement\s*\(\s*null\s*\)/u,
+  'CallOverlay must unbind provider-owned local video when the preview closes.',
 );
 assert.match(
   callOverlaySource,
   /releaseCallMedia\s*\(\s*\)[\s\S]*onClose\s*\(\s*\)/u,
-  'CallOverlay must release browser media before closing after terminal call actions or remote terminal snapshots.',
+  'CallOverlay must release provider preview bindings before closing after terminal call actions or remote terminal snapshots.',
 );
 
 assert.match(

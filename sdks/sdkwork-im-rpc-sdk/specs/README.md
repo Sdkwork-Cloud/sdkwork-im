@@ -20,7 +20,7 @@ The RPC SDK family uses the SDKWork RPC baseline language set:
 | Rust | `sdkwork-im-rpc-sdk-rust` | `sdkwork-im-rpc-sdk-rust` | convention evidence |
 | TypeScript | `sdkwork-im-rpc-sdk-typescript` | `@sdkwork/im-rpc-sdk` | convention evidence |
 
-RPC SDK source workspaces use convention evidence by default: the family root, `rpc/sdkwork-im-rpc.manifest.json`, proto source, generated language workspace name, `rpc-methods.json`, and the native package manifest. `sdkgen inspect --protocol rpc` must report a healthy workspace. Optional `.sdkwork/sdkwork-generator-*` evidence is emitted only for release, CI, audit, or migration workflows with `--emit-control-plane`.
+RPC SDK source workspaces use convention evidence by default: the family root, `rpc/sdkwork-im-rpc.manifest.json`, proto source, generated language workspace name, `rpc-methods.json`, and the native package manifest. `sdkgen inspect --protocol rpc` must report a healthy workspace. Optional generator evidence is emitted only for release, CI, audit, or migration workflows with `--emit-control-plane`; its paths are derived by generator convention and are not repeated in this component contract.
 
 ## Verification
 

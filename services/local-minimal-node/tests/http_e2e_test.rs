@@ -3560,6 +3560,27 @@ async fn test_local_minimal_profile_exposes_read_cursor_and_unread_view() {
         .expect("create conversation should succeed");
     assert_eq!(create_conversation.status(), StatusCode::OK);
 
+    let add_member = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_cursor/members/add")
+                .demo_app_context()
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_member",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member should succeed");
+    assert_eq!(add_member.status(), StatusCode::OK);
+
     for (client_msg_id, summary) in [("client_1", "one"), ("client_2", "two")] {
         let post_message = app
             .clone()
@@ -3567,7 +3588,10 @@ async fn test_local_minimal_profile_exposes_read_cursor_and_unread_view() {
                 Request::builder()
                     .method("POST")
                     .uri("/im/v3/api/chat/conversations/c_cursor/messages")
-                    .demo_app_context()
+                    .header("x-sdkwork-tenant-id", "t_demo")
+                    .header("x-sdkwork-user-id", "u_member")
+                    .header("x-sdkwork-actor-kind", "user")
+                    .header("x-sdkwork-session-id", "sdkwork_iam_session_member")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -3691,13 +3715,37 @@ async fn test_local_minimal_profile_exposes_inbox_view() {
         .expect("create conversation should succeed");
     assert_eq!(create_conversation.status(), StatusCode::OK);
 
+    let add_member = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_inbox/members/add")
+                .demo_app_context()
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_member",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add inbox member should succeed");
+    assert_eq!(add_member.status(), StatusCode::OK);
+
     let post_message = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_inbox/messages")
-                .demo_app_context()
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_member")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "sdkwork_iam_session_member")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3777,6 +3825,123 @@ async fn test_local_minimal_profile_exposes_inbox_view() {
     let inbox_after_read_json: serde_json::Value = serde_json::from_slice(&inbox_after_read_body)
         .expect("inbox after read should be valid json");
     assert_eq!(inbox_after_read_json["items"][0]["unreadCount"], 0);
+}
+
+#[tokio::test]
+async fn test_local_minimal_profile_exposes_display_ready_direct_inbox_projection() {
+    let runtime_dir = unique_test_runtime_dir("direct_inbox_projection");
+    fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
+    let catalog_path = runtime_dir.join("principal-profile-catalog.json");
+    fs::write(
+        &catalog_path,
+        serde_json::json!({
+            "externalSystem": "corp-idp",
+            "profiles": [
+                {
+                    "tenantId": "t_demo",
+                    "principalId": "u_alice",
+                    "principalKind": "user",
+                    "displayName": "Alice Chen",
+                    "externalPrincipalId": "alice",
+                    "attributes": {
+                        "avatarUrl": "https://cdn.example.test/alice.png"
+                    }
+                },
+                {
+                    "tenantId": "t_demo",
+                    "principalId": "u_bob",
+                    "principalKind": "user",
+                    "displayName": "Bob Stone",
+                    "externalPrincipalId": "bob",
+                    "attributes": {
+                        "avatarUrl": "https://cdn.example.test/bob.png"
+                    }
+                }
+            ]
+        })
+        .to_string(),
+    )
+    .expect("principal profile catalog should be written");
+    let app = local_minimal_node::build_default_app_with_runtime_dir_and_principal_profile_provider(
+        runtime_dir.as_path(),
+        Arc::new(TestExternalCatalogPrincipalProfileProvider::new(
+            catalog_path,
+            "corp-idp",
+        )),
+    );
+    let fixture = create_active_friendship_direct_chat_fixture(&app).await;
+
+    let update_preferences = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!(
+                    "/im/v3/api/chat/conversations/{}/preferences",
+                    fixture.conversation_id
+                ))
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_alice")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "isPinned": true,
+                        "isMuted": true,
+                        "isMarkedUnread": true,
+                        "isHidden": false
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("update direct conversation preferences should return response");
+    assert_eq!(update_preferences.status(), StatusCode::OK);
+
+    let inbox = app
+        .oneshot(
+            Request::builder()
+                .uri("/im/v3/api/chat/inbox")
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_alice")
+                .header("x-sdkwork-actor-kind", "user")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("direct inbox should return response");
+    assert_eq!(inbox.status(), StatusCode::OK);
+    let inbox_body = inbox
+        .into_body()
+        .collect()
+        .await
+        .expect("direct inbox body should collect")
+        .to_bytes();
+    let inbox_json: serde_json::Value =
+        serde_json::from_slice(&inbox_body).expect("direct inbox body should be valid json");
+    let items = inbox_json["items"]
+        .as_array()
+        .expect("direct inbox items should be an array");
+    let item = items
+        .iter()
+        .find(|item| item["conversationId"] == fixture.conversation_id)
+        .expect("direct inbox should include the friendship conversation");
+    assert_eq!(item["conversationType"], "direct");
+    assert_eq!(item["displayName"], "Bob Stone");
+    assert_eq!(item["avatarUrl"], "https://cdn.example.test/bob.png");
+    assert_eq!(item["displaySource"], "peer_profile");
+    assert_eq!(item["peer"]["principalKind"], "user");
+    assert_eq!(item["peer"]["principalId"], "u_bob");
+    assert_eq!(item["peer"]["userId"], "u_bob");
+    assert_eq!(item["peer"]["displayName"], "Bob Stone");
+    assert_eq!(
+        item["peer"]["avatarUrl"],
+        "https://cdn.example.test/bob.png"
+    );
+    assert_eq!(item["preferences"]["isPinned"], true);
+    assert_eq!(item["preferences"]["isMuted"], true);
+    assert_eq!(item["preferences"]["isMarkedUnread"], true);
+    assert_eq!(item["preferences"]["isHidden"], false);
 }
 
 #[tokio::test]
@@ -3891,13 +4056,37 @@ async fn test_local_minimal_profile_second_instance_reads_latest_inbox_from_shar
         .expect("create conversation on first instance should succeed");
     assert_eq!(create_conversation.status(), StatusCode::OK);
 
+    let add_member = app_a
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/im/v3/api/chat/conversations/c_cross_instance_inbox/members/add")
+                .demo_app_context()
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{
+                        "principalId":"u_member",
+                        "principalKind":"user",
+                        "role":"member"
+                    }"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .expect("add member on first instance should succeed");
+    assert_eq!(add_member.status(), StatusCode::OK);
+
     let post_message = app_a
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_cross_instance_inbox/messages")
-                .demo_app_context()
+                .header("x-sdkwork-tenant-id", "t_demo")
+                .header("x-sdkwork-user-id", "u_member")
+                .header("x-sdkwork-actor-kind", "user")
+                .header("x-sdkwork-session-id", "sdkwork_iam_session_member")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

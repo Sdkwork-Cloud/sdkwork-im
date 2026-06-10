@@ -305,6 +305,9 @@ impl TimelineProjectionService {
             self.summaries
                 .lock_projection("summary store")
                 .insert(scope.clone(), summary);
+            self.received_messages
+                .lock_projection("received message index")
+                .rebuild_conversation(scope.as_str(), &timeline);
             self.entries
                 .lock_projection("projection store")
                 .insert(scope.clone(), timeline);

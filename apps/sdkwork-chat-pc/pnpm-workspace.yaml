@@ -18,9 +18,11 @@ packages:
   - ../../../sdkwork-core/sdkwork-core-pc-react
   - ../../../sdkwork-ui/sdkwork-ui-pc-react
   - ../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript
+  - ../../../sdkwork-notary/sdks/sdkwork-notary-app-sdk/sdkwork-notary-app-sdk-typescript
   - ../../../sdkwork-aiot/sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript
   - ../../../sdkwork-aiot/sdks/sdkwork-aiot-backend-sdk/sdkwork-aiot-backend-sdk-typescript
   - ../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript
+  - ../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/providers/rtc-sdk-provider-volcengine
   - ../../../sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi
 
 catalog:
@@ -58,6 +60,7 @@ catalog:
   '@tiptap/starter-kit': ^3.23.4
   '@zxing/browser': ^0.2.0
   '@zxing/library': ^0.22.0
+  '@volcengine/rtc': ^4.68.4
   '@types/express': ^4.17.21
   '@types/node': ^22.14.0
   '@types/react': ^19.0.0

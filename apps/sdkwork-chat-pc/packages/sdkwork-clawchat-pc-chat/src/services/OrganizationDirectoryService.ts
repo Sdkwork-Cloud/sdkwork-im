@@ -5,6 +5,7 @@ import {
   readAppSdkSessionTokens,
 } from '@sdkwork/clawchat-pc-core/sdk/session';
 import type { User, UserPositionAssignment, UserRoleBinding } from '@sdkwork/clawchat-pc-types';
+import { createDefaultAvatar } from './DefaultAvatarService';
 
 export interface OrgOrganization {
   appBoundaryEnabled?: boolean;
@@ -321,8 +322,8 @@ function createSearchKey(value: string): string {
     .replace(/[^\da-z]+/gu, '');
 }
 
-function createAvatar(seed: string): string {
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}`;
+function createAvatar(_seed: string): string {
+  return createDefaultAvatar('user');
 }
 
 function mapOrganizationRecord(record: Record<string, unknown>): OrgOrganization | undefined {

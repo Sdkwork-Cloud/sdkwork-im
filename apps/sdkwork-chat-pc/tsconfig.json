@@ -390,6 +390,9 @@
       ],
       "@sdkwork/clawchat-pc-writing": [
         "./packages/sdkwork-clawchat-pc-writing/src/index.tsx"
+      ],
+      "@sdkwork/notary-app-sdk": [
+        "../../../sdkwork-notary/sdks/sdkwork-notary-app-sdk/sdkwork-notary-app-sdk-typescript/src/index.ts"
       ]
     },
     "allowImportingTsExtensions": true,

@@ -29,6 +29,7 @@ import {
   settingsService,
   DEFAULT_SIDEBAR_MODULES,
 } from "../services/SettingsService";
+import { notaryAccessService } from "../services/NotaryAccessService";
 import { MobileLinkModal } from "./MobileLinkModal";
 import { ProfileMenuModal } from "./ProfileMenuModal";
 
@@ -58,6 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showLinkMobile, setShowLinkMobile] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [sidebarModules, setSidebarModules] = useState<string[]>(DEFAULT_SIDEBAR_MODULES);
+  const [canShowNotaryMenu, setCanShowNotaryMenu] = useState(false);
 
   const refreshCurrentUser = useCallback(async () => {
     const sessionUser = contactService.getCurrentUser();
@@ -133,8 +135,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ? s.sidebarModules
           : DEFAULT_SIDEBAR_MODULES;
 
+        const canShowNotaryMenu = await notaryAccessService.canShowNotaryMenu(true);
+        if (!disposed) {
+          setCanShowNotaryMenu(canShowNotaryMenu);
+        }
+
+        const filterNotaryModules = (modules: string[]) =>
+          canShowNotaryMenu ? modules : modules.filter((moduleId) => moduleId !== "notary");
+
         // Ensure 'chat' is always included, and intersect the rest with the server-allowed list.
-        const actualModules = configuredModules.filter(
+        const actualModules = filterNotaryModules(configuredModules).filter(
           (m) => m === "chat" || PINNED_SIDEBAR_MODULES.has(m) || serverModules.includes(m),
         );
         if (!disposed) {
@@ -290,7 +300,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   />
                 </IconButton>
               );
-            if (modId === "notary")
+            if (modId === "notary" && canShowNotaryMenu)
               return (
                 <IconButton
                   key="notary"

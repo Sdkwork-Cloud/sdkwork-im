@@ -79,7 +79,8 @@ export const AgentView: React.FC<AgentViewProps> = ({ onStartChat, onCreateAgent
     color: config.color || 'bg-blue-500',
     author: config.author || '我',
     users: config.users || '0',
-    avatar: config.avatar
+    avatar: config.avatar,
+    welcomeMessage: config.welcomeMessage,
   });
 
   const filteredMarketAgents = marketAgents.filter(a => {

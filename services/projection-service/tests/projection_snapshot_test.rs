@@ -464,6 +464,14 @@ fn test_projection_service_restores_member_cursor_and_inbox_views_from_snapshot_
         ))
         .expect("member join projection should succeed");
     service
+        .apply(&member_joined_event(
+            "t_alpha",
+            "c_restore",
+            "u_peer",
+            MembershipRole::Member,
+        ))
+        .expect("peer join projection should succeed");
+    service
         .apply(&message_posted_event(
             "t_alpha",
             "c_restore",
@@ -473,6 +481,16 @@ fn test_projection_service_restores_member_cursor_and_inbox_views_from_snapshot_
             "restored summary",
         ))
         .expect("message projection should succeed");
+    service
+        .apply(&message_posted_event(
+            "t_alpha",
+            "c_restore",
+            "msg_restore_2",
+            2,
+            "u_peer",
+            "restored peer reply",
+        ))
+        .expect("peer message projection should succeed");
     service
         .apply(&read_cursor_updated_event(
             "t_alpha",
@@ -512,14 +530,17 @@ fn test_projection_service_restores_member_cursor_and_inbox_views_from_snapshot_
         read_cursor.last_read_message_id.as_deref(),
         Some("msg_restore_1")
     );
-    assert_eq!(read_cursor.unread_count, 0);
+    assert_eq!(read_cursor.unread_count, 1);
 
     let inbox = restored.inbox_for_principal_kind("t_alpha", "u_member", "user");
     assert_eq!(inbox.len(), 1);
     assert_eq!(inbox[0].conversation_id, "c_restore");
     assert_eq!(inbox[0].conversation_type, "group");
-    assert_eq!(inbox[0].last_summary.as_deref(), Some("restored summary"));
-    assert_eq!(inbox[0].unread_count, 0);
+    assert_eq!(
+        inbox[0].last_summary.as_deref(),
+        Some("restored peer reply")
+    );
+    assert_eq!(inbox[0].unread_count, 1);
 }
 
 #[test]

@@ -294,13 +294,23 @@ impl StaticProviderRegistry {
             .with_required_capabilities([
                 "session",
                 "credential",
-                "callback",
+                "provider.webhook",
                 "health",
             ]),
             ProviderPluginDescriptor::new("rtc-aliyun", ProviderDomain::Rtc, "aliyun", "阿里云")
-                .with_required_capabilities(["session", "credential", "callback", "health"]),
+                .with_required_capabilities([
+                    "session",
+                    "credential",
+                    "provider.webhook",
+                    "health",
+                ]),
             ProviderPluginDescriptor::new("rtc-tencent", ProviderDomain::Rtc, "tencent", "腾讯云")
-                .with_required_capabilities(["session", "credential", "callback", "health"]),
+                .with_required_capabilities([
+                    "session",
+                    "credential",
+                    "provider.webhook",
+                    "health",
+                ]),
             ProviderPluginDescriptor::new(
                 "object-storage-aliyun",
                 ProviderDomain::ObjectStorage,

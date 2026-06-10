@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { resolveCrawChatSharedDatabaseConfig } from './craw-chat-shared-database.mjs';
 import {
   createSdkworkChatBrowserOrigins,
+  resolveDriveAppApiUpstream,
   resolveSdkworkChatPcDevServer,
 } from './run-sdkwork-chat-pc-dev.mjs';
 import {
@@ -41,6 +42,7 @@ async function createRuntimeEnv(baseEnv) {
   };
   env.CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE = env.CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE ?? 'embedded';
   env.CRAW_CHAT_BROWSER_ORIGINS = env.CRAW_CHAT_BROWSER_ORIGINS ?? defaultBrowserOrigins;
+  env.CRAW_CHAT_DRIVE_APP_API_UPSTREAM = resolveDriveAppApiUpstream(env);
 
   if (
     !env.SDKWORK_ADMIN_PROXY_TARGET?.trim()

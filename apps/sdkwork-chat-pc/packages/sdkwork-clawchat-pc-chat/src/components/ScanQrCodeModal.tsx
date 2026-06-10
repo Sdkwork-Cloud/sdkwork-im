@@ -495,16 +495,20 @@ export const ScanQrCodeModal: React.FC<ScanQrCodeModalProps> = ({
       return null;
     }
     const group = resolvedResult.group;
+    const groupName = group?.name ?? t('scanQr.group.unknownName');
+    const groupSubtitle = group
+      ? t('scanQr.group.memberCount', { count: group.memberCount ?? 0 })
+      : t('scanQr.group.unresolved');
     const action = findQrCodeAction(resolvedResult.payload, group ? 'openGroup' : 'joinGroup');
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-4 rounded-lg border border-white/5 bg-[#181818] p-4">
           <div className="flex min-w-0 items-center gap-3">
-            <Avatar src={group?.avatar} alt={group?.name ?? resolvedResult.payload.groupId} className="h-12 w-12 rounded-lg" />
+            <Avatar src={group?.avatar} alt={groupName} className="h-12 w-12 rounded-lg" />
             <div className="min-w-0">
-              <div className="truncate text-sm font-medium text-gray-100">{group?.name ?? resolvedResult.payload.groupId}</div>
+              <div className="truncate text-sm font-medium text-gray-100">{groupName}</div>
               <div className="mt-1 truncate text-xs text-gray-500">
-                {group ? t('scanQr.group.memberCount', { count: group.memberCount ?? 0 }) : resolvedResult.payload.groupId}
+                {groupSubtitle}
               </div>
             </div>
           </div>
@@ -531,16 +535,20 @@ export const ScanQrCodeModal: React.FC<ScanQrCodeModalProps> = ({
       return null;
     }
     const community = resolvedResult.community;
+    const communityName = community?.name ?? t('scanQr.community.unknownName');
+    const communitySubtitle = community
+      ? t('scanQr.community.memberCount', { count: community.membersCount })
+      : t('scanQr.community.unresolved');
     const action = findQrCodeAction(resolvedResult.payload, community ? 'openCommunity' : 'joinCommunity');
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-4 rounded-lg border border-white/5 bg-[#181818] p-4">
           <div className="flex min-w-0 items-center gap-3">
-            <Avatar src={community?.avatar} alt={community?.name ?? resolvedResult.payload.communityId} className="h-12 w-12 rounded-lg" />
+            <Avatar src={community?.avatar} alt={communityName} className="h-12 w-12 rounded-lg" />
             <div className="min-w-0">
-              <div className="truncate text-sm font-medium text-gray-100">{community?.name ?? resolvedResult.payload.communityId}</div>
+              <div className="truncate text-sm font-medium text-gray-100">{communityName}</div>
               <div className="mt-1 truncate text-xs text-gray-500">
-                {community ? t('scanQr.community.memberCount', { count: community.membersCount }) : resolvedResult.payload.communityId}
+                {communitySubtitle}
               </div>
             </div>
           </div>

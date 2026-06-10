@@ -63,6 +63,9 @@ catalogs:
     '@vitejs/plugin-react':
       specifier: ^5.0.4
       version: 5.2.0
+    '@volcengine/rtc':
+      specifier: ^4.68.4
+      version: 4.68.4
     '@zxing/browser':
       specifier: ^0.2.0
       version: 0.2.0
@@ -161,6 +164,7 @@ overrides:
   '@sdkwork/appbase-backend-sdk': workspace:*
   '@sdkwork/drive-app-sdk': workspace:*
   '@sdkwork/im-sdk': workspace:*
+  '@sdkwork/rtc-sdk-provider-volcengine': workspace:*
   '@sdkwork/rtc-sdk': workspace:*
 
 importers:
@@ -221,6 +225,9 @@ importers:
       '@sdkwork/rtc-sdk':
         specifier: workspace:*
         version: link:../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript
+      '@sdkwork/rtc-sdk-provider-volcengine':
+        specifier: workspace:*
+        version: link:../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/providers/rtc-sdk-provider-volcengine
       '@sdkwork/sdk-common':
         specifier: 'catalog:'
         version: 1.0.2
@@ -260,6 +267,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: 'catalog:'
         version: 5.2.0(vite@6.4.3(@types/node@22.19.19)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0))
+      '@volcengine/rtc':
+        specifier: 'catalog:'
+        version: 4.68.4
       '@zxing/browser':
         specifier: 'catalog:'
         version: 0.2.0(@zxing/library@0.22.0)
@@ -608,6 +618,12 @@ importers:
         version: 5.9.3
 
   ../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript: {}
+
+  ../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript/providers/rtc-sdk-provider-volcengine:
+    devDependencies:
+      '@sdkwork/rtc-sdk':
+        specifier: workspace:*
+        version: link:../..
 
   ../../../sdkwork-ui/sdkwork-ui-pc-react:
     dependencies:
@@ -3356,6 +3372,9 @@ packages:
   '@volar/typescript@2.4.28':
     resolution: {integrity: sha512-Ja6yvWrbis2QtN4ClAKreeUZPVYMARDYZl9LMEv1iQ1QdepB6wn0jTRxA9MftYmYa4DQ4k/DaSZpFPUfxl8giw==}
 
+  '@volcengine/rtc@4.68.4':
+    resolution: {integrity: sha512-ar6fnYww2VBuNP+ydx1wfqo9y0Q4Q2qzZkD7SzpV7JLCWYtBHjOEcHJrQNOtvC9PU6qQjSj7pBxEgEsDw7S2cg==}
+
   '@vue/compiler-core@3.5.35':
     resolution: {integrity: sha512-BUmHaR1J+O+CKZ9uJucdVTEr1LHsdyvv7vG3eNRhK3CczEHeMd/LtsHAuD7PbrxvI2envCY2v7HI1vC1aBRzKw==}
 
@@ -3876,6 +3895,9 @@ packages:
   etag@1.8.1:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
+
+  eventemitter3@4.0.7:
+    resolution: {integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==}
 
   expect-type@1.3.0:
     resolution: {integrity: sha512-knvyeauYhqjOYvQ66MznSMs83wmHrCycNEN6Ao+2AeYEfxUIkuiVxdEa1qlGEPK+We3n0THiDciYSsCcgW/DoA==}
@@ -7510,6 +7532,10 @@ snapshots:
       path-browserify: 1.0.1
       vscode-uri: 3.1.0
 
+  '@volcengine/rtc@4.68.4':
+    dependencies:
+      eventemitter3: 4.0.7
+
   '@vue/compiler-core@3.5.35':
     dependencies:
       '@babel/parser': 7.29.7
@@ -8103,6 +8129,8 @@ snapshots:
       '@types/estree': 1.0.8
 
   etag@1.8.1: {}
+
+  eventemitter3@4.0.7: {}
 
   expect-type@1.3.0: {}
 

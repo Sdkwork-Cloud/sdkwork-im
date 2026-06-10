@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use im_domain_core::conversation::{
     ClientRouteSyncFeedEntry, ConversationActorView, ConversationAgentHandoffView,
-    ConversationInboxEntry, ConversationMember, ConversationReadCursor, MembershipRole,
-    MembershipState,
+    ConversationInboxEntry, ConversationInboxPeerView, ConversationInboxPreferencesView,
+    ConversationMember, ConversationReadCursor, MembershipRole, MembershipState,
 };
 use im_domain_core::media::{DriveReference, MediaKind, MediaResource, MediaSource};
 use im_domain_core::message::{
@@ -639,6 +639,24 @@ fn test_conversation_inbox_entry_serializes_inbox_shape() {
         last_summary: Some("hello".into()),
         unread_count: 3,
         last_activity_at: "2026-04-05T10:00:10Z".into(),
+        display_name: Some("Alice Project Lead".into()),
+        avatar_url: Some("https://cdn.example.test/alice.png".into()),
+        display_source: Some("contact_remark".into()),
+        peer: Some(ConversationInboxPeerView {
+            principal_kind: "user".into(),
+            principal_id: "u_alice".into(),
+            user_id: Some("u_alice".into()),
+            chat_id: Some("alice-chat-id".into()),
+            display_name: Some("Alice Chen".into()),
+            avatar_url: Some("https://cdn.example.test/alice.png".into()),
+            relationship_state: Some("active".into()),
+        }),
+        preferences: Some(ConversationInboxPreferencesView {
+            is_pinned: true,
+            is_muted: false,
+            is_marked_unread: true,
+            is_hidden: false,
+        }),
         agent_handoff: Some(ConversationAgentHandoffView {
             status: "accepted".into(),
             source: ConversationActorView {
@@ -686,6 +704,32 @@ fn test_conversation_inbox_entry_serializes_inbox_shape() {
         value["lastActivityAt"],
         Value::String("2026-04-05T10:00:10Z".into())
     );
+    assert_eq!(
+        value["displayName"],
+        Value::String("Alice Project Lead".into())
+    );
+    assert_eq!(
+        value["avatarUrl"],
+        Value::String("https://cdn.example.test/alice.png".into())
+    );
+    assert_eq!(
+        value["displaySource"],
+        Value::String("contact_remark".into())
+    );
+    assert_eq!(
+        value["peer"]["principalId"],
+        Value::String("u_alice".into())
+    );
+    assert_eq!(
+        value["peer"]["displayName"],
+        Value::String("Alice Chen".into())
+    );
+    assert_eq!(
+        value["peer"]["relationshipState"],
+        Value::String("active".into())
+    );
+    assert_eq!(value["preferences"]["isPinned"], Value::Bool(true));
+    assert_eq!(value["preferences"]["isMarkedUnread"], Value::Bool(true));
 }
 
 #[test]

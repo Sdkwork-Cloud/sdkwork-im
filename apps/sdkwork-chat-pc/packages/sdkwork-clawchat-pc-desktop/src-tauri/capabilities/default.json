@@ -14,6 +14,10 @@
     "core:window:allow-unmaximize",
     "core:window:allow-close",
     "allow-sdkwork-chat-pc-window-control",
+    "allow-sdkwork-chat-pc-notification",
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-notify",
     "allow-sdkwork-chat-pc-qr-code"
   ]
 }

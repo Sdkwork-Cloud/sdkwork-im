@@ -21,17 +21,6 @@ function readErrorMessage(error: unknown): string | undefined {
   return typeof error === 'string' && error.trim().length > 0 ? error : undefined;
 }
 
-function resolveLocalMediaErrorMessage(error: unknown): string {
-  const errorName = error instanceof DOMException ? error.name : undefined;
-  if (errorName === 'NotAllowedError' || errorName === 'SecurityError') {
-    return '无法访问麦克风或摄像头，请检查浏览器权限';
-  }
-  if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
-    return '未检测到可用的麦克风或摄像头';
-  }
-  return readErrorMessage(error) ?? '无法启动本地音视频设备';
-}
-
 interface CallOverlayProps {
   conversationId: string;
   isOpen: boolean;
@@ -58,10 +47,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   const [activeRtcSessionId, setActiveRtcSessionId] = useState<string | undefined>(rtcSessionId);
   const activeRtcSessionIdRef = useRef<string | undefined>(rtcSessionId);
   const autoClosedTerminalSessionRef = useRef<string | undefined>(undefined);
-  const isOpenRef = useRef(isOpen);
-  const localPreviewVideoRef = useRef<HTMLVideoElement | null>(null);
-  const localMediaStreamRef = useRef<MediaStream | undefined>(undefined);
-  const localMediaRequestRef = useRef<Promise<MediaStream | undefined> | undefined>(undefined);
+  const localPreviewContainerRef = useRef<HTMLDivElement | null>(null);
   const screenShareStreamRef = useRef<MediaStream | undefined>(undefined);
   const isMutedRef = useRef(false);
   const isVideoOffRef = useRef(type === 'voice');
@@ -70,25 +56,8 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   const [viewMode, setViewMode] = useState<'mobile' | 'desktop' | 'fullscreen'>('mobile');
   const [callDuration, setCallDuration] = useState(0);
 
-  const applyAudioMutedToLocalTracks = useCallback((muted: boolean) => {
-    localMediaStreamRef.current?.getAudioTracks().forEach((track) => {
-      track.enabled = !muted;
-    });
-  }, []);
-
-  const applyVideoMutedToLocalTracks = useCallback((muted: boolean) => {
-    localMediaStreamRef.current?.getVideoTracks().forEach((track) => {
-      track.enabled = !muted;
-    });
-  }, []);
-
   const releaseCallMedia = useCallback(() => {
-    if (localPreviewVideoRef.current) {
-      localPreviewVideoRef.current.srcObject = null;
-    }
-    stopMediaStream(localMediaStreamRef.current);
-    localMediaStreamRef.current = undefined;
-    localMediaRequestRef.current = undefined;
+    void callService.bindLocalVideoElement(null).catch(() => undefined);
     stopMediaStream(screenShareStreamRef.current);
     screenShareStreamRef.current = undefined;
   }, []);
@@ -97,67 +66,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
     releaseCallMedia();
     onClose();
   }, [onClose, releaseCallMedia]);
-
-  const ensureLocalMedia = useCallback(async (): Promise<MediaStream | undefined> => {
-    if (localMediaStreamRef.current) {
-      applyAudioMutedToLocalTracks(isMutedRef.current);
-      applyVideoMutedToLocalTracks(isVideoOffRef.current || type === 'voice');
-      return localMediaStreamRef.current;
-    }
-    if (localMediaRequestRef.current) {
-      return localMediaRequestRef.current;
-    }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      toast('当前浏览器不支持麦克风或摄像头访问', 'error');
-      return undefined;
-    }
-
-    localMediaRequestRef.current = (async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: type === 'video',
-      });
-      if (!isOpenRef.current) {
-        stopMediaStream(stream);
-        return undefined;
-      }
-      localMediaStreamRef.current = stream;
-      if (localPreviewVideoRef.current) {
-        localPreviewVideoRef.current.srcObject = stream;
-      }
-      const nextAudioMuted = stream.getAudioTracks().length === 0 ? true : isMutedRef.current;
-      const nextVideoMuted = type === 'voice' || stream.getVideoTracks().length === 0 ? true : isVideoOffRef.current;
-      isMutedRef.current = nextAudioMuted;
-      isVideoOffRef.current = nextVideoMuted;
-      setIsMuted(nextAudioMuted);
-      setIsVideoOff(nextVideoMuted);
-      applyAudioMutedToLocalTracks(nextAudioMuted);
-      applyVideoMutedToLocalTracks(nextVideoMuted);
-      await Promise.all([
-        callService.setAudioMuted(nextAudioMuted),
-        callService.setVideoMuted(nextVideoMuted),
-      ]);
-      return stream;
-    })();
-
-    try {
-      return await localMediaRequestRef.current;
-    } catch (error) {
-      toast(resolveLocalMediaErrorMessage(error), 'error');
-      if (type === 'video') {
-        isVideoOffRef.current = true;
-        setIsVideoOff(true);
-        void callService.setVideoMuted(true).catch(() => undefined);
-      }
-      return undefined;
-    } finally {
-      localMediaRequestRef.current = undefined;
-    }
-  }, [applyAudioMutedToLocalTracks, applyVideoMutedToLocalTracks, type]);
-
-  useEffect(() => {
-    isOpenRef.current = isOpen;
-  }, [isOpen]);
 
   useEffect(() => {
     return callService.subscribe((snapshot) => {
@@ -188,8 +96,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
       isVideoOffRef.current = snapshot.isVideoMuted;
       setIsMuted(snapshot.isAudioMuted);
       setIsVideoOff(snapshot.isVideoMuted);
-      applyAudioMutedToLocalTracks(snapshot.isAudioMuted);
-      applyVideoMutedToLocalTracks(snapshot.isVideoMuted);
       setCallState(snapshot.state === 'connected' ? 'connected' : 'ringing');
       if (snapshot.state === 'errored' && snapshot.errorMessage) {
         toast(snapshot.errorMessage, 'error');
@@ -205,8 +111,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
       }
     });
   }, [
-    applyAudioMutedToLocalTracks,
-    applyVideoMutedToLocalTracks,
     closeOverlayWithMediaRelease,
     conversationId,
     isOpen,
@@ -232,29 +136,27 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
     setCallDuration(0);
     setViewMode('mobile'); // Default to mobile mode
 
-    if (mode === 'outgoing') {
-      void ensureLocalMedia();
+    if (mode === 'outgoing' && !rtcSessionId) {
       void callService.startOutgoingCall({
         conversationId,
         targetName: callerName,
         type,
       });
     }
-  }, [callerName, conversationId, ensureLocalMedia, isOpen, mode, releaseCallMedia, rtcSessionId, type]);
+  }, [callerName, conversationId, isOpen, mode, releaseCallMedia, rtcSessionId, type]);
 
   useEffect(() => {
-    if (!isOpen || callState !== 'connected') {
+    if (!isOpen || callState !== 'connected' || type !== 'video' || isVideoOff) {
+      void callService.bindLocalVideoElement(null).catch(() => undefined);
       return;
     }
-    void ensureLocalMedia();
-  }, [callState, ensureLocalMedia, isOpen]);
-
-  useEffect(() => {
-    if (!localPreviewVideoRef.current) {
-      return;
-    }
-    localPreviewVideoRef.current.srcObject = localMediaStreamRef.current ?? null;
-  }, [callState, isVideoOff, type]);
+    void callService.bindLocalVideoElement(localPreviewContainerRef.current).catch((error) => {
+      toast(error instanceof Error ? error.message : '本地视频预览绑定失败', 'error');
+    });
+    return () => {
+      void callService.bindLocalVideoElement(null).catch(() => undefined);
+    };
+  }, [callState, isOpen, isVideoOff, type]);
 
   useEffect(() => {
     return () => {
@@ -450,11 +352,8 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                   : 'bottom-24 right-6 w-48 h-72 rounded-xl border-2 border-white/20'
               }`}>
                 {type === 'video' && !isVideoOff && (
-                  <video
-                    ref={localPreviewVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
+                  <div
+                    ref={localPreviewContainerRef}
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                 )}
@@ -484,7 +383,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
             <button
               onClick={() => {
                 void callService.acceptIncomingCall()
-                  .then(() => ensureLocalMedia())
                   .catch((error) => {
                     toast(error instanceof Error ? error.message : '接听失败', 'error');
                   });
@@ -501,10 +399,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                 const nextMuted = !isMuted;
                 isMutedRef.current = nextMuted;
                 setIsMuted(nextMuted);
-                applyAudioMutedToLocalTracks(nextMuted);
-                if (!nextMuted && !localMediaStreamRef.current) {
-                  void ensureLocalMedia();
-                }
                 void callService.setAudioMuted(nextMuted).catch((error) => {
                   toast(error instanceof Error ? error.message : '静音设置失败', 'error');
                 });
@@ -524,10 +418,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                 const nextVideoOff = !isVideoOff;
                 isVideoOffRef.current = nextVideoOff;
                 setIsVideoOff(nextVideoOff);
-                applyVideoMutedToLocalTracks(nextVideoOff);
-                if (!nextVideoOff && !localMediaStreamRef.current) {
-                  void ensureLocalMedia();
-                }
                 void callService.setVideoMuted(nextVideoOff).catch((error) => {
                   toast(error instanceof Error ? error.message : '视频设置失败', 'error');
                 });

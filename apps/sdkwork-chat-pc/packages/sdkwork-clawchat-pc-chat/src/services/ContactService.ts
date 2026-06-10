@@ -21,6 +21,7 @@ import {
   organizationDirectoryService,
   type OrganizationDirectoryService,
 } from './OrganizationDirectoryService';
+import { createDefaultAvatar } from './DefaultAvatarService';
 
 export interface OrgDepartment {
   id: string;
@@ -128,8 +129,8 @@ function toRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function createAvatar(seed: string): string {
-  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}`;
+function createAvatar(_seed: string): string {
+  return createDefaultAvatar('user');
 }
 
 function createSearchKey(value: string): string {

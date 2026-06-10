@@ -3,6 +3,7 @@ export type { AckResponse } from './ack-response';
 export type { PresenceHeartbeatRequest } from './presence-heartbeat-request';
 export type { PresenceView } from './presence-view';
 export type { RealtimeSubscriptionSyncRequest } from './realtime-subscription-sync-request';
+export type { RealtimeSubscriptionItemInput } from './realtime-subscription-item-input';
 export type { RealtimeSubscriptionSyncResponse } from './realtime-subscription-sync-response';
 export type { RealtimeEventAckRequest } from './realtime-event-ack-request';
 export type { RealtimeEventView } from './realtime-event-view';
@@ -49,6 +50,8 @@ export type { UpdateConversationPreferencesRequest } from './update-conversation
 export type { ConversationProfileView } from './conversation-profile-view';
 export type { UpdateConversationProfileRequest } from './update-conversation-profile-request';
 export type { ConversationSummaryView } from './conversation-summary-view';
+export type { ConversationInboxPeerView } from './conversation-inbox-peer-view';
+export type { ConversationInboxPreferencesView } from './conversation-inbox-preferences-view';
 export type { ConversationInboxEntry } from './conversation-inbox-entry';
 export type { InboxResponse } from './inbox-response';
 export type { ContactView } from './contact-view';
