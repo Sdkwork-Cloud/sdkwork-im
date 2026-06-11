@@ -1,4 +1,5 @@
-use std::collections::BTreeSet;
+use im_app_context::DualTokenRequestBuilderExt;
+﻿use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -143,16 +144,15 @@ fn apply_test_app_context_projection(
     projection: &TestAppContextProjection,
 ) -> axum::http::request::Builder {
     let mut builder = builder
-        .header("x-sdkwork-tenant-id", projection.tenant_id.as_str())
-        .header("x-sdkwork-user-id", projection.user_id.as_str())
-        .header("x-sdkwork-actor-id", projection.user_id.as_str())
-        .header("x-sdkwork-actor-kind", projection.actor_kind.as_str());
+        .header("authorization", "Bearer test-control-plane-token")
+        .header("access-token", "test-control-plane-access-token")
+        .with_dual_token_tenant(projection.tenant_id.as_str())
+        .with_dual_token_user(projection.user_id.as_str())
+        .with_dual_token_actor(projection.user_id.as_str())
+        .with_dual_token_actor_kind(projection.actor_kind.as_str());
 
     if !projection.permission_scope.is_empty() {
-        builder = builder.header(
-            "x-sdkwork-permission-scope",
-            projection.permission_scope.join(" "),
-        );
+        builder = builder.with_dual_token_permission_scope(projection.permission_scope.join(" "),);
     }
 
     builder
@@ -178,15 +178,12 @@ async fn http_json_request(
         .method(method)
         .uri(format!("{}{}", base_url.trim_end_matches('/'), path))
         .header(CONTENT_TYPE, "application/json")
-        .header("x-sdkwork-tenant-id", projection.tenant_id.as_str())
-        .header("x-sdkwork-user-id", projection.user_id.as_str())
-        .header("x-sdkwork-actor-id", projection.user_id.as_str())
-        .header("x-sdkwork-actor-kind", projection.actor_kind.as_str());
+        .with_dual_token_tenant(projection.tenant_id.as_str())
+        .with_dual_token_user(projection.user_id.as_str())
+        .with_dual_token_actor(projection.user_id.as_str())
+        .with_dual_token_actor_kind(projection.actor_kind.as_str());
     if !projection.permission_scope.is_empty() {
-        builder = builder.header(
-            "x-sdkwork-permission-scope",
-            projection.permission_scope.join(" "),
-        );
+        builder = builder.with_dual_token_permission_scope(projection.permission_scope.join(" "),);
     }
     let request = builder
         .body(Full::new(payload))
@@ -312,10 +309,10 @@ async fn test_control_plane_social_external_connection_write_persists_snapshot_c
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -380,10 +377,10 @@ async fn test_control_plane_social_external_connection_write_persists_snapshot_c
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/external_connections/ec_001")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -450,10 +447,10 @@ async fn test_control_plane_social_external_connection_rejects_same_tenant_targe
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -506,10 +503,10 @@ async fn test_control_plane_social_external_member_link_write_persists_snapshot_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -531,10 +528,10 @@ async fn test_control_plane_social_external_member_link_write_persists_snapshot_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -600,10 +597,10 @@ async fn test_control_plane_social_external_member_link_write_persists_snapshot_
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/external_member_links/eml_001")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -671,10 +668,10 @@ async fn test_control_plane_social_external_member_link_requires_active_external
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -730,10 +727,10 @@ async fn test_control_plane_social_shared_channel_policy_write_persists_snapshot
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -755,10 +752,10 @@ async fn test_control_plane_social_shared_channel_policy_write_persists_snapshot
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -824,10 +821,10 @@ async fn test_control_plane_social_shared_channel_policy_write_persists_snapshot
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/shared_channel_policies/scp_001")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -892,10 +889,10 @@ async fn test_control_plane_social_shared_channel_policy_rejects_non_shared_hist
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -916,10 +913,10 @@ async fn test_control_plane_social_shared_channel_policy_rejects_non_shared_hist
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -977,10 +974,10 @@ async fn test_control_plane_social_external_member_link_auto_triggers_shared_cha
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1002,10 +999,10 @@ async fn test_control_plane_social_external_member_link_auto_triggers_shared_cha
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1030,10 +1027,10 @@ async fn test_control_plane_social_external_member_link_auto_triggers_shared_cha
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1093,10 +1090,10 @@ async fn test_control_plane_social_shared_channel_policy_auto_triggers_shared_ch
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1122,10 +1119,10 @@ async fn test_control_plane_social_shared_channel_policy_auto_triggers_shared_ch
                 Request::builder()
                     .method("POST")
                     .uri("/backend/v3/api/control/social/external_member_links")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "admin")
-                    .header("x-sdkwork-permission-scope", "control.write")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("admin")
+                    .with_dual_token_permission_scope("control.write")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -1156,10 +1153,10 @@ async fn test_control_plane_social_shared_channel_policy_auto_triggers_shared_ch
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1235,10 +1232,10 @@ async fn test_control_plane_social_shared_channel_auto_trigger_preserves_audit_w
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1261,10 +1258,10 @@ async fn test_control_plane_social_shared_channel_auto_trigger_preserves_audit_w
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{
@@ -1290,10 +1287,10 @@ async fn test_control_plane_social_shared_channel_auto_trigger_preserves_audit_w
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{
@@ -1377,10 +1374,10 @@ async fn test_control_plane_social_external_member_link_idempotent_replay_does_n
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1402,10 +1399,10 @@ async fn test_control_plane_social_external_member_link_idempotent_replay_does_n
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1440,10 +1437,10 @@ async fn test_control_plane_social_external_member_link_idempotent_replay_does_n
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1458,10 +1455,10 @@ async fn test_control_plane_social_external_member_link_idempotent_replay_does_n
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1516,10 +1513,10 @@ async fn test_control_plane_social_shared_channel_delivered_ledger_skips_replaye
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1541,10 +1538,10 @@ async fn test_control_plane_social_shared_channel_delivered_ledger_skips_replaye
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1569,10 +1566,10 @@ async fn test_control_plane_social_shared_channel_delivered_ledger_skips_replaye
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1634,10 +1631,10 @@ async fn test_control_plane_social_shared_channel_delivered_ledger_skips_replaye
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1701,7 +1698,7 @@ async fn test_control_plane_social_shared_channel_http_trigger_materializes_remo
     assert_eq!(post_status, StatusCode::OK);
     assert_eq!(post_json["messageId"], "msg_c_partner_ops_remote_1");
 
-    let trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("http shared-channel sync trigger should build");
@@ -1877,10 +1874,10 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1903,10 +1900,10 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1932,10 +1929,10 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1971,10 +1968,10 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -2006,10 +2003,10 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2038,10 +2035,10 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2082,10 +2079,10 @@ async fn test_control_plane_social_shared_channel_next_write_reclaims_stale_clai
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2178,10 +2175,10 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2204,10 +2201,10 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2233,10 +2230,10 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2265,10 +2262,10 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
                 Request::builder()
                     .method("POST")
                     .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "admin")
-                    .header("x-sdkwork-permission-scope", "control.write")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("admin")
+                    .with_dual_token_permission_scope("control.write")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -2295,7 +2292,7 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
         .expect("dead-letter shared-channel sync request should exist");
     assert_eq!(dead_letter_item["failureCount"], 3);
 
-    let public_trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("public shared-channel trigger should build");
@@ -2315,10 +2312,10 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2344,10 +2341,10 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2475,10 +2472,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2501,10 +2498,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2530,10 +2527,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2562,10 +2559,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
                 Request::builder()
                     .method("POST")
                     .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "admin")
-                    .header("x-sdkwork-permission-scope", "control.write")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("admin")
+                    .with_dual_token_permission_scope("control.write")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -2589,7 +2586,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
         1
     );
 
-    let public_trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("public shared-channel trigger should build");
@@ -2601,10 +2598,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2631,10 +2628,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2759,10 +2756,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2785,10 +2782,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2814,10 +2811,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2846,10 +2843,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
                 Request::builder()
                     .method("POST")
                     .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "admin")
-                    .header("x-sdkwork-permission-scope", "control.write")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("admin")
+                    .with_dual_token_permission_scope("control.write")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -2873,10 +2870,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2910,10 +2907,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_rearms_fai
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3025,10 +3022,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3051,10 +3048,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3080,10 +3077,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3112,10 +3109,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
                 Request::builder()
                     .method("POST")
                     .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "admin")
-                    .header("x-sdkwork-permission-scope", "control.write")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("admin")
+                    .with_dual_token_permission_scope("control.write")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -3158,10 +3155,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3192,10 +3189,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_reclaims_s
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3294,10 +3291,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3320,10 +3317,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3349,10 +3346,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3380,10 +3377,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3409,10 +3406,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
                 Request::builder()
                     .method("POST")
                     .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "admin")
-                    .header("x-sdkwork-permission-scope", "control.write")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("admin")
+                    .with_dual_token_permission_scope("control.write")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -3436,10 +3433,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_reader")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_reader")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3498,10 +3495,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -3550,7 +3547,7 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
         "actor_bob"
     );
 
-    let public_trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("public shared-channel trigger should build");
@@ -3570,10 +3567,10 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3710,10 +3707,10 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3736,10 +3733,10 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3765,10 +3762,10 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3793,10 +3790,10 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3833,10 +3830,10 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_reader")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_reader")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3871,7 +3868,7 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
         .to_owned();
     assert_ne!(alice_request_key, bob_request_key);
 
-    let public_trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("public shared-channel trigger should build");
@@ -3889,10 +3886,10 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -3914,10 +3911,10 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
                 .uri(
                     "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -4062,10 +4059,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4088,10 +4085,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4117,10 +4114,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4145,10 +4142,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4173,10 +4170,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_reader")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_reader")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4226,10 +4223,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -4263,10 +4260,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_reader")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_reader")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4310,10 +4307,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -4359,7 +4356,7 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
         "wait_for_owner_release_or_expiry"
     );
 
-    let public_trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("public shared-channel trigger should build");
@@ -4379,10 +4376,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 .uri(
                     "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -4438,10 +4435,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
                 .uri(
                     "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -4584,10 +4581,10 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4610,10 +4607,10 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4639,10 +4636,10 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4670,10 +4667,10 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_reader")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_reader")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4706,10 +4703,10 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -4731,10 +4728,10 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
                 .uri(
                     "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -4771,10 +4768,10 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
                 .uri(
                     "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -4832,10 +4829,10 @@ async fn test_control_plane_social_shared_channel_targeted_republish_dead_letter
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_reader")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_reader")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4935,10 +4932,10 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4961,10 +4958,10 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4990,10 +4987,10 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5018,10 +5015,10 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_reader")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_reader")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5056,10 +5053,10 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -5079,10 +5076,10 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_reader")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_reader")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5123,10 +5120,10 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/release_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -5180,10 +5177,10 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/release_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -5217,10 +5214,10 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_reader")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_reader")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5254,10 +5251,10 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -5271,7 +5268,7 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
         .expect("reclaim pending claim should return response");
     assert_eq!(reclaim_response.status(), StatusCode::OK);
 
-    let public_trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("public shared-channel trigger should build");
@@ -5291,10 +5288,10 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
                 .uri(
                     "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -5394,10 +5391,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5420,10 +5417,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5449,10 +5446,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5477,10 +5474,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_reader")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_reader")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5515,10 +5512,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -5538,10 +5535,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5582,10 +5579,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/takeover_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -5644,10 +5641,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5677,10 +5674,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/takeover_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -5741,10 +5738,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5774,10 +5771,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -5821,10 +5818,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/takeover_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -5857,10 +5854,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5898,7 +5895,7 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
     assert!(taken_over_lease_expires_at > taken_over_claimed_at);
     assert_ne!(taken_over_lease_expires_at, first_lease_expires_at);
 
-    let public_trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("public shared-channel trigger should build");
@@ -5918,10 +5915,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri(
                     "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -5946,10 +5943,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
                 .uri(
                     "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -6048,10 +6045,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6074,10 +6071,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6103,10 +6100,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6131,10 +6128,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_reader")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_reader")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6165,10 +6162,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -6200,10 +6197,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6233,10 +6230,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/takeover_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -6267,10 +6264,10 @@ async fn test_control_plane_social_shared_channel_pending_takeover_legacy_untrac
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_b")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_b")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6365,10 +6362,10 @@ async fn test_control_plane_social_shared_channel_sync_failure_persists_pending_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6391,10 +6388,10 @@ async fn test_control_plane_social_shared_channel_sync_failure_persists_pending_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6420,10 +6417,10 @@ async fn test_control_plane_social_shared_channel_sync_failure_persists_pending_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6452,7 +6449,7 @@ async fn test_control_plane_social_shared_channel_sync_failure_persists_pending_
         .expect("pending shared-channel sync backlog should be serialized as an object");
     assert_eq!(pending_items.len(), 1);
 
-    let public_trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("public shared-channel trigger should build");
@@ -6464,10 +6461,10 @@ async fn test_control_plane_social_shared_channel_sync_failure_persists_pending_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6585,10 +6582,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6611,10 +6608,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6640,10 +6637,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6679,10 +6676,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -6701,7 +6698,7 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
         serde_json::Value::String("1970-01-01T00:00:00.000Z".into());
     write_social_state_json(runtime_dir.path(), &stale_state);
 
-    let public_trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("public shared-channel trigger should build");
@@ -6721,10 +6718,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6753,10 +6750,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6873,10 +6870,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6899,10 +6896,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6928,10 +6925,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6967,10 +6964,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -7002,10 +6999,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7034,10 +7031,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/repair_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7081,10 +7078,10 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_wh
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7180,10 +7177,10 @@ async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7206,10 +7203,10 @@ async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7235,10 +7232,10 @@ async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7274,10 +7271,10 @@ async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -7331,10 +7328,10 @@ async fn test_control_plane_social_shared_channel_stale_claim_scheduler_reclaims
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7427,10 +7424,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7453,10 +7450,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7482,10 +7479,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7521,10 +7518,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -7586,10 +7583,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7618,10 +7615,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -7680,10 +7677,10 @@ async fn test_control_plane_social_shared_channel_pending_claim_renews_stale_lea
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7784,10 +7781,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7810,10 +7807,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7839,10 +7836,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7878,10 +7875,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -7933,10 +7930,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7967,10 +7964,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri(
                     "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -8035,10 +8032,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8136,10 +8133,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8162,10 +8159,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8191,10 +8188,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8230,10 +8227,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -8286,10 +8283,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8322,10 +8319,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
                 .uri(
                     "/backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -8391,10 +8388,10 @@ async fn test_control_plane_social_shared_channel_pending_republish_renews_stale
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8497,10 +8494,10 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8523,10 +8520,10 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8552,10 +8549,10 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8594,10 +8591,10 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -8630,10 +8627,10 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/reclaim_stale_pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8659,10 +8656,10 @@ async fn test_control_plane_social_shared_channel_stale_claim_reclaim_surface_cl
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8769,10 +8766,10 @@ async fn test_control_plane_social_shared_channel_pending_backlog_retries_on_nex
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8795,10 +8792,10 @@ async fn test_control_plane_social_shared_channel_pending_backlog_retries_on_nex
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8824,10 +8821,10 @@ async fn test_control_plane_social_shared_channel_pending_backlog_retries_on_nex
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8855,7 +8852,7 @@ async fn test_control_plane_social_shared_channel_pending_backlog_retries_on_nex
         .expect("pending shared-channel sync backlog should be serialized as an object");
     assert_eq!(pending_items.len(), 1);
 
-    let public_trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("public shared-channel trigger should build");
@@ -8867,10 +8864,10 @@ async fn test_control_plane_social_shared_channel_pending_backlog_retries_on_nex
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9001,10 +8998,10 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9027,10 +9024,10 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9056,10 +9053,10 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9098,10 +9095,10 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -9115,7 +9112,7 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
         .expect("claim blocked auto retry targeted claim should return response");
     assert_eq!(claim_response.status(), StatusCode::OK);
 
-    let public_trigger = control_plane_api::build_app_context_header_shared_channel_sync_trigger(
+    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
         runtime_base_url.as_str(),
     )
     .expect("public shared-channel trigger should build");
@@ -9127,10 +9124,10 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9261,10 +9258,10 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9287,10 +9284,10 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9316,10 +9313,10 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9358,10 +9355,10 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_operator_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_operator_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::to_vec(&serde_json::json!({
@@ -9394,10 +9391,10 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/social/runtime/pending_shared_channel_sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -9426,10 +9423,10 @@ async fn test_control_plane_social_shared_channel_next_ready_pair_retry_failure_
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "admin")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("admin")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

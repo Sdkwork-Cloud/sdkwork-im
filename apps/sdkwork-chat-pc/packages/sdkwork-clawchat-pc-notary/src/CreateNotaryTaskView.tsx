@@ -68,6 +68,12 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
   const taskAttachRef = useRef<HTMLInputElement>(null);
   const partyDriveUploadRef = useRef<HTMLInputElement>(null);
   const [activePreview, setActivePreview] = useState<{ url: string; type: string; name: string } | null>(null);
+  const localAttachmentIdSequenceRef = useRef(0);
+
+  const createLocalAttachmentId = () => {
+    localAttachmentIdSequenceRef.current += 1;
+    return `notary-attachment-${localAttachmentIdSequenceRef.current}`;
+  };
   
   const handleTaskAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from<File>(e.target.files || []);
@@ -75,7 +81,7 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
       const isVideo = file.type.startsWith('video/');
       const isPdf = file.type === 'application/pdf';
       return {
-        id: Date.now() + Math.random().toString(),
+        id: createLocalAttachmentId(),
         url: URL.createObjectURL(file),
         name: file.name,
         type: isVideo ? 'video' : isPdf ? 'pdf' : 'image',
@@ -100,7 +106,7 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
       const isVideo = file.type.startsWith('video/');
       const isPdf = file.type === 'application/pdf';
       return {
-        id: Date.now() + Math.random().toString(),
+        id: createLocalAttachmentId(),
         url: URL.createObjectURL(file),
         name: file.name,
         type: isVideo ? 'video' : isPdf ? 'pdf' : 'image',
@@ -747,7 +753,7 @@ export const CreateNotaryTaskView: React.FC<{ onBack: () => void, onSuccess?: ()
                       </div>
 
                       <div className="bg-white p-4 rounded-xl shadow-inner mb-6">
-                         {/* Mock QR Code UI */}
+                         {/* QR Code UI */}
                          <div className="w-48 h-48 border-4 border-black relative">
                             <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-black"></div>
                             <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-black"></div>

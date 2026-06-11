@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -28,11 +29,11 @@ async fn test_default_local_minimal_profile_restores_stream_runtime_state_after_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -52,11 +53,11 @@ async fn test_default_local_minimal_profile_restores_stream_runtime_state_after_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -80,11 +81,11 @@ async fn test_default_local_minimal_profile_restores_stream_runtime_state_after_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_stream_restart/frames")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -114,11 +115,11 @@ async fn test_default_local_minimal_profile_restores_stream_runtime_state_after_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/streams/st_stream_restart/frames?afterFrameSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone_new")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone_new")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -145,11 +146,11 @@ async fn test_default_local_minimal_profile_restores_stream_runtime_state_after_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_stream_restart/complete")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone_new")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone_new")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

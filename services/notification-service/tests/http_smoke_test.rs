@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -68,10 +69,10 @@ async fn test_request_and_query_notifications_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "notification.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("notification.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -108,9 +109,9 @@ async fn test_request_and_query_notifications_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/notifications")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_target")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_target")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -132,9 +133,9 @@ async fn test_request_and_query_notifications_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/notifications/ntf_http_demo")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_target")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_target")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -157,9 +158,9 @@ async fn test_request_and_query_notifications_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/notifications")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -187,9 +188,9 @@ async fn test_request_and_query_notifications_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/notifications/ntf_http_demo")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -208,10 +209,10 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
             Request::builder()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_sender")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "notification.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_sender")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("notification.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -238,9 +239,9 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/notifications")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -265,9 +266,9 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/notifications")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -295,9 +296,9 @@ async fn test_notification_queries_reject_same_actor_id_with_different_actor_kin
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/notifications/ntf_http_actor_kind_isolation")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -317,10 +318,10 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
             Request::builder()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "notification.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("notification.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -367,10 +368,10 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
             Request::builder()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "notification.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("notification.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -410,10 +411,10 @@ async fn test_duplicate_notification_id_is_idempotent_and_conflicting_retry_is_r
             Request::builder()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "notification.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("notification.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -456,10 +457,10 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
             Request::builder()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_first")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "notification.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_first")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("notification.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -495,10 +496,10 @@ async fn test_duplicate_notification_request_from_different_principal_keeps_stab
             Request::builder()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_second")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "notification.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_second")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("notification.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -554,9 +555,9 @@ async fn test_request_notification_rejects_oversized_payload_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -589,9 +590,9 @@ async fn test_request_notification_rejects_oversized_notification_id_over_http()
             Request::builder()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -611,9 +612,9 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
             Request::builder()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -651,9 +652,9 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
             Request::builder()
                 .method("POST")
                 .uri("/app/v3/api/notifications/requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -696,9 +697,9 @@ async fn test_list_notifications_returns_newest_first_with_distinct_timestamps()
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/notifications")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )

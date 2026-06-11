@@ -32,6 +32,34 @@ const RELEASE_BUILD_STEPS = Object.freeze([
   },
 ]);
 
+function resolveOptionalEnvValue(...values) {
+  for (const value of values) {
+    const trimmedValue = String(value ?? '').trim();
+    if (trimmedValue) {
+      return trimmedValue;
+    }
+  }
+  return undefined;
+}
+
+function resolveReleaseDependencyRefBridge(env = process.env) {
+  const bridge = {};
+  const driveRef = resolveOptionalEnvValue(env.SDKWORK_SHARED_DRIVE_GIT_REF, env.SDKWORK_DRIVE_REF);
+  const notaryRef = resolveOptionalEnvValue(
+    env.SDKWORK_SHARED_NOTARY_GIT_REF,
+    env.SDKWORK_NOTARY_REF,
+  );
+
+  if (driveRef) {
+    bridge.SDKWORK_SHARED_DRIVE_GIT_REF = driveRef;
+  }
+  if (notaryRef) {
+    bridge.SDKWORK_SHARED_NOTARY_GIT_REF = notaryRef;
+  }
+
+  return bridge;
+}
+
 export function createSdkworkChatPcReleaseBuildPlan({
   env = process.env,
   repoRoot: resolvedRepoRoot = repoRoot,
@@ -49,6 +77,7 @@ export function createSdkworkChatPcReleaseBuildPlan({
     cwd: resolvedRepoRoot,
     env: {
       ...resolvedIamEnv.env,
+      ...resolveReleaseDependencyRefBridge(env),
       SDKWORK_SHARED_SDK_MODE: 'git',
     },
     shell: false,

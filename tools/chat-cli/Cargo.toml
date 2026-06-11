@@ -5,6 +5,7 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+base64 = "0.22.1"
 bytes = "1.11.1"
 craw-chat-ccp-binding-ws = { path = "../../crates/craw-chat-ccp-binding-ws" }
 craw-chat-ccp-codec = { path = "../../crates/craw-chat-ccp-codec" }

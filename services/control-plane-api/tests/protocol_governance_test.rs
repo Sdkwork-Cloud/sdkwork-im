@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -12,10 +13,10 @@ async fn test_control_plane_exposes_protocol_governance_snapshot_to_control_read
             Request::builder()
                 .method("GET")
                 .uri("/backend/v3/api/control/protocol_governance")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )

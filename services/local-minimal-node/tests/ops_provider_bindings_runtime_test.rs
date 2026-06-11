@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -11,10 +12,10 @@ async fn test_local_minimal_ops_diagnostics_exposes_runtime_provider_bindings() 
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/diagnostics")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_ops_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_ops_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -98,10 +99,10 @@ async fn test_local_minimal_exposes_standalone_ops_provider_binding_routes() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/provider_bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_ops_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_ops_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -134,10 +135,10 @@ async fn test_local_minimal_exposes_standalone_ops_provider_binding_routes() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/provider_bindings/drift")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_ops_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_ops_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )

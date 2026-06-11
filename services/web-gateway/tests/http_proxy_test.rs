@@ -8,13 +8,83 @@ use axum::{
 };
 use craw_chat_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
 use http_body_util::BodyExt;
+use im_app_context::{
+    AppContext, build_dual_token_headers_for_context, local_service_app_context,
+    resolve_app_context,
+};
 use serde_json::json;
 use std::sync::Arc;
 use tower::ServiceExt;
 
+const SDKWORK_INTERNAL_HEADER_PROBE: &str = "x-sdkwork-tenant-id";
+
 #[derive(Clone)]
 struct UpstreamState {
     service_id: Arc<str>,
+}
+
+fn gateway_test_app_context() -> AppContext {
+    let mut context = local_service_app_context(
+        "tenant_real",
+        "user_real",
+        "user",
+        Some("device_real"),
+        ["*"],
+    );
+    context.session_id = Some("session_real".to_owned());
+    context.app_id = Some("sdkwork-chat-pc".to_owned());
+    context
+}
+
+fn gateway_test_auth_headers() -> HeaderMap {
+    let context = gateway_test_app_context();
+    build_dual_token_headers_for_context(&context, context.permission_scope.iter())
+}
+
+fn gateway_test_authorization_header() -> String {
+    gateway_test_auth_headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .expect("test auth token should be present")
+        .to_owned()
+}
+
+fn gateway_test_access_token_header() -> String {
+    gateway_test_auth_headers()
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .expect("test access token should be present")
+        .to_owned()
+}
+
+fn gateway_numeric_auth_headers() -> HeaderMap {
+    let mut context = local_service_app_context(
+        "20001",
+        "user_numeric",
+        "user",
+        Some("device_numeric"),
+        ["*"],
+    );
+    context.organization_id = Some("30001".to_owned());
+    context.session_id = Some("session_numeric".to_owned());
+    context.app_id = Some("sdkwork-chat-pc".to_owned());
+    build_dual_token_headers_for_context(&context, context.permission_scope.iter())
+}
+
+fn gateway_numeric_authorization_header() -> String {
+    gateway_numeric_auth_headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .expect("numeric test auth token should be present")
+        .to_owned()
+}
+
+fn gateway_numeric_access_token_header() -> String {
+    gateway_numeric_auth_headers()
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .expect("numeric test access token should be present")
+        .to_owned()
 }
 
 #[tokio::test]
@@ -100,8 +170,8 @@ async fn gateway_routes_conversation_reads_and_writes_to_different_upstreams() {
             Request::builder()
                 .method(Method::GET)
                 .uri("/im/v3/api/chat/conversations/c_1/messages")
-                .header(header::AUTHORIZATION, "Bearer real-auth-token")
-                .header("access-token", "real-access-token")
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -124,8 +194,8 @@ async fn gateway_routes_conversation_reads_and_writes_to_different_upstreams() {
             Request::builder()
                 .method(Method::POST)
                 .uri("/im/v3/api/chat/conversations/c_1/messages")
-                .header(header::AUTHORIZATION, "Bearer real-auth-token")
-                .header("access-token", "real-access-token")
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
                 .body(Body::from("{}"))
                 .unwrap(),
         )
@@ -759,11 +829,11 @@ async fn embedded_gateway_derives_im_social_context_from_appbase_dual_tokens_not
                 .uri("/im/v3/api/social/users?q=user_test006_a_com&limit=20")
                 .header("authorization", format!("Bearer {auth_token}"))
                 .header("access-token", access_token.as_str())
-                .header("x-sdkwork-app-id", "sdkwork-chat-pc")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "user_test006_a_com")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "sdkwork_iam_session_test006")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "sdkwork-chat-pc")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "sdkwork_iam_session_test006")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -982,11 +1052,11 @@ async fn embedded_gateway_derives_drive_context_from_embedded_appbase_current_se
             Request::builder()
                 .method(Method::POST)
                 .uri("/app/v3/api/drive/uploader/uploads")
-                .header(header::AUTHORIZATION, "Bearer real-auth-token")
-                .header("access-token", "real-access-token")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "user_test006_a_com")
-                .header("x-sdkwork-session-id", "spoofed_session")
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed_session")
                 .body(Body::from("{}"))
                 .unwrap(),
         )
@@ -998,6 +1068,7 @@ async fn embedded_gateway_derives_drive_context_from_embedded_appbase_current_se
     assert_eq!(context["tenantId"], "tenant_real");
     assert_eq!(context["userId"], "user_real");
     assert_eq!(context["sessionId"], "session_real");
+    assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
     assert_ne!(context["tenantId"], "t_demo");
     assert_ne!(context["userId"], "user_test006_a_com");
 }
@@ -1030,8 +1101,8 @@ async fn embedded_gateway_fails_closed_when_drive_app_api_upstream_is_missing() 
             Request::builder()
                 .method(Method::POST)
                 .uri("/app/v3/api/drive/uploader/uploads")
-                .header(header::AUTHORIZATION, "Bearer real-auth-token")
-                .header("access-token", "real-access-token")
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
                 .body(Body::from("{}"))
                 .unwrap(),
         )
@@ -1061,6 +1132,112 @@ async fn embedded_gateway_fails_closed_when_drive_app_api_upstream_is_missing() 
 }
 
 #[tokio::test]
+async fn embedded_gateway_derives_notary_context_from_configured_upstream() {
+    let embedded_runtime = Router::new().route(
+        "/app/v3/api/auth/sessions/current",
+        get(appbase_current_session),
+    );
+    let notary = spawn_app_upstream(
+        Router::new().route("/app/v3/api/notary/cases", any(echo_context_upstream)),
+    )
+    .await;
+    let app = web_gateway::build_app_with_registry_and_runtime_routers(
+        WebGatewayConfig {
+            bind_addr: "127.0.0.1:0".to_owned(),
+            runtime_mode: GatewayRuntimeMode::Embedded,
+            strict_startup: true,
+            upstreams: vec![service_upstream(
+                "sdkwork-notary-app-api",
+                notary.base_url.as_str(),
+            )],
+        },
+        web_gateway::build_gateway_registry().expect("gateway registry should build"),
+        Some(embedded_runtime),
+        None,
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/app/v3/api/notary/cases")
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed_session")
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .expect("gateway notary case request should return");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let context = read_json_body(response).await;
+    assert_eq!(context["tenantId"], "tenant_real");
+    assert_eq!(context["userId"], "user_real");
+    assert_eq!(context["sessionId"], "session_real");
+    assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
+    assert_ne!(context["tenantId"], "t_demo");
+    assert_ne!(context["userId"], "user_test006_a_com");
+}
+
+#[tokio::test]
+async fn embedded_gateway_fails_closed_when_notary_app_api_upstream_is_missing() {
+    let embedded_runtime = Router::new()
+        .route(
+            "/app/v3/api/auth/sessions/current",
+            get(appbase_current_session),
+        )
+        .route("/app/v3/api/notary/cases", any(echo_context_upstream));
+    let app = web_gateway::build_app_with_registry_and_runtime_routers(
+        WebGatewayConfig {
+            bind_addr: "127.0.0.1:0".to_owned(),
+            runtime_mode: GatewayRuntimeMode::Embedded,
+            strict_startup: true,
+            upstreams: Vec::new(),
+        },
+        web_gateway::build_gateway_registry().expect("gateway registry should build"),
+        Some(embedded_runtime),
+        None,
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/app/v3/api/notary/cases")
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
+                .body(Body::from("{}"))
+                .unwrap(),
+        )
+        .await
+        .expect("gateway notary case request should return");
+
+    assert_eq!(
+        response.status(),
+        StatusCode::BAD_GATEWAY,
+        "missing Notary dependency must fail before falling through to embedded runtime routes"
+    );
+    assert!(
+        response
+            .headers()
+            .get("x-craw-chat-upstream-service")
+            .is_none(),
+        "missing Notary dependency must not be treated as a proxied upstream"
+    );
+    let value = read_json_body(response).await;
+    assert_eq!(value["code"], "gateway_proxy_error");
+    assert!(
+        value["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("sdkwork-notary-app-api")),
+        "missing Notary dependency error should identify the unconfigured upstream: {value}"
+    );
+}
+
+#[tokio::test]
 async fn gateway_derives_proxied_im_http_context_from_appbase_dual_tokens_not_client_headers() {
     let appbase = spawn_app_upstream(Router::new().route(
         "/app/v3/api/auth/sessions/current",
@@ -1081,11 +1258,11 @@ async fn gateway_derives_proxied_im_http_context_from_appbase_dual_tokens_not_cl
             Request::builder()
                 .method(Method::GET)
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=1")
-                .header(header::AUTHORIZATION, "Bearer real-auth-token")
-                .header("access-token", "real-access-token")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "user_test006_a_com")
-                .header("x-sdkwork-session-id", "spoofed_session")
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed_session")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1097,12 +1274,13 @@ async fn gateway_derives_proxied_im_http_context_from_appbase_dual_tokens_not_cl
     assert_eq!(context["tenantId"], "tenant_real");
     assert_eq!(context["userId"], "user_real");
     assert_eq!(context["sessionId"], "session_real");
+    assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
     assert_ne!(context["tenantId"], "t_demo");
     assert_ne!(context["userId"], "user_test006_a_com");
 }
 
 #[tokio::test]
-async fn gateway_signs_proxied_im_context_projection_when_signature_secret_is_configured() {
+async fn gateway_drops_sdkwork_internal_headers_when_signature_secret_is_configured() {
     let _signature_secret = ScopedEnvVar::set(
         "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
         "gateway-signing-secret",
@@ -1127,11 +1305,11 @@ async fn gateway_signs_proxied_im_context_projection_when_signature_secret_is_co
             Request::builder()
                 .method(Method::GET)
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=1")
-                .header(header::AUTHORIZATION, "Bearer real-auth-token")
-                .header("access-token", "real-access-token")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "user_test006_a_com")
-                .header("x-sdkwork-context-signature", "spoofed-signature")
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed-signature")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1143,7 +1321,8 @@ async fn gateway_signs_proxied_im_context_projection_when_signature_secret_is_co
     assert_eq!(context["tenantId"], "tenant_real");
     assert_eq!(context["userId"], "user_real");
     assert_eq!(context["sessionId"], "session_real");
-    assert!(context["signaturePresent"].as_bool().unwrap_or(false));
+    assert_eq!(context["signaturePresent"], false);
+    assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
 }
 
 #[tokio::test]
@@ -1167,11 +1346,14 @@ async fn gateway_accepts_numeric_appbase_session_context_ids_for_proxied_im_rout
             Request::builder()
                 .method(Method::GET)
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=1")
-                .header(header::AUTHORIZATION, "Bearer real-auth-token")
-                .header("access-token", "real-access-token")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-organization-id", "org_demo")
-                .header("x-sdkwork-user-id", "user_test006_a_com")
+                .header(
+                    header::AUTHORIZATION,
+                    gateway_numeric_authorization_header(),
+                )
+                .header("access-token", gateway_numeric_access_token_header())
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "org_demo")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1183,6 +1365,7 @@ async fn gateway_accepts_numeric_appbase_session_context_ids_for_proxied_im_rout
     assert_eq!(context["tenantId"], "20001");
     assert_eq!(context["organizationId"], "30001");
     assert_eq!(context["userId"], "user_numeric");
+    assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
     assert_ne!(context["tenantId"], "t_demo");
     assert_ne!(context["organizationId"], "org_demo");
     assert_ne!(context["userId"], "user_test006_a_com");
@@ -1230,11 +1413,11 @@ async fn gateway_derives_proxied_im_calls_context_from_appbase_dual_tokens_not_c
                 Request::builder()
                     .method(method)
                     .uri(path)
-                    .header(header::AUTHORIZATION, "Bearer real-auth-token")
-                    .header("access-token", "real-access-token")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "user_test006_a_com")
-                    .header("x-sdkwork-session-id", "spoofed_session")
+                    .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                    .header("access-token", gateway_test_access_token_header())
+                    .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
+                    .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
+                    .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed_session")
                     .body(body)
                     .unwrap(),
             )
@@ -1254,6 +1437,10 @@ async fn gateway_derives_proxied_im_calls_context_from_appbase_dual_tokens_not_c
         assert_eq!(
             context["sessionId"], "session_real",
             "{path} session context"
+        );
+        assert_eq!(
+            context["sdkworkInternalHeadersForwarded"], false,
+            "{path} must not receive client-supplied SDKWork SDKWork internal headers"
         );
         assert_ne!(context["tenantId"], "t_demo");
         assert_ne!(context["userId"], "user_test006_a_com");
@@ -1317,7 +1504,7 @@ async fn gateway_derives_proxied_chat_data_context_from_appbase_dual_tokens_not_
 }
 
 #[tokio::test]
-async fn gateway_fails_closed_for_protected_routes_without_appbase_session_context() {
+async fn gateway_derives_context_for_protected_routes_without_appbase_session_lookup() {
     for (service_id, method, path, route) in [
         (
             "session-gateway",
@@ -1374,7 +1561,7 @@ async fn gateway_fails_closed_for_protected_routes_without_appbase_session_conte
             "/app/v3/api/drive/uploader/uploads",
         ),
     ] {
-        assert_gateway_fails_closed_without_appbase_context(
+        assert_gateway_derives_context_without_appbase_session_lookup(
             service_id,
             method.clone(),
             path,
@@ -1402,7 +1589,7 @@ async fn gateway_handles_browser_cors_preflight_for_im_app_iam_routes() {
                 .header("access-control-request-method", "POST")
                 .header(
                     "access-control-request-headers",
-                    "content-type,access-token,x-sdkwork-tenant-id,x-sdkwork-session-id",
+                    "authorization,content-type,access-token",
                 )
                 .body(Body::empty())
                 .unwrap(),
@@ -1444,12 +1631,7 @@ async fn gateway_handles_browser_cors_preflight_for_im_app_iam_routes() {
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default()
         .to_ascii_lowercase();
-    for expected in [
-        "content-type",
-        "access-token",
-        "x-sdkwork-tenant-id",
-        "x-sdkwork-session-id",
-    ] {
+    for expected in ["authorization", "content-type", "access-token"] {
         assert!(
             allow_headers.contains(expected),
             "gateway CORS preflight must allow {expected}, got {allow_headers}"
@@ -1611,11 +1793,11 @@ async fn assert_gateway_derives_context_for_configured_upstream(
             Request::builder()
                 .method(method)
                 .uri(path)
-                .header(header::AUTHORIZATION, "Bearer real-auth-token")
-                .header("access-token", "real-access-token")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "user_test006_a_com")
-                .header("x-sdkwork-session-id", "spoofed_session")
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed_session")
                 .body(body)
                 .unwrap(),
         )
@@ -1630,21 +1812,25 @@ async fn assert_gateway_derives_context_for_configured_upstream(
     let context = read_json_body(response).await;
     assert_eq!(
         context["tenantId"], "tenant_real",
-        "{service_id} must receive appbase tenant context"
+        "{service_id} must receive dual-token tenant context"
     );
     assert_eq!(
         context["userId"], "user_real",
-        "{service_id} must receive appbase user context"
+        "{service_id} must receive dual-token user context"
     );
     assert_eq!(
         context["sessionId"], "session_real",
-        "{service_id} must receive appbase session context"
+        "{service_id} must receive dual-token session context"
+    );
+    assert_eq!(
+        context["sdkworkInternalHeadersForwarded"], false,
+        "{service_id} must not receive client-supplied SDKWork SDKWork internal headers"
     );
     assert_ne!(context["tenantId"], "t_demo");
     assert_ne!(context["userId"], "user_test006_a_com");
 }
 
-async fn assert_gateway_fails_closed_without_appbase_context(
+async fn assert_gateway_derives_context_without_appbase_session_lookup(
     service_id: &str,
     method: Method,
     path: &str,
@@ -1667,37 +1853,41 @@ async fn assert_gateway_fails_closed_without_appbase_context(
             Request::builder()
                 .method(method)
                 .uri(path)
-                .header(header::AUTHORIZATION, "Bearer real-auth-token")
-                .header("access-token", "real-access-token")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "user_test006_a_com")
-                .header("x-sdkwork-session-id", "spoofed_session")
+                .header(header::AUTHORIZATION, gateway_test_authorization_header())
+                .header("access-token", gateway_test_access_token_header())
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
+                .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed_session")
                 .body(body)
                 .unwrap(),
         )
         .await
-        .unwrap_or_else(|error| panic!("gateway request should return for {service_id}: {error}"));
+        .unwrap_or_else(|error| panic!("gateway request should succeed for {service_id}: {error}"));
 
     assert_eq!(
         response.status(),
-        StatusCode::BAD_GATEWAY,
-        "{service_id} must fail closed when appbase current-session is not configured"
+        StatusCode::OK,
+        "{service_id} must derive request context directly from dual tokens"
     );
-    assert!(
-        response
-            .headers()
-            .get("x-craw-chat-upstream-service")
-            .is_none(),
-        "{service_id} must not proxy protected requests with client-supplied context"
+    let context = read_json_body(response).await;
+    assert_eq!(
+        context["tenantId"], "tenant_real",
+        "{service_id} must receive dual-token tenant context without appbase session lookup"
     );
-    let value = read_json_body(response).await;
-    assert_eq!(value["code"], "gateway_proxy_error");
-    assert!(
-        value["message"]
-            .as_str()
-            .is_some_and(|message| message.contains("sdkwork-appbase-app-api")),
-        "{service_id} failure should identify the missing appbase current-session upstream: {value}"
+    assert_eq!(
+        context["userId"], "user_real",
+        "{service_id} must receive dual-token user context without appbase session lookup"
     );
+    assert_eq!(
+        context["sessionId"], "session_real",
+        "{service_id} must receive dual-token session context without appbase session lookup"
+    );
+    assert_eq!(
+        context["sdkworkInternalHeadersForwarded"], false,
+        "{service_id} must not receive client-supplied SDKWork SDKWork internal headers"
+    );
+    assert_ne!(context["tenantId"], "t_demo");
+    assert_ne!(context["userId"], "user_test006_a_com");
 }
 
 async fn echo_upstream(
@@ -1713,11 +1903,7 @@ async fn echo_upstream(
 }
 
 async fn appbase_current_session(headers: HeaderMap) -> Response {
-    let auth_token = header_value(&headers, header::AUTHORIZATION.as_str());
-    let access_token = header_value(&headers, "access-token");
-    if auth_token.as_deref() != Some("Bearer real-auth-token")
-        || access_token.as_deref() != Some("real-access-token")
-    {
+    let Ok(context) = resolve_app_context(&headers) else {
         return (
             StatusCode::UNAUTHORIZED,
             Json(json!({
@@ -1728,18 +1914,19 @@ async fn appbase_current_session(headers: HeaderMap) -> Response {
             })),
         )
             .into_response();
-    }
+    };
 
     (
         StatusCode::OK,
         Json(json!({
             "data": {
                 "context": {
-                    "tenantId": "tenant_real",
-                    "userId": "user_real",
-                    "sessionId": "session_real",
-                    "appId": "sdkwork-chat-pc",
-                    "actorKind": "user"
+                    "tenantId": context.tenant_id,
+                    "organizationId": context.organization_id,
+                    "userId": context.user_id,
+                    "sessionId": context.session_id,
+                    "appId": context.app_id,
+                    "actorKind": context.actor_kind
                 }
             }
         })),
@@ -1748,11 +1935,7 @@ async fn appbase_current_session(headers: HeaderMap) -> Response {
 }
 
 async fn appbase_numeric_current_session(headers: HeaderMap) -> Response {
-    let auth_token = header_value(&headers, header::AUTHORIZATION.as_str());
-    let access_token = header_value(&headers, "access-token");
-    if auth_token.as_deref() != Some("Bearer real-auth-token")
-        || access_token.as_deref() != Some("real-access-token")
-    {
+    let Ok(context) = resolve_app_context(&headers) else {
         return (
             StatusCode::UNAUTHORIZED,
             Json(json!({
@@ -1763,19 +1946,19 @@ async fn appbase_numeric_current_session(headers: HeaderMap) -> Response {
             })),
         )
             .into_response();
-    }
+    };
 
     (
         StatusCode::OK,
         Json(json!({
             "data": {
                 "context": {
-                    "tenantId": 20001,
-                    "organizationId": 30001,
-                    "userId": "user_numeric",
-                    "sessionId": "session_numeric",
-                    "appId": "sdkwork-chat-pc",
-                    "actorKind": "user"
+                    "tenantId": context.tenant_id,
+                    "organizationId": context.organization_id,
+                    "userId": context.user_id,
+                    "sessionId": context.session_id,
+                    "appId": context.app_id,
+                    "actorKind": context.actor_kind
                 }
             }
         })),
@@ -1784,12 +1967,20 @@ async fn appbase_numeric_current_session(headers: HeaderMap) -> Response {
 }
 
 async fn echo_context_upstream(headers: HeaderMap) -> Json<serde_json::Value> {
-    Json(json!({
-        "tenantId": header_value(&headers, "x-sdkwork-tenant-id"),
-        "organizationId": header_value(&headers, "x-sdkwork-organization-id"),
-        "userId": header_value(&headers, "x-sdkwork-user-id"),
-        "sessionId": header_value(&headers, "x-sdkwork-session-id"),
-    }))
+    match resolve_app_context(&headers) {
+        Ok(context) => Json(json!({
+            "tenantId": context.tenant_id,
+            "organizationId": context.organization_id,
+            "userId": context.user_id,
+            "sessionId": context.session_id,
+            "sdkworkInternalHeadersForwarded": has_sdkwork_internal_header(&headers),
+        })),
+        Err(error) => Json(json!({
+            "code": error.code(),
+            "message": error.message(),
+            "sdkworkInternalHeadersForwarded": has_sdkwork_internal_header(&headers),
+        })),
+    }
 }
 
 async fn require_signed_context_upstream(headers: HeaderMap) -> Response {
@@ -1805,6 +1996,7 @@ async fn require_signed_context_upstream(headers: HeaderMap) -> Response {
             "userId": context.user_id,
             "sessionId": context.session_id,
             "signaturePresent": header_value(&headers, "x-sdkwork-context-signature").is_some(),
+            "sdkworkInternalHeadersForwarded": has_sdkwork_internal_header(&headers),
         }))
         .into_response(),
         Err(error) => (
@@ -1823,6 +2015,18 @@ fn header_value(headers: &HeaderMap, name: &str) -> Option<String> {
         .get(name)
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned)
+}
+
+fn has_sdkwork_internal_header(headers: &HeaderMap) -> bool {
+    [
+        "x-sdkwork-tenant-id",
+        "x-sdkwork-organization-id",
+        "x-sdkwork-user-id",
+        "x-sdkwork-session-id",
+        "x-sdkwork-context-signature",
+    ]
+    .iter()
+    .any(|name| headers.contains_key(*name))
 }
 
 async fn echo_runtime_section(

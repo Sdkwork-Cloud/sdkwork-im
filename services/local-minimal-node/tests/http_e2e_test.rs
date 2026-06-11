@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use fs4::fs_std::FileExt;
@@ -28,17 +29,17 @@ trait AppContextRequestBuilderExt {
 
 impl AppContextRequestBuilderExt for axum::http::request::Builder {
     fn demo_app_context(self) -> Self {
-        self.header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "u_demo")
-            .header("x-sdkwork-actor-kind", "user")
-            .header("x-sdkwork-session-id", "sdkwork_iam_session_demo")
+        self.with_dual_token_tenant("t_demo")
+            .with_dual_token_user("u_demo")
+            .with_dual_token_actor_kind("user")
+            .with_dual_token_session("sdkwork_iam_session_demo")
     }
 
     fn other_app_context(self) -> Self {
-        self.header("x-sdkwork-tenant-id", "t_other")
-            .header("x-sdkwork-user-id", "u_other")
-            .header("x-sdkwork-actor-kind", "user")
-            .header("x-sdkwork-session-id", "sdkwork_iam_session_other")
+        self.with_dual_token_tenant("t_other")
+            .with_dual_token_user("u_other")
+            .with_dual_token_actor_kind("user")
+            .with_dual_token_session("sdkwork_iam_session_other")
     }
 }
 
@@ -380,9 +381,9 @@ async fn create_active_friendship_direct_chat_fixture(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -416,9 +417,9 @@ async fn create_active_friendship_direct_chat_fixture(
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{request_id}/accept"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -488,10 +489,10 @@ async fn test_local_minimal_profile_social_user_search_uses_real_catalog_without
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/social/users?q=user_test005_a_com&limit=20")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "user_test005_a_com")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "sdkwork_iam_session_test005")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("user_test005_a_com")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("sdkwork_iam_session_test005")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -826,9 +827,9 @@ async fn remove_friendship_for_test(
                 .uri(format!(
                     "/im/v3/api/social/friendships/{friendship_id}/remove"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", remover_user_id)
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user(remover_user_id)
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -850,10 +851,10 @@ async fn block_direct_chat_for_test(
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/user_blocks")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -888,9 +889,9 @@ async fn post_standard_message_for_test(
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/messages"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", sender_user_id)
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user(sender_user_id)
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -918,9 +919,9 @@ async fn list_message_summaries_for_test(
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/messages"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", reader_user_id)
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user(reader_user_id)
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -950,10 +951,10 @@ async fn register_client_route_for_test(app: &axum::Router, user_id: &str, devic
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", user_id)
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", device_id)
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user(user_id)
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device(device_id)
                 .header("content-type", "application/json")
                 .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
                 .unwrap(),
@@ -974,10 +975,10 @@ async fn sync_conversation_realtime_subscription_for_test(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", user_id)
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", device_id)
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user(user_id)
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device(device_id)
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1008,11 +1009,11 @@ async fn sync_user_realtime_subscription_for_test(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", user_id)
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", device_id)
-                .header("x-sdkwork-session-id", format!("s_{device_id}"))
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user(user_id)
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device(device_id)
+                .with_dual_token_session(format!("s_{device_id}"))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1052,13 +1053,13 @@ async fn list_realtime_events_with_session_for_test(
         .uri(format!(
             "/im/v3/api/realtime/events?afterSeq={after_seq}&limit=10"
         ))
-        .header("x-sdkwork-tenant-id", "t_demo")
-        .header("x-sdkwork-user-id", user_id)
-        .header("x-sdkwork-actor-kind", "user")
-        .header("x-sdkwork-device-id", device_id);
+        .with_dual_token_tenant("t_demo")
+        .with_dual_token_user(user_id)
+        .with_dual_token_actor_kind("user")
+        .with_dual_token_device(device_id);
 
     if let Some(session_id) = session_id {
-        request = request.header("x-sdkwork-session-id", session_id);
+        request = request.with_dual_token_session(session_id);
     }
 
     app.clone()
@@ -2033,9 +2034,9 @@ async fn test_local_minimal_profile_treats_duplicate_system_channel_create_as_id
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2072,9 +2073,9 @@ async fn test_local_minimal_profile_treats_duplicate_system_channel_create_as_id
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2110,9 +2111,9 @@ async fn test_local_minimal_profile_treats_duplicate_system_channel_create_as_id
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_system_channel_retry_local/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2134,9 +2135,9 @@ async fn test_local_minimal_profile_treats_duplicate_system_channel_create_as_id
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2171,9 +2172,9 @@ async fn test_local_minimal_profile_rejects_system_channel_publish_from_subscrib
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2194,10 +2195,10 @@ async fn test_local_minimal_profile_rejects_system_channel_publish_from_subscrib
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_system_channel_publish_guard_local/system_channel/publish")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_demo_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_demo_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2232,9 +2233,9 @@ async fn test_local_minimal_profile_treats_duplicate_agent_handoff_create_as_ide
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2274,9 +2275,9 @@ async fn test_local_minimal_profile_treats_duplicate_agent_handoff_create_as_ide
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2315,9 +2316,9 @@ async fn test_local_minimal_profile_treats_duplicate_agent_handoff_create_as_ide
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_agent_handoff_retry_local/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2339,9 +2340,9 @@ async fn test_local_minimal_profile_treats_duplicate_agent_handoff_create_as_ide
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2593,9 +2594,9 @@ async fn test_local_minimal_profile_treats_duplicate_direct_chat_binding_as_idem
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/direct_chats/bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_control")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_control")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2636,9 +2637,9 @@ async fn test_local_minimal_profile_treats_duplicate_direct_chat_binding_as_idem
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/direct_chats/bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_control")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_control")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2675,9 +2676,9 @@ async fn test_local_minimal_profile_treats_duplicate_direct_chat_binding_as_idem
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_direct_retry_local/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "actor_a")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("actor_a")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2699,9 +2700,9 @@ async fn test_local_minimal_profile_treats_duplicate_direct_chat_binding_as_idem
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/direct_chats/bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_control")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_control")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3055,9 +3056,9 @@ async fn test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/calls/sessions")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "shared_actor")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("shared_actor")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3091,9 +3092,9 @@ async fn test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/calls/sessions")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "shared_actor")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("shared_actor")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3588,10 +3589,10 @@ async fn test_local_minimal_profile_exposes_read_cursor_and_unread_view() {
                 Request::builder()
                     .method("POST")
                     .uri("/im/v3/api/chat/conversations/c_cursor/messages")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_member")
-                    .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-session-id", "sdkwork_iam_session_member")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_member")
+                    .with_dual_token_actor_kind("user")
+                    .with_dual_token_session("sdkwork_iam_session_member")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -3742,10 +3743,10 @@ async fn test_local_minimal_profile_exposes_inbox_view() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_inbox/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_member")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "sdkwork_iam_session_member")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_member")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("sdkwork_iam_session_member")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3880,9 +3881,9 @@ async fn test_local_minimal_profile_exposes_display_ready_direct_inbox_projectio
                     "/im/v3/api/chat/conversations/{}/preferences",
                     fixture.conversation_id
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3902,9 +3903,9 @@ async fn test_local_minimal_profile_exposes_display_ready_direct_inbox_projectio
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/inbox")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4083,10 +4084,10 @@ async fn test_local_minimal_profile_second_instance_reads_latest_inbox_from_shar
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_cross_instance_inbox/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_member")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "sdkwork_iam_session_member")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_member")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("sdkwork_iam_session_member")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4154,10 +4155,10 @@ async fn test_local_minimal_profile_heartbeats_client_route_and_returns_presence
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4178,10 +4179,10 @@ async fn test_local_minimal_profile_heartbeats_client_route_and_returns_presence
                 Request::builder()
                     .method("POST")
                     .uri("/im/v3/api/presence/heartbeat")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_demo")
-                    .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-device-id", device_id)
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_demo")
+                    .with_dual_token_actor_kind("user")
+                    .with_dual_token_device(device_id)
                     .header("content-type", "application/json")
                     .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
                     .unwrap(),
@@ -4197,11 +4198,11 @@ async fn test_local_minimal_profile_heartbeats_client_route_and_returns_presence
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_resume/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_phone")
-                .header("x-sdkwork-device-id", "d_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("s_phone")
+                .with_dual_token_device("d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4222,11 +4223,11 @@ async fn test_local_minimal_profile_heartbeats_client_route_and_returns_presence
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_pad")
-                .header("x-sdkwork-device-id", "d_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("s_pad")
+                .with_dual_token_device("d_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4263,11 +4264,11 @@ async fn test_local_minimal_profile_heartbeats_client_route_and_returns_presence
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/presence/me")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_pad")
-                .header("x-sdkwork-device-id", "d_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("s_pad")
+                .with_dual_token_device("d_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4297,11 +4298,11 @@ async fn test_local_minimal_profile_preserves_message_post_audit_for_max_length_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -4322,11 +4323,11 @@ async fn test_local_minimal_profile_preserves_message_post_audit_for_max_length_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_phone"}"#))
                 .unwrap(),
@@ -4343,11 +4344,11 @@ async fn test_local_minimal_profile_preserves_message_post_audit_for_max_length_
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/messages"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4378,10 +4379,10 @@ async fn test_local_minimal_profile_preserves_message_post_audit_for_max_length_
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/export")
-                .header("x-sdkwork-permission-scope", "audit.read")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_permission_scope("audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4449,12 +4450,12 @@ async fn test_local_minimal_profile_does_not_mount_appbase_owned_notification_ro
         let mut builder = Request::builder()
             .method(method)
             .uri(path)
-            .header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "u_demo")
-            .header("x-sdkwork-actor-kind", "user");
+            .with_dual_token_tenant("t_demo")
+            .with_dual_token_user("u_demo")
+            .with_dual_token_actor_kind("user");
         if method == "POST" {
             builder = builder
-                .header("x-sdkwork-permission-scope", "notification.write")
+                .with_dual_token_permission_scope("notification.write")
                 .header("content-type", "application/json");
         }
         let response = app
@@ -4615,11 +4616,11 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_clien
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4639,11 +4640,11 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_clien
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -4658,11 +4659,11 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_clien
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -4677,11 +4678,11 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_clien
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4706,11 +4707,11 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_clien
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4730,11 +4731,11 @@ async fn test_local_minimal_profile_delivers_realtime_events_to_subscribed_clien
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4783,11 +4784,11 @@ async fn test_local_minimal_profile_rejects_realtime_limit_above_guardrail_over_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=5000")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_demo")
-                .header("x-sdkwork-session-id", "s_demo")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_demo")
+                .with_dual_token_session("s_demo")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4817,11 +4818,11 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4841,11 +4842,11 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime_kind_guard/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4866,11 +4867,11 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_dual")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_dual_user")
-                .header("x-sdkwork-session-id", "s_dual_user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_dual")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_dual_user")
+                .with_dual_token_session("s_dual_user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -4885,11 +4886,11 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_dual")
-                .header("x-sdkwork-actor-kind", "agent")
-                .header("x-sdkwork-device-id", "d_dual_agent")
-                .header("x-sdkwork-session-id", "s_dual_agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_dual")
+                .with_dual_token_actor_kind("agent")
+                .with_dual_token_device("d_dual_agent")
+                .with_dual_token_session("s_dual_agent")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -4904,11 +4905,11 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_dual")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_dual_user")
-                .header("x-sdkwork-session-id", "s_dual_user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_dual")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_dual_user")
+                .with_dual_token_session("s_dual_user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4933,11 +4934,11 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_dual")
-                .header("x-sdkwork-actor-kind", "agent")
-                .header("x-sdkwork-device-id", "d_dual_agent")
-                .header("x-sdkwork-session-id", "s_dual_agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_dual")
+                .with_dual_token_actor_kind("agent")
+                .with_dual_token_device("d_dual_agent")
+                .with_dual_token_session("s_dual_agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4962,11 +4963,11 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime_kind_guard/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4986,11 +4987,11 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_dual")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_dual_user")
-                .header("x-sdkwork-session-id", "s_dual_user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_dual")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_dual_user")
+                .with_dual_token_session("s_dual_user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5013,11 +5014,11 @@ async fn test_local_minimal_profile_does_not_fan_out_conversation_realtime_to_no
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_dual")
-                .header("x-sdkwork-actor-kind", "agent")
-                .header("x-sdkwork-device-id", "d_dual_agent")
-                .header("x-sdkwork-session-id", "s_dual_agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_dual")
+                .with_dual_token_actor_kind("agent")
+                .with_dual_token_device("d_dual_agent")
+                .with_dual_token_session("s_dual_agent")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5050,11 +5051,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5074,11 +5075,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -5093,11 +5094,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5122,11 +5123,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_post_retry_fanout/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5160,11 +5161,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_post_retry_fanout/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5201,11 +5202,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_post_retry_fanout/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5226,11 +5227,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_message_post_ret
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5268,11 +5269,11 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5292,11 +5293,11 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -5311,11 +5312,11 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -5330,11 +5331,11 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5359,11 +5360,11 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime_ack/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5383,11 +5384,11 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5412,11 +5413,11 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/events/ack")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"ackedSeq":1}"#))
                 .unwrap(),
@@ -5441,11 +5442,11 @@ async fn test_local_minimal_profile_acks_and_trims_realtime_event_window() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5477,11 +5478,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5501,11 +5502,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_stream_realtime_fanout/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5526,11 +5527,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -5545,11 +5546,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5573,11 +5574,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5602,11 +5603,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_stream_realtime_fanout/frames")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5628,11 +5629,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_frames_to_other_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5861,11 +5862,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5885,11 +5886,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_stream_retry_fanout/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5910,11 +5911,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -5929,11 +5930,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5957,11 +5958,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5986,11 +5987,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_stream_retry_fanout/frames")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6026,11 +6027,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_stream_retry_fanout/frames")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6064,11 +6065,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_ret
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6106,11 +6107,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6130,11 +6131,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_stream_completion_fanout/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6155,11 +6156,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -6174,11 +6175,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6202,11 +6203,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6231,11 +6232,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_stream_completion_fanout/frames")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6258,11 +6259,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_stream_completion_fanout/complete")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6281,11 +6282,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_completion_to_ot
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6333,11 +6334,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6357,11 +6358,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_stream_abort_fanout/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6382,11 +6383,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -6401,11 +6402,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6429,11 +6430,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6458,11 +6459,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_stream_abort_fanout/frames")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6485,11 +6486,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_stream_abort_fanout/abort")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6507,11 +6508,11 @@ async fn test_local_minimal_profile_fanouts_conversation_stream_abort_to_other_m
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6558,11 +6559,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6582,11 +6583,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_stream_abort_idempotent/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6607,11 +6608,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -6626,11 +6627,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6654,11 +6655,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6683,11 +6684,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_abort_retry_fanout/frames")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6710,11 +6711,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_abort_retry_fanout/abort")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6747,11 +6748,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_abort_retry_fanout/abort")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6782,11 +6783,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_ret
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -6962,11 +6963,11 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -6986,11 +6987,11 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime_fanout/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7011,11 +7012,11 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -7030,11 +7031,11 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7059,11 +7060,11 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime_fanout/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7082,11 +7083,11 @@ async fn test_local_minimal_profile_fanouts_realtime_message_events_to_other_con
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7131,11 +7132,11 @@ async fn test_local_minimal_profile_fanouts_member_joined_to_added_user_scope_fo
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7155,11 +7156,11 @@ async fn test_local_minimal_profile_fanouts_member_joined_to_added_user_scope_fo
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -7174,11 +7175,11 @@ async fn test_local_minimal_profile_fanouts_member_joined_to_added_user_scope_fo
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7203,11 +7204,11 @@ async fn test_local_minimal_profile_fanouts_member_joined_to_added_user_scope_fo
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_joined_user_scope/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7227,11 +7228,11 @@ async fn test_local_minimal_profile_fanouts_member_joined_to_added_user_scope_fo
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/inbox")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7260,11 +7261,11 @@ async fn test_local_minimal_profile_fanouts_member_joined_to_added_user_scope_fo
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7312,11 +7313,11 @@ async fn test_local_minimal_profile_fanouts_owner_transfer_to_new_owner_user_sco
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7336,11 +7337,11 @@ async fn test_local_minimal_profile_fanouts_owner_transfer_to_new_owner_user_sco
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_owner_transfer_user_scope/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7361,11 +7362,11 @@ async fn test_local_minimal_profile_fanouts_owner_transfer_to_new_owner_user_sco
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_new_owner_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_new_owner")
-                .header("x-sdkwork-session-id", "s_new_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_new_owner_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_new_owner")
+                .with_dual_token_session("s_new_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -7380,11 +7381,11 @@ async fn test_local_minimal_profile_fanouts_owner_transfer_to_new_owner_user_sco
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_new_owner_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_new_owner")
-                .header("x-sdkwork-session-id", "s_new_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_new_owner_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_new_owner")
+                .with_dual_token_session("s_new_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7409,11 +7410,11 @@ async fn test_local_minimal_profile_fanouts_owner_transfer_to_new_owner_user_sco
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_owner_transfer_user_scope/members/transfer_owner")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7430,11 +7431,11 @@ async fn test_local_minimal_profile_fanouts_owner_transfer_to_new_owner_user_sco
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_new_owner_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_new_owner")
-                .header("x-sdkwork-session-id", "s_new_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_new_owner_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_new_owner")
+                .with_dual_token_session("s_new_owner")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7486,11 +7487,11 @@ async fn test_local_minimal_profile_fanouts_member_management_events_to_target_u
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7510,11 +7511,11 @@ async fn test_local_minimal_profile_fanouts_member_management_events_to_target_u
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_target_user_scope/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7535,11 +7536,11 @@ async fn test_local_minimal_profile_fanouts_member_management_events_to_target_u
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_target_user_scope/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7583,11 +7584,11 @@ async fn test_local_minimal_profile_fanouts_member_management_events_to_target_u
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_target_user_scope/members/change_role")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7607,11 +7608,11 @@ async fn test_local_minimal_profile_fanouts_member_management_events_to_target_u
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_target_user_scope/members/remove")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7630,11 +7631,11 @@ async fn test_local_minimal_profile_fanouts_member_management_events_to_target_u
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_target_user_scope/members/leave")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_target_leave_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_target_leave")
-                .header("x-sdkwork-session-id", "s_d_target_leave")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_target_leave_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_target_leave")
+                .with_dual_token_session("s_d_target_leave")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7759,11 +7760,11 @@ async fn test_local_minimal_profile_fanouts_message_events_to_member_user_scope_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7783,11 +7784,11 @@ async fn test_local_minimal_profile_fanouts_message_events_to_member_user_scope_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime_user_scope_fanout/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7808,11 +7809,11 @@ async fn test_local_minimal_profile_fanouts_message_events_to_member_user_scope_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -7827,11 +7828,11 @@ async fn test_local_minimal_profile_fanouts_message_events_to_member_user_scope_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7856,11 +7857,11 @@ async fn test_local_minimal_profile_fanouts_message_events_to_member_user_scope_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime_user_scope_fanout/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7879,11 +7880,11 @@ async fn test_local_minimal_profile_fanouts_message_events_to_member_user_scope_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7932,11 +7933,11 @@ async fn test_local_minimal_profile_replays_pending_message_events_to_member_use
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7956,11 +7957,11 @@ async fn test_local_minimal_profile_replays_pending_message_events_to_member_use
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime_user_scope_replay/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -7981,11 +7982,11 @@ async fn test_local_minimal_profile_replays_pending_message_events_to_member_use
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8005,11 +8006,11 @@ async fn test_local_minimal_profile_replays_pending_message_events_to_member_use
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -8024,11 +8025,11 @@ async fn test_local_minimal_profile_replays_pending_message_events_to_member_use
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8105,11 +8106,11 @@ async fn test_local_minimal_profile_replays_pending_message_events_to_member_use
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime_user_scope_replay_trigger/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8128,11 +8129,11 @@ async fn test_local_minimal_profile_replays_pending_message_events_to_member_use
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8182,11 +8183,11 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8206,11 +8207,11 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime_mutation_fanout/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8231,11 +8232,11 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -8250,11 +8251,11 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8279,11 +8280,11 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_realtime_mutation_fanout/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8304,11 +8305,11 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/messages/msg_c_realtime_mutation_fanout_1/edit")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8328,11 +8329,11 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/messages/msg_c_realtime_mutation_fanout_1/recall")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -8345,11 +8346,11 @@ async fn test_local_minimal_profile_fanouts_message_mutation_realtime_events_to_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8429,11 +8430,11 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8453,11 +8454,11 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8487,11 +8488,11 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_realtime/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8512,11 +8513,11 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_realtime/members/change_role")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8536,11 +8537,11 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_realtime/members/remove")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8559,11 +8560,11 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_realtime/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8584,11 +8585,11 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_realtime/members/leave")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_leave_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_leave")
-                .header("x-sdkwork-session-id", "s_leave")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_leave_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_leave")
+                .with_dual_token_session("s_leave")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8600,11 +8601,11 @@ async fn test_local_minimal_profile_fanouts_member_governance_realtime_events_to
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8684,11 +8685,11 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8708,11 +8709,11 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8742,11 +8743,11 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_actor_kind_sync/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8767,11 +8768,11 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_actor_kind_sync/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8792,11 +8793,11 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_actor_kind_sync/members/change_role")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "agent")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("agent")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8816,11 +8817,11 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_actor_kind_sync/members/remove")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "agent")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("agent")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -8839,11 +8840,11 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_actor_kind_sync/members/leave")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_leave_demo")
-                .header("x-sdkwork-actor-kind", "system")
-                .header("x-sdkwork-device-id", "d_leave")
-                .header("x-sdkwork-session-id", "s_leave")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_leave_demo")
+                .with_dual_token_actor_kind("system")
+                .with_dual_token_device("d_leave")
+                .with_dual_token_session("s_leave")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8856,11 +8857,11 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_pad")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8915,11 +8916,11 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_member_actor_kind_sync/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -8955,10 +8956,10 @@ async fn test_local_minimal_profile_member_governance_rejects_actor_kind_mismatc
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/export")
-                .header("x-sdkwork-permission-scope", "audit.read")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_permission_scope("audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -9007,11 +9008,11 @@ async fn test_local_minimal_profile_owner_transfer_rejects_actor_kind_mismatch_b
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9031,11 +9032,11 @@ async fn test_local_minimal_profile_owner_transfer_rejects_actor_kind_mismatch_b
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_owner_transfer_actor_kind_sync/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9058,11 +9059,11 @@ async fn test_local_minimal_profile_owner_transfer_rejects_actor_kind_mismatch_b
                 .uri(
                     "/im/v3/api/chat/conversations/c_owner_transfer_actor_kind_sync/members/transfer_owner",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "agent")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("agent")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9080,10 +9081,10 @@ async fn test_local_minimal_profile_owner_transfer_rejects_actor_kind_mismatch_b
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/export")
-                .header("x-sdkwork-permission-scope", "audit.read")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_permission_scope("audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -9109,11 +9110,11 @@ async fn test_local_minimal_profile_owner_transfer_rejects_actor_kind_mismatch_b
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_owner_transfer_actor_kind_sync/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -9336,9 +9337,9 @@ async fn test_local_minimal_profile_rejects_duplicate_open_stream_from_different
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9376,9 +9377,9 @@ async fn test_local_minimal_profile_rejects_duplicate_open_stream_from_different
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9416,9 +9417,9 @@ async fn test_local_minimal_profile_rejects_request_stream_list_from_different_a
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9442,9 +9443,9 @@ async fn test_local_minimal_profile_rejects_request_stream_list_from_different_a
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_local_request_scope_owner_only_list/frames")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9465,9 +9466,9 @@ async fn test_local_minimal_profile_rejects_request_stream_list_from_different_a
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/streams/st_local_request_scope_owner_only_list/frames?afterFrameSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -9495,11 +9496,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9519,11 +9520,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_stream_complete_idempotent/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9544,11 +9545,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -9563,11 +9564,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9591,11 +9592,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9620,11 +9621,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_complete_retry_fanout/frames")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9647,11 +9648,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_complete_retry_fanout/complete")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9684,11 +9685,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams/st_complete_retry_fanout/complete")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_owner")
-                .header("x-sdkwork-session-id", "s_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_owner")
+                .with_dual_token_session("s_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9720,11 +9721,11 @@ async fn test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_other_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_other")
-                .header("x-sdkwork-session-id", "s_other")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_other_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_other")
+                .with_dual_token_session("s_other")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -9898,9 +9899,9 @@ async fn test_local_minimal_profile_issues_rtc_participant_credential_over_http(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/calls/sessions")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9919,9 +9920,9 @@ async fn test_local_minimal_profile_issues_rtc_participant_credential_over_http(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/calls/sessions/rtc_local_provider_http/credentials")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -9970,10 +9971,10 @@ async fn test_local_minimal_profile_rejects_oversized_audit_payload_over_http() 
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -10009,10 +10010,10 @@ async fn test_local_minimal_profile_treats_duplicate_audit_anchor_as_idempotent(
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10048,10 +10049,10 @@ async fn test_local_minimal_profile_treats_duplicate_audit_anchor_as_idempotent(
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10086,10 +10087,10 @@ async fn test_local_minimal_profile_treats_duplicate_audit_anchor_as_idempotent(
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10117,11 +10118,11 @@ async fn test_local_minimal_profile_replays_duplicate_audit_anchor_after_session
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_before")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("s_before")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10153,11 +10154,11 @@ async fn test_local_minimal_profile_replays_duplicate_audit_anchor_after_session
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_after")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("s_after")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10191,10 +10192,10 @@ async fn test_local_minimal_profile_replays_duplicate_audit_anchor_after_session
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10225,9 +10226,9 @@ async fn test_local_minimal_profile_rejects_oversized_client_route_id_on_registe
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -10265,9 +10266,9 @@ async fn test_local_minimal_profile_rejects_oversized_conversation_id_on_timelin
                     "/im/v3/api/chat/conversations/{}/messages",
                     "c".repeat(2048)
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10468,9 +10469,9 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10504,9 +10505,9 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_projection_local/member_directory")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10533,9 +10534,9 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_projection_local/messages/msg_c_projection_local_1/interaction_summary")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10562,9 +10563,9 @@ async fn test_local_minimal_profile_exposes_projection_read_routes_for_contacts_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_projection_local/pins")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_member")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_member")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10621,9 +10622,9 @@ async fn test_local_minimal_profile_rejects_same_actor_id_with_different_actor_k
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10652,9 +10653,9 @@ async fn test_local_minimal_profile_hides_removed_friendship_from_contacts() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10688,9 +10689,9 @@ async fn test_local_minimal_profile_hides_removed_friendship_from_contacts() {
                     "/im/v3/api/social/friendships/{}/remove",
                     fixture.friendship_id
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10702,9 +10703,9 @@ async fn test_local_minimal_profile_hides_removed_friendship_from_contacts() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10738,9 +10739,9 @@ async fn test_local_minimal_profile_treats_duplicate_friend_request_submit_as_id
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10768,9 +10769,9 @@ async fn test_local_minimal_profile_treats_duplicate_friend_request_submit_as_id
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10810,10 +10811,10 @@ async fn test_local_minimal_profile_recovers_existing_pending_friend_request_for
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10837,9 +10838,9 @@ async fn test_local_minimal_profile_recovers_existing_pending_friend_request_for
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10882,9 +10883,9 @@ async fn test_local_minimal_profile_friend_request_acceptance_creates_direct_cha
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -10927,9 +10928,9 @@ async fn test_local_minimal_profile_friend_request_acceptance_creates_direct_cha
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{request_id}/accept"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10964,9 +10965,9 @@ async fn test_local_minimal_profile_friend_request_acceptance_creates_direct_cha
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -10996,9 +10997,9 @@ async fn test_local_minimal_profile_friend_request_acceptance_creates_direct_cha
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/members"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11097,10 +11098,10 @@ async fn test_local_minimal_profile_rejects_friend_request_submit_for_blocked_pa
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/user_blocks")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11123,9 +11124,9 @@ async fn test_local_minimal_profile_rejects_friend_request_submit_for_blocked_pa
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11159,9 +11160,9 @@ async fn test_local_minimal_profile_rejects_friend_request_accept_for_blocked_pa
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11193,10 +11194,10 @@ async fn test_local_minimal_profile_rejects_friend_request_accept_for_blocked_pa
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/user_blocks")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11222,9 +11223,9 @@ async fn test_local_minimal_profile_rejects_friend_request_accept_for_blocked_pa
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{request_id}/accept"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11248,10 +11249,10 @@ async fn test_local_minimal_profile_rejects_friend_request_accept_for_blocked_pa
                 .uri(format!(
                     "/backend/v3/api/control/social/friend_requests/{request_id}"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11279,9 +11280,9 @@ async fn test_local_minimal_profile_treats_duplicate_friend_request_acceptance_a
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11314,9 +11315,9 @@ async fn test_local_minimal_profile_treats_duplicate_friend_request_acceptance_a
             Request::builder()
                 .method("POST")
                 .uri(&accept_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11338,9 +11339,9 @@ async fn test_local_minimal_profile_treats_duplicate_friend_request_acceptance_a
             Request::builder()
                 .method("POST")
                 .uri(&accept_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11383,9 +11384,9 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11417,10 +11418,10 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/friendships")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -11445,10 +11446,10 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/direct_chats/bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -11475,9 +11476,9 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{request_id}/accept"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11513,9 +11514,9 @@ async fn test_local_minimal_profile_accept_converges_to_existing_external_friend
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_external_accept_001/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11554,9 +11555,9 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11594,9 +11595,9 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
                     .uri(format!(
                         "/im/v3/api/social/friend_requests/{request_id}/accept"
                     ))
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -11615,10 +11616,10 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
                 .uri(format!(
                     "/backend/v3/api/control/social/friend_requests/{request_id}/accept"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -11666,9 +11667,9 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11715,9 +11716,9 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11755,9 +11756,9 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
                     .uri(format!(
                         "/im/v3/api/social/friend_requests/{request_id}/decline"
                     ))
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -11776,10 +11777,10 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
                 .uri(format!(
                     "/backend/v3/api/control/social/friend_requests/{request_id}/decline"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -11821,10 +11822,10 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
                 .uri(format!(
                     "/backend/v3/api/control/social/friend_requests/{request_id}"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11857,9 +11858,9 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -11897,9 +11898,9 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
                     .uri(format!(
                         "/im/v3/api/social/friend_requests/{request_id}/cancel"
                     ))
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_alice")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_alice")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -11918,10 +11919,10 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
                 .uri(format!(
                     "/backend/v3/api/control/social/friend_requests/{request_id}/cancel"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -11963,10 +11964,10 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
                 .uri(format!(
                     "/backend/v3/api/control/social/friend_requests/{request_id}"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -11999,9 +12000,9 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -12042,9 +12043,9 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                 Request::builder()
                     .method("POST")
                     .uri(accept_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12060,10 +12061,10 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                 Request::builder()
                     .method("GET")
                     .uri(&request_snapshot_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-permission-scope", "control.read")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("user")
+                    .with_dual_token_permission_scope("control.read")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12097,10 +12098,10 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
             Request::builder()
                 .method("GET")
                 .uri(&friendship_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12118,9 +12119,9 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
             Request::builder()
                 .method("POST")
                 .uri(cancel_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12152,10 +12153,10 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
             Request::builder()
                 .method("GET")
                 .uri(request_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12180,10 +12181,10 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
                 .uri(format!(
                     "/backend/v3/api/control/social/friendships/{friendship_id}"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12201,9 +12202,9 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12229,9 +12230,9 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12270,9 +12271,9 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -12312,9 +12313,9 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
                 Request::builder()
                     .method("POST")
                     .uri(accept_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12330,10 +12331,10 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
                 Request::builder()
                     .method("GET")
                     .uri(&request_snapshot_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-permission-scope", "control.read")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("user")
+                    .with_dual_token_permission_scope("control.read")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12367,10 +12368,10 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
             Request::builder()
                 .method("GET")
                 .uri(&friendship_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12397,9 +12398,9 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
                 Request::builder()
                     .method("GET")
                     .uri("/im/v3/api/chat/contacts")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_alice")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_alice")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12434,10 +12435,10 @@ async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_af
             Request::builder()
                 .method("GET")
                 .uri(&friendship_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12466,9 +12467,9 @@ async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -12505,9 +12506,9 @@ async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request
                 Request::builder()
                     .method("POST")
                     .uri(accept_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12523,10 +12524,10 @@ async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request
                 Request::builder()
                     .method("GET")
                     .uri(&request_snapshot_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-permission-scope", "control.read")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("user")
+                    .with_dual_token_permission_scope("control.read")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12566,9 +12567,9 @@ async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12615,9 +12616,9 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -12660,9 +12661,9 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
                 Request::builder()
                     .method("POST")
                     .uri(accept_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12678,10 +12679,10 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
                 Request::builder()
                     .method("GET")
                     .uri(&request_snapshot_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-permission-scope", "control.read")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("user")
+                    .with_dual_token_permission_scope("control.read")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12720,10 +12721,10 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
             Request::builder()
                 .method("GET")
                 .uri(&friendship_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12745,9 +12746,9 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12777,10 +12778,10 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
             Request::builder()
                 .method("GET")
                 .uri(&friendship_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12811,9 +12812,9 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -12855,9 +12856,9 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
                 Request::builder()
                     .method("POST")
                     .uri(accept_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12875,10 +12876,10 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
                 Request::builder()
                     .method("GET")
                     .uri(&request_snapshot_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-permission-scope", "control.read")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("user")
+                    .with_dual_token_permission_scope("control.read")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12913,10 +12914,10 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
             Request::builder()
                 .method("GET")
                 .uri(&friendship_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -12959,9 +12960,9 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
                 Request::builder()
                     .method("GET")
                     .uri("/im/v3/api/chat/contacts")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_alice")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_alice")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -12982,9 +12983,9 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
                 Request::builder()
                     .method("GET")
                     .uri("/im/v3/api/chat/contacts")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_alice")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_alice")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13072,9 +13073,9 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -13114,9 +13115,9 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
                 Request::builder()
                     .method("POST")
                     .uri(accept_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13132,10 +13133,10 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
                 Request::builder()
                     .method("GET")
                     .uri(&request_snapshot_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                    .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-permission-scope", "control.read")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                    .with_dual_token_actor_kind("user")
+                    .with_dual_token_permission_scope("control.read")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13170,10 +13171,10 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
             Request::builder()
                 .method("GET")
                 .uri(&friendship_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13196,9 +13197,9 @@ async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_
                 Request::builder()
                     .method("GET")
                     .uri("/im/v3/api/chat/contacts")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_alice")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_alice")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13267,9 +13268,9 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -13308,9 +13309,9 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 Request::builder()
                     .method("POST")
                     .uri(first_accept_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13326,10 +13327,10 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 Request::builder()
                     .method("GET")
                     .uri(&first_request_snapshot_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-permission-scope", "control.read")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                    .with_dual_token_permission_scope("control.read")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13362,10 +13363,10 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
             Request::builder()
                 .method("GET")
                 .uri(&first_friendship_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13381,9 +13382,9 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_carol")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_carol")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -13423,9 +13424,9 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 Request::builder()
                     .method("POST")
                     .uri(second_accept_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13443,10 +13444,10 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
                 Request::builder()
                     .method("GET")
                     .uri(&second_request_snapshot_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-permission-scope", "control.read")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                    .with_dual_token_permission_scope("control.read")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13479,10 +13480,10 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
             Request::builder()
                 .method("GET")
                 .uri(&second_friendship_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13504,9 +13505,9 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13539,9 +13540,9 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_carol")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_carol")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13574,10 +13575,10 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
             Request::builder()
                 .method("GET")
                 .uri(&first_friendship_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13590,10 +13591,10 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
             Request::builder()
                 .method("GET")
                 .uri(&second_friendship_snapshot_uri)
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13618,9 +13619,9 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -13655,10 +13656,10 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
                 .uri(format!(
                     "/backend/v3/api/control/social/friend_requests/{request_id}/accept"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -13682,10 +13683,10 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
                 .uri(format!(
                     "/backend/v3/api/control/social/friendships/{friendship_id}"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13701,10 +13702,10 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
                 .uri(format!(
                     "/backend/v3/api/control/social/friendships/{friendship_id}/remove"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -13748,9 +13749,9 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13797,9 +13798,9 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -13835,9 +13836,9 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
                     .uri(format!(
                         "/im/v3/api/social/friend_requests/{request_id}/accept"
                     ))
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -13854,10 +13855,10 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/user_blocks")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -13902,9 +13903,9 @@ async fn test_local_minimal_profile_discards_blocked_pending_friend_request_acce
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -13963,9 +13964,9 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14018,9 +14019,9 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
                 Request::builder()
                     .method("GET")
                     .uri("/im/v3/api/chat/contacts")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_alice")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_alice")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -14039,10 +14040,10 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
                 .uri(format!(
                     "/backend/v3/api/control/social/friend_requests/{request_id}/cancel"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -14093,10 +14094,10 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
                 .uri(format!(
                     "/backend/v3/api/control/social/friend_requests/{request_id}"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14130,9 +14131,9 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14166,10 +14167,10 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/user_blocks")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -14196,10 +14197,10 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
             Request::builder()
                 .method("GET")
                 .uri(format!("/backend/v3/api/control/social/friend_requests/{request_id}"))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14249,9 +14250,9 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14283,10 +14284,10 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
             Request::builder()
                 .method("GET")
                 .uri(format!("/backend/v3/api/control/social/friend_requests/{request_id}"))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14335,9 +14336,9 @@ async fn test_local_minimal_profile_concurrent_accepts_converge_idempotently_acr
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14373,9 +14374,9 @@ async fn test_local_minimal_profile_concurrent_accepts_converge_idempotently_acr
                 Request::builder()
                     .method("POST")
                     .uri(accept_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -14392,9 +14393,9 @@ async fn test_local_minimal_profile_concurrent_accepts_converge_idempotently_acr
                 Request::builder()
                     .method("POST")
                     .uri(accept_uri)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_bob")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_bob")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -14468,9 +14469,9 @@ async fn test_local_minimal_profile_friendship_removal_hides_contacts_via_app_so
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14504,9 +14505,9 @@ async fn test_local_minimal_profile_friendship_removal_hides_contacts_via_app_so
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{request_id}/accept"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14534,9 +14535,9 @@ async fn test_local_minimal_profile_friendship_removal_hides_contacts_via_app_so
                 .uri(format!(
                     "/im/v3/api/social/friendships/{friendship_id}/remove"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14558,9 +14559,9 @@ async fn test_local_minimal_profile_friendship_removal_hides_contacts_via_app_so
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14587,9 +14588,9 @@ async fn test_local_minimal_profile_friendship_removal_hides_contacts_via_app_so
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14623,9 +14624,9 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14656,10 +14657,10 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/user_blocks")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -14683,9 +14684,9 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14713,9 +14714,9 @@ async fn test_local_minimal_profile_friendship_scope_block_hides_contacts() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14760,9 +14761,9 @@ async fn test_local_minimal_profile_friendship_remove_converges_when_friendship_
                     .uri(format!(
                         "/im/v3/api/social/friendships/{friendship_id}/remove"
                     ))
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_alice")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_alice")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -14784,10 +14785,10 @@ async fn test_local_minimal_profile_friendship_remove_converges_when_friendship_
                     "/backend/v3/api/control/social/friendships/{}/remove",
                     fixture.friendship_id
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -14830,9 +14831,9 @@ async fn test_local_minimal_profile_friendship_remove_converges_when_friendship_
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14866,9 +14867,9 @@ async fn test_local_minimal_profile_can_submit_new_friend_request_after_friendsh
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14902,9 +14903,9 @@ async fn test_local_minimal_profile_can_submit_new_friend_request_after_friendsh
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{first_request_id}/accept"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14932,9 +14933,9 @@ async fn test_local_minimal_profile_can_submit_new_friend_request_after_friendsh
                 .uri(format!(
                     "/im/v3/api/social/friendships/{friendship_id}/remove"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -14947,9 +14948,9 @@ async fn test_local_minimal_profile_can_submit_new_friend_request_after_friendsh
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -14993,9 +14994,9 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -15029,9 +15030,9 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{first_request_id}/accept"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15059,9 +15060,9 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
                 .uri(format!(
                     "/im/v3/api/social/friendships/{first_friendship_id}/remove"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15075,9 +15076,9 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -15111,9 +15112,9 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{second_request_id}/accept"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15140,9 +15141,9 @@ async fn test_local_minimal_profile_can_accept_resubmitted_friend_request_after_
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15185,9 +15186,9 @@ async fn test_local_minimal_profile_hides_archived_direct_chat_from_inbox_after_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/inbox")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15217,9 +15218,9 @@ async fn test_local_minimal_profile_hides_archived_direct_chat_from_inbox_after_
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/inbox")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15266,9 +15267,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_summary_after_f
         .oneshot(
             Request::builder()
                 .uri(format!("/im/v3/api/chat/conversations/{conversation_id}"))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15299,9 +15300,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_edge_reads_afte
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/members"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15316,9 +15317,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_edge_reads_afte
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/member_directory"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15333,9 +15334,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_edge_reads_afte
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/pins"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15372,9 +15373,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_edge_reads_afte
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/messages/{message_id}/interaction_summary"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15397,9 +15398,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_edge_reads_afte
             .oneshot(
                 Request::builder()
                     .uri(uri.as_str())
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_alice")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_alice")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -15448,9 +15449,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_timeline_after_
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/messages"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15466,9 +15467,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_timeline_after_
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/messages"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15523,9 +15524,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_read_cursor_acc
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/read_cursor"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15541,10 +15542,10 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_read_cursor_acc
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/read_cursor"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_alice_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_alice_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15568,9 +15569,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_read_cursor_acc
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/read_cursor"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15594,10 +15595,10 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_read_cursor_acc
                 .uri(format!(
                     "/im/v3/api/chat/conversations/{conversation_id}/read_cursor"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_alice_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_alice_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15676,9 +15677,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_rtc_create_afte
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/calls/sessions")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15701,9 +15702,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_rtc_create_afte
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/calls/sessions")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15741,9 +15742,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_stream_open_aft
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15769,9 +15770,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_stream_open_aft
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15813,9 +15814,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_stream
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15840,9 +15841,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_stream
             Request::builder()
                 .method("POST")
                 .uri(format!("/im/v3/api/streams/{stream_id}/frames"))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15867,9 +15868,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_stream
                 .uri(format!(
                     "/im/v3/api/streams/{stream_id}/frames?afterFrameSeq=0&limit=10"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15886,9 +15887,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_stream
                 .uri(format!(
                     "/im/v3/api/streams/{stream_id}/frames?afterFrameSeq=0&limit=10"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -15910,9 +15911,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_stream
             Request::builder()
                 .method("POST")
                 .uri(format!("/im/v3/api/streams/{stream_id}/frames"))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15953,9 +15954,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/calls/sessions")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -15979,9 +15980,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
                 .uri(format!(
                     "/im/v3/api/calls/sessions/{rtc_session_id}/credentials"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -16004,9 +16005,9 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_existing_rtc_ca
                 .uri(format!(
                     "/im/v3/api/calls/sessions/{rtc_session_id}/credentials"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -16159,9 +16160,9 @@ async fn test_local_minimal_profile_rejects_direct_chat_summary_when_direct_chat
                     "/im/v3/api/chat/conversations/{}",
                     fixture.conversation_id
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16242,9 +16243,9 @@ async fn test_local_minimal_profile_hides_direct_chat_from_inbox_when_direct_cha
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/inbox")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16411,9 +16412,9 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_decline() 
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16447,9 +16448,9 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_decline() 
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{first_request_id}/decline"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16471,9 +16472,9 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_decline() 
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16516,9 +16517,9 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_cancel() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16552,9 +16553,9 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_cancel() {
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{first_request_id}/cancel"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16576,9 +16577,9 @@ async fn test_local_minimal_profile_can_resubmit_friend_request_after_cancel() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16621,9 +16622,9 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16655,9 +16656,9 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/social/friend_requests?direction=incoming")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16685,9 +16686,9 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/social/friend_requests?direction=outgoing")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16717,9 +16718,9 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{request_id}/decline"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16733,9 +16734,9 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/social/friend_requests?direction=incoming")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16761,9 +16762,9 @@ async fn test_local_minimal_profile_lists_incoming_and_outgoing_friend_requests(
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/social/friend_requests?direction=outgoing&status=declined")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16796,9 +16797,9 @@ async fn test_local_minimal_profile_friend_request_list_applies_limit_after_sort
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16820,9 +16821,9 @@ async fn test_local_minimal_profile_friend_request_list_applies_limit_after_sort
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16841,9 +16842,9 @@ async fn test_local_minimal_profile_friend_request_list_applies_limit_after_sort
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/social/friend_requests?direction=outgoing&limit=1")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16875,9 +16876,9 @@ async fn test_local_minimal_profile_friend_request_list_preserves_plus_in_actor_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice+plus")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice+plus")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16896,9 +16897,9 @@ async fn test_local_minimal_profile_friend_request_list_preserves_plus_in_actor_
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/social/friend_requests?direction=outgoing")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice+plus")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice+plus")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -16931,9 +16932,9 @@ async fn test_local_minimal_profile_friend_request_list_uses_cursor_for_next_pag
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16955,9 +16956,9 @@ async fn test_local_minimal_profile_friend_request_list_uses_cursor_for_next_pag
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -16977,9 +16978,9 @@ async fn test_local_minimal_profile_friend_request_list_uses_cursor_for_next_pag
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/social/friend_requests?direction=outgoing&limit=1")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -17010,9 +17011,9 @@ async fn test_local_minimal_profile_friend_request_list_uses_cursor_for_next_pag
                 .uri(format!(
                     "/im/v3/api/social/friend_requests?direction=outgoing&limit=1&cursor={next_cursor}"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -17044,9 +17045,9 @@ async fn test_local_minimal_profile_friend_request_list_rejects_invalid_cursor()
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/social/friend_requests?direction=outgoing&cursor=not-valid")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -17074,9 +17075,9 @@ async fn test_local_minimal_profile_rejects_friend_request_decline_from_non_targ
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -17110,9 +17111,9 @@ async fn test_local_minimal_profile_rejects_friend_request_decline_from_non_targ
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{request_id}/decline"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_charlie")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_charlie")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -17140,9 +17141,9 @@ async fn test_local_minimal_profile_rejects_friend_request_decline_from_non_targ
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{request_id}/decline"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -17170,9 +17171,9 @@ async fn test_local_minimal_profile_rejects_friend_request_cancel_from_non_reque
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/social/friend_requests")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -17206,9 +17207,9 @@ async fn test_local_minimal_profile_rejects_friend_request_cancel_from_non_reque
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{request_id}/cancel"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_bob")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_bob")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -17236,9 +17237,9 @@ async fn test_local_minimal_profile_rejects_friend_request_cancel_from_non_reque
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{request_id}/cancel"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -17266,10 +17267,10 @@ async fn test_local_minimal_profile_rejects_oversized_sender_session_id_on_post_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -17289,10 +17290,10 @@ async fn test_local_minimal_profile_rejects_oversized_sender_session_id_on_post_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_phone"}"#))
                 .unwrap(),
@@ -17306,11 +17307,11 @@ async fn test_local_minimal_profile_rejects_oversized_sender_session_id_on_post_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_local_oversized_sender_session/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s".repeat(257))
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s".repeat(257))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -17352,10 +17353,10 @@ async fn test_local_minimal_profile_rejects_oversized_render_hints_on_post_messa
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -17375,10 +17376,10 @@ async fn test_local_minimal_profile_rejects_oversized_render_hints_on_post_messa
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_phone"}"#))
                 .unwrap(),
@@ -17392,10 +17393,10 @@ async fn test_local_minimal_profile_rejects_oversized_render_hints_on_post_messa
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_local_oversized_render_hints/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({

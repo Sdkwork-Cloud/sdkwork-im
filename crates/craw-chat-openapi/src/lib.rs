@@ -327,7 +327,10 @@ mod tests {
             "organizationMemberships.list"
         );
         assert_eq!(
-            operation_id("/backend/v3/api/iam/organization_memberships", HttpMethod::Post),
+            operation_id(
+                "/backend/v3/api/iam/organization_memberships",
+                HttpMethod::Post
+            ),
             "organizationMemberships.create"
         );
         assert_eq!(

@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -66,10 +67,10 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/health")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -120,10 +121,10 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/cluster")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -146,10 +147,10 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/lag")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -178,10 +179,10 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/replay_status")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -215,10 +216,10 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/runtime_dir")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -241,10 +242,10 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/provider_bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -266,10 +267,10 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/provider_bindings/drift")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -297,10 +298,10 @@ async fn test_cluster_lag_health_runtime_dir_and_diagnostics_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/diagnostics")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )

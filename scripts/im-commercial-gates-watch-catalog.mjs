@@ -13,6 +13,10 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_WATCH_REQUIREMENTS = [
     'im commercial gates workflow must watch its own workflow file',
   ),
   createWatchRequirement(
+    '.github/workflows/package.yml',
+    'im commercial gates workflow must watch release package workflow dependency ref inputs',
+  ),
+  createWatchRequirement(
     'Cargo.toml',
     'im commercial gates workflow must watch the Rust workspace manifest',
   ),
@@ -27,6 +31,10 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_WATCH_REQUIREMENTS = [
   createWatchRequirement(
     'package.json',
     'im commercial gates workflow must watch the root workspace package because it owns the repository governance entrypoints',
+  ),
+  createWatchRequirement(
+    'sdkwork.workflow.json',
+    'im commercial gates workflow must watch SDKWork release dependency declarations',
   ),
   createWatchRequirement(
     'README.md',
@@ -91,6 +99,10 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_WATCH_REQUIREMENTS = [
   createWatchRequirement(
     'scripts/im-commercial-gates-workflow.test.mjs',
     'im commercial gates workflow must watch the workflow contract test',
+  ),
+  createWatchRequirement(
+    'scripts/prepare-ci-dependencies.mjs',
+    'im commercial gates workflow must watch the SDKWork dependency materializer',
   ),
   createWatchRequirement(
     'scripts/run-commercial-gates-governance-node-tests.mjs',

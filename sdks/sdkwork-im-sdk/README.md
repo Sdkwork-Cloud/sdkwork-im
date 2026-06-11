@@ -77,3 +77,35 @@ other standard SDK families directly:
 - Appbase identity/session APIs stay in `sdkwork-appbase-*` SDK families.
 
 Generated transport must not import dependency SDK packages.
+
+## Recovery Baseline
+
+The realtime compatibility matrix for `sdkwork-im-sdk` is part of this SDK
+boundary. The websocket protocol baseline includes `ccp/ws/1`, `payload.json`,
+and bearer token authentication through trusted host runtimes.
+
+Recovery vocabulary is frozen for SDK consumers:
+
+- `session.disconnect`
+- `realtime.overload`
+- `goaway`
+- `resume fallback`
+- `4001`
+- `reconnect_required`
+- `pull-only`
+- `events.pull`
+
+## Release Snapshot Boundary
+
+This workspace inherits the current SDK release snapshot from
+`artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`.
+
+- `state = template_only_pending_generation`
+- `generationStatus = generated`
+- `releaseStatus = not_published`
+- `plannedVersion = null`
+- `versionStatus = version_unassigned_pending_freeze`
+- `versionDecisionSourcePath = null`
+
+The release catalog remains the machine-readable source of truth:
+`sdk-release-catalog.json`.

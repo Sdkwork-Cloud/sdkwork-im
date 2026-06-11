@@ -8,6 +8,7 @@ use axum::extract::State;
 use axum::http::{HeaderMap, Request, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::post;
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use craw_chat_cli::{CommandOutput, execute_command, parse_cli_args};
 use serde_json::{Value, json};
 use tokio::net::TcpListener;
@@ -21,7 +22,7 @@ struct CaptureState {
 struct CapturedRequest {
     path: String,
     authorization: Option<String>,
-    app_context_projection: Value,
+    access_token: Option<String>,
     body: Value,
 }
 
@@ -92,15 +93,10 @@ async fn capture_request(
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned);
-    let app_context_projection = json!({
-        "x-sdkwork-tenant-id": headers.get("x-sdkwork-tenant-id").and_then(|value| value.to_str().ok()),
-        "x-sdkwork-user-id": headers.get("x-sdkwork-user-id").and_then(|value| value.to_str().ok()),
-        "x-sdkwork-actor-id": headers.get("x-sdkwork-actor-id").and_then(|value| value.to_str().ok()),
-        "x-sdkwork-actor-kind": headers.get("x-sdkwork-actor-kind").and_then(|value| value.to_str().ok()),
-        "x-sdkwork-session-id": headers.get("x-sdkwork-session-id").and_then(|value| value.to_str().ok()),
-        "x-sdkwork-device-id": headers.get("x-sdkwork-device-id").and_then(|value| value.to_str().ok()),
-        "x-sdkwork-permission-scope": headers.get("x-sdkwork-permission-scope").and_then(|value| value.to_str().ok()),
-    });
+    let access_token = headers
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
     let bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
         .await
         .expect("request body should collect");
@@ -117,7 +113,7 @@ async fn capture_request(
         .push(CapturedRequest {
             path: path.clone(),
             authorization: authorization.clone(),
-            app_context_projection: app_context_projection.clone(),
+            access_token: access_token.clone(),
             body: body.clone(),
         });
 
@@ -126,10 +122,41 @@ async fn capture_request(
         axum::Json(json!({
             "path": path,
             "authorization": authorization,
-            "appContextProjection": app_context_projection,
+            "accessToken": access_token,
             "body": body
         })),
     )
+}
+
+fn assert_dual_token_headers(request: &CapturedRequest, context: &str) -> Value {
+    let authorization = request
+        .authorization
+        .as_deref()
+        .unwrap_or_else(|| panic!("{context} must send Authorization bearer token"));
+    let access_token = request
+        .access_token
+        .as_deref()
+        .unwrap_or_else(|| panic!("{context} must send Access-Token"));
+    let bearer_token = authorization
+        .strip_prefix("Bearer ")
+        .unwrap_or_else(|| panic!("{context} Authorization must use bearer scheme"));
+    assert_eq!(
+        bearer_token, access_token,
+        "{context} must use the same local dual-token value for auth and access in CLI tests"
+    );
+    decode_token_claims(access_token)
+}
+
+fn decode_token_claims(token: &str) -> Value {
+    let payload = token
+        .split('.')
+        .nth(1)
+        .unwrap_or_else(|| panic!("local token must contain a JWT payload: {token}"));
+    let bytes = URL_SAFE_NO_PAD
+        .decode(payload)
+        .unwrap_or_else(|error| panic!("local token payload must be base64url: {error}"));
+    serde_json::from_slice::<Value>(bytes.as_slice())
+        .unwrap_or_else(|error| panic!("local token payload must be json: {error}"))
 }
 
 #[test]
@@ -150,7 +177,6 @@ fn test_step12_cli_docs_freeze_authority_model_and_validation_paths() {
         "chat-cli.*",
         "chat-cli-local.*",
         "chat-window.*",
-        "open-chat-test",
         "docs:verify",
         "sdkwork-im-app-sdk",
         "sdkwork-im-backend-sdk",
@@ -291,7 +317,7 @@ fn test_step12_cli_and_sdk_docs_freeze_recovery_baseline() {
     let backend_sdk = fs::read_to_string(&backend_sdk_path)
         .unwrap_or_else(|_| panic!("missing backend SDK README: {}", backend_sdk_path.display()));
 
-    for required_text in ["chat-cli.*", "chat-window.*", "open-chat-test"] {
+    for required_text in ["chat-cli.*", "chat-window.*"] {
         assert!(
             cli_doc.contains(required_text),
             "current CLI docs must contain CLI entrypoint text {required_text}"
@@ -346,7 +372,7 @@ fn test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline(
     let index_doc = fs::read_to_string(&index_doc_path)
         .unwrap_or_else(|_| panic!("missing validation index doc: {}", index_doc_path.display()));
 
-    for required_text in ["chat-cli.*", "chat-window.*", "open-chat-test"] {
+    for required_text in ["chat-cli.*", "chat-window.*"] {
         assert!(
             cli_doc.contains(required_text),
             "current CLI docs must contain CLI entrypoint text {required_text}"
@@ -432,7 +458,7 @@ fn test_continuous_optimization_docs_freeze_single_validation_index() {
         );
     }
 
-    for required_text in ["chat-cli.*", "open-chat-test"] {
+    for required_text in ["chat-cli.*"] {
         assert!(
             deploy_readme.contains(required_text),
             "CLI docs must contain {required_text}"
@@ -1225,7 +1251,7 @@ fn test_step12_compatibility_matrix_doc_freezes_control_plane_mapping_and_client
 }
 
 #[test]
-fn test_step12_open_chat_test_scripts_freeze_scripted_validation_contract() {
+fn test_retired_ui_test_launchers_are_removed_from_cli_contract() {
     let root = workspace_root();
     let doc_path = root
         .join("docs")
@@ -1234,20 +1260,6 @@ fn test_step12_open_chat_test_scripts_freeze_scripted_validation_contract() {
         .join("cli-and-scripts.md");
     let doc = fs::read_to_string(&doc_path)
         .unwrap_or_else(|_| panic!("missing current CLI docs: {}", doc_path.display()));
-    let open_chat_test_ps1_path = root.join("bin").join("open-chat-test.ps1");
-    let open_chat_test_ps1 = fs::read_to_string(&open_chat_test_ps1_path).unwrap_or_else(|_| {
-        panic!(
-            "missing open-chat-test PowerShell script: {}",
-            open_chat_test_ps1_path.display()
-        )
-    });
-    let open_chat_test_sh_path = root.join("bin").join("open-chat-test.sh");
-    let open_chat_test_sh = fs::read_to_string(&open_chat_test_sh_path).unwrap_or_else(|_| {
-        panic!(
-            "missing open-chat-test bash script: {}",
-            open_chat_test_sh_path.display()
-        )
-    });
     let chat_window_sh_path = root.join("bin").join("chat-window.sh");
     let chat_window_sh = fs::read_to_string(&chat_window_sh_path).unwrap_or_else(|_| {
         panic!(
@@ -1256,27 +1268,18 @@ fn test_step12_open_chat_test_scripts_freeze_scripted_validation_contract() {
         )
     });
 
-    for required_text in ["-ScriptedValidation", "-ValidationMessage", "-Json"] {
-        assert!(
-            open_chat_test_ps1.contains(required_text),
-            "open-chat-test.ps1 must contain {required_text}"
-        );
-    }
-
-    for required_text in [
-        "--scripted-validation",
-        "--validation-message",
-        "--json",
-        "watchFrameTypes",
-        "--owner-login",
-        "--owner-password",
-        "--guest-login",
-        "--guest-password",
-        "login",
+    for retired_path in [
+        root.join("bin").join("open-chat-test.ps1"),
+        root.join("bin").join("open-chat-test.cmd"),
+        root.join("bin").join("open-chat-test.sh"),
+        root.join("bin").join("open-chat-test"),
+        root.join("bin").join("chat-window-gui.ps1"),
+        root.join("bin").join("chat-window-gui.cmd"),
     ] {
         assert!(
-            open_chat_test_sh.contains(required_text),
-            "open-chat-test.sh must contain {required_text}"
+            !retired_path.exists(),
+            "retired UI test launcher must be removed: {}",
+            retired_path.display()
         );
     }
 
@@ -1287,20 +1290,10 @@ fn test_step12_open_chat_test_scripts_freeze_scripted_validation_contract() {
         );
     }
 
-    for required_text in [
-        "-ScriptedValidation",
-        "--scripted-validation",
-        "ValidationMessage",
-        "watchFrameTypes",
-        "realtime.connected",
-        "event.window",
-        "open-chat-test",
-        "OwnerPassword",
-        "GuestPassword",
-    ] {
+    for retired_text in ["open-chat-test", "chat-window-gui", "ScriptedValidation"] {
         assert!(
-            doc.contains(required_text),
-            "Step 12 compatibility doc must contain {required_text}"
+            !doc.contains(retired_text),
+            "CLI docs must not document retired UI test launcher text {retired_text}"
         );
     }
 }
@@ -1322,14 +1315,6 @@ fn test_chat_cli_wrappers_rebuild_when_sources_are_newer_than_local_binary() {
             chat_cli_local_sh_path.display()
         )
     });
-    let chat_window_gui_ps1_path = root.join("bin").join("chat-window-gui.ps1");
-    let chat_window_gui_ps1 = fs::read_to_string(&chat_window_gui_ps1_path).unwrap_or_else(|_| {
-        panic!(
-            "missing chat-window-gui PowerShell launcher: {}",
-            chat_window_gui_ps1_path.display()
-        )
-    });
-
     for required_text in [
         "Test-ChatCliExecutableNeedsBuild",
         "LastWriteTimeUtc",
@@ -1354,17 +1339,6 @@ fn test_chat_cli_wrappers_rebuild_when_sources_are_newer_than_local_binary() {
         );
     }
 
-    for required_text in [
-        "Test-ChatCliExecutableNeedsBuild",
-        "LastWriteTimeUtc",
-        "tools\\chat-cli\\src",
-        "Resolve-ChatCliExecutablePath",
-    ] {
-        assert!(
-            chat_window_gui_ps1.contains(required_text),
-            "chat-window-gui.ps1 must contain stale-binary rebuild guard text {required_text}"
-        );
-    }
 }
 
 #[test]
@@ -1385,64 +1359,6 @@ fn test_chat_cli_bash_wrapper_avoids_windows_find_exe_for_source_scan() {
     assert!(
         !chat_cli_local_sh.contains("find \"${input_path}\" -type f -print0"),
         "chat-cli-local.sh must not call external find for source scanning because Windows find.exe breaks the bash wrapper"
-    );
-}
-
-#[test]
-fn test_open_chat_test_ps1_contains_managed_runtime_self_heal_guards() {
-    let root = workspace_root();
-    let open_chat_test_ps1_path = root.join("bin").join("open-chat-test.ps1");
-    let open_chat_test_ps1 = fs::read_to_string(&open_chat_test_ps1_path).unwrap_or_else(|_| {
-        panic!(
-            "missing open-chat-test PowerShell script: {}",
-            open_chat_test_ps1_path.display()
-        )
-    });
-
-    for required_text in [
-        "Resolve-LocalMinimalRuntimeDir",
-        "Invoke-RepairLocalRuntime",
-        "Reset-LocalRuntimeState",
-        "Test-IsManagedRuntimeRecoveryCandidate",
-        "Invoke-ManagedScriptedValidationWithRecovery",
-        "chat-cli invocation timed out after",
-        "Managed runtime still failed after repair",
-        "repair-runtime-local.ps1",
-        "scripted-validation-reset-",
-    ] {
-        assert!(
-            open_chat_test_ps1.contains(required_text),
-            "open-chat-test.ps1 must contain managed runtime self-heal guard text {required_text}"
-        );
-    }
-}
-
-#[test]
-fn test_open_chat_test_gui_launch_prefers_manual_login_over_prefetched_bearer_tokens() {
-    let root = workspace_root();
-    let open_chat_test_ps1_path = root.join("bin").join("open-chat-test.ps1");
-    let open_chat_test_ps1 = fs::read_to_string(&open_chat_test_ps1_path).unwrap_or_else(|_| {
-        panic!(
-            "missing open-chat-test PowerShell script: {}",
-            open_chat_test_ps1_path.display()
-        )
-    });
-
-    assert!(
-        open_chat_test_ps1.contains("\"-Login\", $resolvedOwnerLogin"),
-        "open-chat-test.ps1 GUI owner launch must preserve the real login identifier so operators can click Login against the prepared conversation"
-    );
-    assert!(
-        open_chat_test_ps1.contains("\"-Login\", $resolvedGuestLogin"),
-        "open-chat-test.ps1 GUI guest launch must preserve the real login identifier so operators can click Login against the prepared conversation"
-    );
-    assert!(
-        !open_chat_test_ps1.contains("\"-BearerToken\", $ownerAuth.BearerToken"),
-        "open-chat-test.ps1 GUI owner launch must not inject a prefetched bearer token because that bypasses the manual login flow under test"
-    );
-    assert!(
-        !open_chat_test_ps1.contains("\"-BearerToken\", $guestAuth.BearerToken"),
-        "open-chat-test.ps1 GUI guest launch must not inject a prefetched bearer token because that bypasses the manual login flow under test"
     );
 }
 
@@ -1635,30 +1551,12 @@ async fn test_chat_cli_http_commands_keep_authority_in_token_not_business_body()
     assert_no_authority_fields(&create_request.body, "create-conversation body");
     assert_eq!(create_request.body["conversationId"], "c_cli_contract_demo");
     assert_eq!(create_request.body["conversationType"], "group");
-    assert!(
-        create_request.authorization.is_none(),
-        "create-conversation must not synthesize local Authorization headers"
-    );
-    assert_eq!(
-        create_request.app_context_projection["x-sdkwork-tenant-id"],
-        "t_demo"
-    );
-    assert_eq!(
-        create_request.app_context_projection["x-sdkwork-user-id"],
-        "u_owner"
-    );
-    assert_eq!(
-        create_request.app_context_projection["x-sdkwork-actor-id"],
-        "u_owner"
-    );
-    assert_eq!(
-        create_request.app_context_projection["x-sdkwork-session-id"],
-        "s_owner"
-    );
-    assert_eq!(
-        create_request.app_context_projection["x-sdkwork-device-id"],
-        "d_owner"
-    );
+    let create_claims = assert_dual_token_headers(create_request, "create-conversation");
+    assert_eq!(create_claims["tenant_id"], "t_demo");
+    assert_eq!(create_claims["user_id"], "u_owner");
+    assert_eq!(create_claims["actor_id"], "u_owner");
+    assert_eq!(create_claims["session_id"], "s_owner");
+    assert_eq!(create_claims["device_id"], "d_owner");
 
     let send_request = captured
         .iter()
@@ -1670,14 +1568,8 @@ async fn test_chat_cli_http_commands_keep_authority_in_token_not_business_body()
     assert_eq!(send_request.body["clientMsgId"], "cli_contract_msg_1");
     assert_eq!(send_request.body["summary"], "hello from cli contract test");
     assert_eq!(send_request.body["text"], "hello from cli contract test");
-    assert!(
-        send_request.authorization.is_none(),
-        "send-message must not synthesize local Authorization headers"
-    );
-    assert_eq!(
-        send_request.app_context_projection["x-sdkwork-user-id"],
-        "u_owner"
-    );
+    let send_claims = assert_dual_token_headers(send_request, "send-message");
+    assert_eq!(send_claims["user_id"], "u_owner");
 
     handle.abort();
     let _ = handle.await;
@@ -1685,7 +1577,7 @@ async fn test_chat_cli_http_commands_keep_authority_in_token_not_business_body()
 
 #[tokio::test]
 async fn test_chat_cli_token_command_freezes_header_and_token_only_contract() {
-    let projection_default = command_output_json(
+    let local_default = command_output_json(
         execute_command(
             parse_cli_args([
                 "craw-chat-cli",
@@ -1699,42 +1591,30 @@ async fn test_chat_cli_token_command_freezes_header_and_token_only_contract() {
                 "d_token",
                 "token",
             ])
-            .expect("default projection token args should parse"),
+            .expect("default token args should parse"),
         )
         .await
-        .expect("default projection token command should succeed"),
+        .expect("default token command should succeed"),
     );
-    let projection_authorization = projection_default["authorization"]
+    let local_authorization = local_default["authorization"]
         .as_str()
-        .expect("projection authorization should be a string");
-    let projection_token = projection_default["token"]
+        .expect("local authorization should be a string");
+    let local_token = local_default["token"]
         .as_str()
-        .expect("projection token should be a string");
-    assert_eq!(projection_default["source"], "appContextProjection");
-    assert_eq!(projection_authorization, "");
-    assert_eq!(projection_token, "");
+        .expect("local token should be a string");
+    assert_eq!(local_default["source"], "localDualToken");
+    assert_eq!(local_authorization, format!("Bearer {local_token}"));
     assert!(
-        projection_default["claims"].is_null(),
-        "projection token command must not synthesize local claims: {projection_default}"
+        local_default["claims"].is_null(),
+        "local token command should not claim to verify or decode local test credentials: {local_default}"
     );
-    assert_eq!(
-        projection_default["appContextProjection"]["x-sdkwork-tenant-id"],
-        "t_token"
-    );
-    assert_eq!(
-        projection_default["appContextProjection"]["x-sdkwork-user-id"],
-        "u_token"
-    );
-    assert_eq!(
-        projection_default["appContextProjection"]["x-sdkwork-session-id"],
-        "s_token"
-    );
-    assert_eq!(
-        projection_default["appContextProjection"]["x-sdkwork-device-id"],
-        "d_token"
-    );
+    let local_claims = decode_token_claims(local_token);
+    assert_eq!(local_claims["tenant_id"], "t_token");
+    assert_eq!(local_claims["user_id"], "u_token");
+    assert_eq!(local_claims["session_id"], "s_token");
+    assert_eq!(local_claims["device_id"], "d_token");
 
-    let projection_token_only = command_output_json(
+    let local_token_only = command_output_json(
         execute_command(
             parse_cli_args([
                 "craw-chat-cli",
@@ -1749,20 +1629,22 @@ async fn test_chat_cli_token_command_freezes_header_and_token_only_contract() {
                 "token",
                 "--token-only",
             ])
-            .expect("projection token-only args should parse"),
+            .expect("token-only args should parse"),
         )
         .await
-        .expect("projection token-only command should succeed"),
+        .expect("token-only command should succeed"),
     );
-    let projection_token_only_authorization = projection_token_only["authorization"]
+    let local_token_only_authorization = local_token_only["authorization"]
         .as_str()
-        .expect("projection token-only authorization should be a string");
-    let projection_token_only_token = projection_token_only["token"]
+        .expect("token-only authorization should be a string");
+    let local_token_only_token = local_token_only["token"]
         .as_str()
-        .expect("projection token-only token should be a string");
-    assert_eq!(projection_token_only["source"], "appContextProjection");
-    assert_eq!(projection_token_only_authorization, "");
-    assert_eq!(projection_token_only_token, "");
+        .expect("token-only token should be a string");
+    assert_eq!(local_token_only["source"], "localDualToken");
+    assert_eq!(local_token_only_authorization, local_token_only_token);
+    let local_token_only_claims = decode_token_claims(local_token_only_token);
+    assert_eq!(local_token_only_claims["tenant_id"], "t_token");
+    assert_eq!(local_token_only_claims["user_id"], "u_token");
 
     let provided_token_only = command_output_json(
         execute_command(

@@ -91,7 +91,7 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("control-plane-api failed to bind local listener: {error}"))?;
 
-    let app = match control_plane_api::configured_app_context_header_shared_channel_sync_trigger()
+    let app = match control_plane_api::configured_dual_token_shared_channel_sync_trigger()
         .map_err(|error| {
         format!("standalone shared-channel sync trigger config should be valid: {error}")
     })? {

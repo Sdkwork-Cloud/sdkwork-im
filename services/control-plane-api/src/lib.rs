@@ -36,7 +36,10 @@ use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
 use im_adapters_local_disk::{FileCommitJournal, read_commit_journal_file};
 use im_adapters_local_memory::MemoryCommitJournal;
-use im_app_context::{AppContext, AppContextError, resolve_app_context};
+use im_app_context::{
+    AppContext, AppContextError, build_dual_token_headers_for_context, resolve_app_context,
+    resolve_app_context_for_request,
+};
 use im_domain_core::social::{
     BlockScope, DirectChat, DirectChatStatus, ExternalConnection, ExternalConnectionKind,
     ExternalConnectionStatus, ExternalMemberLink, ExternalMemberLinkStatus, FriendRequest,
@@ -382,12 +385,12 @@ struct SharedChannelSyncAckResponse {
     attributes: BTreeMap<String, String>,
 }
 
-struct AppContextHeaderSharedChannelLinkedMemberSyncTrigger {
+struct DualTokenSharedChannelLinkedMemberSyncTrigger {
     dispatch_tx: std::sync::mpsc::SyncSender<SharedChannelSyncDispatchTask>,
     dispatch_queue_capacity: usize,
 }
 
-impl AppContextHeaderSharedChannelLinkedMemberSyncTrigger {
+impl DualTokenSharedChannelLinkedMemberSyncTrigger {
     fn new(base_url: impl AsRef<str>) -> Result<Self, String> {
         let base_url = validate_shared_channel_sync_target_base_url(base_url.as_ref())?;
 
@@ -461,15 +464,33 @@ impl AppContextHeaderSharedChannelLinkedMemberSyncTrigger {
         .map(Bytes::from)
         .map_err(|error| format!("failed to encode shared-channel sync payload: {error}"))?;
         let target = format!("{}{}", base_url, PUBLIC_SHARED_CHANNEL_SYNC_ROUTE);
-        let request = HyperRequest::builder()
+        let auth_context = AppContext {
+            tenant_id: request.tenant_id.clone(),
+            organization_id: None,
+            user_id: PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID.to_owned(),
+            session_id: Some("shared-channel-sync".to_owned()),
+            app_id: Some("craw-chat".to_owned()),
+            environment: Some("local".to_owned()),
+            deployment_mode: Some("local".to_owned()),
+            auth_level: Some("system".to_owned()),
+            data_scope: BTreeSet::from(["tenant".to_owned()]),
+            permission_scope: BTreeSet::from([SHARED_CHANNEL_SYNC_PERMISSION.to_owned()]),
+            actor_id: PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID.to_owned(),
+            actor_kind: "system".to_owned(),
+            device_id: None,
+        };
+        let auth_headers = build_dual_token_headers_for_context(
+            &auth_context,
+            [SHARED_CHANNEL_SYNC_PERMISSION],
+        );
+        let mut builder = HyperRequest::builder()
             .method(Method::POST)
             .uri(target.as_str())
-            .header(CONTENT_TYPE, "application/json")
-            .header("x-sdkwork-tenant-id", request.tenant_id.as_str())
-            .header("x-sdkwork-user-id", PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID)
-            .header("x-sdkwork-actor-id", PUBLIC_SHARED_CHANNEL_SYNC_ACTOR_ID)
-            .header("x-sdkwork-actor-kind", "system")
-            .header("x-sdkwork-permission-scope", SHARED_CHANNEL_SYNC_PERMISSION)
+            .header(CONTENT_TYPE, "application/json");
+        for (name, value) in auth_headers.iter() {
+            builder = builder.header(name, value);
+        }
+        let request = builder
             .body(Full::new(payload))
             .map_err(|error| {
                 format!("failed to build shared-channel sync request for {target}: {error}")
@@ -828,7 +849,7 @@ fn validate_shared_channel_sync_ack_response(
     })
 }
 
-impl SharedChannelLinkedMemberSyncTrigger for AppContextHeaderSharedChannelLinkedMemberSyncTrigger {
+impl SharedChannelLinkedMemberSyncTrigger for DualTokenSharedChannelLinkedMemberSyncTrigger {
     fn trigger(&self, request: SharedChannelLinkedMemberSyncRequest) -> Result<(), String> {
         self.trigger_with_delivery_proof(request).map(|_| ())
     }
@@ -11362,21 +11383,21 @@ pub fn configured_shared_channel_sync_target_base_url() -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-pub fn build_app_context_header_shared_channel_sync_trigger(
+pub fn build_dual_token_shared_channel_sync_trigger(
     base_url: impl AsRef<str>,
 ) -> Result<Arc<dyn SharedChannelLinkedMemberSyncTrigger>, String> {
-    Ok(Arc::new(
-        AppContextHeaderSharedChannelLinkedMemberSyncTrigger::new(base_url)?,
-    ))
+    Ok(Arc::new(DualTokenSharedChannelLinkedMemberSyncTrigger::new(
+        base_url,
+    )?))
 }
 
-pub fn configured_app_context_header_shared_channel_sync_trigger()
+pub fn configured_dual_token_shared_channel_sync_trigger()
 -> Result<Option<Arc<dyn SharedChannelLinkedMemberSyncTrigger>>, String> {
     let Some(base_url) = configured_shared_channel_sync_target_base_url() else {
         return Ok(None);
     };
 
-    build_app_context_header_shared_channel_sync_trigger(base_url).map(Some)
+    build_dual_token_shared_channel_sync_trigger(base_url).map(Some)
 }
 
 pub fn repair_social_runtime_dir(
@@ -12012,11 +12033,18 @@ async fn require_app_context(
             {
                 return error.into_response();
             }
-            let auth = match resolve_request_app_context(None, request.headers()) {
-                Ok(auth) => auth,
-                Err(error) => return error.into_response(),
+            let resolved = match resolve_app_context_for_request(
+                request.headers(),
+                request.uri().path(),
+                request.method().as_str(),
+            ) {
+                Ok(resolved) => resolved,
+                Err(error) => return ControlPlaneError::from(error).into_response(),
             };
-            request.extensions_mut().insert(auth);
+            request
+                .extensions_mut()
+                .insert(resolved.app_request_context);
+            request.extensions_mut().insert(resolved.app_context);
             let response = next.run(request).await;
             drop(permit);
             response

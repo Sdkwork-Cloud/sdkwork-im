@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -13,11 +14,11 @@ trait AppContextRequestBuilderExt {
 
 impl AppContextRequestBuilderExt for axum::http::request::Builder {
     fn demo_pad_app_context(self) -> Self {
-        self.header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "u_demo")
-            .header("x-sdkwork-actor-kind", "user")
-            .header("x-sdkwork-session-id", "s_demo")
-            .header("x-sdkwork-device-id", "d_pad")
+        self.with_dual_token_tenant("t_demo")
+            .with_dual_token_user("u_demo")
+            .with_dual_token_actor_kind("user")
+            .with_dual_token_session("s_demo")
+            .with_dual_token_device("d_pad")
     }
 }
 
@@ -45,11 +46,11 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -84,11 +85,11 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/subscriptions/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_demo")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -130,11 +131,11 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_live_sub_restart/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_phone")
-                .header("x-sdkwork-session-id", "s_phone_new")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_phone")
+                .with_dual_token_session("s_phone_new")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -153,11 +154,11 @@ async fn test_default_local_minimal_profile_restores_live_subscriptions_after_re
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_demo")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_demo")
                 .body(Body::empty())
                 .unwrap(),
         )

@@ -43,6 +43,8 @@ export const DEFAULT_SIDEBAR_MODULES = [
   "favorites",
 ];
 
+export const ALWAYS_CONFIGURABLE_MODULES = new Set(["notary"]);
+
 const SUPPORTED_LANGUAGES = new Set(["zh-CN", "en-US"]);
 const NOTIFICATION_PREVIEW_MODES = new Set([
   "sender-and-preview",

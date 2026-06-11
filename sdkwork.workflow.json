@@ -39,6 +39,20 @@
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
+      "id": "sdkwork-drive",
+      "repository": "Sdkwork-Cloud/sdkwork-drive",
+      "ref": "5ee91f5162d114edf2a10165916436aa03f97b4a",
+      "refInput": "SDKWORK_DRIVE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-notary",
+      "repository": "Sdkwork-Cloud/sdkwork-notary",
+      "ref": "3d7a1943c9df771bcfee1548d97ff892b7b01cf2",
+      "refInput": "SDKWORK_NOTARY_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
       "id": "sdkwork-rtc",
       "repository": "Sdkwork-Cloud/sdkwork-rtc",
       "ref": "9520a452f744b5a868449547bb2031a7ffc6fd30",
@@ -97,6 +111,11 @@
       }
     ],
     "build": [
+      {
+        "name": "Validate SDKWork dependency management",
+        "shell": "pwsh",
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\npnpm check:dependency-management"
+      },
       {
         "name": "Validate release contract",
         "shell": "pwsh",

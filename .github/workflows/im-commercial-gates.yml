@@ -7,10 +7,12 @@ on:
   pull_request:
     paths:
       - '.github/workflows/im-commercial-gates.yml'
+      - '.github/workflows/package.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'config/shared-sdk-release-sources.json'
       - 'package.json'
+      - 'sdkwork.workflow.json'
       - 'README.md'
       - 'adapters/**'
       - 'apps/craw-chat-admin/**'
@@ -28,6 +30,7 @@ on:
       - 'scripts/im-commercial-gates-watch-catalog.mjs'
       - 'scripts/im-commercial-gates-watch-catalog.test.mjs'
       - 'scripts/im-commercial-gates-workflow.test.mjs'
+      - 'scripts/prepare-ci-dependencies.mjs'
       - 'scripts/run-commercial-gates-governance-node-tests.mjs'
       - 'scripts/run-commercial-gates-governance-node-tests.test.mjs'
       - 'scripts/strict-contract-catalog.mjs'

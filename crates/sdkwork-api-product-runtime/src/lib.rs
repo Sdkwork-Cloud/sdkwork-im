@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use axum::{
-    Router,
     body::Body,
     extract::{Path, State},
-    http::{HeaderMap, HeaderValue, Method, StatusCode, Uri, header},
+    http::{header, HeaderMap, HeaderValue, Method, StatusCode, Uri},
     response::{Redirect, Response},
     routing::{any, get},
+    Router,
 };
 use bytes::Bytes;
 use rand::random;
@@ -20,7 +20,7 @@ use url::{Host, Url};
 
 mod admin_sandbox;
 
-use admin_sandbox::{SharedAdminSandboxState, handle_admin_sandbox_request};
+use admin_sandbox::{handle_admin_sandbox_request, SharedAdminSandboxState};
 
 const JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 const BACKEND_ADMIN_API_PREFIX: &str = "/backend/v3/api/admin";
@@ -968,23 +968,19 @@ mod tests {
 
         let admin_index = fetch_response(base_url.as_str(), "/admin/").await;
         assert_eq!(admin_index.status(), StatusCode::OK);
-        assert!(
-            admin_index
-                .text()
-                .await
-                .expect("admin index body should be readable")
-                .contains("admin-shell")
-        );
+        assert!(admin_index
+            .text()
+            .await
+            .expect("admin index body should be readable")
+            .contains("admin-shell"));
 
         let admin_route = fetch_response(base_url.as_str(), "/admin/operators/shift").await;
         assert_eq!(admin_route.status(), StatusCode::OK);
-        assert!(
-            admin_route
-                .text()
-                .await
-                .expect("admin route body should be readable")
-                .contains("admin-shell")
-        );
+        assert!(admin_route
+            .text()
+            .await
+            .expect("admin route body should be readable")
+            .contains("admin-shell"));
 
         let admin_asset = fetch_response(base_url.as_str(), "/admin/assets/admin.js").await;
         assert_eq!(admin_asset.status(), StatusCode::OK);
@@ -998,23 +994,19 @@ mod tests {
 
         let portal_index = fetch_response(base_url.as_str(), "/").await;
         assert_eq!(portal_index.status(), StatusCode::OK);
-        assert!(
-            portal_index
-                .text()
-                .await
-                .expect("portal index body should be readable")
-                .contains("portal-shell")
-        );
+        assert!(portal_index
+            .text()
+            .await
+            .expect("portal index body should be readable")
+            .contains("portal-shell"));
 
         let portal_route = fetch_response(base_url.as_str(), "/workspace/inbox").await;
         assert_eq!(portal_route.status(), StatusCode::OK);
-        assert!(
-            portal_route
-                .text()
-                .await
-                .expect("portal route body should be readable")
-                .contains("portal-shell")
-        );
+        assert!(portal_route
+            .text()
+            .await
+            .expect("portal route body should be readable")
+            .contains("portal-shell"));
 
         let portal_asset = fetch_response(base_url.as_str(), "/assets/portal.js").await;
         assert_eq!(portal_asset.status(), StatusCode::OK);
@@ -1266,33 +1258,27 @@ mod tests {
         let missing_admin_asset =
             fetch_response(base_url.as_str(), "/admin/assets/missing.js").await;
         assert_eq!(missing_admin_asset.status(), StatusCode::NOT_FOUND);
-        assert!(
-            !missing_admin_asset
-                .text()
-                .await
-                .expect("missing admin asset body should be readable")
-                .contains("admin-shell")
-        );
+        assert!(!missing_admin_asset
+            .text()
+            .await
+            .expect("missing admin asset body should be readable")
+            .contains("admin-shell"));
 
         let missing_portal_asset = fetch_response(base_url.as_str(), "/assets/missing.js").await;
         assert_eq!(missing_portal_asset.status(), StatusCode::NOT_FOUND);
-        assert!(
-            !missing_portal_asset
-                .text()
-                .await
-                .expect("missing portal asset body should be readable")
-                .contains("portal-shell")
-        );
+        assert!(!missing_portal_asset
+            .text()
+            .await
+            .expect("missing portal asset body should be readable")
+            .contains("portal-shell"));
 
         let unknown_api = fetch_response(base_url.as_str(), "/api/runtime-health").await;
         assert_eq!(unknown_api.status(), StatusCode::NOT_FOUND);
-        assert!(
-            !unknown_api
-                .text()
-                .await
-                .expect("unknown api body should be readable")
-                .contains("portal-shell")
-        );
+        assert!(!unknown_api
+            .text()
+            .await
+            .expect("unknown api body should be readable")
+            .contains("portal-shell"));
 
         let modules_api = fetch_response(base_url.as_str(), "/api/config/modules").await;
         assert_eq!(modules_api.status(), StatusCode::OK);
@@ -1311,24 +1297,20 @@ mod tests {
             .await
             .expect("agent api request should complete");
         assert_eq!(agent_api.status(), StatusCode::SERVICE_UNAVAILABLE);
-        assert!(
-            agent_api
-                .text()
-                .await
-                .expect("agent api body should be readable")
-                .contains("CRAW_CHAT_PC_API_UPSTREAM")
-        );
+        assert!(agent_api
+            .text()
+            .await
+            .expect("agent api body should be readable")
+            .contains("CRAW_CHAT_PC_API_UPSTREAM"));
 
         let admin_api =
             fetch_response(base_url.as_str(), "/backend/v3/api/admin/storage/config").await;
         assert_eq!(admin_api.status(), StatusCode::SERVICE_UNAVAILABLE);
-        assert!(
-            admin_api
-                .text()
-                .await
-                .expect("admin api body should be readable")
-                .contains("SDKWORK_ADMIN_PROXY_TARGET")
-        );
+        assert!(admin_api
+            .text()
+            .await
+            .expect("admin api body should be readable")
+            .contains("SDKWORK_ADMIN_PROXY_TARGET"));
     }
 
     #[tokio::test]

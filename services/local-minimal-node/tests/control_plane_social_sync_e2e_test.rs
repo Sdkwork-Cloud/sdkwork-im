@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -112,10 +113,10 @@ async fn test_local_minimal_profile_control_plane_shared_channel_auto_sync_mater
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_connections")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -138,10 +139,10 @@ async fn test_local_minimal_profile_control_plane_shared_channel_auto_sync_mater
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/shared_channel_policies")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -167,10 +168,10 @@ async fn test_local_minimal_profile_control_plane_shared_channel_auto_sync_mater
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/control/social/external_member_links")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_admin")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "control.write")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_admin")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("control.write")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -194,9 +195,9 @@ async fn test_local_minimal_profile_control_plane_shared_channel_auto_sync_mater
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_history_shared_local/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_partner_local")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_partner_local")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )

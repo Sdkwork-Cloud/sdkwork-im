@@ -266,8 +266,9 @@ mod tests {
             );
         }
         assert_eq!(
-            resolve_portal_api_base_url()
-                .expect("canonical server api base url should resolve as public portal api fallback"),
+            resolve_portal_api_base_url().expect(
+                "canonical server api base url should resolve as public portal api fallback"
+            ),
             "https://chat.example.com/sdkwork/chat"
         );
 

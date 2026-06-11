@@ -120,6 +120,7 @@ assert.ok(appPackageJson.dependencies['@sdkwork/rtc-sdk'], 'PC app may depend on
 assert.ok(appPackageJson.dependencies['@sdkwork/appbase-pc-react'], 'PC app must depend on sdkwork-appbase PC wrapper');
 assert.ok(appPackageJson.dependencies['@sdkwork/auth-runtime-pc-react'], 'PC app must depend on the appbase high-level auth runtime');
 assert.ok(appPackageJson.dependencies['@sdkwork/drive-app-sdk'], 'PC app must depend on sdkwork-drive app SDK for chat media uploads');
+assert.ok(appPackageJson.dependencies['@sdkwork/notary-app-sdk'], 'PC app must depend on sdkwork-notary app SDK for notary workflows');
 assert.equal(
   appPackageJson.dependencies['@sdkwork/iam-sdk-adapter'],
   undefined,
@@ -245,6 +246,17 @@ assert.match(
   /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-drive[\\\/]sdks[\\\/]sdkwork-drive-app-sdk[\\\/]sdkwork-drive-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
   'TypeScript must resolve generated Drive app SDK from sibling source for chat media uploads',
 );
+assert.match(viteConfig, /@sdkwork\/notary-app-sdk/u, 'Vite must alias generated Notary app SDK source for notary workflows');
+assert.match(
+  viteConfig,
+  /dependencyRoot\('sdkwork-notary'\)[\s\S]*sdks[\\\/]sdkwork-notary-app-sdk[\\\/]sdkwork-notary-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'Vite must resolve Notary app SDK through the sibling sdkwork-notary workspace for portable notary development',
+);
+assert.match(
+  tsconfig,
+  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-notary[\\\/]sdks[\\\/]sdkwork-notary-app-sdk[\\\/]sdkwork-notary-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'TypeScript must resolve generated Notary app SDK from sibling source for notary workflows',
+);
 assert.match(viteConfig, /@sdkwork\/appbase-pc-react/u, 'Vite must alias appbase PC package source');
 assert.match(viteConfig, /@sdkwork\/core-pc-react/u, 'Vite must alias SDKWork core PC React package');
 assert.match(
@@ -291,6 +303,7 @@ for (const localSdkPackageName of [
   '@sdkwork/appbase-app-sdk',
   '@sdkwork/drive-app-sdk',
   '@sdkwork/im-sdk',
+  '@sdkwork/notary-app-sdk',
   '@sdkwork/rtc-sdk',
   '@sdkwork/appbase-pc-react',
   '@sdkwork/auth-pc-react',
@@ -541,37 +554,37 @@ assert.match(appSdkClientSource, /if\s*\(\s*!import\.meta\.env\.DEV\s*\)/u, 'app
 assert.match(
   sessionSource,
   /export function resolveAppSdkUserId/u,
-  'session helper must expose the SDKWork AppContext user id from the IAM login session',
-);
-assert.match(
-  sessionSource,
-  /export function buildSdkworkChatAppContextHeaders/u,
-  'session helper must centralize SDKWork AppContext headers for app and IM SDK clients',
+  'session helper must expose the user id from the IAM login token claims',
 );
 assert.match(
   sessionSource,
   /export function createSdkworkChatRequestContext/u,
-  'session helper must encapsulate JWT claims and persisted session context into a request Context instance',
+  'session helper must encapsulate JWT claims and persisted session context for local UI state',
 );
 assert.match(
   sessionSource,
   /export function createSdkworkChatRequestContextInterceptors/u,
-  'session helper must expose request interceptors that attach a fresh SDKWork AppContext to every SDK request',
+  'session helper must expose request interceptors for generated SDK composition',
 );
-assert.match(
+assert.doesNotMatch(
   sessionSource,
-  /X-Sdkwork-User-Id/u,
-  'session helper must include X-Sdkwork-User-Id so IM APIs receive a complete AppContext',
+  /buildSdkworkChatAppContextHeaders|SdkworkChatAppContextHeaders/u,
+  'session helper must not expose an AppContext header builder; server request context comes from AuthToken and Access-Token',
+);
+assert.doesNotMatch(
+  sessionSource,
+  /Sdkwork-(?:Tenant|Organization|User|Session|Actor|Device)-Id|sdkwork-(?:tenant|organization|user|session|actor|device)-id/u,
+  'session helper must not contain SDKWork context header names',
 );
 assert.match(
   appSdkClientSource,
   /createSdkworkChatRequestContextInterceptors/u,
-  'app SDK wrapper must install the shared request Context interceptor so every generated SDK request gets fresh AppContext headers',
+  'app SDK wrapper must install the shared generated-SDK request interceptor',
 );
 assert.doesNotMatch(
   appSdkClientSource,
   /headers:\s*buildSdkworkChatAppContextHeaders/u,
-  'app SDK wrapper must not keep stale static AppContext headers after token refresh; request Context belongs in the interceptor',
+  'app SDK wrapper must not keep stale static AppContext header injection after token refresh',
 );
 assert.doesNotMatch(
   appSdkClientSource,
@@ -599,7 +612,7 @@ assert.match(
 assert.match(
   driveAppSdkClientSource,
   /createSdkworkChatRequestContextInterceptors/u,
-  'Drive app SDK wrapper must install the shared request Context interceptor so Drive uploads receive fresh AppContext headers',
+  'Drive app SDK wrapper must install the shared generated-SDK request interceptor',
 );
 assert.match(
   driveAppSdkClientSource,
@@ -609,7 +622,7 @@ assert.match(
 assert.doesNotMatch(
   driveAppSdkClientSource,
   /headers:\s*buildSdkworkChatAppContextHeaders/u,
-  'Drive app SDK wrapper must not keep stale static AppContext headers after token refresh; request Context belongs in the interceptor',
+  'Drive app SDK wrapper must not keep stale static AppContext header injection after token refresh',
 );
 assert.doesNotMatch(
   driveAppSdkClientSource,
@@ -701,12 +714,12 @@ assert.match(
 assert.match(
   agentAppSdkClientSource,
   /createSdkworkChatRequestContextInterceptors/u,
-  'agent app SDK wrapper must install the shared request Context interceptor so every generated SDK request gets fresh AppContext headers',
+  'agent app SDK wrapper must install the shared generated-SDK request interceptor',
 );
 assert.doesNotMatch(
   agentAppSdkClientSource,
   /headers:\s*buildSdkworkChatAppContextHeaders/u,
-  'agent app SDK wrapper must not keep stale static AppContext headers after token refresh; request Context belongs in the interceptor',
+  'agent app SDK wrapper must not keep stale static AppContext header injection after token refresh',
 );
 assert.doesNotMatch(
   agentAppSdkClientSource,
@@ -787,20 +800,20 @@ assert.match(pcImSdkClientSource, /new ImSdkClient/u);
 assert.match(pcImSdkClientSource, /getImSdkClientWithSession/u);
 assert.match(pcImSdkClientSource, /tokenProvider:\s*tokenManager/u, 'IM wrapper must use the same dynamic token manager as IAM login');
 assert.match(pcImSdkClientSource, /accessToken:\s*resolveAppSdkAccessToken/u, 'IM wrapper must pass accessToken from IAM login session');
-assert.match(
+assert.doesNotMatch(
   pcImSdkClientSource,
-  /headerProvider:\s*\(\)\s*=>\s*buildImSdkContextHeaders/u,
-  'IM wrapper must attach tenant/organization/user AppContext through a fresh per-request headerProvider',
+  /headerProvider:\s*\(\)\s*=>\s*buildImSdkContextHeaders|buildImSdkContextHeaders/u,
+  'IM wrapper must not attach tenant/organization/user context through request headers',
 );
 assert.doesNotMatch(
   pcImSdkClientSource,
   /tenantId:\s*resolveAppSdkTenantId|organizationId:\s*resolveAppSdkOrganizationId/u,
-  'IM wrapper must not pass current tenantId/organizationId as static options; current scope belongs in the request headerProvider',
+  'IM wrapper must not pass current tenantId/organizationId as static options; server context comes from tokens',
 );
-assert.match(
+assert.doesNotMatch(
   pcImSdkClientSource,
   /buildSdkworkChatAppContextHeaders/u,
-  'IM wrapper must use the shared AppContext header builder so IM APIs receive x-sdkwork-user-id',
+  'IM wrapper must not use an AppContext header builder',
 );
 assert.match(pcImSdkClientSource, /http:\/\/127\.0\.0\.1:18079/u, 'IM wrapper local dev fallback HTTP base URL must point at Craw Chat IM API');
 assert.match(pcImSdkClientSource, /ws:\/\/127\.0\.0\.1:18079/u, 'IM wrapper local dev fallback websocket base URL must point at Craw Chat IM API');

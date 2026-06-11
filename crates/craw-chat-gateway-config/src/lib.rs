@@ -5,8 +5,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_GATEWAY_BIND_ADDR: &str = "127.0.0.1:18079";
-const DEFAULT_APPBASE_APP_API_UPSTREAM: &str = "http://127.0.0.1:18090";
-const DEFAULT_DRIVE_APP_API_UPSTREAM: &str = "http://127.0.0.1:18080";
+const DEFAULT_SDKWORK_API_GATEWAY_BASE_URL: &str = "http://127.0.0.1:3900";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -180,6 +179,7 @@ fn parse_toml_key_value(trimmed: &str, keys: &[&str]) -> Option<String> {
 pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
     let appbase_upstream = default_appbase_app_api_upstream();
     let drive_upstream = default_drive_app_api_upstream();
+    let notary_upstream = default_notary_app_api_upstream();
     vec![
         service_upstream("sdkwork-appbase-app-api", appbase_upstream.as_str()),
         service_upstream("session-gateway", "http://127.0.0.1:18080"),
@@ -189,6 +189,7 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
         service_upstream("streaming-service", "http://127.0.0.1:18084"),
         service_upstream("im-calls-service", "http://127.0.0.1:18085"),
         service_upstream("sdkwork-drive-app-api", drive_upstream.as_str()),
+        service_upstream("sdkwork-notary-app-api", notary_upstream.as_str()),
         service_upstream("media-service", "http://127.0.0.1:18086"),
         service_upstream("notification-service", "http://127.0.0.1:18087"),
         service_upstream("automation-service", "http://127.0.0.1:18088"),
@@ -205,23 +206,56 @@ pub fn default_embedded_upstreams() -> Vec<ServiceUpstreamConfig> {
             drive_upstream.as_str(),
         ));
     }
+    if let Some(notary_upstream) = explicit_notary_app_api_upstream() {
+        upstreams.push(service_upstream(
+            "sdkwork-notary-app-api",
+            notary_upstream.as_str(),
+        ));
+    }
     upstreams
 }
 
 fn default_appbase_app_api_upstream() -> String {
+    explicit_appbase_app_api_upstream().unwrap_or_else(default_foundation_api_gateway_base_url)
+}
+
+fn default_drive_app_api_upstream() -> String {
+    explicit_drive_app_api_upstream().unwrap_or_else(default_foundation_api_gateway_base_url)
+}
+
+fn default_notary_app_api_upstream() -> String {
+    explicit_notary_app_api_upstream().unwrap_or_else(default_foundation_api_gateway_base_url)
+}
+
+fn default_foundation_api_gateway_base_url() -> String {
+    first_env_value(&[
+        "CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL",
+        "SDKWORK_API_GATEWAY_BASE_URL",
+    ])
+    .or_else(|| {
+        first_env_value(&["SDKWORK_API_GATEWAY_BIND"])
+            .map(|bind_addr| format!("http://{bind_addr}"))
+    })
+    .and_then(normalize_base_url)
+    .unwrap_or_else(|| DEFAULT_SDKWORK_API_GATEWAY_BASE_URL.to_owned())
+}
+
+fn normalize_base_url(value: String) -> Option<String> {
+    let normalized = value.trim().trim_end_matches('/').to_owned();
+    if normalized.is_empty() {
+        return None;
+    }
+    Some(normalized)
+}
+
+fn explicit_appbase_app_api_upstream() -> Option<String> {
     env::var("CRAW_CHAT_APPBASE_APP_API_UPSTREAM")
         .or_else(|_| {
             env::var("SDKWORK_APPBASE_APP_API_BIND_ADDR")
                 .map(|bind_addr| format!("http://{}", bind_addr.trim()))
         })
         .ok()
-        .map(|value| value.trim().trim_end_matches('/').to_owned())
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| DEFAULT_APPBASE_APP_API_UPSTREAM.to_owned())
-}
-
-fn default_drive_app_api_upstream() -> String {
-    explicit_drive_app_api_upstream().unwrap_or_else(|| DEFAULT_DRIVE_APP_API_UPSTREAM.to_owned())
+        .and_then(normalize_base_url)
 }
 
 fn explicit_drive_app_api_upstream() -> Option<String> {
@@ -229,6 +263,16 @@ fn explicit_drive_app_api_upstream() -> Option<String> {
         "CRAW_CHAT_DRIVE_APP_API_UPSTREAM",
         "SDKWORK_DRIVE_APP_API_UPSTREAM",
         "SDKWORK_DRIVE_APP_API_BASE_URL",
+    ])
+    .map(|value| value.trim().trim_end_matches('/').to_owned())
+    .filter(|value| !value.is_empty())
+}
+
+fn explicit_notary_app_api_upstream() -> Option<String> {
+    first_env_value(&[
+        "CRAW_CHAT_NOTARY_APP_API_UPSTREAM",
+        "SDKWORK_NOTARY_APP_API_UPSTREAM",
+        "SDKWORK_NOTARY_APP_API_BASE_URL",
     ])
     .map(|value| value.trim().trim_end_matches('/').to_owned())
     .filter(|value| !value.is_empty())
@@ -382,18 +426,24 @@ bind_address = "127.0.0.1:38080"
     fn test_web_gateway_config_defaults_to_split_upstreams() {
         let _guard = gateway_config_env_guard();
         let _runtime_mode = ScopedEnvVar::remove("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE");
+        let _foundation_gateway = ScopedEnvVar::remove("CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL");
+        let _gateway_base_url = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BASE_URL");
+        let _gateway_bind = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BIND");
         let _appbase_upstream = ScopedEnvVar::remove("CRAW_CHAT_APPBASE_APP_API_UPSTREAM");
         let _appbase_bind_addr = ScopedEnvVar::remove("SDKWORK_APPBASE_APP_API_BIND_ADDR");
         let _drive_upstream = ScopedEnvVar::remove("CRAW_CHAT_DRIVE_APP_API_UPSTREAM");
         let _sdkwork_drive_upstream = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_UPSTREAM");
         let _sdkwork_drive_base_url = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_BASE_URL");
+        let _notary_upstream = ScopedEnvVar::remove("CRAW_CHAT_NOTARY_APP_API_UPSTREAM");
+        let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
+        let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
 
         let config = WebGatewayConfig::from_env();
 
         assert_eq!(config.runtime_mode, GatewayRuntimeMode::Split);
         assert_eq!(
             config.upstream_base_url("sdkwork-appbase-app-api"),
-            Some("http://127.0.0.1:18090")
+            Some("http://127.0.0.1:3900")
         );
         assert_eq!(
             config.upstream_base_url("session-gateway"),
@@ -401,11 +451,84 @@ bind_address = "127.0.0.1:38080"
         );
         assert_eq!(
             config.upstream_base_url("sdkwork-drive-app-api"),
-            Some("http://127.0.0.1:18080")
+            Some("http://127.0.0.1:3900")
+        );
+        assert_eq!(
+            config.upstream_base_url("sdkwork-notary-app-api"),
+            Some("http://127.0.0.1:3900")
         );
         assert_eq!(
             config.upstream_base_url("ops-service"),
             Some("http://127.0.0.1:18091")
+        );
+    }
+
+    #[test]
+    fn test_web_gateway_config_uses_shared_gateway_base_url_for_foundation_defaults() {
+        let _guard = gateway_config_env_guard();
+        let _runtime_mode = ScopedEnvVar::remove("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE");
+        let _foundation_gateway = ScopedEnvVar::set(
+            "CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL",
+            "http://127.0.0.1:4900/",
+        );
+        let _gateway_base_url =
+            ScopedEnvVar::set("SDKWORK_API_GATEWAY_BASE_URL", "http://127.0.0.1:5900");
+        let _gateway_bind = ScopedEnvVar::set("SDKWORK_API_GATEWAY_BIND", "127.0.0.1:6900");
+        let _appbase_upstream = ScopedEnvVar::remove("CRAW_CHAT_APPBASE_APP_API_UPSTREAM");
+        let _appbase_bind_addr = ScopedEnvVar::remove("SDKWORK_APPBASE_APP_API_BIND_ADDR");
+        let _drive_upstream = ScopedEnvVar::remove("CRAW_CHAT_DRIVE_APP_API_UPSTREAM");
+        let _sdkwork_drive_upstream = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_UPSTREAM");
+        let _sdkwork_drive_base_url = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_BASE_URL");
+        let _notary_upstream = ScopedEnvVar::remove("CRAW_CHAT_NOTARY_APP_API_UPSTREAM");
+        let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
+        let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
+
+        let config = WebGatewayConfig::from_env();
+
+        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Split);
+        assert_eq!(
+            config.upstream_base_url("sdkwork-appbase-app-api"),
+            Some("http://127.0.0.1:4900")
+        );
+        assert_eq!(
+            config.upstream_base_url("sdkwork-drive-app-api"),
+            Some("http://127.0.0.1:4900")
+        );
+        assert_eq!(
+            config.upstream_base_url("sdkwork-notary-app-api"),
+            Some("http://127.0.0.1:4900")
+        );
+    }
+
+    #[test]
+    fn test_web_gateway_config_derives_shared_gateway_base_url_from_gateway_bind() {
+        let _guard = gateway_config_env_guard();
+        let _runtime_mode = ScopedEnvVar::remove("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE");
+        let _foundation_gateway = ScopedEnvVar::remove("CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL");
+        let _gateway_base_url = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BASE_URL");
+        let _gateway_bind = ScopedEnvVar::set("SDKWORK_API_GATEWAY_BIND", "127.0.0.1:7900");
+        let _appbase_upstream = ScopedEnvVar::remove("CRAW_CHAT_APPBASE_APP_API_UPSTREAM");
+        let _appbase_bind_addr = ScopedEnvVar::remove("SDKWORK_APPBASE_APP_API_BIND_ADDR");
+        let _drive_upstream = ScopedEnvVar::remove("CRAW_CHAT_DRIVE_APP_API_UPSTREAM");
+        let _sdkwork_drive_upstream = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_UPSTREAM");
+        let _sdkwork_drive_base_url = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_BASE_URL");
+        let _notary_upstream = ScopedEnvVar::remove("CRAW_CHAT_NOTARY_APP_API_UPSTREAM");
+        let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
+        let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
+
+        let config = WebGatewayConfig::from_env();
+
+        assert_eq!(
+            config.upstream_base_url("sdkwork-appbase-app-api"),
+            Some("http://127.0.0.1:7900")
+        );
+        assert_eq!(
+            config.upstream_base_url("sdkwork-drive-app-api"),
+            Some("http://127.0.0.1:7900")
+        );
+        assert_eq!(
+            config.upstream_base_url("sdkwork-notary-app-api"),
+            Some("http://127.0.0.1:7900")
         );
     }
 
@@ -432,6 +555,28 @@ bind_address = "127.0.0.1:38080"
     }
 
     #[test]
+    fn test_web_gateway_config_allows_notary_app_api_upstream_override() {
+        let _guard = gateway_config_env_guard();
+        let _runtime_mode = ScopedEnvVar::remove("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE");
+        let _notary_upstream = ScopedEnvVar::set(
+            "CRAW_CHAT_NOTARY_APP_API_UPSTREAM",
+            "http://127.0.0.1:28092/",
+        );
+        let _sdkwork_notary_upstream =
+            ScopedEnvVar::set("SDKWORK_NOTARY_APP_API_UPSTREAM", "http://127.0.0.1:38092");
+        let _sdkwork_notary_base_url =
+            ScopedEnvVar::set("SDKWORK_NOTARY_APP_API_BASE_URL", "http://127.0.0.1:48092");
+
+        let config = WebGatewayConfig::from_env();
+
+        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Split);
+        assert_eq!(
+            config.upstream_base_url("sdkwork-notary-app-api"),
+            Some("http://127.0.0.1:28092")
+        );
+    }
+
+    #[test]
     fn test_web_gateway_embedded_mode_uses_no_implicit_external_upstreams() {
         let _guard = gateway_config_env_guard();
         let _runtime_mode = ScopedEnvVar::set("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE", "embedded");
@@ -440,6 +585,9 @@ bind_address = "127.0.0.1:38080"
         let _drive_upstream = ScopedEnvVar::remove("CRAW_CHAT_DRIVE_APP_API_UPSTREAM");
         let _sdkwork_drive_upstream = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_UPSTREAM");
         let _sdkwork_drive_base_url = ScopedEnvVar::remove("SDKWORK_DRIVE_APP_API_BASE_URL");
+        let _notary_upstream = ScopedEnvVar::remove("CRAW_CHAT_NOTARY_APP_API_UPSTREAM");
+        let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
+        let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
 
         let config = WebGatewayConfig::from_env();
 
@@ -447,6 +595,7 @@ bind_address = "127.0.0.1:38080"
         assert!(config.upstreams.is_empty());
         assert_eq!(config.upstream_base_url("sdkwork-appbase-app-api"), None);
         assert_eq!(config.upstream_base_url("sdkwork-drive-app-api"), None);
+        assert_eq!(config.upstream_base_url("sdkwork-notary-app-api"), None);
         assert_eq!(config.upstream_base_url("session-gateway"), None);
         assert_eq!(config.upstream_base_url("conversation-runtime"), None);
         assert_eq!(config.upstream_base_url("ops-service"), None);
@@ -476,6 +625,37 @@ bind_address = "127.0.0.1:38080"
         assert_eq!(
             config.upstream_base_url("sdkwork-drive-app-api"),
             Some("http://127.0.0.1:28080")
+        );
+        assert_eq!(config.upstream_base_url("sdkwork-appbase-app-api"), None);
+        assert_eq!(config.upstream_base_url("session-gateway"), None);
+        assert_eq!(config.upstream_base_url("conversation-runtime"), None);
+        assert_eq!(config.upstream_base_url("ops-service"), None);
+    }
+
+    #[test]
+    fn test_web_gateway_embedded_mode_allows_explicit_notary_app_api_upstream() {
+        let _guard = gateway_config_env_guard();
+        let _runtime_mode = ScopedEnvVar::set("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE", "embedded");
+        let _appbase_upstream = ScopedEnvVar::set(
+            "CRAW_CHAT_APPBASE_APP_API_UPSTREAM",
+            "http://127.0.0.1:19090/",
+        );
+        let _appbase_bind_addr = ScopedEnvVar::remove("SDKWORK_APPBASE_APP_API_BIND_ADDR");
+        let _notary_upstream = ScopedEnvVar::set(
+            "CRAW_CHAT_NOTARY_APP_API_UPSTREAM",
+            "http://127.0.0.1:28092/",
+        );
+        let _sdkwork_notary_upstream =
+            ScopedEnvVar::set("SDKWORK_NOTARY_APP_API_UPSTREAM", "http://127.0.0.1:38092");
+        let _sdkwork_notary_base_url =
+            ScopedEnvVar::set("SDKWORK_NOTARY_APP_API_BASE_URL", "http://127.0.0.1:48092");
+
+        let config = WebGatewayConfig::from_env();
+
+        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Embedded);
+        assert_eq!(
+            config.upstream_base_url("sdkwork-notary-app-api"),
+            Some("http://127.0.0.1:28092")
         );
         assert_eq!(config.upstream_base_url("sdkwork-appbase-app-api"), None);
         assert_eq!(config.upstream_base_url("session-gateway"), None);

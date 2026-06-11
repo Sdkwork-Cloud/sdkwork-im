@@ -12,6 +12,10 @@
       "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-ui.git",
       "ref": "main"
     },
+    "sdkwork-drive": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-drive.git",
+      "ref": "5ee91f5162d114edf2a10165916436aa03f97b4a"
+    },
     "sdkwork-im-app-sdk": {
       "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-im-app-sdk.git",
       "ref": "main"
@@ -23,6 +27,10 @@
     "sdkwork-im-sdk": {
       "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-im-sdk.git",
       "ref": "main"
+    },
+    "sdkwork-notary": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-notary.git",
+      "ref": "3d7a1943c9df771bcfee1548d97ff892b7b01cf2"
     },
     "sdkwork-claw-router": {
       "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-claw-router.git",

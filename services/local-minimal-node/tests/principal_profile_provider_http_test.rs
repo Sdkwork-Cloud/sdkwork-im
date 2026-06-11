@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -48,9 +49,9 @@ async fn test_local_minimal_profile_gets_principal_profile_provider_health_over_
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/principal/profiles/provider_health")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -100,9 +101,9 @@ async fn test_local_minimal_profile_gets_unavailable_external_principal_profile_
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/principal/profiles/provider_health")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )

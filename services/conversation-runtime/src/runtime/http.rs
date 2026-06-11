@@ -17,7 +17,9 @@ use craw_chat_api_registry::HttpMethod;
 use craw_chat_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
-use im_app_context::{AppContext, AppContextError, resolve_app_context};
+use im_app_context::{
+    AppContext, AppContextError, resolve_app_context, resolve_app_context_for_request,
+};
 use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursorView, MembershipRole,
 };
@@ -938,11 +940,18 @@ async fn require_app_context(
             {
                 return error.into_response();
             }
-            let auth = match resolve_request_app_context(None, request.headers()) {
-                Ok(auth) => auth,
-                Err(error) => return error.into_response(),
+            let resolved = match resolve_app_context_for_request(
+                request.headers(),
+                request.uri().path(),
+                request.method().as_str(),
+            ) {
+                Ok(resolved) => resolved,
+                Err(error) => return ApiError::from(error).into_response(),
             };
-            request.extensions_mut().insert(auth);
+            request
+                .extensions_mut()
+                .insert(resolved.app_request_context);
+            request.extensions_mut().insert(resolved.app_context);
             let response = next.run(request).await;
             drop(permit);
             response
@@ -1866,6 +1875,7 @@ mod tests {
     use axum::body::Body;
     use axum::http::{HeaderMap, HeaderValue, Request, StatusCode};
     use http_body_util::BodyExt;
+    use im_app_context::DualTokenRequestBuilderExt;
     use std::collections::BTreeSet;
     use std::sync::{Mutex, OnceLock};
     use std::time::Duration;
@@ -2218,9 +2228,7 @@ mod tests {
                 Request::builder()
                     .method("POST")
                     .uri("/im/v3/api/chat/conversations/c_ghost_post_http/messages")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_missing")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_context("t_demo", "u_missing", "user", None, ["*"])
                     .header("content-type", "application/json")
                     .body(Body::from(
                         r#"{
@@ -2260,9 +2268,7 @@ mod tests {
                 Request::builder()
                     .method("GET")
                     .uri("/im/v3/api/chat/conversations/c_ghost_history_http/messages")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_missing")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_context("t_demo", "u_missing", "user", None, ["*"])
                     .body(Body::empty())
                     .unwrap(),
             )

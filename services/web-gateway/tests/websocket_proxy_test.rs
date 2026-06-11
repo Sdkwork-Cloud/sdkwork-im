@@ -14,6 +14,7 @@ use craw_chat_api_registry::{
 use craw_chat_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
 use craw_chat_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
 use futures_util::{SinkExt, StreamExt};
+use im_app_context::{AppContext, build_dual_token_headers_for_context, local_service_app_context};
 use serde_json::json;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -22,6 +23,8 @@ use tokio_tungstenite::{
     connect_async,
     tungstenite::{Message as TungsteniteMessage, client::ClientRequestBuilder},
 };
+
+const SDKWORK_INTERNAL_HEADER_PROBE: &str = "x-sdkwork-tenant-id";
 
 async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -56,30 +59,85 @@ fn embedded_gateway_config() -> WebGatewayConfig {
     }
 }
 
+fn gateway_test_app_context() -> AppContext {
+    let mut context = local_service_app_context(
+        "tenant_real",
+        "user_real",
+        "user",
+        Some("device_real"),
+        ["*"],
+    );
+    context.session_id = Some("session_real".to_owned());
+    context.app_id = Some("sdkwork-chat-pc".to_owned());
+    context
+}
+
+fn gateway_test_auth_headers() -> HeaderMap {
+    let context = gateway_test_app_context();
+    build_dual_token_headers_for_context(&context, context.permission_scope.iter())
+}
+
+fn gateway_test_authorization_header() -> String {
+    gateway_test_auth_headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .expect("test auth token should be present")
+        .to_owned()
+}
+
+fn gateway_test_auth_token() -> String {
+    gateway_test_authorization_header()
+        .trim_start_matches("Bearer ")
+        .to_owned()
+}
+
+fn gateway_test_access_token_header() -> String {
+    gateway_test_auth_headers()
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .expect("test access token should be present")
+        .to_owned()
+}
+
+fn has_sdkwork_internal_header(headers: &HeaderMap) -> bool {
+    [
+        "x-sdkwork-tenant-id",
+        "x-sdkwork-organization-id",
+        "x-sdkwork-user-id",
+        "x-sdkwork-session-id",
+        "x-sdkwork-context-signature",
+    ]
+    .iter()
+    .any(|name| headers.contains_key(*name))
+}
+
 async fn websocket_echo(ws: WebSocketUpgrade) -> impl IntoResponse {
     ws.protocols([LINK_WEBSOCKET_SUBPROTOCOL])
         .on_upgrade(handle_echo_socket)
 }
 
 async fn websocket_context_echo(headers: HeaderMap, ws: WebSocketUpgrade) -> impl IntoResponse {
-    let tenant_id = header_value(&headers, "x-sdkwork-tenant-id").unwrap_or_default();
-    let user_id = header_value(&headers, "x-sdkwork-user-id").unwrap_or_default();
-    let session_id = header_value(&headers, "x-sdkwork-session-id").unwrap_or_default();
-    let device_id = header_value(&headers, "x-sdkwork-device-id").unwrap_or_default();
+    let context = im_app_context::resolve_app_context(&headers).ok();
+    let sdkwork_internal_headers_forwarded = has_sdkwork_internal_header(&headers);
     ws.protocols([LINK_WEBSOCKET_SUBPROTOCOL])
         .on_upgrade(move |mut socket| async move {
-            let _ = socket
-                .send(Message::Text(
-                    json!({
-                        "tenantId": tenant_id,
-                        "userId": user_id,
-                        "sessionId": session_id,
-                        "deviceId": device_id,
-                    })
-                    .to_string()
-                    .into(),
-                ))
-                .await;
+            let payload = match context {
+                Some(context) => json!({
+                    "tenantId": context.tenant_id,
+                    "userId": context.user_id,
+                    "sessionId": context.session_id,
+                    "deviceId": context.device_id,
+                    "sdkworkInternalHeadersForwarded": sdkwork_internal_headers_forwarded,
+                }),
+                None => json!({
+                    "tenantId": null,
+                    "userId": null,
+                    "sessionId": null,
+                    "deviceId": null,
+                    "sdkworkInternalHeadersForwarded": sdkwork_internal_headers_forwarded,
+                }),
+            };
+            let _ = socket.send(Message::Text(payload.to_string().into())).await;
             let _ = socket.close().await;
         })
 }
@@ -104,17 +162,12 @@ async fn websocket_query_echo(
         })
 }
 
-async fn websocket_signed_context_echo(
+async fn websocket_sdkwork_internal_probe(
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-    let result = im_app_context::resolve_app_context_with_signature_config(
-        &headers,
-        im_app_context::AppContextSignatureConfig {
-            require_signature: true,
-            shared_secret: Some("gateway-signing-secret".to_owned()),
-        },
-    );
+    let result = im_app_context::resolve_app_context(&headers);
+    let sdkwork_internal_headers_forwarded = has_sdkwork_internal_header(&headers);
     ws.protocols([LINK_WEBSOCKET_SUBPROTOCOL])
         .on_upgrade(move |mut socket| async move {
             let payload = match result {
@@ -122,12 +175,12 @@ async fn websocket_signed_context_echo(
                     "tenantId": context.tenant_id,
                     "userId": context.user_id,
                     "sessionId": context.session_id,
-                    "signatureValid": true,
+                    "sdkworkInternalHeadersForwarded": sdkwork_internal_headers_forwarded,
                 }),
                 Err(error) => json!({
                     "code": error.code(),
                     "message": error.message(),
-                    "signatureValid": false,
+                    "sdkworkInternalHeadersForwarded": sdkwork_internal_headers_forwarded,
                 }),
             };
             let _ = socket.send(Message::Text(payload.to_string().into())).await;
@@ -136,11 +189,7 @@ async fn websocket_signed_context_echo(
 }
 
 async fn appbase_current_session(headers: HeaderMap) -> impl IntoResponse {
-    let auth_token = header_value(&headers, header::AUTHORIZATION.as_str());
-    let access_token = header_value(&headers, "access-token");
-    if auth_token.as_deref() != Some("Bearer real-auth-token")
-        || access_token.as_deref() != Some("real-access-token")
-    {
+    let Ok(context) = im_app_context::resolve_app_context(&headers) else {
         return (
             StatusCode::UNAUTHORIZED,
             Json(json!({
@@ -151,30 +200,24 @@ async fn appbase_current_session(headers: HeaderMap) -> impl IntoResponse {
             })),
         )
             .into_response();
-    }
+    };
 
     (
         StatusCode::OK,
         Json(json!({
             "data": {
                 "context": {
-                    "tenantId": "tenant_real",
-                    "userId": "user_real",
-                    "sessionId": "session_real",
-                    "appId": "sdkwork-chat-pc",
-                    "actorKind": "user"
+                    "tenantId": context.tenant_id,
+                    "organizationId": context.organization_id,
+                    "userId": context.user_id,
+                    "sessionId": context.session_id,
+                    "appId": context.app_id,
+                    "actorKind": context.actor_kind
                 }
             }
         })),
     )
         .into_response()
-}
-
-fn header_value(headers: &HeaderMap, name: &str) -> Option<String> {
-    headers
-        .get(name)
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned)
 }
 
 async fn handle_echo_socket(mut socket: WebSocket) {
@@ -260,8 +303,8 @@ async fn gateway_accepts_browser_realtime_websocket_auth_init_before_upstream_co
             json!({
                 "type": "auth.init",
                 "requestId": "auth-1",
-                "authToken": "real-auth-token",
-                "accessToken": "real-access-token",
+                "authToken": gateway_test_auth_token(),
+                "accessToken": gateway_test_access_token_header(),
                 "deviceId": "device-frame"
             })
             .to_string()
@@ -280,12 +323,12 @@ async fn gateway_accepts_browser_realtime_websocket_auth_init_before_upstream_co
     };
     let auth_ok: serde_json::Value =
         serde_json::from_str(text.as_str()).expect("auth.ok frame should be json");
-    assert_eq!(auth_ok["type"], "auth.ok");
+    assert_eq!(auth_ok["type"], "auth.ok", "first frame: {auth_ok}");
     assert_eq!(auth_ok["requestId"], "auth-1");
     assert_eq!(auth_ok["tenantId"], "tenant_real");
     assert_eq!(auth_ok["principalId"], "user_real");
     assert_eq!(auth_ok["sessionId"], "session_real");
-    assert_eq!(auth_ok["deviceId"], "device-frame");
+    assert_eq!(auth_ok["deviceId"], "device_real");
 
     let context_frame = socket
         .next()
@@ -300,7 +343,8 @@ async fn gateway_accepts_browser_realtime_websocket_auth_init_before_upstream_co
     assert_eq!(context["tenantId"], "tenant_real");
     assert_eq!(context["userId"], "user_real");
     assert_eq!(context["sessionId"], "session_real");
-    assert_eq!(context["deviceId"], "device-frame");
+    assert_eq!(context["deviceId"], "device_real");
+    assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
 
     let _ = socket.close(None).await;
     gateway_handle.abort();
@@ -405,7 +449,7 @@ async fn embedded_gateway_accepts_browser_realtime_websocket_without_session_gat
         .expect("embedded auth.init frame should send");
 
     let auth_ok = next_text_json(&mut socket).await;
-    assert_eq!(auth_ok["type"], "auth.ok");
+    assert_eq!(auth_ok["type"], "auth.ok", "first frame: {auth_ok}");
     assert_eq!(auth_ok["requestId"], "embedded-auth-1");
     assert_eq!(auth_ok["tenantId"], tenant_id);
     assert_eq!(auth_ok["principalId"], user_id);
@@ -459,8 +503,8 @@ async fn gateway_strips_sensitive_realtime_websocket_query_before_upstream_conne
             json!({
                 "type": "auth.init",
                 "requestId": "auth-sensitive-query",
-                "authToken": "real-auth-token",
-                "accessToken": "real-access-token",
+                "authToken": gateway_test_auth_token(),
+                "accessToken": gateway_test_access_token_header(),
                 "deviceId": "device-frame"
             })
             .to_string()
@@ -601,11 +645,11 @@ async fn gateway_derives_realtime_websocket_context_from_appbase_dual_tokens_not
             .unwrap(),
     )
     .with_sub_protocol(LINK_WEBSOCKET_SUBPROTOCOL)
-    .with_header("Authorization", "Bearer real-auth-token")
-    .with_header("access-token", "real-access-token")
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "user_test006_a_com")
-    .with_header("x-sdkwork-session-id", "spoofed_session");
+    .with_header("Authorization", gateway_test_authorization_header())
+    .with_header("access-token", gateway_test_access_token_header())
+    .with_header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
+    .with_header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
+    .with_header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed_session");
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -624,6 +668,7 @@ async fn gateway_derives_realtime_websocket_context_from_appbase_dual_tokens_not
     assert_eq!(context["tenantId"], "tenant_real");
     assert_eq!(context["userId"], "user_real");
     assert_eq!(context["sessionId"], "session_real");
+    assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
     assert_ne!(context["tenantId"], "t_demo");
     assert_ne!(context["userId"], "user_test006_a_com");
 
@@ -634,7 +679,8 @@ async fn gateway_derives_realtime_websocket_context_from_appbase_dual_tokens_not
 }
 
 #[tokio::test]
-async fn gateway_signs_realtime_websocket_context_projection_when_signature_secret_is_configured() {
+async fn gateway_drops_realtime_websocket_sdkwork_internal_headers_when_signature_secret_is_configured()
+ {
     let _signature_secret = ScopedEnvVar::set(
         "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
         "gateway-signing-secret",
@@ -644,8 +690,10 @@ async fn gateway_signs_realtime_websocket_context_projection_when_signature_secr
         get(appbase_current_session),
     );
     let (appbase_address, appbase_handle) = spawn_server(appbase_app).await;
-    let upstream_app =
-        Router::new().route("/im/v3/api/realtime/ws", get(websocket_signed_context_echo));
+    let upstream_app = Router::new().route(
+        "/im/v3/api/realtime/ws",
+        get(websocket_sdkwork_internal_probe),
+    );
     let (upstream_address, upstream_handle) = spawn_server(upstream_app).await;
 
     let gateway_app = web_gateway::build_app(test_gateway_config(vec![
@@ -666,11 +714,11 @@ async fn gateway_signs_realtime_websocket_context_projection_when_signature_secr
             .unwrap(),
     )
     .with_sub_protocol(LINK_WEBSOCKET_SUBPROTOCOL)
-    .with_header("Authorization", "Bearer real-auth-token")
-    .with_header("access-token", "real-access-token")
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "user_test006_a_com")
-    .with_header("x-sdkwork-context-signature", "spoofed-signature");
+    .with_header("Authorization", gateway_test_authorization_header())
+    .with_header("access-token", gateway_test_access_token_header())
+    .with_header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
+    .with_header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
+    .with_header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed-signature");
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -689,7 +737,7 @@ async fn gateway_signs_realtime_websocket_context_projection_when_signature_secr
     assert_eq!(context["tenantId"], "tenant_real");
     assert_eq!(context["userId"], "user_real");
     assert_eq!(context["sessionId"], "session_real");
-    assert_eq!(context["signatureValid"], true);
+    assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
 
     let _ = socket.close(None).await;
     gateway_handle.abort();
@@ -725,8 +773,8 @@ async fn gateway_proxies_realtime_websocket_upgrade_and_frames() {
             .unwrap(),
     )
     .with_sub_protocol(LINK_WEBSOCKET_SUBPROTOCOL)
-    .with_header("Authorization", "Bearer real-auth-token")
-    .with_header("access-token", "real-access-token");
+    .with_header("Authorization", gateway_test_authorization_header())
+    .with_header("access-token", gateway_test_access_token_header());
 
     let (mut socket, response) = connect_async(request)
         .await

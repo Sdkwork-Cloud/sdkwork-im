@@ -17,7 +17,9 @@ use craw_chat_openapi::{
     OpenApiServiceSpec, WebsocketRouteMetadata, build_openapi_document,
     extract_routes_from_function, render_docs_html,
 };
-use im_app_context::{AppContext, AppContextError, resolve_app_context};
+use im_app_context::{
+    AppContext, AppContextError, resolve_app_context, resolve_app_context_for_request,
+};
 use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEventWindow, RealtimeSubscriptionSnapshot,
 };
@@ -343,11 +345,18 @@ async fn require_app_context(
             {
                 return error.into_response();
             }
-            let auth = match resolve_app_context(request.headers()) {
-                Ok(auth) => auth,
+            let resolved = match resolve_app_context_for_request(
+                request.headers(),
+                request.uri().path(),
+                request.method().as_str(),
+            ) {
+                Ok(resolved) => resolved,
                 Err(error) => return ApiError::from(error).into_response(),
             };
-            request.extensions_mut().insert(auth);
+            request
+                .extensions_mut()
+                .insert(resolved.app_request_context);
+            request.extensions_mut().insert(resolved.app_context);
             let response = next.run(request).await;
             drop(permit);
             response

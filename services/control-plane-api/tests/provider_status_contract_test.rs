@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
@@ -28,14 +29,14 @@ async fn request_status(
         .method(expectation.method)
         .uri(expectation.uri);
     if let Some(tenant_id) = expectation.tenant_id {
-        request = request.header("x-sdkwork-tenant-id", tenant_id);
+        request = request.with_dual_token_tenant(tenant_id);
     }
     if let Some(user_id) = expectation.user_id {
-        request = request.header("x-sdkwork-user-id", user_id);
-        request = request.header("x-sdkwork-actor-kind", "user");
+        request = request.with_dual_token_user(user_id);
+        request = request.with_dual_token_actor_kind("user");
     }
     if let Some(permission) = expectation.permission {
-        request = request.header("x-sdkwork-permission-scope", permission);
+        request = request.with_dual_token_permission_scope(permission);
     }
     if expectation.body.is_some() {
         request = request.header("content-type", "application/json");

@@ -320,6 +320,7 @@ fn test_runtime_exposes_read_query_auth_context_entrypoints() {
         "pub fn require_active_member_from_auth_context(",
         "pub fn conversation_business_binding_from_auth_context(",
         "pub fn list_members_from_auth_context(",
+        "pub fn list_members_window_from_auth_context(",
         "pub fn list_messages_window_from_auth_context(",
         "pub fn read_cursor_view_from_auth_context(",
         "pub fn get_agent_handoff_state_from_auth_context(",
@@ -391,12 +392,12 @@ fn test_http_non_message_surface_uses_runtime_auth_context_entrypoints() {
 
 #[test]
 fn test_http_read_query_surface_uses_runtime_auth_context_entrypoints() {
-    let http_source = include_str!("../src/runtime/http.rs");
+    let http_source = include_str!("../src/runtime/http.rs").replace("\r\n", "\n");
 
     for required_symbol in [
         ".conversation_business_binding_from_auth_context(",
         ".get_agent_handoff_state_from_auth_context(",
-        ".list_members_from_auth_context(",
+        ".list_members_window_from_auth_context(",
         ".list_messages_window_from_auth_context(",
         ".read_cursor_view_from_auth_context(",
     ] {
@@ -422,18 +423,18 @@ fn test_http_read_query_surface_uses_runtime_auth_context_entrypoints() {
 
 #[test]
 fn test_auth_context_runtime_entrypoints_keep_typed_principal_identity() {
-    let runtime_source = include_str!("../src/runtime.rs");
-    let binding_source = include_str!("../src/runtime/binding.rs");
-    let membership_source = include_str!("../src/runtime/membership.rs");
-    let handoff_source = include_str!("../src/runtime/handoff.rs");
-    let governance_source = include_str!("../src/runtime/governance.rs");
+    let runtime_source = include_str!("../src/runtime.rs").replace("\r\n", "\n");
+    let binding_source = include_str!("../src/runtime/binding.rs").replace("\r\n", "\n");
+    let membership_source = include_str!("../src/runtime/membership.rs").replace("\r\n", "\n");
+    let handoff_source = include_str!("../src/runtime/handoff.rs").replace("\r\n", "\n");
+    let governance_source = include_str!("../src/runtime/governance.rs").replace("\r\n", "\n");
 
     for (source_name, source) in [
-        ("runtime.rs", runtime_source),
-        ("binding.rs", binding_source),
-        ("membership.rs", membership_source),
-        ("handoff.rs", handoff_source),
-        ("governance.rs", governance_source),
+        ("runtime.rs", runtime_source.as_str()),
+        ("binding.rs", binding_source.as_str()),
+        ("membership.rs", membership_source.as_str()),
+        ("handoff.rs", handoff_source.as_str()),
+        ("governance.rs", governance_source.as_str()),
     ] {
         assert!(
             !source.contains("from_auth_context(\n") || source.contains("auth.actor_kind.as_str()"),

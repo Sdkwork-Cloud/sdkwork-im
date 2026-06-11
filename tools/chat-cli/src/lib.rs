@@ -3,6 +3,7 @@ mod realtime;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
 use http_body_util::{BodyExt, Full};
@@ -24,6 +25,7 @@ use realtime::{
 };
 
 const CHAT_CONVERSATIONS_PATH: &str = "/im/v3/api/chat/conversations";
+const LOCAL_TOKEN_HEADER: &str = r#"{"alg":"none","typ":"JWT"}"#;
 
 pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliError> {
     match command.operation {
@@ -35,27 +37,17 @@ pub async fn execute_command(command: CliCommand) -> Result<CommandOutput, CliEr
         CommandOperation::Token {
             authorization_header,
         } => {
-            let authorization = command
-                .context
-                .auth
-                .bearer_token
-                .as_deref()
-                .map(normalize_bearer_header);
-            let token = authorization
-                .as_deref()
-                .and_then(strip_bearer_prefix)
-                .unwrap_or_default()
-                .to_owned();
+            let token = resolve_access_token(&command.context.auth)?;
+            let authorization = format!("Bearer {token}");
             Ok(CommandOutput::Json(json!({
-                "source": if authorization.is_some() { "providedBearerToken" } else { "appContextProjection" },
+                "source": if command.context.auth.bearer_token.is_some() { "providedBearerToken" } else { "localDualToken" },
                 "authorization": if authorization_header {
-                    authorization.clone().unwrap_or_default()
+                    authorization
                 } else {
                     token.clone()
                 },
                 "token": token,
-                "claims": Value::Null,
-                "appContextProjection": app_context_projection_debug_json(&command.context.auth)
+                "claims": Value::Null
             })))
         }
         CommandOperation::CreateConversation {
@@ -263,10 +255,11 @@ async fn http_request_json(
         .uri(uri.as_str())
         .header(CONTENT_TYPE, "application/json");
     if require_auth {
-        request_builder = apply_app_context_projection_headers(request_builder, &context.auth);
-        if let Some(authorization) = resolve_authorization_header(&context.auth) {
-            request_builder = request_builder.header(AUTHORIZATION, authorization.as_str());
-        }
+        let access_token = resolve_access_token(&context.auth)?;
+        let authorization = format!("Bearer {access_token}");
+        request_builder = request_builder
+            .header(AUTHORIZATION, authorization.as_str())
+            .header("access-token", access_token.as_str());
     }
 
     let request = request_builder.body(Full::new(payload)).map_err(|error| {
@@ -516,45 +509,44 @@ fn build_websocket_url(base_url: &str, path: &str) -> Result<String, CliError> {
     )))
 }
 
-pub(crate) fn resolve_authorization_header(auth: &AuthInput) -> Option<String> {
-    auth.bearer_token.as_deref().map(normalize_bearer_header)
-}
-
-pub(crate) fn apply_app_context_projection_headers(
-    mut builder: hyper::http::request::Builder,
-    auth: &AuthInput,
-) -> hyper::http::request::Builder {
-    builder = builder
-        .header("x-sdkwork-tenant-id", auth.tenant_id.as_str())
-        .header("x-sdkwork-user-id", auth.user_id.as_str())
-        .header("x-sdkwork-actor-id", auth.user_id.as_str())
-        .header("x-sdkwork-actor-kind", auth.actor_kind.as_str())
-        .header("x-sdkwork-session-id", auth.session_id.as_str())
-        .header("x-sdkwork-device-id", auth.device_id.as_str());
-    if !auth.permissions.is_empty() {
-        builder = builder.header("x-sdkwork-permission-scope", auth.permissions.join(" "));
+pub(crate) fn resolve_access_token(auth: &AuthInput) -> Result<String, CliError> {
+    if let Some(token) = auth
+        .bearer_token
+        .as_deref()
+        .and_then(strip_bearer_prefix)
+        .or(auth.bearer_token.as_deref())
+        .map(str::trim)
+        .filter(|token| !token.is_empty())
+    {
+        return Ok(token.to_owned());
     }
-    builder
+
+    let payload = serde_json::to_vec(&json!({
+        "tenant_id": auth.tenant_id,
+        "organization_id": Value::Null,
+        "login_scope": "TENANT",
+        "user_id": auth.user_id,
+        "actor_id": auth.user_id,
+        "actor_kind": auth.actor_kind,
+        "session_id": auth.session_id,
+        "device_id": auth.device_id,
+        "app_id": "craw-chat",
+        "environment": "dev",
+        "deployment_mode": "local",
+        "auth_level": "password",
+        "permission_scope": auth.permissions,
+        "data_scope": ["tenant"],
+    }))
+    .map_err(|error| CliError::runtime(format!("failed to encode local token payload: {error}")))?;
+    Ok(format!(
+        "{}.{}.local",
+        URL_SAFE_NO_PAD.encode(LOCAL_TOKEN_HEADER.as_bytes()),
+        URL_SAFE_NO_PAD.encode(payload)
+    ))
 }
 
-fn app_context_projection_debug_json(auth: &AuthInput) -> Value {
-    json!({
-        "x-sdkwork-tenant-id": auth.tenant_id,
-        "x-sdkwork-user-id": auth.user_id,
-        "x-sdkwork-actor-id": auth.user_id,
-        "x-sdkwork-actor-kind": auth.actor_kind,
-        "x-sdkwork-session-id": auth.session_id,
-        "x-sdkwork-device-id": auth.device_id,
-        "x-sdkwork-permission-scope": auth.permissions.join(" ")
-    })
-}
-
-fn normalize_bearer_header(value: &str) -> String {
-    if let Some(token) = strip_bearer_prefix(value) {
-        format!("Bearer {token}")
-    } else {
-        format!("Bearer {value}")
-    }
+pub(crate) fn resolve_authorization_header(auth: &AuthInput) -> Result<String, CliError> {
+    resolve_access_token(auth).map(|token| format!("Bearer {token}"))
 }
 
 fn strip_bearer_prefix(value: &str) -> Option<&str> {

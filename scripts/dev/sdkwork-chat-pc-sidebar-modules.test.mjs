@@ -19,6 +19,11 @@ const sidebarSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-ch
 const settingsServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/SettingsService.ts');
 const settingsModalSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/SettingsModal.tsx');
 const chatLayoutSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/pages/ChatLayout.tsx');
+const notaryAccessServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/NotaryAccessService.ts');
+const workspaceServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-workspace/src/services/WorkspaceService.ts');
+const workspaceViewSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-workspace/src/index.tsx');
+const localApiSource = read('apps/sdkwork-chat-pc/local-api.ts');
+const devServerSource = read('apps/sdkwork-chat-pc/server.ts');
 const newFriendsContainerSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/contacts/NewFriendsContainer.tsx');
 const contactServiceSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/ContactService.ts');
 const messageListSource = read('apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/components/MessageList.tsx');
@@ -98,6 +103,47 @@ assert.deepEqual(
   'default sidebar modules must only keep chat, workspace, contacts, knowledge, drive, agent, and favorites visible',
 );
 
+assert.match(
+  settingsServiceSource,
+  /export\s+const\s+ALWAYS_CONFIGURABLE_MODULES\s*=\s*new Set\(\[\s*["']notary["']\s*\]\)/u,
+  'SettingsService must own the always-configurable notary module contract shared by settings and sidebar',
+);
+assert.match(
+  settingsServiceSource,
+  /export\s+const\s+ALL_APP_MODULES\s*=\s*\[[\s\S]*["']notary["'][\s\S]*\]/u,
+  'SettingsService module catalog must retain notary so the configuration center can offer the feature',
+);
+assert.match(
+  localApiSource,
+  /const\s+LOCAL_APP_MODULES\s*=\s*\[[\s\S]*['"]notary['"][\s\S]*\]/u,
+  'Local configuration API module catalog must retain notary so users can enable it from the configuration center',
+);
+assert.match(
+  localApiSource,
+  /requestPath\s*===\s*['"]\/api\/config\/modules['"][\s\S]*modules:\s*\[\.\.\.LOCAL_APP_MODULES\]/u,
+  'Local configuration API must serve the full module catalog from LOCAL_APP_MODULES',
+);
+assert.match(
+  devServerSource,
+  /app\.get\(["']\/api\/config\/modules["'][\s\S]*modules:\s*\[[\s\S]*["']notary["'][\s\S]*\]/u,
+  'Dev server configuration center simulation must retain notary in the module catalog',
+);
+assert.doesNotMatch(
+  notaryAccessServiceSource,
+  /canShowNotaryMenu/u,
+  'NotaryAccessService must not expose menu visibility APIs; notary entry discovery is owned by SettingsService and workspace catalog',
+);
+assert.doesNotMatch(
+  notaryAccessServiceSource,
+  /\bvisible:\s*boolean/u,
+  'NotaryAccessState must not expose a visible field that can be reused for menu or entry display gating',
+);
+assert.doesNotMatch(
+  notaryAccessServiceSource,
+  /\bvisible:\s*false/u,
+  'NotaryAccessState denied fallback must not publish a UI visibility-shaped field',
+);
+
 for (const moduleId of expectedDefaultSidebarModules) {
   assert.match(
     settingsServiceSource,
@@ -152,6 +198,26 @@ assert.match(
   /title=\{t\(["']sidebar\.drive["']\)\}/u,
   'Sidebar drive entry must use the standard sidebar.drive i18n title',
 );
+assert.match(
+  sidebarSource,
+  /ALWAYS_CONFIGURABLE_MODULES\.has\(m\)/u,
+  'Sidebar must keep user-enabled notary in the sidebar candidate list without requiring the server module snapshot',
+);
+assert.doesNotMatch(
+  sidebarSource,
+  /notaryAccessService\.canShowNotaryMenu/u,
+  'Sidebar must not use notary access state to decide whether the notary module is displayed',
+);
+assert.doesNotMatch(
+  sidebarSource,
+  /modId\s*===\s*["']notary["']\s*&&\s*canShowNotaryMenu/u,
+  'Sidebar must render the configured notary entry without access-state display gating',
+);
+assert.match(
+  sidebarSource,
+  /modId\s*===\s*["']notary["']\)/u,
+  'Sidebar must keep the configured notary entry render branch',
+);
 assert.equal(zhLocale.sidebar.drive, '网盘', 'zh-CN sidebar locale must name drive as 网盘');
 assert.equal(enLocale.sidebar.drive, 'Cloud Drive', 'en-US sidebar locale must name drive as Cloud Drive');
 
@@ -167,6 +233,26 @@ assert.match(
 );
 assert.match(
   settingsModalSource,
+  /\{\s*id:\s*["']notary["'][\s\S]*?icon:\s*ShieldCheck/u,
+  'SettingsModal module list must include the notary module option so users can enable it',
+);
+assert.match(
+  settingsModalSource,
+  /ALWAYS_CONFIGURABLE_MODULES[\s\S]*["']notary["']/u,
+  'SettingsModal must keep notary visible as an always-configurable module option so users can enable it from the configuration center',
+);
+assert.match(
+  settingsModalSource,
+  /ALWAYS_CONFIGURABLE_MODULES\.has\(mod\.id\)/u,
+  'SettingsModal must not require the server module snapshot before showing the notary enable option',
+);
+assert.doesNotMatch(
+  settingsModalSource,
+  /notaryAccessService\.canShowNotaryMenu/u,
+  'SettingsModal must not hide the notary enable option behind current notary business access state',
+);
+assert.match(
+  settingsModalSource,
   /DEFAULT_SIDEBAR_MODULES\.includes\(mod\.id\)/u,
   'SettingsModal must keep the product-ready default modules visible even when the server module list is incomplete',
 );
@@ -174,6 +260,66 @@ assert.match(
   chatLayoutSource,
   /case\s+["']drive["']:\s*[\r\n\s]*return\s+<DriveView\s*\/>/u,
   'ChatLayout must route drive to the existing DriveView',
+);
+assert.match(
+  chatLayoutSource,
+  /appId\s*===\s*["']notary["'][\s\S]*setActiveTab\(["']notary["']\)/u,
+  'Workspace notary app selection must navigate directly to the notary module without access-state gating',
+);
+assert.match(
+  workspaceServiceSource,
+  /\{\s*id:\s*["']notary["'][\s\S]*nameKey:\s*["']apps\.notary["'][\s\S]*iconName:\s*["']ShieldCheck["']/u,
+  'Workspace app catalog must keep the notary business entry available from the workbench',
+);
+assert.doesNotMatch(
+  workspaceServiceSource,
+  /\b(?:MockWorkspaceService|mockApps|mockDocs)\b/u,
+  'Workspace app catalog must use stable static catalog naming instead of mock naming for app entries such as notary',
+);
+assert.match(
+  workspaceServiceSource,
+  /const\s+REQUIRED_WORKSPACE_APP_IDS\s*=\s*new Set\(\[\s*['"]notary['"]\s*\]\)/u,
+  'Workspace app catalog must protect notary as a required workbench entry',
+);
+assert.match(
+  workspaceServiceSource,
+  /resolve\(\[\.\.\.workspaceAppCatalog\]\)/u,
+  'Workspace app catalog must return a copy so callers cannot mutate the required notary entry out of the catalog',
+);
+assert.match(
+  workspaceServiceSource,
+  /REQUIRED_WORKSPACE_APP_IDS\.has\(id\)[\s\S]*?return/u,
+  'Workspace removeApp must preserve required workbench entries such as notary',
+);
+assert.match(
+  workspaceServiceSource,
+  /REQUIRED_WORKSPACE_APP_IDS\.has\(app\.id\)[\s\S]*?return/u,
+  'Workspace addApp must not overwrite required workbench entries such as notary',
+);
+assert.match(
+  workspaceServiceSource,
+  /existingIndex[\s\S]*workspaceAppCatalog\.findIndex\([\s\S]*?\.id\s*===\s*app\.id[\s\S]*existingIndex\s*>\s*-1/u,
+  'Workspace addApp must update existing optional app entries instead of duplicating app ids',
+);
+assert.match(
+  workspaceViewSource,
+  /onAppSelect\(app\.id\)/u,
+  'Workspace app tiles must pass the selected app id to the shell for direct navigation',
+);
+assert.doesNotMatch(
+  `${workspaceServiceSource}\n${workspaceViewSource}`,
+  /notaryAccessService|canUseNotary|canShowNotaryMenu/u,
+  'Workspace notary entry and navigation must not be hidden behind notary access state',
+);
+assert.doesNotMatch(
+  chatLayoutSource,
+  /notaryAccessService\.canUseNotary/u,
+  'ChatLayout must not use notary access state to block sidebar or workspace navigation',
+);
+assert.match(
+  chatLayoutSource,
+  /case\s+["']notary["']:\s*[\r\n\s]*return\s+<NotaryView\s*\/>/u,
+  'ChatLayout must render the notary module when the configured sidebar or workspace entry selects it',
 );
 assert.match(
   chatLayoutSource,

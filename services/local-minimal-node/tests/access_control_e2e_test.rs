@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -15,60 +16,60 @@ trait AppContextRequestBuilderExt {
 
 impl AppContextRequestBuilderExt for axum::http::request::Builder {
     fn owner_app_context(self) -> Self {
-        self.header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "u_owner")
-            .header("x-sdkwork-actor-kind", "user")
-            .header("x-sdkwork-session-id", "s_owner")
-            .header("x-sdkwork-device-id", "d_owner")
+        self.with_dual_token_tenant("t_demo")
+            .with_dual_token_user("u_owner")
+            .with_dual_token_actor_kind("user")
+            .with_dual_token_session("s_owner")
+            .with_dual_token_device("d_owner")
     }
 
     fn owner_as_agent_app_context(self) -> Self {
-        self.header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "u_owner")
-            .header("x-sdkwork-actor-id", "u_owner")
-            .header("x-sdkwork-actor-kind", "agent")
-            .header("x-sdkwork-session-id", "s_owner")
-            .header("x-sdkwork-device-id", "d_owner")
+        self.with_dual_token_tenant("t_demo")
+            .with_dual_token_user("u_owner")
+            .with_dual_token_actor("u_owner")
+            .with_dual_token_actor_kind("agent")
+            .with_dual_token_session("s_owner")
+            .with_dual_token_device("d_owner")
     }
 
     fn admin_app_context(self) -> Self {
-        self.header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "u_admin")
-            .header("x-sdkwork-actor-kind", "user")
-            .header("x-sdkwork-session-id", "s_admin")
-            .header("x-sdkwork-device-id", "d_admin")
+        self.with_dual_token_tenant("t_demo")
+            .with_dual_token_user("u_admin")
+            .with_dual_token_actor_kind("user")
+            .with_dual_token_session("s_admin")
+            .with_dual_token_device("d_admin")
     }
 
     fn member_app_context(self) -> Self {
-        self.header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "u_member")
-            .header("x-sdkwork-actor-kind", "user")
-            .header("x-sdkwork-session-id", "s_member")
-            .header("x-sdkwork-device-id", "d_member")
+        self.with_dual_token_tenant("t_demo")
+            .with_dual_token_user("u_member")
+            .with_dual_token_actor_kind("user")
+            .with_dual_token_session("s_member")
+            .with_dual_token_device("d_member")
     }
 
     fn intruder_app_context(self) -> Self {
-        self.header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "u_intruder")
-            .header("x-sdkwork-actor-kind", "user")
-            .header("x-sdkwork-session-id", "s_intruder")
-            .header("x-sdkwork-device-id", "d_intruder")
+        self.with_dual_token_tenant("t_demo")
+            .with_dual_token_user("u_intruder")
+            .with_dual_token_actor_kind("user")
+            .with_dual_token_session("s_intruder")
+            .with_dual_token_device("d_intruder")
     }
 
     fn agent_app_context(self) -> Self {
-        self.header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "ag_source")
-            .header("x-sdkwork-actor-kind", "agent")
-            .header("x-sdkwork-session-id", "s_agent")
-            .header("x-sdkwork-device-id", "d_agent")
+        self.with_dual_token_tenant("t_demo")
+            .with_dual_token_user("ag_source")
+            .with_dual_token_actor_kind("agent")
+            .with_dual_token_session("s_agent")
+            .with_dual_token_device("d_agent")
     }
 
     fn system_app_context(self) -> Self {
-        self.header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "svc_ops")
-            .header("x-sdkwork-actor-kind", "system")
-            .header("x-sdkwork-session-id", "s_system")
-            .header("x-sdkwork-device-id", "d_system")
+        self.with_dual_token_tenant("t_demo")
+            .with_dual_token_user("svc_ops")
+            .with_dual_token_actor_kind("system")
+            .with_dual_token_session("s_system")
+            .with_dual_token_device("d_system")
     }
 }
 
@@ -113,11 +114,11 @@ async fn create_owner_friendship_for_test(app: &axum::Router, target_user_id: &s
                 .uri(format!(
                     "/im/v3/api/social/friend_requests/{request_id}/accept"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", target_user_id)
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", format!("s_{target_user_id}"))
-                .header("x-sdkwork-device-id", format!("d_{target_user_id}"))
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user(target_user_id)
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session(format!("s_{target_user_id}"))
+                .with_dual_token_device(format!("d_{target_user_id}"))
                 .body(Body::empty())
                 .unwrap(),
         )

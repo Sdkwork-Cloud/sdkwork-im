@@ -13,6 +13,7 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
     "lint": "node ../../scripts/dev/run-tsc-cli.mjs --noEmit",
+    "test:notary-app-sdk-integration": "node scripts/notary-app-sdk-integration-contract.test.mjs",
     "test:qr-scan-standard": "tsx scripts/qr-scan-standard-contract.test.ts"
   },
   "dependencies": {

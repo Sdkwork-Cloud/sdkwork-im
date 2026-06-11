@@ -39,8 +39,8 @@ import {
   DeviceInfo,
   ALL_APP_MODULES,
   DEFAULT_SIDEBAR_MODULES,
+  ALWAYS_CONFIGURABLE_MODULES,
 } from "../services/SettingsService";
-import { notaryAccessService } from "../services/NotaryAccessService";
 import {
   getSystemNotificationPermission,
   querySystemNotificationPermission,
@@ -86,7 +86,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [serverModules, setServerModules] = useState<string[]>(ALL_APP_MODULES);
-  const [canShowNotaryMenu, setCanShowNotaryMenu] = useState(false);
   const [systemNotificationPermission, setSystemNotificationPermission] =
     useState<SystemNotificationPermission>(() => getSystemNotificationPermission());
 
@@ -95,7 +94,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       settingsService.getSettings().then(setSettings);
       settingsService.getDevices().then(setDevices);
       settingsService.getServerModules().then(setServerModules);
-      notaryAccessService.canShowNotaryMenu(true).then(setCanShowNotaryMenu);
       setSystemNotificationPermission(getSystemNotificationPermission());
       querySystemNotificationPermission()
         .then(setSystemNotificationPermission)
@@ -434,20 +432,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 { id: "favorites", name: "收藏", icon: Star },
                               ];
 
-                              const filterNotaryModules = (modules: typeof configuredAvailable) =>
-                                canShowNotaryMenu ? modules : modules.filter((mod) => mod.id !== "notary");
-
-                              const allAvailable = filterNotaryModules(configuredAvailable).filter(
+                              const allAvailable = configuredAvailable.filter(
                                 (mod) =>
                                   mod.id === "chat" ||
                                   DEFAULT_SIDEBAR_MODULES.includes(mod.id) ||
+                                  ALWAYS_CONFIGURABLE_MODULES.has(mod.id) ||
                                   serverModules.includes(mod.id),
                               );
 
                               const currentModules =
                                 settings.sidebarModules?.length
                                   ? settings.sidebarModules
-                                  : DEFAULT_SIDEBAR_MODULES.filter((moduleId) => canShowNotaryMenu || moduleId !== "notary");
+                                  : DEFAULT_SIDEBAR_MODULES;
                               const currentOrder = currentModules.filter((id) =>
                                 allAvailable.some((m) => m.id === id),
                               );

@@ -320,20 +320,6 @@ fn build_public_browser_cors_layer() -> CorsLayer {
         axum::http::header::AUTHORIZATION.as_str(),
         axum::http::header::CONTENT_TYPE.as_str(),
         "access-token",
-        "x-sdkwork-app-id",
-        "x-sdkwork-tenant-id",
-        "x-sdkwork-organization-id",
-        "x-sdkwork-user-id",
-        "x-sdkwork-session-id",
-        "x-sdkwork-environment",
-        "x-sdkwork-deployment-mode",
-        "x-sdkwork-auth-level",
-        "x-sdkwork-data-scope",
-        "x-sdkwork-actor-id",
-        "x-sdkwork-actor-kind",
-        "x-sdkwork-device-id",
-        "x-sdkwork-permission-scope",
-        "x-sdkwork-context-signature",
     ] {
         if let Ok(parsed) = header_name.parse::<axum::http::header::HeaderName>()
             && !allowed_headers.contains(&parsed)

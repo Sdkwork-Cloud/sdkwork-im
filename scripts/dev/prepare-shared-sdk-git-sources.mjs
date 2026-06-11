@@ -51,6 +51,16 @@ const SOURCE_SPECS = Object.freeze([
     refEnvVar: 'SDKWORK_SHARED_UI_GIT_REF',
   },
   {
+    id: 'sdkwork-drive',
+    repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-drive'),
+    requiredPaths: [
+      'package.json',
+      'sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/package.json',
+    ],
+    repoUrlEnvVar: 'SDKWORK_SHARED_DRIVE_REPO_URL',
+    refEnvVar: 'SDKWORK_SHARED_DRIVE_GIT_REF',
+  },
+  {
     id: 'sdkwork-im-app-sdk',
     repoRoot: path.resolve(defaultRepoRoot, 'sdks', 'sdkwork-im-app-sdk'),
     requiredPaths: ['sdkwork-im-app-sdk-typescript/generated/server-openapi/package.json'],
@@ -70,6 +80,16 @@ const SOURCE_SPECS = Object.freeze([
     requiredPaths: ['sdkwork-im-sdk-typescript/package.json'],
     repoUrlEnvVar: 'SDKWORK_SHARED_IM_SDK_REPO_URL',
     refEnvVar: 'SDKWORK_SHARED_IM_SDK_GIT_REF',
+  },
+  {
+    id: 'sdkwork-notary',
+    repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-notary'),
+    requiredPaths: [
+      'package.json',
+      'sdks/sdkwork-notary-app-sdk/sdkwork-notary-app-sdk-typescript/package.json',
+    ],
+    repoUrlEnvVar: 'SDKWORK_SHARED_NOTARY_REPO_URL',
+    refEnvVar: 'SDKWORK_SHARED_NOTARY_GIT_REF',
   },
   {
     id: 'sdkwork-claw-router',

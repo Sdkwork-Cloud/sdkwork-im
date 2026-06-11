@@ -63,7 +63,6 @@ import {
   type NotificationTextProvider,
 } from "../services/NotificationService";
 import { settingsService, type AppSettings } from "../services/SettingsService";
-import { notaryAccessService, type NotaryAccessState } from "../services/NotaryAccessService";
 import { systemAssistantService } from "../services/SystemAssistantService";
 import { appAuthService, isSdkworkChatDesktopRuntime } from "@sdkwork/clawchat-pc-core";
 import type { Chat, User } from "@sdkwork/clawchat-pc-types";
@@ -91,7 +90,6 @@ const ChatLayoutComponent: React.FC = () => {
   const navigate = useNavigate();
   const shouldRenderDesktopAppHeader = isSdkworkChatDesktopRuntime();
   const [activeTab, setActiveTab] = useState("chat");
-  const [notaryAccess, setNotaryAccess] = useState<NotaryAccessState | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [isChatStartupLoading, setIsChatStartupLoading] = useState(true);
@@ -162,43 +160,8 @@ const ChatLayoutComponent: React.FC = () => {
   }, [activeChat, t]);
   const currentUser = useMemo(() => contactService.getCurrentUser(), []);
 
-  useEffect(() => {
-    let disposed = false;
-    const unsubscribe = notaryAccessService.subscribe((access) => {
-      if (!disposed) {
-        setNotaryAccess(access);
-      }
-    });
-    void notaryAccessService.getAccess(true).then((access) => {
-      if (!disposed) {
-        setNotaryAccess(access);
-      }
-    });
-    return () => {
-      disposed = true;
-      unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === "notary" && notaryAccess?.canUseNotary === false) {
-      setActiveTab("chat");
-    }
-  }, [activeTab, notaryAccess?.canUseNotary]);
-
   const handleTabChange = (tab: string) => {
-    if (tab !== "notary") {
-      setActiveTab(tab);
-      return;
-    }
-    void notaryAccessService.canUseNotary(true).then((canUseNotary) => {
-      if (canUseNotary) {
-        setActiveTab("notary");
-        return;
-      }
-      setActiveTab("chat");
-      toast("Notary access is not enabled for this account.", "error");
-    });
+    setActiveTab(tab);
   };
   const currentUserId = currentUser.id;
   const activeGroupMemberSignature = useMemo(
@@ -1072,7 +1035,7 @@ const ChatLayoutComponent: React.FC = () => {
         return (
           <WorkspaceView
             onAppSelect={(appId) => {
-              if (appId === "notary") handleTabChange("notary");
+              if (appId === "notary") setActiveTab("notary");
               else if (appId === "mail") setActiveTab("mail");
               else if (appId === "drive") setActiveTab("drive");
               else if (appId === "calendar") setActiveTab("calendar");
@@ -1096,7 +1059,7 @@ const ChatLayoutComponent: React.FC = () => {
       case "shop":
         return <ShopView onNavigateToOrders={() => setActiveTab("orders")} />;
       case "notary":
-        return notaryAccess?.canUseNotary === false ? null : <NotaryView />;
+        return <NotaryView />;
       case "mail":
         return <MailView />;
       case "drive":

@@ -130,7 +130,7 @@ Flutter composed workspace presence/contracts.
 This workspace inherits the current SDK release snapshot from
 `artifacts/releases/wave-d-2026-04-08/sdk-release-catalog.json`.
 
-- `state = generated_pending_publication`
+- `state = template_only_pending_generation`
 - `generationStatus = generated`
 - `releaseStatus = not_published`
 - `plannedVersion = null`

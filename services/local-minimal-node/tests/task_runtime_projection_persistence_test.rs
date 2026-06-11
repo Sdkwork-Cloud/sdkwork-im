@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -71,13 +72,10 @@ async fn test_default_local_minimal_profile_initializes_task_runtime_state_witho
         let mut builder = Request::builder()
             .method(method)
             .uri(path)
-            .header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "u_demo")
-            .header("x-sdkwork-actor-kind", "user")
-            .header(
-                "x-sdkwork-permission-scope",
-                "notification.write automation.execute automation.read",
-            );
+            .with_dual_token_tenant("t_demo")
+            .with_dual_token_user("u_demo")
+            .with_dual_token_actor_kind("user")
+            .with_dual_token_permission_scope("notification.write automation.execute automation.read",);
         if method == "POST" {
             builder = builder.header("content-type", "application/json");
         }
@@ -99,10 +97,10 @@ async fn test_default_local_minimal_profile_initializes_task_runtime_state_witho
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/ops/diagnostics")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_ops")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "ops.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_ops")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("ops.read")
                 .body(Body::empty())
                 .unwrap(),
         )

@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -52,11 +53,11 @@ fn signed_presence_request_builder() -> axum::http::request::Builder {
         .uri("/im/v3/api/presence/me")
         .header(axum::http::header::AUTHORIZATION, "Bearer auth_token")
         .header("access-token", "access_token")
-        .header("x-sdkwork-tenant-id", "t_demo")
-        .header("x-sdkwork-user-id", "u_demo")
-        .header("x-sdkwork-actor-kind", "user")
-        .header("x-sdkwork-session-id", "s_demo")
-        .header("x-sdkwork-device-id", "d_demo")
+        .with_dual_token_tenant("t_demo")
+        .with_dual_token_user("u_demo")
+        .with_dual_token_actor_kind("user")
+        .with_dual_token_session("s_demo")
+        .with_dual_token_device("d_demo")
 }
 
 #[tokio::test]

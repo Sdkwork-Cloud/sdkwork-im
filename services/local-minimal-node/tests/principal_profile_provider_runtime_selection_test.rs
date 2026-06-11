@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use std::fs;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
@@ -98,11 +99,11 @@ async fn test_default_app_uses_configured_external_principal_profile_provider() 
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_runtime_external_owner")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_runtime_external_owner")
-                .header("x-sdkwork-session-id", "s_runtime_external_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_runtime_external_owner")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_runtime_external_owner")
+                .with_dual_token_session("s_runtime_external_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -122,11 +123,11 @@ async fn test_default_app_uses_configured_external_principal_profile_provider() 
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_runtime_external_default/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_runtime_external_owner")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_runtime_external_owner")
-                .header("x-sdkwork-session-id", "s_runtime_external_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_runtime_external_owner")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_runtime_external_owner")
+                .with_dual_token_session("s_runtime_external_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -168,11 +169,11 @@ async fn test_default_app_uses_configured_external_principal_profile_provider() 
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_runtime_external_default/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_runtime_external_owner")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_runtime_external_owner")
-                .header("x-sdkwork-session-id", "s_runtime_external_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_runtime_external_owner")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_runtime_external_owner")
+                .with_dual_token_session("s_runtime_external_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -259,11 +260,11 @@ async fn test_default_app_boots_with_external_principal_profile_provider_missing
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_runtime_external_owner")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_runtime_external_owner")
-                .header("x-sdkwork-session-id", "s_runtime_external_owner")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_runtime_external_owner")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_runtime_external_owner")
+                .with_dual_token_session("s_runtime_external_owner")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -333,9 +334,9 @@ async fn test_default_app_boots_with_invalid_principal_profile_provider_mode_and
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/principal/profiles/provider_health")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )

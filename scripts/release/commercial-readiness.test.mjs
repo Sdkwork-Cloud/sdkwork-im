@@ -30,6 +30,8 @@ test('commercial readiness checks cover the verified frontend and backend gate c
       'admin-build',
       'portal-test',
       'portal-build',
+      'dependency-management',
+      'workflow-commercial-gates',
       'control-plane-api-tests',
       'commercial-gate-contract',
       'session-gateway-tests',
@@ -56,6 +58,30 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   assert.deepEqual(
     checks.find((check) => check.id === 'portal-build')?.args,
     ['build'],
+  );
+  assert.deepEqual(
+    checks.find((check) => check.id === 'dependency-management')?.args,
+    ['run', 'check:dependency-management'],
+  );
+  assert.equal(
+    checks.find((check) => check.id === 'dependency-management')?.cwd,
+    repoRoot,
+  );
+  assert.equal(
+    checks.find((check) => check.id === 'dependency-management')?.env?.npm_config_update_notifier,
+    'false',
+  );
+  assert.deepEqual(
+    checks.find((check) => check.id === 'workflow-commercial-gates')?.args,
+    ['run', 'test:workflow-commercial-gates'],
+  );
+  assert.equal(
+    checks.find((check) => check.id === 'workflow-commercial-gates')?.cwd,
+    repoRoot,
+  );
+  assert.equal(
+    checks.find((check) => check.id === 'workflow-commercial-gates')?.env?.npm_config_update_notifier,
+    'false',
   );
   assert.deepEqual(
     checks.find((check) => check.id === 'control-plane-api-tests')?.args,

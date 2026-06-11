@@ -7,10 +7,12 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const expectedDependencyIds = [
   'sdkwork-appbase',
   'sdkwork-core',
+  'sdkwork-drive',
   'sdkwork-ui',
   'sdkwork-rtc',
   'sdkwork-kernel',
   'sdkwork-aiot',
+  'sdkwork-notary',
   'sdkwork-sdk-commons',
   'sdkwork-sdk-generator',
 ];
@@ -70,6 +72,34 @@ function assert(condition, message) {
   if (!condition) {
     failures.push(message);
   }
+}
+
+function listFilesRecursive(rootDir) {
+  const files = [];
+  if (!fs.existsSync(rootDir)) {
+    return files;
+  }
+  for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
+    const entryPath = path.join(rootDir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listFilesRecursive(entryPath));
+      continue;
+    }
+    files.push(entryPath);
+  }
+  return files;
+}
+
+function slashPath(value) {
+  return String(value).replaceAll('\\', '/');
+}
+
+function sdkworkSiblingDependencyIdsFromCargo(relativePath) {
+  const text = readText(relativePath);
+  return [...new Set(
+    [...text.matchAll(/path\s*=\s*"[^"]*\.\.\/(sdkwork-[A-Za-z0-9-]+)(?:[\/\\]|")/g)]
+      .map((match) => match[1]),
+  )].sort();
 }
 
 function assertNoRetiredDependencyModel(relativePath) {
@@ -187,6 +217,130 @@ function assertWorkflowRefs() {
   }
 }
 
+function assertReleaseLifecycleDependencyGate() {
+  const workflow = readJson('sdkwork.workflow.json');
+  const buildLifecycleSource = (workflow.lifecycle?.build || [])
+    .map((step) => step.run || '')
+    .join('\n');
+  assert(
+    /pnpm\s+(?:run\s+)?check:dependency-management/u.test(buildLifecycleSource),
+    'sdkwork.workflow.json build lifecycle must run pnpm check:dependency-management before release packaging so sdkwork-notary and sdkwork-drive app SDK dependency refs are verified in package jobs',
+  );
+}
+
+function assertSharedGatewayFoundationIntegration() {
+  const componentSpec = readJson('specs/component.spec.json');
+  const foundationGateway = componentSpec.integration?.foundationApiGateway;
+
+  assert(
+    foundationGateway?.targetApplication === 'sdkwork-api-gateway',
+    'specs/component.spec.json must declare sdkwork-api-gateway as the shared foundation API gateway target',
+  );
+  assert(
+    foundationGateway?.targetMode === 'shared-gateway',
+    'specs/component.spec.json foundationApiGateway.targetMode must be shared-gateway',
+  );
+  assert(
+    foundationGateway?.commonSdkRootEnv === 'SDKWORK_CHAT_SERVER_API_BASE_URL',
+    'specs/component.spec.json must use SDKWORK_CHAT_SERVER_API_BASE_URL as the server common SDK root',
+  );
+  assert(
+    foundationGateway?.browserSdkRootEnv === 'VITE_CRAW_CHAT_APP_API_BASE_URL',
+    'specs/component.spec.json must use VITE_CRAW_CHAT_APP_API_BASE_URL as the browser app-api gateway root',
+  );
+  assert(
+    foundationGateway?.authority === 'cargo-workspace',
+    'Craw Chat shared gateway integration must use Cargo workspace metadata as build authority',
+  );
+  assert(
+    foundationGateway?.catalogPolicy === 'no-dedicated-gateway-catalog',
+    'Craw Chat must not introduce a standalone gateway catalog',
+  );
+  assert(
+    foundationGateway?.productApiPolicy === 'Craw Chat IM APIs remain product-owned SDKWork API surfaces',
+    'Craw Chat component spec must keep IM APIs product-owned',
+  );
+  assert(
+    foundationGateway?.migrationState === 'legacy-compatible',
+    'Craw Chat local foundation aggregation must be marked as legacy-compatible during migration',
+  );
+
+  const compatibilityComponents = foundationGateway?.legacyCompatibilityComponents ?? [];
+  for (const component of [
+    'services/web-gateway',
+    'crates/craw-chat-gateway-config',
+    'services/local-minimal-node',
+  ]) {
+    assert(
+      compatibilityComponents.includes(component),
+      `Craw Chat gateway migration compatibility must name ${component}`,
+    );
+  }
+
+  const directCargoDependencyIds = sdkworkSiblingDependencyIdsFromCargo('Cargo.toml');
+  const declaredLegacyIds = (foundationGateway?.legacyDirectFoundationRuntimeDependencies ?? [])
+    .map((dependency) => dependency.id)
+    .sort();
+  assert(
+    JSON.stringify(directCargoDependencyIds) === JSON.stringify(declaredLegacyIds),
+    `direct Cargo foundation dependencies must be declared as migration exceptions: Cargo=${directCargoDependencyIds.join(',')} spec=${declaredLegacyIds.join(',')}`,
+  );
+
+  for (const dependency of foundationGateway?.legacyDirectFoundationRuntimeDependencies ?? []) {
+    assert(
+      dependency.authority === 'Cargo.toml',
+      `${dependency.id} migration exception must point back to Cargo.toml`,
+    );
+    assert(
+      typeof dependency.migrationTarget === 'string'
+        && dependency.migrationTarget.startsWith('sdkwork-api-gateway foundation-'),
+      `${dependency.id} must name a sdkwork-api-gateway foundation-* migration target`,
+    );
+  }
+
+  const dependencyApiSurfaces = componentSpec.contracts?.dependencyApiSurfaces ?? [];
+  const sharedGatewaySurfaceIds = dependencyApiSurfaces
+    .filter((surface) => surface.targetRuntimeIntegration?.gatewayApplication === 'sdkwork-api-gateway')
+    .map((surface) => surface.apiAuthority)
+    .sort();
+  const expectedSharedGatewaySurfaceIds = [
+    'sdkwork-appbase-app-api',
+    'sdkwork-agent-app-api',
+    'sdkwork-agent-backend-api',
+    'sdkwork-agent-open-api',
+    'sdkwork-aiot-app-api',
+    'sdkwork-aiot-backend-api',
+    'sdkwork-drive-app-api',
+    'sdkwork-notary-app-api',
+    'sdkwork-rtc-app-api',
+    'sdkwork-rtc-backend-api',
+  ].sort();
+  assert(
+    JSON.stringify(sharedGatewaySurfaceIds) === JSON.stringify(expectedSharedGatewaySurfaceIds),
+    `component spec must declare the current shared-gateway dependency API surface targets, got ${sharedGatewaySurfaceIds.join(',')}`,
+  );
+  for (const surface of dependencyApiSurfaces) {
+    assert(
+      surface.targetRuntimeIntegration?.catalogPolicy === 'no-dedicated-gateway-catalog',
+      `${surface.apiAuthority} must use existing Cargo/spec evidence instead of a standalone gateway catalog`,
+    );
+    assert(
+      surface.currentCompatibility?.mode === 'legacy-web-gateway',
+      `${surface.apiAuthority} must mark the current web-gateway aggregation as migration compatibility`,
+    );
+  }
+
+  const forbiddenGatewayCatalogs = listFilesRecursive(path.join(repoRoot, 'specs'))
+    .map((filePath) => slashPath(path.relative(repoRoot, filePath)))
+    .filter((relativePath) =>
+      /(^|\/)(sdkwork-api-gateway-catalog|api-gateway-catalog|gateway-catalog|foundation-api-catalog)\.(json|ya?ml|toml)$/iu.test(relativePath)
+    );
+  assert(
+    forbiddenGatewayCatalogs.length === 0,
+    `gateway integration must not add standalone gateway catalog files: ${forbiddenGatewayCatalogs.join(', ')}`,
+  );
+}
+
 function assertDocumentation() {
   for (const relativePath of activeDocumentationFiles) {
     assertNativeDependencyFile(relativePath);
@@ -200,6 +354,8 @@ assertDependencyDeclaration();
 assertNoLocalMaterializer();
 assertCiMaterializer();
 assertWorkflowRefs();
+assertReleaseLifecycleDependencyGate();
+assertSharedGatewayFoundationIntegration();
 for (const relativePath of sourceDependencyFiles) {
   assertNativeDependencyFile(relativePath);
 }

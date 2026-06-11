@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -66,9 +67,9 @@ async fn test_open_stream_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -108,9 +109,9 @@ async fn test_standalone_streaming_service_rejects_conversation_scope_over_http(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -159,9 +160,9 @@ async fn test_open_stream_rejects_oversized_stream_id_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -191,9 +192,9 @@ async fn test_open_stream_rejects_oversized_durability_class_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/streams")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

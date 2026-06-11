@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -9,6 +10,37 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tower::ServiceExt;
 
 static UNIQUE_CATALOG_COUNTER: AtomicU64 = AtomicU64::new(0);
+const CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
+    "CRAW_CHAT_CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS";
+
+struct ScopedEnvVar {
+    name: &'static str,
+    previous: Option<String>,
+}
+
+impl ScopedEnvVar {
+    fn set(name: &'static str, value: &str) -> Self {
+        let previous = std::env::var(name).ok();
+        unsafe {
+            std::env::set_var(name, value);
+        }
+        Self { name, previous }
+    }
+}
+
+impl Drop for ScopedEnvVar {
+    fn drop(&mut self) {
+        if let Some(previous) = &self.previous {
+            unsafe {
+                std::env::set_var(self.name, previous);
+            }
+            return;
+        }
+        unsafe {
+            std::env::remove_var(self.name);
+        }
+    }
+}
 
 fn unique_principal_catalog_path() -> PathBuf {
     let unique = SystemTime::now()
@@ -114,7 +146,10 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 
 #[tokio::test]
 async fn test_public_app_rejects_missing_access_token_header_over_http() {
+    let dual_token_env =
+        ScopedEnvVar::set(CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS_ENV, "true");
     let app = conversation_runtime::build_public_app();
+    drop(dual_token_env);
 
     let response = app
         .oneshot(
@@ -122,9 +157,9 @@ async fn test_public_app_rejects_missing_access_token_header_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
                 .header("authorization", "Bearer auth_demo")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -160,9 +195,9 @@ async fn test_create_conversation_and_post_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -182,9 +217,9 @@ async fn test_create_conversation_and_post_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -222,9 +257,9 @@ async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -243,9 +278,9 @@ async fn test_post_media_message_rejects_missing_drive_reference_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_media_missing_drive_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -297,9 +332,9 @@ async fn test_post_media_message_rejects_noncanonical_drive_reference_over_http(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -318,9 +353,9 @@ async fn test_post_media_message_rejects_noncanonical_drive_reference_over_http(
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_media_bad_drive_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -377,9 +412,9 @@ async fn test_post_media_message_rejects_external_url_source_with_drive_referenc
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -398,9 +433,9 @@ async fn test_post_media_message_rejects_external_url_source_with_drive_referenc
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_media_external_url_source_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -459,9 +494,9 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -498,9 +533,9 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -536,9 +571,9 @@ async fn test_duplicate_create_conversation_request_is_idempotent_and_conflictin
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -573,9 +608,9 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -595,9 +630,9 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_http_post_retry/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -631,9 +666,9 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_http_post_retry/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -675,9 +710,9 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_http_post_retry/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -700,9 +735,9 @@ async fn test_duplicate_post_message_request_is_idempotent_and_conflicting_retry
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_http_post_retry/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -737,9 +772,9 @@ async fn test_list_messages_http_returns_bounded_cursor_window() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -760,9 +795,9 @@ async fn test_list_messages_http_returns_bounded_cursor_window() {
                 Request::builder()
                     .method("POST")
                     .uri("/im/v3/api/chat/conversations/c_history_page_http/messages")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_demo")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_demo")
+                    .with_dual_token_actor_kind("user")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -785,9 +820,9 @@ async fn test_list_messages_http_returns_bounded_cursor_window() {
                 .uri(
                     "/im/v3/api/chat/conversations/c_history_page_http/messages?afterSeq=0&limit=1",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -815,9 +850,9 @@ async fn test_list_messages_http_returns_bounded_cursor_window() {
                 .uri(
                     "/im/v3/api/chat/conversations/c_history_page_http/messages?afterSeq=1&limit=1",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -844,9 +879,9 @@ async fn test_list_messages_http_returns_bounded_cursor_window() {
                 .uri(
                     "/im/v3/api/chat/conversations/c_history_page_http/messages?afterSeq=0&limit=0",
                 )
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -873,9 +908,9 @@ async fn test_create_conversation_rejects_unknown_type_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -911,9 +946,9 @@ async fn test_create_conversation_rejects_unknown_user_creator_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "actor_missing")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("actor_missing")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -952,9 +987,9 @@ async fn test_create_conversation_rejects_oversized_conversation_id_over_http() 
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -995,9 +1030,9 @@ async fn test_generic_create_rejects_reserved_special_types_over_http() {
                 Request::builder()
                     .method("POST")
                     .uri("/im/v3/api/chat/conversations")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "svc_ops")
-                    .header("x-sdkwork-actor-kind", "system")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("svc_ops")
+                    .with_dual_token_actor_kind("system")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -1037,9 +1072,9 @@ async fn test_group_create_preserves_actor_kind_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1057,9 +1092,9 @@ async fn test_group_create_preserves_actor_kind_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_group_actor_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1087,9 +1122,9 @@ async fn test_create_agent_dialog_rejects_non_standard_agent_id_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_dialogs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1124,9 +1159,9 @@ async fn test_create_agent_dialog_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_dialogs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1144,9 +1179,9 @@ async fn test_create_agent_dialog_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_agent_dialog_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1189,9 +1224,9 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_dialogs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1228,9 +1263,9 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_dialogs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1266,9 +1301,9 @@ async fn test_duplicate_create_agent_dialog_request_is_idempotent_and_conflictin
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_dialogs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1301,9 +1336,9 @@ async fn test_create_agent_dialog_rejects_non_user_actor_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_dialogs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1339,9 +1374,9 @@ async fn test_create_agent_dialog_rejects_unknown_user_requester_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_dialogs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "actor_missing")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("actor_missing")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1376,9 +1411,9 @@ async fn test_create_agent_handoff_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1399,9 +1434,9 @@ async fn test_create_agent_handoff_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_agent_handoff_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1442,9 +1477,9 @@ async fn test_create_agent_handoff_rejects_non_agent_actor_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1483,9 +1518,9 @@ async fn test_create_agent_handoff_rejects_unknown_user_target_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1524,9 +1559,9 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1566,9 +1601,9 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1607,9 +1642,9 @@ async fn test_duplicate_create_agent_handoff_request_is_idempotent_and_conflicti
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1646,9 +1681,9 @@ async fn test_agent_handoff_target_can_post_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1670,9 +1705,9 @@ async fn test_agent_handoff_target_can_post_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_agent_handoff_post_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1698,9 +1733,9 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1722,9 +1757,9 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_agent_handoff_lifecycle_http/agent_handoff")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1747,9 +1782,9 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_agent_handoff_lifecycle_http/agent_handoff/accept")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -1774,9 +1809,9 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_agent_handoff_lifecycle_http/agent_handoff/resolve")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -1800,9 +1835,9 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_agent_handoff_lifecycle_http/agent_handoff/close")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -1825,9 +1860,9 @@ async fn test_agent_handoff_accept_resolve_close_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_agent_handoff_lifecycle_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1862,9 +1897,9 @@ async fn test_agent_handoff_accept_rejects_non_target_actor_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/agent_handoffs")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1886,9 +1921,9 @@ async fn test_agent_handoff_accept_rejects_non_target_actor_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_agent_handoff_accept_invalid_http/agent_handoff/accept")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "ag_source")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("ag_source")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::empty())
                 .unwrap(),
@@ -1908,9 +1943,9 @@ async fn test_create_system_channel_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1928,9 +1963,9 @@ async fn test_create_system_channel_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_system_channel_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1971,9 +2006,9 @@ async fn test_create_system_channel_rejects_non_system_actor_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2009,9 +2044,9 @@ async fn test_create_system_channel_rejects_unknown_user_subscriber_over_http() 
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2047,9 +2082,9 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2086,9 +2121,9 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2124,9 +2159,9 @@ async fn test_duplicate_create_system_channel_request_is_idempotent_and_conflict
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2160,9 +2195,9 @@ async fn test_system_channel_subscriber_cannot_post_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2181,9 +2216,9 @@ async fn test_system_channel_subscriber_cannot_post_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_system_channel_post_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2218,9 +2253,9 @@ async fn test_system_channel_publisher_must_use_dedicated_publish_route_over_htt
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2239,9 +2274,9 @@ async fn test_system_channel_publisher_must_use_dedicated_publish_route_over_htt
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_system_channel_publish_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2276,9 +2311,9 @@ async fn test_system_channel_dedicated_publish_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/system_channels")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2298,9 +2333,9 @@ async fn test_system_channel_dedicated_publish_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_system_channel_publish_http_dedicated/system_channel/publish")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_ops")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_ops")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2329,9 +2364,9 @@ async fn test_system_channel_dedicated_publish_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_system_channel_publish_http_dedicated/system_channel/publish")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2366,9 +2401,9 @@ async fn test_post_message_accepts_structured_parts_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2387,9 +2422,9 @@ async fn test_post_message_accepts_structured_parts_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_media_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2450,9 +2485,9 @@ async fn test_post_message_rejects_oversized_text_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2478,9 +2513,9 @@ async fn test_post_message_rejects_oversized_text_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_http_oversized_text/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -2516,9 +2551,9 @@ async fn test_post_message_rejects_oversized_sender_session_id_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2537,10 +2572,10 @@ async fn test_post_message_rejects_oversized_sender_session_id_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_http_oversized_sender_session/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s".repeat(257))
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("s".repeat(257))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2582,9 +2617,9 @@ async fn test_add_member_rejects_oversized_attributes_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2613,9 +2648,9 @@ async fn test_add_member_rejects_oversized_attributes_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_member_attributes_http/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(oversized_request))
                 .unwrap(),
@@ -2653,9 +2688,9 @@ async fn test_add_member_rejects_unknown_user_principal_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2674,9 +2709,9 @@ async fn test_add_member_rejects_unknown_user_principal_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_members_unknown_principal_http/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2712,9 +2747,9 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2733,9 +2768,9 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_members_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2759,9 +2794,9 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_members_http/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2794,9 +2829,9 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_members_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2819,9 +2854,9 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_members_http/members/remove")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2847,9 +2882,9 @@ async fn test_conversation_member_endpoints_manage_roster_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_members_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -2878,9 +2913,9 @@ async fn test_group_member_governance_over_http_rejects_actor_kind_mismatch() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2900,9 +2935,9 @@ async fn test_group_member_governance_over_http_rejects_actor_kind_mismatch() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_members_actor_kind_http/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2937,9 +2972,9 @@ async fn test_group_member_can_leave_roster_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2959,9 +2994,9 @@ async fn test_group_member_can_leave_roster_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_members_leave_http/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2982,9 +3017,9 @@ async fn test_group_member_can_leave_roster_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_members_leave_http/members/leave")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_member")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_member")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3005,9 +3040,9 @@ async fn test_group_member_can_leave_roster_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_members_leave_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3036,9 +3071,9 @@ async fn test_group_owner_transfer_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3058,9 +3093,9 @@ async fn test_group_owner_transfer_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_members_transfer_http/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3081,9 +3116,9 @@ async fn test_group_owner_transfer_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_members_transfer_http/members/transfer_owner")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3112,9 +3147,9 @@ async fn test_group_owner_transfer_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_members_transfer_http/members/leave")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3126,9 +3161,9 @@ async fn test_group_owner_transfer_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_members_transfer_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_member")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_member")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3158,9 +3193,9 @@ async fn test_change_member_role_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3180,9 +3215,9 @@ async fn test_change_member_role_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_members_role_http/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3203,9 +3238,9 @@ async fn test_change_member_role_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_members_role_http/members/change_role")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3233,9 +3268,9 @@ async fn test_change_member_role_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_members_role_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3269,9 +3304,9 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3292,9 +3327,9 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
                 Request::builder()
                     .method("POST")
                     .uri("/im/v3/api/chat/conversations/c_members_window_http/members/add")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_owner")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_owner")
+                    .with_dual_token_actor_kind("user")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -3315,9 +3350,9 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_members_window_http/members?limit=2")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3346,9 +3381,9 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
                 .uri(format!(
                     "/im/v3/api/chat/conversations/c_members_window_http/members?limit=2&cursor={next_cursor}"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3381,9 +3416,9 @@ async fn test_list_members_returns_bounded_cursor_window_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_members_window_http/members?limit=0")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3411,9 +3446,9 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3433,9 +3468,9 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_cursor_http/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3457,9 +3492,9 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
                 Request::builder()
                     .method("POST")
                     .uri("/im/v3/api/chat/conversations/c_cursor_http/messages")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_member")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_member")
+                    .with_dual_token_actor_kind("user")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -3480,9 +3515,9 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_cursor_http/read_cursor")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -3506,9 +3541,9 @@ async fn test_read_cursor_endpoints_expose_unread_progress_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_cursor_http/read_cursor")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3543,9 +3578,9 @@ async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3565,9 +3600,9 @@ async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_cursor_actor_kind_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3587,9 +3622,9 @@ async fn test_read_cursor_over_http_rejects_actor_kind_mismatch() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_cursor_actor_kind_http/read_cursor")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "agent")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("agent")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3623,9 +3658,9 @@ async fn test_edit_and_recall_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3645,9 +3680,9 @@ async fn test_edit_and_recall_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_edit_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3668,9 +3703,9 @@ async fn test_edit_and_recall_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/messages/msg_c_edit_http_1/edit")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3699,9 +3734,9 @@ async fn test_edit_and_recall_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/messages/msg_c_edit_http_1/recall")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -3731,9 +3766,9 @@ async fn test_reaction_and_pin_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3753,9 +3788,9 @@ async fn test_reaction_and_pin_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_reaction_pin_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3776,9 +3811,9 @@ async fn test_reaction_and_pin_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/messages/msg_c_reaction_pin_http_1/reactions")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3809,9 +3844,9 @@ async fn test_reaction_and_pin_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/messages/msg_c_reaction_pin_http_1/pin")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -3837,9 +3872,9 @@ async fn test_reaction_and_pin_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/messages/msg_c_reaction_pin_http_1/unpin")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -3853,9 +3888,9 @@ async fn test_reaction_and_pin_message_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/messages/msg_c_reaction_pin_http_1/reactions/remove")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3879,9 +3914,9 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3905,9 +3940,9 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_policy_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3928,9 +3963,9 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/messages/msg_c_policy_http_1/reactions")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -3948,9 +3983,9 @@ async fn test_create_conversation_with_business_policy_disables_pin_over_http() 
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/messages/msg_c_policy_http_1/pin")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),
@@ -3979,9 +4014,9 @@ async fn test_joined_history_visibility_blocks_non_member_history_reads_over_htt
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4004,9 +4039,9 @@ async fn test_joined_history_visibility_blocks_non_member_history_reads_over_htt
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_history_joined_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4026,9 +4061,9 @@ async fn test_joined_history_visibility_blocks_non_member_history_reads_over_htt
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_history_joined_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_outsider")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_outsider")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4056,9 +4091,9 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4081,9 +4116,9 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_history_world_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4103,9 +4138,9 @@ async fn test_world_readable_history_visibility_allows_non_member_history_reads_
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_history_world_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_outsider")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_outsider")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4140,9 +4175,9 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/direct_chats/bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_control")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_control")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4175,9 +4210,9 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_direct_binding_http/binding")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_control")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_control")
+                .with_dual_token_actor_kind("system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4200,10 +4235,10 @@ async fn test_bind_direct_chat_conversation_over_http_and_query_binding() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_direct_binding_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "actor_a")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("actor_a")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4233,9 +4268,9 @@ async fn test_bind_direct_chat_conversation_rejects_unknown_user_participant_ove
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/direct_chats/bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_control")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_control")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4293,9 +4328,9 @@ async fn test_bind_direct_chat_conversation_rejects_unknown_user_participant_wit
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/direct_chats/bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_control")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_control")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4336,9 +4371,9 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/direct_chats/bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_control")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_control")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4379,9 +4414,9 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/direct_chats/bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_control")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_control")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4418,9 +4453,9 @@ async fn test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/direct_chats/bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "svc_control")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("svc_control")
+                .with_dual_token_actor_kind("system")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4458,9 +4493,9 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4480,9 +4515,9 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_parent_thread_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4511,9 +4546,9 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/threads")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{
@@ -4544,9 +4579,9 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_thread_http/binding")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4570,9 +4605,9 @@ async fn test_create_thread_conversation_over_http_and_query_binding() {
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_thread_http/members")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4612,9 +4647,9 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4634,9 +4669,9 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_parent_thread_retry_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4665,9 +4700,9 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_parent_thread_retry_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4696,9 +4731,9 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/threads")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{
@@ -4737,9 +4772,9 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/threads")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{
@@ -4777,9 +4812,9 @@ async fn test_duplicate_create_thread_conversation_request_is_idempotent_and_con
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/threads")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(format!(
                     r#"{{
@@ -4814,9 +4849,9 @@ async fn test_bind_direct_chat_conversation_rejects_non_system_actor_over_http()
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/direct_chats/bindings")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4856,9 +4891,9 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4881,9 +4916,9 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_history_invited_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4904,9 +4939,9 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_history_invited_http/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4936,9 +4971,9 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_history_invited_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_invited")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_invited")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -4967,9 +5002,9 @@ async fn test_invited_history_visibility_allows_invited_member_history_reads_bef
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_history_invited_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_outsider")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_outsider")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5001,9 +5036,9 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5026,9 +5061,9 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_history_shared_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5049,9 +5084,9 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_history_shared_http/members/add")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5090,9 +5125,9 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_history_shared_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_partner_external")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_partner_external")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5122,9 +5157,9 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_history_shared_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_partner_external")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_partner_external")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5153,9 +5188,9 @@ async fn test_shared_history_visibility_allows_external_linked_history_reads_but
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_history_shared_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_outsider")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_outsider")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5186,9 +5221,9 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5211,9 +5246,9 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/c_history_shared_sync_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5234,13 +5269,10 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/shared_channel_links/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "control-plane-sync")
-                .header("x-sdkwork-actor-kind", "system")
-                .header(
-                    "x-sdkwork-permission-scope",
-                    "conversation.shared_channel.sync",
-                )
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("control-plane-sync")
+                .with_dual_token_actor_kind("system")
+                .with_dual_token_permission_scope("conversation.shared_channel.sync",)
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5294,9 +5326,9 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
             Request::builder()
                 .method("GET")
                 .uri("/im/v3/api/chat/conversations/c_history_shared_sync_http/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_partner_external_sync")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_partner_external_sync")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -5326,10 +5358,10 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/shared_channel_links/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "control-plane-sync")
-                .header("x-sdkwork-actor-kind", "system")
-                .header("x-sdkwork-permission-scope", "conversation.shared_channel.sync")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("control-plane-sync")
+                .with_dual_token_actor_kind("system")
+                .with_dual_token_permission_scope("conversation.shared_channel.sync")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5379,9 +5411,9 @@ async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5403,13 +5435,10 @@ async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/shared_channel_links/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "control-plane-sync")
-                .header("x-sdkwork-actor-kind", "system")
-                .header(
-                    "x-sdkwork-permission-scope",
-                    "conversation.shared_channel.sync",
-                )
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("control-plane-sync")
+                .with_dual_token_actor_kind("system")
+                .with_dual_token_permission_scope("conversation.shared_channel.sync",)
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5448,9 +5477,9 @@ async fn test_shared_history_sync_rejects_oversized_local_actor_kind_over_http()
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5482,13 +5511,10 @@ async fn test_shared_history_sync_rejects_oversized_local_actor_kind_over_http()
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations/shared_channel_links/sync")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "control-plane-sync")
-                .header("x-sdkwork-actor-kind", "system")
-                .header(
-                    "x-sdkwork-permission-scope",
-                    "conversation.shared_channel.sync",
-                )
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("control-plane-sync")
+                .with_dual_token_actor_kind("system")
+                .with_dual_token_permission_scope("conversation.shared_channel.sync",)
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/status-local.ps1 [-ProfileName <local-minimal|local-default>] [-RuntimeDir <path>]"
-    Write-Host "Usage: cmd /c .\bin\status-local.cmd [--profile <local-minimal|local-default>] [--runtime-dir <path>]"
+    Write-Host "Usage: cmd /c .\bin\status-local.cmd [--profile <local-minimal|local-default>] [--runtime-dir|--runtime_dir <path>]"
     Write-Host "Show local-minimal-node pid, config, stdout/stderr logs, health status, and the next runtime-dir inspection/repair/list/archive/prune/preview/restore steps."
     exit 0
 }

@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use http_body_util::BodyExt;
@@ -18,11 +19,11 @@ async fn post_json(
             Request::builder()
                 .method("POST")
                 .uri(path.as_ref())
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "sdkwork_iam_session_demo")
-                .header("x-sdkwork-device-id", "d_demo")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("sdkwork_iam_session_demo")
+                .with_dual_token_device("d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(body))
                 .expect("request should build"),
@@ -63,12 +64,12 @@ async fn request_json(
                 .uri(path.as_ref())
                 .header(axum::http::header::AUTHORIZATION, "Bearer auth-token")
                 .header("access-token", "access-token")
-                .header("x-sdkwork-app-id", "sdkwork-craw-chat-pc")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "sdkwork_iam_session_demo")
-                .header("x-sdkwork-device-id", "d_demo")
+                .with_dual_token_app("sdkwork-craw-chat-pc")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("sdkwork_iam_session_demo")
+                .with_dual_token_device("d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(body))
                 .expect("request should build"),

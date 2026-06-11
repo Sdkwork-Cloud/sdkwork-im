@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -67,10 +68,10 @@ async fn test_record_list_and_export_audit_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -92,10 +93,10 @@ async fn test_record_list_and_export_audit_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -120,10 +121,10 @@ async fn test_record_list_and_export_audit_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/export")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -145,10 +146,10 @@ async fn test_record_list_and_export_audit_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/verify")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -187,10 +188,10 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
                 Request::builder()
                     .method("POST")
                     .uri("/backend/v3/api/audit/records")
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_demo")
-                    .header("x-sdkwork-actor-kind", "user")
-                    .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_demo")
+                    .with_dual_token_actor_kind("user")
+                    .with_dual_token_permission_scope("audit.write,audit.read")
                     .header("content-type", "application/json")
                     .body(Body::from(format!(
                         r#"{{
@@ -213,10 +214,10 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/records?afterAuditSeq=0&limit=2")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -241,10 +242,10 @@ async fn test_record_list_returns_bounded_audit_seq_cursor_window_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/records?afterAuditSeq=2&limit=2")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -279,10 +280,10 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -318,10 +319,10 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -356,10 +357,10 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -381,10 +382,10 @@ async fn test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retr
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -422,11 +423,11 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_before")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("s_before")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -458,11 +459,11 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-session-id", "s_after")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_session("s_after")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -496,10 +497,10 @@ async fn test_duplicate_record_anchor_request_replays_after_session_rotation() {
         .oneshot(
             Request::builder()
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -534,10 +535,10 @@ async fn test_record_audit_rejects_oversized_payload_over_http() {
             Request::builder()
                 .method("POST")
                 .uri("/backend/v3/api/audit/records")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-permission-scope", "audit.write,audit.read")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("audit.write,audit.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

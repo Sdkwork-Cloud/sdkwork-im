@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use std::sync::Arc;
 
 use axum::body::Body;
@@ -60,11 +61,11 @@ async fn test_realtime_events_returns_503_when_checkpoint_store_load_fails() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=10")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_demo")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_demo")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -109,11 +110,11 @@ async fn test_realtime_ack_returns_503_when_checkpoint_store_save_fails() {
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/events/ack")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_demo")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"ackedSeq":0}"#))
                 .unwrap(),
@@ -172,11 +173,11 @@ async fn test_realtime_ack_preserves_existing_route_when_checkpoint_store_save_f
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/realtime/events/ack")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
-                .header("x-sdkwork-device-id", "d_pad")
-                .header("x-sdkwork-session-id", "s_demo")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
+                .with_dual_token_device("d_pad")
+                .with_dual_token_session("s_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"ackedSeq":0}"#))
                 .unwrap(),

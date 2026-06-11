@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -52,10 +53,10 @@ fn signed_contacts_request_builder() -> axum::http::request::Builder {
         .uri("/im/v3/api/chat/contacts")
         .header(axum::http::header::AUTHORIZATION, "Bearer auth_token")
         .header("access-token", "access_token")
-        .header("x-sdkwork-tenant-id", "t_demo")
-        .header("x-sdkwork-user-id", "u_demo")
-        .header("x-sdkwork-actor-kind", "user")
-        .header("x-sdkwork-session-id", "sdkwork_iam_session_demo")
+        .with_dual_token_tenant("t_demo")
+        .with_dual_token_user("u_demo")
+        .with_dual_token_actor_kind("user")
+        .with_dual_token_session("sdkwork_iam_session_demo")
 }
 
 #[tokio::test]

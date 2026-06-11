@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -23,10 +24,10 @@ trait AppContextRequestBuilderExt {
 
 impl AppContextRequestBuilderExt for axum::http::request::Builder {
     fn demo_app_context(self) -> Self {
-        self.header("x-sdkwork-tenant-id", "t_demo")
-            .header("x-sdkwork-user-id", "u_demo")
-            .header("x-sdkwork-actor-kind", "user")
-            .header("x-sdkwork-session-id", "s_demo")
+        self.with_dual_token_tenant("t_demo")
+            .with_dual_token_user("u_demo")
+            .with_dual_token_actor_kind("user")
+            .with_dual_token_session("s_demo")
     }
 }
 

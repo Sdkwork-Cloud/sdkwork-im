@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
@@ -11,9 +12,9 @@ async fn test_local_minimal_profile_gets_media_provider_health_over_http() {
         .oneshot(
             Request::builder()
                 .uri("/app/v3/api/media/provider_health")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -59,9 +60,9 @@ async fn test_local_minimal_profile_does_not_expose_app_local_media_lifecycle_ro
                 Request::builder()
                     .method(method)
                     .uri(path)
-                    .header("x-sdkwork-tenant-id", "t_demo")
-                    .header("x-sdkwork-user-id", "u_demo")
-                    .header("x-sdkwork-actor-kind", "user")
+                    .with_dual_token_tenant("t_demo")
+                    .with_dual_token_user("u_demo")
+                    .with_dual_token_actor_kind("user")
                     .body(Body::empty())
                     .unwrap(),
             )

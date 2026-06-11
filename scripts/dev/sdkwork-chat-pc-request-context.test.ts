@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import {
-  buildSdkworkChatAppContextHeaders,
   createSdkworkChatRequestContext,
   createSdkworkChatRequestContextInterceptors,
   resolveAppSdkOrganizationId,
@@ -13,7 +12,7 @@ import {
 function createJwt(payload: Record<string, unknown>): string {
   const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  return `${header}.${body}.`;
+  return `${header}.${body}.local`;
 }
 
 async function main(): Promise<void> {
@@ -32,7 +31,6 @@ async function main(): Promise<void> {
       actor_id: 'actor-from-access-token',
       actor_kind: 'user',
       device_id: 'device-from-access-token',
-      context_signature: 'signed-context-from-access-token',
     }),
     authToken: createJwt({
       appId: 'sdkwork-chat-pc-auth',
@@ -58,22 +56,22 @@ async function main(): Promise<void> {
   assert.equal(
     resolveAppSdkTenantId(session),
     'tenant-from-access-token',
-    'request context tenant id must come from the JWT claims instead of stale session params',
+    'request context tenant id must come from token claims instead of stale session params',
   );
   assert.equal(
     resolveAppSdkOrganizationId(session),
     'org-from-access-token',
-    'request context organization id must come from the JWT claims instead of stale session params',
+    'request context organization id must come from token claims instead of stale session params',
   );
   assert.equal(
     resolveAppSdkUserId(session),
     'user-from-access-token',
-    'request context user id must come from the JWT claims when present',
+    'request context user id must come from token claims when present',
   );
   assert.equal(
     resolveAppSdkSessionId(session),
     'session-from-access-token',
-    'request context session id must come from the JWT claims when present',
+    'request context session id must come from token claims when present',
   );
 
   assert.deepEqual(
@@ -92,30 +90,8 @@ async function main(): Promise<void> {
       actorId: 'actor-from-access-token',
       actorKind: 'user',
       deviceId: 'device-from-access-token',
-      contextSignature: 'signed-context-from-access-token',
     },
-    'shared SDK wrapper must encapsulate JWT claims into one request Context instance',
-  );
-
-  assert.deepEqual(
-    buildSdkworkChatAppContextHeaders(session),
-    {
-      'X-Sdkwork-App-Id': 'sdkwork-chat-pc',
-      'X-Sdkwork-Tenant-Id': 'tenant-from-access-token',
-      'X-Sdkwork-Organization-Id': 'org-from-access-token',
-      'X-Sdkwork-User-Id': 'user-from-access-token',
-      'X-Sdkwork-Session-Id': 'session-from-access-token',
-      'X-Sdkwork-Environment': 'prod',
-      'X-Sdkwork-Deployment-Mode': 'private',
-      'X-Sdkwork-Auth-Level': 'mfa',
-      'X-Sdkwork-Actor-Id': 'actor-from-access-token',
-      'X-Sdkwork-Actor-Kind': 'user',
-      'X-Sdkwork-Device-Id': 'device-from-access-token',
-      'X-Sdkwork-Data-Scope': 'iam.organization.read,iam.department.read',
-      'X-Sdkwork-Permission-Scope': 'iam.member.manage',
-      'X-Sdkwork-Context-Signature': 'signed-context-from-access-token',
-    },
-    'SDK wrappers must build one request Context from JWT claims and expose it as standard headers',
+    'shared SDK wrapper must expose token-derived request context for UI state only',
   );
 
   const [contextInterceptor] = createSdkworkChatRequestContextInterceptors(session).request;
@@ -124,7 +100,6 @@ async function main(): Promise<void> {
       url: '/app/v3/api/iam/departments',
       method: 'GET',
       headers: {
-        'X-Sdkwork-Tenant-Id': 'stale-tenant-header',
         'X-Feature-Header': 'keep-me',
       },
     }),
@@ -133,27 +108,13 @@ async function main(): Promise<void> {
       method: 'GET',
       headers: {
         'X-Feature-Header': 'keep-me',
-        'X-Sdkwork-App-Id': 'sdkwork-chat-pc',
-        'X-Sdkwork-Tenant-Id': 'tenant-from-access-token',
-        'X-Sdkwork-Organization-Id': 'org-from-access-token',
-        'X-Sdkwork-User-Id': 'user-from-access-token',
-        'X-Sdkwork-Session-Id': 'session-from-access-token',
-        'X-Sdkwork-Environment': 'prod',
-        'X-Sdkwork-Deployment-Mode': 'private',
-        'X-Sdkwork-Auth-Level': 'mfa',
-        'X-Sdkwork-Actor-Id': 'actor-from-access-token',
-        'X-Sdkwork-Actor-Kind': 'user',
-        'X-Sdkwork-Device-Id': 'device-from-access-token',
-        'X-Sdkwork-Data-Scope': 'iam.organization.read,iam.department.read',
-        'X-Sdkwork-Permission-Scope': 'iam.member.manage',
-        'X-Sdkwork-Context-Signature': 'signed-context-from-access-token',
       },
     },
-    'request interceptor must recreate Context headers for every SDK request and override stale request context headers',
+    'request interceptor must not synthesize app context headers; auth is owned by the shared TokenManager',
   );
 
   assert.deepEqual(
-    buildSdkworkChatAppContextHeaders({
+    createSdkworkChatRequestContext({
       authToken: createJwt({
         appId: 'sdkwork-chat-pc',
         tenantId: 'tenant-from-auth-token',
@@ -163,13 +124,13 @@ async function main(): Promise<void> {
       }),
     }),
     {
-      'X-Sdkwork-App-Id': 'sdkwork-chat-pc',
-      'X-Sdkwork-Tenant-Id': 'tenant-from-auth-token',
-      'X-Sdkwork-Organization-Id': 'org-from-auth-token',
-      'X-Sdkwork-User-Id': 'user-from-subject',
-      'X-Sdkwork-Session-Id': 'session-from-auth-token',
+      appId: 'sdkwork-chat-pc',
+      tenantId: 'tenant-from-auth-token',
+      organizationId: 'org-from-auth-token',
+      userId: 'user-from-subject',
+      sessionId: 'session-from-auth-token',
     },
-    'auth token claims must also be sufficient to build the request Context when access token claims are absent',
+    'auth token claims remain available to local UI context readers when access token claims are absent',
   );
 
   console.log('sdkwork-chat-pc request context contract passed');

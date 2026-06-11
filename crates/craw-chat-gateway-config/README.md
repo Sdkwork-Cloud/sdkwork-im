@@ -19,6 +19,13 @@ This README is the SDKWork module entrypoint for `craw-chat-gateway-config`. The
 
 Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
 
+Split mode defaults Appbase, Drive, and Notary foundation upstreams to the shared
+`sdkwork-api-gateway` root. `CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL` and
+`SDKWORK_API_GATEWAY_BASE_URL` override that root; `SDKWORK_API_GATEWAY_BIND` derives a local
+`http://<bind>` root when no base URL is set. Per-surface upstream keys such as
+`CRAW_CHAT_APPBASE_APP_API_UPSTREAM`, `CRAW_CHAT_DRIVE_APP_API_UPSTREAM`, and
+`CRAW_CHAT_NOTARY_APP_API_UPSTREAM` are explicit split-deployment overrides.
+
 ## SaaS/Private/Local Behavior
 
 This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.

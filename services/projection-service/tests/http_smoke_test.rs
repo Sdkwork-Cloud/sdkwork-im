@@ -1,3 +1,4 @@
+use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header::CONTENT_TYPE};
 use http_body_util::BodyExt;
@@ -313,9 +314,9 @@ async fn test_timeline_query_returns_projected_messages() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_demo/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -340,9 +341,9 @@ async fn test_timeline_query_returns_projected_messages() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_demo")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -367,9 +368,9 @@ async fn test_timeline_query_returns_projected_messages() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_demo/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_intruder")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_intruder")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -431,9 +432,9 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=0&limit=2")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -459,9 +460,9 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=2&limit=2")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -485,9 +486,9 @@ async fn test_timeline_http_returns_bounded_cursor_window() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_timeline_page/messages?afterSeq=0&limit=0")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -590,9 +591,9 @@ async fn test_timeline_query_rejects_same_actor_id_with_different_actor_kind_ove
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_actor_kind_guard/messages")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -750,9 +751,9 @@ async fn test_read_cursor_query_returns_projected_cursor_view() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_cursor/read_cursor")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -862,9 +863,9 @@ async fn test_inbox_query_returns_projected_entries() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/inbox")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -960,9 +961,9 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/inbox?limit=2")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -992,9 +993,9 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
                 .uri(format!(
                     "/im/v3/api/chat/inbox?limit=2&cursor={next_cursor}"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1018,9 +1019,9 @@ async fn test_inbox_query_returns_bounded_cursor_window() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/inbox?limit=0")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1049,9 +1050,9 @@ async fn test_timeline_query_rejects_oversized_conversation_id_over_http() {
                     "/im/v3/api/chat/conversations/{}/messages",
                     "c".repeat(2048)
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1116,9 +1117,9 @@ async fn test_interaction_summary_rejects_oversized_message_id_over_http() {
                     "/im/v3/api/chat/conversations/c_limit_interaction/messages/{}/interaction_summary",
                     "m".repeat(2048)
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_demo")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_demo")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1208,9 +1209,9 @@ async fn test_member_directory_query_returns_projected_members() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_directory/member_directory")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1271,9 +1272,9 @@ async fn test_contacts_query_returns_friendship_projection_with_direct_chat_enri
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1328,9 +1329,9 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts?limit=2")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1360,9 +1361,9 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
                 .uri(format!(
                     "/im/v3/api/chat/contacts?limit=2&cursor={next_cursor}"
                 ))
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1386,9 +1387,9 @@ async fn test_contacts_query_returns_bounded_cursor_window() {
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts?limit=0")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1433,9 +1434,9 @@ async fn test_contacts_query_rejects_same_actor_id_with_different_actor_kind_ove
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/contacts")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_alice")
-                .header("x-sdkwork-actor-kind", "system")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_alice")
+                .with_dual_token_actor_kind("system")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1584,9 +1585,9 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_interaction_http/messages/msg_c_interaction_http_1/interaction_summary")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_owner")
-                    .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_owner")
+                    .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1618,9 +1619,9 @@ async fn test_interaction_summary_and_pins_query_return_projected_reaction_and_p
         .oneshot(
             Request::builder()
                 .uri("/im/v3/api/chat/conversations/c_interaction_http/pins")
-                .header("x-sdkwork-tenant-id", "t_demo")
-                .header("x-sdkwork-user-id", "u_member")
-                .header("x-sdkwork-actor-kind", "user")
+                .with_dual_token_tenant("t_demo")
+                .with_dual_token_user("u_member")
+                .with_dual_token_actor_kind("user")
                 .body(Body::empty())
                 .unwrap(),
         )

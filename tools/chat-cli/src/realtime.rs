@@ -18,7 +18,7 @@ use tokio_tungstenite::tungstenite::client::ClientRequestBuilder;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 use crate::command::CommandContext;
-use crate::{CliError, build_websocket_url, resolve_authorization_header};
+use crate::{CliError, build_websocket_url, resolve_access_token, resolve_authorization_header};
 
 const REALTIME_WS_PATH: &str = "/im/v3/api/realtime/ws";
 
@@ -217,22 +217,11 @@ pub(crate) async fn connect_realtime_socket(
             CliError::runtime(format!("failed to parse websocket url: {error}"))
         })?)
         .with_sub_protocol(CCP_WS_SUBPROTOCOL);
+    let access_token = resolve_access_token(&context.auth)?;
+    let authorization = resolve_authorization_header(&context.auth)?;
     request = request
-        .with_header("x-sdkwork-tenant-id", context.auth.tenant_id.as_str())
-        .with_header("x-sdkwork-user-id", context.auth.user_id.as_str())
-        .with_header("x-sdkwork-actor-id", context.auth.user_id.as_str())
-        .with_header("x-sdkwork-actor-kind", context.auth.actor_kind.as_str())
-        .with_header("x-sdkwork-session-id", context.auth.session_id.as_str())
-        .with_header("x-sdkwork-device-id", context.auth.device_id.as_str());
-    if !context.auth.permissions.is_empty() {
-        request = request.with_header(
-            "x-sdkwork-permission-scope",
-            context.auth.permissions.join(" "),
-        );
-    }
-    if let Some(authorization) = resolve_authorization_header(&context.auth) {
-        request = request.with_header("authorization", authorization.as_str());
-    }
+        .with_header("authorization", authorization.as_str())
+        .with_header("access-token", access_token.as_str());
 
     let (mut socket, response) = connect_async(request).await.map_err(|error| {
         format_realtime_connect_error(context.base_url.as_str(), &ws_url, error)

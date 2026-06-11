@@ -23,7 +23,6 @@ export interface SdkworkChatSessionTokens {
 export interface SdkworkChatAppContext extends IamAppContext {
   actorId?: string;
   actorKind?: string;
-  contextSignature?: string;
   deviceId?: string;
 }
 
@@ -42,25 +41,6 @@ export type SdkworkChatRequestContext = Partial<SdkworkChatAppContext>;
 
 const SDKWORK_CHAT_SESSION_KEY = 'sdkwork-chat-pc:session:v1';
 export const SDKWORK_CHAT_SESSION_CHANGED_EVENT = 'sdkwork-chat-pc:auth-session-changed';
-const SDKWORK_CHAT_CONTEXT_HEADER_NAMES = new Set([
-  'x-sdkwork-app-id',
-  'x-sdkwork-tenant-id',
-  'x-sdkwork-organization-id',
-  'x-sdkwork-user-id',
-  'x-sdkwork-session-id',
-  'x-sdkwork-environment',
-  'x-sdkwork-deployment-mode',
-  'x-sdkwork-auth-level',
-  'x-sdkwork-actor-id',
-  'x-sdkwork-actor-kind',
-  'x-sdkwork-device-id',
-  'x-sdkwork-data-scope',
-  'x-sdkwork-permission-scope',
-  'x-sdkwork-context-signature',
-  'x-tenant-id',
-  'x-organization-id',
-  'x-user-id',
-]);
 
 let sdkworkChatGlobalTokenManager: AuthTokenManager | null = null;
 let sdkworkChatGlobalTokenManagerSession: SdkworkChatSession | null = null;
@@ -383,10 +363,6 @@ function resolveAppSdkDeviceId(session?: SdkworkChatSession | null): string | un
   return pickClaimString(session, ['deviceId', 'device_id'], session?.context?.deviceId);
 }
 
-function resolveAppSdkContextSignature(session?: SdkworkChatSession | null): string | undefined {
-  return pickClaimString(session, ['contextSignature', 'context_signature'], session?.context?.contextSignature);
-}
-
 export function createSdkworkChatRequestContext(
   session = readAppSdkSessionTokens(),
 ): SdkworkChatRequestContext | undefined {
@@ -408,7 +384,6 @@ export function createSdkworkChatRequestContext(
     ['permissionScope', 'permission_scope', 'scope', 'scp'],
     context?.permissionScope,
   );
-  const contextSignature = resolveAppSdkContextSignature(session);
   const requestContext: SdkworkChatRequestContext = {
     ...(appId ? { appId } : {}),
     ...(tenantId ? { tenantId } : {}),
@@ -423,72 +398,19 @@ export function createSdkworkChatRequestContext(
     ...(actorId ? { actorId } : {}),
     ...(actorKind ? { actorKind } : {}),
     ...(deviceId ? { deviceId } : {}),
-    ...(contextSignature ? { contextSignature } : {}),
   };
   return Object.keys(requestContext).length > 0 ? requestContext : undefined;
 }
 
-function buildSdkworkChatAppContextHeadersFromContext(
-  context?: SdkworkChatRequestContext,
-): Record<string, string> | undefined {
-  const headers = {
-    ...(context?.appId ? { 'X-Sdkwork-App-Id': context.appId } : {}),
-    ...(context?.tenantId ? { 'X-Sdkwork-Tenant-Id': context.tenantId } : {}),
-    ...(context?.organizationId ? { 'X-Sdkwork-Organization-Id': context.organizationId } : {}),
-    ...(context?.userId ? { 'X-Sdkwork-User-Id': context.userId } : {}),
-    ...(context?.sessionId ? { 'X-Sdkwork-Session-Id': context.sessionId } : {}),
-    ...(context?.environment ? { 'X-Sdkwork-Environment': context.environment } : {}),
-    ...(context?.deploymentMode ? { 'X-Sdkwork-Deployment-Mode': context.deploymentMode } : {}),
-    ...(context?.authLevel ? { 'X-Sdkwork-Auth-Level': context.authLevel } : {}),
-    ...(context?.actorId ? { 'X-Sdkwork-Actor-Id': context.actorId } : {}),
-    ...(context?.actorKind ? { 'X-Sdkwork-Actor-Kind': context.actorKind } : {}),
-    ...(context?.deviceId ? { 'X-Sdkwork-Device-Id': context.deviceId } : {}),
-    ...(context?.dataScope?.length ? { 'X-Sdkwork-Data-Scope': context.dataScope.join(',') } : {}),
-    ...(context?.permissionScope?.length ? { 'X-Sdkwork-Permission-Scope': context.permissionScope.join(',') } : {}),
-    ...(context?.contextSignature ? { 'X-Sdkwork-Context-Signature': context.contextSignature } : {}),
-  };
-  return Object.keys(headers).length > 0 ? headers : undefined;
-}
-
-export function buildSdkworkChatAppContextHeaders(
-  session?: SdkworkChatSession | null,
-): Record<string, string> | undefined {
-  return buildSdkworkChatAppContextHeadersFromContext(createSdkworkChatRequestContext(session));
-}
-
-function removeSdkworkChatContextHeaders(headers?: Record<string, string>): Record<string, string> {
-  const cleanHeaders: Record<string, string> = {};
-  for (const [key, value] of Object.entries(headers ?? {})) {
-    if (!SDKWORK_CHAT_CONTEXT_HEADER_NAMES.has(key.toLowerCase())) {
-      cleanHeaders[key] = value;
-    }
-  }
-  return cleanHeaders;
-}
-
-function resolveRequestContextSession(
-  sessionOrReader?: SdkworkChatSession | null | (() => SdkworkChatSession | null),
-): SdkworkChatSession | null {
-  if (typeof sessionOrReader === 'function') {
-    return sessionOrReader();
-  }
-  return sessionOrReader ?? readAppSdkSessionTokens();
-}
-
 export function createSdkworkChatRequestContextInterceptors(
-  sessionOrReader?: SdkworkChatSession | null | (() => SdkworkChatSession | null),
+  _sessionOrReader?: SdkworkChatSession | null | (() => SdkworkChatSession | null),
 ): Interceptors {
   return {
     request: [
       (config: RequestConfig): RequestConfig => {
-        const requestContext = createSdkworkChatRequestContext(resolveRequestContextSession(sessionOrReader));
-        const contextHeaders = buildSdkworkChatAppContextHeadersFromContext(requestContext) ?? {};
         return {
           ...config,
-          headers: {
-            ...removeSdkworkChatContextHeaders(config.headers),
-            ...contextHeaders,
-          },
+          headers: { ...(config.headers ?? {}) },
         };
       },
     ],

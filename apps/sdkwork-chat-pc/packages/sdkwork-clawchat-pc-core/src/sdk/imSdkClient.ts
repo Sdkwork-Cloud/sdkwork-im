@@ -1,6 +1,5 @@
 import { ImSdkClient, ImWebSocketAuthOptions, type ImSdkClientOptions } from '@sdkwork/im-sdk';
 import {
-  buildSdkworkChatAppContextHeaders,
   getSdkworkChatGlobalTokenManager,
   readAppSdkSessionTokens,
   resolveAppSdkAccessToken,
@@ -191,15 +190,6 @@ export function resolveImSdkWebSocketBaseUrl(): string {
   return explicitBaseUrl ? normalizeWebSocketSdkBaseUrl(baseUrl) : baseUrl;
 }
 
-function buildImSdkContextHeaders(session?: SdkworkChatSession | null): Record<string, string> {
-  const headers = buildSdkworkChatAppContextHeaders(session) ?? {};
-  const sessionId = resolveAppSdkSessionId(session);
-  return {
-    ...headers,
-    ...(sessionId ? { 'X-Sdkwork-Session-Id': sessionId } : {}),
-  };
-}
-
 export function createImSdkClientOptions(session?: SdkworkChatSession | null): ImSdkClientOptions {
   const currentSession = session ?? readAppSdkSessionTokens();
   const tokenManager = getSdkworkChatGlobalTokenManager();
@@ -208,7 +198,6 @@ export function createImSdkClientOptions(session?: SdkworkChatSession | null): I
     websocketBaseUrl: resolveImSdkWebSocketBaseUrl(),
     accessToken: resolveAppSdkAccessToken(currentSession),
     authToken: resolveAppSdkAuthToken(currentSession),
-    headerProvider: () => buildImSdkContextHeaders(readAppSdkSessionTokens() ?? currentSession),
     platform: 'pc',
     tokenProvider: tokenManager,
     webSocketAuth: ImWebSocketAuthOptions.automatic({

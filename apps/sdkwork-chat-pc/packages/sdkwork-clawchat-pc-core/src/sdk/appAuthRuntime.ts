@@ -14,6 +14,7 @@ import { resetAgentAppSdkClient, getAgentAppSdkClient } from './agentAppSdkClien
 import { resetAppbaseAppSdkClient } from './appbaseAppSdkClient';
 import { resetDriveAppSdkClient, getDriveAppSdkClient } from './driveAppSdkClient';
 import { resetImSdkClient, getImSdkClient } from './imSdkClient';
+import { resetNotaryAppSdkClient, getNotaryAppSdkClient } from './notaryAppSdkClient';
 import {
   applyAppSdkSessionTokens,
   clearAppSdkSessionTokens,
@@ -95,6 +96,7 @@ export function resetSdkworkChatAuthenticatedSdkClients(): void {
   resetAgentAppSdkClient();
   resetDriveAppSdkClient();
   resetImSdkClient();
+  resetNotaryAppSdkClient();
 }
 
 export function clearSdkworkChatIamRuntimeSession(): void {
@@ -109,6 +111,7 @@ function getAuthenticatedSdkClients(): SdkworkAppbasePcAuthRuntimeSdkClient[] {
     getAgentAppSdkClient(),
     getDriveAppSdkClient(),
     getImSdkClient(),
+    getNotaryAppSdkClient(),
   ] as SdkworkAppbasePcAuthRuntimeSdkClient[];
 }
 

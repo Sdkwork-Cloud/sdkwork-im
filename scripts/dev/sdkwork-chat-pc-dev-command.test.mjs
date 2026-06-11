@@ -68,6 +68,7 @@ const sharedDatabaseSource = fs.readFileSync(
 const {
   createSdkworkChatBrowserOrigins,
   createSdkworkChatPcDevPlan,
+  resolveNotaryAppApiUpstream,
   resolveAvailableSdkworkChatPcDevPort,
   runSdkworkChatPcDev,
 } = await import(pathToFileURL(path.join(repoRoot, 'scripts/dev/run-sdkwork-chat-pc-dev.mjs')).href);
@@ -132,6 +133,11 @@ assert.ok(
   unifiedWebSource.includes('resolveDriveAppApiUpstream')
     && unifiedWebSource.includes('CRAW_CHAT_DRIVE_APP_API_UPSTREAM'),
   'root server:dev must configure the Drive app-api dependency upstream for the embedded gateway',
+);
+assert.ok(
+  unifiedWebSource.includes('resolveNotaryAppApiUpstream')
+    && unifiedWebSource.includes('CRAW_CHAT_NOTARY_APP_API_UPSTREAM'),
+  'root server:dev must configure the Notary app-api dependency upstream for the embedded gateway',
 );
 assert.ok(
   unifiedWebSource.includes('cargo')
@@ -344,10 +350,17 @@ assert.equal(
   'function',
   'release build wrapper must expose an auditable command plan',
 );
+assert.equal(
+  typeof resolveNotaryAppApiUpstream,
+  'function',
+  'PC dev command module must expose an auditable Notary app-api upstream resolver',
+);
 const releaseBuildPlan = releaseBuildModule.createSdkworkChatPcReleaseBuildPlan({
   env: {
     CRAW_CHAT_SERVER_API_BASE_URL: 'https://chat.example.com/',
     CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL: 'wss://realtime.example.com',
+    SDKWORK_DRIVE_REF: 'drive-release-ref',
+    SDKWORK_NOTARY_REF: 'notary-release-ref',
     SDKWORK_SHARED_SDK_MODE: 'source',
   },
   repoRoot,
@@ -365,6 +378,16 @@ assert.equal(
   releaseBuildPlan.env.SDKWORK_SHARED_SDK_MODE,
   'git',
   'release build plan must force git-backed shared SDK mode',
+);
+assert.equal(
+  releaseBuildPlan.env.SDKWORK_SHARED_DRIVE_GIT_REF,
+  'drive-release-ref',
+  'release build plan must bridge SDKWORK_DRIVE_REF into the shared SDK materializer ref for Drive-backed notary files',
+);
+assert.equal(
+  releaseBuildPlan.env.SDKWORK_SHARED_NOTARY_GIT_REF,
+  'notary-release-ref',
+  'release build plan must bridge SDKWORK_NOTARY_REF into the shared SDK materializer ref for the notary app SDK',
 );
 assert.equal(
   releaseBuildPlan.env.SDKWORK_IAM_MODE,
@@ -424,6 +447,14 @@ assert.ok(
   releaseSpawnCalls.every((call) => call.options.env.SDKWORK_SHARED_SDK_MODE === 'git'),
   'release build runner must force git-backed shared SDK mode for every pnpm command',
 );
+assert.ok(
+  releaseSpawnCalls.every((call) => !Object.hasOwn(call.options.env, 'SDKWORK_SHARED_DRIVE_GIT_REF')),
+  'release build runner must not pass an undefined Drive shared SDK ref when no release ref override is present',
+);
+assert.ok(
+  releaseSpawnCalls.every((call) => !Object.hasOwn(call.options.env, 'SDKWORK_SHARED_NOTARY_GIT_REF')),
+  'release build runner must not pass an undefined notary shared SDK ref when no release ref override is present',
+);
 assert.match(
   sharedSdkModeSource,
   /SDKWORK_SHARED_SDK_MODE/u,
@@ -443,9 +474,11 @@ for (const sourceName of [
   'sdkwork-appbase',
   'sdkwork-core',
   'sdkwork-ui',
+  'sdkwork-drive',
   'sdkwork-im-app-sdk',
   'sdkwork-im-backend-sdk',
   'sdkwork-im-sdk',
+  'sdkwork-notary',
   'sdkwork-claw-router',
   'sdkwork-birdcoder',
 ]) {
@@ -549,7 +582,7 @@ for (const packageJsonPath of packageJsonFiles) {
 const pnpmCommand = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const pnpmShell = process.platform === 'win32';
 const cargoCommand = process.platform === 'win32' ? 'cargo.exe' : 'cargo';
-const driveWorkspaceRoot = path.resolve(repoRoot, '..', 'sdkwork-drive');
+const apiGatewayWorkspaceRoot = path.resolve(repoRoot, '..', 'sdkwork-api-gateway');
 
 const browserPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
@@ -568,29 +601,38 @@ assert.deepEqual(
 );
 assert.deepEqual(
   browserPlan.processes.map((entry) => entry.label),
-  ['craw-chat-server', 'sdkwork-chat-pc-browser', 'sdkwork-drive-app-api'],
-  'browser dev must start the unified server, browser renderer, and managed Drive app-api dependency',
+  ['craw-chat-server', 'sdkwork-chat-pc-browser', 'sdkwork-api-gateway'],
+  'browser dev must start the unified server, browser renderer, and shared sdkwork-api-gateway dependency',
 );
-const browserDriveProcess = browserPlan.processes.find(
-  (entry) => entry.label === 'sdkwork-drive-app-api',
+const browserGatewayProcess = browserPlan.processes.find(
+  (entry) => entry.label === 'sdkwork-api-gateway',
 );
-assert.deepEqual(browserDriveProcess, {
-  args: ['run', '-p', 'sdkwork-drive-app-api'],
+assert.deepEqual(browserGatewayProcess, {
+  args: [
+    'run',
+    '-p',
+    'sdkwork-api-gateway-service',
+    '--bin',
+    'sdkwork-api-gateway',
+    '--',
+    '--config',
+    'config/sdkwork-api-gateway.development.toml.example',
+  ],
   command: cargoCommand,
-  cwd: driveWorkspaceRoot,
-  env: browserDriveProcess.env,
-  label: 'sdkwork-drive-app-api',
+  cwd: apiGatewayWorkspaceRoot,
+  env: browserGatewayProcess.env,
+  label: 'sdkwork-api-gateway',
   shell: false,
 });
 assert.equal(
-  browserDriveProcess.env.SDKWORK_DRIVE_DATABASE_URL,
-  'sqlite://target/sdkwork-drive-chat-pc.sqlite',
-  'managed Drive app-api must use an isolated local SQLite database by default',
+  browserGatewayProcess.env.SDKWORK_API_GATEWAY_BIND,
+  '127.0.0.1:3900',
+  'managed sdkwork-api-gateway must use the standard local gateway bind by default',
 );
 assert.equal(
-  browserDriveProcess.env.SDKWORK_DRIVE_IAM_ALLOW_UNSIGNED_CONTEXT,
-  'true',
-  'managed Drive app-api must accept the local gateway unsigned context projection in development',
+  browserGatewayProcess.env.SDKWORK_API_GATEWAY_MODE,
+  'split',
+  'managed sdkwork-api-gateway must run in split mode so foundation dependencies remain gateway-owned',
 );
 assert.ok(
   !('SDKWORK_APPBASE_APP_API_BIND_ADDR' in browserPlan.processes[0].env)
@@ -605,8 +647,13 @@ assert.equal(
 );
 assert.equal(
   browserPlan.processes[0].env.CRAW_CHAT_DRIVE_APP_API_UPSTREAM,
-  'http://127.0.0.1:18080',
-  'unified server must route Drive app SDK traffic through the Drive app-api dependency upstream by default',
+  'http://127.0.0.1:3900',
+  'unified server must route Drive app SDK traffic through the shared sdkwork-api-gateway by default',
+);
+assert.equal(
+  browserPlan.processes[0].env.CRAW_CHAT_NOTARY_APP_API_UPSTREAM,
+  'http://127.0.0.1:3900',
+  'unified server must route Notary app SDK traffic through the shared sdkwork-api-gateway by default',
 );
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_CHAT_DATABASE_URL,
@@ -684,8 +731,25 @@ assert.equal(
 );
 assert.deepEqual(
   customDriveUpstreamPlan.processes.map((entry) => entry.label),
-  ['craw-chat-server', 'sdkwork-chat-pc-browser'],
-  'PC dev must not start a managed local Drive app-api process when an external Drive upstream is configured',
+  ['craw-chat-server', 'sdkwork-chat-pc-browser', 'sdkwork-api-gateway'],
+  'PC dev must keep the shared gateway available for remaining foundation surfaces when Drive uses an explicit split upstream',
+);
+const customNotaryUpstreamPlan = createSdkworkChatPcDevPlan({
+  argv: ['--target', 'browser'],
+  env: {
+    SDKWORK_NOTARY_APP_API_UPSTREAM: 'http://127.0.0.1:28092/',
+  },
+  repoRoot,
+});
+assert.equal(
+  customNotaryUpstreamPlan.processes[0].env.CRAW_CHAT_NOTARY_APP_API_UPSTREAM,
+  'http://127.0.0.1:28092',
+  'PC dev must allow the Notary app-api dependency upstream to be overridden for split Notary deployments',
+);
+assert.deepEqual(
+  customNotaryUpstreamPlan.processes.map((entry) => entry.label),
+  ['craw-chat-server', 'sdkwork-chat-pc-browser', 'sdkwork-api-gateway'],
+  'PC dev must keep the shared gateway available for remaining foundation surfaces when Notary uses an explicit split upstream',
 );
 assert.equal(
   createSdkworkChatBrowserOrigins({ port: 4188 }),
@@ -922,8 +986,8 @@ const desktopPlan = createSdkworkChatPcDevPlan({
 assert.equal(desktopPlan.target, 'desktop');
 assert.deepEqual(
   desktopPlan.processes.map((entry) => entry.label),
-  ['craw-chat-server', 'sdkwork-chat-pc-desktop', 'sdkwork-drive-app-api'],
-  'desktop dev must start the unified server, Tauri desktop process, and managed Drive app-api dependency',
+  ['craw-chat-server', 'sdkwork-chat-pc-desktop', 'sdkwork-api-gateway'],
+  'desktop dev must start the unified server, Tauri desktop process, and shared sdkwork-api-gateway dependency',
 );
 assert.deepEqual(desktopPlan.processes[1], {
   args: ['--dir', 'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-desktop', 'desktop:dev:local'],
@@ -1000,7 +1064,7 @@ await runSdkworkChatPcDev({
 assert.equal(
   spawned.length,
   3,
-  'desktop dev runner must spawn unified server, desktop, and managed Drive app-api processes',
+  'desktop dev runner must spawn unified server, desktop, and shared sdkwork-api-gateway processes',
 );
 assert.equal(
   spawned[0].options.env.CRAW_CHAT_BROWSER_ORIGINS,
@@ -1024,8 +1088,13 @@ assert.equal(
 );
 assert.equal(
   spawned[0].options.env.CRAW_CHAT_DRIVE_APP_API_UPSTREAM,
-  'http://127.0.0.1:18080',
-  'dev runner must pass the Drive app-api dependency upstream to the unified server process',
+  'http://127.0.0.1:3900',
+  'dev runner must pass the shared sdkwork-api-gateway root for Drive app-api dependency traffic',
+);
+assert.equal(
+  spawned[0].options.env.CRAW_CHAT_NOTARY_APP_API_UPSTREAM,
+  'http://127.0.0.1:3900',
+  'dev runner must pass the shared sdkwork-api-gateway root for Notary app-api dependency traffic',
 );
 assert.equal(
   spawned[1].options.env.SDKWORK_CHAT_SERVER_API_BASE_URL,
@@ -1054,18 +1123,27 @@ assert.equal(
 );
 assert.deepEqual(
   spawned[2].args,
-  ['run', '-p', 'sdkwork-drive-app-api'],
-  'dev runner must spawn the managed Drive app-api Cargo package for default local uploads',
+  [
+    'run',
+    '-p',
+    'sdkwork-api-gateway-service',
+    '--bin',
+    'sdkwork-api-gateway',
+    '--',
+    '--config',
+    'config/sdkwork-api-gateway.development.toml.example',
+  ],
+  'dev runner must spawn the shared sdkwork-api-gateway Cargo service for foundation API integration',
 );
 assert.equal(
   spawned[2].options.cwd,
-  driveWorkspaceRoot,
-  'managed Drive app-api must run from the sibling sdkwork-drive workspace',
+  apiGatewayWorkspaceRoot,
+  'managed sdkwork-api-gateway must run from the sibling sdkwork-api-gateway workspace',
 );
 assert.equal(
-  spawned[2].options.env.SDKWORK_DRIVE_DATABASE_URL,
-  'sqlite://target/sdkwork-drive-chat-pc.sqlite',
-  'managed Drive app-api must receive the local SQLite database URL',
+  spawned[2].options.env.SDKWORK_API_GATEWAY_BIND,
+  '127.0.0.1:3900',
+  'managed sdkwork-api-gateway must receive the standard local gateway bind',
 );
 assert.deepEqual(
   spawned.map((entry) => entry.options.shell),

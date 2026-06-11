@@ -19,6 +19,17 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 ## Contract Manifest
 
 - [component.spec.json](./component.spec.json) is the machine-readable component contract.
+- Shared foundation API composition targets `sdkwork-api-gateway` through the existing
+  `SDKWORK_CHAT_SERVER_API_BASE_URL` server common SDK root and
+  `VITE_CRAW_CHAT_APP_API_BASE_URL` browser app-api root. The current `services/web-gateway`,
+  `crates/craw-chat-gateway-config`, and `services/local-minimal-node` aggregation paths are
+  migration compatibility layers, not the long-term foundation API ownership boundary.
+- Local PC development starts the sibling `sdkwork-api-gateway` Cargo service as the shared
+  foundation gateway. Product-local server env defaults route Drive and Notary app-api traffic to
+  that gateway root; dependency-specific upstream env keys are split-deployment overrides only.
+- The legacy `crates/craw-chat-gateway-config` split mode defaults Appbase, Drive, and Notary
+  service upstreams to the shared gateway root. Direct module URLs remain explicit split-deployment
+  overrides.
 - Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
 - Generated SDK language outputs are represented at their SDK family root instead of duplicating local specs in generated folders.
 

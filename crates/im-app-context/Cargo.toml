@@ -8,5 +8,5 @@ version.workspace = true
 axum.workspace = true
 craw-chat-ccp-core = { path = "../craw-chat-ccp-core" }
 base64 = "0.22.1"
-hmac = "0.12.1"
-sha2 = "0.10"
+serde_json.workspace = true
+sdkwork_http_context.workspace = true

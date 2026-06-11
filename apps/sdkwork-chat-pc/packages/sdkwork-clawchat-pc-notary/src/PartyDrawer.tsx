@@ -33,10 +33,16 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
   const idFrontRef = useRef<HTMLInputElement>(null);
   const idBackRef = useRef<HTMLInputElement>(null);
   const attachRef = useRef<HTMLInputElement>(null);
+  const localAttachmentIdSequenceRef = useRef(0);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const createLocalAttachmentId = () => {
+    localAttachmentIdSequenceRef.current += 1;
+    return `party-attachment-${localAttachmentIdSequenceRef.current}`;
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -94,7 +100,7 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
   const handleAttachUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from<File>(e.target.files || []);
     const newItems = files.map(file => ({
-      id: Date.now() + Math.random().toString(),
+      id: createLocalAttachmentId(),
       url: URL.createObjectURL(file),
       name: file.name,
       file
@@ -143,11 +149,9 @@ export const PartyDrawer: React.FC<PartyDrawerProps> = ({ isOpen, onClose, party
 
   const handleCompare = () => {
     if (!faceImage || !idFront) return;
-    setIsComparing(true);
-    setTimeout(() => {
-      setIsComparing(false);
-      setCompareResult(98.5);
-    }, 1500);
+    setIsComparing(false);
+    setCompareResult(null);
+    toast('身份材料将在提交后由公证服务完成核验。', 'info');
   };
 
   const submitParty = () => {

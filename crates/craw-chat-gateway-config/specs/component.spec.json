@@ -99,14 +99,58 @@
     ],
     "sdkClients": [],
     "events": [],
-    "configKeys": [],
+    "configKeys": [
+      "CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL",
+      "SDKWORK_API_GATEWAY_BASE_URL",
+      "SDKWORK_API_GATEWAY_BIND",
+      "CRAW_CHAT_APPBASE_APP_API_UPSTREAM",
+      "SDKWORK_APPBASE_APP_API_BIND_ADDR",
+      "CRAW_CHAT_DRIVE_APP_API_UPSTREAM",
+      "SDKWORK_DRIVE_APP_API_UPSTREAM",
+      "SDKWORK_DRIVE_APP_API_BASE_URL",
+      "CRAW_CHAT_NOTARY_APP_API_UPSTREAM",
+      "SDKWORK_NOTARY_APP_API_UPSTREAM",
+      "SDKWORK_NOTARY_APP_API_BASE_URL"
+    ],
     "routeManifest": null
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
     "dependencyPolicy": "Consumers integrate through public package exports, declared runtime entrypoints, generated SDK clients, or documented adapters only.",
     "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries; reusable UI must not create raw HTTP clients or manual auth headers.",
-    "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract."
+    "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract.",
+    "foundationApiGateway": {
+      "targetApplication": "sdkwork-api-gateway",
+      "targetMode": "shared-gateway",
+      "gatewayBaseUrlEnvKeys": [
+        "CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL",
+        "SDKWORK_API_GATEWAY_BASE_URL"
+      ],
+      "gatewayBindEnv": "SDKWORK_API_GATEWAY_BIND",
+      "defaultLocalGatewayBaseUrl": "http://127.0.0.1:3900",
+      "defaultFoundationServiceIds": [
+        "sdkwork-appbase-app-api",
+        "sdkwork-drive-app-api",
+        "sdkwork-notary-app-api"
+      ],
+      "splitOverrideEnvKeys": {
+        "sdkwork-appbase-app-api": [
+          "CRAW_CHAT_APPBASE_APP_API_UPSTREAM",
+          "SDKWORK_APPBASE_APP_API_BIND_ADDR"
+        ],
+        "sdkwork-drive-app-api": [
+          "CRAW_CHAT_DRIVE_APP_API_UPSTREAM",
+          "SDKWORK_DRIVE_APP_API_UPSTREAM",
+          "SDKWORK_DRIVE_APP_API_BASE_URL"
+        ],
+        "sdkwork-notary-app-api": [
+          "CRAW_CHAT_NOTARY_APP_API_UPSTREAM",
+          "SDKWORK_NOTARY_APP_API_UPSTREAM",
+          "SDKWORK_NOTARY_APP_API_BASE_URL"
+        ]
+      },
+      "catalogPolicy": "no-dedicated-gateway-catalog"
+    }
   },
   "verification": {
     "commands": [

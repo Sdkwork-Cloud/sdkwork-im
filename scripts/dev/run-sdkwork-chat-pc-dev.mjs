@@ -20,17 +20,26 @@ export const SDKWORK_CHAT_PC_DEV_HOST_ENV = 'SDKWORK_CHAT_PC_DEV_HOST';
 export const SDKWORK_CHAT_PC_DEV_PORT_ENV = 'SDKWORK_CHAT_PC_DEV_PORT';
 export const DEFAULT_SDKWORK_CHAT_PC_DEV_HOST = '127.0.0.1';
 export const DEFAULT_SDKWORK_CHAT_PC_DEV_PORT = 4176;
-export const DEFAULT_SDKWORK_DRIVE_APP_API_UPSTREAM = 'http://127.0.0.1:18080';
-const DEFAULT_SDKWORK_DRIVE_APP_API_DATABASE_URL = 'sqlite://target/sdkwork-drive-chat-pc.sqlite';
+export const DEFAULT_SDKWORK_API_GATEWAY_BIND = '127.0.0.1:3900';
+export const DEFAULT_SDKWORK_API_GATEWAY_BASE_URL = `http://${DEFAULT_SDKWORK_API_GATEWAY_BIND}`;
 const MAX_DEV_PORT_ATTEMPTS = 50;
+const SDKWORK_API_GATEWAY_BASE_URL_ENV_KEYS = [
+  'CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL',
+  'SDKWORK_API_GATEWAY_BASE_URL',
+];
 const DRIVE_APP_API_UPSTREAM_ENV_KEYS = [
   'CRAW_CHAT_DRIVE_APP_API_UPSTREAM',
   'SDKWORK_DRIVE_APP_API_UPSTREAM',
   'SDKWORK_DRIVE_APP_API_BASE_URL',
 ];
-const DRIVE_APP_API_AUTOSTART_ENV_KEYS = [
-  'CRAW_CHAT_DRIVE_APP_API_AUTOSTART',
-  'SDKWORK_DRIVE_APP_API_AUTOSTART',
+const NOTARY_APP_API_UPSTREAM_ENV_KEYS = [
+  'CRAW_CHAT_NOTARY_APP_API_UPSTREAM',
+  'SDKWORK_NOTARY_APP_API_UPSTREAM',
+  'SDKWORK_NOTARY_APP_API_BASE_URL',
+];
+const SDKWORK_API_GATEWAY_AUTOSTART_ENV_KEYS = [
+  'CRAW_CHAT_FOUNDATION_API_GATEWAY_AUTOSTART',
+  'SDKWORK_API_GATEWAY_AUTOSTART',
 ];
 
 const TARGETS = Object.freeze({
@@ -78,6 +87,31 @@ function normalizeUpstreamBaseUrl(value, label) {
   return normalized.replace(/\/+$/u, '');
 }
 
+function normalizeGatewayBind(value, label = 'SDKWORK_API_GATEWAY_BIND') {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return undefined;
+  }
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+    throw new Error(`${label} must be a host:port bind address, not a URL`);
+  }
+  return normalized;
+}
+
+export function resolveSdkworkApiGatewayBind(env = process.env) {
+  return normalizeGatewayBind(env.SDKWORK_API_GATEWAY_BIND) ?? DEFAULT_SDKWORK_API_GATEWAY_BIND;
+}
+
+export function resolveSdkworkApiGatewayBaseUrl(env = process.env) {
+  for (const key of SDKWORK_API_GATEWAY_BASE_URL_ENV_KEYS) {
+    const baseUrl = normalizeUpstreamBaseUrl(env[key], key);
+    if (baseUrl) {
+      return baseUrl;
+    }
+  }
+  return `http://${resolveSdkworkApiGatewayBind(env)}`;
+}
+
 export function resolveDriveAppApiUpstream(env = process.env) {
   for (const key of DRIVE_APP_API_UPSTREAM_ENV_KEYS) {
     const upstream = normalizeUpstreamBaseUrl(env[key], key);
@@ -85,15 +119,21 @@ export function resolveDriveAppApiUpstream(env = process.env) {
       return upstream;
     }
   }
-  return DEFAULT_SDKWORK_DRIVE_APP_API_UPSTREAM;
+  return resolveSdkworkApiGatewayBaseUrl(env);
 }
 
-function hasConfiguredDriveAppApiUpstream(env) {
-  return DRIVE_APP_API_UPSTREAM_ENV_KEYS.some((key) => Boolean(normalizeText(env[key])));
+export function resolveNotaryAppApiUpstream(env = process.env) {
+  for (const key of NOTARY_APP_API_UPSTREAM_ENV_KEYS) {
+    const upstream = normalizeUpstreamBaseUrl(env[key], key);
+    if (upstream) {
+      return upstream;
+    }
+  }
+  return resolveSdkworkApiGatewayBaseUrl(env);
 }
 
-function shouldAutostartDriveAppApi(env) {
-  for (const key of DRIVE_APP_API_AUTOSTART_ENV_KEYS) {
+function shouldAutostartSdkworkApiGateway(env) {
+  for (const key of SDKWORK_API_GATEWAY_AUTOSTART_ENV_KEYS) {
     const value = normalizeText(env[key]);
     if (!value) {
       continue;
@@ -103,41 +143,38 @@ function shouldAutostartDriveAppApi(env) {
   return true;
 }
 
-function createManagedDriveAppApiProcess({
+function createManagedSdkworkApiGatewayProcess({
   env,
-  explicitDriveAppApiUpstream,
   repoRoot: resolvedRepoRoot,
 }) {
-  const driveAppApiUpstream = resolveDriveAppApiUpstream(env);
-  if (
-    explicitDriveAppApiUpstream
-    || driveAppApiUpstream !== DEFAULT_SDKWORK_DRIVE_APP_API_UPSTREAM
-    || !shouldAutostartDriveAppApi(env)
-  ) {
+  if (!shouldAutostartSdkworkApiGateway(env)) {
     return undefined;
   }
 
-  const driveWorkspaceRoot = path.resolve(resolvedRepoRoot, '..', 'sdkwork-drive');
-  const driveEnv = {
+  const apiGatewayWorkspaceRoot = path.resolve(resolvedRepoRoot, '..', 'sdkwork-api-gateway');
+  const gatewayEnv = {
     ...env,
-    CARGO_TARGET_DIR: normalizeText(env.SDKWORK_DRIVE_CARGO_TARGET_DIR)
-      ?? path.join(driveWorkspaceRoot, 'target', 'chat-pc-dev'),
-    SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS:
-      normalizeText(env.SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS) ?? '1',
-    SDKWORK_DRIVE_DATABASE_URL:
-      normalizeText(env.SDKWORK_DRIVE_DATABASE_URL) ?? DEFAULT_SDKWORK_DRIVE_APP_API_DATABASE_URL,
+    CARGO_TARGET_DIR: normalizeText(env.SDKWORK_API_GATEWAY_CARGO_TARGET_DIR)
+      ?? path.join(apiGatewayWorkspaceRoot, 'target', 'chat-pc-dev'),
+    SDKWORK_API_GATEWAY_BIND: resolveSdkworkApiGatewayBind(env),
+    SDKWORK_API_GATEWAY_MODE: normalizeText(env.SDKWORK_API_GATEWAY_MODE) ?? 'split',
   };
-  if (!normalizeText(driveEnv.SDKWORK_DRIVE_IAM_CONTEXT_SIGNATURE_SECRET)) {
-    driveEnv.SDKWORK_DRIVE_IAM_ALLOW_UNSIGNED_CONTEXT =
-      normalizeText(driveEnv.SDKWORK_DRIVE_IAM_ALLOW_UNSIGNED_CONTEXT) ?? 'true';
-  }
 
   return {
-    args: ['run', '-p', 'sdkwork-drive-app-api'],
+    args: [
+      'run',
+      '-p',
+      'sdkwork-api-gateway-service',
+      '--bin',
+      'sdkwork-api-gateway',
+      '--',
+      '--config',
+      'config/sdkwork-api-gateway.development.toml.example',
+    ],
     command: cargoCommand(),
-    cwd: driveWorkspaceRoot,
-    env: driveEnv,
-    label: 'sdkwork-drive-app-api',
+    cwd: apiGatewayWorkspaceRoot,
+    env: gatewayEnv,
+    label: 'sdkwork-api-gateway',
     shell: false,
   };
 }
@@ -366,7 +403,6 @@ export function createSdkworkChatPcDevPlan({
     ...env,
     ...devEnvFile,
   };
-  const explicitDriveAppApiUpstream = hasConfiguredDriveAppApiUpstream(requestedEnv);
   const cargoEnv = createCrawChatServerCargoEnv({
     env: {
       ...requestedEnv,
@@ -429,11 +465,11 @@ export function createSdkworkChatPcDevPlan({
     CRAW_CHAT_BROWSER_ORIGINS: mergedEnv.CRAW_CHAT_BROWSER_ORIGINS
       ?? createSdkworkChatBrowserOrigins(devServer),
     CRAW_CHAT_DRIVE_APP_API_UPSTREAM: resolveDriveAppApiUpstream(mergedEnv),
+    CRAW_CHAT_NOTARY_APP_API_UPSTREAM: resolveNotaryAppApiUpstream(mergedEnv),
     CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE: 'embedded',
   };
-  const managedDriveAppApiProcess = createManagedDriveAppApiProcess({
+  const managedSdkworkApiGatewayProcess = createManagedSdkworkApiGatewayProcess({
     env: mergedEnv,
-    explicitDriveAppApiUpstream,
     repoRoot: resolvedRepoRoot,
   });
   const processes = [
@@ -450,8 +486,8 @@ export function createSdkworkChatPcDevPlan({
       label: target.label,
     },
   ];
-  if (managedDriveAppApiProcess) {
-    processes.push(managedDriveAppApiProcess);
+  if (managedSdkworkApiGatewayProcess) {
+    processes.push(managedSdkworkApiGatewayProcess);
   }
   return {
     devServer,

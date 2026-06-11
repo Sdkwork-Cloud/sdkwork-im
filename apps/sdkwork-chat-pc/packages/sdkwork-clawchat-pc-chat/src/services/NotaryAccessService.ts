@@ -1,9 +1,7 @@
 import { getNotaryAppSdkClient } from '@sdkwork/clawchat-pc-core';
 
 export interface NotaryAccessState {
-  visible: boolean;
   canUseNotary: boolean;
-  canShowNotaryMenu: boolean;
   organizationVerified: boolean;
   notaryBusinessEnabled: boolean;
   memberId?: string;
@@ -12,16 +10,13 @@ export interface NotaryAccessState {
 
 export interface NotaryAccessService {
   getAccess(force?: boolean): Promise<NotaryAccessState>;
-  canShowNotaryMenu(force?: boolean): Promise<boolean>;
   canUseNotary(force?: boolean): Promise<boolean>;
   subscribe(listener: (state: NotaryAccessState) => void): () => void;
   reset(): void;
 }
 
 const DENIED_ACCESS: NotaryAccessState = {
-  visible: false,
   canUseNotary: false,
-  canShowNotaryMenu: false,
   organizationVerified: false,
   notaryBusinessEnabled: false,
   reason: 'notary_access_unavailable',
@@ -42,16 +37,14 @@ function mapAccess(value: unknown): NotaryAccessState {
   const organizationVerified = record.organizationVerified === true;
   const notaryBusinessEnabled = record.notaryBusinessEnabled === true;
   const hasMember = Boolean(optionalString(record.memberId));
-  const visible =
+  const canUseNotary =
     record.visible === true &&
     organizationVerified &&
     notaryBusinessEnabled &&
     hasMember;
 
   return {
-    visible,
-    canUseNotary: visible,
-    canShowNotaryMenu: visible,
+    canUseNotary,
     organizationVerified,
     notaryBusinessEnabled,
     memberId: optionalString(record.memberId),
@@ -86,10 +79,6 @@ class SdkworkNotaryAccessService implements NotaryAccessService {
       });
 
     return this.inFlight;
-  }
-
-  async canShowNotaryMenu(force = false): Promise<boolean> {
-    return (await this.getAccess(force)).canShowNotaryMenu;
   }
 
   async canUseNotary(force = false): Promise<boolean> {

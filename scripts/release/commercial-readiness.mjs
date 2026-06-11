@@ -75,6 +75,22 @@ export function buildCommercialReadinessChecks({
       env: pnpmRuntimeEnv,
     },
     {
+      id: 'dependency-management',
+      label: 'SDKWork dependency management standard',
+      cwd: repoRoot,
+      command: pnpmExecutable,
+      args: ['run', 'check:dependency-management'],
+      env: pnpmRuntimeEnv,
+    },
+    {
+      id: 'workflow-commercial-gates',
+      label: 'Workflow commercial governance gates',
+      cwd: repoRoot,
+      command: pnpmExecutable,
+      args: ['run', 'test:workflow-commercial-gates'],
+      env: pnpmRuntimeEnv,
+    },
+    {
       id: 'control-plane-api-tests',
       label: 'Control-plane API tests',
       cwd: repoRoot,

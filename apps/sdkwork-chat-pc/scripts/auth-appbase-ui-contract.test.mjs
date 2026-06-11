@@ -48,6 +48,13 @@ const profileMenuSource = readText('packages', 'sdkwork-clawchat-pc-chat', 'src'
 const settingsModalSource = readText('packages', 'sdkwork-clawchat-pc-chat', 'src', 'components', 'SettingsModal.tsx');
 const chatWindowControlsSource = readText('packages', 'sdkwork-clawchat-pc-chat', 'src', 'components', 'WindowControls.tsx');
 const desktopRustSource = readText('packages', 'sdkwork-clawchat-pc-desktop', 'src-tauri', 'src', 'lib.rs');
+const desktopWindowControlRustSource = readText('packages', 'sdkwork-clawchat-pc-desktop', 'src-tauri', 'src', 'window_control.rs');
+const desktopTrayRustSource = readText('packages', 'sdkwork-clawchat-pc-desktop', 'src-tauri', 'src', 'tray.rs');
+const desktopRustShellSource = [
+  desktopRustSource,
+  desktopWindowControlRustSource,
+  desktopTrayRustSource,
+].join('\n');
 const tauriWindowControlPermissionSource = readText('packages', 'sdkwork-clawchat-pc-desktop', 'src-tauri', 'permissions', 'window-control.toml');
 const tauriConfig = readJson('packages', 'sdkwork-clawchat-pc-desktop', 'src-tauri', 'tauri.conf.json');
 const tauriDefaultCapability = readJson('packages', 'sdkwork-clawchat-pc-desktop', 'src-tauri', 'capabilities', 'default.json');
@@ -694,85 +701,91 @@ assert.match(
 );
 
 assert.match(
-  desktopRustSource,
+  desktopRustShellSource,
   /enum\s+SdkworkChatPcWindowControlAction[\s\S]*Minimize[\s\S]*ToggleMaximize[\s\S]*CloseToTray[\s\S]*Show/u,
   'Desktop Rust shell must define cross-platform minimize, maximize, close-to-tray, and show actions.',
 );
 
 assert.match(
-  desktopRustSource,
+  desktopRustShellSource,
   /#\[tauri::command\][\s\S]*sdkwork_chat_pc_window_control/u,
   'Desktop Rust shell must expose a Tauri command for AppHeader window controls.',
 );
 
 assert.match(
-  desktopRustSource,
+  desktopRustShellSource,
   /CloseToTray[\s\S]*window\.hide\(\)/u,
   'Desktop close action must hide the main window to tray instead of terminating the process.',
 );
 
 assert.match(
-  desktopRustSource,
+  desktopRustShellSource,
   /WindowEvent::CloseRequested[\s\S]*api\.prevent_close\(\)[\s\S]*window\.hide\(\)/u,
   'Desktop native window close requests must be intercepted and hidden to tray so the backend remains running.',
 );
 
 assert.match(
-  desktopRustSource,
+  desktopRustShellSource,
   /TrayIconBuilder[\s\S]*on_tray_icon_event[\s\S]*handle_tray_icon_event[\s\S]*fn\s+handle_tray_icon_event[\s\S]*show_main_window\(app\)/u,
   'Desktop shell must install a tray icon that can restore the hidden main window.',
 );
 
 assert.match(
-  desktopRustSource,
+  desktopRustShellSource,
   /use\s+std::sync::atomic::\{AtomicBool,\s*Ordering\}/u,
   'Desktop shell must keep an explicit exiting flag so tray Quit can bypass close-to-tray interception.',
 );
 
 assert.match(
-  desktopRustSource,
+  desktopRustShellSource,
   /static\s+IS_EXITING:\s*AtomicBool\s*=\s*AtomicBool::new\(false\)/u,
   'Desktop shell must initialize the exiting flag to false.',
 );
 
 assert.match(
-  desktopRustSource,
-  /const\s+TRAY_MENU_CHAT_ID:\s*&str\s*=\s*["']sdkwork_chat_pc_tray_chat["'][\s\S]*const\s+TRAY_MENU_SETTINGS_ID:\s*&str\s*=\s*["']sdkwork_chat_pc_tray_settings["'][\s\S]*const\s+TRAY_MENU_QUIT_ID:\s*&str\s*=\s*["']sdkwork_chat_pc_tray_quit["']/u,
-  'Desktop tray menu must define stable IDs for Chat, Settings, and Quit.',
+  desktopRustShellSource,
+  /const\s+TRAY_MENU_CHAT_ID:\s*&str\s*=\s*["']sdkwork_chat_pc_tray_chat["'][\s\S]*const\s+TRAY_MENU_CALL_ID:\s*&str\s*=\s*["']sdkwork_chat_pc_tray_call["'][\s\S]*const\s+TRAY_MENU_SETTINGS_ID:\s*&str\s*=\s*["']sdkwork_chat_pc_tray_settings["'][\s\S]*const\s+TRAY_MENU_QUIT_ID:\s*&str\s*=\s*["']sdkwork_chat_pc_tray_quit["']/u,
+  'Desktop tray menu must define stable IDs for Chat, active call, Settings, and Quit.',
 );
 
 assert.match(
-  desktopRustSource,
+  desktopRustShellSource,
   /const\s+TRAY_EVENT_OPEN_SETTINGS:\s*&str\s*=\s*["']sdkwork-chat-pc:\/\/tray\/open-settings["']/u,
   'Desktop tray settings action must emit a stable frontend event name.',
 );
 
 assert.match(
-  desktopRustSource,
-  /MenuBuilder::new\(app\)[\s\S]*\.text\(TRAY_MENU_CHAT_ID,\s*["']聊天["']\)[\s\S]*\.text\(TRAY_MENU_SETTINGS_ID,\s*["']设置["']\)[\s\S]*\.separator\(\)[\s\S]*\.text\(TRAY_MENU_QUIT_ID,\s*["']退出["']\)[\s\S]*\.build\(\)/u,
-  'Desktop tray menu must expose right-click entries: 聊天, 设置, 退出.',
+  desktopRustShellSource,
+  /const\s+TRAY_EVENT_SHOW_ACTIVE_CALL:\s*&str\s*=\s*["']sdkwork-chat-pc:\/\/tray\/show-active-call["']/u,
+  'Desktop tray call action must emit a stable frontend event name.',
 );
 
 assert.match(
-  desktopRustSource,
+  desktopRustShellSource,
+  /MenuBuilder::new\(app\)[\s\S]*\.text\(TRAY_MENU_CHAT_ID,\s*"\\u\{804a\}\\u\{5929\}"\)[\s\S]*\.text\(TRAY_MENU_CALL_ID,\s*"\\u\{663e\}\\u\{793a\}\\u\{901a\}\\u\{8bdd\}"\)[\s\S]*\.text\(TRAY_MENU_SETTINGS_ID,\s*"\\u\{8bbe\}\\u\{7f6e\}"\)[\s\S]*\.separator\(\)[\s\S]*\.text\(TRAY_MENU_QUIT_ID,\s*"\\u\{9000\}\\u\{51fa\}"\)[\s\S]*\.build\(\)/u,
+  'Desktop tray menu must expose right-click entries: chat, active call, settings, and quit.',
+);
+
+assert.match(
+  desktopRustShellSource,
   /TrayIconBuilder::with_id\(TRAY_ICON_ID\)[\s\S]*\.menu\(&menu\)[\s\S]*\.show_menu_on_left_click\(false\)[\s\S]*\.on_menu_event\(\|app,\s*event\|\s*handle_tray_menu_event\(app,\s*event\)\)/u,
   'Desktop tray icon must bind the native menu and handle menu events while keeping left click as window restore.',
 );
 
 assert.match(
-  desktopRustSource,
-  /fn\s+handle_tray_menu_event<R:\s*Runtime>\(app:\s*&AppHandle<R>,\s*event:\s*tauri::menu::MenuEvent\)[\s\S]*TRAY_MENU_CHAT_ID[\s\S]*show_main_window\(app\)[\s\S]*TRAY_MENU_SETTINGS_ID[\s\S]*show_main_window\(app\)[\s\S]*emit\(TRAY_EVENT_OPEN_SETTINGS/u,
-  'Desktop tray Chat must restore the main window and Settings must restore it before emitting the frontend settings event.',
+  desktopRustShellSource,
+  /fn\s+handle_tray_menu_event<R:\s*Runtime>\(app:\s*&AppHandle<R>,\s*event:\s*tauri::menu::MenuEvent\)[\s\S]*TRAY_MENU_CHAT_ID[\s\S]*show_main_window\(app\)[\s\S]*TRAY_MENU_CALL_ID[\s\S]*show_main_window\(app\)[\s\S]*emit\(TRAY_EVENT_SHOW_ACTIVE_CALL[\s\S]*TRAY_MENU_SETTINGS_ID[\s\S]*show_main_window\(app\)[\s\S]*emit\(TRAY_EVENT_OPEN_SETTINGS/u,
+  'Desktop tray Chat, active call, and Settings actions must restore the main window before emitting frontend events.',
 );
 
 assert.match(
-  desktopRustSource,
+  desktopRustShellSource,
   /fn\s+quit_app<R:\s*Runtime>\(app:\s*&AppHandle<R>\)[\s\S]*IS_EXITING\.store\(true,\s*Ordering::SeqCst\)[\s\S]*main_window\(app\)[\s\S]*window\.close\(\)[\s\S]*app\.exit\(0\)/u,
   'Desktop tray Quit must set the exiting flag, close the main window, and exit the Tauri app process.',
 );
 
 assert.match(
-  desktopRustSource,
+  desktopRustShellSource,
   /WindowEvent::CloseRequested[\s\S]*IS_EXITING\.load\(Ordering::SeqCst\)[\s\S]*return;[\s\S]*api\.prevent_close\(\)[\s\S]*window\.hide\(\)/u,
   'Desktop native close requests must only hide to tray when the app is not executing the tray Quit action.',
 );

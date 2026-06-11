@@ -49,7 +49,7 @@ use im_adapters_local_disk::{
     validate_stream_state_store_file,
 };
 use im_adapters_local_memory::{MemoryCommitJournal, MemoryRealtimeCheckpointStore};
-use im_app_context::{AppContext, AppContextError};
+use im_app_context::{AppContext, AppContextError, resolve_app_context_for_request};
 use im_domain_core::conversation::{
     ConversationInboxEntry, ConversationInboxPreferencesView, ConversationMember,
     ConversationReadCursorView, MembershipRole,
@@ -2054,11 +2054,18 @@ pub(crate) async fn require_app_context_with_guardrails(
         return error.into_response();
     }
 
-    let auth = match resolve_request_app_context(None, request.headers()) {
-        Ok(auth) => auth,
-        Err(error) => return error.into_response(),
+    let resolved = match resolve_app_context_for_request(
+        request.headers(),
+        request.uri().path(),
+        request.method().as_str(),
+    ) {
+        Ok(resolved) => resolved,
+        Err(error) => return ApiError::from(error).into_response(),
     };
-    request.extensions_mut().insert(auth);
+    request
+        .extensions_mut()
+        .insert(resolved.app_request_context);
+    request.extensions_mut().insert(resolved.app_context);
     let response = next.run(request).await;
     drop(permit);
     response

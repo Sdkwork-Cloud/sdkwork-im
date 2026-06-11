@@ -156,9 +156,7 @@ async function main(): Promise<void> {
       accessToken: 'access-token-1',
       authToken: 'auth-token-1',
       headerProvider: () => ({
-        'X-Sdkwork-Tenant-Id': 'tenant-1',
-        'X-Sdkwork-User-Id': 'user-1',
-        'X-Sdkwork-Device-Id': 'device-1',
+        'X-Trace-Id': 'trace-1',
       }),
       webSocketAuth: ImWebSocketAuthOptions.automatic({
         credentialProvider: () => 'auth-token-1',
@@ -194,9 +192,7 @@ async function main(): Promise<void> {
     assert.deepEqual(socket.options.headers, {
       Authorization: 'Bearer auth-token-1',
       'Access-Token': 'access-token-1',
-      'X-Sdkwork-Tenant-Id': 'tenant-1',
-      'X-Sdkwork-User-Id': 'user-1',
-      'X-Sdkwork-Device-Id': 'device-1',
+      'X-Trace-Id': 'trace-1',
     });
 
     const lifecycleStates: string[] = [];

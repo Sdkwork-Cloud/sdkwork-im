@@ -133,8 +133,6 @@ assert.doesNotMatch(
 for (const requiredImSessionFragment of [
   'tokenProvider: tokenManager',
   'accessToken: resolveAppSdkAccessToken',
-  'headerProvider: () => buildImSdkContextHeaders',
-  'X-Sdkwork-Session-Id',
   'ImWebSocketAuthOptions.automatic',
 ]) {
   assert.match(
@@ -146,7 +144,12 @@ for (const requiredImSessionFragment of [
 assert.doesNotMatch(
   imSdkClientSource,
   /tenantId:\s*resolveAppSdkTenantId|organizationId:\s*resolveAppSdkOrganizationId/u,
-  'IM SDK client must not pass current tenantId/organizationId as static options; JWT-backed Context belongs in the request headerProvider.',
+  'IM SDK client must not pass current tenantId/organizationId as static options; server context comes from tokens.',
+);
+assert.doesNotMatch(
+  imSdkClientSource,
+  /headerProvider:\s*\(\)\s*=>|buildImSdkContextHeaders|Sdkwork-(?:Tenant|Organization|User|Session|Actor|Device)-Id/u,
+  'IM SDK client must not inject request context through custom headers.',
 );
 assert.doesNotMatch(imSdkClientSource, /\bfetch\s*\(/u);
 
@@ -187,7 +190,9 @@ for (const sourceName of [
   'sdkwork-im-app-sdk',
   'sdkwork-im-backend-sdk',
   'sdkwork-im-sdk',
+  'sdkwork-notary',
   'sdkwork-appbase',
+  'sdkwork-drive',
   'sdkwork-core',
   'sdkwork-ui',
   'sdkwork-claw-router',

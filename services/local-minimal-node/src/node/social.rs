@@ -2153,18 +2153,10 @@ async fn dispatch_control_plane_json_response(
     permissions: &str,
     body: Option<serde_json::Value>,
 ) -> Result<(axum::http::StatusCode, serde_json::Value), ApiError> {
-    let mut builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("x-sdkwork-tenant-id", auth.tenant_id.as_str())
-        .header("x-sdkwork-user-id", auth.actor_id.as_str())
-        .header("x-sdkwork-actor-kind", auth.actor_kind.as_str())
-        .header("x-sdkwork-permission-scope", permissions);
-    if let Some(session_id) = auth.session_id.as_deref() {
-        builder = builder.header("x-sdkwork-session-id", session_id);
-    }
-    if let Some(device_id) = auth.device_id.as_deref() {
-        builder = builder.header("x-sdkwork-device-id", device_id);
+    let auth_headers = im_app_context::build_dual_token_headers_for_context(auth, [permissions]);
+    let mut builder = Request::builder().method(method).uri(uri);
+    for (name, value) in auth_headers.iter() {
+        builder = builder.header(name, value);
     }
     let body = match body {
         Some(value) => {

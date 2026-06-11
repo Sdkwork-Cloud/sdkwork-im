@@ -233,32 +233,23 @@ function Invoke-ImUserLogin {
         [string]$ResolvedDeviceId
     )
 
-    $loginResponse = Invoke-ChatCliJson -Arguments @(
+    $tokenResponse = Invoke-ChatCliJson -Arguments @(
         "--base-url", $ResolvedBaseUrl,
         "--tenant-id", $TenantId,
         "--user-id", $RequestedUserId,
         "--session-id", $ResolvedSessionId,
         "--device-id", $ResolvedDeviceId,
-        "login",
-        "--login", $ResolvedLogin,
-        "--password", $ResolvedPassword,
-        "--client-kind", "im_user"
+        "token",
+        "--token-only"
     )
 
-    $accessToken = [string]$loginResponse.accessToken
+    $accessToken = [string]$tokenResponse.token
     if ([string]::IsNullOrWhiteSpace($accessToken)) {
-        throw "login response did not include accessToken for '$ResolvedLogin'"
-    }
-
-    $resolvedAuthUserId = if ($null -ne $loginResponse.user -and -not [string]::IsNullOrWhiteSpace([string]$loginResponse.user.id)) {
-        [string]$loginResponse.user.id
-    }
-    else {
-        $RequestedUserId
+        throw "token response did not include token for '$ResolvedLogin'"
     }
 
     return [pscustomobject]@{
-        UserId = $resolvedAuthUserId
+        UserId = $RequestedUserId
         SessionId = $ResolvedSessionId
         DeviceId = $ResolvedDeviceId
         BearerToken = $accessToken
