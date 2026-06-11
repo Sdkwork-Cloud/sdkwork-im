@@ -69,13 +69,13 @@ async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
     (format!("http://127.0.0.1:{}", address.port()), handle)
 }
 
-fn signed_app_context_smoke_app(secret: &'static str) -> Router {
+fn dual_token_smoke_app() -> Router {
     Router::new()
         .route("/healthz", get(|| async { "ok" }))
         .route(
             "/im/v3/api/chat/conversations",
             post(move |headers: HeaderMap| async move {
-                match require_signed_app_context(headers, secret) {
+                match require_dual_token_context(headers) {
                     Some(response) => response,
                     None => Json(serde_json::json!({})).into_response(),
                 }
@@ -85,7 +85,7 @@ fn signed_app_context_smoke_app(secret: &'static str) -> Router {
             "/im/v3/api/chat/conversations/{conversation_id}/messages",
             post(
                 move |headers: HeaderMap, AxumPath(_conversation_id): AxumPath<String>| async move {
-                    match require_signed_app_context(headers, secret) {
+                    match require_dual_token_context(headers) {
                         Some(response) => response,
                         None => Json(serde_json::json!({})).into_response(),
                     }
@@ -96,7 +96,7 @@ fn signed_app_context_smoke_app(secret: &'static str) -> Router {
             "/im/v3/api/chat/conversations/{conversation_id}",
             get(
                 move |headers: HeaderMap, AxumPath(conversation_id): AxumPath<String>| async move {
-                    match require_signed_app_context(headers, secret) {
+                    match require_dual_token_context(headers) {
                         Some(response) => response,
                         None => Json(serde_json::json!({
                             "conversationId": conversation_id,
@@ -109,12 +109,12 @@ fn signed_app_context_smoke_app(secret: &'static str) -> Router {
         )
 }
 
-fn require_signed_app_context(headers: HeaderMap, secret: &str) -> Option<Response> {
+fn require_dual_token_context(headers: HeaderMap) -> Option<Response> {
     resolve_app_context_with_signature_config(
         &headers,
         AppContextSignatureConfig {
-            require_signature: true,
-            shared_secret: Some(secret.to_owned()),
+            require_signature: false,
+            shared_secret: None,
         },
     )
     .err()
@@ -470,9 +470,9 @@ fn test_security_and_audit_api_docs_cover_app_context_shared_sync_and_chain_veri
     });
 
     for token in [
-        "x-sdkwork-tenant-id",
-        "x-sdkwork-user-id",
-        "x-sdkwork-permission-scope",
+        "Authorization: Bearer",
+        "Access-Token",
+        "private signed trusted-edge projection",
         "shared_channel_sync_permission_denied",
         "shared_channel_sync_actor_invalid",
         "shared_channel_sync_rate_limited",
@@ -481,6 +481,19 @@ fn test_security_and_audit_api_docs_cover_app_context_shared_sync_and_chain_veri
         assert!(
             auth_and_errors_doc.contains(token),
             "docs/sites/api-reference/auth-and-errors.md must document {token}"
+        );
+    }
+
+    for forbidden_client_projection_header in [
+        "x-sdkwork-tenant-id",
+        "x-sdkwork-user-id",
+        "x-sdkwork-session-id",
+        "x-sdkwork-device-id",
+        "x-sdkwork-actor-kind",
+    ] {
+        assert!(
+            !auth_and_errors_doc.contains(forbidden_client_projection_header),
+            "docs/sites/api-reference/auth-and-errors.md must not document client-controlled identity projection header `{forbidden_client_projection_header}`"
         );
     }
 
@@ -1977,9 +1990,9 @@ async fn test_local_stack_smoke_sh_executes_against_public_app_with_app_context_
 
 #[cfg(windows)]
 #[tokio::test]
-async fn test_local_stack_smoke_ps1_executes_against_signed_app_context_service() {
+async fn test_local_stack_smoke_ps1_executes_against_dual_token_service() {
     let root = workspace_root();
-    let app = signed_app_context_smoke_app("signed-smoke-secret");
+    let app = dual_token_smoke_app();
     let (base_url, handle) = spawn_server(app).await;
     let root_for_command = root.clone();
     let base_url_for_command = base_url.clone();
@@ -1989,11 +2002,6 @@ async fn test_local_stack_smoke_ps1_executes_against_signed_app_context_service(
         tokio::task::spawn_blocking(move || {
             Command::new("powershell")
                 .current_dir(&root_for_command)
-                .env("CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE", "true")
-                .env(
-                    "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
-                    "signed-smoke-secret",
-                )
                 .args([
                     "-NoProfile",
                     "-ExecutionPolicy",
@@ -2007,34 +2015,34 @@ async fn test_local_stack_smoke_ps1_executes_against_signed_app_context_service(
         }),
     )
     .await
-    .expect("signed local_stack_smoke.ps1 should finish before timeout")
-    .expect("signed local_stack_smoke.ps1 should execute task")
-    .expect("signed local_stack_smoke.ps1 should execute");
+    .expect("dual-token local_stack_smoke.ps1 should finish before timeout")
+    .expect("dual-token local_stack_smoke.ps1 should execute task")
+    .expect("dual-token local_stack_smoke.ps1 should execute");
 
     handle.abort();
     let _ = handle.await;
 
     assert!(
         output.status.success(),
-        "local_stack_smoke.ps1 should sign AppContext headers accepted by the service. stdout: {} stderr: {}",
+        "local_stack_smoke.ps1 should send dual-token headers accepted by the service. stdout: {} stderr: {}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(
         String::from_utf8_lossy(&output.stdout).contains("local stack smoke check passed."),
-        "signed local_stack_smoke.ps1 should report a successful smoke run"
+        "dual-token local_stack_smoke.ps1 should report a successful smoke run"
     );
 }
 
 #[tokio::test]
-async fn test_local_stack_smoke_sh_executes_against_signed_app_context_service() {
+async fn test_local_stack_smoke_sh_executes_against_dual_token_service() {
     let root = workspace_root();
-    let app = signed_app_context_smoke_app("signed-smoke-secret");
+    let app = dual_token_smoke_app();
     let (base_url, handle) = spawn_server(app).await;
 
     let Some(bash_path) = resolve_usable_bash() else {
         eprintln!(
-            "skipping signed local_stack_smoke.sh execution regression because no usable bash runtime is available"
+            "skipping dual-token local_stack_smoke.sh execution regression because no usable bash runtime is available"
         );
         handle.abort();
         let _ = handle.await;
@@ -2048,11 +2056,6 @@ async fn test_local_stack_smoke_sh_executes_against_signed_app_context_service()
         tokio::task::spawn_blocking(move || {
             Command::new(&bash_path)
                 .current_dir(&root_for_command)
-                .env("CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE", "true")
-                .env(
-                    "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
-                    "signed-smoke-secret",
-                )
                 .args([
                     "tools/smoke/local_stack_smoke.sh",
                     "--base-url",
@@ -2062,22 +2065,22 @@ async fn test_local_stack_smoke_sh_executes_against_signed_app_context_service()
         }),
     )
     .await
-    .expect("signed local_stack_smoke.sh should finish before timeout")
-    .expect("signed local_stack_smoke.sh should execute task")
-    .expect("signed local_stack_smoke.sh should execute");
+    .expect("dual-token local_stack_smoke.sh should finish before timeout")
+    .expect("dual-token local_stack_smoke.sh should execute task")
+    .expect("dual-token local_stack_smoke.sh should execute");
 
     handle.abort();
     let _ = handle.await;
 
     assert!(
         output.status.success(),
-        "local_stack_smoke.sh should sign AppContext headers accepted by the service. stdout: {} stderr: {}",
+        "local_stack_smoke.sh should send dual-token headers accepted by the service. stdout: {} stderr: {}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(
         String::from_utf8_lossy(&output.stdout).contains("local stack smoke check passed."),
-        "signed local_stack_smoke.sh should report a successful smoke run"
+        "dual-token local_stack_smoke.sh should report a successful smoke run"
     );
 }
 
@@ -2102,7 +2105,7 @@ fn test_local_minimal_compose_injects_only_domain_cursor_secret_for_public_smoke
 }
 
 #[test]
-fn test_local_stack_smoke_scripts_require_app_context_projection_contract() {
+fn test_local_stack_smoke_scripts_require_dual_token_contract() {
     let root = workspace_root();
     let smoke_ps1_path = root
         .join("tools")
@@ -2124,15 +2127,17 @@ fn test_local_stack_smoke_scripts_require_app_context_projection_contract() {
             "local stack smoke scripts must not embed alg=none bearer tokens"
         );
         assert!(!script.contains("CRAW_CHAT_PUBLIC_BEARER"));
-        assert!(!script.contains("Authorization"));
-        assert!(script.contains("x-sdkwork-tenant-id"));
-        assert!(script.contains("x-sdkwork-user-id"));
-        assert!(script.contains("x-sdkwork-permission-scope"));
+        assert!(script.contains("Authorization"));
+        assert!(script.contains("Access-Token"));
+        assert!(!script.contains("x-sdkwork-tenant-id"));
+        assert!(!script.contains("x-sdkwork-user-id"));
+        assert!(!script.contains("x-sdkwork-session-id"));
+        assert!(!script.contains("x-sdkwork-device-id"));
     }
 }
 
 #[test]
-fn test_local_minimal_install_doc_describes_app_context_projection_contract() {
+fn test_local_minimal_install_doc_describes_dual_token_client_contract() {
     let root = workspace_root();
     let install_doc_path = root.join("docs").join("部署").join("本地最小安装与运行.md");
     let install_doc = fs::read_to_string(&install_doc_path)
@@ -2147,12 +2152,32 @@ fn test_local_minimal_install_doc_describes_app_context_projection_contract() {
         "install doc must document the friend request cursor signing secret contract"
     );
     assert!(
-        install_doc.contains("x-sdkwork-tenant-id"),
+        install_doc.contains("Authorization: Bearer"),
         "本地最小安装与运行.md must describe sdkwork AppContext tenant projection"
     );
     assert!(
-        install_doc.contains("x-sdkwork-user-id"),
+        install_doc.contains("Access-Token"),
         "本地最小安装与运行.md must describe sdkwork AppContext user projection"
+    );
+    assert!(
+        !install_doc.contains("x-sdkwork-tenant-id"),
+        "install doc must not document client-controlled tenant projection headers"
+    );
+    assert!(
+        !install_doc.contains("x-sdkwork-user-id"),
+        "install doc must not document client-controlled user projection headers"
+    );
+    assert!(
+        !install_doc.contains("x-sdkwork-session-id"),
+        "install doc must not document client-controlled session projection headers"
+    );
+    assert!(
+        !install_doc.contains("x-sdkwork-device-id"),
+        "install doc must not document client-controlled device projection headers"
+    );
+    assert!(
+        !install_doc.contains("x-sdkwork-actor-kind"),
+        "install doc must not document client-controlled actor projection headers"
     );
     assert!(
         !install_doc.contains("alg=none"),
@@ -3723,15 +3748,18 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert_eq!(first_non_empty_line(&bin_cmd_forwarder), "@echo off");
 
     assert!(smoke.contains("http://127.0.0.1:18090/healthz"));
-    assert!(!smoke.contains("Authorization"));
-    assert!(smoke.contains("x-sdkwork-tenant-id"));
-    assert!(smoke.contains("x-sdkwork-user-id"));
+    assert!(smoke.contains("Authorization"));
+    assert!(smoke.contains("Access-Token"));
+    assert!(!smoke.contains("x-sdkwork-tenant-id"));
+    assert!(!smoke.contains("x-sdkwork-user-id"));
     assert_eq!(first_non_empty_line(&smoke), "param(");
     assert!(smoke_sh.contains("http://127.0.0.1:18090/healthz"));
     assert!(!smoke_sh.contains("resolve_authorization_header"));
     assert!(!smoke_sh.contains("CRAW_CHAT_PUBLIC_BEARER"));
-    assert!(smoke_sh.contains("x-sdkwork-tenant-id"));
-    assert!(smoke_sh.contains("x-sdkwork-user-id"));
+    assert!(smoke_sh.contains("Authorization"));
+    assert!(smoke_sh.contains("Access-Token"));
+    assert!(!smoke_sh.contains("x-sdkwork-tenant-id"));
+    assert!(!smoke_sh.contains("x-sdkwork-user-id"));
     assert!(smoke_sh.contains("command -v wget"));
     assert!(smoke_sh.contains("/im/v3/api/chat/conversations"));
     assert_eq!(first_non_empty_line(&smoke_sh), "#!/usr/bin/env bash");
@@ -5069,92 +5097,23 @@ fn test_restore_runtime_local_cmd_normalizes_expected_preview_fingerprint_switch
     let _ = fs::remove_dir_all(&temp_root);
 }
 
-#[cfg(windows)]
 #[test]
-fn test_open_chat_test_ps1_uses_detached_gui_launcher_for_default_windows_mode() {
+fn test_retired_ui_test_launchers_are_not_deployment_profile_assets() {
     let root = workspace_root();
-    let script_path = root.join("bin").join("open-chat-test.ps1");
-    let script = fs::read_to_string(&script_path)
-        .unwrap_or_else(|_| panic!("missing bin script: {}", script_path.display()));
-
-    assert!(
-        script.contains("Invoke-CimMethod -ClassName Win32_Process -MethodName Create"),
-        "open-chat-test.ps1 must launch default GUI chat windows through Win32_Process.Create so windows opened by automation survive the parent host lifecycle"
-    );
-    assert!(
-        script.contains("$process = Start-Process -FilePath \"powershell.exe\""),
-        "open-chat-test.ps1 must fall back to Start-Process when CIM-based detached launch is unavailable so Windows automation hosts can still open GUI chat windows"
-    );
-    assert!(
-        script.contains("-PassThru"),
-        "open-chat-test.ps1 Start-Process fallback must capture the spawned PowerShell pid so popup launch failures stay diagnosable"
-    );
-    assert!(
-        script.contains("wscript.exe"),
-        "open-chat-test.ps1 must keep a detached GUI launch fallback for Windows environments where both CIM create and Start-Process launch are unavailable"
-    );
-}
-
-#[cfg(windows)]
-#[test]
-fn test_chat_window_gui_ps1_uses_polling_runtime_instead_of_async_child_stdio_bridge() {
-    let root = workspace_root();
-    let script_path = root.join("bin").join("chat-window-gui.ps1");
-    let script = fs::read_to_string(&script_path)
-        .unwrap_or_else(|_| panic!("missing bin script: {}", script_path.display()));
-
-    assert!(
-        script.contains("System.Windows.Forms.Timer"),
-        "chat-window-gui.ps1 must use a timer-based polling loop for stable transcript refresh"
-    );
-    assert!(
-        script.contains("timeline"),
-        "chat-window-gui.ps1 must poll conversation timeline through chat-cli for transcript refresh"
-    );
-    assert!(
-        script.contains("send-message"),
-        "chat-window-gui.ps1 must send messages through chat-cli commands"
-    );
-    assert!(
-        !script.contains("BeginOutputReadLine"),
-        "chat-window-gui.ps1 must not depend on redirected child stdout readers because that bridge is unstable in the Windows PowerShell GUI host"
-    );
-}
-
-#[cfg(windows)]
-#[test]
-fn test_chat_window_gui_ps1_reads_cli_json_via_utf8_process_io() {
-    let root = workspace_root();
-    let script_path = root.join("bin").join("chat-window-gui.ps1");
-    let script = fs::read_to_string(&script_path)
-        .unwrap_or_else(|_| panic!("missing bin script: {}", script_path.display()));
-
-    assert!(
-        script.contains("StandardOutputEncoding = [System.Text.Encoding]::UTF8"),
-        "chat-window-gui.ps1 must force UTF-8 when reading craw-chat-cli stdout in detached Windows PowerShell hosts"
-    );
-    assert!(
-        script.contains("StandardErrorEncoding = [System.Text.Encoding]::UTF8"),
-        "chat-window-gui.ps1 must force UTF-8 when reading craw-chat-cli stderr in detached Windows PowerShell hosts"
-    );
-    assert!(
-        script.contains("craw-chat-cli.exe"),
-        "chat-window-gui.ps1 must invoke the built craw-chat-cli.exe directly instead of capturing chat-cli.ps1 text output through the PowerShell pipeline"
-    );
-}
-
-#[cfg(windows)]
-#[test]
-fn test_chat_window_gui_ps1_invite_path_precreates_missing_rtc_session() {
-    let root = workspace_root();
-    let script_path = root.join("bin").join("chat-window-gui.ps1");
-    let script = fs::read_to_string(&script_path)
-        .unwrap_or_else(|_| panic!("missing bin script: {}", script_path.display()));
-
-    assert!(
-        script.matches("Ensure-RtcSessionExistsForInvite").count() >= 2,
-        "chat-window-gui.ps1 invite flow must define and invoke a create-before-invite preflight so first-click invite cannot fail with rtc_session_not_found"
-    );
+    for retired_path in [
+        root.join("bin").join("open-chat-test.ps1"),
+        root.join("bin").join("open-chat-test.cmd"),
+        root.join("bin").join("open-chat-test.sh"),
+        root.join("bin").join("open-chat-test"),
+        root.join("bin").join("chat-window-gui.ps1"),
+        root.join("bin").join("chat-window-gui.cmd"),
+    ] {
+        assert!(
+            !retired_path.exists(),
+            "retired UI test launcher must not be required by deployment profile assets: {}",
+            retired_path.display()
+        );
+    }
 }
 
 #[cfg(windows)]

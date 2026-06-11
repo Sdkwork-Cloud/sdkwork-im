@@ -1,7 +1,7 @@
 # Profiles and Environment
 
 Use this page to choose the right local profile and confirm the environment variables required for
-startup, AppContext projection, and shared-channel sync behavior.
+startup, dual-token auth context, private service projection, and shared-channel sync behavior.
 
 ## Profile Matrix
 
@@ -39,18 +39,14 @@ as the source of truth.
 ### Authentication Boundary
 
 `sdkwork-appbase` owns login, IAM sessions, dual-token validation, users, tenants, organizations,
-and the authoritative IAM context. `craw-chat` consumes the verified AppContext projection only.
-The trusted gateway validates appbase dual tokens, rewrites any inbound `x-sdkwork-*` headers, and
-signs the forwarded projection with `CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET`. Local direct-service
-smoke scripts may still send these projection headers for controlled local checks, but protected
-service routes should run with `CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true`:
+and the authoritative IAM context. Public clients send `Authorization: Bearer <auth-token>` and
+`Access-Token: <access-token>` only. Tenant, user, session, device, actor, and permission context is
+resolved from those token claims.
 
-- `x-sdkwork-tenant-id`
-- `x-sdkwork-user-id`
-- `x-sdkwork-session-id`
-- `x-sdkwork-device-id`
-- `x-sdkwork-permission-scope`
-- `x-sdkwork-context-signature`
+For trusted gateway or service-to-service traffic, the gateway validates appbase dual tokens,
+drops any client-supplied identity projection, and signs the private forwarded AppContext projection
+with `CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET`. Protected service routes should run with
+`CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true`.
 
 ## Security Hardening Variables
 

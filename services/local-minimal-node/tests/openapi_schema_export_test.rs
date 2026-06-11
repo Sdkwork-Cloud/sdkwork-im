@@ -119,33 +119,28 @@ async fn test_local_minimal_node_exports_app_api_openapi_schema() {
     );
     assert!(
         body_json["paths"].as_object().is_some_and(|paths| {
-            paths.contains_key("/app/v3/api/auth/registrations")
-                && paths.contains_key("/app/v3/api/auth/sessions")
-                && paths.contains_key("/app/v3/api/auth/sessions/current")
-                && paths.contains_key("/app/v3/api/auth/sessions/refresh")
-                && paths.contains_key("/app/v3/api/auth/verification_codes")
-                && paths.contains_key("/app/v3/api/auth/verification_codes/verify")
-                && paths.contains_key("/app/v3/api/iam/users/current")
-                && paths.contains_key("/app/v3/api/system/iam/runtime")
-                && paths.contains_key("/app/v3/api/system/iam/verification_policy")
-                && paths.contains_key("/app/v3/api/oauth/authorization_urls")
-                && paths.contains_key("/app/v3/api/oauth/device_authorizations")
-                && paths.contains_key(
+            paths.keys().all(|path| path.starts_with("/app/v3/api/"))
+                && !paths.contains_key("/app/v3/api/auth/registrations")
+                && !paths.contains_key("/app/v3/api/auth/sessions")
+                && !paths.contains_key("/app/v3/api/auth/sessions/current")
+                && !paths.contains_key("/app/v3/api/auth/sessions/refresh")
+                && !paths.contains_key("/app/v3/api/auth/verification_codes")
+                && !paths.contains_key("/app/v3/api/auth/verification_codes/verify")
+                && !paths.contains_key("/app/v3/api/iam/users/current")
+                && !paths.contains_key("/app/v3/api/system/iam/runtime")
+                && !paths.contains_key("/app/v3/api/system/iam/verification_policy")
+                && !paths.contains_key("/app/v3/api/oauth/authorization_urls")
+                && !paths.contains_key("/app/v3/api/oauth/device_authorizations")
+                && !paths.contains_key(
                     "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}"
                 )
-                && paths.contains_key(
+                && !paths.contains_key(
                     "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/scans"
                 )
-                && paths.contains_key(
+                && !paths.contains_key(
                     "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/password_completions"
                 )
-                && paths.contains_key("/app/v3/api/oauth/sessions")
-        }),
-        "schema must include sdkwork-im-app-sdk IAM and OAuth /app/v3/api routes"
-    );
-    assert!(
-        body_json["paths"].as_object().is_some_and(|paths| {
-            paths.keys().all(|path| path.starts_with("/app/v3/api/"))
+                && !paths.contains_key("/app/v3/api/oauth/sessions")
                 && !paths.contains_key("/app/v3/api/auth/login")
                 && !paths.contains_key("/app/v3/api/auth/register")
                 && !paths.contains_key("/app/v3/api/auth/refresh")
@@ -156,7 +151,7 @@ async fn test_local_minimal_node_exports_app_api_openapi_schema() {
                 && !paths.contains_key("/app/v3/api/device/sessions/resume")
                 && !paths.contains_key("/backend/v3/api/ops/health")
         }),
-        "im-app-api OpenAPI schema must come from sdkwork-im-app-sdk and must not include legacy appbase, IM, or backend paths"
+        "im-app-api OpenAPI schema must remain owner-only and must not include appbase, IM, or backend paths"
     );
 }
 

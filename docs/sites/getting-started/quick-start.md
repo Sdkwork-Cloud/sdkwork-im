@@ -58,8 +58,10 @@ CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=<generated-or-manually-set-secret>
 If the browser UI is not served from the default local preview origins, also set
 `CRAW_CHAT_BROWSER_ORIGINS` to the explicit comma-separated allowlist for that deployment.
 
-`start-local.*` no longer requires a craw-chat-owned public bearer secret. SDKWork auth validation
-happens before craw-chat, and the local node consumes the verified AppContext projection.
+`start-local.*` no longer requires a craw-chat-owned public bearer secret. Public and smoke
+requests use SDKWork dual-token headers: `Authorization: Bearer <auth-token>` and
+`Access-Token: <access-token>`. Tenant, user, session, device, actor, and permission context comes
+from those token claims.
 
 ## 3. Start the Local Node
 
@@ -159,8 +161,8 @@ powershell -ExecutionPolicy Bypass -File tools\smoke\local_stack_smoke.ps1 -Base
 bash bin/deploy-local.sh --profile local-default --smoke-base-url http://127.0.0.1:28090
 ```
 
-The smoke script waits for health, sends `x-sdkwork-*` AppContext projection headers, creates a
-conversation, posts a message, and verifies the resulting conversation summary.
+The smoke script waits for health, sends SDKWork dual-token headers, creates a conversation, posts a
+message, and verifies the resulting conversation summary.
 
 ## 7. Use the Local Verification Tools
 
@@ -179,11 +181,11 @@ healthy.
 
 The easiest path is to reuse the smoke script. If you call the HTTP API directly, use:
 
-- `x-sdkwork-tenant-id`
-- `x-sdkwork-user-id`
-- `x-sdkwork-session-id`
-- `x-sdkwork-device-id`
-- `x-sdkwork-permission-scope`
+- `Authorization: Bearer <auth-token>`
+- `Access-Token: <access-token>`
+
+Do not send client-controlled identity projection headers for tenant, user, session, device, actor,
+or permission scope. Those values are resolved from the SDKWork auth and access token claims.
 
 The public app surface is documented in [App API Overview](/api-reference/app-api).
 

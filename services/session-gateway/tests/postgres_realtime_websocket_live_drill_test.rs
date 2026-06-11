@@ -20,6 +20,7 @@ const CORE_SCHEMA_SQL: &str =
     include_str!("../../../deployments/database/postgres/migrations/001_im_core_schema.sql");
 const TENANT_ID_PREFIX: &str = "t_ws_pg_drill";
 const PRINCIPAL_ID_PREFIX: &str = "u_ws_pg_drill";
+const SESSION_ID: &str = "s_ws_pg_drill";
 const DEVICE_ID_PREFIX: &str = "d_ws_pg_drill";
 const CONVERSATION_ID_PREFIX: &str = "c_ws_pg_drill";
 
@@ -245,6 +246,59 @@ async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
     (format!("127.0.0.1:{}", address.port()), handle)
 }
 
+fn test_auth_token(tenant_id: &str, principal_id: &str) -> String {
+    json!({
+        "tenant_id": tenant_id,
+        "login_scope": "TENANT",
+        "user_id": principal_id,
+        "session_id": SESSION_ID,
+        "app_id": "craw-chat",
+        "auth_level": "password",
+        "subject_type": "user"
+    })
+    .to_string()
+}
+
+fn test_access_token(tenant_id: &str, principal_id: &str, device_id: &str) -> String {
+    json!({
+        "tenant_id": tenant_id,
+        "login_scope": "TENANT",
+        "user_id": principal_id,
+        "session_id": SESSION_ID,
+        "app_id": "craw-chat",
+        "environment": "dev",
+        "deployment_mode": "local",
+        "auth_level": "password",
+        "actor_id": principal_id,
+        "actor_kind": "user",
+        "device_id": device_id,
+        "data_scope": ["tenant"],
+        "permission_scope": ["*"],
+        "subject_type": "user"
+    })
+    .to_string()
+}
+
+fn insert_test_dual_token_headers(
+    headers: &mut tokio_tungstenite::tungstenite::http::HeaderMap,
+    tenant_id: &str,
+    principal_id: &str,
+    device_id: &str,
+) {
+    headers.insert(
+        tokio_tungstenite::tungstenite::http::header::AUTHORIZATION,
+        format!("Bearer {}", test_auth_token(tenant_id, principal_id))
+            .parse()
+            .expect("auth token header should parse"),
+    );
+    headers.insert(
+        "Access-Token",
+        test_access_token(tenant_id, principal_id, device_id)
+            .parse()
+            .expect("access token header should parse"),
+    );
+}
+
 async fn connect_legacy_json_socket(
     address: &str,
     tenant_id: &str,
@@ -254,21 +308,7 @@ async fn connect_legacy_json_socket(
     let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
         .into_client_request()
         .expect("websocket request should build");
-    request
-        .headers_mut()
-        .insert("x-sdkwork-tenant-id", tenant_id.parse().unwrap());
-    request
-        .headers_mut()
-        .insert("x-sdkwork-user-id", principal_id.parse().unwrap());
-    request
-        .headers_mut()
-        .insert("x-sdkwork-actor-kind", "user".parse().unwrap());
-    request
-        .headers_mut()
-        .insert("x-sdkwork-session-id", "s_ws_pg_drill".parse().unwrap());
-    request
-        .headers_mut()
-        .insert("x-sdkwork-device-id", device_id.parse().unwrap());
+    insert_test_dual_token_headers(request.headers_mut(), tenant_id, principal_id, device_id);
 
     connect_async(request)
         .await

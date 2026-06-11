@@ -92,11 +92,6 @@ sdkwork-rtc-adapter-tencent = { path = "../sdkwork-rtc/adapters/rtc-tencent" }
 sdkwork-rtc-adapter-volcengine = { path = "../sdkwork-rtc/adapters/rtc-volcengine" }
 sdkwork-rtc-core = { path = "../sdkwork-rtc/crates/sdkwork-rtc-core" }
 sdkwork-rtc-app-context = { path = "../sdkwork-rtc/crates/sdkwork-rtc-app-context" }
-sdkwork-agent-business = { path = "../sdkwork-kernel/sdkwork-agent-business", features = ["http-axum"] }
-sdkwork-aiot-contract = { path = "../sdkwork-aiot/crates/sdkwork-aiot-contract" }
-sdkwork-aiot-http-api = { path = "../sdkwork-aiot/crates/sdkwork-aiot-http-api" }
-sdkwork-aiot-runtime = { path = "../sdkwork-aiot/crates/sdkwork-aiot-runtime" }
-sdkwork-aiot-transport = { path = "../sdkwork-aiot/crates/sdkwork-aiot-transport" }
 
 [profile.release]
 lto = true

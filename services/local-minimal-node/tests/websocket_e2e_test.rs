@@ -1,4 +1,6 @@
-use im_app_context::DualTokenRequestBuilderExt;
+use im_app_context::{
+    DualTokenRequestBuilderExt, build_dual_token_headers_for_context, local_service_app_context,
+};
 use std::time::Duration;
 
 use axum::Router;
@@ -25,6 +27,26 @@ async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
         axum::serve(listener, app).await.expect("server should run");
     });
     (format!("127.0.0.1:{}", address.port()), handle)
+}
+
+fn authenticated_websocket_request(
+    address: &str,
+    user_id: &str,
+    actor_kind: &str,
+    session_id: &str,
+    device_id: &str,
+) -> tokio_tungstenite::tungstenite::http::Request<()> {
+    let mut context =
+        local_service_app_context("t_demo", user_id, actor_kind, Some(device_id), ["*"]);
+    context.session_id = Some(session_id.to_owned());
+    let headers = build_dual_token_headers_for_context(&context, context.permission_scope.iter());
+    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
+        .into_client_request()
+        .expect("websocket request should build");
+    for (name, value) in headers.iter() {
+        request.headers_mut().insert(name.clone(), value.clone());
+    }
+    request
 }
 
 async fn next_text_json(
@@ -106,29 +128,8 @@ async fn test_local_minimal_profile_pushes_business_realtime_events_over_websock
         .expect("add member should succeed");
     assert_eq!(add_member.status(), StatusCode::OK);
 
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_other_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_other".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_other".parse().expect("device header should parse"),
-    );
+    let request =
+        authenticated_websocket_request(&address, "u_other_demo", "user", "s_other", "d_other");
     let (mut socket, _) = connect_async(request)
         .await
         .expect("websocket connection should succeed");
@@ -297,29 +298,7 @@ async fn test_local_minimal_profile_pushes_agent_handoff_lifecycle_events_over_w
         .expect("create agent handoff should succeed");
     assert_eq!(create_handoff.status(), StatusCode::OK);
 
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_websocket_request(&address, "u_demo", "user", "s_pad", "d_pad");
     let (mut socket, _) = connect_async(request)
         .await
         .expect("websocket connection should succeed");
@@ -432,29 +411,7 @@ async fn test_local_minimal_profile_pushes_member_joined_events_over_websocket()
         .expect("create conversation should succeed");
     assert_eq!(create_conversation.status(), StatusCode::OK);
 
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_websocket_request(&address, "u_demo", "user", "s_pad", "d_pad");
     let (mut socket, _) = connect_async(request)
         .await
         .expect("websocket connection should succeed");

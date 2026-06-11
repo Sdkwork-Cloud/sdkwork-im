@@ -262,12 +262,7 @@ async fn connect_ccp_device(url: &str, device_id: &str) -> (ConnectedDevice, f64
                 "subject_type": PRINCIPAL_KIND
             })
             .to_string(),
-        )
-        .with_header("x-sdkwork-tenant-id", TENANT_ID)
-        .with_header("x-sdkwork-user-id", PRINCIPAL_ID)
-        .with_header("x-sdkwork-actor-kind", PRINCIPAL_KIND)
-        .with_header("x-sdkwork-session-id", SESSION_ID)
-        .with_header("x-sdkwork-device-id", device_id);
+        );
 
     let started = Instant::now();
     let (mut socket, response) = connect_async(request)

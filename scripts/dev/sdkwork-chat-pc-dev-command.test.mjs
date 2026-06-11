@@ -193,9 +193,10 @@ assert.doesNotMatch(
   /[A-Za-z]:[\\/]/u,
   'local-minimal-node Rust manifest must not point to an absolute checkout path',
 );
-assert.ok(
-  localMinimalNodeCargoSource.includes('sdkwork-agent-business.workspace = true'),
-  'local-minimal-node must consume sdkwork-agent-business through [workspace.dependencies] with `workspace = true`',
+assert.doesNotMatch(
+  localMinimalNodeCargoSource,
+  /sdkwork-agent-business\.workspace\s*=\s*true/u,
+  'local-minimal-node must not consume sdkwork-agent-business; Agent API runtime is routed through sdkwork-api-gateway',
 );
 for (const cargoSource of [
   localMinimalNodeCargoSource,

@@ -7,6 +7,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use im_app_context::{build_dual_token_headers_for_context, local_service_app_context};
+
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
 
 struct ManagedServerProcess {
@@ -175,13 +177,16 @@ fn send_json_request(
 ) -> Result<(u16, serde_json::Value), String> {
     let session_id = format!("s_{user_id}");
     let device_id = format!("d_{user_id}");
+    let (authorization, access_token) = dual_token_header_values(
+        user_id,
+        "user",
+        session_id.as_str(),
+        Some(device_id.as_str()),
+        &["*"],
+    );
     let mut headers = vec![
-        ("x-sdkwork-tenant-id", "t_demo"),
-        ("x-sdkwork-user-id", user_id),
-        ("x-sdkwork-actor-id", user_id),
-        ("x-sdkwork-actor-kind", "user"),
-        ("x-sdkwork-session-id", session_id.as_str()),
-        ("x-sdkwork-device-id", device_id.as_str()),
+        ("Authorization", authorization.as_str()),
+        ("Access-Token", access_token.as_str()),
     ];
     if body.is_some() {
         headers.push(("content-type", "application/json"));
@@ -196,22 +201,54 @@ fn send_admin_control_request(
     base_url: &str,
     path: &str,
 ) -> Result<(u16, serde_json::Value), String> {
-    let response = send_http_request(
-        base_url,
-        "GET",
-        path,
-        &[
-            ("x-sdkwork-tenant-id", "t_demo"),
-            ("x-sdkwork-user-id", "u_admin"),
-            ("x-sdkwork-actor-id", "u_admin"),
-            ("x-sdkwork-actor-kind", "admin"),
-            ("x-sdkwork-permission-scope", "control.read"),
-        ],
-        None,
-    )?;
+    let response = send_admin_http_request(base_url, "GET", path, None)?;
     let json = serde_json::from_slice::<serde_json::Value>(&response.body)
         .map_err(|error| format!("admin control response body should be valid json: {error}"))?;
     Ok((response.status_code, json))
+}
+
+fn send_admin_http_request(
+    base_url: &str,
+    method: &str,
+    path: &str,
+    body: Option<&str>,
+) -> Result<HttpResponse, String> {
+    let (authorization, access_token) =
+        dual_token_header_values("u_admin", "admin", "s_u_admin", None, &["control.read"]);
+    let headers = [
+        ("Authorization", authorization.as_str()),
+        ("Access-Token", access_token.as_str()),
+    ];
+    send_http_request(base_url, method, path, &headers, body)
+}
+
+fn dual_token_header_values(
+    user_id: &str,
+    actor_kind: &str,
+    session_id: &str,
+    device_id: Option<&str>,
+    permission_scope: &[&str],
+) -> (String, String) {
+    let mut context = local_service_app_context(
+        "t_demo",
+        user_id,
+        actor_kind,
+        device_id,
+        permission_scope.iter().copied(),
+    );
+    context.session_id = Some(session_id.to_owned());
+    let headers = build_dual_token_headers_for_context(&context, permission_scope.iter().copied());
+    let authorization = headers
+        .get("authorization")
+        .and_then(|value| value.to_str().ok())
+        .expect("dual token authorization header should exist")
+        .to_owned();
+    let access_token = headers
+        .get("access-token")
+        .and_then(|value| value.to_str().ok())
+        .expect("dual token access token header should exist")
+        .to_owned();
+    (authorization, access_token)
 }
 
 fn wait_for_friend_request_status(
@@ -363,17 +400,10 @@ fn test_local_minimal_process_blackbox_concurrent_accept_and_cancel_across_insta
     };
 
     let snapshot_path = format!("/backend/v3/api/control/social/friend_requests/{request_id}");
-    let snapshot_response = send_http_request(
+    let snapshot_response = send_admin_http_request(
         server_a.base_url.as_str(),
         "GET",
         snapshot_path.as_str(),
-        &[
-            ("x-sdkwork-tenant-id", "t_demo"),
-            ("x-sdkwork-user-id", "u_admin"),
-            ("x-sdkwork-actor-id", "u_admin"),
-            ("x-sdkwork-actor-kind", "admin"),
-            ("x-sdkwork-permission-scope", "control.read"),
-        ],
         None,
     )
     .expect("snapshot request should return response");
@@ -488,17 +518,10 @@ fn test_local_minimal_process_blackbox_concurrent_accepts_converge_idempotently_
     );
 
     let snapshot_path = format!("/backend/v3/api/control/social/friend_requests/{request_id}");
-    let snapshot_response = send_http_request(
+    let snapshot_response = send_admin_http_request(
         server_a.base_url.as_str(),
         "GET",
         snapshot_path.as_str(),
-        &[
-            ("x-sdkwork-tenant-id", "t_demo"),
-            ("x-sdkwork-user-id", "u_admin"),
-            ("x-sdkwork-actor-id", "u_admin"),
-            ("x-sdkwork-actor-kind", "admin"),
-            ("x-sdkwork-permission-scope", "control.read"),
-        ],
         None,
     )
     .expect("request snapshot after concurrent accepts should return response");
@@ -584,17 +607,10 @@ fn test_local_minimal_process_blackbox_cross_instance_accept_and_submit_same_pai
     assert_eq!(accept_json["friendRequest"]["status"], "accepted");
 
     let snapshot_path = format!("/backend/v3/api/control/social/friend_requests/{request_id}");
-    let snapshot_response = send_http_request(
+    let snapshot_response = send_admin_http_request(
         server_b.base_url.as_str(),
         "GET",
         snapshot_path.as_str(),
-        &[
-            ("x-sdkwork-tenant-id", "t_demo"),
-            ("x-sdkwork-user-id", "u_admin"),
-            ("x-sdkwork-actor-id", "u_admin"),
-            ("x-sdkwork-actor-kind", "admin"),
-            ("x-sdkwork-permission-scope", "control.read"),
-        ],
         None,
     )
     .expect("request snapshot after accept/submit race should return response");
@@ -603,24 +619,15 @@ fn test_local_minimal_process_blackbox_cross_instance_accept_and_submit_same_pai
         .expect("request snapshot after accept/submit race should be valid json");
     assert_eq!(snapshot_json["friendRequest"]["status"], "accepted");
 
-    let contacts_response = send_http_request(
+    let (contacts_status, contacts_json) = send_json_request(
         server_b.base_url.as_str(),
         "GET",
         "/im/v3/api/chat/contacts",
-        &[
-            ("x-sdkwork-tenant-id", "t_demo"),
-            ("x-sdkwork-user-id", "u_alice"),
-            ("x-sdkwork-actor-id", "u_alice"),
-            ("x-sdkwork-actor-kind", "user"),
-            ("x-sdkwork-session-id", "s_u_alice"),
-            ("x-sdkwork-device-id", "d_u_alice"),
-        ],
+        "u_alice",
         None,
     )
     .expect("contacts after accept/submit race should return response");
-    assert_eq!(contacts_response.status_code, 200);
-    let contacts_json: serde_json::Value = serde_json::from_slice(&contacts_response.body)
-        .expect("contacts after accept/submit race should be valid json");
+    assert_eq!(contacts_status, 200);
     let items = contacts_json["items"]
         .as_array()
         .expect("contacts after accept/submit race should include items");
@@ -700,17 +707,10 @@ fn test_local_minimal_process_blackbox_cross_instance_submit_same_pair_converges
 
     let snapshot_path =
         format!("/backend/v3/api/control/social/friend_requests/{alice_request_id}");
-    let snapshot_response = send_http_request(
+    let snapshot_response = send_admin_http_request(
         server_a.base_url.as_str(),
         "GET",
         snapshot_path.as_str(),
-        &[
-            ("x-sdkwork-tenant-id", "t_demo"),
-            ("x-sdkwork-user-id", "u_admin"),
-            ("x-sdkwork-actor-id", "u_admin"),
-            ("x-sdkwork-actor-kind", "admin"),
-            ("x-sdkwork-permission-scope", "control.read"),
-        ],
         None,
     )
     .expect("snapshot request should return response");
@@ -988,17 +988,10 @@ fn test_local_minimal_process_blackbox_cross_instance_remove_and_submit_converge
 
     let friendship_snapshot_path =
         format!("/backend/v3/api/control/social/friendships/{friendship_id}");
-    let friendship_snapshot = send_http_request(
+    let friendship_snapshot = send_admin_http_request(
         server_a.base_url.as_str(),
         "GET",
         friendship_snapshot_path.as_str(),
-        &[
-            ("x-sdkwork-tenant-id", "t_demo"),
-            ("x-sdkwork-user-id", "u_admin"),
-            ("x-sdkwork-actor-id", "u_admin"),
-            ("x-sdkwork-actor-kind", "admin"),
-            ("x-sdkwork-permission-scope", "control.read"),
-        ],
         None,
     )
     .expect("friendship snapshot request should return response");
@@ -1014,17 +1007,10 @@ fn test_local_minimal_process_blackbox_cross_instance_remove_and_submit_converge
             .expect("successful resubmit should expose request id");
         let request_snapshot_path =
             format!("/backend/v3/api/control/social/friend_requests/{new_request_id}");
-        let request_snapshot = send_http_request(
+        let request_snapshot = send_admin_http_request(
             server_b.base_url.as_str(),
             "GET",
             request_snapshot_path.as_str(),
-            &[
-                ("x-sdkwork-tenant-id", "t_demo"),
-                ("x-sdkwork-user-id", "u_admin"),
-                ("x-sdkwork-actor-id", "u_admin"),
-                ("x-sdkwork-actor-kind", "admin"),
-                ("x-sdkwork-permission-scope", "control.read"),
-            ],
             None,
         )
         .expect("resubmitted request snapshot should return response");

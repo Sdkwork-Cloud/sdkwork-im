@@ -41,7 +41,7 @@
 | --- | --- | --- |
 | Principal-profile provider | Provider health and upstream-context or external-catalog mode wiring | `services/local-minimal-node/tests/principal_profile_provider_http_test.rs` |
 | Object storage provider | Provider health and provider-generated download URLs | `services/local-minimal-node/tests/media_provider_http_test.rs` |
-| AIoT dependency bridge | App and backend IoT routes are delegated to the sibling `sdkwork-aiot` runtime and SDK families | `services/local-minimal-node/src/node/aiot_bridge.rs`, `../sdkwork-aiot/crates/sdkwork-aiot-http-api` |
+| AIoT dependency surface | App and backend IoT routes are consumed through the shared `sdkwork-api-gateway`; Craw Chat local servers do not mount the sibling `sdkwork-aiot` runtime | `specs/component.spec.json`, `scripts/dependency-management-standard.test.mjs` |
 
 ## Control-plane Governance
 

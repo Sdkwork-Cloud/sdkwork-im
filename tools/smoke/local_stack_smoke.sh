@@ -35,31 +35,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-APP_CONTEXT_HEADERS=(
-  "x-sdkwork-tenant-id: t_demo"
-  "x-sdkwork-user-id: u_demo"
-  "x-sdkwork-actor-id: u_demo"
-  "x-sdkwork-actor-kind: user"
-  "x-sdkwork-session-id: s_demo"
-  "x-sdkwork-device-id: d_demo"
-  "x-sdkwork-permission-scope: chat.write"
-)
 CONTENT_TYPE_HEADER="Content-Type: application/json"
-SIGNED_APP_CONTEXT_HEADER_NAMES=(
-  "x-sdkwork-app-id"
-  "x-sdkwork-tenant-id"
-  "x-sdkwork-organization-id"
-  "x-sdkwork-user-id"
-  "x-sdkwork-session-id"
-  "x-sdkwork-environment"
-  "x-sdkwork-deployment-mode"
-  "x-sdkwork-auth-level"
-  "x-sdkwork-data-scope"
-  "x-sdkwork-permission-scope"
-  "x-sdkwork-actor-id"
-  "x-sdkwork-actor-kind"
-  "x-sdkwork-device-id"
-)
 
 have_curl() {
   command -v curl >/dev/null 2>&1
@@ -69,144 +45,49 @@ have_wget() {
   command -v wget >/dev/null 2>&1
 }
 
-truthy() {
-  local normalized=""
-  normalized="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
-  case "$normalized" in
-    1|true|yes|on)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-read_config_value_from_file() {
-  local config_file="$1"
-  local key="$2"
-  [[ -f "$config_file" ]] || return 1
-
-  while IFS='=' read -r current_key current_value; do
-    current_key="${current_key%$'\r'}"
-    current_value="${current_value%$'\r'}"
-    [[ -z "$current_key" || "$current_key" == \#* ]] && continue
-    if [[ "$current_key" == "$key" ]]; then
-      printf '%s\n' "$current_value"
-      return 0
-    fi
-  done <"$config_file"
-
-  return 1
-}
-
-resolve_local_config_value() {
-  local key="$1"
-  local config_file=""
-  for config_file in \
-    ".runtime/local-minimal/config/local-minimal.env" \
-    ".runtime/local-default/config/local-default.env"; do
-    read_config_value_from_file "$config_file" "$key" && return 0
-  done
-
-  return 1
-}
-
-resolve_default_compose_signature_secret() {
-  local compose_file="deployments/docker-compose/local-minimal.yml"
-  [[ "$base_url" == "$DEFAULT_BASE_URL" && -f "$compose_file" ]] || return 1
-
-  sed -n 's/^[[:space:]]*CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET:[[:space:]]*//p' "$compose_file" \
-    | head -n 1 \
-    | tr -d '"' \
-    | tr -d "'"
-}
-
-app_context_header_value() {
-  local header_name="$1"
-  local header=""
-  local current_name=""
-  local current_value=""
-
-  for header in "${APP_CONTEXT_HEADERS[@]}"; do
-    current_name="${header%%:*}"
-    current_value="${header#*:}"
-    current_name="$(printf '%s' "$current_name" | tr '[:upper:]' '[:lower:]')"
-    if [[ "$current_name" == "$header_name" ]]; then
-      printf '%s\n' "${current_value#"${current_value%%[![:space:]]*}"}"
-      return 0
-    fi
-  done
-
-  printf '\n'
-}
-
-canonicalize_app_context_headers() {
-  local first=1
-  local header_name=""
-
-  for header_name in "${SIGNED_APP_CONTEXT_HEADER_NAMES[@]}"; do
-    if [[ "$first" -eq 0 ]]; then
-      printf '\n'
-    fi
-    first=0
-    printf '%s:%s' "$header_name" "$(app_context_header_value "$header_name")"
-  done
-}
-
-sign_app_context_headers() {
-  local secret="$1"
-
-  if ! command -v openssl >/dev/null 2>&1; then
-    echo "openssl is required to sign SDKWork AppContext smoke headers." >&2
-    exit 1
-  fi
-
-  canonicalize_app_context_headers \
-    | openssl dgst -sha256 -hmac "$secret" -binary \
-    | openssl base64 -A \
-    | tr '+/' '-_' \
-    | tr -d '='
-}
-
-configure_app_context_signature() {
-  local require_signature="${CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE:-}"
-  local signature_secret="${CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET:-}"
-
-  if [[ -z "$require_signature" ]]; then
-    require_signature="$(resolve_local_config_value "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE" || true)"
-  fi
-  if [[ -z "$signature_secret" ]]; then
-    signature_secret="$(resolve_local_config_value "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET" || true)"
-  fi
-  if [[ -z "$signature_secret" ]]; then
-    signature_secret="$(resolve_default_compose_signature_secret || true)"
-  fi
-
-  if [[ -n "$signature_secret" ]]; then
-    APP_CONTEXT_HEADERS+=("x-sdkwork-context-signature: $(sign_app_context_headers "$signature_secret")")
+base64url() {
+  local raw="$1"
+  if have_openssl; then
+    printf '%s' "$raw" | openssl base64 -A | tr '+/' '-_' | tr -d '='
     return
   fi
 
-  if truthy "$require_signature"; then
-    echo "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET is required when CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true." >&2
-    exit 1
-  fi
+  printf '%s' "$raw" | base64 | tr -d '\n' | tr '+/' '-_' | tr -d '='
 }
 
-curl_app_context_args() {
+have_openssl() {
+  command -v openssl >/dev/null 2>&1
+}
+
+local_jwt() {
+  local claims="$1"
+  local header=""
+  local payload=""
+  header="$(base64url '{"alg":"none","typ":"JWT"}')"
+  payload="$(base64url "$claims")"
+  printf '%s.%s.local\n' "$header" "$payload"
+}
+
+AUTH_TOKEN="$(local_jwt '{"tenant_id":"t_demo","login_scope":"TENANT","user_id":"u_demo","session_id":"s_demo","app_id":"craw-chat","auth_level":"password","subject_type":"user"}')"
+ACCESS_TOKEN="$(local_jwt '{"tenant_id":"t_demo","login_scope":"TENANT","user_id":"u_demo","session_id":"s_demo","app_id":"craw-chat","environment":"dev","deployment_mode":"local","auth_level":"password","actor_id":"u_demo","actor_kind":"user","device_id":"d_demo","data_scope":["tenant"],"permission_scope":["chat.write"],"subject_type":"user"}')"
+DUAL_TOKEN_HEADERS=(
+  "Authorization: Bearer ${AUTH_TOKEN}"
+  "Access-Token: ${ACCESS_TOKEN}"
+)
+
+curl_dual_token_args() {
   local args=()
   local header
-  for header in "${APP_CONTEXT_HEADERS[@]}"; do
+  for header in "${DUAL_TOKEN_HEADERS[@]}"; do
     args+=("-H" "$header")
   done
   printf '%s\n' "${args[@]}"
 }
 
-wget_app_context_args() {
+wget_dual_token_args() {
   local args=()
   local header
-  for header in "${APP_CONTEXT_HEADERS[@]}"; do
+  for header in "${DUAL_TOKEN_HEADERS[@]}"; do
     args+=("--header=$header")
   done
   printf '%s\n' "${args[@]}"
@@ -216,14 +97,14 @@ http_get() {
   local url="$1"
 
   if have_curl; then
-    mapfile -t app_context_args < <(curl_app_context_args)
-    curl --fail --silent --show-error "${app_context_args[@]}" "$url"
+    mapfile -t dual_token_args < <(curl_dual_token_args)
+    curl --fail --silent --show-error "${dual_token_args[@]}" "$url"
     return
   fi
 
   if have_wget; then
-    mapfile -t app_context_args < <(wget_app_context_args)
-    wget -q -O - "${app_context_args[@]}" "$url"
+    mapfile -t dual_token_args < <(wget_dual_token_args)
+    wget -q -O - "${dual_token_args[@]}" "$url"
     return
   fi
 
@@ -236,10 +117,10 @@ http_post() {
   local body="$2"
 
   if have_curl; then
-    mapfile -t app_context_args < <(curl_app_context_args)
+    mapfile -t dual_token_args < <(curl_dual_token_args)
     curl --fail --silent --show-error \
       -X POST \
-      "${app_context_args[@]}" \
+      "${dual_token_args[@]}" \
       -H "$CONTENT_TYPE_HEADER" \
       -d "$body" \
       "$url"
@@ -247,10 +128,10 @@ http_post() {
   fi
 
   if have_wget; then
-    mapfile -t app_context_args < <(wget_app_context_args)
+    mapfile -t dual_token_args < <(wget_dual_token_args)
     wget -q -O - \
       --method=POST \
-      "${app_context_args[@]}" \
+      "${dual_token_args[@]}" \
       --header="$CONTENT_TYPE_HEADER" \
       --body-data="$body" \
       "$url"
@@ -295,7 +176,6 @@ normalize_json() {
 }
 
 wait_healthy "$base_url"
-configure_app_context_signature
 
 conversation_id="c_smoke_$(date +%s)_$$"
 

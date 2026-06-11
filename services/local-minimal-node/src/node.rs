@@ -26,7 +26,7 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::{
     Json, Router,
-    routing::{any, delete, get, patch, post},
+    routing::{delete, get, patch, post},
 };
 use control_plane_api::SocialControlQuery;
 use conversation_runtime::{
@@ -99,7 +99,6 @@ use streaming_service::{
 use tokio::sync::Semaphore;
 
 mod access;
-mod aiot_bridge;
 mod build;
 mod calls;
 mod client_route_registration;
@@ -184,8 +183,6 @@ struct AppState {
     presence_runtime: Arc<PresenceRuntime>,
     realtime_runtime: Arc<RealtimeDeliveryRuntime>,
     client_route_registration: LocalNodeClientRouteRegistration,
-    aiot_app_api_server: Arc<sdkwork_aiot_http_api::AiotApiServer>,
-    aiot_backend_api_server: Arc<sdkwork_aiot_http_api::AiotApiServer>,
     streaming_runtime: Arc<StreamingRuntime>,
     call_runtime: Arc<ImCallRuntime>,
     notification_runtime: Arc<NotificationRuntime>,
@@ -1709,16 +1706,12 @@ fn load_im_openapi_schema_json() -> Result<Value, ApiError> {
 }
 
 fn load_app_api_openapi_schema_json() -> Result<Value, ApiError> {
-    let mut schema = load_openapi_schema_json(
+    load_openapi_schema_json(
         "im-app-api",
         APP_API_OPENAPI_SCHEMA_PATH_ENV,
         "../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml",
         APP_API_OPENAPI_SCHEMA_EMBEDDED_YAML,
-    )?;
-    if env::var(APP_API_OPENAPI_SCHEMA_PATH_ENV).is_err() {
-        compose_app_api_dependency_openapi_paths(&mut schema);
-    }
-    Ok(schema)
+    )
 }
 
 fn load_backend_api_openapi_schema_json() -> Result<Value, ApiError> {
@@ -1728,214 +1721,6 @@ fn load_backend_api_openapi_schema_json() -> Result<Value, ApiError> {
         "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml",
         BACKEND_API_OPENAPI_SCHEMA_EMBEDDED_YAML,
     )
-}
-
-fn compose_app_api_dependency_openapi_paths(schema: &mut Value) {
-    ensure_openapi_schema_component(schema, "AppbaseApiResult");
-    let Some(paths) = schema.get_mut("paths").and_then(Value::as_object_mut) else {
-        return;
-    };
-
-    for (path, method, operation_id, summary) in [
-        (
-            "/app/v3/api/auth/registrations",
-            "post",
-            "appbase.auth.registrations.create",
-            "Create an appbase registration",
-        ),
-        (
-            "/app/v3/api/auth/sessions",
-            "post",
-            "appbase.auth.sessions.create",
-            "Create an appbase session",
-        ),
-        (
-            "/app/v3/api/auth/sessions/current",
-            "get",
-            "appbase.auth.sessions.current.retrieve",
-            "Get the current appbase session",
-        ),
-        (
-            "/app/v3/api/auth/sessions/current",
-            "patch",
-            "appbase.auth.sessions.current.update",
-            "Update the current appbase session",
-        ),
-        (
-            "/app/v3/api/auth/sessions/current",
-            "delete",
-            "appbase.auth.sessions.current.delete",
-            "Delete the current appbase session",
-        ),
-        (
-            "/app/v3/api/auth/sessions/refresh",
-            "post",
-            "appbase.auth.sessions.refresh",
-            "Refresh an appbase session",
-        ),
-        (
-            "/app/v3/api/auth/verification_codes",
-            "post",
-            "appbase.auth.verificationCodes.create",
-            "Create an appbase verification code",
-        ),
-        (
-            "/app/v3/api/auth/verification_codes/verify",
-            "post",
-            "appbase.auth.verificationCodes.verify",
-            "Verify an appbase verification code",
-        ),
-        (
-            "/app/v3/api/iam/users/current",
-            "get",
-            "appbase.iam.users.current.retrieve",
-            "Get the current IAM user",
-        ),
-        (
-            "/app/v3/api/system/iam/runtime",
-            "get",
-            "appbase.system.iam.runtime.retrieve",
-            "Get appbase IAM runtime metadata",
-        ),
-        (
-            "/app/v3/api/system/iam/verification_policy",
-            "get",
-            "appbase.system.iam.verificationPolicy.retrieve",
-            "Get appbase verification policy",
-        ),
-        (
-            "/app/v3/api/oauth/authorization_urls",
-            "post",
-            "appbase.oauth.authorizationUrls.create",
-            "Create an OAuth authorization URL",
-        ),
-        (
-            "/app/v3/api/oauth/device_authorizations",
-            "post",
-            "appbase.oauth.deviceAuthorizations.create",
-            "Create an OAuth device authorization",
-        ),
-        (
-            "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}",
-            "get",
-            "appbase.oauth.deviceAuthorizations.retrieve",
-            "Get an OAuth device authorization",
-        ),
-        (
-            "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/scans",
-            "post",
-            "appbase.oauth.deviceAuthorizations.scans.create",
-            "Scan an OAuth device authorization",
-        ),
-        (
-            "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/password_completions",
-            "post",
-            "appbase.oauth.deviceAuthorizations.passwordCompletions.create",
-            "Approve an OAuth device authorization with a password",
-        ),
-        (
-            "/app/v3/api/oauth/sessions",
-            "post",
-            "appbase.oauth.sessions.create",
-            "Create an OAuth session",
-        ),
-    ] {
-        insert_app_api_dependency_operation(paths, path, method, operation_id, summary);
-    }
-}
-
-fn ensure_openapi_schema_component(schema: &mut Value, name: &str) {
-    if !schema.get("components").is_some_and(Value::is_object) {
-        schema["components"] = serde_json::json!({});
-    }
-    let components = schema
-        .get_mut("components")
-        .and_then(Value::as_object_mut)
-        .expect("components should be an object after initialization");
-    let schemas = components
-        .entry("schemas".to_owned())
-        .or_insert_with(|| serde_json::json!({}));
-    if !schemas.is_object() {
-        *schemas = serde_json::json!({});
-    }
-    schemas
-        .as_object_mut()
-        .expect("schemas should be an object after initialization")
-        .entry(name.to_owned())
-        .or_insert_with(|| {
-            serde_json::json!({
-                "type": "object",
-                "additionalProperties": true
-            })
-        });
-}
-
-fn insert_app_api_dependency_operation(
-    paths: &mut serde_json::Map<String, Value>,
-    path: &str,
-    method: &str,
-    operation_id: &str,
-    summary: &str,
-) {
-    let path_item = paths
-        .entry(path.to_owned())
-        .or_insert_with(|| serde_json::json!({}));
-    if !path_item.is_object() {
-        *path_item = serde_json::json!({});
-    }
-    let path_parameters = openapi_path_parameters(path);
-    let operation = if path_parameters.is_empty() {
-        serde_json::json!({
-            "tags": ["appbase"],
-            "operationId": operation_id,
-            "summary": summary,
-            "responses": appbase_dependency_openapi_responses()
-        })
-    } else {
-        serde_json::json!({
-            "tags": ["appbase"],
-            "operationId": operation_id,
-            "summary": summary,
-            "parameters": path_parameters,
-            "responses": appbase_dependency_openapi_responses()
-        })
-    };
-    path_item
-        .as_object_mut()
-        .expect("path item should be an object after initialization")
-        .entry(method.to_owned())
-        .or_insert(operation);
-}
-
-fn openapi_path_parameters(path: &str) -> Vec<Value> {
-    path.split('/')
-        .filter_map(|segment| {
-            let name = segment.strip_prefix('{')?.strip_suffix('}')?;
-            Some(serde_json::json!({
-                "name": name,
-                "in": "path",
-                "required": true,
-                "schema": {
-                    "type": "string"
-                }
-            }))
-        })
-        .collect()
-}
-
-fn appbase_dependency_openapi_responses() -> Value {
-    serde_json::json!({
-        "200": {
-            "description": "Appbase dependency SDK response",
-            "content": {
-                "application/json": {
-                    "schema": {
-                        "$ref": "#/components/schemas/AppbaseApiResult"
-                    }
-                }
-            }
-        }
-    })
 }
 
 pub fn resolve_public_browser_origins() -> Vec<String> {

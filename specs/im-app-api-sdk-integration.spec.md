@@ -114,15 +114,15 @@ Rules:
   override env keys such as `CRAW_CHAT_APPBASE_APP_API_UPSTREAM`,
   `CRAW_CHAT_DRIVE_APP_API_UPSTREAM`, and `CRAW_CHAT_NOTARY_APP_API_UPSTREAM`.
 - `services/web-gateway`, `crates/craw-chat-gateway-config`, and `services/local-minimal-node`
-  remain only as migration compatibility and local/private runtime parity layers. They must not be
-  treated as the long-term foundation API aggregation authority.
-- Direct Rust dependencies on sibling foundation runtime repositories are tracked by Cargo
-  workspace metadata. `specs/component.spec.json` records only their migration state and target
-  gateway feature family; it must not duplicate those dependencies into a standalone gateway catalog.
+  remain product-owned IM routing, config, and local/private runtime layers. Foundation API
+  aggregation is owned by `sdkwork-api-gateway`, not by Craw Chat product servers.
+- Executable foundation API integration evidence is owned by the `sdkwork-api-gateway` Cargo
+  workspace metadata. `specs/component.spec.json` records Craw Chat's shared-gateway target and
+  split override env keys; it must not duplicate gateway dependencies into a standalone catalog.
 - Appbase, Drive, Notary, RTC, Agent/Kernel, and AIoT dependency surfaces are declared in
-  `specs/component.spec.json` as shared-gateway targets with current legacy web-gateway
-  compatibility. Add new foundation surfaces there only when an existing SDKWork spec or runtime
-  contract proves the surface, prefix, SDK family, and migration target.
+  `specs/component.spec.json` as shared-gateway targets. Add new foundation surfaces there only
+  when an existing SDKWork spec or runtime contract proves the surface, prefix, SDK family, and
+  shared-gateway migration target.
 - No new product server code may directly mount foundation API runtime crates when the required
   surface is already served by `sdkwork-api-gateway`. Embed `sdkwork-api-gateway-runtime` through
   its public router builders or consume the gateway as an external service.

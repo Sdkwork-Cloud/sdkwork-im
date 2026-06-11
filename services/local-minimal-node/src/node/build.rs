@@ -9,10 +9,6 @@ use im_adapters_postgres_realtime::{
     PostgresRealtimeEventWindowStore, PostgresRealtimePresenceStateStore,
     PostgresRealtimeSubscriptionStore,
 };
-use sdkwork_agent_business::{
-    AgentHttpState, AllowAllPolicyProvider, InMemoryAgentAuditSink, InMemoryAgentRepository,
-    build_app_router as build_agent_app_router,
-};
 use serde::Deserialize;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
@@ -1112,14 +1108,6 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         projection_service.clone(),
         journal.snapshot_stores(),
     );
-    let aiot_app_api_server = Arc::new(
-        sdkwork_aiot_http_api::standard_app_api_server()
-            .expect("sdkwork-aiot app API server should build"),
-    );
-    let aiot_backend_api_server = Arc::new(
-        sdkwork_aiot_http_api::standard_admin_api_server()
-            .expect("sdkwork-aiot backend API server should build"),
-    );
     let pending_friend_request_accept_repairs =
         social::load_pending_friend_request_accept_repairs(runtime_dir.as_deref());
     let state = AppState {
@@ -1134,8 +1122,6 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         presence_runtime,
         realtime_runtime,
         client_route_registration,
-        aiot_app_api_server,
-        aiot_backend_api_server,
         streaming_runtime,
         call_runtime,
         notification_runtime,
@@ -1294,11 +1280,6 @@ fn build_app(state: AppState) -> Router {
             get(export_backend_api_openapi_schema),
         )
         .nest("/im/v3/api", im_standard_api_routes())
-        .route("/app/v3/api/iot", any(aiot_bridge::handle_app_iot_api))
-        .route(
-            "/app/v3/api/iot/{*path}",
-            any(aiot_bridge::handle_app_iot_api),
-        )
         .route_service(
             "/app/v3/api/media/provider_health",
             media_service::build_default_app(),
@@ -1307,17 +1288,8 @@ fn build_app(state: AppState) -> Router {
             "/app/v3/api/principal/profiles/provider_health",
             get(retrieve_principal_profile_health),
         )
-        .route(
-            "/backend/v3/api/iot",
-            any(aiot_bridge::handle_backend_iot_api),
-        )
-        .route(
-            "/backend/v3/api/iot/{*path}",
-            any(aiot_bridge::handle_backend_iot_api),
-        )
         .nest("/backend/v3/api", backend_api_routes())
         .with_state(state)
-        .merge(build_local_agent_app_router())
 }
 
 async fn retrieve_principal_profile_health(
@@ -1329,15 +1301,6 @@ async fn retrieve_principal_profile_health(
     Ok(Json(
         state.principal_profile_provider.provider_health_snapshot(),
     ))
-}
-
-fn build_local_agent_app_router() -> Router {
-    let agent_state = AgentHttpState::new(
-        InMemoryAgentRepository::new(),
-        InMemoryAgentAuditSink::default(),
-        AllowAllPolicyProvider::allow("policy.local-minimal-agent"),
-    );
-    build_agent_app_router().with_state(agent_state)
 }
 
 fn im_standard_api_routes() -> Router<AppState> {

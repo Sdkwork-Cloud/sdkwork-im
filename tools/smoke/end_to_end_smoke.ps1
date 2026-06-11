@@ -4,162 +4,60 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$tenantId = "t_demo"
+$userId = "u_demo"
+$actorKind = "user"
+$sessionId = "s_demo"
+$deviceId = "d_demo"
+$permissionScope = @("automation.execute", "automation.read", "audit.read", "ops.read")
+
+function ConvertTo-Base64Url {
+    param([Parameter(Mandatory = $true)][string]$Value)
+
+    return ([Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($Value))).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+}
+
+function New-LocalJwt {
+    param([Parameter(Mandatory = $true)][hashtable]$Claims)
+
+    $header = ConvertTo-Base64Url -Value (@{ alg = "none"; typ = "JWT" } | ConvertTo-Json -Compress)
+    $payload = ConvertTo-Base64Url -Value ($Claims | ConvertTo-Json -Depth 8 -Compress)
+    return "$header.$payload.local"
+}
+
+$authToken = New-LocalJwt -Claims @{
+    tenant_id = $tenantId
+    login_scope = "TENANT"
+    user_id = $userId
+    session_id = $sessionId
+    app_id = "craw-chat"
+    auth_level = "password"
+    subject_type = $actorKind
+}
+
+$accessToken = New-LocalJwt -Claims @{
+    tenant_id = $tenantId
+    login_scope = "TENANT"
+    user_id = $userId
+    session_id = $sessionId
+    app_id = "craw-chat"
+    environment = "dev"
+    deployment_mode = "local"
+    auth_level = "password"
+    actor_id = $userId
+    actor_kind = $actorKind
+    device_id = $deviceId
+    data_scope = @("tenant")
+    permission_scope = $permissionScope
+    subject_type = $actorKind
+}
+
 $headers = @{
-    "x-sdkwork-tenant-id" = "t_demo"
-    "x-sdkwork-user-id" = "u_demo"
-    "x-sdkwork-actor-id" = "u_demo"
-    "x-sdkwork-actor-kind" = "user"
-    "x-sdkwork-session-id" = "s_demo"
-    "x-sdkwork-device-id" = "d_demo"
-    "x-sdkwork-permission-scope" = "automation.execute automation.read audit.read ops.read"
+    "Authorization" = "Bearer $authToken"
+    "Access-Token" = $accessToken
     "Content-Type" = "application/json"
 }
 $defaultBaseUrl = "http://127.0.0.1:18090"
-$signedAppContextHeaderNames = @(
-    "x-sdkwork-app-id",
-    "x-sdkwork-tenant-id",
-    "x-sdkwork-organization-id",
-    "x-sdkwork-user-id",
-    "x-sdkwork-session-id",
-    "x-sdkwork-environment",
-    "x-sdkwork-deployment-mode",
-    "x-sdkwork-auth-level",
-    "x-sdkwork-data-scope",
-    "x-sdkwork-permission-scope",
-    "x-sdkwork-actor-id",
-    "x-sdkwork-actor-kind",
-    "x-sdkwork-device-id"
-)
-
-function Test-Truthy {
-    param([string]$Value)
-
-    if ([string]::IsNullOrWhiteSpace($Value)) {
-        return $false
-    }
-
-    return @("1", "true", "yes", "on").Contains($Value.Trim().ToLowerInvariant())
-}
-
-function Read-ConfigValue {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$ConfigFile,
-        [Parameter(Mandatory = $true)]
-        [string]$Key
-    )
-
-    if (-not (Test-Path $ConfigFile)) {
-        return $null
-    }
-
-    foreach ($line in Get-Content -Path $ConfigFile) {
-        $trimmed = $line.Trim()
-        if ($trimmed.Length -eq 0 -or $trimmed.StartsWith('#')) {
-            continue
-        }
-
-        $parts = $trimmed -split '=', 2
-        if ($parts.Count -eq 2 -and $parts[0].Trim() -eq $Key) {
-            return $parts[1].Trim()
-        }
-    }
-
-    return $null
-}
-
-function Resolve-LocalConfigValue {
-    param([string]$Key)
-
-    foreach ($configFile in @(
-        ".runtime\local-minimal\config\local-minimal.env",
-        ".runtime\local-default\config\local-default.env"
-    )) {
-        $value = Read-ConfigValue -ConfigFile $configFile -Key $Key
-        if (-not [string]::IsNullOrWhiteSpace($value)) {
-            return $value
-        }
-    }
-
-    return $null
-}
-
-function Resolve-DefaultComposeSignatureSecret {
-    $composeFile = "deployments\docker-compose\local-minimal.yml"
-    if ($BaseUrl -ne $defaultBaseUrl -or -not (Test-Path $composeFile)) {
-        return $null
-    }
-
-    foreach ($line in Get-Content -Path $composeFile) {
-        $trimmed = $line.Trim()
-        if ($trimmed.StartsWith("CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET:")) {
-            return ($trimmed -split ':', 2)[1].Trim().Trim('"').Trim("'")
-        }
-    }
-
-    return $null
-}
-
-function Get-AppContextHeaderValue {
-    param([string]$HeaderName)
-
-    if ($headers.ContainsKey($HeaderName)) {
-        $value = $headers[$HeaderName]
-        if ($null -ne $value) {
-            return $value.ToString().Trim()
-        }
-    }
-
-    return ""
-}
-
-function Get-CanonicalAppContextHeaders {
-    $lines = foreach ($headerName in $signedAppContextHeaderNames) {
-        "${headerName}:$(Get-AppContextHeaderValue -HeaderName $headerName)"
-    }
-
-    return ($lines -join "`n")
-}
-
-function New-AppContextSignature {
-    param([Parameter(Mandatory = $true)][string]$Secret)
-
-    $secretBytes = [System.Text.Encoding]::UTF8.GetBytes($Secret)
-    $payloadBytes = [System.Text.Encoding]::UTF8.GetBytes((Get-CanonicalAppContextHeaders))
-    $hmac = [System.Security.Cryptography.HMACSHA256]::new($secretBytes)
-    try {
-        $digest = $hmac.ComputeHash($payloadBytes)
-    }
-    finally {
-        $hmac.Dispose()
-    }
-
-    return ([Convert]::ToBase64String($digest)).TrimEnd('=').Replace('+', '-').Replace('/', '_')
-}
-
-function Set-AppContextSignatureHeader {
-    $requireSignature = $env:CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE
-    $signatureSecret = $env:CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET
-
-    if ([string]::IsNullOrWhiteSpace($requireSignature)) {
-        $requireSignature = Resolve-LocalConfigValue -Key "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE"
-    }
-    if ([string]::IsNullOrWhiteSpace($signatureSecret)) {
-        $signatureSecret = Resolve-LocalConfigValue -Key "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET"
-    }
-    if ([string]::IsNullOrWhiteSpace($signatureSecret)) {
-        $signatureSecret = Resolve-DefaultComposeSignatureSecret
-    }
-
-    if (-not [string]::IsNullOrWhiteSpace($signatureSecret)) {
-        $headers["x-sdkwork-context-signature"] = New-AppContextSignature -Secret $signatureSecret
-        return
-    }
-
-    if (Test-Truthy -Value $requireSignature) {
-        throw "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET is required when CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true."
-    }
-}
 
 function Wait-Healthy {
     param([string]$Url)
@@ -181,7 +79,6 @@ function Wait-Healthy {
 }
 
 Wait-Healthy -Url $BaseUrl
-Set-AppContextSignatureHeader
 
 $suffix = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $conversationId = "c_e2e_$suffix"

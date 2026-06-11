@@ -1,4 +1,6 @@
-use im_app_context::DualTokenRequestBuilderExt;
+use im_app_context::{
+    DualTokenRequestBuilderExt, build_dual_token_headers_for_context, local_service_app_context,
+};
 use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -29,6 +31,24 @@ impl AppContextRequestBuilderExt for axum::http::request::Builder {
             .with_dual_token_actor_kind("user")
             .with_dual_token_session("s_demo")
     }
+}
+
+fn authenticated_websocket_request(
+    address: &str,
+    user_id: &str,
+    session_id: &str,
+    device_id: &str,
+) -> tokio_tungstenite::tungstenite::http::Request<()> {
+    let mut context = local_service_app_context("t_demo", user_id, "user", Some(device_id), ["*"]);
+    context.session_id = Some(session_id.to_owned());
+    let headers = build_dual_token_headers_for_context(&context, context.permission_scope.iter());
+    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
+        .into_client_request()
+        .expect("websocket request should build");
+    for (name, value) in headers.iter() {
+        request.headers_mut().insert(name.clone(), value.clone());
+    }
+    request
 }
 
 #[derive(Debug, Deserialize)]
@@ -169,34 +189,14 @@ async fn test_step11_local_connection_quant_baseline_emits_metrics() {
     let latencies_ms = join_all((0..baseline.connection.connection_count).map(|index| {
         let address = address.clone();
         async move {
-            let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-                .into_client_request()
-                .expect("websocket request should build");
-            request.headers_mut().insert(
-                "x-sdkwork-tenant-id",
-                "t_demo".parse().expect("tenant header should parse"),
-            );
-            request.headers_mut().insert(
-                "x-sdkwork-user-id",
-                format!("u_step11_conn_{index}")
-                    .parse()
-                    .expect("user header should parse"),
-            );
-            request.headers_mut().insert(
-                "x-sdkwork-actor-kind",
-                "user".parse().expect("actor kind header should parse"),
-            );
-            request.headers_mut().insert(
-                "x-sdkwork-session-id",
-                format!("s_step11_conn_{index}")
-                    .parse()
-                    .expect("session header should parse"),
-            );
-            request.headers_mut().insert(
-                "x-sdkwork-device-id",
-                format!("d_step11_conn_{index}")
-                    .parse()
-                    .expect("device header should parse"),
+            let user_id = format!("u_step11_conn_{index}");
+            let session_id = format!("s_step11_conn_{index}");
+            let device_id = format!("d_step11_conn_{index}");
+            let request = authenticated_websocket_request(
+                address.as_str(),
+                user_id.as_str(),
+                session_id.as_str(),
+                device_id.as_str(),
             );
 
             let started = Instant::now();

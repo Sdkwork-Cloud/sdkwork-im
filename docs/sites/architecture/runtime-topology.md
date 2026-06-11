@@ -15,7 +15,7 @@ Client / SDK / CLI
         +-- inbox / conversations / membership / messages
         +-- media / streams / RTC
         +-- notifications / automation / audit / ops
-        +-- provider health and sdkwork-aiot bridge routes
+        +-- provider health routes
         |
         v
   .runtime/local-minimal/
@@ -70,12 +70,18 @@ External Client / Operator / SDK
 
 - `/app/v3/api/notifications/*`
 - `/app/v3/api/automation/*`
-- `/app/v3/api/iot/*`
 - `/app/v3/api/principal/profiles/provider_health`
 - `/app/v3/api/media/provider_health`
-- `/backend/v3/api/iot/*`
 - `/backend/v3/api/audit/*`
 - `/backend/v3/api/ops/*`
+
+### Shared foundation domains served by sdkwork-api-gateway
+
+- `/app/v3/api/ai/*`
+- `/backend/v3/api/ai/*`
+- `/agent/v3/api/*`
+- `/app/v3/api/iot/*`
+- `/backend/v3/api/iot/*`
 
 ## Control-plane Topology
 

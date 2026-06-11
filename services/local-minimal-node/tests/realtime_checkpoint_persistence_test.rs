@@ -77,6 +77,7 @@ async fn test_ops_commercial_readiness_requires_ops_read_permission() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_viewer")
                 .with_dual_token_actor_kind("user")
+                .with_dual_token_permission_scope("chat.write")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -237,7 +238,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_pad")
-                .with_dual_token_session("s_pad_new")
+                .with_dual_token_session("s_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"lastSeenSyncSeq":1}"#))
                 .unwrap(),
@@ -255,7 +256,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_pad")
-                .with_dual_token_session("s_pad_new")
+                .with_dual_token_session("s_pad")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -291,7 +292,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_pad")
-                .with_dual_token_session("s_pad_new")
+                .with_dual_token_session("s_pad")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -343,7 +344,7 @@ async fn test_default_local_minimal_profile_persists_realtime_checkpoint_across_
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_pad")
-                .with_dual_token_session("s_pad_new")
+                .with_dual_token_session("s_pad")
                 .body(Body::empty())
                 .unwrap(),
         )

@@ -49,15 +49,11 @@ The fallback behavior is not documentation guesswork. It is implemented in the s
 
 ### IM Open-Platform Public Routes
 
-Public clients authenticate through SDKWork appbase. `sdkwork-appbase` owns login, IAM sessions,
-tenant/user/org context, and dual-token validation. `craw-chat` receives only the verified
-AppContext projection:
-
-- `x-sdkwork-tenant-id`
-- `x-sdkwork-user-id`
-- `x-sdkwork-session-id`
-- `x-sdkwork-device-id`
-- `x-sdkwork-permission-scope`
+Public clients authenticate through SDKWork appbase dual-token headers:
+`Authorization: Bearer <auth-token>` and `Access-Token: <access-token>`. `sdkwork-appbase` owns
+login, IAM sessions, tenant/user/org context, and token issuance. `craw-chat` derives tenant, user,
+session, device, actor, and permission context from those token claims, or from a private signed
+projection created by a trusted gateway after token validation.
 
 ### Control-plane routes
 

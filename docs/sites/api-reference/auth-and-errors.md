@@ -29,35 +29,31 @@ Use this page for the shared contract first:
 
 `sdkwork-appbase` owns login, IAM sessions, users, tenants, organizations, dual-token validation,
 and the authoritative IAM context. Public clients authenticate with the SDKWork auth token and
-access token at the appbase boundary. `craw-chat` does not verify JWTs or parse local tokens.
+access token:
 
-After appbase validation, the trusted edge projects AppContext into `craw-chat` with the
-`x-sdkwork-*` headers below.
+- `Authorization: Bearer <auth-token>`
+- `Access-Token: <access-token>`
+
+Tenant, user, session, app, device, actor, data-scope, and permission-scope context is resolved from
+those token claims. `craw-chat` does not own login or token issuance.
 
 | Item | Value |
 | --- | --- |
 | External auth owner | `sdkwork-appbase` |
 | Required public token model | SDKWork dual token |
-| Craw Chat input | Verified AppContext projection |
+| Craw Chat input | Dual-token claims, or private signed trusted-edge projection |
 | Resolver | `resolve_app_context()` |
 
 ### `AppContextProjection`
 
-AppContext projection headers are internal trusted-edge headers. They are not a public SDK auth
-scheme and must not be treated as a replacement for appbase token validation.
+AppContext projection is an internal trusted-edge or service-to-service contract. Public SDKs and
+manual API callers must not send identity projection headers for tenant, user, session, device,
+actor, or permission scope. The trusted edge may create a private signed projection only after it has
+validated the SDKWork dual tokens and discarded any client-supplied projection values.
 
-| Header | Meaning |
-| --- | --- |
-| `x-sdkwork-tenant-id` | Tenant identifier from SDKWork AppContext |
-| `x-sdkwork-user-id` | User identifier from SDKWork AppContext |
-| `x-sdkwork-actor-id` | Optional actor identifier |
-| `x-sdkwork-actor-kind` | Optional actor kind |
-| `x-sdkwork-session-id` | SDKWork IAM session identifier |
-| `x-sdkwork-device-id` | Device identifier |
-| `x-sdkwork-app-id` | SDKWork application identifier |
-| `x-sdkwork-organization-id` | Organization identifier |
-| `x-sdkwork-permission-scope` | Permission scope projection |
-| `x-sdkwork-data-scope` | Data scope projection |
+The private projection carries the same context represented in the dual-token claims: tenant,
+organization, login scope, user, session, app, environment, deployment mode, auth level, actor,
+device, data scope, and permission scope.
 
 ## Permission Model
 

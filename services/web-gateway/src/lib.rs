@@ -754,12 +754,14 @@ fn runtime_router_for_path(state: &GatewayState, path: &str) -> Option<Router> {
 }
 
 fn websocket_upstream_base_url(state: &GatewayState, service_id: &str) -> Option<String> {
-    state.config.upstream_base_url(service_id).map(str::to_owned)
+    state
+        .config
+        .upstream_base_url(service_id)
+        .map(str::to_owned)
 }
 
 fn should_delegate_to_im_product_runtime(path: &str) -> bool {
-    path == "/im/v3/openapi.json"
-        || path.starts_with("/im/v3/api/")
+    path == "/im/v3/openapi.json" || path.starts_with("/im/v3/api/")
 }
 
 fn should_delegate_to_product_runtime(path: &str) -> bool {

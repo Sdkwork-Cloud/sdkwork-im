@@ -1038,4 +1038,3 @@ fn has_sdkwork_internal_header(headers: &HeaderMap) -> bool {
     .iter()
     .any(|name| headers.contains_key(*name))
 }
-

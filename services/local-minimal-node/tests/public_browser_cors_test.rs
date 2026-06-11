@@ -70,7 +70,7 @@ async fn run_preflight(origin: &str) -> axum::response::Response {
     .expect("public app should return preflight response")
 }
 
-async fn run_iam_app_context_preflight(origin: &str) -> axum::response::Response {
+async fn run_dual_token_preflight(origin: &str) -> axum::response::Response {
     let app = local_minimal_node::build_public_app();
     app.oneshot(
         Request::builder()
@@ -80,33 +80,13 @@ async fn run_iam_app_context_preflight(origin: &str) -> axum::response::Response
             .header("access-control-request-method", "GET")
             .header(
                 "access-control-request-headers",
-                [
-                    "authorization",
-                    "access-token",
-                    "content-type",
-                    "x-sdkwork-app-id",
-                    "x-sdkwork-tenant-id",
-                    "x-sdkwork-organization-id",
-                    "x-sdkwork-user-id",
-                    "x-sdkwork-session-id",
-                    "x-sdkwork-environment",
-                    "x-sdkwork-deployment-mode",
-                    "x-sdkwork-auth-level",
-                    "x-sdkwork-data-scope",
-                    "x-sdkwork-permission-scope",
-                    "x-sdkwork-actor-id",
-                    "x-sdkwork-actor-kind",
-                    "x-sdkwork-device-id",
-                    "x-sdkwork-context-signature",
-                ]
-                .join(",")
-                .as_str(),
+                "authorization,access-token,content-type",
             )
             .body(Body::empty())
-            .expect("IAM AppContext preflight request should build"),
+            .expect("dual-token preflight request should build"),
     )
     .await
-    .expect("public app should return IAM AppContext preflight response")
+    .expect("public app should return dual-token preflight response")
 }
 
 #[tokio::test]
@@ -164,11 +144,11 @@ async fn test_public_app_preflight_uses_configured_browser_origins() {
 }
 
 #[tokio::test]
-async fn test_public_app_preflight_allows_dual_token_and_signed_app_context_headers() {
+async fn test_public_app_preflight_allows_dual_token_headers_not_client_projection_headers() {
     let _guard = browser_origin_env_guard().await;
     let _origins = ScopedEnvVar::remove(PUBLIC_BROWSER_ORIGINS_ENV);
 
-    let response = run_iam_app_context_preflight("http://127.0.0.1:4176").await;
+    let response = run_dual_token_preflight("http://127.0.0.1:4176").await;
     assert!(matches!(
         response.status(),
         StatusCode::OK | StatusCode::NO_CONTENT
@@ -177,13 +157,16 @@ async fn test_public_app_preflight_allows_dual_token_and_signed_app_context_head
         .headers()
         .get("access-control-allow-headers")
         .and_then(|value| value.to_str().ok())
-        .expect("IAM AppContext preflight should declare allowed headers")
+        .expect("dual-token preflight should declare allowed headers")
         .to_ascii_lowercase();
 
-    for expected_header in [
-        "authorization",
-        "access-token",
-        "content-type",
+    for expected_header in ["authorization", "access-token", "content-type"] {
+        assert!(
+            allow_headers.contains(expected_header),
+            "public app CORS preflight must allow {expected_header}, got {allow_headers}"
+        );
+    }
+    for forbidden_header in [
         "x-sdkwork-app-id",
         "x-sdkwork-tenant-id",
         "x-sdkwork-organization-id",
@@ -200,8 +183,8 @@ async fn test_public_app_preflight_allows_dual_token_and_signed_app_context_head
         "x-sdkwork-context-signature",
     ] {
         assert!(
-            allow_headers.contains(expected_header),
-            "public app CORS preflight must allow {expected_header}, got {allow_headers}"
+            !allow_headers.contains(forbidden_header),
+            "public app CORS preflight must not allow client-controlled projection header {forbidden_header}, got {allow_headers}"
         );
     }
 }

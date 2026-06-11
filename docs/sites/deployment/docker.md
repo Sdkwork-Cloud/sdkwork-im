@@ -60,7 +60,7 @@ docker compose -f deployments/docker-compose/local-minimal.yml up -d --build
 By default the Docker bootstrap calls `tools/smoke/local_stack_smoke.ps1`, which:
 
 - waits for `/healthz`
-- sends signed `x-sdkwork-*` AppContext projection headers
+- sends SDKWork dual-token headers: `Authorization: Bearer <auth-token>` and `Access-Token: <access-token>`
 - creates a conversation
 - posts a message
 - verifies the conversation summary path

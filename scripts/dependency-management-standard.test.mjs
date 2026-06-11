@@ -297,6 +297,61 @@ function assertSharedGatewayFoundationIntegration() {
     );
   }
 
+  const rootCargoSource = readText('Cargo.toml');
+  const localMinimalCargoSource = readText('services/local-minimal-node/Cargo.toml');
+  for (const [relativePath, source] of [
+    ['Cargo.toml', rootCargoSource],
+    ['services/local-minimal-node/Cargo.toml', localMinimalCargoSource],
+  ]) {
+    for (const dependencyName of [
+      'sdkwork-agent-business',
+      'sdkwork-aiot-contract',
+      'sdkwork-aiot-http-api',
+      'sdkwork-aiot-runtime',
+      'sdkwork-aiot-transport',
+    ]) {
+      assert(
+        !source.includes(dependencyName),
+        `${relativePath} must not depend on ${dependencyName}; Agent and AIoT runtime APIs are served through sdkwork-api-gateway`,
+      );
+    }
+  }
+
+  const localMinimalNodeSource = readText('services/local-minimal-node/src/node.rs');
+  for (const marker of [
+    'mod aiot_bridge;',
+    'sdkwork_aiot_http_api',
+    'aiot_app_api_server',
+    'aiot_backend_api_server',
+  ]) {
+    assert(
+      !localMinimalNodeSource.includes(marker),
+      `services/local-minimal-node/src/node.rs must not keep product-local foundation API runtime marker ${marker}`,
+    );
+  }
+
+  const localMinimalBuildSource = readText('services/local-minimal-node/src/node/build.rs');
+  for (const marker of [
+    'sdkwork_agent_business',
+    'build_local_agent_app_router',
+    'standard_app_api_server',
+    'standard_admin_api_server',
+    'aiot_bridge::',
+    '/app/v3/api/ai',
+    '/backend/v3/api/ai',
+    '/app/v3/api/iot',
+    '/backend/v3/api/iot',
+  ]) {
+    assert(
+      !localMinimalBuildSource.includes(marker),
+      `services/local-minimal-node/src/node/build.rs must not keep product-local foundation API runtime marker ${marker}`,
+    );
+  }
+  assert(
+    !fs.existsSync(path.join(repoRoot, 'services/local-minimal-node/src/node/aiot_bridge.rs')),
+    'services/local-minimal-node/src/node/aiot_bridge.rs must be removed; AIoT API traffic belongs to sdkwork-api-gateway',
+  );
+
   const dependencyApiSurfaces = componentSpec.contracts?.dependencyApiSurfaces ?? [];
   const sharedGatewaySurfaceIds = dependencyApiSurfaces
     .filter((surface) => surface.targetRuntimeIntegration?.gatewayApplication === 'sdkwork-api-gateway')
@@ -367,6 +422,12 @@ function assertDocumentation() {
   const specsReadme = readText('specs/README.md');
   assert(specsReadme.includes('../sdkwork-specs/DEPENDENCY_MANAGEMENT_SPEC.md'), 'specs/README.md must link DEPENDENCY_MANAGEMENT_SPEC.md via ../sdkwork-specs');
   assert(!specsReadme.includes('../../../specs/'), 'specs/README.md must not link the old ../../../specs standards path');
+
+  const imAppApiSpec = readText('specs/im-app-api-sdk-integration.spec.md');
+  assert(
+    !/current legacy web-gateway compatibility|long-term foundation API aggregation authority/u.test(imAppApiSpec),
+    'specs/im-app-api-sdk-integration.spec.md must document sdkwork-api-gateway as the current shared foundation API boundary without legacy web-gateway compatibility wording',
+  );
 }
 
 assertDependencyDeclaration();

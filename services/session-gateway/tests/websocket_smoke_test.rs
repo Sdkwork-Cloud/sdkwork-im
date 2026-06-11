@@ -154,33 +154,111 @@ fn assert_connection_closed_after_oversized_message(
     }
 }
 
+fn test_auth_token(
+    tenant_id: &str,
+    principal_id: &str,
+    actor_kind: &str,
+    session_id: &str,
+) -> String {
+    json!({
+        "tenant_id": tenant_id,
+        "login_scope": "TENANT",
+        "user_id": principal_id,
+        "session_id": session_id,
+        "app_id": "craw-chat",
+        "auth_level": "password",
+        "subject_type": actor_kind
+    })
+    .to_string()
+}
+
+fn test_access_token(
+    tenant_id: &str,
+    principal_id: &str,
+    actor_kind: &str,
+    session_id: &str,
+    device_id: &str,
+) -> String {
+    json!({
+        "tenant_id": tenant_id,
+        "login_scope": "TENANT",
+        "user_id": principal_id,
+        "session_id": session_id,
+        "app_id": "craw-chat",
+        "environment": "dev",
+        "deployment_mode": "local",
+        "auth_level": "password",
+        "actor_id": principal_id,
+        "actor_kind": actor_kind,
+        "device_id": device_id,
+        "data_scope": ["tenant"],
+        "permission_scope": ["*"],
+        "subject_type": actor_kind
+    })
+    .to_string()
+}
+
+fn insert_test_dual_token_headers(
+    headers: &mut tokio_tungstenite::tungstenite::http::HeaderMap,
+    tenant_id: &str,
+    principal_id: &str,
+    actor_kind: &str,
+    session_id: &str,
+    device_id: &str,
+) {
+    headers.insert(
+        tokio_tungstenite::tungstenite::http::header::AUTHORIZATION,
+        format!(
+            "Bearer {}",
+            test_auth_token(tenant_id, principal_id, actor_kind, session_id)
+        )
+        .parse()
+        .expect("auth token header should parse"),
+    );
+    headers.insert(
+        "Access-Token",
+        test_access_token(tenant_id, principal_id, actor_kind, session_id, device_id)
+            .parse()
+            .expect("access token header should parse"),
+    );
+}
+
+fn authenticated_ccp_request(url: String) -> ClientRequestBuilder {
+    ClientRequestBuilder::new(url.parse().expect("websocket url should parse"))
+        .with_sub_protocol(CCP_WS_SUBPROTOCOL)
+        .with_header(
+            "authorization",
+            format!(
+                "Bearer {}",
+                test_auth_token("t_demo", "u_demo", "user", "s_pad")
+            ),
+        )
+        .with_header(
+            "Access-Token",
+            test_access_token("t_demo", "u_demo", "user", "s_pad", "d_pad"),
+        )
+}
+
+fn authenticated_json_request(url: String) -> tokio_tungstenite::tungstenite::http::Request<()> {
+    let mut request = url
+        .into_client_request()
+        .expect("websocket request should build");
+    insert_test_dual_token_headers(
+        request.headers_mut(),
+        "t_demo",
+        "u_demo",
+        "user",
+        "s_pad",
+        "d_pad",
+    );
+    request
+}
+
 #[tokio::test]
 async fn test_realtime_websocket_binds_http_control_semantics() {
     let app = build_permissive_realtime_app();
     let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_json_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -278,29 +356,7 @@ async fn test_realtime_websocket_binds_http_control_semantics() {
 async fn test_realtime_websocket_rejects_oversized_request_id() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_json_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -343,29 +399,7 @@ async fn test_realtime_websocket_rejects_oversized_request_id() {
 async fn test_realtime_websocket_rejects_oversized_frame_type() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_json_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -406,29 +440,7 @@ async fn test_realtime_websocket_rejects_oversized_frame_type() {
 async fn test_realtime_websocket_closes_connection_for_oversized_raw_message() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_json_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -454,17 +466,7 @@ async fn test_realtime_websocket_closes_connection_for_oversized_raw_message() {
 async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_frames() {
     let app = build_permissive_realtime_app();
     let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
+    let request = authenticated_ccp_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, response) = connect_async(request)
         .await
@@ -608,17 +610,7 @@ async fn test_realtime_websocket_negotiates_ccp_subprotocol_and_wraps_business_f
 async fn test_realtime_websocket_rejects_ccp_business_frame_with_control_kind_after_handshake() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
+    let request = authenticated_ccp_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -720,17 +712,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_control_kind_af
 async fn test_realtime_websocket_rejects_ccp_business_frame_with_wrong_schema_after_handshake() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
+    let request = authenticated_ccp_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -835,17 +817,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_wrong_schema_af
 async fn test_realtime_websocket_accepts_ccp_heartbeat_control_frame_after_handshake() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
+    let request = authenticated_ccp_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -933,17 +905,7 @@ async fn test_realtime_websocket_accepts_ccp_heartbeat_control_frame_after_hands
 async fn test_realtime_websocket_rejects_ccp_business_frame_with_client_route_metadata() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
+    let request = authenticated_ccp_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -1050,17 +1012,7 @@ async fn test_realtime_websocket_rejects_ccp_business_frame_with_client_route_me
 async fn test_realtime_websocket_closes_with_policy_after_ccp_handshake_starts_without_hello() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
+    let request = authenticated_ccp_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -1104,17 +1056,7 @@ async fn test_realtime_websocket_releases_route_after_ccp_handshake_protocol_clo
         Arc::new(session_gateway::PresenceRuntime::default()),
     );
     let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
+    let request = authenticated_ccp_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -1174,29 +1116,7 @@ async fn test_realtime_websocket_releases_route_after_client_close() {
     let cluster = Arc::new(session_gateway::RealtimeClusterBridge::default());
     let app = session_gateway::build_app_with_cluster(cluster.clone());
     let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_json_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -1245,6 +1165,8 @@ async fn test_realtime_websocket_releases_route_when_upgrade_client_disconnects_
     let mut stream = tokio::net::TcpStream::connect(address.as_str())
         .await
         .expect("raw tcp connection should succeed");
+    let auth_token = test_auth_token("t_demo", "u_demo", "user", "s_pad");
+    let access_token = test_access_token("t_demo", "u_demo", "user", "s_pad", "d_pad");
     let upgrade_request = format!(
         "GET /im/v3/api/realtime/ws HTTP/1.1\r\n\
 Host: {address}\r\n\
@@ -1253,10 +1175,8 @@ Upgrade: websocket\r\n\
 Sec-WebSocket-Version: 13\r\n\
 Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
 Sec-WebSocket-Protocol: {CCP_WS_SUBPROTOCOL}\r\n\
-x-sdkwork-tenant-id: t_demo\r\n\
-x-sdkwork-user-id: u_demo\r\n\
-x-sdkwork-session-id: s_pad\r\n\
-x-sdkwork-device-id: d_pad\r\n\
+Authorization: Bearer {auth_token}\r\n\
+Access-Token: {access_token}\r\n\
 \r\n"
     );
     stream
@@ -1298,17 +1218,7 @@ x-sdkwork-device-id: d_pad\r\n\
 async fn test_realtime_websocket_closes_with_policy_after_ccp_hello_uses_wrong_schema() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
+    let request = authenticated_ccp_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -1354,17 +1264,7 @@ async fn test_realtime_websocket_closes_with_policy_after_ccp_hello_uses_wrong_s
 async fn test_realtime_websocket_closes_with_policy_after_ccp_handshake_receives_hello_twice() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
+    let request = authenticated_ccp_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -1420,17 +1320,7 @@ async fn test_realtime_websocket_pushes_live_business_frames_over_ccp_subprotoco
         runtime.clone(),
     );
     let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
+    let request = authenticated_ccp_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, response) = connect_async(request)
         .await
@@ -1550,17 +1440,7 @@ async fn test_realtime_websocket_pushes_live_business_frames_over_ccp_subprotoco
 async fn test_realtime_websocket_skips_session_resume_when_capability_not_negotiated() {
     let app = session_gateway::build_app();
     let (address, handle) = spawn_server(app).await;
-    let request = ClientRequestBuilder::new(
-        format!("ws://{address}/im/v3/api/realtime/ws")
-            .parse()
-            .unwrap(),
-    )
-    .with_sub_protocol(CCP_WS_SUBPROTOCOL)
-    .with_header("x-sdkwork-tenant-id", "t_demo")
-    .with_header("x-sdkwork-user-id", "u_demo")
-    .with_header("x-sdkwork-actor-kind", "user")
-    .with_header("x-sdkwork-session-id", "s_pad")
-    .with_header("x-sdkwork-device-id", "d_pad");
+    let request = authenticated_ccp_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, response) = connect_async(request)
         .await
@@ -1675,29 +1555,7 @@ async fn test_realtime_websocket_uses_runtime_link_queue_owner_limits_for_catchu
         runtime,
     );
     let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_json_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -1784,29 +1642,7 @@ async fn test_realtime_websocket_degrades_live_push_to_pull_only_when_runtime_li
         runtime.clone(),
     );
     let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_json_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -1914,29 +1750,7 @@ async fn test_realtime_websocket_clamps_stale_pull_replay_when_backlog_is_still_
         runtime,
     );
     let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_json_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -2024,29 +1838,7 @@ async fn test_realtime_websocket_recovers_buffered_push_after_pull_reduces_backl
         runtime,
     );
     let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_json_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await
@@ -2140,29 +1932,7 @@ async fn test_realtime_websocket_closes_when_runtime_link_detects_extreme_overlo
         runtime.clone(),
     );
     let (address, handle) = spawn_server(app).await;
-    let mut request = format!("ws://{address}/im/v3/api/realtime/ws")
-        .into_client_request()
-        .expect("websocket request should build");
-    request.headers_mut().insert(
-        "x-sdkwork-tenant-id",
-        "t_demo".parse().expect("tenant header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-user-id",
-        "u_demo".parse().expect("user header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-actor-kind",
-        "user".parse().expect("actor kind header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-session-id",
-        "s_pad".parse().expect("session header should parse"),
-    );
-    request.headers_mut().insert(
-        "x-sdkwork-device-id",
-        "d_pad".parse().expect("device header should parse"),
-    );
+    let request = authenticated_json_request(format!("ws://{address}/im/v3/api/realtime/ws"));
 
     let (mut socket, _) = connect_async(request)
         .await

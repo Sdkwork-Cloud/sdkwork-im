@@ -1391,10 +1391,39 @@ async fn test_local_minimal_profile_rejects_sessionless_rebind_after_cross_node_
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .with_dual_token_tenant("t_demo")
-                .with_dual_token_user("u_demo")
-                .with_dual_token_actor_kind("user")
-                .with_dual_token_device("d_resume")
+                .header(
+                    "authorization",
+                    format!(
+                        "Bearer {}",
+                        serde_json::json!({
+                            "tenant_id": "t_demo",
+                            "login_scope": "TENANT",
+                            "user_id": "u_demo",
+                            "app_id": "craw-chat",
+                            "auth_level": "password",
+                            "subject_type": "user"
+                        })
+                    ),
+                )
+                .header(
+                    "Access-Token",
+                    serde_json::json!({
+                        "tenant_id": "t_demo",
+                        "login_scope": "TENANT",
+                        "user_id": "u_demo",
+                        "app_id": "craw-chat",
+                        "environment": "dev",
+                        "deployment_mode": "local",
+                        "auth_level": "password",
+                        "actor_id": "u_demo",
+                        "actor_kind": "user",
+                        "device_id": "d_resume",
+                        "data_scope": ["tenant"],
+                        "permission_scope": ["*"],
+                        "subject_type": "user"
+                    })
+                    .to_string(),
+                )
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),

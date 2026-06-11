@@ -955,6 +955,7 @@ async fn register_client_route_for_test(app: &axum::Router, user_id: &str, devic
                 .with_dual_token_user(user_id)
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device(device_id)
+                .with_dual_token_session(session_id_for_test_device(device_id))
                 .header("content-type", "application/json")
                 .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
                 .unwrap(),
@@ -962,6 +963,11 @@ async fn register_client_route_for_test(app: &axum::Router, user_id: &str, devic
         .await
         .expect("device register should return response");
     assert_eq!(register.status(), StatusCode::OK);
+}
+
+fn session_id_for_test_device(device_id: &str) -> String {
+    let session_suffix = device_id.strip_prefix("d_").unwrap_or(device_id);
+    format!("s_{session_suffix}")
 }
 
 async fn sync_conversation_realtime_subscription_for_test(
@@ -979,6 +985,7 @@ async fn sync_conversation_realtime_subscription_for_test(
                 .with_dual_token_user(user_id)
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device(device_id)
+                .with_dual_token_session(session_id_for_test_device(device_id))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1013,7 +1020,7 @@ async fn sync_user_realtime_subscription_for_test(
                 .with_dual_token_user(user_id)
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device(device_id)
-                .with_dual_token_session(format!("s_{device_id}"))
+                .with_dual_token_session(session_id_for_test_device(device_id))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1039,7 +1046,15 @@ async fn list_realtime_events_for_test(
     device_id: &str,
     after_seq: u64,
 ) -> axum::response::Response {
-    list_realtime_events_with_session_for_test(app, user_id, device_id, None, after_seq).await
+    let session_id = session_id_for_test_device(device_id);
+    list_realtime_events_with_session_for_test(
+        app,
+        user_id,
+        device_id,
+        Some(session_id.as_str()),
+        after_seq,
+    )
+    .await
 }
 
 async fn list_realtime_events_with_session_for_test(
@@ -2199,6 +2214,7 @@ async fn test_local_minimal_profile_rejects_system_channel_publish_from_subscrib
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_demo_phone")
+                .with_dual_token_session(session_id_for_test_device("d_demo_phone"))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -4183,6 +4199,7 @@ async fn test_local_minimal_profile_heartbeats_client_route_and_returns_presence
                     .with_dual_token_user("u_demo")
                     .with_dual_token_actor_kind("user")
                     .with_dual_token_device(device_id)
+                    .with_dual_token_session(session_id_for_test_device(device_id))
                     .header("content-type", "application/json")
                     .body(Body::from(format!(r#"{{"deviceId":"{device_id}"}}"#)))
                     .unwrap(),
@@ -7635,7 +7652,7 @@ async fn test_local_minimal_profile_fanouts_member_management_events_to_target_u
                 .with_dual_token_user("u_target_leave_demo")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_target_leave")
-                .with_dual_token_session("s_d_target_leave")
+                .with_dual_token_session(session_id_for_test_device("d_target_leave"))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -7647,7 +7664,7 @@ async fn test_local_minimal_profile_fanouts_member_management_events_to_target_u
         &app,
         "u_target_demo",
         "d_target",
-        Some("s_d_target"),
+        Some(session_id_for_test_device("d_target").as_str()),
         0,
     )
     .await;
@@ -7707,7 +7724,7 @@ async fn test_local_minimal_profile_fanouts_member_management_events_to_target_u
         &app,
         "u_target_leave_demo",
         "d_target_leave",
-        Some("s_d_target_leave"),
+        Some(session_id_for_test_device("d_target_leave").as_str()),
         0,
     )
     .await;
@@ -15546,6 +15563,7 @@ async fn test_local_minimal_profile_rejects_archived_direct_chat_read_cursor_acc
                 .with_dual_token_user("u_alice")
                 .with_dual_token_actor_kind("user")
                 .with_dual_token_device("d_alice_phone")
+                .with_dual_token_session(session_id_for_test_device("d_alice_phone"))
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -17270,7 +17288,6 @@ async fn test_local_minimal_profile_rejects_oversized_sender_session_id_on_post_
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_device("d_phone")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -17283,24 +17300,6 @@ async fn test_local_minimal_profile_rejects_oversized_sender_session_id_on_post_
         .await
         .expect("create conversation should succeed");
     assert_eq!(create_conversation.status(), StatusCode::OK);
-
-    let register_client_route = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/im/v3/api/presence/heartbeat")
-                .with_dual_token_tenant("t_demo")
-                .with_dual_token_user("u_demo")
-                .with_dual_token_actor_kind("user")
-                .with_dual_token_device("d_phone")
-                .header("content-type", "application/json")
-                .body(Body::from(r#"{"deviceId":"d_phone"}"#))
-                .unwrap(),
-        )
-        .await
-        .expect("register device should succeed");
-    assert_eq!(register_client_route.status(), StatusCode::OK);
 
     let response = app
         .oneshot(

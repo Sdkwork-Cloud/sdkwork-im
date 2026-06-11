@@ -257,38 +257,33 @@ for (const [label, source] of [
   );
 }
 
-for (const [dependencyName, source] of [
-  ['sdkwork-aiot-contract', rootCargoSource],
-  ['sdkwork-aiot-http-api', rootCargoSource],
-  ['sdkwork-aiot-runtime', rootCargoSource],
-  ['sdkwork-aiot-transport', rootCargoSource],
+for (const dependencyName of [
+  'sdkwork-aiot-contract',
+  'sdkwork-aiot-http-api',
+  'sdkwork-aiot-runtime',
+  'sdkwork-aiot-transport',
 ]) {
-  assert.match(
-    source,
-    new RegExp(`${dependencyName}\\s*=\\s*\\{\\s*path\\s*=\\s*"\\.\\./sdkwork-aiot/`),
-    `Craw Chat Rust workspace must integrate ${dependencyName} from the sibling sdkwork-aiot root.`,
+  assert.doesNotMatch(
+    rootCargoSource,
+    new RegExp(`${dependencyName}\\s*=`),
+    `Craw Chat Rust workspace must not integrate ${dependencyName}; AIoT runtime API traffic is routed through sdkwork-api-gateway.`,
   );
-  assert.match(
+  assert.doesNotMatch(
     localMinimalCargoSource,
     new RegExp(`${dependencyName}\\.workspace\\s*=\\s*true`),
-    `local-minimal-node must consume ${dependencyName} through workspace dependencies.`,
+    `local-minimal-node must not consume ${dependencyName}; AIoT runtime API traffic is routed through sdkwork-api-gateway.`,
   );
 }
 
-assert.match(
+assert.doesNotMatch(
   localMinimalNodeSource,
-  /mod aiot_bridge;/u,
-  'local-minimal-node must mount the SDKWork AIoT Rust backend bridge.',
+  /mod aiot_bridge;|sdkwork_aiot_http_api|aiot_app_api_server|aiot_backend_api_server/u,
+  'local-minimal-node must not keep a product-local SDKWork AIoT Rust backend bridge.',
 );
-assert.match(
+assert.doesNotMatch(
   localMinimalBuildSource,
-  /\/app\/v3\/api\/iot/u,
-  'local-minimal-node must mount the AIoT app API prefix from the sdkwork-aiot bridge.',
-);
-assert.match(
-  localMinimalBuildSource,
-  /\/backend\/v3\/api\/iot/u,
-  'local-minimal-node must mount the AIoT backend API prefix from the sdkwork-aiot bridge.',
+  /\/app\/v3\/api\/iot|\/backend\/v3\/api\/iot|aiot_bridge::|standard_app_api_server|standard_admin_api_server/u,
+  'local-minimal-node must not mount AIoT app/backend API prefixes; sdkwork-api-gateway owns those foundation surfaces.',
 );
 
 console.log('sdkwork chat pc AIoT devices SDK contract passed.');

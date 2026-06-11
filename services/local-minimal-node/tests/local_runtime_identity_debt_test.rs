@@ -20,7 +20,6 @@ fn test_local_runtime_scripts_do_not_keep_public_bearer_debt() {
         "bin/init-config-local.ps1",
         "bin/chat-window.sh",
         "bin/chat-window.ps1",
-        "bin/chat-window-gui.ps1",
     ] {
         let path = root.join(relative_path);
         let script = fs::read_to_string(&path)
@@ -113,7 +112,7 @@ fn test_local_runtime_scripts_materialize_and_forward_signed_app_context_config(
 }
 
 #[test]
-fn test_smoke_scripts_use_app_context_projection_headers() {
+fn test_smoke_scripts_use_dual_token_headers_not_client_projection_headers() {
     let root = workspace_root();
     for relative_path in [
         "tools/smoke/local_stack_smoke.sh",
@@ -123,38 +122,65 @@ fn test_smoke_scripts_use_app_context_projection_headers() {
         let path = root.join(relative_path);
         let script = fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("missing smoke script: {}", path.display()));
-        for required_header in [
+        for required_header in ["Authorization", "Access-Token"] {
+            assert!(
+                script.contains(required_header),
+                "{relative_path} must send SDKWork dual-token header `{required_header}`"
+            );
+        }
+        for forbidden_client_projection_header in [
             "x-sdkwork-tenant-id",
             "x-sdkwork-user-id",
             "x-sdkwork-session-id",
             "x-sdkwork-device-id",
-            "x-sdkwork-permission-scope",
         ] {
             assert!(
-                script.contains(required_header),
-                "{relative_path} must send sdkwork AppContext projection header `{required_header}`"
-            );
-        }
-        for required_signature_contract in [
-            "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
-            "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE",
-            "x-sdkwork-context-signature",
-        ] {
-            assert!(
-                script.contains(required_signature_contract),
-                "{relative_path} must support signed SDKWork AppContext projection contract `{required_signature_contract}`"
+                !script.contains(forbidden_client_projection_header),
+                "{relative_path} must not send client-controlled SDKWork identity projection header `{forbidden_client_projection_header}`"
             );
         }
         for legacy_token in [
             "CRAW_CHAT_PUBLIC_BEARER",
             "PUBLIC_BEARER",
             "--public-bearer-secret",
-            "Authorization",
-            "actor_kind",
         ] {
             assert!(
                 !script.contains(legacy_token),
                 "{relative_path} must not keep legacy signed Public Bearer smoke token `{legacy_token}`"
+            );
+        }
+    }
+}
+
+#[test]
+fn test_public_site_docs_use_dual_token_headers_not_client_projection_headers() {
+    let root = workspace_root();
+    for relative_path in [
+        "docs/sites/getting-started/index.md",
+        "docs/sites/getting-started/quick-start.md",
+        "docs/sites/deployment/docker.md",
+        "docs/sites/deployment/profiles-and-env.md",
+        "docs/sites/api-reference/auth-and-errors.md",
+    ] {
+        let path = root.join(relative_path);
+        let doc = fs::read_to_string(&path)
+            .unwrap_or_else(|_| panic!("missing public site auth doc: {}", path.display()));
+        for required_header in ["Authorization", "Access-Token"] {
+            assert!(
+                doc.contains(required_header),
+                "{relative_path} must document SDKWork dual-token header `{required_header}`"
+            );
+        }
+        for forbidden_client_projection_header in [
+            "x-sdkwork-tenant-id",
+            "x-sdkwork-user-id",
+            "x-sdkwork-session-id",
+            "x-sdkwork-device-id",
+            "x-sdkwork-actor-kind",
+        ] {
+            assert!(
+                !doc.contains(forbidden_client_projection_header),
+                "{relative_path} must not document client-controlled SDKWork identity projection header `{forbidden_client_projection_header}`"
             );
         }
     }
@@ -186,11 +212,10 @@ fn test_backend_regression_tests_do_not_use_legacy_local_bearer_fixtures() {
             "AUTOMATION_BEARER",
             "PRIVILEGED_BEARER",
             r#".header("authorization""#,
-            r#""Authorization" ="#,
         ] {
             assert!(
                 !content.contains(legacy_token),
-                "{relative_path} must use sdkwork AppContext projection fixtures, not legacy local bearer fixture `{legacy_token}`"
+                "{relative_path} must use SDKWork dual-token fixtures, not legacy local bearer fixture `{legacy_token}`"
             );
         }
     }
