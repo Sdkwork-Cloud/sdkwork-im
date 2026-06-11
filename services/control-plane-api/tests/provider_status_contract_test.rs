@@ -28,15 +28,19 @@ async fn request_status(
     let mut request = Request::builder()
         .method(expectation.method)
         .uri(expectation.uri);
-    if let Some(tenant_id) = expectation.tenant_id {
+    if let (Some(tenant_id), Some(user_id)) = (expectation.tenant_id, expectation.user_id) {
+        request = request.with_dual_token_context(
+            tenant_id,
+            user_id,
+            "user",
+            None,
+            expectation.permission.into_iter(),
+        );
+    } else if let Some(tenant_id) = expectation.tenant_id {
         request = request.with_dual_token_tenant(tenant_id);
-    }
-    if let Some(user_id) = expectation.user_id {
+    } else if let Some(user_id) = expectation.user_id {
         request = request.with_dual_token_user(user_id);
         request = request.with_dual_token_actor_kind("user");
-    }
-    if let Some(permission) = expectation.permission {
-        request = request.with_dual_token_permission_scope(permission);
     }
     if expectation.body.is_some() {
         request = request.header("content-type", "application/json");

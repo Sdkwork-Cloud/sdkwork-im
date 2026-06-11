@@ -1,7 +1,7 @@
-use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
+use im_app_context::DualTokenRequestBuilderExt;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -5272,7 +5272,7 @@ async fn test_sync_shared_channel_linked_member_over_http_materializes_linked_hi
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("control-plane-sync")
                 .with_dual_token_actor_kind("system")
-                .with_dual_token_permission_scope("conversation.shared_channel.sync",)
+                .with_dual_token_permission_scope("conversation.shared_channel.sync")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5438,7 +5438,7 @@ async fn test_sync_shared_channel_linked_member_rejects_unknown_user_local_actor
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("control-plane-sync")
                 .with_dual_token_actor_kind("system")
-                .with_dual_token_permission_scope("conversation.shared_channel.sync",)
+                .with_dual_token_permission_scope("conversation.shared_channel.sync")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -5514,7 +5514,7 @@ async fn test_shared_history_sync_rejects_oversized_local_actor_kind_over_http()
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("control-plane-sync")
                 .with_dual_token_actor_kind("system")
-                .with_dual_token_permission_scope("conversation.shared_channel.sync",)
+                .with_dual_token_permission_scope("conversation.shared_channel.sync")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),

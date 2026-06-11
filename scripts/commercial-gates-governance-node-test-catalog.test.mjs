@@ -35,7 +35,6 @@ test('commercial gates governance node test catalog publishes the exact governed
       'apps/sdkwork-chat-pc/scripts/auth-appbase-ui-contract.test.mjs',
       'apps/sdkwork-chat-pc/scripts/notary-app-sdk-integration-contract.test.mjs',
       'scripts/release/commercial-readiness.test.mjs',
-      'apps/craw-chat-portal/tests/product-entrypoint-scripts.test.mjs',
     ],
   );
 });

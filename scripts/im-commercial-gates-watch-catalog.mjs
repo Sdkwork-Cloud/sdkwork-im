@@ -41,14 +41,6 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_WATCH_REQUIREMENTS = [
     'im commercial gates workflow must watch the primary repository README',
   ),
   createWatchRequirement(
-    'apps/craw-chat-admin/**',
-    'im commercial gates workflow must watch the admin workspace',
-  ),
-  createWatchRequirement(
-    'apps/craw-chat-portal/**',
-    'im commercial gates workflow must watch the portal workspace',
-  ),
-  createWatchRequirement(
     'apps/sdkwork-chat-pc/**',
     'im commercial gates workflow must watch the SDKWork Chat PC Vite workspace',
   ),

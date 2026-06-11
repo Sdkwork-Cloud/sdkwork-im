@@ -2,8 +2,9 @@ use axum::http::{HeaderMap, HeaderValue, header};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use im_app_context::{
     AppContextSignatureConfig, DualTokenRequestBuilderExt, build_dual_token_headers_for_context,
-    local_service_app_context, resolve_app_context, resolve_app_context_for_request,
-    resolve_app_context_with_signature_config,
+    local_service_app_context, require_app_context_signature, resolve_app_context,
+    resolve_app_context_for_request, resolve_app_context_with_signature_config,
+    sign_app_context_headers,
 };
 use serde_json::{Value, json};
 
@@ -127,6 +128,56 @@ fn test_signature_config_compatibility_resolves_dual_token_claims() {
     assert_eq!(context.tenant_id, "t_demo");
     assert_eq!(context.user_id, "u_demo");
     assert_eq!(context.session_id.as_deref(), Some("as_demo"));
+}
+
+#[test]
+fn test_app_context_signature_verifies_canonical_projection_headers() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-sdkwork-app-id", HeaderValue::from_static("craw-chat"));
+    headers.insert("x-sdkwork-tenant-id", HeaderValue::from_static("t_demo"));
+    headers.insert("x-sdkwork-user-id", HeaderValue::from_static("u_demo"));
+    headers.insert("x-sdkwork-session-id", HeaderValue::from_static("s_demo"));
+    headers.insert("x-sdkwork-actor-id", HeaderValue::from_static("u_demo"));
+    headers.insert("x-sdkwork-actor-kind", HeaderValue::from_static("user"));
+    headers.insert("x-sdkwork-device-id", HeaderValue::from_static("d_demo"));
+    headers.insert(
+        "x-sdkwork-permission-scope",
+        HeaderValue::from_static("chat.write"),
+    );
+
+    let signature =
+        sign_app_context_headers(&headers, "demo-secret").expect("signature should be generated");
+    headers.insert(
+        "x-sdkwork-context-signature",
+        HeaderValue::from_str(signature.as_str()).expect("signature must be a header value"),
+    );
+    require_app_context_signature(
+        &headers,
+        &AppContextSignatureConfig {
+            require_signature: true,
+            shared_secret: Some("demo-secret".to_owned()),
+        },
+    )
+    .expect("matching signature should verify");
+
+    headers.insert(
+        "x-sdkwork-context-signature",
+        HeaderValue::from_static("invalid-signature"),
+    );
+    let error = require_app_context_signature(
+        &headers,
+        &AppContextSignatureConfig {
+            require_signature: true,
+            shared_secret: Some("demo-secret".to_owned()),
+        },
+    )
+    .expect_err("invalid signature must fail");
+    assert_eq!(error.code(), "app_context_invalid");
+    assert!(
+        error.message().contains("signature validation failed"),
+        "unexpected error message: {}",
+        error.message()
+    );
 }
 
 #[test]

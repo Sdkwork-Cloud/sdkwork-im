@@ -169,13 +169,6 @@
           "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
           "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
-        },
-        "currentCompatibility": {
-          "mode": "legacy-web-gateway",
-          "component": "services/web-gateway",
-          "configComponent": "crates/craw-chat-gateway-config",
-          "serviceId": "sdkwork-appbase-app-api",
-          "removalTarget": "replace product-local foundation aggregation with sdkwork-api-gateway appbase surface"
         }
       },
       {
@@ -190,13 +183,6 @@
           "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
           "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
-        },
-        "currentCompatibility": {
-          "mode": "legacy-web-gateway",
-          "component": "services/web-gateway",
-          "configComponent": "crates/craw-chat-gateway-config",
-          "serviceId": "sdkwork-drive-app-api",
-          "removalTarget": "replace product-local Drive app API proxying with sdkwork-api-gateway drive surface"
         }
       },
       {
@@ -211,13 +197,6 @@
           "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
           "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
-        },
-        "currentCompatibility": {
-          "mode": "legacy-web-gateway",
-          "component": "services/web-gateway",
-          "configComponent": "crates/craw-chat-gateway-config",
-          "serviceId": "sdkwork-notary-app-api",
-          "removalTarget": "replace product-local Notary app API proxying with sdkwork-api-gateway notary surface"
         }
       },
       {
@@ -232,13 +211,6 @@
           "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
           "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
-        },
-        "currentCompatibility": {
-          "mode": "legacy-web-gateway",
-          "component": "services/web-gateway",
-          "configComponent": "crates/craw-chat-gateway-config",
-          "serviceId": "sdkwork-rtc-app-api",
-          "removalTarget": "replace product-local RTC app API proxying with sdkwork-api-gateway rtc app surface"
         }
       },
       {
@@ -253,13 +225,6 @@
           "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
           "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
-        },
-        "currentCompatibility": {
-          "mode": "legacy-web-gateway",
-          "component": "services/web-gateway",
-          "configComponent": "crates/craw-chat-gateway-config",
-          "serviceId": "sdkwork-rtc-backend-api",
-          "removalTarget": "replace product-local RTC backend API proxying with sdkwork-api-gateway rtc backend surface"
         }
       },
       {
@@ -274,13 +239,6 @@
           "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
           "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
-        },
-        "currentCompatibility": {
-          "mode": "legacy-web-gateway",
-          "component": "services/web-gateway",
-          "configComponent": "crates/craw-chat-gateway-config",
-          "serviceId": "sdkwork-agent-app-api",
-          "removalTarget": "replace product-local Agent app API proxying with sdkwork-api-gateway agent app surface"
         }
       },
       {
@@ -295,13 +253,6 @@
           "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
           "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
-        },
-        "currentCompatibility": {
-          "mode": "legacy-web-gateway",
-          "component": "services/web-gateway",
-          "configComponent": "crates/craw-chat-gateway-config",
-          "serviceId": "sdkwork-agent-backend-api",
-          "removalTarget": "replace product-local Agent backend API proxying with sdkwork-api-gateway agent backend surface"
         }
       },
       {
@@ -316,13 +267,6 @@
           "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
           "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
-        },
-        "currentCompatibility": {
-          "mode": "legacy-web-gateway",
-          "component": "services/web-gateway",
-          "configComponent": "crates/craw-chat-gateway-config",
-          "serviceId": "sdkwork-agent-open-api",
-          "removalTarget": "replace product-local Agent open API proxying with sdkwork-api-gateway agent open surface"
         }
       },
       {
@@ -337,13 +281,6 @@
           "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
           "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
-        },
-        "currentCompatibility": {
-          "mode": "legacy-web-gateway",
-          "component": "services/web-gateway",
-          "configComponent": "crates/craw-chat-gateway-config",
-          "serviceId": "sdkwork-aiot-app-api",
-          "removalTarget": "replace product-local AIoT app API proxying with sdkwork-api-gateway aiot app surface"
         }
       },
       {
@@ -358,13 +295,6 @@
           "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
           "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
-        },
-        "currentCompatibility": {
-          "mode": "legacy-web-gateway",
-          "component": "services/web-gateway",
-          "configComponent": "crates/craw-chat-gateway-config",
-          "serviceId": "sdkwork-aiot-backend-api",
-          "removalTarget": "replace product-local AIoT backend API proxying with sdkwork-api-gateway aiot backend surface"
         }
       }
     ]
@@ -388,12 +318,7 @@
       "authority": "cargo-workspace",
       "catalogPolicy": "no-dedicated-gateway-catalog",
       "productApiPolicy": "Craw Chat IM APIs remain product-owned SDKWork API surfaces",
-      "migrationState": "legacy-compatible",
-      "legacyCompatibilityDefaultFoundationUpstreams": [
-        "sdkwork-appbase-app-api",
-        "sdkwork-drive-app-api",
-        "sdkwork-notary-app-api"
-      ],
+      "migrationState": "shared-gateway-default",
       "splitOverrideEnvKeys": {
         "sdkwork-appbase-app-api": [
           "CRAW_CHAT_APPBASE_APP_API_UPSTREAM",
@@ -410,32 +335,10 @@
           "SDKWORK_NOTARY_APP_API_BASE_URL"
         ]
       },
-      "legacyCompatibilityComponents": [
-        "services/web-gateway",
-        "crates/craw-chat-gateway-config",
-        "services/local-minimal-node"
-      ],
-      "legacyDirectFoundationRuntimeDependencies": [
-        {
-          "id": "sdkwork-aiot",
-          "authority": "Cargo.toml",
-          "migrationTarget": "sdkwork-api-gateway foundation-aiot"
-        },
-        {
-          "id": "sdkwork-appbase",
-          "authority": "Cargo.toml",
-          "migrationTarget": "sdkwork-api-gateway foundation-appbase"
-        },
-        {
-          "id": "sdkwork-kernel",
-          "authority": "Cargo.toml",
-          "migrationTarget": "sdkwork-api-gateway foundation-agent-business"
-        },
-        {
-          "id": "sdkwork-rtc",
-          "authority": "Cargo.toml",
-          "migrationTarget": "sdkwork-api-gateway foundation-rtc"
-        }
+      "splitOverrideFoundationUpstreams": [
+        "sdkwork-appbase-app-api",
+        "sdkwork-drive-app-api",
+        "sdkwork-notary-app-api"
       ]
     }
   },

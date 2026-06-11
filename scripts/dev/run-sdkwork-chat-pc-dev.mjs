@@ -132,6 +132,16 @@ export function resolveNotaryAppApiUpstream(env = process.env) {
   return resolveSdkworkApiGatewayBaseUrl(env);
 }
 
+function resolveExplicitAppApiUpstream(env, keys) {
+  for (const key of keys) {
+    const upstream = normalizeUpstreamBaseUrl(env[key], key);
+    if (upstream) {
+      return upstream;
+    }
+  }
+  return undefined;
+}
+
 function shouldAutostartSdkworkApiGateway(env) {
   for (const key of SDKWORK_API_GATEWAY_AUTOSTART_ENV_KEYS) {
     const value = normalizeText(env[key]);
@@ -143,7 +153,7 @@ function shouldAutostartSdkworkApiGateway(env) {
   return true;
 }
 
-function createManagedSdkworkApiGatewayProcess({
+export function createManagedSdkworkApiGatewayProcess({
   env,
   repoRoot: resolvedRepoRoot,
 }) {
@@ -459,14 +469,29 @@ export function createSdkworkChatPcDevPlan({
   if (resolvedRendererEnv.errors.length > 0) {
     throw new Error(resolvedRendererEnv.errors.join('\n'));
   }
+  const foundationApiGatewayBaseUrl = resolveSdkworkApiGatewayBaseUrl(mergedEnv);
+  const explicitDriveAppApiUpstream = resolveExplicitAppApiUpstream(
+    mergedEnv,
+    DRIVE_APP_API_UPSTREAM_ENV_KEYS,
+  );
+  const explicitNotaryAppApiUpstream = resolveExplicitAppApiUpstream(
+    mergedEnv,
+    NOTARY_APP_API_UPSTREAM_ENV_KEYS,
+  );
   const unifiedServerEnv = {
     ...mergedEnv,
     ...resolveCrawChatSharedDatabaseConfig({ env: mergedEnv, repoRoot: resolvedRepoRoot }).env,
     CRAW_CHAT_BROWSER_ORIGINS: mergedEnv.CRAW_CHAT_BROWSER_ORIGINS
       ?? createSdkworkChatBrowserOrigins(devServer),
-    CRAW_CHAT_DRIVE_APP_API_UPSTREAM: resolveDriveAppApiUpstream(mergedEnv),
-    CRAW_CHAT_NOTARY_APP_API_UPSTREAM: resolveNotaryAppApiUpstream(mergedEnv),
-    CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE: 'embedded',
+    CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL: foundationApiGatewayBaseUrl,
+    CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE: 'split',
+    SDKWORK_API_GATEWAY_BIND: resolveSdkworkApiGatewayBind(mergedEnv),
+    ...(explicitDriveAppApiUpstream
+      ? { CRAW_CHAT_DRIVE_APP_API_UPSTREAM: explicitDriveAppApiUpstream }
+      : {}),
+    ...(explicitNotaryAppApiUpstream
+      ? { CRAW_CHAT_NOTARY_APP_API_UPSTREAM: explicitNotaryAppApiUpstream }
+      : {}),
   };
   const managedSdkworkApiGatewayProcess = createManagedSdkworkApiGatewayProcess({
     env: mergedEnv,

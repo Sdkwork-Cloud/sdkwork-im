@@ -479,10 +479,20 @@ impl DualTokenSharedChannelLinkedMemberSyncTrigger {
             actor_kind: "system".to_owned(),
             device_id: None,
         };
-        let auth_headers = build_dual_token_headers_for_context(
-            &auth_context,
-            [SHARED_CHANNEL_SYNC_PERMISSION],
-        );
+        let auth_headers =
+            build_dual_token_headers_for_context(&auth_context, [SHARED_CHANNEL_SYNC_PERMISSION]);
+        let data_scope_header = auth_context
+            .data_scope
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(",");
+        let permission_scope_header = auth_context
+            .permission_scope
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(",");
         let mut builder = HyperRequest::builder()
             .method(Method::POST)
             .uri(target.as_str())
@@ -490,11 +500,40 @@ impl DualTokenSharedChannelLinkedMemberSyncTrigger {
         for (name, value) in auth_headers.iter() {
             builder = builder.header(name, value);
         }
-        let request = builder
-            .body(Full::new(payload))
-            .map_err(|error| {
-                format!("failed to build shared-channel sync request for {target}: {error}")
-            })?;
+        for (name, value) in [
+            ("x-sdkwork-app-id", auth_context.app_id.as_deref()),
+            ("x-sdkwork-tenant-id", Some(auth_context.tenant_id.as_str())),
+            (
+                "x-sdkwork-organization-id",
+                auth_context.organization_id.as_deref(),
+            ),
+            ("x-sdkwork-user-id", Some(auth_context.user_id.as_str())),
+            ("x-sdkwork-session-id", auth_context.session_id.as_deref()),
+            ("x-sdkwork-environment", auth_context.environment.as_deref()),
+            (
+                "x-sdkwork-deployment-mode",
+                auth_context.deployment_mode.as_deref(),
+            ),
+            ("x-sdkwork-auth-level", auth_context.auth_level.as_deref()),
+            ("x-sdkwork-data-scope", Some(data_scope_header.as_str())),
+            (
+                "x-sdkwork-permission-scope",
+                Some(permission_scope_header.as_str()),
+            ),
+            ("x-sdkwork-actor-id", Some(auth_context.actor_id.as_str())),
+            (
+                "x-sdkwork-actor-kind",
+                Some(auth_context.actor_kind.as_str()),
+            ),
+            ("x-sdkwork-device-id", auth_context.device_id.as_deref()),
+        ] {
+            if let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) {
+                builder = builder.header(name, value);
+            }
+        }
+        let request = builder.body(Full::new(payload)).map_err(|error| {
+            format!("failed to build shared-channel sync request for {target}: {error}")
+        })?;
         let client: Client<HttpConnector, Full<Bytes>> =
             Client::builder(TokioExecutor::new()).build(HttpConnector::new());
         let response = tokio::time::timeout(timeout, client.request(request))
@@ -11386,9 +11425,9 @@ pub fn configured_shared_channel_sync_target_base_url() -> Option<String> {
 pub fn build_dual_token_shared_channel_sync_trigger(
     base_url: impl AsRef<str>,
 ) -> Result<Arc<dyn SharedChannelLinkedMemberSyncTrigger>, String> {
-    Ok(Arc::new(DualTokenSharedChannelLinkedMemberSyncTrigger::new(
-        base_url,
-    )?))
+    Ok(Arc::new(
+        DualTokenSharedChannelLinkedMemberSyncTrigger::new(base_url)?,
+    ))
 }
 
 pub fn configured_dual_token_shared_channel_sync_trigger()

@@ -961,9 +961,6 @@ async fn test_chat_cli_powershell_entry_wrapper_can_send_interactive_messages() 
     handle.abort();
     let _ = handle.await;
 }
-
-#[cfg(windows)]
-#[cfg(windows)]
 #[cfg(windows)]
 #[cfg(windows)]
 #[tokio::test]
@@ -1396,6 +1393,3 @@ async fn test_chat_window_cmd_help_surfaces_gnu_style_named_flags() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
-
-#[cfg(windows)]
-#[cfg(windows)]

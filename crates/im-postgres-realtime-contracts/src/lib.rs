@@ -21,13 +21,13 @@ select
     last_capacity_trimmed_at,
     updated_at
 from im_realtime_checkpoints
-where tenant_id = $1 and device_scope_key = $2
+where tenant_id = $1 and client_route_scope_key = $2
 "#;
 
 pub const UPSERT_REALTIME_CHECKPOINT_SQL: &str = r#"
 insert into im_realtime_checkpoints (
     tenant_id,
-    device_scope_key,
+    client_route_scope_key,
     principal_kind,
     principal_id,
     device_id,
@@ -43,7 +43,7 @@ insert into im_realtime_checkpoints (
     $1, $2, $3, $4, $5,
     $6, $7, $8, $9, $10, $11, $12, $13
 )
-on conflict (tenant_id, device_scope_key) do update set
+on conflict (tenant_id, client_route_scope_key) do update set
     principal_kind = excluded.principal_kind,
     principal_id = excluded.principal_id,
     device_id = excluded.device_id,
@@ -89,7 +89,7 @@ on conflict (tenant_id, device_scope_key) do update set
 pub const UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL: &str = r#"
 insert into im_realtime_device_events (
     tenant_id,
-    device_scope_key,
+    client_route_scope_key,
     realtime_seq,
     principal_kind,
     principal_id,
@@ -107,7 +107,7 @@ insert into im_realtime_device_events (
     $1, $2, $3, $4, $5, $6, $7,
     $8, $9, $10, $11::jsonb, $12, $13, $14, $15
 )
-on conflict (tenant_id, device_scope_key, realtime_seq) do nothing
+on conflict (tenant_id, client_route_scope_key, realtime_seq) do nothing
 "#;
 
 pub const LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL: &str = r#"
@@ -125,7 +125,7 @@ select
     occurred_at
 from im_realtime_device_events
 where tenant_id = $1
-  and device_scope_key = $2
+  and client_route_scope_key = $2
   and realtime_seq > $3
 order by realtime_seq asc
 limit $4
@@ -134,26 +134,26 @@ limit $4
 pub const TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL: &str = r#"
 delete from im_realtime_device_events
 where tenant_id = $1
-  and device_scope_key = $2
+  and client_route_scope_key = $2
   and realtime_seq <= $3
 "#;
 
 pub const CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL: &str = r#"
 delete from im_realtime_device_events
-where tenant_id = $1 and device_scope_key = $2
+where tenant_id = $1 and client_route_scope_key = $2
 "#;
 
 pub const LOAD_REALTIME_EVENT_WINDOW_DIAGNOSTICS_SQL: &str = r#"
 with window_counts as (
     select
         tenant_id,
-        device_scope_key,
+        client_route_scope_key,
         count(*) as pending_event_count
     from im_realtime_device_events
-    group by tenant_id, device_scope_key
+    group by tenant_id, client_route_scope_key
 )
 select
-    count(distinct c.tenant_id || ':' || c.device_scope_key) as client_route_window_count,
+    count(distinct c.tenant_id || ':' || c.client_route_scope_key) as client_route_window_count,
     count(e.realtime_seq) as pending_event_count,
     coalesce(max(window_counts.pending_event_count), 0) as max_client_route_window_event_count,
     coalesce(max(c.trimmed_through_seq), 0) as max_trimmed_through_seq,
@@ -164,10 +164,10 @@ select
 from im_realtime_checkpoints c
 left join im_realtime_device_events e
   on e.tenant_id = c.tenant_id
- and e.device_scope_key = c.device_scope_key
+ and e.client_route_scope_key = c.client_route_scope_key
 left join window_counts
   on window_counts.tenant_id = c.tenant_id
- and window_counts.device_scope_key = c.device_scope_key
+ and window_counts.client_route_scope_key = c.client_route_scope_key
 "#;
 
 pub const LIST_REALTIME_EVENT_WINDOW_HIGH_RISK_WINDOWS_SQL: &str = r#"
@@ -185,13 +185,13 @@ select
 from im_realtime_checkpoints c
 join im_realtime_device_events e
   on e.tenant_id = c.tenant_id
- and e.device_scope_key = c.device_scope_key
+ and e.client_route_scope_key = c.client_route_scope_key
 group by
     c.tenant_id,
     c.principal_kind,
     c.principal_id,
     c.device_id,
-    c.device_scope_key,
+    c.client_route_scope_key,
     c.trimmed_through_seq,
     c.capacity_trimmed_event_count,
     c.capacity_trimmed_through_seq,
@@ -203,7 +203,7 @@ limit 5
 pub const LIST_ORPHANED_REALTIME_CLIENT_ROUTE_EVENTS_SQL: &str = r#"
 select
     e.tenant_id,
-    e.device_scope_key,
+    e.client_route_scope_key,
     count(*) as orphaned_event_count,
     min(e.realtime_seq) as min_realtime_seq,
     max(e.realtime_seq) as max_realtime_seq,
@@ -211,10 +211,10 @@ select
 from im_realtime_device_events e
 left join im_realtime_checkpoints c
   on c.tenant_id = e.tenant_id
- and c.device_scope_key = e.device_scope_key
-where c.device_scope_key is null
-group by e.tenant_id, e.device_scope_key
-order by orphaned_event_count desc, oldest_orphaned_occurred_at asc, e.tenant_id asc, e.device_scope_key asc
+ and c.client_route_scope_key = e.client_route_scope_key
+where c.client_route_scope_key is null
+group by e.tenant_id, e.client_route_scope_key
+order by orphaned_event_count desc, oldest_orphaned_occurred_at asc, e.tenant_id asc, e.client_route_scope_key asc
 limit $1
 "#;
 
@@ -227,13 +227,13 @@ select
     subscriptions_json::text as subscriptions_json,
     synced_at
 from im_realtime_subscriptions
-where tenant_id = $1 and device_scope_key = $2
+where tenant_id = $1 and client_route_scope_key = $2
 "#;
 
 pub const UPSERT_REALTIME_SUBSCRIPTION_SQL: &str = r#"
 insert into im_realtime_subscriptions (
     tenant_id,
-    device_scope_key,
+    client_route_scope_key,
     principal_kind,
     principal_id,
     device_id,
@@ -245,7 +245,7 @@ insert into im_realtime_subscriptions (
 ) values (
     $1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10
 )
-on conflict (tenant_id, device_scope_key) do update set
+on conflict (tenant_id, client_route_scope_key) do update set
     principal_kind = excluded.principal_kind,
     principal_id = excluded.principal_id,
     device_id = excluded.device_id,
@@ -258,13 +258,13 @@ where excluded.synced_at >= im_realtime_subscriptions.synced_at
 
 pub const CLEAR_REALTIME_SUBSCRIPTION_SQL: &str = r#"
 delete from im_realtime_subscriptions
-where tenant_id = $1 and device_scope_key = $2
+where tenant_id = $1 and client_route_scope_key = $2
 "#;
 
 pub const CLEAR_REALTIME_SUBSCRIPTION_IF_SYNCED_AT_OR_BEFORE_SQL: &str = r#"
 delete from im_realtime_subscriptions
 where tenant_id = $1
-  and device_scope_key = $2
+  and client_route_scope_key = $2
   and synced_at <= $3
 "#;
 
@@ -281,7 +281,7 @@ where tenant_id = $1
 pub const CLEAR_REALTIME_SUBSCRIPTION_SCOPES_SQL: &str = r#"
 delete from im_realtime_subscription_scopes
 where tenant_id = $1
-  and device_scope_key = $2
+  and client_route_scope_key = $2
   and synced_at <= $3
 "#;
 
@@ -296,7 +296,7 @@ insert into im_realtime_subscription_scopes (
     scope_type,
     scope_id,
     event_type,
-    device_scope_key,
+    client_route_scope_key,
     device_id,
     synced_at,
     created_at,
@@ -306,7 +306,7 @@ select
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 from im_realtime_subscriptions current_subscription
 where current_subscription.tenant_id = $1
-  and current_subscription.device_scope_key = $7
+  and current_subscription.client_route_scope_key = $7
   and current_subscription.synced_at = $9
 on conflict (
     tenant_id,
@@ -315,7 +315,7 @@ on conflict (
     scope_type,
     scope_id,
     event_type,
-    device_scope_key
+    client_route_scope_key
 ) do update set
     device_id = excluded.device_id,
     synced_at = excluded.synced_at,
@@ -334,7 +334,7 @@ select distinct
 from im_realtime_subscription_scopes fs
 join im_realtime_subscriptions s
   on s.tenant_id = fs.tenant_id
- and s.device_scope_key = fs.device_scope_key
+ and s.client_route_scope_key = fs.client_route_scope_key
 where fs.tenant_id = $1
   and fs.principal_kind = $2
   and fs.principal_id = $3
@@ -574,7 +574,7 @@ pub struct RealtimePostgresBoundTransaction {
 pub struct RealtimePostgresClientRouteEventMutation {
     pub event: RealtimeEvent,
     pub principal_kind: String,
-    pub device_scope_key: String,
+    pub client_route_scope_key: String,
     pub payload_hash: String,
     pub retention_until: Option<String>,
 }
@@ -582,7 +582,7 @@ pub struct RealtimePostgresClientRouteEventMutation {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RealtimePostgresCheckpointMutation {
     pub checkpoint: RealtimeCheckpointRecord,
-    pub device_scope_key: String,
+    pub client_route_scope_key: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -634,7 +634,7 @@ impl RealtimePostgresBindingError {
 
 pub fn realtime_postgres_bind_checkpoint_upsert(
     checkpoint: &RealtimeCheckpointRecord,
-    device_scope_key: &str,
+    client_route_scope_key: &str,
     created_at: &str,
 ) -> Result<RealtimePostgresBoundStatement, RealtimePostgresBindingError> {
     build_bound_statement(
@@ -643,7 +643,7 @@ pub fn realtime_postgres_bind_checkpoint_upsert(
         UPSERT_REALTIME_CHECKPOINT_BINDINGS,
         vec![
             text(checkpoint.tenant_id.as_str()),
-            text(device_scope_key),
+            text(client_route_scope_key),
             text(checkpoint.principal_kind.as_str()),
             text(checkpoint.principal_id.as_str()),
             text(checkpoint.device_id.as_str()),
@@ -668,7 +668,7 @@ pub fn realtime_postgres_bind_checkpoint_upsert(
 pub fn realtime_postgres_bind_client_route_event_upsert<'a>(
     event: &RealtimeEvent,
     principal_kind: &str,
-    device_scope_key: &str,
+    client_route_scope_key: &str,
     payload_hash: &str,
     created_at: &str,
     retention_until: impl Into<Option<&'a str>>,
@@ -683,7 +683,7 @@ pub fn realtime_postgres_bind_client_route_event_upsert<'a>(
         UPSERT_REALTIME_CLIENT_ROUTE_EVENT_BINDINGS,
         vec![
             text(event.tenant_id.as_str()),
-            text(device_scope_key),
+            text(client_route_scope_key),
             bigint("realtime_seq", event.realtime_seq)?,
             text(principal_kind),
             text(event.principal_id.as_str()),
@@ -703,7 +703,7 @@ pub fn realtime_postgres_bind_client_route_event_upsert<'a>(
 
 pub fn realtime_postgres_bind_trim_client_route_events(
     tenant_id: &str,
-    device_scope_key: &str,
+    client_route_scope_key: &str,
     acked_through_seq: u64,
 ) -> Result<RealtimePostgresBoundStatement, RealtimePostgresBindingError> {
     build_bound_statement(
@@ -712,7 +712,7 @@ pub fn realtime_postgres_bind_trim_client_route_events(
         TRIM_REALTIME_CLIENT_ROUTE_EVENTS_BINDINGS,
         vec![
             text(tenant_id),
-            text(device_scope_key),
+            text(client_route_scope_key),
             bigint("acked_through_seq", acked_through_seq)?,
         ],
     )
@@ -720,7 +720,7 @@ pub fn realtime_postgres_bind_trim_client_route_events(
 
 pub fn realtime_postgres_bind_subscription_upsert(
     record: &RealtimeSubscriptionRecord,
-    device_scope_key: &str,
+    client_route_scope_key: &str,
     statement_timestamp: &str,
 ) -> Result<RealtimePostgresBoundStatement, RealtimePostgresBindingError> {
     let subscriptions_json = serde_json::to_string(&record.items).map_err(|error| {
@@ -733,7 +733,7 @@ pub fn realtime_postgres_bind_subscription_upsert(
         UPSERT_REALTIME_SUBSCRIPTION_BINDINGS,
         vec![
             text(record.tenant_id.as_str()),
-            text(device_scope_key),
+            text(client_route_scope_key),
             text(record.principal_kind.as_str()),
             text(record.principal_id.as_str()),
             text(record.device_id.as_str()),
@@ -748,7 +748,7 @@ pub fn realtime_postgres_bind_subscription_upsert(
 
 pub fn realtime_postgres_bind_subscription_scope_clear(
     tenant_id: &str,
-    device_scope_key: &str,
+    client_route_scope_key: &str,
     cutoff_synced_at: &str,
 ) -> RealtimePostgresBoundStatement {
     build_bound_statement(
@@ -757,7 +757,7 @@ pub fn realtime_postgres_bind_subscription_scope_clear(
         CLEAR_REALTIME_SUBSCRIPTION_IF_SYNCED_BINDINGS,
         vec![
             text(tenant_id),
-            text(device_scope_key),
+            text(client_route_scope_key),
             timestamptz(cutoff_synced_at),
         ],
     )
@@ -766,7 +766,7 @@ pub fn realtime_postgres_bind_subscription_scope_clear(
 
 pub fn realtime_postgres_bind_subscription_scope_replacements(
     record: &RealtimeSubscriptionRecord,
-    device_scope_key: &str,
+    client_route_scope_key: &str,
     statement_timestamp: &str,
 ) -> Vec<RealtimePostgresBoundStatement> {
     record
@@ -787,7 +787,7 @@ pub fn realtime_postgres_bind_subscription_scope_replacements(
                             text(subscription.scope_type.as_str()),
                             text(subscription.scope_id.as_str()),
                             text(event_type.as_str()),
-                            text(device_scope_key),
+                            text(client_route_scope_key),
                             text(record.device_id.as_str()),
                             timestamptz(record.synced_at.as_str()),
                             timestamptz(statement_timestamp),
@@ -812,7 +812,7 @@ pub fn realtime_postgres_bind_publish_transaction(
         statements.push(realtime_postgres_bind_client_route_event_upsert(
             &event.event,
             event.principal_kind.as_str(),
-            event.device_scope_key.as_str(),
+            event.client_route_scope_key.as_str(),
             event.payload_hash.as_str(),
             statement_timestamp,
             event.retention_until.as_deref(),
@@ -821,7 +821,7 @@ pub fn realtime_postgres_bind_publish_transaction(
     for checkpoint in checkpoints {
         statements.push(realtime_postgres_bind_checkpoint_upsert(
             &checkpoint.checkpoint,
-            checkpoint.device_scope_key.as_str(),
+            checkpoint.client_route_scope_key.as_str(),
             statement_timestamp,
         )?);
     }
@@ -835,7 +835,7 @@ pub fn realtime_postgres_bind_publish_transaction(
 
 pub fn realtime_postgres_bind_ack_transaction(
     tenant_id: &str,
-    device_scope_key: &str,
+    client_route_scope_key: &str,
     acked_through_seq: u64,
     checkpoint: &RealtimeCheckpointRecord,
     statement_timestamp: &str,
@@ -846,12 +846,12 @@ pub fn realtime_postgres_bind_ack_transaction(
         statements: vec![
             realtime_postgres_bind_trim_client_route_events(
                 tenant_id,
-                device_scope_key,
+                client_route_scope_key,
                 acked_through_seq,
             )?,
             realtime_postgres_bind_checkpoint_upsert(
                 checkpoint,
-                device_scope_key,
+                client_route_scope_key,
                 statement_timestamp,
             )?,
         ],
@@ -860,24 +860,24 @@ pub fn realtime_postgres_bind_ack_transaction(
 
 pub fn realtime_postgres_bind_save_subscription_transaction(
     record: &RealtimeSubscriptionRecord,
-    device_scope_key: &str,
+    client_route_scope_key: &str,
     statement_timestamp: &str,
 ) -> Result<RealtimePostgresBoundTransaction, RealtimePostgresBindingError> {
     let mut statements =
         Vec::with_capacity(2 + subscription_scope_replacement_count(record.items.as_slice()));
     statements.push(realtime_postgres_bind_subscription_upsert(
         record,
-        device_scope_key,
+        client_route_scope_key,
         statement_timestamp,
     )?);
     statements.push(realtime_postgres_bind_subscription_scope_clear(
         record.tenant_id.as_str(),
-        device_scope_key,
+        client_route_scope_key,
         record.synced_at.as_str(),
     ));
     statements.extend(realtime_postgres_bind_subscription_scope_replacements(
         record,
-        device_scope_key,
+        client_route_scope_key,
         statement_timestamp,
     ));
 
@@ -1010,7 +1010,7 @@ const DEVICE_SCOPE_BINDINGS: &[RealtimePostgresParameterBinding] = &[
     binding(1, "tenant_id", "&str", "text", "Tenant partition key."),
     binding(
         2,
-        "device_scope_key",
+        "client_route_scope_key",
         "String",
         "text",
         "Encoded tenant/principal/device scope key.",
@@ -1053,7 +1053,7 @@ const LOAD_REALTIME_CHECKPOINT_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
 
 const UPSERT_REALTIME_CHECKPOINT_BINDINGS: &[RealtimePostgresParameterBinding] = &[
     binding(1, "tenant_id", "&str", "text", ""),
-    binding(2, "device_scope_key", "String", "text", ""),
+    binding(2, "client_route_scope_key", "String", "text", ""),
     binding(3, "principal_kind", "&str", "text", ""),
     binding(4, "principal_id", "&str", "text", ""),
     binding(5, "device_id", "&str", "text", ""),
@@ -1075,7 +1075,7 @@ const UPSERT_REALTIME_CHECKPOINT_BINDINGS: &[RealtimePostgresParameterBinding] =
 
 const UPSERT_REALTIME_CLIENT_ROUTE_EVENT_BINDINGS: &[RealtimePostgresParameterBinding] = &[
     binding(1, "tenant_id", "&str", "text", ""),
-    binding(2, "device_scope_key", "String", "text", ""),
+    binding(2, "client_route_scope_key", "String", "text", ""),
     binding(3, "realtime_seq", "u64", "bigint", ""),
     binding(4, "principal_kind", "&str", "text", ""),
     binding(5, "principal_id", "&str", "text", ""),
@@ -1099,7 +1099,7 @@ const UPSERT_REALTIME_CLIENT_ROUTE_EVENT_BINDINGS: &[RealtimePostgresParameterBi
 
 const LIST_REALTIME_CLIENT_ROUTE_EVENTS_BINDINGS: &[RealtimePostgresParameterBinding] = &[
     binding(1, "tenant_id", "&str", "text", ""),
-    binding(2, "device_scope_key", "String", "text", ""),
+    binding(2, "client_route_scope_key", "String", "text", ""),
     binding(3, "after_seq", "u64", "bigint", ""),
     binding(4, "limit", "usize", "bigint", ""),
 ];
@@ -1125,7 +1125,7 @@ const LIST_REALTIME_CLIENT_ROUTE_EVENTS_ROW_COLUMNS: &[RealtimePostgresRowColumn
 
 const TRIM_REALTIME_CLIENT_ROUTE_EVENTS_BINDINGS: &[RealtimePostgresParameterBinding] = &[
     binding(1, "tenant_id", "&str", "text", ""),
-    binding(2, "device_scope_key", "String", "text", ""),
+    binding(2, "client_route_scope_key", "String", "text", ""),
     binding(3, "acked_through_seq", "u64", "bigint", ""),
 ];
 
@@ -1213,7 +1213,12 @@ const REALTIME_EVENT_WINDOW_HIGH_RISK_ROW_COLUMNS: &[RealtimePostgresRowColumn] 
 
 const ORPHANED_REALTIME_CLIENT_ROUTE_EVENTS_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
     row_column("tenant_id", "tenant_id", "String", ""),
-    row_column("device_scope_key", "device_scope_key", "String", ""),
+    row_column(
+        "client_route_scope_key",
+        "client_route_scope_key",
+        "String",
+        "",
+    ),
     row_column("orphaned_event_count", "orphaned_event_count", "u64", ""),
     row_column("min_realtime_seq", "min_realtime_seq", "u64", ""),
     row_column("max_realtime_seq", "max_realtime_seq", "u64", ""),
@@ -1246,7 +1251,7 @@ const LOAD_REALTIME_SUBSCRIPTION_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
 
 const UPSERT_REALTIME_SUBSCRIPTION_BINDINGS: &[RealtimePostgresParameterBinding] = &[
     binding(1, "tenant_id", "&str", "text", ""),
-    binding(2, "device_scope_key", "String", "text", ""),
+    binding(2, "client_route_scope_key", "String", "text", ""),
     binding(3, "principal_kind", "&str", "text", ""),
     binding(4, "principal_id", "&str", "text", ""),
     binding(5, "device_id", "&str", "text", ""),
@@ -1265,7 +1270,7 @@ const UPSERT_REALTIME_SUBSCRIPTION_BINDINGS: &[RealtimePostgresParameterBinding]
 
 const CLEAR_REALTIME_SUBSCRIPTION_IF_SYNCED_BINDINGS: &[RealtimePostgresParameterBinding] = &[
     binding(1, "tenant_id", "&str", "text", ""),
-    binding(2, "device_scope_key", "String", "text", ""),
+    binding(2, "client_route_scope_key", "String", "text", ""),
     binding(3, "cutoff_synced_at", "&str", "timestamptz", ""),
 ];
 
@@ -1282,7 +1287,7 @@ const REPLACE_REALTIME_SUBSCRIPTION_SCOPES_BINDINGS: &[RealtimePostgresParameter
         "text",
         "Use '*' when RealtimeSubscription.event_types is empty.",
     ),
-    binding(7, "device_scope_key", "String", "text", ""),
+    binding(7, "client_route_scope_key", "String", "text", ""),
     binding(8, "device_id", "&str", "text", ""),
     binding(9, "synced_at", "&str", "timestamptz", ""),
     binding(10, "created_at", "&str", "timestamptz", ""),
@@ -1555,25 +1560,25 @@ pub const REALTIME_POSTGRES_SQL_CONTRACT_SPECS: &[RealtimePostgresSqlContract] =
 
 const SAVE_CHECKPOINT_STEPS: &[RealtimePostgresMethodStep] = &[step(
     "UPSERT_REALTIME_CHECKPOINT_SQL",
-    "Each RealtimeCheckpointRecord plus derived device_scope_key, created_at, and updated_at.",
+    "Each RealtimeCheckpointRecord plus derived client_route_scope_key, created_at, and updated_at.",
     "No rows returned; use affected-row result only for diagnostics.",
 )];
 
 const LOAD_CHECKPOINT_STEPS: &[RealtimePostgresMethodStep] = &[step(
     "LOAD_REALTIME_CHECKPOINT_SQL",
-    "tenant_id and derived device_scope_key.",
+    "tenant_id and derived client_route_scope_key.",
     "Map optional row to RealtimeCheckpointRecord and normalize sequence metadata.",
 )];
 
 const LOAD_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
         "LOAD_REALTIME_CHECKPOINT_SQL",
-        "tenant_id and derived device_scope_key.",
+        "tenant_id and derived client_route_scope_key.",
         "Provides principal/device identity and trim metadata.",
     ),
     step(
         "LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
-        "tenant_id, derived device_scope_key, checkpoint.trimmed_through_seq, and bounded limit.",
+        "tenant_id, derived client_route_scope_key, checkpoint.trimmed_through_seq, and bounded limit.",
         "Map rows to RealtimeEvent values ordered by realtime_seq.",
     ),
 ];
@@ -1581,7 +1586,7 @@ const LOAD_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
 const SAVE_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
         "CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
-        "RealtimeEventWindowRecord tenant_id and derived device_scope_key.",
+        "RealtimeEventWindowRecord tenant_id and derived client_route_scope_key.",
         "Clears previous durable window before inserting replacement rows in the same transaction.",
     ),
     step(
@@ -1598,7 +1603,7 @@ const SAVE_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
 
 const CLEAR_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[step(
     "CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
-    "tenant_id and derived device_scope_key.",
+    "tenant_id and derived client_route_scope_key.",
     "Return true when at least one event row was deleted.",
 )];
 
@@ -1618,7 +1623,7 @@ const DIAGNOSTICS_STEPS: &[RealtimePostgresMethodStep] = &[
 const TRIM_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
         "TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
-        "tenant_id, derived device_scope_key, and acked_through_seq.",
+        "tenant_id, derived client_route_scope_key, and acked_through_seq.",
         "No rows returned.",
     ),
     step(
@@ -1630,7 +1635,7 @@ const TRIM_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
 
 const LOAD_SUBSCRIPTION_STEPS: &[RealtimePostgresMethodStep] = &[step(
     "LOAD_REALTIME_SUBSCRIPTION_SQL",
-    "tenant_id and derived device_scope_key.",
+    "tenant_id and derived client_route_scope_key.",
     "Map optional row to RealtimeSubscriptionRecord.",
 )];
 
@@ -1648,7 +1653,7 @@ const SAVE_SUBSCRIPTION_STEPS: &[RealtimePostgresMethodStep] = &[
     ),
     step(
         "CLEAR_REALTIME_SUBSCRIPTION_SCOPES_SQL",
-        "tenant_id, derived device_scope_key, and attempted synced_at.",
+        "tenant_id, derived client_route_scope_key, and attempted synced_at.",
         "Deletes only fanout rows no newer than this sync attempt.",
     ),
     step(
@@ -1660,13 +1665,13 @@ const SAVE_SUBSCRIPTION_STEPS: &[RealtimePostgresMethodStep] = &[
 
 const CLEAR_SUBSCRIPTION_STEPS: &[RealtimePostgresMethodStep] = &[step(
     "CLEAR_REALTIME_SUBSCRIPTION_SQL",
-    "tenant_id and derived device_scope_key.",
+    "tenant_id and derived client_route_scope_key.",
     "Cascade deletes fanout rows through schema foreign key.",
 )];
 
 const CLEAR_SUBSCRIPTION_IF_SYNCED_STEPS: &[RealtimePostgresMethodStep] = &[step(
     "CLEAR_REALTIME_SUBSCRIPTION_IF_SYNCED_AT_OR_BEFORE_SQL",
-    "tenant_id, derived device_scope_key, and cutoff_synced_at.",
+    "tenant_id, derived client_route_scope_key, and cutoff_synced_at.",
     "Cascade deletes fanout rows only when the persisted subscription is not newer.",
 )];
 
@@ -1723,7 +1728,7 @@ const RESTORE_CLIENT_ROUTE_STATE_STEPS: &[RealtimePostgresMethodStep] = &[
     ),
     step(
         "CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
-        "tenant_id and derived device_scope_key.",
+        "tenant_id and derived client_route_scope_key.",
         "Clears previous event window before restored rows are inserted.",
     ),
     step(
@@ -1736,32 +1741,32 @@ const RESTORE_CLIENT_ROUTE_STATE_STEPS: &[RealtimePostgresMethodStep] = &[
 const TAKE_CLIENT_ROUTE_STATE_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
         "LOAD_REALTIME_CHECKPOINT_SQL",
-        "tenant_id and derived device_scope_key.",
+        "tenant_id and derived client_route_scope_key.",
         "Maps checkpoint portion of RealtimeClientRouteStateSnapshot.",
     ),
     step(
         "LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
-        "tenant_id, derived device_scope_key, after_seq=0, and bounded limit.",
+        "tenant_id, derived client_route_scope_key, after_seq=0, and bounded limit.",
         "Maps events portion of RealtimeClientRouteStateSnapshot.",
     ),
     step(
         "LOAD_REALTIME_SUBSCRIPTION_SQL",
-        "tenant_id and derived device_scope_key.",
+        "tenant_id and derived client_route_scope_key.",
         "Maps subscriptions portion of RealtimeClientRouteStateSnapshot.",
     ),
     step(
         "CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
-        "tenant_id and derived device_scope_key.",
+        "tenant_id and derived client_route_scope_key.",
         "Deletes source event window after snapshot rows are read.",
     ),
     step(
         "CLEAR_REALTIME_SUBSCRIPTION_SCOPES_SQL",
-        "tenant_id, derived device_scope_key, and snapshot subscription synced_at or transaction timestamp.",
+        "tenant_id, derived client_route_scope_key, and snapshot subscription synced_at or transaction timestamp.",
         "Clears source subscription fanout rows.",
     ),
     step(
         "CLEAR_REALTIME_SUBSCRIPTION_SQL",
-        "tenant_id and derived device_scope_key.",
+        "tenant_id and derived client_route_scope_key.",
         "Deletes source subscription row after snapshot rows are read.",
     ),
 ];
@@ -1782,7 +1787,7 @@ const PUBLISH_STEPS: &[RealtimePostgresMethodStep] = &[
 const ACK_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
         "TRIM_REALTIME_CLIENT_ROUTE_EVENTS_SQL",
-        "tenant_id, derived device_scope_key, and effective acked_through_seq.",
+        "tenant_id, derived client_route_scope_key, and effective acked_through_seq.",
         "No rows returned.",
     ),
     step(

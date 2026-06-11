@@ -7,14 +7,14 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_STEP_CONTRACTS = [
     message: 'im commercial gates workflow must provision Node via actions/setup-node@v5 before delegating governance node tests to the repository-owned runner',
   },
   {
-    id: 'admin-release-safety-uses-craw-chat-admin-workspace',
-    patternSource: String.raw`Test admin architecture release safety[\s\S]*?working-directory:\s*apps\/craw-chat-admin[\s\S]*?run:\s*node --test --experimental-test-isolation=none tests\/admin-architecture\.test\.mjs`,
-    message: 'im commercial gates workflow must execute the admin release safety contract inside apps/craw-chat-admin instead of the retired control-plane path',
+    id: 'pc-auth-appbase-ui-contract-uses-sdkwork-chat-pc-workspace',
+    patternSource: String.raw`Test SDKWork Chat PC auth appbase UI contract[\s\S]*?working-directory:\s*apps\/sdkwork-chat-pc[\s\S]*?run:\s*node scripts\/auth-appbase-ui-contract\.test\.mjs`,
+    message: 'im commercial gates workflow must execute the SDKWork Chat PC auth appbase UI contract inside apps/sdkwork-chat-pc',
   },
   {
-    id: 'portal-release-safety-uses-craw-chat-portal-workspace',
-    patternSource: String.raw`Test portal dist release safety[\s\S]*?working-directory:\s*apps\/craw-chat-portal[\s\S]*?run:\s*node --test tests\/portal-build-smoke\.test\.mjs`,
-    message: 'im commercial gates workflow must execute the portal release safety smoke inside apps/craw-chat-portal',
+    id: 'pc-notary-app-sdk-contract-uses-sdkwork-chat-pc-workspace',
+    patternSource: String.raw`Test SDKWork Chat PC notary app SDK integration contract[\s\S]*?working-directory:\s*apps\/sdkwork-chat-pc[\s\S]*?run:\s*node scripts\/notary-app-sdk-integration-contract\.test\.mjs`,
+    message: 'im commercial gates workflow must execute the SDKWork Chat PC notary app SDK integration contract inside apps/sdkwork-chat-pc',
   },
 ];
 

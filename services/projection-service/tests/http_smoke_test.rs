@@ -1,7 +1,7 @@
-use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header::CONTENT_TYPE};
 use http_body_util::BodyExt;
+use im_app_context::DualTokenRequestBuilderExt;
 use tower::ServiceExt;
 
 fn timeline_message_posted_event(

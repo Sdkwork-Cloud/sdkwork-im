@@ -166,6 +166,7 @@ overrides:
   '@sdkwork/im-sdk': workspace:*
   '@sdkwork/rtc-sdk-provider-volcengine': workspace:*
   '@sdkwork/rtc-sdk': workspace:*
+  '@sdkwork/notary-app-sdk': workspace:*
 
 importers:
 
@@ -222,6 +223,9 @@ importers:
       '@sdkwork/im-sdk':
         specifier: workspace:*
         version: link:../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript
+      '@sdkwork/notary-app-sdk':
+        specifier: workspace:*
+        version: link:../../../sdkwork-notary/sdks/sdkwork-notary-app-sdk/sdkwork-notary-app-sdk-typescript
       '@sdkwork/rtc-sdk':
         specifier: workspace:*
         version: link:../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript
@@ -615,6 +619,16 @@ importers:
         version: 4.60.1
       typescript:
         specifier: ^5.3.0
+        version: 5.9.3
+
+  ../../../sdkwork-notary/sdks/sdkwork-notary-app-sdk/sdkwork-notary-app-sdk-typescript:
+    dependencies:
+      '@sdkwork/sdk-common':
+        specifier: ^1.0.3
+        version: 1.0.3
+    devDependencies:
+      typescript:
+        specifier: ^5.8.2
         version: 5.9.3
 
   ../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/sdkwork-rtc-sdk-typescript: {}

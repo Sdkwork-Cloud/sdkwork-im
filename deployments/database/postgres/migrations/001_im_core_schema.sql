@@ -201,7 +201,7 @@ CREATE INDEX IF NOT EXISTS idx_im_message_media_refs_retention_until
 
 CREATE TABLE IF NOT EXISTS im_realtime_device_events (
     tenant_id TEXT NOT NULL,
-    device_scope_key TEXT NOT NULL,
+    client_route_scope_key TEXT NOT NULL,
     realtime_seq BIGINT NOT NULL CHECK (realtime_seq > 0),
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
@@ -215,11 +215,11 @@ CREATE TABLE IF NOT EXISTS im_realtime_device_events (
     occurred_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_realtime_device_events PRIMARY KEY (tenant_id, device_scope_key, realtime_seq)
+    CONSTRAINT pk_im_realtime_device_events PRIMARY KEY (tenant_id, client_route_scope_key, realtime_seq)
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_realtime_device_events_scope_seq
-    ON im_realtime_device_events (tenant_id, device_scope_key, realtime_seq);
+    ON im_realtime_device_events (tenant_id, client_route_scope_key, realtime_seq);
 
 CREATE INDEX IF NOT EXISTS idx_im_realtime_device_events_scope_fanout
     ON im_realtime_device_events (tenant_id, scope_type, scope_id, event_type, realtime_seq);
@@ -230,7 +230,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_device_events_retention_until
 
 CREATE TABLE IF NOT EXISTS im_realtime_checkpoints (
     tenant_id TEXT NOT NULL,
-    device_scope_key TEXT NOT NULL,
+    client_route_scope_key TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
@@ -242,7 +242,7 @@ CREATE TABLE IF NOT EXISTS im_realtime_checkpoints (
     last_capacity_trimmed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
-    CONSTRAINT pk_im_realtime_checkpoints PRIMARY KEY (tenant_id, device_scope_key),
+    CONSTRAINT pk_im_realtime_checkpoints PRIMARY KEY (tenant_id, client_route_scope_key),
     CONSTRAINT chk_im_realtime_checkpoints_order CHECK (
         acked_through_seq <= latest_realtime_seq
         AND trimmed_through_seq <= latest_realtime_seq
@@ -267,7 +267,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_checkpoints_capacity_trimmed
         tenant_id,
         last_capacity_trimmed_at DESC,
         capacity_trimmed_through_seq DESC,
-        device_scope_key
+        client_route_scope_key
     )
     WHERE capacity_trimmed_event_count > 0;
 
@@ -281,8 +281,8 @@ BEGIN
     ) THEN
         ALTER TABLE im_realtime_device_events
             ADD CONSTRAINT fk_im_realtime_device_events_checkpoint
-            FOREIGN KEY (tenant_id, device_scope_key)
-            REFERENCES im_realtime_checkpoints (tenant_id, device_scope_key)
+            FOREIGN KEY (tenant_id, client_route_scope_key)
+            REFERENCES im_realtime_checkpoints (tenant_id, client_route_scope_key)
             ON DELETE CASCADE
             DEFERRABLE INITIALLY DEFERRED
             NOT VALID;
@@ -291,7 +291,7 @@ END $$;
 
 CREATE TABLE IF NOT EXISTS im_realtime_subscriptions (
     tenant_id TEXT NOT NULL,
-    device_scope_key TEXT NOT NULL,
+    client_route_scope_key TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
@@ -301,14 +301,14 @@ CREATE TABLE IF NOT EXISTS im_realtime_subscriptions (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_realtime_subscriptions PRIMARY KEY (tenant_id, device_scope_key)
+    CONSTRAINT pk_im_realtime_subscriptions PRIMARY KEY (tenant_id, client_route_scope_key)
 );
 
 CREATE INDEX IF NOT EXISTS idx_im_realtime_subscriptions_principal
     ON im_realtime_subscriptions (tenant_id, principal_kind, principal_id, device_id);
 
 CREATE INDEX IF NOT EXISTS idx_im_realtime_subscriptions_synced_at
-    ON im_realtime_subscriptions (tenant_id, device_scope_key, synced_at);
+    ON im_realtime_subscriptions (tenant_id, client_route_scope_key, synced_at);
 
 CREATE INDEX IF NOT EXISTS idx_im_realtime_subscriptions_items_gin
     ON im_realtime_subscriptions USING GIN (subscriptions_json);
@@ -324,7 +324,7 @@ CREATE TABLE IF NOT EXISTS im_realtime_subscription_scopes (
     scope_type TEXT NOT NULL,
     scope_id TEXT NOT NULL,
     event_type TEXT NOT NULL DEFAULT '*',
-    device_scope_key TEXT NOT NULL,
+    client_route_scope_key TEXT NOT NULL,
     device_id TEXT NOT NULL,
     synced_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
@@ -336,10 +336,10 @@ CREATE TABLE IF NOT EXISTS im_realtime_subscription_scopes (
         scope_type,
         scope_id,
         event_type,
-        device_scope_key
+        client_route_scope_key
     ),
-    CONSTRAINT fk_im_realtime_subscription_scopes_device FOREIGN KEY (tenant_id, device_scope_key)
-        REFERENCES im_realtime_subscriptions (tenant_id, device_scope_key)
+    CONSTRAINT fk_im_realtime_subscription_scopes_device FOREIGN KEY (tenant_id, client_route_scope_key)
+        REFERENCES im_realtime_subscriptions (tenant_id, client_route_scope_key)
         ON DELETE CASCADE
 );
 
@@ -355,7 +355,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_subscription_scopes_fanout
     );
 
 CREATE INDEX IF NOT EXISTS idx_im_realtime_subscription_scopes_device
-    ON im_realtime_subscription_scopes (tenant_id, device_scope_key, synced_at);
+    ON im_realtime_subscription_scopes (tenant_id, client_route_scope_key, synced_at);
 
 CREATE TABLE IF NOT EXISTS im_presence_states (
     tenant_id TEXT NOT NULL,
@@ -730,7 +730,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_read_cursors_retention_until
     ON im_projection_read_cursors (retention_until)
     WHERE retention_until IS NOT NULL;
 
-CREATE TABLE IF NOT EXISTS im_projection_registered_devices (
+CREATE TABLE IF NOT EXISTS im_projection_registered_client_routes (
     tenant_id TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
@@ -741,14 +741,14 @@ CREATE TABLE IF NOT EXISTS im_projection_registered_devices (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_registered_devices PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id)
+    CONSTRAINT pk_im_projection_registered_client_routes PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_registered_devices_retention_until
-    ON im_projection_registered_devices (retention_until)
+CREATE INDEX IF NOT EXISTS idx_im_projection_registered_client_routes_retention_until
+    ON im_projection_registered_client_routes (retention_until)
     WHERE retention_until IS NOT NULL;
 
-CREATE TABLE IF NOT EXISTS im_projection_device_sync_feeds (
+CREATE TABLE IF NOT EXISTS im_projection_client_route_sync_feeds (
     tenant_id TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
@@ -771,21 +771,21 @@ CREATE TABLE IF NOT EXISTS im_projection_device_sync_feeds (
     occurred_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_device_sync_feeds PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id, sync_seq)
+    CONSTRAINT pk_im_projection_client_route_sync_feeds PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id, sync_seq)
 );
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_device_sync_feeds_window
-    ON im_projection_device_sync_feeds (tenant_id, principal_kind, principal_id, device_id, sync_seq);
+CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_feeds_window
+    ON im_projection_client_route_sync_feeds (tenant_id, principal_kind, principal_id, device_id, sync_seq);
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_device_sync_feeds_conversation
-    ON im_projection_device_sync_feeds (tenant_id, conversation_id, sync_seq)
+CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_feeds_conversation
+    ON im_projection_client_route_sync_feeds (tenant_id, conversation_id, sync_seq)
     WHERE conversation_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_device_sync_feeds_retention_until
-    ON im_projection_device_sync_feeds (retention_until)
+CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_feeds_retention_until
+    ON im_projection_client_route_sync_feeds (retention_until)
     WHERE retention_until IS NOT NULL;
 
-CREATE TABLE IF NOT EXISTS im_projection_device_sync_checkpoints (
+CREATE TABLE IF NOT EXISTS im_projection_client_route_sync_checkpoints (
     tenant_id TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
@@ -797,12 +797,12 @@ CREATE TABLE IF NOT EXISTS im_projection_device_sync_checkpoints (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     retention_until TIMESTAMPTZ,
-    CONSTRAINT pk_im_projection_device_sync_checkpoints PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id),
-    CONSTRAINT chk_im_projection_device_sync_checkpoints_order CHECK (trimmed_through_seq <= latest_sync_seq)
+    CONSTRAINT pk_im_projection_client_route_sync_checkpoints PRIMARY KEY (tenant_id, principal_kind, principal_id, device_id),
+    CONSTRAINT chk_im_projection_client_route_sync_checkpoints_order CHECK (trimmed_through_seq <= latest_sync_seq)
 );
 
-CREATE INDEX IF NOT EXISTS idx_im_projection_device_sync_checkpoints_retention_until
-    ON im_projection_device_sync_checkpoints (retention_until)
+CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_checkpoints_retention_until
+    ON im_projection_client_route_sync_checkpoints (retention_until)
     WHERE retention_until IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS im_projection_contacts (

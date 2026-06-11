@@ -230,6 +230,7 @@ function assertReleaseLifecycleDependencyGate() {
 
 function assertSharedGatewayFoundationIntegration() {
   const componentSpec = readJson('specs/component.spec.json');
+  const componentSpecText = readText('specs/component.spec.json');
   const foundationGateway = componentSpec.integration?.foundationApiGateway;
 
   assert(
@@ -261,40 +262,38 @@ function assertSharedGatewayFoundationIntegration() {
     'Craw Chat component spec must keep IM APIs product-owned',
   );
   assert(
-    foundationGateway?.migrationState === 'legacy-compatible',
-    'Craw Chat local foundation aggregation must be marked as legacy-compatible during migration',
+    foundationGateway?.migrationState === 'shared-gateway-default',
+    'Craw Chat foundation API defaults must use sdkwork-api-gateway instead of product-local aggregation',
   );
 
-  const compatibilityComponents = foundationGateway?.legacyCompatibilityComponents ?? [];
-  for (const component of [
-    'services/web-gateway',
-    'crates/craw-chat-gateway-config',
-    'services/local-minimal-node',
-  ]) {
-    assert(
-      compatibilityComponents.includes(component),
-      `Craw Chat gateway migration compatibility must name ${component}`,
-    );
-  }
-
-  const directCargoDependencyIds = sdkworkSiblingDependencyIdsFromCargo('Cargo.toml');
-  const declaredLegacyIds = (foundationGateway?.legacyDirectFoundationRuntimeDependencies ?? [])
-    .map((dependency) => dependency.id)
-    .sort();
   assert(
-    JSON.stringify(directCargoDependencyIds) === JSON.stringify(declaredLegacyIds),
-    `direct Cargo foundation dependencies must be declared as migration exceptions: Cargo=${directCargoDependencyIds.join(',')} spec=${declaredLegacyIds.join(',')}`,
+    !componentSpecText.includes('legacyCompatibilityComponents')
+      && !componentSpecText.includes('legacyDirectFoundationRuntimeDependencies')
+      && !componentSpecText.includes('legacy-web-gateway'),
+    'Craw Chat shared-gateway migration is complete only when component.spec.json no longer declares legacy web-gateway compatibility or direct foundation runtime dependencies',
   );
 
-  for (const dependency of foundationGateway?.legacyDirectFoundationRuntimeDependencies ?? []) {
+  assert(
+    !Array.isArray(foundationGateway?.legacyCompatibilityDefaultFoundationUpstreams),
+    'Craw Chat must not document per-module foundation upstreams as defaults beside the shared gateway root',
+  );
+  const explicitSplitOverrideUpstreams = (foundationGateway?.splitOverrideFoundationUpstreams ?? [])
+    .slice()
+    .sort();
+  const expectedSplitOverrideUpstreams = [
+      'sdkwork-appbase-app-api',
+      'sdkwork-drive-app-api',
+      'sdkwork-notary-app-api',
+    ].sort();
+  assert(
+    JSON.stringify(explicitSplitOverrideUpstreams) === JSON.stringify(expectedSplitOverrideUpstreams),
+    'Craw Chat may keep per-module foundation upstreams only as explicit split-deployment overrides',
+  );
+
+  for (const relativePath of ['Cargo.toml', 'services/web-gateway/Cargo.toml']) {
     assert(
-      dependency.authority === 'Cargo.toml',
-      `${dependency.id} migration exception must point back to Cargo.toml`,
-    );
-    assert(
-      typeof dependency.migrationTarget === 'string'
-        && dependency.migrationTarget.startsWith('sdkwork-api-gateway foundation-'),
-      `${dependency.id} must name a sdkwork-api-gateway foundation-* migration target`,
+      !/^sdkwork_iam_http\s*=/mu.test(readText(relativePath)),
+      `${relativePath} must not depend on sdkwork_iam_http; appbase app API runtime is owned by sdkwork-api-gateway`,
     );
   }
 
@@ -325,9 +324,29 @@ function assertSharedGatewayFoundationIntegration() {
       `${surface.apiAuthority} must use existing Cargo/spec evidence instead of a standalone gateway catalog`,
     );
     assert(
-      surface.currentCompatibility?.mode === 'legacy-web-gateway',
-      `${surface.apiAuthority} must mark the current web-gateway aggregation as migration compatibility`,
+      surface.currentCompatibility === undefined,
+      `${surface.apiAuthority} must not keep legacy web-gateway compatibility after migration to sdkwork-api-gateway`,
     );
+  }
+
+  for (const relativePath of [
+    'crates/craw-chat-gateway-config/src/lib.rs',
+    'services/web-gateway/src/main.rs',
+    'services/web-gateway/src/lib.rs',
+  ]) {
+    const source = readText(relativePath);
+    for (const marker of [
+      'GatewayRuntimeMode::Embedded',
+      'Embedded,',
+      'build_embedded_appbase',
+      'embedded_appbase',
+      'sdkwork_iam_http',
+    ]) {
+      assert(
+        !source.includes(marker),
+        `${relativePath} must not keep embedded/product-local foundation API runtime marker ${marker}`,
+      );
+    }
   }
 
   const forbiddenGatewayCatalogs = listFilesRecursive(path.join(repoRoot, 'specs'))

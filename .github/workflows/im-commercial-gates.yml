@@ -15,8 +15,6 @@ on:
       - 'sdkwork.workflow.json'
       - 'README.md'
       - 'adapters/**'
-      - 'apps/craw-chat-admin/**'
-      - 'apps/craw-chat-portal/**'
       - 'apps/sdkwork-chat-pc/**'
       - 'crates/**'
       - 'deployments/**'
@@ -198,17 +196,13 @@ jobs:
       - name: Strict clippy PostgreSQL realtime local-minimal wiring scope
         run: cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime -p local-minimal-node --tests -- -D warnings
 
-      - name: Test admin architecture release safety
-        working-directory: apps/craw-chat-admin
-        run: node --test --experimental-test-isolation=none tests/admin-architecture.test.mjs
+      - name: Test SDKWork Chat PC auth appbase UI contract
+        working-directory: apps/sdkwork-chat-pc
+        run: node scripts/auth-appbase-ui-contract.test.mjs
 
-      - name: Test portal dist release safety
-        working-directory: apps/craw-chat-portal
-        run: node --test tests/portal-build-smoke.test.mjs
-
-      - name: Test portal real auth boundary
-        working-directory: apps/craw-chat-portal
-        run: node --test tests/portal-real-auth.test.mjs
+      - name: Test SDKWork Chat PC notary app SDK integration contract
+        working-directory: apps/sdkwork-chat-pc
+        run: node scripts/notary-app-sdk-integration-contract.test.mjs
 
       - name: Verify public docs auth safety
         working-directory: docs/sites

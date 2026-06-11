@@ -49,7 +49,10 @@ use im_adapters_local_disk::{
     validate_stream_state_store_file,
 };
 use im_adapters_local_memory::{MemoryCommitJournal, MemoryRealtimeCheckpointStore};
-use im_app_context::{AppContext, AppContextError, resolve_app_context_for_request};
+use im_app_context::{
+    AppContext, AppContextError, AppContextSignatureConfig, require_app_context_signature,
+    resolve_app_context_for_request,
+};
 use im_domain_core::conversation::{
     ConversationInboxEntry, ConversationInboxPreferencesView, ConversationMember,
     ConversationReadCursorView, MembershipRole,
@@ -273,6 +276,7 @@ const BACKEND_API_OPENAPI_SCHEMA_PATH: &str = "/backend/v3/openapi.json";
 pub(crate) struct PublicAppGuardrails {
     request_gate: Arc<Semaphore>,
     require_dual_token_headers: bool,
+    app_context_signature_config: AppContextSignatureConfig,
 }
 const IM_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
     include_str!("../../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml");
@@ -2053,6 +2057,11 @@ pub(crate) async fn require_app_context_with_guardrails(
     {
         return error.into_response();
     }
+    if let Err(error) =
+        require_app_context_signature(request.headers(), &guardrails.app_context_signature_config)
+    {
+        return ApiError::from(error).into_response();
+    }
 
     let resolved = match resolve_app_context_for_request(
         request.headers(),
@@ -2150,6 +2159,7 @@ pub(crate) fn build_public_app_guardrails() -> PublicAppGuardrails {
     PublicAppGuardrails {
         request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
         require_dual_token_headers: resolve_require_dual_token_headers(),
+        app_context_signature_config: AppContextSignatureConfig::from_env(),
     }
 }
 

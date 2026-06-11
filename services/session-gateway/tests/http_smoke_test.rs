@@ -1,7 +1,7 @@
-use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
+use im_app_context::DualTokenRequestBuilderExt;
 use std::sync::Arc;
 use tower::ServiceExt;
 
@@ -101,11 +101,6 @@ async fn test_public_app_rejects_missing_access_token_header_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
                 .header("authorization", "Bearer auth_demo")
-                .with_dual_token_tenant("t_demo")
-                .with_dual_token_user("u_demo")
-                .with_dual_token_actor_kind("user")
-                .with_dual_token_session("s_demo")
-                .with_dual_token_device("d_demo")
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"deviceId":"d_demo","lastSeenSyncSeq":0}"#))
                 .unwrap(),
@@ -477,10 +472,39 @@ async fn test_session_gateway_rejects_sessionless_device_rebind_after_session_re
             Request::builder()
                 .method("POST")
                 .uri("/im/v3/api/presence/heartbeat")
-                .with_dual_token_tenant("t_demo")
-                .with_dual_token_user("u_demo")
-                .with_dual_token_actor_kind("user")
-                .with_dual_token_device("d_demo")
+                .header(
+                    "authorization",
+                    format!(
+                        "Bearer {}",
+                        serde_json::json!({
+                            "tenant_id": "t_demo",
+                            "login_scope": "TENANT",
+                            "user_id": "u_demo",
+                            "app_id": "craw-chat",
+                            "auth_level": "password",
+                            "subject_type": "user"
+                        })
+                    ),
+                )
+                .header(
+                    "Access-Token",
+                    serde_json::json!({
+                        "tenant_id": "t_demo",
+                        "login_scope": "TENANT",
+                        "user_id": "u_demo",
+                        "app_id": "craw-chat",
+                        "environment": "dev",
+                        "deployment_mode": "local",
+                        "auth_level": "password",
+                        "actor_id": "u_demo",
+                        "actor_kind": "user",
+                        "device_id": "d_demo",
+                        "data_scope": ["tenant"],
+                        "permission_scope": ["*"],
+                        "subject_type": "user"
+                    })
+                    .to_string(),
+                )
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{}"#))
                 .unwrap(),

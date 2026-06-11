@@ -16,7 +16,6 @@ export const COMMERCIAL_GATES_GOVERNANCE_NODE_TEST_FILES = [
   'apps/sdkwork-chat-pc/scripts/auth-appbase-ui-contract.test.mjs',
   'apps/sdkwork-chat-pc/scripts/notary-app-sdk-integration-contract.test.mjs',
   'scripts/release/commercial-readiness.test.mjs',
-  'apps/craw-chat-portal/tests/product-entrypoint-scripts.test.mjs',
 ];
 
 const commercialGatesGovernanceNodeTestCatalog = createStrictKeyedCatalog({

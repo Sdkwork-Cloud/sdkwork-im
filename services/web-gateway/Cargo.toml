@@ -18,13 +18,11 @@ craw-chat-runtime-link = { path = "../../crates/craw-chat-runtime-link" }
 futures-util.workspace = true
 im-app-context = { path = "../../crates/im-app-context" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
-local-minimal-node = { path = "../local-minimal-node" }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde.workspace = true
 serde_json.workspace = true
 sdkwork-api-config = { path = "../../crates/sdkwork-api-config" }
 sdkwork-api-product-runtime = { path = "../../crates/sdkwork-api-product-runtime" }
-sdkwork_iam_http.workspace = true
 tokio.workspace = true
 tokio-tungstenite = "0.28.0"
 tower.workspace = true

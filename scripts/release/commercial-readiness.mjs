@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -27,51 +28,50 @@ export function buildCommercialReadinessChecks({
 
   return [
     {
-      id: 'admin-install',
-      label: 'Admin frozen install',
-      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
+      id: 'pc-install',
+      label: 'SDKWork Chat PC frozen install',
+      cwd: path.join(repoRoot, 'apps', 'sdkwork-chat-pc'),
       command: pnpmExecutable,
       args: ['install', '--frozen-lockfile', '--ignore-scripts'],
       env: pnpmRuntimeEnv,
     },
     {
-      id: 'admin-test',
-      label: 'Admin workspace tests',
-      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
+      id: 'pc-lint',
+      label: 'SDKWork Chat PC typecheck',
+      cwd: path.join(repoRoot, 'apps', 'sdkwork-chat-pc'),
       command: pnpmExecutable,
-      args: ['test'],
+      args: ['run', 'lint'],
       env: pnpmRuntimeEnv,
     },
     {
-      id: 'admin-typecheck',
-      label: 'Admin typecheck',
-      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
+      id: 'pc-build',
+      label: 'SDKWork Chat PC production build',
+      cwd: path.join(repoRoot, 'apps', 'sdkwork-chat-pc'),
       command: pnpmExecutable,
-      args: ['typecheck'],
+      args: ['run', 'build'],
       env: pnpmRuntimeEnv,
     },
     {
-      id: 'admin-build',
-      label: 'Admin production build',
-      cwd: path.join(repoRoot, 'apps', 'craw-chat-admin'),
+      id: 'pc-auth-appbase-ui-contract',
+      label: 'SDKWork Chat PC appbase auth UI contract',
+      cwd: path.join(repoRoot, 'apps', 'sdkwork-chat-pc'),
+      command: nodeExecutable,
+      args: ['scripts/auth-appbase-ui-contract.test.mjs'],
+    },
+    {
+      id: 'pc-notary-app-sdk-integration',
+      label: 'SDKWork Chat PC notary app SDK integration contract',
+      cwd: path.join(repoRoot, 'apps', 'sdkwork-chat-pc'),
       command: pnpmExecutable,
-      args: ['build'],
+      args: ['run', 'test:notary-app-sdk-integration'],
       env: pnpmRuntimeEnv,
     },
     {
-      id: 'portal-test',
-      label: 'Portal workspace tests',
-      cwd: path.join(repoRoot, 'apps', 'craw-chat-portal'),
+      id: 'pc-qr-scan-standard',
+      label: 'SDKWork Chat PC QR scan standard contract',
+      cwd: path.join(repoRoot, 'apps', 'sdkwork-chat-pc'),
       command: pnpmExecutable,
-      args: ['test'],
-      env: pnpmRuntimeEnv,
-    },
-    {
-      id: 'portal-build',
-      label: 'Portal production build',
-      cwd: path.join(repoRoot, 'apps', 'craw-chat-portal'),
-      command: pnpmExecutable,
-      args: ['build'],
+      args: ['run', 'test:qr-scan-standard'],
       env: pnpmRuntimeEnv,
     },
     {
@@ -277,6 +277,10 @@ export async function runCommercialReadiness({
 }
 
 async function executeCheck(check) {
+  if (!existsSync(check.cwd)) {
+    throw new Error(`configured cwd does not exist: ${check.cwd}`);
+  }
+
   const exitCode = await spawnCommand(check.command, check.args, {
     cwd: check.cwd,
     env: check.env,

@@ -84,7 +84,6 @@ sdkwork-api-config = { path = "crates/sdkwork-api-config" }
 # Cross-repository SDKWork dependencies
 sdkwork_id = { path = "../sdkwork-appbase/packages/native-rust/foundation/sdkwork-id-rust" }
 sdkwork_iam_core = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-core-rust" }
-sdkwork_iam_http = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-http-rust" }
 sdkwork_http_context = { path = "../sdkwork-appbase/packages/native-rust/foundation/sdkwork-http-context-rust" }
 sdkwork-rtc-adapter-agora = { path = "../sdkwork-rtc/adapters/rtc-agora" }
 sdkwork-rtc-adapter-aliyun = { path = "../sdkwork-rtc/adapters/rtc-aliyun" }

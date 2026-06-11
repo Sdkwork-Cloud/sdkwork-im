@@ -36,15 +36,9 @@ const schema = read('deployments/database/postgres/migrations/001_im_core_schema
 const databaseSpec = readWorkspace('sdkwork-specs/DATABASE_SPEC.md');
 const cargoManifest = read('Cargo.toml');
 const runtimeIdCrate = read('crates/craw-chat-runtime-id/src/lib.rs');
-const appbaseUserCenterCargo = readWorkspace(
-  'sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust/Cargo.toml',
-);
-const appbaseUserCenterLib = readWorkspace(
-  'sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust/src/lib.rs',
-);
-const appbaseUserCenterAuthority = readWorkspace(
-  'sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust/src/user_center_authority.rs',
-);
+const sdkworkWorkflow = readJson('sdkwork.workflow.json');
+const sharedSdkReleaseSources = readJson('config/shared-sdk-release-sources.json');
+const chatPcPnpmWorkspace = read('apps/sdkwork-chat-pc/pnpm-workspace.yaml');
 const componentSpec = readJson('specs/component.spec.json');
 const localSpecReadme = read('specs/README.md');
 const namingDoc = read('docs/部署/database-table-naming-standard.md');
@@ -273,67 +267,45 @@ assert.match(
   'craw-chat runtime ID strategy must fail closed without random or database fallback IDs',
 );
 
+const appbaseReleaseDependency = sdkworkWorkflow.dependencies.find(
+  (entry) => entry.id === 'sdkwork-appbase',
+);
+assert.ok(
+  appbaseReleaseDependency,
+  'craw-chat release workflow must declare the sdkwork-appbase dependency used by runtime IDs and IAM SDKs',
+);
+assert.equal(appbaseReleaseDependency.repository, 'Sdkwork-Cloud/sdkwork-appbase');
+assert.equal(appbaseReleaseDependency.refInput, 'SDKWORK_APPBASE_REF');
+assert.equal(appbaseReleaseDependency.tokenSecret, 'SDKWORK_RELEASE_TOKEN');
 assert.match(
-  appbaseUserCenterCargo,
-  /sdkwork_id\.workspace\s*=\s*true/u,
-  'appbase user-center native crate must depend on the shared workspace Snowflake generator',
-);
-assert.match(
-  appbaseUserCenterLib,
-  /use sdkwork_id::\{SnowflakeIdError, SnowflakeIdGenerator\};/u,
-  'appbase user-center create_identifier must use sdkwork_id::SnowflakeIdGenerator',
-);
-assert.match(
-  appbaseUserCenterLib,
-  /static USER_CENTER_ID_GENERATOR:\s*OnceLock<SnowflakeIdGenerator>/u,
-  'appbase user-center must keep a process-local Snowflake generator instead of rebuilding per ID',
-);
-assert.doesNotMatch(
-  appbaseUserCenterLib,
-  /DECIMAL_IDENTIFIER_BASE|NEXT_DECIMAL_IDENTIFIER|AtomicU64|saturating_mul\(1_000\)/u,
-  'appbase user-center must not use the old decimal timestamp ID generator',
-);
-assert.doesNotMatch(
-  appbaseUserCenterAuthority,
-  /fn stable_numeric_identifier/u,
-  'runtime appbase IAM write IDs must not use stable hash-derived numeric identifiers',
-);
-assert.match(
-  appbaseUserCenterAuthority,
-  /fn resolve_existing_external_user/u,
-  'appbase user-center must resolve existing users by external subject before allocating a new internal ID',
-);
-assert.match(
-  appbaseUserCenterAuthority,
-  /let external_subject = normalize_optional_text\(request\.subject\.as_deref\(\)\)\s*\.or_else\(\|\| normalize_optional_text\(request\.user_id\.as_deref\(\)\)\);/u,
-  'appbase session exchange must treat request.user_id as external_subject fallback',
-);
-assert.doesNotMatch(
-  appbaseUserCenterAuthority,
-  /let preferred_user_id\s*=\s*normalize_optional_text\(request\.user_id\.as_deref\(\)\)/u,
-  'appbase session exchange must not use external request.user_id as the internal iam_user.id',
+  appbaseReleaseDependency.ref,
+  /^[0-9a-f]{40}$/u,
+  'sdkwork-appbase release dependency must be pinned to a reproducible commit ref',
 );
 
-for (const [builderName, ignoredArgument] of [
-  ['build_local_user_id', 'email'],
-  ['build_local_phone_user_id', 'phone'],
-  ['build_external_user_id', 'provider_key'],
-  ['build_local_oauth_user_id', 'provider'],
+const appbaseReleaseSource = sharedSdkReleaseSources.sources['sdkwork-appbase'];
+assert.ok(appbaseReleaseSource, 'shared SDK release sources must include sdkwork-appbase');
+assert.equal(appbaseReleaseSource.repoUrl, 'https://github.com/Sdkwork-Cloud/sdkwork-appbase.git');
+assert.ok(appbaseReleaseSource.ref, 'sdkwork-appbase shared SDK release source must declare a ref');
+
+for (const requiredWorkspacePackage of [
+  '../../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi',
+  '../../../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi',
+  '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts',
+  '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports',
+  '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-runtime',
+  '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react',
+  '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react',
 ]) {
-  const builderMatch = appbaseUserCenterAuthority.match(
-    new RegExp(`fn ${builderName}\\([^)]*\\) -> String \\{([\\s\\S]*?)\\n\\}`, 'u'),
-  );
-  assert.ok(builderMatch, `appbase user-center must define ${builderName}`);
-  assert.match(
-    builderMatch[1],
-    /crate::create_identifier\("user"\)/u,
-    `${builderName} must allocate internal IAM user IDs through create_identifier("user")`,
-  );
-  assert.doesNotMatch(
-    builderMatch[1],
-    new RegExp(`sanitize_identifier_segment\\(${ignoredArgument}\\)|format!\\(\\s*"user[_-]`, 'u'),
-    `${builderName} must not derive internal user IDs from account/email/provider text`,
+  assert.ok(
+    chatPcPnpmWorkspace.includes(`- ${requiredWorkspacePackage}`),
+    `sdkwork-chat-pc pnpm workspace must declare appbase source package ${requiredWorkspacePackage}`,
   );
 }
+assert.doesNotMatch(
+  chatPcPnpmWorkspace,
+  /\blink:/u,
+  'sdkwork-chat-pc must consume appbase source packages through pnpm workspace declarations, not link: aliases',
+);
 
 console.log('sdkwork-chat database naming standard contract passed');

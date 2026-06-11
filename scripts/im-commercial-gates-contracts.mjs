@@ -85,6 +85,11 @@ export async function assertImCommercialGatesWorkflowContracts({
     /apps\/control-plane/,
     'im commercial gates workflow must not reference the retired control-plane path',
   );
+  assert.doesNotMatch(
+    workflow,
+    /apps\/craw-chat-admin|apps\/craw-chat-portal/,
+    'im commercial gates workflow must not reference retired admin or portal app paths',
+  );
 
   const governanceCatalog = await import(
     pathToFileURL(
@@ -108,8 +113,12 @@ export async function assertImCommercialGatesWorkflowContracts({
     'commercial gates governance node test runner must include the commercial readiness contract test',
   );
   assert.ok(
-    governedNodeTests.includes('apps/craw-chat-portal/tests/product-entrypoint-scripts.test.mjs'),
-    'commercial gates governance node test runner must include the portal product entrypoint contract test',
+    governedNodeTests.includes('apps/sdkwork-chat-pc/scripts/auth-appbase-ui-contract.test.mjs'),
+    'commercial gates governance node test runner must include the SDKWork Chat PC appbase auth UI contract test',
+  );
+  assert.ok(
+    governedNodeTests.includes('apps/sdkwork-chat-pc/scripts/notary-app-sdk-integration-contract.test.mjs'),
+    'commercial gates governance node test runner must include the SDKWork Chat PC notary app SDK integration contract test',
   );
   assert.ok(
     governedNodeTests.includes('scripts/im-commercial-gates-workflow.test.mjs'),

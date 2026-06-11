@@ -228,6 +228,41 @@ fn envelope_payload_json(envelope: CcpEnvelope) -> Value {
 async fn connect_ccp_device(url: &str, device_id: &str) -> (ConnectedDevice, f64) {
     let request = ClientRequestBuilder::new(url.parse().expect("websocket url should parse"))
         .with_sub_protocol(CCP_WS_SUBPROTOCOL)
+        .with_header(
+            "authorization",
+            format!(
+                "Bearer {}",
+                json!({
+                    "tenant_id": TENANT_ID,
+                    "login_scope": "TENANT",
+                    "user_id": PRINCIPAL_ID,
+                    "session_id": SESSION_ID,
+                    "app_id": "craw-chat",
+                    "auth_level": "password",
+                    "subject_type": PRINCIPAL_KIND
+                })
+            ),
+        )
+        .with_header(
+            "Access-Token",
+            json!({
+                "tenant_id": TENANT_ID,
+                "login_scope": "TENANT",
+                "user_id": PRINCIPAL_ID,
+                "session_id": SESSION_ID,
+                "app_id": "craw-chat",
+                "environment": "dev",
+                "deployment_mode": "local",
+                "auth_level": "password",
+                "actor_id": PRINCIPAL_ID,
+                "actor_kind": PRINCIPAL_KIND,
+                "device_id": device_id,
+                "data_scope": ["tenant"],
+                "permission_scope": ["*"],
+                "subject_type": PRINCIPAL_KIND
+            })
+            .to_string(),
+        )
         .with_header("x-sdkwork-tenant-id", TENANT_ID)
         .with_header("x-sdkwork-user-id", PRINCIPAL_ID)
         .with_header("x-sdkwork-actor-kind", PRINCIPAL_KIND)

@@ -46,12 +46,6 @@ async fn run() -> Result<(), String> {
         .map_err(|error| format!("web-gateway failed to resolve listener addr: {error}"))?;
     let base_url = format!("http://{}", display_listener_addr(local_addr));
     let registry = web_gateway::build_gateway_registry()?;
-    let embedded_runtime_router =
-        if config.runtime_mode == craw_chat_gateway_config::GatewayRuntimeMode::Embedded {
-            Some(web_gateway::build_embedded_appbase_im_runtime_router())
-        } else {
-            None
-        };
     let product_runtime_router = build_gateway_product_runtime_router(base_url.as_str()).await?;
     println!(
         "{}",
@@ -64,10 +58,9 @@ async fn run() -> Result<(), String> {
 
     axum::serve(
         listener,
-        web_gateway::build_app_with_registry_and_runtime_routers(
+        web_gateway::build_app_with_registry_and_product_runtime(
             config,
             registry,
-            embedded_runtime_router,
             Some(product_runtime_router),
         ),
     )

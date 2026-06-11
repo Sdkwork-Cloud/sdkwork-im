@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -24,12 +25,12 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   assert.deepEqual(
     checks.map((check) => check.id),
     [
-      'admin-install',
-      'admin-test',
-      'admin-typecheck',
-      'admin-build',
-      'portal-test',
-      'portal-build',
+      'pc-install',
+      'pc-lint',
+      'pc-build',
+      'pc-auth-appbase-ui-contract',
+      'pc-notary-app-sdk-integration',
+      'pc-qr-scan-standard',
       'dependency-management',
       'workflow-commercial-gates',
       'control-plane-api-tests',
@@ -43,21 +44,40 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   assert.equal(resolvePnpmExecutable('win32'), 'pnpm.cmd');
   assert.equal(checks[0].command, 'pnpm.cmd');
   assert.equal(checks[0].env?.npm_config_update_notifier, 'false');
+  for (const check of checks) {
+    assert.equal(existsSync(check.cwd), true, `${check.id} cwd must exist: ${check.cwd}`);
+  }
   assert.equal(
-    checks.find((check) => check.id === 'admin-test')?.cwd,
-    path.join(repoRoot, 'apps', 'craw-chat-admin'),
+    checks.find((check) => check.id === 'pc-install')?.cwd,
+    path.join(repoRoot, 'apps', 'sdkwork-chat-pc'),
   );
   assert.deepEqual(
-    checks.find((check) => check.id === 'admin-test')?.args,
-    ['test'],
+    checks.find((check) => check.id === 'pc-install')?.args,
+    ['install', '--frozen-lockfile', '--ignore-scripts'],
   );
   assert.equal(
-    checks.find((check) => check.id === 'admin-build')?.cwd,
-    path.join(repoRoot, 'apps', 'craw-chat-admin'),
+    checks.find((check) => check.id === 'pc-lint')?.cwd,
+    path.join(repoRoot, 'apps', 'sdkwork-chat-pc'),
   );
   assert.deepEqual(
-    checks.find((check) => check.id === 'portal-build')?.args,
-    ['build'],
+    checks.find((check) => check.id === 'pc-lint')?.args,
+    ['run', 'lint'],
+  );
+  assert.deepEqual(
+    checks.find((check) => check.id === 'pc-build')?.args,
+    ['run', 'build'],
+  );
+  assert.deepEqual(
+    checks.find((check) => check.id === 'pc-auth-appbase-ui-contract')?.args,
+    ['scripts/auth-appbase-ui-contract.test.mjs'],
+  );
+  assert.deepEqual(
+    checks.find((check) => check.id === 'pc-notary-app-sdk-integration')?.args,
+    ['run', 'test:notary-app-sdk-integration'],
+  );
+  assert.deepEqual(
+    checks.find((check) => check.id === 'pc-qr-scan-standard')?.args,
+    ['run', 'test:qr-scan-standard'],
   );
   assert.deepEqual(
     checks.find((check) => check.id === 'dependency-management')?.args,
@@ -88,7 +108,7 @@ test('commercial readiness checks cover the verified frontend and backend gate c
     ['test', '-p', 'control-plane-api', '--tests'],
   );
   assert.equal(
-    checks.find((check) => check.id === 'portal-build')?.env?.npm_config_update_notifier,
+    checks.find((check) => check.id === 'pc-build')?.env?.npm_config_update_notifier,
     'false',
   );
   assert.equal(
@@ -169,7 +189,7 @@ test('commercial readiness converts thrown command execution errors into a contr
     repoRoot,
     logger: logs.logger,
     runCheck: async (check) => {
-      if (check.id === 'admin-install') {
+      if (check.id === 'pc-install') {
         throw new Error('spawn pnpm ENOENT');
       }
 
@@ -186,11 +206,30 @@ test('commercial readiness converts thrown command execution errors into a contr
   assert.equal(result.capacityAssessment, null);
   assert.equal(result.checks.length, 0);
   assert.deepEqual(result.failure, {
-    stage: 'admin-install',
+    stage: 'pc-install',
     summary: 'spawn pnpm ENOENT',
   });
-  assert.match(logs.stderr.join('\n'), /admin-install/);
+  assert.match(logs.stderr.join('\n'), /pc-install/);
   assert.match(logs.stderr.join('\n'), /spawn pnpm ENOENT/);
+});
+
+test('commercial readiness rejects missing configured working directories before spawning commands', async () => {
+  const tempRepoRoot = await mkdtemp(path.join(os.tmpdir(), 'commercial-readiness-missing-cwd-'));
+  const logs = createLoggerCapture();
+
+  const result = await runCommercialReadiness({
+    repoRoot: tempRepoRoot,
+    logger: logs.logger,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.exitCode, COMMAND_FAILURE_EXIT_CODE);
+  assert.equal(result.capacityAssessment, null);
+  assert.equal(result.checks.length, 0);
+  assert.equal(result.failure.stage, 'pc-install');
+  assert.match(result.failure.summary, /configured cwd does not exist/);
+  assert.match(result.failure.summary, /apps[\\/]sdkwork-chat-pc/);
+  assert.match(logs.stderr.join('\n'), /pc-install/);
 });
 
 test('commercial readiness converts malformed capacity evidence into a controlled command failure result', async () => {

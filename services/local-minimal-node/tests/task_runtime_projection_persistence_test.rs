@@ -75,7 +75,9 @@ async fn test_default_local_minimal_profile_initializes_task_runtime_state_witho
             .with_dual_token_tenant("t_demo")
             .with_dual_token_user("u_demo")
             .with_dual_token_actor_kind("user")
-            .with_dual_token_permission_scope("notification.write automation.execute automation.read",);
+            .with_dual_token_permission_scope(
+                "notification.write automation.execute automation.read",
+            );
         if method == "POST" {
             builder = builder.header("content-type", "application/json");
         }

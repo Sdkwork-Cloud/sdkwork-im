@@ -28,8 +28,6 @@ test('im commercial gates workflow watch catalog publishes the exact governed wa
       'package.json',
       'sdkwork.workflow.json',
       'README.md',
-      'apps/craw-chat-admin/**',
-      'apps/craw-chat-portal/**',
       'apps/sdkwork-chat-pc/**',
       'crates/**',
       'deployments/**',

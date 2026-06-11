@@ -130,14 +130,15 @@ assert.ok(
   'root server:dev must create local dev site fallbacks when admin or portal sources are absent',
 );
 assert.ok(
-  unifiedWebSource.includes('resolveDriveAppApiUpstream')
-    && unifiedWebSource.includes('CRAW_CHAT_DRIVE_APP_API_UPSTREAM'),
-  'root server:dev must configure the Drive app-api dependency upstream for the embedded gateway',
+  unifiedWebSource.includes('createManagedSdkworkApiGatewayProcess')
+    && unifiedWebSource.includes('CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL')
+    && unifiedWebSource.includes('SDKWORK_API_GATEWAY_BIND'),
+  'root server:dev must manage sdkwork-api-gateway and expose one shared foundation gateway root',
 );
 assert.ok(
-  unifiedWebSource.includes('resolveNotaryAppApiUpstream')
-    && unifiedWebSource.includes('CRAW_CHAT_NOTARY_APP_API_UPSTREAM'),
-  'root server:dev must configure the Notary app-api dependency upstream for the embedded gateway',
+  !unifiedWebSource.includes("?? 'embedded'")
+    && !unifiedWebSource.includes('?? "embedded"'),
+  'root server:dev must not default the product gateway runtime to embedded foundation aggregation',
 );
 assert.ok(
   unifiedWebSource.includes('cargo')
@@ -145,7 +146,7 @@ assert.ok(
     && unifiedWebSource.includes('craw-chat-server')
     && unifiedWebSource.includes('CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE')
     && unifiedWebSource.includes('resolveCrawChatSharedDatabaseConfig'),
-  'root server:dev must start the Rust web-gateway in embedded local mode with the shared database config',
+  'root server:dev must start the Rust web-gateway in shared-gateway split mode with the shared database config',
 );
 assert.doesNotMatch(
   unifiedWebSource,
@@ -642,18 +643,23 @@ assert.ok(
 );
 assert.equal(
   browserPlan.processes[0].env.CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE,
-  'embedded',
-  'unified server must embed Craw Chat local IM/backend runtime instead of requiring per-service dev ports',
+  'split',
+  'unified server must run in split mode so shared foundation APIs stay owned by sdkwork-api-gateway',
 );
 assert.equal(
-  browserPlan.processes[0].env.CRAW_CHAT_DRIVE_APP_API_UPSTREAM,
+  browserPlan.processes[0].env.CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL,
   'http://127.0.0.1:3900',
-  'unified server must route Drive app SDK traffic through the shared sdkwork-api-gateway by default',
+  'unified server must receive one shared sdkwork-api-gateway root for foundation dependency traffic',
+);
+assert.ok(
+  !('CRAW_CHAT_DRIVE_APP_API_UPSTREAM' in browserPlan.processes[0].env)
+    && !('CRAW_CHAT_NOTARY_APP_API_UPSTREAM' in browserPlan.processes[0].env),
+  'unified server must not materialize default per-module foundation upstreams when the shared gateway root is enough',
 );
 assert.equal(
-  browserPlan.processes[0].env.CRAW_CHAT_NOTARY_APP_API_UPSTREAM,
-  'http://127.0.0.1:3900',
-  'unified server must route Notary app SDK traffic through the shared sdkwork-api-gateway by default',
+  browserPlan.processes[0].env.SDKWORK_API_GATEWAY_BIND,
+  '127.0.0.1:3900',
+  'unified server must receive the managed sdkwork-api-gateway bind used to derive the shared root',
 );
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_CHAT_DATABASE_URL,
@@ -1087,14 +1093,14 @@ assert.equal(
   'dev runner must pass the resolved gateway API base URL to the unified server process',
 );
 assert.equal(
-  spawned[0].options.env.CRAW_CHAT_DRIVE_APP_API_UPSTREAM,
+  spawned[0].options.env.CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL,
   'http://127.0.0.1:3900',
-  'dev runner must pass the shared sdkwork-api-gateway root for Drive app-api dependency traffic',
+  'dev runner must pass one shared sdkwork-api-gateway root for foundation dependency traffic',
 );
-assert.equal(
-  spawned[0].options.env.CRAW_CHAT_NOTARY_APP_API_UPSTREAM,
-  'http://127.0.0.1:3900',
-  'dev runner must pass the shared sdkwork-api-gateway root for Notary app-api dependency traffic',
+assert.ok(
+  !('CRAW_CHAT_DRIVE_APP_API_UPSTREAM' in spawned[0].options.env)
+    && !('CRAW_CHAT_NOTARY_APP_API_UPSTREAM' in spawned[0].options.env),
+  'dev runner must not pass default per-module foundation upstreams beside the shared gateway root',
 );
 assert.equal(
   spawned[1].options.env.SDKWORK_CHAT_SERVER_API_BASE_URL,

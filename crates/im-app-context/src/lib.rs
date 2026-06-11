@@ -9,12 +9,35 @@ use axum::{
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use craw_chat_ccp_core::{CcpActor, CcpAuthority, CcpSender};
+use hmac::{Hmac, Mac};
 use sdkwork_http_context::{
     AppRequestAuthLevel, AppRequestAuthMode, AppRequestContext, AppRequestDeploymentMode,
     AppRequestEnvironment, AppRequestLoginScope, AppRequestPrincipal, ServerRequestId,
     classify_api_surface, new_request_id,
 };
 use serde_json::{Value, json};
+use sha2::Sha256;
+
+type HmacSha256 = Hmac<Sha256>;
+
+const APP_CONTEXT_REQUIRE_SIGNATURE_ENV: &str = "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE";
+const APP_CONTEXT_SIGNATURE_SECRET_ENV: &str = "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET";
+const SDKWORK_CONTEXT_SIGNATURE_HEADER: &str = "x-sdkwork-context-signature";
+const SIGNED_APP_CONTEXT_HEADER_NAMES: &[&str] = &[
+    "x-sdkwork-app-id",
+    "x-sdkwork-tenant-id",
+    "x-sdkwork-organization-id",
+    "x-sdkwork-user-id",
+    "x-sdkwork-session-id",
+    "x-sdkwork-environment",
+    "x-sdkwork-deployment-mode",
+    "x-sdkwork-auth-level",
+    "x-sdkwork-data-scope",
+    "x-sdkwork-permission-scope",
+    "x-sdkwork-actor-id",
+    "x-sdkwork-actor-kind",
+    "x-sdkwork-device-id",
+];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AppContext {
@@ -49,6 +72,20 @@ pub struct ResolvedAppContext {
 pub struct AppContextSignatureConfig {
     pub require_signature: bool,
     pub shared_secret: Option<String>,
+}
+
+impl AppContextSignatureConfig {
+    pub fn from_env() -> Self {
+        Self {
+            require_signature: parse_truthy_env_flag(
+                std::env::var(APP_CONTEXT_REQUIRE_SIGNATURE_ENV).ok(),
+            ),
+            shared_secret: std::env::var(APP_CONTEXT_SIGNATURE_SECRET_ENV)
+                .ok()
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty()),
+        }
+    }
 }
 
 pub trait DualTokenRequestBuilderExt {
@@ -355,6 +392,63 @@ pub fn resolve_app_context_with_signature_config(
     resolve_app_context(headers)
 }
 
+pub fn sign_app_context_headers(
+    headers: &HeaderMap,
+    shared_secret: &str,
+) -> Result<String, AppContextError> {
+    let shared_secret = shared_secret.trim();
+    if shared_secret.is_empty() {
+        return Err(AppContextError::invalid(
+            "AppContext signature shared secret must not be empty",
+        ));
+    }
+
+    let payload = canonical_app_context_signature_payload(headers);
+    let mut mac = HmacSha256::new_from_slice(shared_secret.as_bytes()).map_err(|error| {
+        AppContextError::invalid(format!("AppContext signature secret is invalid: {error}"))
+    })?;
+    mac.update(payload.as_bytes());
+    Ok(URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes()))
+}
+
+pub fn require_app_context_signature(
+    headers: &HeaderMap,
+    signature_config: &AppContextSignatureConfig,
+) -> Result<(), AppContextError> {
+    if !signature_config.require_signature {
+        return Ok(());
+    }
+
+    let shared_secret = signature_config
+        .shared_secret
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            AppContextError::invalid(format!(
+                "{APP_CONTEXT_SIGNATURE_SECRET_ENV} is required when {APP_CONTEXT_REQUIRE_SIGNATURE_ENV}=true"
+            ))
+        })?;
+    let actual_signature = headers
+        .get(SDKWORK_CONTEXT_SIGNATURE_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            AppContextError::invalid(format!(
+                "{SDKWORK_CONTEXT_SIGNATURE_HEADER} header is required when signed AppContext projection is required"
+            ))
+        })?;
+    let expected_signature = sign_app_context_headers(headers, shared_secret)?;
+    if !constant_time_eq(actual_signature.as_bytes(), expected_signature.as_bytes()) {
+        return Err(AppContextError::invalid(format!(
+            "{SDKWORK_CONTEXT_SIGNATURE_HEADER} signature validation failed"
+        )));
+    }
+
+    Ok(())
+}
+
 pub fn build_dual_token_headers_for_context<I, S>(
     context: &AppContext,
     permission_scope: I,
@@ -647,6 +741,41 @@ fn extract_access_token(headers: &HeaderMap) -> Option<String> {
                 .trim()
                 .to_owned()
         })
+}
+
+fn canonical_app_context_signature_payload(headers: &HeaderMap) -> String {
+    SIGNED_APP_CONTEXT_HEADER_NAMES
+        .iter()
+        .map(|name| {
+            let value = headers
+                .get(*name)
+                .and_then(|value| value.to_str().ok())
+                .map(str::trim)
+                .unwrap_or("");
+            format!("{name}:{value}")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
+    let max_len = left.len().max(right.len());
+    let mut diff = left.len() ^ right.len();
+    for index in 0..max_len {
+        let left_byte = left.get(index).copied().unwrap_or(0);
+        let right_byte = right.get(index).copied().unwrap_or(0);
+        diff |= usize::from(left_byte ^ right_byte);
+    }
+    diff == 0
+}
+
+fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+    raw.as_deref().map(str::trim).is_some_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
 }
 
 fn has_any_dual_token_header(headers: &HeaderMap) -> bool {

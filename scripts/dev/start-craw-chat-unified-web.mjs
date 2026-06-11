@@ -6,9 +6,10 @@ import { fileURLToPath } from 'node:url';
 
 import { resolveCrawChatSharedDatabaseConfig } from './craw-chat-shared-database.mjs';
 import {
+  createManagedSdkworkApiGatewayProcess,
   createSdkworkChatBrowserOrigins,
-  resolveDriveAppApiUpstream,
-  resolveNotaryAppApiUpstream,
+  resolveSdkworkApiGatewayBaseUrl,
+  resolveSdkworkApiGatewayBind,
   resolveSdkworkChatPcDevServer,
 } from './run-sdkwork-chat-pc-dev.mjs';
 import {
@@ -41,10 +42,14 @@ async function createRuntimeEnv(baseEnv) {
     ...bindEnv.env,
     ...resolveCrawChatSharedDatabaseConfig({ env: bindEnv.env, repoRoot }).env,
   };
-  env.CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE = env.CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE ?? 'embedded';
+  env.CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE = env.CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE ?? 'split';
   env.CRAW_CHAT_BROWSER_ORIGINS = env.CRAW_CHAT_BROWSER_ORIGINS ?? defaultBrowserOrigins;
-  env.CRAW_CHAT_DRIVE_APP_API_UPSTREAM = resolveDriveAppApiUpstream(env);
-  env.CRAW_CHAT_NOTARY_APP_API_UPSTREAM = resolveNotaryAppApiUpstream(env);
+  if (!env.SDKWORK_API_GATEWAY_BIND?.trim()) {
+    env.SDKWORK_API_GATEWAY_BIND = resolveSdkworkApiGatewayBind(env);
+  }
+  if (!env.CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL?.trim()) {
+    env.CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL = resolveSdkworkApiGatewayBaseUrl(env);
+  }
 
   if (
     !env.SDKWORK_ADMIN_PROXY_TARGET?.trim()
@@ -273,6 +278,19 @@ const portalSiteDir = await ensureDevSiteDist({
 });
 runtimeEnv.CRAW_CHAT_ADMIN_SITE_DIR = adminSiteDir;
 runtimeEnv.CRAW_CHAT_PORTAL_SITE_DIR = portalSiteDir;
+
+const managedSdkworkApiGatewayProcess = createManagedSdkworkApiGatewayProcess({
+  env: runtimeEnv,
+  repoRoot,
+});
+if (managedSdkworkApiGatewayProcess) {
+  spawnCommand(managedSdkworkApiGatewayProcess.command, managedSdkworkApiGatewayProcess.args, {
+    cwd: managedSdkworkApiGatewayProcess.cwd,
+    env: managedSdkworkApiGatewayProcess.env,
+    label: managedSdkworkApiGatewayProcess.label,
+    shell: managedSdkworkApiGatewayProcess.shell,
+  });
+}
 
 terminateStaleCrawChatServerProcesses(runtimeEnv);
 await runCommand('cargo', ['run', '-p', 'web-gateway', '--bin', 'craw-chat-server'], {

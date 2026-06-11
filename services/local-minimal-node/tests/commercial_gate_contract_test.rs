@@ -78,9 +78,8 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_direct_chat_binding_as_idempotent -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_message_post_retry -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_retry -- --exact",
-        "node --test --experimental-test-isolation=none tests/admin-architecture.test.mjs",
-        "node --test tests/portal-build-smoke.test.mjs",
-        "node --test tests/portal-real-auth.test.mjs",
+        "node scripts/auth-appbase-ui-contract.test.mjs",
+        "node scripts/notary-app-sdk-integration-contract.test.mjs",
         "node ./scripts/docs-verify.mjs",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idempotent -- --exact",
         "cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_actor_kind -- --exact",
@@ -122,6 +121,14 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
         );
     }
 
+    assert!(
+        !workflow.contains("apps/craw-chat-admin")
+            && !workflow.contains("apps/craw-chat-portal")
+            && !workflow.contains("tests/admin-architecture.test.mjs")
+            && !workflow.contains("tests/portal-build-smoke.test.mjs")
+            && !workflow.contains("tests/portal-real-auth.test.mjs"),
+        "commercial gate workflow must not reference retired admin or portal app paths"
+    );
     assert!(
         !workflow.contains(
             "test_duplicate_complete_upload_retry_uses_existing_asset_without_reinvoking_provider"

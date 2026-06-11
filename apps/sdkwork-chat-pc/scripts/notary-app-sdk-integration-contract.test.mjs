@@ -165,14 +165,19 @@ assert.match(
 
 assert.match(
   devRunnerSource,
-  /resolveNotaryAppApiUpstream[\s\S]*CRAW_CHAT_NOTARY_APP_API_UPSTREAM/u,
-  'PC dev runner must pass the sdkwork-notary app-api upstream into the embedded gateway.',
+  /CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL[\s\S]*explicitNotaryAppApiUpstream[\s\S]*CRAW_CHAT_NOTARY_APP_API_UPSTREAM/u,
+  'PC dev runner must default sdkwork-notary traffic through the shared gateway root while preserving explicit Notary split upstream overrides.',
 );
 
 assert.match(
   unifiedServerSource,
-  /resolveNotaryAppApiUpstream[\s\S]*CRAW_CHAT_NOTARY_APP_API_UPSTREAM/u,
-  'Unified server launcher must configure the sdkwork-notary app-api upstream for local notary SDK traffic.',
+  /CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL[\s\S]*resolveSdkworkApiGatewayBaseUrl/u,
+  'Unified server launcher must configure the shared sdkwork-api-gateway root for local notary SDK traffic.',
+);
+assert.doesNotMatch(
+  unifiedServerSource,
+  /CRAW_CHAT_NOTARY_APP_API_UPSTREAM\s*=/u,
+  'Unified server launcher must not default local notary SDK traffic to a separate per-module upstream.',
 );
 
 assert.match(

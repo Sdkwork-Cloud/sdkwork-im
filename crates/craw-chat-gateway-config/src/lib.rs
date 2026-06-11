@@ -11,7 +11,6 @@ const DEFAULT_SDKWORK_API_GATEWAY_BASE_URL: &str = "http://127.0.0.1:3900";
 #[serde(rename_all = "camelCase")]
 pub enum GatewayRuntimeMode {
     Split,
-    Embedded,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -38,8 +37,7 @@ impl WebGatewayConfig {
             "CRAW_CHAT_SERVER_BIND_ADDRESS",
         ])
         .unwrap_or_else(|| DEFAULT_GATEWAY_BIND_ADDR.to_owned());
-        let runtime_mode = resolve_runtime_mode_from_env();
-        Self::with_bind_addr_and_runtime_mode(bind_addr, runtime_mode)
+        Self::with_bind_addr_and_runtime_mode(bind_addr, GatewayRuntimeMode::Split)
     }
 
     pub fn from_server_config_file(path: impl AsRef<Path>) -> Result<Self, String> {
@@ -69,10 +67,7 @@ impl WebGatewayConfig {
         bind_addr: String,
         runtime_mode: GatewayRuntimeMode,
     ) -> Self {
-        let upstreams = match runtime_mode {
-            GatewayRuntimeMode::Split => default_split_upstreams(),
-            GatewayRuntimeMode::Embedded => default_embedded_upstreams(),
-        };
+        let upstreams = default_split_upstreams();
         Self {
             bind_addr,
             runtime_mode,
@@ -80,20 +75,6 @@ impl WebGatewayConfig {
             upstreams,
         }
     }
-}
-
-fn resolve_runtime_mode_from_env() -> GatewayRuntimeMode {
-    first_env_value(&[
-        "SDKWORK_CHAT_WEB_GATEWAY_RUNTIME_MODE",
-        "CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE",
-    ])
-    .map(|value| value.trim().to_ascii_lowercase())
-    .filter(|value| !value.is_empty())
-    .map(|value| match value.as_str() {
-        "embedded" | "unified" | "local" => GatewayRuntimeMode::Embedded,
-        _ => GatewayRuntimeMode::Split,
-    })
-    .unwrap_or(GatewayRuntimeMode::Split)
 }
 
 fn first_env_value(names: &[&str]) -> Option<String> {
@@ -196,23 +177,6 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
         service_upstream("audit-service", "http://127.0.0.1:18089"),
         service_upstream("ops-service", "http://127.0.0.1:18091"),
     ]
-}
-
-pub fn default_embedded_upstreams() -> Vec<ServiceUpstreamConfig> {
-    let mut upstreams = Vec::new();
-    if let Some(drive_upstream) = explicit_drive_app_api_upstream() {
-        upstreams.push(service_upstream(
-            "sdkwork-drive-app-api",
-            drive_upstream.as_str(),
-        ));
-    }
-    if let Some(notary_upstream) = explicit_notary_app_api_upstream() {
-        upstreams.push(service_upstream(
-            "sdkwork-notary-app-api",
-            notary_upstream.as_str(),
-        ));
-    }
-    upstreams
 }
 
 fn default_appbase_app_api_upstream() -> String {
@@ -577,9 +541,12 @@ bind_address = "127.0.0.1:38080"
     }
 
     #[test]
-    fn test_web_gateway_embedded_mode_uses_no_implicit_external_upstreams() {
+    fn test_web_gateway_local_mode_alias_is_normalized_to_split_gateway_defaults() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::set("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE", "embedded");
+        let _runtime_mode = ScopedEnvVar::set("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE", "local");
+        let _foundation_gateway = ScopedEnvVar::remove("CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL");
+        let _gateway_base_url = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BASE_URL");
+        let _gateway_bind = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BIND");
         let _appbase_upstream = ScopedEnvVar::remove("CRAW_CHAT_APPBASE_APP_API_UPSTREAM");
         let _appbase_bind_addr = ScopedEnvVar::remove("SDKWORK_APPBASE_APP_API_BIND_ADDR");
         let _drive_upstream = ScopedEnvVar::remove("CRAW_CHAT_DRIVE_APP_API_UPSTREAM");
@@ -591,20 +558,25 @@ bind_address = "127.0.0.1:38080"
 
         let config = WebGatewayConfig::from_env();
 
-        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Embedded);
-        assert!(config.upstreams.is_empty());
-        assert_eq!(config.upstream_base_url("sdkwork-appbase-app-api"), None);
-        assert_eq!(config.upstream_base_url("sdkwork-drive-app-api"), None);
-        assert_eq!(config.upstream_base_url("sdkwork-notary-app-api"), None);
-        assert_eq!(config.upstream_base_url("session-gateway"), None);
-        assert_eq!(config.upstream_base_url("conversation-runtime"), None);
-        assert_eq!(config.upstream_base_url("ops-service"), None);
+        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Split);
+        assert_eq!(
+            config.upstream_base_url("sdkwork-appbase-app-api"),
+            Some("http://127.0.0.1:3900")
+        );
+        assert_eq!(
+            config.upstream_base_url("sdkwork-drive-app-api"),
+            Some("http://127.0.0.1:3900")
+        );
+        assert_eq!(
+            config.upstream_base_url("sdkwork-notary-app-api"),
+            Some("http://127.0.0.1:3900")
+        );
     }
 
     #[test]
-    fn test_web_gateway_embedded_mode_allows_explicit_drive_app_api_upstream() {
+    fn test_web_gateway_local_mode_alias_allows_explicit_drive_app_api_upstream() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::set("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE", "embedded");
+        let _runtime_mode = ScopedEnvVar::set("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE", "local");
         let _appbase_upstream = ScopedEnvVar::set(
             "CRAW_CHAT_APPBASE_APP_API_UPSTREAM",
             "http://127.0.0.1:19090/",
@@ -621,21 +593,21 @@ bind_address = "127.0.0.1:38080"
 
         let config = WebGatewayConfig::from_env();
 
-        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Embedded);
+        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Split);
+        assert_eq!(
+            config.upstream_base_url("sdkwork-appbase-app-api"),
+            Some("http://127.0.0.1:19090")
+        );
         assert_eq!(
             config.upstream_base_url("sdkwork-drive-app-api"),
             Some("http://127.0.0.1:28080")
         );
-        assert_eq!(config.upstream_base_url("sdkwork-appbase-app-api"), None);
-        assert_eq!(config.upstream_base_url("session-gateway"), None);
-        assert_eq!(config.upstream_base_url("conversation-runtime"), None);
-        assert_eq!(config.upstream_base_url("ops-service"), None);
     }
 
     #[test]
-    fn test_web_gateway_embedded_mode_allows_explicit_notary_app_api_upstream() {
+    fn test_web_gateway_local_mode_alias_allows_explicit_notary_app_api_upstream() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::set("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE", "embedded");
+        let _runtime_mode = ScopedEnvVar::set("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE", "local");
         let _appbase_upstream = ScopedEnvVar::set(
             "CRAW_CHAT_APPBASE_APP_API_UPSTREAM",
             "http://127.0.0.1:19090/",
@@ -652,19 +624,19 @@ bind_address = "127.0.0.1:38080"
 
         let config = WebGatewayConfig::from_env();
 
-        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Embedded);
+        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Split);
+        assert_eq!(
+            config.upstream_base_url("sdkwork-appbase-app-api"),
+            Some("http://127.0.0.1:19090")
+        );
         assert_eq!(
             config.upstream_base_url("sdkwork-notary-app-api"),
             Some("http://127.0.0.1:28092")
         );
-        assert_eq!(config.upstream_base_url("sdkwork-appbase-app-api"), None);
-        assert_eq!(config.upstream_base_url("session-gateway"), None);
-        assert_eq!(config.upstream_base_url("conversation-runtime"), None);
-        assert_eq!(config.upstream_base_url("ops-service"), None);
     }
 
     #[test]
-    fn test_web_gateway_embedded_mode_ignores_appbase_bind_addr_env() {
+    fn test_web_gateway_local_mode_alias_still_uses_appbase_split_override() {
         let _guard = gateway_config_env_guard();
         let _runtime_mode = ScopedEnvVar::set("CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE", "local");
         let _appbase_upstream = ScopedEnvVar::remove("CRAW_CHAT_APPBASE_APP_API_UPSTREAM");
@@ -673,8 +645,10 @@ bind_address = "127.0.0.1:38080"
 
         let config = WebGatewayConfig::from_env();
 
-        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Embedded);
-        assert!(config.upstreams.is_empty());
-        assert_eq!(config.upstream_base_url("sdkwork-appbase-app-api"), None);
+        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Split);
+        assert_eq!(
+            config.upstream_base_url("sdkwork-appbase-app-api"),
+            Some("http://127.0.0.1:28090")
+        );
     }
 }

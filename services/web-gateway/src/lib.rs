@@ -14,7 +14,7 @@ use craw_chat_api_registry::{
     ContractKind, HttpMethod, RouteDescriptor, RouteProtocol, RouteRegistry, RouteVisibility,
     SdkTarget, ServiceSchemaIndexEntry, build_registry, sdk_contract_summaries,
 };
-use craw_chat_gateway_config::{GatewayRuntimeMode, WebGatewayConfig};
+use craw_chat_gateway_config::WebGatewayConfig;
 use craw_chat_gateway_observability::{
     GatewayStartupSummary, build_startup_summary_with_registry, route_summaries,
     surface_group_summaries,
@@ -23,20 +23,11 @@ use craw_chat_openapi::{OpenApiServiceSpec, render_docs_html};
 use craw_chat_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
 use futures_util::{SinkExt, StreamExt};
 use im_app_context::{build_dual_token_headers_for_context, resolve_app_context};
-use im_platform_contracts::{
-    ContractError, PrincipalProfile, PrincipalProfileProvider, ProviderDomain,
-    ProviderHealthSnapshot, ProviderPluginDescriptor,
-};
 use reqwest::Client;
-use sdkwork_iam_http::{
-    SdkworkAppbaseLocalIamDirectory, SdkworkAppbaseLocalIamRuntimeContext,
-    SdkworkAppbaseLocalIamUserProfile,
-};
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
-use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
+use std::collections::BTreeSet;
 use std::time::Duration;
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async, tungstenite,
@@ -46,9 +37,6 @@ use tower::ServiceExt;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
 const BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
-const APPBASE_APP_API_SERVICE_ID: &str = "sdkwork-appbase-app-api";
-const DRIVE_APP_API_SERVICE_ID: &str = "sdkwork-drive-app-api";
-const NOTARY_APP_API_SERVICE_ID: &str = "sdkwork-notary-app-api";
 const IM_REALTIME_WEBSOCKET_PATH: &str = "/im/v3/api/realtime/ws";
 const WEBSOCKET_AUTH_INIT_TIMEOUT_SECONDS: u64 = 10;
 const WEBSOCKET_UPSTREAM_CONNECT_TIMEOUT_SECONDS: u64 = 5;
@@ -77,20 +65,7 @@ struct GatewayState {
     client: Client,
     config: WebGatewayConfig,
     registry: RouteRegistry,
-    embedded_runtime_router: Option<Router>,
-    embedded_runtime_websocket_upstream: Option<Arc<EmbeddedRuntimeWebsocketUpstream>>,
     product_runtime_router: Option<Router>,
-}
-
-struct EmbeddedRuntimeWebsocketUpstream {
-    base_url: String,
-    handle: tokio::task::JoinHandle<()>,
-}
-
-impl Drop for EmbeddedRuntimeWebsocketUpstream {
-    fn drop(&mut self) {
-        self.handle.abort();
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -127,17 +102,6 @@ pub fn build_app_with_registry_and_product_runtime(
     registry: RouteRegistry,
     product_runtime_router: Option<Router>,
 ) -> Router {
-    build_app_with_registry_and_runtime_routers(config, registry, None, product_runtime_router)
-}
-
-pub fn build_app_with_registry_and_runtime_routers(
-    config: WebGatewayConfig,
-    registry: RouteRegistry,
-    embedded_runtime_router: Option<Router>,
-    product_runtime_router: Option<Router>,
-) -> Router {
-    let embedded_runtime_websocket_upstream =
-        spawn_embedded_runtime_websocket_upstream(&config, embedded_runtime_router.clone());
     Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
@@ -159,156 +123,9 @@ pub fn build_app_with_registry_and_runtime_routers(
             client: Client::new(),
             config,
             registry,
-            embedded_runtime_router,
-            embedded_runtime_websocket_upstream,
             product_runtime_router,
         })
         .layer(build_browser_cors_layer())
-}
-
-pub fn build_embedded_appbase_im_runtime_router() -> Router {
-    let (appbase_router, principal_profile_provider) =
-        build_embedded_appbase_runtime_with_principal_profile_provider();
-    appbase_router.merge(
-        local_minimal_node::build_default_app_with_principal_profile_provider(
-            principal_profile_provider,
-        ),
-    )
-}
-
-pub fn build_embedded_appbase_runtime_with_principal_profile_provider()
--> (Router, Arc<dyn PrincipalProfileProvider>) {
-    let (router, directory) =
-        sdkwork_iam_http::build_sdkwork_appbase_app_api_router_with_runtime_context_and_local_directory(
-            embedded_appbase_runtime_context(),
-        );
-    (
-        router,
-        Arc::new(AppbaseLocalIamPrincipalProfileProvider::new(directory)),
-    )
-}
-
-fn embedded_appbase_runtime_context() -> SdkworkAppbaseLocalIamRuntimeContext {
-    SdkworkAppbaseLocalIamRuntimeContext::new("chat", "20001", "30001")
-        .with_organization_name("SDKWork Chat Organization")
-        .with_department("dept_30001", "SDKWork Chat")
-        .with_position("pos_30001", "Member")
-}
-
-#[derive(Clone)]
-struct AppbaseLocalIamPrincipalProfileProvider {
-    directory: SdkworkAppbaseLocalIamDirectory,
-}
-
-impl AppbaseLocalIamPrincipalProfileProvider {
-    fn new(directory: SdkworkAppbaseLocalIamDirectory) -> Self {
-        Self { directory }
-    }
-}
-
-impl PrincipalProfileProvider for AppbaseLocalIamPrincipalProfileProvider {
-    fn descriptor(&self) -> ProviderPluginDescriptor {
-        ProviderPluginDescriptor::new(
-            "principal-profile-appbase-local-iam",
-            ProviderDomain::PrincipalProfile,
-            "appbase-local-iam",
-            "SDKWork Appbase Local IAM Principal Profile",
-        )
-        .with_default_selected(true)
-        .with_required_capabilities(["read", "profile", "iam-directory"])
-    }
-
-    fn get_profile(
-        &self,
-        tenant_id: &str,
-        principal_id: &str,
-        principal_kind: &str,
-    ) -> Result<Option<PrincipalProfile>, ContractError> {
-        if principal_kind != "user" {
-            return Ok(None);
-        }
-        Ok(self
-            .directory
-            .get_user_profile(tenant_id, principal_id)
-            .map(directory_user_to_principal_profile))
-    }
-
-    fn batch_get_profiles(
-        &self,
-        tenant_id: &str,
-        principal_kind: &str,
-        principal_ids: &[String],
-    ) -> Result<Vec<PrincipalProfile>, ContractError> {
-        if principal_kind != "user" {
-            return Ok(Vec::new());
-        }
-        Ok(principal_ids
-            .iter()
-            .filter_map(|principal_id| self.directory.get_user_profile(tenant_id, principal_id))
-            .map(directory_user_to_principal_profile)
-            .collect())
-    }
-
-    fn search_profiles(
-        &self,
-        tenant_id: &str,
-        principal_kind: &str,
-        keyword: &str,
-    ) -> Result<Vec<PrincipalProfile>, ContractError> {
-        if principal_kind != "user" {
-            return Ok(Vec::new());
-        }
-        Ok(self
-            .directory
-            .search_user_profiles(tenant_id, keyword)
-            .into_iter()
-            .map(directory_user_to_principal_profile)
-            .collect())
-    }
-
-    fn map_external_principal(
-        &self,
-        _tenant_id: &str,
-        _principal_kind: &str,
-        _external_system: &str,
-        _external_principal_id: &str,
-    ) -> Result<Option<PrincipalProfile>, ContractError> {
-        Ok(None)
-    }
-
-    fn provider_health_snapshot(&self) -> ProviderHealthSnapshot {
-        ProviderHealthSnapshot {
-            plugin_id: "principal-profile-appbase-local-iam".to_owned(),
-            status: "healthy".to_owned(),
-            checked_at: "2026-06-08T00:00:00Z".to_owned(),
-            details: BTreeMap::from([("providerKind".to_owned(), "appbase-local-iam".to_owned())]),
-        }
-    }
-}
-
-fn directory_user_to_principal_profile(
-    user: SdkworkAppbaseLocalIamUserProfile,
-) -> PrincipalProfile {
-    let mut attributes = BTreeMap::from([
-        ("username".to_owned(), user.username.clone()),
-        ("source".to_owned(), "sdkwork-appbase-local-iam".to_owned()),
-    ]);
-    if let Some(email) = user.email.clone() {
-        attributes.insert("email".to_owned(), email);
-    }
-    if let Some(phone) = user.phone.clone() {
-        attributes.insert("phone".to_owned(), phone);
-    }
-
-    PrincipalProfile {
-        tenant_id: user.tenant_id,
-        principal_id: user.user_id,
-        display_name: user.display_name,
-        external_system: Some("sdkwork-appbase-local-iam".to_owned()),
-        external_principal_id: Some(user.username),
-        attributes,
-        inactive: user.inactive,
-    }
 }
 
 async fn healthz() -> Json<GatewayHealthResponse> {
@@ -508,17 +325,6 @@ async fn proxy_request(State(state): State<GatewayState>, request: Request) -> R
     };
     let service_id = route.service_id.clone();
     let Some(upstream_base_url) = state.config.upstream_base_url(service_id.as_str()) else {
-        if state.config.runtime_mode == GatewayRuntimeMode::Embedded {
-            let Some(runtime_router) =
-                runtime_router_for_missing_embedded_upstream(&state, service_id.as_str())
-            else {
-                return json_error_response(
-                    StatusCode::BAD_GATEWAY,
-                    format!("upstream target is not configured for {service_id}").as_str(),
-                );
-            };
-            return delegate_to_runtime_router(Some(runtime_router), request).await;
-        }
         return json_error_response(
             StatusCode::BAD_GATEWAY,
             format!("upstream target is not configured for {service_id}").as_str(),
@@ -936,110 +742,31 @@ async fn close_websocket_with_auth_error(
 }
 
 fn runtime_router_for_path(state: &GatewayState, path: &str) -> Option<Router> {
-    if is_legacy_appbase_identity_namespace(path) {
-        return state.embedded_runtime_router.clone();
+    if is_appbase_identity_namespace(path) {
+        return None;
     }
 
-    if should_delegate_to_product_runtime(path) {
-        return state
-            .product_runtime_router
-            .clone()
-            .or_else(|| state.embedded_runtime_router.clone());
-    }
-
-    if should_delegate_to_embedded_runtime(path) {
-        return state
-            .embedded_runtime_router
-            .clone()
-            .or_else(|| state.product_runtime_router.clone());
+    if should_delegate_to_product_runtime(path) || should_delegate_to_im_product_runtime(path) {
+        return state.product_runtime_router.clone();
     }
 
     state.product_runtime_router.clone()
 }
 
-fn runtime_router_for_missing_embedded_upstream(
-    state: &GatewayState,
-    service_id: &str,
-) -> Option<Router> {
-    if service_id == APPBASE_APP_API_SERVICE_ID {
-        return state.embedded_runtime_router.clone();
-    }
-
-    if requires_configured_embedded_dependency_upstream(service_id) {
-        return None;
-    }
-
-    state
-        .embedded_runtime_router
-        .clone()
-        .or_else(|| state.product_runtime_router.clone())
-}
-
-fn requires_configured_embedded_dependency_upstream(service_id: &str) -> bool {
-    matches!(
-        service_id,
-        DRIVE_APP_API_SERVICE_ID | NOTARY_APP_API_SERVICE_ID
-    )
-}
-
-fn spawn_embedded_runtime_websocket_upstream(
-    config: &WebGatewayConfig,
-    embedded_runtime_router: Option<Router>,
-) -> Option<Arc<EmbeddedRuntimeWebsocketUpstream>> {
-    if config.runtime_mode != GatewayRuntimeMode::Embedded
-        || config.upstream_base_url("session-gateway").is_some()
-    {
-        return None;
-    }
-    let router = embedded_runtime_router?;
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").ok()?;
-    listener.set_nonblocking(true).ok()?;
-    let local_addr = listener.local_addr().ok()?;
-    let listener = tokio::net::TcpListener::from_std(listener).ok()?;
-    let handle = tokio::spawn(async move {
-        if let Err(error) = axum::serve(listener, router).await {
-            tracing::warn!("embedded runtime websocket loopback stopped: {error}");
-        }
-    });
-    Some(Arc::new(EmbeddedRuntimeWebsocketUpstream {
-        base_url: format!("http://{local_addr}"),
-        handle,
-    }))
-}
-
 fn websocket_upstream_base_url(state: &GatewayState, service_id: &str) -> Option<String> {
-    state
-        .config
-        .upstream_base_url(service_id)
-        .map(str::to_owned)
-        .or_else(|| {
-            if state.config.runtime_mode == GatewayRuntimeMode::Embedded
-                && service_id == "session-gateway"
-            {
-                state
-                    .embedded_runtime_websocket_upstream
-                    .as_ref()
-                    .map(|upstream| upstream.base_url.clone())
-            } else {
-                None
-            }
-        })
+    state.config.upstream_base_url(service_id).map(str::to_owned)
 }
 
-fn should_delegate_to_embedded_runtime(path: &str) -> bool {
+fn should_delegate_to_im_product_runtime(path: &str) -> bool {
     path == "/im/v3/openapi.json"
-        || path == "/app/v3/openapi.json"
-        || path == "/backend/v3/openapi.json"
         || path.starts_with("/im/v3/api/")
-        || path.starts_with("/app/v3/api/")
-        || path.starts_with("/backend/v3/api/")
 }
 
 fn should_delegate_to_product_runtime(path: &str) -> bool {
     path.starts_with("/app/v3/api/portal/")
 }
 
-fn is_legacy_appbase_identity_namespace(path: &str) -> bool {
+fn is_appbase_identity_namespace(path: &str) -> bool {
     path == "/app/v3/api/open_platform/qr_auth"
         || path.starts_with("/app/v3/api/open_platform/qr_auth/")
 }
@@ -2153,7 +1880,7 @@ fn gateway_discovery_schema_components() -> Map<String, Value> {
         "GatewayRuntimeMode".to_owned(),
         json!({
             "type": "string",
-            "enum": ["split", "embedded"]
+            "enum": ["split"]
         }),
     );
     schemas.insert(

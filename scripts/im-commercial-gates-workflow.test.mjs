@@ -171,6 +171,11 @@ test('repository exposes a governed im commercial gates workflow with repository
     /apps\/control-plane/,
     'im commercial gates workflow must not reference the retired control-plane path',
   );
+  assert.doesNotMatch(
+    workflow,
+    /apps\/craw-chat-admin|apps\/craw-chat-portal/,
+    'im commercial gates workflow must not reference retired admin or portal app paths',
+  );
   assert.match(contractSource, /im-commercial-gates-watch-catalog\.mjs/);
   assert.match(contractSource, /im-commercial-gates-step-contract-catalog\.mjs/);
 
@@ -222,10 +227,12 @@ test('im commercial gates workflow contract helper rejects workflows that still 
   const contracts = await loadContracts();
 
   const fixtureRoot = writeImCommercialGatesFixture({
-    workflowText: read('.github/workflows/im-commercial-gates.yml').replace(
-      /working-directory:\s*apps\/craw-chat-admin/,
-      'working-directory: apps/control-plane',
-    ),
+    workflowText: `${read('.github/workflows/im-commercial-gates.yml')}
+
+      - name: Retired control-plane path
+        working-directory: apps/control-plane
+        run: node --version
+`,
   });
 
   await assert.rejects(
@@ -233,6 +240,26 @@ test('im commercial gates workflow contract helper rejects workflows that still 
       repoRoot: fixtureRoot,
     }),
     /retired control-plane path|apps\/control-plane/i,
+  );
+});
+
+test('im commercial gates workflow contract helper rejects workflows that still reference retired admin or portal paths', async () => {
+  const contracts = await loadContracts();
+
+  const fixtureRoot = writeImCommercialGatesFixture({
+    workflowText: `${read('.github/workflows/im-commercial-gates.yml')}
+
+      - name: Retired portal path
+        working-directory: apps/craw-chat-portal
+        run: node --version
+`,
+  });
+
+  await assert.rejects(
+    contracts.assertImCommercialGatesWorkflowContracts({
+      repoRoot: fixtureRoot,
+    }),
+    /retired admin or portal app paths|apps\/craw-chat-portal/i,
   );
 });
 

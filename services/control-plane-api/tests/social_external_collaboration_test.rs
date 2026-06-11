@@ -1,5 +1,5 @@
 use im_app_context::DualTokenRequestBuilderExt;
-﻿use std::collections::BTreeSet;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -152,7 +152,7 @@ fn apply_test_app_context_projection(
         .with_dual_token_actor_kind(projection.actor_kind.as_str());
 
     if !projection.permission_scope.is_empty() {
-        builder = builder.with_dual_token_permission_scope(projection.permission_scope.join(" "),);
+        builder = builder.with_dual_token_permission_scope(projection.permission_scope.join(" "));
     }
 
     builder
@@ -183,7 +183,7 @@ async fn http_json_request(
         .with_dual_token_actor(projection.user_id.as_str())
         .with_dual_token_actor_kind(projection.actor_kind.as_str());
     if !projection.permission_scope.is_empty() {
-        builder = builder.with_dual_token_permission_scope(projection.permission_scope.join(" "),);
+        builder = builder.with_dual_token_permission_scope(projection.permission_scope.join(" "));
     }
     let request = builder
         .body(Full::new(payload))
@@ -1698,10 +1698,9 @@ async fn test_control_plane_social_shared_channel_http_trigger_materializes_remo
     assert_eq!(post_status, StatusCode::OK);
     assert_eq!(post_json["messageId"], "msg_c_partner_ops_remote_1");
 
-    let trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("http shared-channel sync trigger should build");
+    let trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("http shared-channel sync trigger should build");
     let app = control_plane_api::build_public_app_with_shared_channel_sync_trigger(trigger);
     let control_context = app_context_projection("t_demo", "u_admin", "admin", &["control.write"]);
 
@@ -2292,10 +2291,9 @@ async fn test_control_plane_social_shared_channel_repeated_failure_moves_request
         .expect("dead-letter shared-channel sync request should exist");
     assert_eq!(dead_letter_item["failureCount"], 3);
 
-    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("public shared-channel trigger should build");
+    let public_trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("public shared-channel trigger should build");
     trigger.set_delegate(public_trigger);
 
     let repair_app = control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger(
@@ -2586,10 +2584,9 @@ async fn test_control_plane_social_shared_channel_dead_letter_requeue_restores_p
         1
     );
 
-    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("public shared-channel trigger should build");
+    let public_trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("public shared-channel trigger should build");
     trigger.set_delegate(public_trigger);
 
     let requeue_response = app
@@ -3547,10 +3544,9 @@ async fn test_control_plane_social_shared_channel_dead_letter_inventory_and_targ
         "actor_bob"
     );
 
-    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("public shared-channel trigger should build");
+    let public_trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("public shared-channel trigger should build");
     trigger.set_delegate(public_trigger);
 
     let repair_app = control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger(
@@ -3868,10 +3864,9 @@ async fn test_control_plane_social_shared_channel_pending_inventory_and_targeted
         .to_owned();
     assert_ne!(alice_request_key, bob_request_key);
 
-    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("public shared-channel trigger should build");
+    let public_trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("public shared-channel trigger should build");
     let republish_app = control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger(
         cluster,
         ops_runtime,
@@ -4356,10 +4351,9 @@ async fn test_control_plane_social_shared_channel_pending_claim_enforces_targete
         "wait_for_owner_release_or_expiry"
     );
 
-    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("public shared-channel trigger should build");
+    let public_trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("public shared-channel trigger should build");
     let republish_app = control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger(
         cluster,
         ops_runtime,
@@ -5268,10 +5262,9 @@ async fn test_control_plane_social_shared_channel_pending_release_returns_claim_
         .expect("reclaim pending claim should return response");
     assert_eq!(reclaim_response.status(), StatusCode::OK);
 
-    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("public shared-channel trigger should build");
+    let public_trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("public shared-channel trigger should build");
     let republish_app = control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger(
         cluster,
         ops_runtime,
@@ -5895,10 +5888,9 @@ async fn test_control_plane_social_shared_channel_pending_takeover_transfers_cla
     assert!(taken_over_lease_expires_at > taken_over_claimed_at);
     assert_ne!(taken_over_lease_expires_at, first_lease_expires_at);
 
-    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("public shared-channel trigger should build");
+    let public_trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("public shared-channel trigger should build");
     let republish_app = control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger(
         cluster,
         ops_runtime,
@@ -6449,10 +6441,9 @@ async fn test_control_plane_social_shared_channel_sync_failure_persists_pending_
         .expect("pending shared-channel sync backlog should be serialized as an object");
     assert_eq!(pending_items.len(), 1);
 
-    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("public shared-channel trigger should build");
+    let public_trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("public shared-channel trigger should build");
     trigger.set_delegate(public_trigger);
 
     let repair_response = app
@@ -6698,10 +6689,9 @@ async fn test_control_plane_social_shared_channel_repair_reclaims_stale_claim_be
         serde_json::Value::String("1970-01-01T00:00:00.000Z".into());
     write_social_state_json(runtime_dir.path(), &stale_state);
 
-    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("public shared-channel trigger should build");
+    let public_trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("public shared-channel trigger should build");
     trigger.set_delegate(public_trigger);
 
     let repair_app = control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger(
@@ -8852,10 +8842,9 @@ async fn test_control_plane_social_shared_channel_pending_backlog_retries_on_nex
         .expect("pending shared-channel sync backlog should be serialized as an object");
     assert_eq!(pending_items.len(), 1);
 
-    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("public shared-channel trigger should build");
+    let public_trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("public shared-channel trigger should build");
     trigger.set_delegate(public_trigger);
 
     let healthy_link_response = app
@@ -9112,10 +9101,9 @@ async fn test_control_plane_social_shared_channel_next_healthy_ready_pair_write_
         .expect("claim blocked auto retry targeted claim should return response");
     assert_eq!(claim_response.status(), StatusCode::OK);
 
-    let public_trigger = control_plane_api::build_dual_token_shared_channel_sync_trigger(
-        runtime_base_url.as_str(),
-    )
-    .expect("public shared-channel trigger should build");
+    let public_trigger =
+        control_plane_api::build_dual_token_shared_channel_sync_trigger(runtime_base_url.as_str())
+            .expect("public shared-channel trigger should build");
     trigger.set_delegate(public_trigger);
 
     let healthy_link_response = app

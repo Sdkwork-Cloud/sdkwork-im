@@ -243,7 +243,7 @@ fn test_postgres_realtime_checkpoint_sql_preserves_monotonic_capacity_trim_metad
             "capacity_trimmed_event_count",
             "capacity_trimmed_through_seq",
             "last_capacity_trimmed_at",
-            "on conflict (tenant_id, device_scope_key) do update",
+            "on conflict (tenant_id, client_route_scope_key) do update",
             "latest_realtime_seq = greatest(",
             "acked_through_seq = greatest(",
             "trimmed_through_seq = greatest(",
@@ -261,7 +261,7 @@ fn test_postgres_realtime_checkpoint_sql_preserves_monotonic_capacity_trim_metad
         load,
         &[
             "pub const load_realtime_checkpoint_sql",
-            "where tenant_id = $1 and device_scope_key = $2",
+            "where tenant_id = $1 and client_route_scope_key = $2",
         ],
     );
 }
@@ -296,7 +296,7 @@ fn test_postgres_realtime_event_window_sql_supports_range_reads_trim_and_clear()
             "delivery_class",
             "payload_json",
             "payload_hash",
-            "on conflict (tenant_id, device_scope_key, realtime_seq) do nothing",
+            "on conflict (tenant_id, client_route_scope_key, realtime_seq) do nothing",
         ],
     );
     assert_contains_all(
@@ -312,7 +312,7 @@ fn test_postgres_realtime_event_window_sql_supports_range_reads_trim_and_clear()
         &[
             "pub const clear_realtime_client_route_events_sql",
             "delete from im_realtime_device_events",
-            "where tenant_id = $1 and device_scope_key = $2",
+            "where tenant_id = $1 and client_route_scope_key = $2",
         ],
     );
     assert_contains_all(
@@ -321,7 +321,7 @@ fn test_postgres_realtime_event_window_sql_supports_range_reads_trim_and_clear()
             "pub const load_realtime_event_window_diagnostics_sql",
             "from im_realtime_checkpoints c",
             "left join im_realtime_device_events e",
-            "count(distinct c.tenant_id || ':' || c.device_scope_key) as client_route_window_count",
+            "count(distinct c.tenant_id || ':' || c.client_route_scope_key) as client_route_window_count",
             "count(e.realtime_seq) as pending_event_count",
             "coalesce(max(window_counts.pending_event_count), 0) as max_client_route_window_event_count",
             "coalesce(max(c.trimmed_through_seq), 0) as max_trimmed_through_seq",
@@ -337,7 +337,7 @@ fn test_postgres_realtime_event_window_sql_supports_range_reads_trim_and_clear()
             "pub const list_realtime_event_window_high_risk_windows_sql",
             "from im_realtime_checkpoints c",
             "join im_realtime_device_events e",
-            "group by\n    c.tenant_id,\n    c.principal_kind,\n    c.principal_id,\n    c.device_id,\n    c.device_scope_key,\n    c.trimmed_through_seq,\n    c.capacity_trimmed_event_count,\n    c.capacity_trimmed_through_seq,\n    c.last_capacity_trimmed_at",
+            "group by\n    c.tenant_id,\n    c.principal_kind,\n    c.principal_id,\n    c.device_id,\n    c.client_route_scope_key,\n    c.trimmed_through_seq,\n    c.capacity_trimmed_event_count,\n    c.capacity_trimmed_through_seq,\n    c.last_capacity_trimmed_at",
             "count(e.realtime_seq) as pending_event_count",
             "min(e.occurred_at) as oldest_pending_occurred_at",
             "order by pending_event_count desc, oldest_pending_occurred_at asc, c.tenant_id asc, c.principal_kind asc, c.principal_id asc, c.device_id asc",
@@ -350,14 +350,14 @@ fn test_postgres_realtime_event_window_sql_supports_range_reads_trim_and_clear()
             "pub const list_orphaned_realtime_client_route_events_sql",
             "from im_realtime_device_events e",
             "left join im_realtime_checkpoints c",
-            "c.device_scope_key = e.device_scope_key",
-            "where c.device_scope_key is null",
-            "group by e.tenant_id, e.device_scope_key",
+            "c.client_route_scope_key = e.client_route_scope_key",
+            "where c.client_route_scope_key is null",
+            "group by e.tenant_id, e.client_route_scope_key",
             "count(*) as orphaned_event_count",
             "min(e.realtime_seq) as min_realtime_seq",
             "max(e.realtime_seq) as max_realtime_seq",
             "min(e.occurred_at) as oldest_orphaned_occurred_at",
-            "order by orphaned_event_count desc, oldest_orphaned_occurred_at asc, e.tenant_id asc, e.device_scope_key asc",
+            "order by orphaned_event_count desc, oldest_orphaned_occurred_at asc, e.tenant_id asc, e.client_route_scope_key asc",
             "limit $1",
         ],
     );
@@ -379,7 +379,7 @@ fn test_postgres_realtime_subscription_sql_has_fanout_index_and_clear_contracts(
             "insert into im_realtime_subscriptions",
             "subscriptions_json",
             "subscription_count",
-            "on conflict (tenant_id, device_scope_key) do update",
+            "on conflict (tenant_id, client_route_scope_key) do update",
             "where excluded.synced_at >= im_realtime_subscriptions.synced_at",
         ],
     );
@@ -392,9 +392,9 @@ fn test_postgres_realtime_subscription_sql_has_fanout_index_and_clear_contracts(
             "updated_at",
             "select\n    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11\nfrom im_realtime_subscriptions current_subscription",
             "current_subscription.tenant_id = $1",
-            "current_subscription.device_scope_key = $7",
+            "current_subscription.client_route_scope_key = $7",
             "current_subscription.synced_at = $9",
-            "on conflict (\n    tenant_id,\n    principal_kind,\n    principal_id,\n    scope_type,\n    scope_id,\n    event_type,\n    device_scope_key\n) do update set",
+            "on conflict (\n    tenant_id,\n    principal_kind,\n    principal_id,\n    scope_type,\n    scope_id,\n    event_type,\n    client_route_scope_key\n) do update set",
             "where excluded.synced_at >= im_realtime_subscription_scopes.synced_at",
         ],
     );
@@ -429,7 +429,7 @@ fn test_postgres_realtime_subscription_sql_has_fanout_index_and_clear_contracts(
             "pub const clear_realtime_subscription_scopes_sql",
             "delete from im_realtime_subscription_scopes",
             "where tenant_id = $1",
-            "device_scope_key = $2",
+            "client_route_scope_key = $2",
             "and synced_at <= $3",
         ],
     );
@@ -662,7 +662,7 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
 
     assert_eq!(
         binding_names(sql_spec(specs, "LOAD_REALTIME_CHECKPOINT_SQL")),
-        vec!["tenant_id", "device_scope_key"]
+        vec!["tenant_id", "client_route_scope_key"]
     );
     assert_eq!(
         row_columns(sql_spec(specs, "LOAD_REALTIME_CHECKPOINT_SQL")),
@@ -698,7 +698,7 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
     );
     assert_eq!(
         binding_names(sql_spec(specs, "LOAD_REALTIME_SUBSCRIPTION_SQL")),
-        vec!["tenant_id", "device_scope_key"]
+        vec!["tenant_id", "client_route_scope_key"]
     );
     assert_eq!(
         row_columns(sql_spec(specs, "LOAD_REALTIME_SUBSCRIPTION_SQL")),
@@ -716,7 +716,7 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
             specs,
             "CLEAR_REALTIME_SUBSCRIPTION_IF_SYNCED_AT_OR_BEFORE_SQL"
         )),
-        vec!["tenant_id", "device_scope_key", "cutoff_synced_at"]
+        vec!["tenant_id", "client_route_scope_key", "cutoff_synced_at"]
     );
     assert_eq!(
         binding_names(sql_spec(specs, "CLEAR_REALTIME_DISCONNECT_FENCE_SQL")),
@@ -919,7 +919,7 @@ fn test_postgres_realtime_checkpoint_upsert_binding_plan_matches_sql_contract_or
         bound_names(&statement),
         vec![
             "tenant_id",
-            "device_scope_key",
+            "client_route_scope_key",
             "principal_kind",
             "principal_id",
             "device_id",
@@ -984,7 +984,7 @@ fn test_postgres_realtime_event_and_ack_binding_plans_match_sql_contract_order()
         bound_names(&event_statement),
         vec![
             "tenant_id",
-            "device_scope_key",
+            "client_route_scope_key",
             "realtime_seq",
             "principal_kind",
             "principal_id",
@@ -1079,7 +1079,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
         bound_names(&subscription_statement),
         vec![
             "tenant_id",
-            "device_scope_key",
+            "client_route_scope_key",
             "principal_kind",
             "principal_id",
             "device_id",
@@ -1267,13 +1267,13 @@ fn test_postgres_realtime_publish_and_ack_transactions_preserve_atomic_statement
         vec![RealtimePostgresClientRouteEventMutation {
             event: event.clone(),
             principal_kind: "user".into(),
-            device_scope_key: "6:t_demo|4:user|6:u_demo|5:d_pad".into(),
+            client_route_scope_key: "6:t_demo|4:user|6:u_demo|5:d_pad".into(),
             payload_hash: "sha256:demo".into(),
             retention_until: Some("2026-06-01T10:00:00.000Z".into()),
         }],
         vec![RealtimePostgresCheckpointMutation {
             checkpoint: checkpoint.clone(),
-            device_scope_key: "6:t_demo|4:user|6:u_demo|5:d_pad".into(),
+            client_route_scope_key: "6:t_demo|4:user|6:u_demo|5:d_pad".into(),
         }],
         "2026-05-01T10:00:01.000Z",
     )

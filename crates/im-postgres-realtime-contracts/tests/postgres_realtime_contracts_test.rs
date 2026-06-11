@@ -33,7 +33,9 @@ fn test_postgres_realtime_contract_crate_keeps_runtime_safe_sql_shape() {
     let event_list = LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL.to_lowercase();
     let matching_subscriptions = LOAD_MATCHING_REALTIME_SUBSCRIPTIONS_SQL.to_lowercase();
 
-    assert!(checkpoint_upsert.contains("on conflict (tenant_id, device_scope_key) do update"));
+    assert!(
+        checkpoint_upsert.contains("on conflict (tenant_id, client_route_scope_key) do update")
+    );
     assert!(checkpoint_upsert.contains("latest_realtime_seq = greatest("));
     assert!(checkpoint_upsert.contains("capacity_trimmed_through_seq = least("));
     assert!(event_upsert.contains("$11::jsonb"));
@@ -55,8 +57,9 @@ fn test_postgres_realtime_schema_enforces_event_window_checkpoint_parentage() {
         "schema must create the durable realtime checkpoint table"
     );
     assert!(
-        schema.contains("foreign key (tenant_id, device_scope_key)")
-            && schema.contains("references im_realtime_checkpoints (tenant_id, device_scope_key)")
+        schema.contains("foreign key (tenant_id, client_route_scope_key)")
+            && schema
+                .contains("references im_realtime_checkpoints (tenant_id, client_route_scope_key)")
             && schema.contains("on delete cascade"),
         "event-window rows must be tied to checkpoint rows so orphaned client route windows cannot survive checkpoint cleanup"
     );

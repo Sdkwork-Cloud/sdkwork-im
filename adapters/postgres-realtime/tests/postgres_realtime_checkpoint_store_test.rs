@@ -281,7 +281,7 @@ fn test_postgres_realtime_subscription_sql_uses_indexed_fanout_table() {
         PostgresRealtimeSubscriptionStore::matching_subscriptions_sql().to_lowercase();
 
     assert!(load_sql.contains("from im_realtime_subscriptions"));
-    assert!(upsert_sql.contains("on conflict (tenant_id, device_scope_key) do update"));
+    assert!(upsert_sql.contains("on conflict (tenant_id, client_route_scope_key) do update"));
     assert!(clear_sql.contains("delete from im_realtime_subscriptions"));
     assert!(clear_scopes_sql.contains("delete from im_realtime_subscription_scopes"));
     assert!(replace_scope_sql.contains("insert into im_realtime_subscription_scopes"));
@@ -313,10 +313,10 @@ fn test_postgres_realtime_event_window_sql_uses_checkpoint_and_event_tables_atom
     assert!(upsert_event_sql.contains("insert into im_realtime_device_events"));
     assert!(
         upsert_event_sql
-            .contains("on conflict (tenant_id, device_scope_key, realtime_seq) do nothing")
+            .contains("on conflict (tenant_id, client_route_scope_key, realtime_seq) do nothing")
     );
     assert!(trim_events_sql.contains("realtime_seq <= $3"));
-    assert!(clear_events_sql.contains("where tenant_id = $1 and device_scope_key = $2"));
+    assert!(clear_events_sql.contains("where tenant_id = $1 and client_route_scope_key = $2"));
     assert!(diagnostics_sql.contains("from im_realtime_checkpoints c"));
     assert!(
         !diagnostics_sql.contains("payload_json"),
@@ -367,7 +367,7 @@ fn test_postgres_realtime_checkpoint_store_merges_checkpoint_records_monotonical
 fn test_postgres_realtime_checkpoint_upsert_sql_is_single_statement_monotonic_merge() {
     let sql = PostgresRealtimeCheckpointStore::checkpoint_upsert_sql().to_lowercase();
 
-    assert!(sql.contains("on conflict (tenant_id, device_scope_key) do update"));
+    assert!(sql.contains("on conflict (tenant_id, client_route_scope_key) do update"));
     assert!(sql.contains("latest_realtime_seq = greatest("));
     assert!(sql.contains("acked_through_seq = greatest("));
     assert!(sql.contains("trimmed_through_seq = greatest("));
@@ -384,7 +384,7 @@ fn test_postgres_realtime_checkpoint_load_sql_targets_schema_primary_key() {
     let sql = PostgresRealtimeCheckpointStore::checkpoint_load_sql().to_lowercase();
 
     assert!(sql.contains("from im_realtime_checkpoints"));
-    assert!(sql.contains("where tenant_id = $1 and device_scope_key = $2"));
+    assert!(sql.contains("where tenant_id = $1 and client_route_scope_key = $2"));
     assert!(sql.contains("latest_realtime_seq"));
     assert!(sql.contains("acked_through_seq"));
     assert!(sql.contains("trimmed_through_seq"));

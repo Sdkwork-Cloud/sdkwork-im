@@ -210,7 +210,7 @@
       "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
     },
     {
-      "tableName": "im_projection_registered_devices",
+      "tableName": "im_projection_registered_client_routes",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",
@@ -219,7 +219,7 @@
       "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
     },
     {
-      "tableName": "im_projection_device_sync_feeds",
+      "tableName": "im_projection_client_route_sync_feeds",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",
@@ -228,7 +228,7 @@
       "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
     },
     {
-      "tableName": "im_projection_device_sync_checkpoints",
+      "tableName": "im_projection_client_route_sync_checkpoints",
       "modulePrefix": "im",
       "boundedContext": "instant_messaging",
       "tableProfile": "projection",

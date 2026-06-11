@@ -1338,7 +1338,6 @@ fn test_chat_cli_wrappers_rebuild_when_sources_are_newer_than_local_binary() {
             "chat-cli-local.sh must contain stale-binary rebuild guard text {required_text}"
         );
     }
-
 }
 
 #[test]

@@ -179,7 +179,13 @@ assert.match(sharedDatabaseSource, /SDKWORK_CHAT_DATABASE_ENGINE/u);
 assert.match(sharedDatabaseSource, /SDKWORK_CHAT_DATABASE_SSL_MODE/u);
 assert.match(sharedDatabaseSource, /postgres(?:ql)?:/u);
 assert.match(devCommandSource, /resolveCrawChatSharedDatabaseConfig/u);
-assert.match(devCommandSource, /CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE:\s*['"]embedded['"]/u);
+assert.match(devCommandSource, /CRAW_CHAT_WEB_GATEWAY_RUNTIME_MODE:\s*['"]split['"]/u);
+assert.match(devCommandSource, /CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL/u);
+assert.doesNotMatch(
+  devCommandSource,
+  /CRAW_CHAT_DRIVE_APP_API_UPSTREAM:\s*resolveDriveAppApiUpstream|CRAW_CHAT_NOTARY_APP_API_UPSTREAM:\s*resolveNotaryAppApiUpstream/u,
+  'local PC development must use one shared sdkwork-api-gateway root by default instead of materializing per-module foundation upstreams.',
+);
 assert.doesNotMatch(
   `${devCommandSource}\n${localAppApiSource}`,
   /\bmvn(?:\.cmd)?\b|spring-ai-plus-server-app|spring-boot:run|CRAW_CHAT_APPBASE_APP_API_UPSTREAM|SDKWORK_APPBASE_APP_API_BIND_ADDR|SDKWORK_APPBASE_BROWSER_ORIGINS/u,

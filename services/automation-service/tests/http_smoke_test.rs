@@ -1,7 +1,7 @@
-use im_app_context::DualTokenRequestBuilderExt;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use http_body_util::BodyExt;
+use im_app_context::DualTokenRequestBuilderExt;
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -71,7 +71,7 @@ async fn test_request_and_get_execution_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -148,7 +148,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -183,7 +183,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -222,7 +222,7 @@ async fn test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_reje
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -262,7 +262,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -301,7 +301,7 @@ async fn test_execution_requests_are_isolated_by_actor_kind_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("system")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -394,7 +394,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -420,7 +420,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -465,7 +465,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -502,7 +502,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -566,7 +566,7 @@ async fn test_agent_response_and_tool_call_lifecycle_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -635,7 +635,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -661,7 +661,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -696,7 +696,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -730,7 +730,9 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read automation.operator_override",)
+                .with_dual_token_permission_scope(
+                    "automation.execute automation.read automation.operator_override",
+                )
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -762,7 +764,7 @@ async fn test_automation_governance_surface_and_operator_override_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.read automation.operator_override",)
+                .with_dual_token_permission_scope("automation.read automation.operator_override")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -802,7 +804,7 @@ async fn test_request_execution_rejects_oversized_input_payload_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -833,7 +835,7 @@ async fn test_request_execution_rejects_oversized_execution_id_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -879,7 +881,7 @@ async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -921,7 +923,7 @@ async fn test_start_agent_response_rejects_oversized_stream_id_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1007,7 +1009,7 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
                     .with_dual_token_tenant("t_demo")
                     .with_dual_token_user("u_demo")
                     .with_dual_token_actor_kind("user")
-                    .with_dual_token_permission_scope("automation.execute automation.read",)
+                    .with_dual_token_permission_scope("automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -1034,7 +1036,7 @@ async fn test_start_agent_response_rejects_oversized_stream_contract_fields_over
                     .with_dual_token_tenant("t_demo")
                     .with_dual_token_user("u_demo")
                     .with_dual_token_actor_kind("user")
-                    .with_dual_token_permission_scope("automation.execute automation.read",)
+                    .with_dual_token_permission_scope("automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(start_request_body.to_string()))
                     .unwrap(),
@@ -1062,7 +1064,7 @@ async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1104,7 +1106,7 @@ async fn test_start_agent_response_rejects_oversized_member_id_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1143,7 +1145,7 @@ async fn test_start_agent_response_rejects_oversized_execution_id_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1168,7 +1170,7 @@ async fn test_append_agent_response_delta_rejects_oversized_stream_id_path_over_
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1201,7 +1203,7 @@ async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() 
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1242,7 +1244,7 @@ async fn test_start_agent_response_rejects_oversized_agent_metadata_over_http() 
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1265,7 +1267,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1291,7 +1293,7 @@ async fn test_complete_agent_response_rejects_oversized_result_message_id_over_h
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1355,7 +1357,7 @@ async fn test_complete_agent_response_rejects_oversized_stream_id_path_over_http
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     serde_json::json!({
@@ -1396,7 +1398,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
                     .with_dual_token_tenant("t_demo")
                     .with_dual_token_user("u_demo")
                     .with_dual_token_actor_kind("user")
-                    .with_dual_token_permission_scope("automation.execute automation.read",)
+                    .with_dual_token_permission_scope("automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -1439,7 +1441,7 @@ async fn test_start_agent_response_rejects_oversized_agent_identity_fields_over_
                     .with_dual_token_tenant("t_demo")
                     .with_dual_token_user("u_demo")
                     .with_dual_token_actor_kind("user")
-                    .with_dual_token_permission_scope("automation.execute automation.read",)
+                    .with_dual_token_permission_scope("automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(request_body))
                     .unwrap(),
@@ -1467,7 +1469,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1493,7 +1495,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1537,7 +1539,7 @@ async fn test_append_agent_response_delta_rejects_oversized_payload_over_http() 
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(delta_request_body))
                 .unwrap(),
@@ -1599,7 +1601,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
                     .with_dual_token_tenant("t_demo")
                     .with_dual_token_user("u_demo")
                     .with_dual_token_actor_kind("user")
-                    .with_dual_token_permission_scope("automation.execute automation.read",)
+                    .with_dual_token_permission_scope("automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -1626,7 +1628,7 @@ async fn test_append_agent_response_delta_rejects_oversized_contract_fields_over
                     .with_dual_token_tenant("t_demo")
                     .with_dual_token_user("u_demo")
                     .with_dual_token_actor_kind("user")
-                    .with_dual_token_permission_scope("automation.execute automation.read",)
+                    .with_dual_token_permission_scope("automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         r#"{
@@ -1689,7 +1691,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1715,7 +1717,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1756,7 +1758,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_call_id_over_http()
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1785,7 +1787,7 @@ async fn test_request_agent_tool_call_rejects_oversized_execution_id_over_http()
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1815,7 +1817,7 @@ async fn test_complete_agent_tool_call_rejects_oversized_path_ids_over_http() {
                     .with_dual_token_tenant("t_demo")
                     .with_dual_token_user("u_demo")
                     .with_dual_token_actor_kind("user")
-                    .with_dual_token_permission_scope("automation.execute automation.read",)
+                    .with_dual_token_permission_scope("automation.execute automation.read")
                     .header("content-type", "application/json")
                     .body(Body::from(
                         serde_json::json!({
@@ -1848,7 +1850,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1874,7 +1876,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1915,7 +1917,7 @@ async fn test_request_agent_tool_call_rejects_oversized_tool_name_over_http() {
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(request_body))
                 .unwrap(),
@@ -1938,7 +1940,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -1964,7 +1966,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2010,7 +2012,7 @@ async fn test_append_agent_response_delta_rejects_oversized_attributes_over_http
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(delta_request_body))
                 .unwrap(),
@@ -2036,7 +2038,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2062,7 +2064,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2097,7 +2099,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2119,7 +2121,7 @@ async fn test_request_agent_tool_call_rejects_after_agent_response_completed_ove
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2149,7 +2151,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2175,7 +2177,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2210,7 +2212,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2235,7 +2237,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{
@@ -2293,7 +2295,7 @@ async fn test_complete_agent_response_rejects_when_tool_call_pending_over_http()
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
-                .with_dual_token_permission_scope("automation.execute automation.read",)
+                .with_dual_token_permission_scope("automation.execute automation.read")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

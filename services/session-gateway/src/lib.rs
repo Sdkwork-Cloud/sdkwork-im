@@ -18,7 +18,8 @@ use craw_chat_openapi::{
     extract_routes_from_function, render_docs_html,
 };
 use im_app_context::{
-    AppContext, AppContextError, resolve_app_context, resolve_app_context_for_request,
+    AppContext, AppContextError, AppContextSignatureConfig, require_app_context_signature,
+    resolve_app_context, resolve_app_context_for_request,
 };
 use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEventWindow, RealtimeSubscriptionSnapshot,
@@ -107,6 +108,7 @@ struct AppState {
 struct PublicAppGuardrails {
     request_gate: Arc<Semaphore>,
     require_dual_token_headers: bool,
+    app_context_signature_config: AppContextSignatureConfig,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -284,6 +286,7 @@ pub fn build_public_app() -> Router {
     let guardrails = PublicAppGuardrails {
         request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
         require_dual_token_headers: resolve_require_dual_token_headers(),
+        app_context_signature_config: AppContextSignatureConfig::from_env(),
     };
     build_app()
         .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
@@ -344,6 +347,12 @@ async fn require_app_context(
                 && let Err(error) = require_dual_token_headers(request.headers())
             {
                 return error.into_response();
+            }
+            if let Err(error) = require_app_context_signature(
+                request.headers(),
+                &guardrails.app_context_signature_config,
+            ) {
+                return ApiError::from(error).into_response();
             }
             let resolved = match resolve_app_context_for_request(
                 request.headers(),
