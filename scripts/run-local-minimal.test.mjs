@@ -10,7 +10,7 @@ async function loadModule() {
   return import(pathToFileURL(path.join(repoRoot, 'scripts', 'run-local-minimal.mjs')).href);
 }
 
-test('craw-chat local-minimal runner exposes only backend-owned runtime options', async () => {
+test('sdkwork-im local-minimal runner exposes only backend-owned runtime options', async () => {
   const module = await loadModule();
 
   assert.equal(typeof module.parseArgs, 'function');
@@ -61,28 +61,28 @@ test('craw-chat local-minimal runner exposes only backend-owned runtime options'
   );
 });
 
-test('craw-chat local-minimal runner parses dotenv content and gives CLI precedence', async () => {
+test('sdkwork-im local-minimal runner parses dotenv content and gives CLI precedence', async () => {
   const module = await loadModule();
 
   assert.deepEqual(
     module.parseDotEnvContent(`
       # comment
-      CRAW_CHAT_BIND_ADDR=127.0.0.1:19090
-      CRAW_CHAT_USER_MODULE_PROVIDER='local'
+      SDKWORK_IM_BIND_ADDR=127.0.0.1:19090
+      SDKWORK_IM_USER_MODULE_PROVIDER='local'
     `),
     {
-      CRAW_CHAT_BIND_ADDR: '127.0.0.1:19090',
-      CRAW_CHAT_USER_MODULE_PROVIDER: 'local',
+      SDKWORK_IM_BIND_ADDR: '127.0.0.1:19090',
+      SDKWORK_IM_USER_MODULE_PROVIDER: 'local',
     },
   );
 
   const env = module.createRunLocalMinimalEnvironment({
     baseEnv: {
-      CRAW_CHAT_BIND_ADDR: '127.0.0.1:18090',
-      CRAW_CHAT_USER_MODULE_PROVIDER: 'local',
+      SDKWORK_IM_BIND_ADDR: '127.0.0.1:18090',
+      SDKWORK_IM_USER_MODULE_PROVIDER: 'local',
     },
     envFileEnv: {
-      CRAW_CHAT_BIND_ADDR: '127.0.0.1:19090',
+      SDKWORK_IM_BIND_ADDR: '127.0.0.1:19090',
     },
     options: {
       bindAddr: '0.0.0.0:28080',
@@ -90,9 +90,9 @@ test('craw-chat local-minimal runner parses dotenv content and gives CLI precede
     repoRoot: fixtureRepoRoot,
   });
 
-  assert.equal(env.CRAW_CHAT_BIND_ADDR, '0.0.0.0:28080');
-  assert.equal(env.CRAW_CHAT_RUNTIME_DIR, './.runtime/local-minimal');
-  assert.equal(env.CRAW_CHAT_USER_MODULE_PROVIDER, 'local');
+  assert.equal(env.SDKWORK_IM_BIND_ADDR, '0.0.0.0:28080');
+  assert.equal(env.SDKWORK_IM_RUNTIME_DIR, './.runtime/local-minimal');
+  assert.equal(env.SDKWORK_IM_USER_MODULE_PROVIDER, 'local');
   assert.equal(env.PWD, fixtureRepoRoot);
   assert.equal(
     Object.keys(env).some((key) => key.includes('USER_CENTER')),
@@ -101,32 +101,32 @@ test('craw-chat local-minimal runner parses dotenv content and gives CLI precede
   );
 });
 
-test('craw-chat local-minimal runner validates external user-module configuration only', async () => {
+test('sdkwork-im local-minimal runner validates external user-module configuration only', async () => {
   const module = await loadModule();
 
   assert.throws(
     () =>
       module.assertRunLocalMinimalEnvironment({
-        CRAW_CHAT_USER_MODULE_PROVIDER: 'external',
+        SDKWORK_IM_USER_MODULE_PROVIDER: 'external',
       }),
-    /CRAW_CHAT_USER_MODULE_EXTERNAL_CATALOG_PATH/u,
+    /SDKWORK_IM_USER_MODULE_EXTERNAL_CATALOG_PATH/u,
   );
 
   assert.doesNotThrow(() =>
     module.assertRunLocalMinimalEnvironment({
-      CRAW_CHAT_USER_MODULE_PROVIDER: 'external',
-      CRAW_CHAT_USER_MODULE_EXTERNAL_CATALOG_PATH: './users.json',
+      SDKWORK_IM_USER_MODULE_PROVIDER: 'external',
+      SDKWORK_IM_USER_MODULE_EXTERNAL_CATALOG_PATH: './users.json',
     }),
   );
 });
 
-test('craw-chat local-minimal runner materializes build and run plans and supports dry-run execution', async () => {
+test('sdkwork-im local-minimal runner materializes build and run plans and supports dry-run execution', async () => {
   const module = await loadModule();
 
   const plan = module.createRunLocalMinimalCommandPlan({
     cargoExecutable: 'cargo-custom',
     env: {
-      CRAW_CHAT_BIND_ADDR: '127.0.0.1:18090',
+      SDKWORK_IM_BIND_ADDR: '127.0.0.1:18090',
     },
     noBuild: false,
     repoRoot: fixtureRepoRoot,
@@ -138,7 +138,7 @@ test('craw-chat local-minimal runner materializes build and run plans and suppor
       command: 'cargo-custom',
       cwd: fixtureRepoRoot,
       env: {
-        CRAW_CHAT_BIND_ADDR: '127.0.0.1:18090',
+        SDKWORK_IM_BIND_ADDR: '127.0.0.1:18090',
       },
       label: 'build local-minimal-node',
     },
@@ -147,7 +147,7 @@ test('craw-chat local-minimal runner materializes build and run plans and suppor
       command: 'cargo-custom',
       cwd: fixtureRepoRoot,
       env: {
-        CRAW_CHAT_BIND_ADDR: '127.0.0.1:18090',
+        SDKWORK_IM_BIND_ADDR: '127.0.0.1:18090',
       },
       label: 'run local-minimal-node',
     },
@@ -178,7 +178,7 @@ test('craw-chat local-minimal runner materializes build and run plans and suppor
   assert.doesNotMatch(output.join(''), /USER_CENTER|user-center/u);
 });
 
-test('craw-chat local-minimal runner invokes the shared command sequence with root cwd and merged env', async () => {
+test('sdkwork-im local-minimal runner invokes the shared command sequence with root cwd and merged env', async () => {
   const module = await loadModule();
 
   let receivedSequenceArgument;
@@ -214,9 +214,9 @@ test('craw-chat local-minimal runner invokes the shared command sequence with ro
     'shared runner expects a { commands, cwd, env } argument, not a bare command array',
   );
   assert.equal(receivedSequenceArgument.cwd, fixtureRepoRoot);
-  assert.equal(receivedSequenceArgument.env.CRAW_CHAT_BIND_ADDR, '127.0.0.1:28080');
+  assert.equal(receivedSequenceArgument.env.SDKWORK_IM_BIND_ADDR, '127.0.0.1:28080');
   assert.equal(
-    receivedSequenceArgument.env.CRAW_CHAT_BROWSER_ORIGINS,
+    receivedSequenceArgument.env.SDKWORK_IM_BROWSER_ORIGINS,
     'http://127.0.0.1:4176,http://localhost:4176',
   );
   assert.deepEqual(receivedSequenceArgument.commands, [

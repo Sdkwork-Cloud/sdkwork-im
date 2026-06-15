@@ -6,17 +6,17 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
-craw-chat-api-registry = { path = "../../crates/craw-chat-api-registry" }
-craw-chat-openapi = { path = "../../crates/craw-chat-openapi" }
-craw-chat-ccp-binding-ws = { path = "../../crates/craw-chat-ccp-binding-ws" }
-craw-chat-ccp-codec = { path = "../../crates/craw-chat-ccp-codec" }
-craw-chat-ccp-codec-json = { path = "../../crates/craw-chat-ccp-codec-json" }
-craw-chat-ccp-control = { path = "../../crates/craw-chat-ccp-control" }
-craw-chat-ccp-core = { path = "../../crates/craw-chat-ccp-core" }
-craw-chat-contract-control = { path = "../../crates/craw-chat-contract-control" }
-craw-chat-contract-core = { path = "../../crates/craw-chat-contract-core" }
-craw-chat-runtime-link = { path = "../../crates/craw-chat-runtime-link" }
-craw-chat-runtime-route = { path = "../../crates/craw-chat-runtime-route" }
+sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
+sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+sdkwork-im-ccp-binding-ws = { path = "../../crates/sdkwork-im-ccp-binding-ws" }
+sdkwork-im-ccp-codec = { path = "../../crates/sdkwork-im-ccp-codec" }
+sdkwork-im-ccp-codec-json = { path = "../../crates/sdkwork-im-ccp-codec-json" }
+sdkwork-im-ccp-control = { path = "../../crates/sdkwork-im-ccp-control" }
+sdkwork-im-ccp-core = { path = "../../crates/sdkwork-im-ccp-core" }
+sdkwork-im-contract-control = { path = "../../crates/sdkwork-im-contract-control" }
+sdkwork-im-contract-core = { path = "../../crates/sdkwork-im-contract-core" }
+sdkwork-im-runtime-link = { path = "../../crates/sdkwork-im-runtime-link" }
+sdkwork-im-runtime-route = { path = "../../crates/sdkwork-im-runtime-route" }
 futures-util.workspace = true
 im-app-context = { path = "../../crates/im-app-context" }
 im-domain-core = { path = "../../crates/im-domain-core" }

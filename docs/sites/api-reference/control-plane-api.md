@@ -42,10 +42,10 @@
 - Read [Backend SDK](/sdk/backend-sdk) for the generated SDK boundary.
 - The live control-plane source remains `services/control-plane-api`, exposed at `/openapi.json`
   and `/backend/v3/api/control/openapi.json`, then consolidated into
-  `sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml`.
+  `sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml`.
 - Read and write permissions are split between `control.read` and `control.write`.
 - Standalone governance development can call `control-plane-api` directly, but packaged installs
-  expose the same governance routes through the unified `craw-chat-server` / `web-gateway` public
+  expose the same governance routes through the unified `sdkwork-im-server` / `web-gateway` public
   origin.
 
 ## How To Use This Page

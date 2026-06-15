@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/start-prod.sh [--instance <name>] [--install-root <path>] [--config-dir <path>] [--log-dir <path>] [--run-dir <path>] [--env-file <path>] [--binary-path <path>] [--foreground] [--health-url <url>] [--skip-health-check]
 
-Start packaged Craw Chat server in production/release mode.
+Start packaged Sdkwork IM server in production/release mode.
 EOF
 }
 

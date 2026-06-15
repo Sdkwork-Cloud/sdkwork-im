@@ -26,7 +26,7 @@ semantic Python package remains reserved under `composed`.
 
 ## What Ships Today
 
-- live-schema generation from the Craw Chat OpenAPI 3.x export
+- live-schema generation from the Sdkwork IM OpenAPI 3.x export
 - verified generated package naming and assembly metadata
 - a stable split between `generated/server-openapi` and `composed`
 - a raw generated transport client named `ImTransportClient`
@@ -109,7 +109,7 @@ Python workspace wrappers:
 ## When To Choose Python
 
 - Choose Python when you need a verified transport package for automation or service integration
-  generated directly from the Craw Chat schema.
+  generated directly from the Sdkwork IM schema.
 - Choose Python when you can work directly against generated request or response models and
   route-group methods.
 - Choose TypeScript when you need the richest checked-in semantic SDK today.

@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/start-server.sh [--instance <name>] [--install-root <path>] [--config-dir <path>] [--log-dir <path>] [--run-dir <path>] [--env-file <path>] [--binary-path <path>] [--release] [--foreground] [--health-url <url>] [--skip-health-check]
 
-Start the craw-chat-server runtime service for an instance with config loading, binary resolution, log and run directory management, health checks, and status-friendly foreground or background execution.
+Start the sdkwork-im-server runtime service for an instance with config loading, binary resolution, log and run directory management, health checks, and status-friendly foreground or background execution.
 EOF
 }
 
@@ -152,13 +152,13 @@ resolve_binary_path() {
     printf '%s\n' "$explicit"
     return 0
   fi
-  if [[ -n "${CRAW_CHAT_SERVER_BINARY_PATH:-}" && -x "${CRAW_CHAT_SERVER_BINARY_PATH}" ]]; then
-    printf '%s\n' "${CRAW_CHAT_SERVER_BINARY_PATH}"
+  if [[ -n "${SDKWORK_IM_SERVER_BINARY_PATH:-}" && -x "${SDKWORK_IM_SERVER_BINARY_PATH}" ]]; then
+    printf '%s\n' "${SDKWORK_IM_SERVER_BINARY_PATH}"
     return 0
   fi
 
   for candidate in \
-    "${install_root}/bin/craw-chat-server" \
+    "${install_root}/bin/sdkwork-im-server" \
     "${install_root}/bin/web-gateway"; do
     if [[ -x "$candidate" ]]; then
       printf '%s\n' "$candidate"
@@ -166,8 +166,8 @@ resolve_binary_path() {
     fi
   done
 
-  local debug_candidate="${ROOT_DIR}/target/debug/craw-chat-server"
-  local release_candidate="${ROOT_DIR}/target/release/craw-chat-server"
+  local debug_candidate="${ROOT_DIR}/target/debug/sdkwork-im-server"
+  local release_candidate="${ROOT_DIR}/target/release/sdkwork-im-server"
   local legacy_debug_candidate="${ROOT_DIR}/target/debug/web-gateway"
   local legacy_release_candidate="${ROOT_DIR}/target/release/web-gateway"
   if [[ "$prefer_release" -eq 1 ]]; then
@@ -209,14 +209,14 @@ resolve_health_url() {
 
 load_env_file "$env_file"
 
-if [[ -n "${SDKWORK_CHAT_CONFIG_FILE:-}" ]]; then
-  server_yaml="${SDKWORK_CHAT_CONFIG_FILE}"
+if [[ -n "${SDKWORK_IM_CONFIG_FILE:-}" ]]; then
+  server_yaml="${SDKWORK_IM_CONFIG_FILE}"
 elif [[ ! -f "$server_yaml" && -f "${config_dir}/server.yaml" ]]; then
   server_yaml="${config_dir}/server.yaml"
 fi
 [[ -f "$server_yaml" ]] || { echo "Missing server config. Run init-config-server first: ${server_yaml}" >&2; exit 1; }
 
-bind_address="${SDKWORK_CHAT_SERVER_BIND:-${CRAW_CHAT_SERVER_BIND_ADDRESS:-}}"
+bind_address="${SDKWORK_IM_SERVER_BIND:-${SDKWORK_IM_SERVER_BIND_ADDRESS:-}}"
 if [[ -z "$bind_address" ]]; then
   bind_address="$(read_yaml_value "$server_yaml" "bind_address")"
 fi
@@ -225,14 +225,14 @@ if [[ -z "$bind_address" ]]; then
 fi
 [[ -n "$bind_address" ]] || bind_address="127.0.0.1:18079"
 resolved_binary="$(resolve_binary_path "$binary_path" "$release_mode" || true)"
-[[ -n "$resolved_binary" ]] || { echo "Unable to resolve craw-chat-server binary. Set --binary-path, install a packaged binary, or build web-gateway." >&2; exit 1; }
+[[ -n "$resolved_binary" ]] || { echo "Unable to resolve sdkwork-im-server binary. Set --binary-path, install a packaged binary, or build web-gateway." >&2; exit 1; }
 resolved_health_url="$(resolve_health_url "$health_url" "$bind_address")"
 
 mkdir -p "$log_dir" "$run_dir"
-stdout_log="${log_dir}/craw-chat-server.out.log"
-stderr_log="${log_dir}/craw-chat-server.err.log"
-pid_file="${run_dir}/craw-chat-server.pid"
-process_info="${run_dir}/craw-chat-server.process.json"
+stdout_log="${log_dir}/sdkwork-im-server.out.log"
+stderr_log="${log_dir}/sdkwork-im-server.err.log"
+pid_file="${run_dir}/sdkwork-im-server.pid"
+process_info="${run_dir}/sdkwork-im-server.process.json"
 process_name="$(basename "${resolved_binary}")"
 
 if [[ -f "$pid_file" ]]; then
@@ -240,22 +240,22 @@ if [[ -f "$pid_file" ]]; then
   if [[ -n "$current_pid" ]] && kill -0 "$current_pid" >/dev/null 2>&1; then
     current_name="$(ps -p "$current_pid" -o comm= | tr -d '[:space:]' || true)"
     if [[ "$current_name" == "${process_name}" || "$current_name" == "${process_name%.*}" ]]; then
-      echo "craw-chat-server is already running with PID ${current_pid}." >&2
+      echo "sdkwork-im-server is already running with PID ${current_pid}." >&2
       exit 1
     fi
   fi
 fi
 
-export SDKWORK_CHAT_SERVER_BIND="$bind_address"
-export CRAW_CHAT_WEB_GATEWAY_BIND="$bind_address"
-if [[ -n "${SDKWORK_CHAT_SERVER_API_BASE_URL:-}" && -z "${CRAW_CHAT_SERVER_API_BASE_URL:-}" ]]; then
-  export CRAW_CHAT_SERVER_API_BASE_URL="$SDKWORK_CHAT_SERVER_API_BASE_URL"
+export SDKWORK_IM_SERVER_BIND="$bind_address"
+export SDKWORK_IM_WEB_GATEWAY_BIND="$bind_address"
+if [[ -n "${SDKWORK_IM_SERVER_API_BASE_URL:-}" && -z "${SDKWORK_IM_SERVER_API_BASE_URL:-}" ]]; then
+  export SDKWORK_IM_SERVER_API_BASE_URL="$SDKWORK_IM_SERVER_API_BASE_URL"
 fi
-if [[ -n "${SDKWORK_CHAT_SERVER_BASE_URL:-}" && -z "${CRAW_CHAT_SERVER_BASE_URL:-}" ]]; then
-  export CRAW_CHAT_SERVER_BASE_URL="$SDKWORK_CHAT_SERVER_BASE_URL"
+if [[ -n "${SDKWORK_IM_SERVER_BASE_URL:-}" && -z "${SDKWORK_IM_SERVER_BASE_URL:-}" ]]; then
+  export SDKWORK_IM_SERVER_BASE_URL="$SDKWORK_IM_SERVER_BASE_URL"
 fi
-if [[ -n "${SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL:-}" && -z "${CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL:-}" ]]; then
-  export CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL="$SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL"
+if [[ -n "${SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL:-}" && -z "${SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL:-}" ]]; then
+  export SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL="$SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL"
 fi
 server_args=(--config "$server_yaml")
 
@@ -280,25 +280,25 @@ if [[ "$skip_health_check" -eq 0 ]]; then
     sleep 1
     if ! kill -0 "$server_pid" >/dev/null 2>&1; then
       rm -f "$pid_file"
-      echo "craw-chat-server exited before becoming healthy. Check logs: ${stderr_log}" >&2
+      echo "sdkwork-im-server exited before becoming healthy. Check logs: ${stderr_log}" >&2
       exit 1
     fi
     if command -v curl >/dev/null 2>&1; then
       if curl -fsS "$resolved_health_url" >/dev/null 2>&1; then
-        echo "Started craw-chat-server in background on ${resolved_health_url}"
+        echo "Started sdkwork-im-server in background on ${resolved_health_url}"
         exit 0
       fi
     elif command -v wget >/dev/null 2>&1; then
       if wget -q -O - "$resolved_health_url" >/dev/null 2>&1; then
-        echo "Started craw-chat-server in background on ${resolved_health_url}"
+        echo "Started sdkwork-im-server in background on ${resolved_health_url}"
         exit 0
       fi
     fi
   done
   kill "$server_pid" >/dev/null 2>&1 || true
   rm -f "$pid_file"
-  echo "craw-chat-server did not become healthy within 30 seconds: ${resolved_health_url}" >&2
+  echo "sdkwork-im-server did not become healthy within 30 seconds: ${resolved_health_url}" >&2
   exit 1
 fi
 
-echo "Started craw-chat-server in background without health wait."
+echo "Started sdkwork-im-server in background without health wait."

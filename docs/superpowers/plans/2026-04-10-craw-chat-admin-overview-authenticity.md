@@ -1,8 +1,8 @@
-# Craw Chat Admin Overview Authenticity Implementation Plan
+# Sdkwork IM Admin Overview Authenticity Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Remove synthetic fallback metrics and seeded placeholder queues from the Craw Chat Admin Overview page so the command surface reflects only real snapshot posture.
+**Goal:** Remove synthetic fallback metrics and seeded placeholder queues from the Sdkwork IM Admin Overview page so the command surface reflects only real snapshot posture.
 
 **Architecture:** Keep the existing Overview route and visual shell, but move all non-trivial derivation into a focused `overviewModel.ts` helper. The React page becomes a thin presenter over explicit metrics, honest empty states, and command-board statuses derived from workspace snapshot data.
 

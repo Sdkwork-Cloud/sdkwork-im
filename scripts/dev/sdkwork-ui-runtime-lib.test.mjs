@@ -11,7 +11,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 const testRoot = path.join(repoRoot, '.runtime', 'sdkwork-ui-runtime-lib-test');
-const appRoot = path.join(testRoot, 'apps', 'sdkwork-chat-pc');
+const appRoot = path.join(testRoot, 'apps', 'sdkwork-im-pc');
 const uiPackageRoot = path.join(
   testRoot,
   '..',
@@ -22,7 +22,7 @@ const uiPackageRoot = path.join(
 fs.rmSync(testRoot, { force: true, recursive: true });
 fs.mkdirSync(appRoot, { recursive: true });
 fs.mkdirSync(uiPackageRoot, { recursive: true });
-fs.writeFileSync(path.join(appRoot, 'package.json'), '{"name":"@sdkwork/chat-pc"}\n');
+fs.writeFileSync(path.join(appRoot, 'package.json'), '{"name":"@sdkwork/im-pc"}\n');
 fs.writeFileSync(path.join(appRoot, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n');
 fs.writeFileSync(
   path.join(uiPackageRoot, 'package.json'),
@@ -78,7 +78,7 @@ const resolvedRoot = ensureSdkworkUiDist({
     );
     assert.equal(
       installPackageJson.name,
-      '@sdkwork/chat-pc',
+      '@sdkwork/im-pc',
       'sdkwork ui dependency installation must run from the app workspace root when pnpm-workspace.yaml is present',
     );
     assert.equal(
@@ -99,7 +99,7 @@ assert.equal(resolvedRoot, uiPackageRoot);
 assert.equal(calls.length, 1, 'sdkwork ui runtime dependency materialization must install once');
 assert.equal(
   path.relative(testRoot, calls[0].cwd).replaceAll('\\', '/'),
-  'apps/sdkwork-chat-pc',
+  'apps/sdkwork-im-pc',
   'sdkwork ui dependency packages must be installed from the app workspace root',
 );
 assert.match(
@@ -117,7 +117,7 @@ assert.deepEqual(
   })),
   [
     {
-      cwd: 'apps/sdkwork-chat-pc',
+      cwd: 'apps/sdkwork-im-pc',
     },
   ],
   'sdkwork ui dependency packages must be prepared through the chat PC app workspace',

@@ -1,6 +1,6 @@
 # SDKWork IM RPC SDK Component
 
-This component defines the Craw Chat communication gRPC SDK family. Root SDKWork standards remain authoritative.
+This component defines the Sdkwork IM communication gRPC SDK family. Root SDKWork standards remain authoritative.
 
 ## Contract
 
@@ -24,7 +24,7 @@ RPC SDK source workspaces use convention evidence by default: the family root, `
 
 ## Verification
 
-- `node scripts/dev/sdkwork-chat-rpc-contract.test.mjs`
+- `node scripts/dev/sdkwork-im-rpc-contract.test.mjs`
 - `node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript --json`
 - `node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-go --json`
 - `node ../sdkwork-sdk-generator/bin/sdkgen.js inspect --protocol rpc --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-java --json`

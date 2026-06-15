@@ -16,7 +16,7 @@ GUI 聊天窗持续报错：
 
 ## 根因
 
-问题不在服务端，也不在 `craw-chat-cli` 本身。
+问题不在服务端，也不在 `sdkwork-im-cli` 本身。
 
 真实根因是：
 
@@ -34,7 +34,7 @@ GUI 聊天窗持续报错：
 2. 在脱离式 PowerShell 宿主中，通过旧方式捕获：
    - 同一份 JSON 会变成乱码并缺失结尾引号。
 3. 在脱离式 PowerShell 宿主中，改为：
-   - 直接调用 `target\debug\craw-chat-cli.exe`
+   - 直接调用 `target\debug\sdkwork-im-cli.exe`
    - `ProcessStartInfo.StandardOutputEncoding = UTF8`
    - 输出恢复正常。
 
@@ -42,7 +42,7 @@ GUI 聊天窗持续报错：
 
 `chat-window-gui.ps1` 的 `Invoke-ChatCliJson` 已改为：
 
-- 直接调用 `craw-chat-cli.exe`
+- 直接调用 `sdkwork-im-cli.exe`
 - 明确设置：
   - `StandardOutputEncoding = [System.Text.Encoding]::UTF8`
   - `StandardErrorEncoding = [System.Text.Encoding]::UTF8`
@@ -71,4 +71,4 @@ GUI 聊天窗持续报错：
 
 ## 结论
 
-GUI 聊天验证窗的 JSON 读取路径必须明确使用 UTF-8 读取 `craw-chat-cli.exe` 的标准输出。只要继续通过 PowerShell 管道抓取脚本文本输出，这个编码问题就可能在脱离式宿主中重现。
+GUI 聊天验证窗的 JSON 读取路径必须明确使用 UTF-8 读取 `sdkwork-im-cli.exe` 的标准输出。只要继续通过 PowerShell 管道抓取脚本文本输出，这个编码问题就可能在脱离式宿主中重现。

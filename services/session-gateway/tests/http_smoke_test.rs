@@ -60,7 +60,7 @@ async fn test_public_app_exports_live_openapi_json() {
         serde_json::from_slice(&body).expect("body should be valid json");
 
     assert_eq!(value["openapi"], "3.1.0");
-    assert_eq!(value["info"]["title"], "Craw Chat Realtime Gateway API");
+    assert_eq!(value["info"]["title"], "Sdkwork IM Realtime Gateway API");
     assert_eq!(
         value["paths"]["/im/v3/api/realtime/ws"]["get"]["summary"],
         "Open realtime websocket client route"
@@ -87,7 +87,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
     let html = String::from_utf8(body.to_vec()).expect("docs should be valid utf-8");
 
     assert!(html.contains("OpenAPI 3.1"));
-    assert!(html.contains("Craw Chat Realtime Gateway API"));
+    assert!(html.contains("Sdkwork IM Realtime Gateway API"));
     assert!(html.contains("/openapi.json"));
 }
 
@@ -480,7 +480,7 @@ async fn test_session_gateway_rejects_sessionless_device_rebind_after_session_re
                             "tenant_id": "t_demo",
                             "login_scope": "TENANT",
                             "user_id": "u_demo",
-                            "app_id": "craw-chat",
+                            "app_id": "sdkwork-im",
                             "auth_level": "password",
                             "subject_type": "user"
                         })
@@ -492,7 +492,7 @@ async fn test_session_gateway_rejects_sessionless_device_rebind_after_session_re
                         "tenant_id": "t_demo",
                         "login_scope": "TENANT",
                         "user_id": "u_demo",
-                        "app_id": "craw-chat",
+                        "app_id": "sdkwork-im",
                         "environment": "dev",
                         "deployment_mode": "local",
                         "auth_level": "password",

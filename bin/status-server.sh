@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/status-server.sh [--instance <name>] [--config-dir <path>] [--release-gate-path <path-to-release-gate.json>] [--output-format <text|json>]
 
-Show craw-chat-server status, generated service contracts, storage report paths, and optionally summarize the machine-readable release-gate bundle, decisionStatus, contractsValid, platforms, and semanticIssues.
+Show sdkwork-im-server status, generated service contracts, storage report paths, and optionally summarize the machine-readable release-gate bundle, decisionStatus, contractsValid, platforms, and semanticIssues.
 EOF
 }
 
@@ -77,11 +77,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-systemd_contract_path="${config_dir}/generated/craw-chat-server.service"
-launchd_contract_path="${config_dir}/generated/com.sdkwork.crawchat.server.plist"
-windows_service_contract_path="${config_dir}/generated/CrawChatServer.xml"
-windows_service_install_script_path="${config_dir}/generated/install-CrawChatServer.ps1"
-windows_service_uninstall_script_path="${config_dir}/generated/uninstall-CrawChatServer.ps1"
+systemd_contract_path="${config_dir}/generated/sdkwork-im-server.service"
+launchd_contract_path="${config_dir}/generated/com.sdkwork.im.server.plist"
+windows_service_contract_path="${config_dir}/generated/SdkworkImServer.xml"
+windows_service_install_script_path="${config_dir}/generated/install-SdkworkImServer.ps1"
+windows_service_uninstall_script_path="${config_dir}/generated/uninstall-SdkworkImServer.ps1"
 storage_report_path="${config_dir}/storage-init-report.json"
 
 systemd_exists=false
@@ -115,7 +115,7 @@ fi
 if [[ "$output_format" == "json" ]]; then
   cat <<EOF
 {
-  "product": "craw-chat-server",
+  "product": "sdkwork-im-server",
   "instance": "$(escape_json "$instance_name")",
   "config": "$(escape_json "$config_dir")",
   "status": "configuration-only skeleton",
@@ -127,12 +127,12 @@ if [[ "$output_format" == "json" ]]; then
     },
     "launchd": {
       "path": "$(escape_json "$launchd_contract_path")",
-      "label": "com.sdkwork.crawchat.server",
+      "label": "com.sdkwork.im.server",
       "exists": ${launchd_exists}
     },
     "windowsService": {
       "path": "$(escape_json "$windows_service_contract_path")",
-      "target": "CrawChatServer",
+      "target": "SdkworkImServer",
       "installScriptPath": "$(escape_json "$windows_service_install_script_path")",
       "uninstallScriptPath": "$(escape_json "$windows_service_uninstall_script_path")",
       "exists": ${windows_service_exists},
@@ -150,17 +150,17 @@ EOF
   exit 0
 fi
 
-echo "craw-chat-server status"
+echo "sdkwork-im-server status"
 echo "instance: ${instance_name}"
 echo "config: ${config_dir}"
 echo "status: configuration-only skeleton"
 echo "systemd contract: ${systemd_contract_path}"
 echo "launchd contract: ${launchd_contract_path}"
-echo "launchd label: com.sdkwork.crawchat.server"
+echo "launchd label: com.sdkwork.im.server"
 echo "windows service contract: ${windows_service_contract_path}"
 echo "windows service install script: ${windows_service_install_script_path}"
 echo "windows service uninstall script: ${windows_service_uninstall_script_path}"
-echo "windows service target: CrawChatServer"
+echo "windows service target: SdkworkImServer"
 echo "storage report: ${storage_report_path}"
 if [[ "$release_contracts_enabled" == true ]]; then
   printf '%s\n' "$release_contracts_summary"

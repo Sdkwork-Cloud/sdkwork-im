@@ -13,7 +13,7 @@ fn unique_runtime_dir() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_stream_runtime_recovery_{unique}"))
+    std::env::temp_dir().join(format!("sdkwork_im_stream_runtime_recovery_{unique}"))
 }
 
 #[tokio::test]

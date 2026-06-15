@@ -41,7 +41,7 @@
 | --- | --- | --- |
 | Principal-profile provider | Provider health and upstream-context or external-catalog mode wiring | `services/local-minimal-node/tests/principal_profile_provider_http_test.rs` |
 | Object storage provider | Provider health and provider-generated download URLs | `services/local-minimal-node/tests/media_provider_http_test.rs` |
-| AIoT dependency surface | App and backend IoT routes are consumed through the shared `sdkwork-api-gateway`; Craw Chat local servers do not mount the sibling `sdkwork-aiot` runtime | `specs/component.spec.json`, `scripts/dependency-management-standard.test.mjs` |
+| AIoT dependency surface | App and backend IoT routes are consumed through the shared `sdkwork-api-gateway`; Sdkwork IM local servers do not mount the sibling `sdkwork-aiot` runtime | `specs/component.spec.json`, `scripts/dependency-management-standard.test.mjs` |
 
 ## Control-plane Governance
 
@@ -61,7 +61,7 @@
 | App API SDK | `sdkwork-im-app-sdk` owns app-business and non-management HTTP APIs under `/app/v3/api/*`, including provider health, notifications, automation execution, and app-facing RTC provider routes; AIoT is declared as a dependency SDK instead of copied into IM |
 | Backend SDK | `sdkwork-im-backend-sdk` owns `/backend/v3/api/*`, including ops, audit, automation governance, control-plane governance, node operations, and every admin route |
 | RTC SDK | `sdkwork-rtc-sdk` owns provider runtime, provider package, native driver, capability negotiation, and provider-selection standards; it is not an OpenAPI-generated HTTP SDK |
-| Frontend apps | `apps/craw-chat-portal` and `apps/craw-chat-admin` are present as directories, not documented here as mature deliverables |
+| Frontend apps | `apps/sdkwork-im-portal` and `apps/sdkwork-im-admin` are present as directories, not documented here as mature deliverables |
 
 ## What To Read Next
 

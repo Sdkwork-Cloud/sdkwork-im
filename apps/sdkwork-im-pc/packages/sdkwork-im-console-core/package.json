@@ -1,0 +1,10 @@
+{
+  "name": "@sdkwork/im-console-core",
+  "version": "1.0.0",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "dependencies": {
+    "@sdkwork/im-console-shop": "workspace:*",
+    "@sdkwork/im-console-product": "workspace:*"
+  }
+}

@@ -1,7 +1,7 @@
 # Storage Management
 
 The repository has already moved the core storage-configuration contract and runtime logic onto a
-reusable module instead of keeping it as `craw-chat`-specific admin glue. What remains is broader
+reusable module instead of keeping it as `sdkwork-im`-specific admin glue. What remains is broader
 production adoption on top of the shared boundary.
 
 The goal is a single contract and runtime boundary that can be consumed by:
@@ -17,9 +17,9 @@ The goal is a single contract and runtime boundary that can be consumed by:
 | --- | --- |
 | `crates/im-storage-contracts` | Shared storage catalog, provider schema, typed upsert input, redacted secret summary, effective resolution, domain snapshot, and store trait |
 | `crates/im-storage-runtime` | Save, delete, validate, resolve, audit, snapshot import/export, and store-backed hydration logic |
-| `crates/craw-chat-contract-admin` | Compatibility re-export for admin consumers that still anchor on the craw-chat admin contract surface |
+| `crates/sdkwork-im-contract-admin` | Compatibility re-export for admin consumers that still anchor on the sdkwork-im admin contract surface |
 | `crates/sdkwork-api-product-runtime` | Current Rust admin sandbox entry point that now delegates storage parsing and validation to the generic runtime |
-| `apps/craw-chat-admin` | Consumer-facing admin API types, form composition, and route wiring for storage management |
+| `apps/sdkwork-im-admin` | Consumer-facing admin API types, form composition, and route wiring for storage management |
 | `adapters/local-memory` | In-memory adapter baseline, including `MemoryStorageDomainSnapshotStore` for generic storage runtime hydration |
 | `adapters/local-disk` | File-backed reference adapter, including `FileStorageDomainSnapshotStore` for durable local persistence and runtime rehydration |
 
@@ -134,7 +134,7 @@ OpenAPI authority.
 
 The current repository state already verifies four concrete consumption paths:
 
-- `apps/craw-chat-admin` exposes a first-class storage-management module with provider-catalog
+- `apps/sdkwork-im-admin` exposes a first-class storage-management module with provider-catalog
   loading, tenant override editing, validation, effective fallback inspection, audit review, and
   redacted secret summaries.
 - `sdkwork-api-product-runtime` serves the admin sandbox storage routes through the same generic
@@ -142,7 +142,7 @@ The current repository state already verifies four concrete consumption paths:
   configured sandbox mode.
 - `adapters/local-memory` and `adapters/local-disk` both implement the shared snapshot-store seam
   and are covered by persistence and reopen semantics tests.
-- `im-storage-runtime`, `im-storage-contracts`, `craw-chat-contract-admin`, and
+- `im-storage-runtime`, `im-storage-contracts`, `sdkwork-im-contract-admin`, and
   `sdkwork-api-product-runtime` all ship tests that verify provider schema shape, effective
   resolution, redaction, validation, audit, and store-backed hydration.
 

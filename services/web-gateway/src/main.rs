@@ -2,8 +2,8 @@ use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use craw_chat_gateway_config::WebGatewayConfig;
-use craw_chat_gateway_observability::{
+use sdkwork_im_gateway_config::WebGatewayConfig;
+use sdkwork_im_gateway_observability::{
     build_startup_summary_with_registry, format_startup_summary,
 };
 use sdkwork_api_config::StandaloneConfigLoader;
@@ -96,11 +96,11 @@ fn resolve_product_site_dirs() -> ProductSiteDirs {
         .to_path_buf();
 
     let admin_site_dir =
-        resolve_site_dir_from_env(&["SDKWORK_CHAT_ADMIN_SITE_DIR", "CRAW_CHAT_ADMIN_SITE_DIR"])
-            .unwrap_or_else(|| repo_root.join("apps").join("craw-chat-admin").join("dist"));
+        resolve_site_dir_from_env(&["SDKWORK_IM_ADMIN_SITE_DIR", "SDKWORK_IM_ADMIN_SITE_DIR"])
+            .unwrap_or_else(|| repo_root.join("apps").join("sdkwork-im-admin").join("dist"));
     let portal_site_dir =
-        resolve_site_dir_from_env(&["SDKWORK_CHAT_PORTAL_SITE_DIR", "CRAW_CHAT_PORTAL_SITE_DIR"])
-            .unwrap_or_else(|| repo_root.join("apps").join("craw-chat-portal").join("dist"));
+        resolve_site_dir_from_env(&["SDKWORK_IM_PORTAL_SITE_DIR", "SDKWORK_IM_PORTAL_SITE_DIR"])
+            .unwrap_or_else(|| repo_root.join("apps").join("sdkwork-im-portal").join("dist"));
 
     ProductSiteDirs::new(admin_site_dir, portal_site_dir)
 }
@@ -117,14 +117,14 @@ fn resolve_site_dir_from_env(env_names: &[&str]) -> Option<PathBuf> {
 
 fn has_explicit_portal_api_base_url() -> bool {
     [
-        "CRAW_CHAT_PORTAL_API_BASE_URL",
+        "SDKWORK_IM_PORTAL_API_BASE_URL",
         "SDKWORK_PORTAL_API_BASE_URL",
-        "SDKWORK_CHAT_SERVER_API_BASE_URL",
-        "SDKWORK_CHAT_SERVER_BASE_URL",
-        "SDKWORK_CHAT_SERVER_BIND",
-        "CRAW_CHAT_SERVER_API_BASE_URL",
-        "CRAW_CHAT_SERVER_BASE_URL",
-        "CRAW_CHAT_BIND_ADDR",
+        "SDKWORK_IM_SERVER_API_BASE_URL",
+        "SDKWORK_IM_SERVER_BASE_URL",
+        "SDKWORK_IM_SERVER_BIND",
+        "SDKWORK_IM_SERVER_API_BASE_URL",
+        "SDKWORK_IM_SERVER_BASE_URL",
+        "SDKWORK_IM_BIND_ADDR",
     ]
     .iter()
     .any(|env_name| {
@@ -159,9 +159,9 @@ fn resolve_startup_mode() -> Result<StartupMode, String> {
                 config_path = Some(PathBuf::from(path));
             }
             "-h" | "--help" => {
-                println!("Usage: craw-chat-server [--config <chat.toml>]");
+                println!("Usage: sdkwork-im-server [--config <chat.toml>]");
                 println!(
-                    "Start the Craw Chat unified gateway using env defaults or a chat.toml file."
+                    "Start the Sdkwork IM unified gateway using env defaults or a chat.toml file."
                 );
                 return Ok(StartupMode::ExitSuccess);
             }
@@ -230,16 +230,16 @@ mod tests {
     #[test]
     fn server_public_base_url_envs_count_as_explicit_portal_binding() {
         let _guard = env_guard();
-        let _portal = ScopedEnvVar::remove("CRAW_CHAT_PORTAL_API_BASE_URL");
+        let _portal = ScopedEnvVar::remove("SDKWORK_IM_PORTAL_API_BASE_URL");
         let _sdkwork_portal = ScopedEnvVar::remove("SDKWORK_PORTAL_API_BASE_URL");
-        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_CHAT_SERVER_BASE_URL");
+        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
         let _sdkwork_chat_server_api = ScopedEnvVar::set(
-            "SDKWORK_CHAT_SERVER_API_BASE_URL",
+            "SDKWORK_IM_SERVER_API_BASE_URL",
             "https://chat.example.com/sdkwork/chat",
         );
-        let _server_base = ScopedEnvVar::remove("CRAW_CHAT_SERVER_BASE_URL");
-        let _server_api = ScopedEnvVar::remove("CRAW_CHAT_SERVER_API_BASE_URL");
-        let _bind = ScopedEnvVar::remove("CRAW_CHAT_BIND_ADDR");
+        let _server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
+        let _server_api = ScopedEnvVar::remove("SDKWORK_IM_SERVER_API_BASE_URL");
+        let _bind = ScopedEnvVar::remove("SDKWORK_IM_BIND_ADDR");
 
         assert!(has_explicit_portal_api_base_url());
     }

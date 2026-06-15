@@ -16,7 +16,7 @@
   - 当前状态：`template_only_pending_execution`
 - [continuous-optimization-chat-cli-token-only-contract-2026-04-09](./continuous-optimization-chat-cli-token-only-contract-2026-04-09.md)
   - 对应 `Step 12`
-  - 收敛 `craw-chat-cli token --token-only` 的裸 token 边界与 `generatedBearerToken / providedBearerToken` 来源语义
+  - 收敛 `sdkwork-im-cli token --token-only` 的裸 token 边界与 `generatedBearerToken / providedBearerToken` 来源语义
   - 对应 step 回写：`docs/step/continuous-optimization-chat-cli-token-only-contract-2026-04-09.md`
   - 对应架构回写：`docs/架构/09AS-chat-cli-token-only-contract-implementation-plan-2026-04-09.md`
   - 对应架构设计：`docs/架构/150AS-chat-cli-token-only-contract-design-2026-04-09.md`

@@ -12,8 +12,8 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use craw_chat_api_registry::HttpMethod;
-use craw_chat_openapi::{
+use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_openapi::{
     OpenApiServiceSpec, WebsocketRouteMetadata, build_openapi_document,
     extract_routes_from_function, render_docs_html,
 };
@@ -74,19 +74,19 @@ pub use websocket::{
 };
 
 const SESSION_GATEWAY_MAX_DEVICE_ID_BYTES: usize = 256;
-const REALTIME_MAX_WEBSOCKET_CONNECTIONS_ENV: &str = "CRAW_CHAT_REALTIME_MAX_WEBSOCKET_CONNECTIONS";
+const REALTIME_MAX_WEBSOCKET_CONNECTIONS_ENV: &str = "SDKWORK_IM_REALTIME_MAX_WEBSOCKET_CONNECTIONS";
 const REALTIME_MAX_WEBSOCKET_CONNECTIONS_DEFAULT: usize = 10_000;
 const REALTIME_MAX_WEBSOCKET_CONNECTIONS_MAX: usize = 100_000;
 const SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS_ENV: &str =
-    "CRAW_CHAT_SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS";
+    "SDKWORK_IM_SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS";
 const SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 2_000;
 const SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 50_000;
 const SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES_ENV: &str =
-    "CRAW_CHAT_SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES";
+    "SDKWORK_IM_SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES";
 const SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 const SESSION_GATEWAY_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
-    "CRAW_CHAT_SESSION_GATEWAY_REQUIRE_DUAL_TOKEN_HEADERS";
+    "SDKWORK_IM_SESSION_GATEWAY_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -691,7 +691,7 @@ fn build_session_gateway_openapi_document() -> Result<serde_json::Value, String>
 
 fn session_gateway_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
-        title: "Craw Chat Realtime Gateway API",
+        title: "Sdkwork IM Realtime Gateway API",
         version: env!("CARGO_PKG_VERSION"),
         description: "Live OpenAPI contract generated from the session-gateway router for presence, realtime polling, and websocket upgrade flows.",
         openapi_path: "/openapi.json",

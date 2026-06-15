@@ -41,8 +41,8 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_WATCH_REQUIREMENTS = [
     'im commercial gates workflow must watch the primary repository README',
   ),
   createWatchRequirement(
-    'apps/sdkwork-chat-pc/**',
-    'im commercial gates workflow must watch the SDKWork Chat PC Vite workspace',
+    'apps/sdkwork-im-pc/**',
+    'im commercial gates workflow must watch the Sdkwork IM PC Vite workspace',
   ),
   createWatchRequirement(
     'crates/**',
@@ -57,7 +57,7 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_WATCH_REQUIREMENTS = [
     'im commercial gates workflow must watch the documentation workspace',
   ),
   createWatchRequirement(
-    'scripts/build-craw-chat-desktop-assets.mjs',
+    'scripts/build-sdkwork-im-desktop-assets.mjs',
     'im commercial gates workflow must watch the desktop asset build entrypoint',
   ),
   createWatchRequirement(

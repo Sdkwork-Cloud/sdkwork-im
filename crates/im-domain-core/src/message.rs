@@ -7,18 +7,18 @@ use crate::media::{DriveReference, MediaKind, MediaResource};
 
 pub type MessageAttributes = BTreeMap<String, String>;
 
-pub const CRAW_CHAT_JSON_ENCODING: &str = "application/json";
-pub const CRAW_CHAT_MESSAGE_SCHEMA_LOCATION: &str = "urn:sdkwork:craw-chat:message:location";
-pub const CRAW_CHAT_MESSAGE_SCHEMA_LINK: &str = "urn:sdkwork:craw-chat:message:link";
-pub const CRAW_CHAT_MESSAGE_SCHEMA_CARD: &str = "urn:sdkwork:craw-chat:message:card";
-pub const CRAW_CHAT_MESSAGE_SCHEMA_MUSIC: &str = "urn:sdkwork:craw-chat:message:music";
-pub const CRAW_CHAT_MESSAGE_SCHEMA_CONTACT: &str = "urn:sdkwork:craw-chat:message:contact";
-pub const CRAW_CHAT_MESSAGE_SCHEMA_STICKER: &str = "urn:sdkwork:craw-chat:message:sticker";
-pub const CRAW_CHAT_MESSAGE_SCHEMA_VOICE: &str = "urn:sdkwork:craw-chat:message:voice";
-pub const CRAW_CHAT_MESSAGE_SCHEMA_AGENT: &str = "urn:sdkwork:craw-chat:message:agent";
-pub const CRAW_CHAT_MESSAGE_SCHEMA_AI_IMAGE: &str = "urn:sdkwork:craw-chat:message:ai_image";
-pub const CRAW_CHAT_MESSAGE_SCHEMA_AI_VIDEO: &str = "urn:sdkwork:craw-chat:message:ai_video";
-pub const CRAW_CHAT_CUSTOM_MESSAGE_SCHEMA_PREFIX: &str = "urn:sdkwork:craw-chat:message:custom:";
+pub const SDKWORK_IM_JSON_ENCODING: &str = "application/json";
+pub const SDKWORK_IM_MESSAGE_SCHEMA_LOCATION: &str = "urn:sdkwork:sdkwork-im:message:location";
+pub const SDKWORK_IM_MESSAGE_SCHEMA_LINK: &str = "urn:sdkwork:sdkwork-im:message:link";
+pub const SDKWORK_IM_MESSAGE_SCHEMA_CARD: &str = "urn:sdkwork:sdkwork-im:message:card";
+pub const SDKWORK_IM_MESSAGE_SCHEMA_MUSIC: &str = "urn:sdkwork:sdkwork-im:message:music";
+pub const SDKWORK_IM_MESSAGE_SCHEMA_CONTACT: &str = "urn:sdkwork:sdkwork-im:message:contact";
+pub const SDKWORK_IM_MESSAGE_SCHEMA_STICKER: &str = "urn:sdkwork:sdkwork-im:message:sticker";
+pub const SDKWORK_IM_MESSAGE_SCHEMA_VOICE: &str = "urn:sdkwork:sdkwork-im:message:voice";
+pub const SDKWORK_IM_MESSAGE_SCHEMA_AGENT: &str = "urn:sdkwork:sdkwork-im:message:agent";
+pub const SDKWORK_IM_MESSAGE_SCHEMA_AI_IMAGE: &str = "urn:sdkwork:sdkwork-im:message:ai_image";
+pub const SDKWORK_IM_MESSAGE_SCHEMA_AI_VIDEO: &str = "urn:sdkwork:sdkwork-im:message:ai_video";
+pub const SDKWORK_IM_CUSTOM_MESSAGE_SCHEMA_PREFIX: &str = "urn:sdkwork:sdkwork-im:message:custom:";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -529,38 +529,38 @@ fn normalize_summary(summary: Option<String>) -> Option<String> {
 fn summarize_structured_data_part(part: &DataPart) -> Option<String> {
     let payload = parse_json_payload(part.payload.as_str());
     match part.schema_ref.as_str() {
-        CRAW_CHAT_MESSAGE_SCHEMA_LOCATION => summarize_location_payload(payload.as_ref()),
-        CRAW_CHAT_MESSAGE_SCHEMA_LINK => payload
+        SDKWORK_IM_MESSAGE_SCHEMA_LOCATION => summarize_location_payload(payload.as_ref()),
+        SDKWORK_IM_MESSAGE_SCHEMA_LINK => payload
             .as_ref()
             .and_then(|value| string_field(value, &["title", "url"]))
             .map(|value| format!("Link: {value}"))
             .or_else(|| Some("Link".into())),
-        CRAW_CHAT_MESSAGE_SCHEMA_CARD => payload
+        SDKWORK_IM_MESSAGE_SCHEMA_CARD => payload
             .as_ref()
             .and_then(|value| string_field(value, &["title", "subtitle"]))
             .map(|value| format!("Card: {value}"))
             .or_else(|| Some("Card".into())),
-        CRAW_CHAT_MESSAGE_SCHEMA_MUSIC => payload
+        SDKWORK_IM_MESSAGE_SCHEMA_MUSIC => payload
             .as_ref()
             .and_then(|value| string_field(value, &["title", "artist", "url"]))
             .map(|value| format!("Music: {value}"))
             .or_else(|| Some("Music".into())),
-        CRAW_CHAT_MESSAGE_SCHEMA_CONTACT => payload
+        SDKWORK_IM_MESSAGE_SCHEMA_CONTACT => payload
             .as_ref()
             .and_then(|value| string_field(value, &["displayName", "contactId"]))
             .map(|value| format!("Contact: {value}"))
             .or_else(|| Some("Contact".into())),
-        CRAW_CHAT_MESSAGE_SCHEMA_STICKER => Some("Sticker".into()),
-        CRAW_CHAT_MESSAGE_SCHEMA_VOICE => Some("Voice message".into()),
-        CRAW_CHAT_MESSAGE_SCHEMA_AGENT => payload
+        SDKWORK_IM_MESSAGE_SCHEMA_STICKER => Some("Sticker".into()),
+        SDKWORK_IM_MESSAGE_SCHEMA_VOICE => Some("Voice message".into()),
+        SDKWORK_IM_MESSAGE_SCHEMA_AGENT => payload
             .as_ref()
             .and_then(|value| string_field(value, &["agentName", "agentId"]))
             .map(|value| format!("Agent: {value}"))
             .or_else(|| Some("Agent".into())),
-        CRAW_CHAT_MESSAGE_SCHEMA_AI_IMAGE => Some("AI image generated".into()),
-        CRAW_CHAT_MESSAGE_SCHEMA_AI_VIDEO => Some("AI video generated".into()),
+        SDKWORK_IM_MESSAGE_SCHEMA_AI_IMAGE => Some("AI image generated".into()),
+        SDKWORK_IM_MESSAGE_SCHEMA_AI_VIDEO => Some("AI video generated".into()),
         schema_ref => schema_ref
-            .strip_prefix(CRAW_CHAT_CUSTOM_MESSAGE_SCHEMA_PREFIX)
+            .strip_prefix(SDKWORK_IM_CUSTOM_MESSAGE_SCHEMA_PREFIX)
             .and_then(compact_summary_text)
             .map(|custom_type| format!("Custom: {custom_type}")),
     }

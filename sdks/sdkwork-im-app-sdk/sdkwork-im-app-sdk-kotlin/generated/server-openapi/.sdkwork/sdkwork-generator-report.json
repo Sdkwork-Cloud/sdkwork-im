@@ -110,7 +110,7 @@
         "title": "Unified package check",
         "required": true,
         "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-im\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -135,7 +135,7 @@
         "title": "Unified package check",
         "required": true,
         "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-im\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -155,7 +155,7 @@
     "version": "0.1.0",
     "language": "kotlin",
     "sdkType": "app",
-    "outputPath": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
+    "outputPath": "E:\\sdkwork-space\\sdkwork-im\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
     "packageName": "com.sdkwork:im-app-api-generated"
   },
   "versioning": {
@@ -311,7 +311,7 @@
           "title": "Unified package check",
           "required": true,
           "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-          "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
+          "workingDirectory": "E:\\sdkwork-space\\sdkwork-im\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
           "command": "node",
           "args": [
             "./bin/publish-core.mjs",

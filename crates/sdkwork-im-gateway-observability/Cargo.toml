@@ -1,0 +1,10 @@
+[package]
+name = "sdkwork-im-gateway-observability"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-im-api-registry = { path = "../sdkwork-im-api-registry" }
+sdkwork-im-gateway-config = { path = "../sdkwork-im-gateway-config" }
+serde.workspace = true

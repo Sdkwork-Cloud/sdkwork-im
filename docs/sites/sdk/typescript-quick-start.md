@@ -2,7 +2,7 @@
 
 ## Audience
 
-Use this page when you are integrating Craw Chat from a TypeScript or JavaScript application and
+Use this page when you are integrating Sdkwork IM from a TypeScript or JavaScript application and
 want the preferred public SDK surface.
 
 ## Package
@@ -34,7 +34,7 @@ import { ImSdkClient } from "@sdkwork/im-sdk";
 
 const sdk = new ImSdkClient({
   baseUrl: "http://127.0.0.1:18090",
-  authToken: process.env.CRAW_CHAT_TOKEN,
+  authToken: process.env.SDKWORK_IM_TOKEN,
 });
 ```
 
@@ -72,7 +72,7 @@ console.log(inbox.items.length);
 ## Common entrypoints
 
 ```ts
-// Tokens are issued by sdkwork-appbase and passed into Craw Chat.
+// Tokens are issued by sdkwork-appbase and passed into Sdkwork IM.
 await sdk.sync.catchUp({ limit: 20 });
 
 const live = await sdk.connect({

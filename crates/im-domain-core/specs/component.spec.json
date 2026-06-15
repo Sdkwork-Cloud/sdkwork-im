@@ -6,7 +6,7 @@
     "displayName": "Im Domain Core",
     "version": "0.1.0",
     "type": "rust-crate",
-    "root": "craw-chat/crates/im-domain-core",
+    "root": "sdkwork-im/crates/im-domain-core",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "im",
@@ -110,7 +110,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/crates/im-domain-core/Cargo.toml"
+      "cargo test --manifest-path apps/sdkwork-im/crates/im-domain-core/Cargo.toml"
     ]
   },
   "metadata": {

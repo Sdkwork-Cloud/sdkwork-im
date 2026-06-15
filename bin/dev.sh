@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/dev.sh [--postgres] [--desktop]
 
-Start Craw Chat development mode. Browser is default; --desktop starts the Tauri desktop dev flow; --postgres loads .env.postgres.
+Start Sdkwork IM development mode. Browser is default; --desktop starts the Tauri desktop dev flow; --postgres loads .env.postgres.
 EOF
 }
 

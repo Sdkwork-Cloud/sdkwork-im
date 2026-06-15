@@ -28,7 +28,7 @@ fn unique_runtime_dir() -> PathBuf {
         .expect("system time should be after epoch")
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "craw_chat_live_subscription_recovery_runtime_{unique}"
+        "sdkwork_im_live_subscription_recovery_runtime_{unique}"
     ))
 }
 

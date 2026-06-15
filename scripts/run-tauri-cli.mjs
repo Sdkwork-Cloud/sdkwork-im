@@ -18,8 +18,8 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const BACKGROUND_LAUNCH_ENV = 'SDKWORK_ROUTER_BACKGROUND';
-const SDKWORK_CHAT_PC_DEV_HOST_ENV = 'SDKWORK_CHAT_PC_DEV_HOST';
-const SDKWORK_CHAT_PC_DEV_PORT_ENV = 'SDKWORK_CHAT_PC_DEV_PORT';
+const SDKWORK_IM_PC_DEV_HOST_ENV = 'SDKWORK_IM_PC_DEV_HOST';
+const SDKWORK_IM_PC_DEV_PORT_ENV = 'SDKWORK_IM_PC_DEV_PORT';
 const WIX_UI_EXTENSION = 'WixUIExtension';
 const WIX_PDB_NAME = 'output.wixpdb';
 const WINDOWS_WIX_ARTIFACT_CLOCK_SKEW_MS = 10_000;
@@ -55,11 +55,11 @@ function createSdkworkChatPcDevConfigArgs({
   ) {
     return [];
   }
-  const port = normalizeTcpPort(env[SDKWORK_CHAT_PC_DEV_PORT_ENV]);
+  const port = normalizeTcpPort(env[SDKWORK_IM_PC_DEV_PORT_ENV]);
   if (!port) {
     return [];
   }
-  const host = String(env[SDKWORK_CHAT_PC_DEV_HOST_ENV] ?? '').trim() || '127.0.0.1';
+  const host = String(env[SDKWORK_IM_PC_DEV_HOST_ENV] ?? '').trim() || '127.0.0.1';
   return [
     '--config',
     JSON.stringify({

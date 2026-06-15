@@ -1,0 +1,13 @@
+{
+  "name": "@sdkwork/im-pc-drive",
+  "version": "1.0.0",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "dependencies": {
+    "@sdkwork/im-pc-chat": "workspace:*",
+    "@sdkwork/im-pc-core": "workspace:*",
+    "@sdkwork/drive-app-sdk": "workspace:*",
+    "lucide-react": "catalog:",
+    "react": "catalog:"
+  }
+}

@@ -16,7 +16,7 @@
 - 新增：`artifacts/releases/schemas/sdk-release-catalog.schema.json`
 - 当前 schema 已固定：
   - `$id = artifacts/releases/schemas/sdk-release-catalog.schema.json`
-  - `title = craw-chat sdk release catalog`
+  - `title = sdkwork-im sdk release catalog`
   - `artifact = sdk-release-catalog`
   - `state` 最小枚举
   - `sdkArtifacts[*].releaseStatus` 最小枚举
@@ -56,5 +56,5 @@
 ## 4. fresh evidence
 
 - `cargo fmt --all --check`
-- `cargo test -p craw-chat-cli --offline test_continuous_optimization_docs_freeze_sdk_release_catalog_schema_contract -- --exact --nocapture`
-- `cargo test -p craw-chat-cli --offline --test chat_cli_contract_test -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline test_continuous_optimization_docs_freeze_sdk_release_catalog_schema_contract -- --exact --nocapture`
+- `cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test -- --nocapture`

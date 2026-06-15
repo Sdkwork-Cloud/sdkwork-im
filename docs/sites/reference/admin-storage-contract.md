@@ -1,7 +1,7 @@
 # Admin Storage Contract
 
 This page documents the current `/backend/v3/api/admin/storage/*` contract used by
-`apps/craw-chat-admin` and the workspace admin sandbox. It is implementation-aligned documentation
+`apps/sdkwork-im-admin` and the workspace admin sandbox. It is implementation-aligned documentation
 for the route surface that exists and is verified in this repository today.
 
 It is part of the backend admin API boundary. Current generated SDK ownership belongs to
@@ -14,8 +14,8 @@ It is part of the backend admin API boundary. Current generated SDK ownership be
 | `im-storage-contracts` | Canonical storage schema, scope, validation, redaction, and snapshot contracts |
 | `im-storage-runtime` | Save, delete, validate, resolve, audit, and store-backed persistence orchestration |
 | `sdkwork-api-product-runtime` | Rust-backed desktop admin sandbox that serves `/backend/v3/api/admin/storage/*` |
-| `apps/craw-chat-admin/dev/admin-sandbox.mjs` | JavaScript admin sandbox used for frontend verification and local walkthroughs |
-| `apps/craw-chat-admin` | Operator UI and typed admin API wrapper that consume the contract |
+| `apps/sdkwork-im-admin/dev/admin-sandbox.mjs` | JavaScript admin sandbox used for frontend verification and local walkthroughs |
+| `apps/sdkwork-im-admin` | Operator UI and typed admin API wrapper that consume the contract |
 
 The admin storage route set is therefore a real contract, but its current executable surfaces are
 workspace admin runtimes rather than a published control-plane service.

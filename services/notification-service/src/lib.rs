@@ -9,11 +9,11 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use craw_chat_api_registry::HttpMethod;
-use craw_chat_contract_core::ContractError;
-use craw_chat_contract_message::{CommitJournal, CommitPosition};
-use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
-use craw_chat_openapi::{
+use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_contract_core::ContractError;
+use sdkwork_im_contract_message::{CommitJournal, CommitPosition};
+use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
+use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use im_app_context::{
@@ -27,15 +27,15 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
 const NOTIFICATION_MAX_IN_FLIGHT_REQUESTS_ENV: &str =
-    "CRAW_CHAT_NOTIFICATION_MAX_IN_FLIGHT_REQUESTS";
+    "SDKWORK_IM_NOTIFICATION_MAX_IN_FLIGHT_REQUESTS";
 const NOTIFICATION_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 const NOTIFICATION_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
 const NOTIFICATION_MAX_REQUEST_BODY_BYTES_ENV: &str =
-    "CRAW_CHAT_NOTIFICATION_MAX_REQUEST_BODY_BYTES";
+    "SDKWORK_IM_NOTIFICATION_MAX_REQUEST_BODY_BYTES";
 const NOTIFICATION_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const NOTIFICATION_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 const NOTIFICATION_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
-    "CRAW_CHAT_NOTIFICATION_REQUIRE_DUAL_TOKEN_HEADERS";
+    "SDKWORK_IM_NOTIFICATION_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
 struct AppState {
@@ -950,7 +950,7 @@ fn build_notification_service_openapi_document() -> Result<serde_json::Value, St
 
 fn notification_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
-        title: "Craw Chat Notification Service API",
+        title: "Sdkwork IM Notification Service API",
         version: env!("CARGO_PKG_VERSION"),
         description: "Live OpenAPI contract generated from the notification-service router for notification request mutation and notification query flows.",
         openapi_path: "/openapi.json",

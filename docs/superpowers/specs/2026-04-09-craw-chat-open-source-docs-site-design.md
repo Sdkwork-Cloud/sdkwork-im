@@ -1,10 +1,10 @@
-# Craw Chat Open Source Docs Site Design
+# Sdkwork IM Open Source Docs Site Design
 
 **Date:** 2026-04-09
 
 ## Goal
 
-Create a complete VitePress documentation site under `docs/sites` for the current `craw-chat` application. The site must read like a mature open source product site while staying strictly aligned with the current repository state.
+Create a complete VitePress documentation site under `docs/sites` for the current `sdkwork-im` application. The site must read like a mature open source product site while staying strictly aligned with the current repository state.
 
 ## Canonical Sources
 

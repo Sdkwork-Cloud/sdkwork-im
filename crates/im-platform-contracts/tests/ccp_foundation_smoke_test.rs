@@ -1,15 +1,15 @@
-use craw_chat_ccp_binding_http::HttpBinding;
-use craw_chat_ccp_binding_mqtt::MqttBinding;
-use craw_chat_ccp_binding_sse::SseBinding;
-use craw_chat_ccp_binding_ws::{WsBinding, WsOpcode};
-use craw_chat_ccp_codec::{CcpCodec, CodecError};
-use craw_chat_ccp_codec_cbor::CborEnvelopeCodec;
-use craw_chat_ccp_codec_json::JsonEnvelopeCodec;
-use craw_chat_ccp_control::{AuthBindFrame, ControlFrame, HelloFrame};
-use craw_chat_ccp_core::{
+use sdkwork_im_ccp_binding_http::HttpBinding;
+use sdkwork_im_ccp_binding_mqtt::MqttBinding;
+use sdkwork_im_ccp_binding_sse::SseBinding;
+use sdkwork_im_ccp_binding_ws::{WsBinding, WsOpcode};
+use sdkwork_im_ccp_codec::{CcpCodec, CodecError};
+use sdkwork_im_ccp_codec_cbor::CborEnvelopeCodec;
+use sdkwork_im_ccp_codec_json::JsonEnvelopeCodec;
+use sdkwork_im_ccp_control::{AuthBindFrame, ControlFrame, HelloFrame};
+use sdkwork_im_ccp_core::{
     CapabilitySet, CcpEnvelope, CcpRoute, CcpScope, ProtocolVersion, TransportBinding,
 };
-use craw_chat_ccp_registry::CcpRegistry;
+use sdkwork_im_ccp_registry::CcpRegistry;
 
 struct StubEnvelopeCodec;
 

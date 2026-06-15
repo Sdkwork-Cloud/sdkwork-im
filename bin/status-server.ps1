@@ -25,7 +25,7 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/status-server.ps1 [-InstanceName <name>] [-ConfigDir <path>] [-ReleaseGatePath <path-to-release-gate.json>] [-OutputFormat <text|json>]"
-    Write-Host "Show craw-chat-server status, generated service contracts, storage report paths, and optionally summarize the machine-readable release-gate bundle, decisionStatus, contractsValid, platforms, and semanticIssues."
+    Write-Host "Show sdkwork-im-server status, generated service contracts, storage report paths, and optionally summarize the machine-readable release-gate bundle, decisionStatus, contractsValid, platforms, and semanticIssues."
     exit 0
 }
 
@@ -44,11 +44,11 @@ function Get-ReleaseContractReport {
     return $json | ConvertFrom-Json
 }
 
-$generatedUnitPath = Join-Path $ConfigDir "generated\craw-chat-server.service"
-$generatedLaunchdPath = Join-Path $ConfigDir "generated\com.sdkwork.crawchat.server.plist"
-$generatedWindowsServiceXmlPath = Join-Path $ConfigDir "generated\CrawChatServer.xml"
-$generatedWindowsServiceInstallScriptPath = Join-Path $ConfigDir "generated\install-CrawChatServer.ps1"
-$generatedWindowsServiceUninstallScriptPath = Join-Path $ConfigDir "generated\uninstall-CrawChatServer.ps1"
+$generatedUnitPath = Join-Path $ConfigDir "generated\sdkwork-im-server.service"
+$generatedLaunchdPath = Join-Path $ConfigDir "generated\com.sdkwork.im.server.plist"
+$generatedWindowsServiceXmlPath = Join-Path $ConfigDir "generated\SdkworkImServer.xml"
+$generatedWindowsServiceInstallScriptPath = Join-Path $ConfigDir "generated\install-SdkworkImServer.ps1"
+$generatedWindowsServiceUninstallScriptPath = Join-Path $ConfigDir "generated\uninstall-SdkworkImServer.ps1"
 $verifyReportPath = Join-Path $ConfigDir "storage-init-report.json"
 
 $releaseContracts = [ordered]@{
@@ -66,12 +66,12 @@ $serviceContracts = [ordered]@{
     }
     launchd = [ordered]@{
         path = $generatedLaunchdPath
-        label = "com.sdkwork.crawchat.server"
+        label = "com.sdkwork.im.server"
         exists = (Test-Path -LiteralPath $generatedLaunchdPath)
     }
     windowsService = [ordered]@{
         path = $generatedWindowsServiceXmlPath
-        target = "CrawChatServer"
+        target = "SdkworkImServer"
         installScriptPath = $generatedWindowsServiceInstallScriptPath
         uninstallScriptPath = $generatedWindowsServiceUninstallScriptPath
         exists = (Test-Path -LiteralPath $generatedWindowsServiceXmlPath)
@@ -86,7 +86,7 @@ $storageReport = [ordered]@{
 }
 
 $result = [ordered]@{
-    product = "craw-chat-server"
+    product = "sdkwork-im-server"
     instance = $InstanceName
     config = $ConfigDir
     status = "configuration-only skeleton"
@@ -101,17 +101,17 @@ if ($OutputFormat -eq "json") {
     exit 0
 }
 
-Write-Host "craw-chat-server status"
+Write-Host "sdkwork-im-server status"
 Write-Host "instance: $InstanceName"
 Write-Host "config: $ConfigDir"
 Write-Host "status: configuration-only skeleton"
 Write-Host "systemd contract: $generatedUnitPath"
 Write-Host "launchd contract: $generatedLaunchdPath"
-Write-Host "launchd label: com.sdkwork.crawchat.server"
+Write-Host "launchd label: com.sdkwork.im.server"
 Write-Host "windows service contract: $generatedWindowsServiceXmlPath"
 Write-Host "windows service install script: $generatedWindowsServiceInstallScriptPath"
 Write-Host "windows service uninstall script: $generatedWindowsServiceUninstallScriptPath"
-Write-Host "windows service target: CrawChatServer"
+Write-Host "windows service target: SdkworkImServer"
 Write-Host "storage report: $verifyReportPath"
 if ($releaseContracts.enabled) {
     Write-Host "releaseGate: $($releaseContracts.gatePath)"

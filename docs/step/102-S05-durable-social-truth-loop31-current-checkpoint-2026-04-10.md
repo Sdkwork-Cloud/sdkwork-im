@@ -6,7 +6,7 @@
   - `control-plane-api` social runtime 收敛为统一 `SocialControlState`
   - 新增 `social-state.json` durable snapshot
   - 新增 `social-commit-journal.json` social outbox
-  - `CRAW_CHAT_RUNTIME_DIR` 命中时自动启用 file-backed social store
+  - `SDKWORK_IM_RUNTIME_DIR` 命中时自动启用 file-backed social store
   - 新增显式 builder：`build_app_with_cluster_and_governance_sinks_and_runtime_dir(...)`
   - 新增重启恢复与直聊 pair 唯一性回归测试
 - 当前已具备:

@@ -1,12 +1,12 @@
 # Storage Management Generic Execution Addendum
 
-This addendum updates the implementation order for storage management so future work continues from the generic layers instead of rebuilding craw-chat-specific storage logic.
+This addendum updates the implementation order for storage management so future work continues from the generic layers instead of rebuilding sdkwork-im-specific storage logic.
 
 ## Revised Execution Order
 
 1. Stabilize `im-storage-contracts` as the only shared definition of storage provider schema, scope, config, secret redaction, effective resolution, validation, and audit types.
 2. Stabilize `im-storage-runtime` as the reusable Rust orchestration layer for save/delete/resolve/validate/audit operations.
-3. Keep `craw-chat-contract-admin` as a compatibility re-export surface instead of a second source of truth.
+3. Keep `sdkwork-im-contract-admin` as a compatibility re-export surface instead of a second source of truth.
 4. Adapt `sdkwork-api-product-runtime` admin sandbox and any future production admin backend to the generic runtime/contracts.
 5. Adapt `apps/control-plane` admin API packages, UI modules, and route manifests to consume the generic storage contracts.
 6. Align SDK upload flows and storage-management docs to the same storage contract terminology.
@@ -15,7 +15,7 @@ This addendum updates the implementation order for storage management so future 
 
 - Shared storage contract crate created: `crates/im-storage-contracts`
 - Shared storage runtime crate created: `crates/im-storage-runtime`
-- Admin compatibility re-export added: `crates/craw-chat-contract-admin::storage`
+- Admin compatibility re-export added: `crates/sdkwork-im-contract-admin::storage`
 - Generic admin sandbox storage wiring added in `crates/sdkwork-api-product-runtime/src/admin_sandbox.rs`
 - Dev admin sandbox storage routes added in `apps/control-plane/dev/admin-sandbox.mjs`
 - Admin TypeScript storage API/types modules added

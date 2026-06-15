@@ -1,7 +1,7 @@
 # SDKWork IM Backend SDK
 
 `sdkwork-im-backend-sdk` is the `/backend/v3/api` SDK family for backend management, operator,
-control-plane, admin-console, and service-side Craw Chat integration.
+control-plane, admin-console, and service-side Sdkwork IM integration.
 
 It is intentionally separate from both public IM and app-development SDKs:
 
@@ -26,12 +26,12 @@ client-route lifecycle APIs.
 
 ## SDK Dependency Contract
 
-The backend SDK is the Craw Chat backend/operator composition point, but its generated transport
-remains scoped to Craw Chat-owned `/backend/v3/api` routes only.
+The backend SDK is the Sdkwork IM backend/operator composition point, but its generated transport
+remains scoped to Sdkwork IM-owned `/backend/v3/api` routes only.
 
 - `sdkwork-appbase-backend-sdk` remains the owner of appbase `/backend/v3/api` backend management
   capability.
-- `sdkwork-im-backend-sdk` owns Craw Chat backend modules such as ops, audit, automation,
+- `sdkwork-im-backend-sdk` owns Sdkwork IM backend modules such as ops, audit, automation,
   protocol control, and admin API key management.
 - Generated backend transport must not import, vendor, or regenerate
   `sdkwork-appbase-backend-sdk`; consumers compose the appbase backend SDK at the backend SDK
@@ -64,9 +64,9 @@ Package-level dependency names:
 
 ## Contract Files
 
-- `openapi/craw-chat-backend-api.openapi.yaml`
+- `openapi/sdkwork-im-backend-api.openapi.yaml`
   Authority OpenAPI 3.x contract for `/backend/v3/api`.
-- `openapi/craw-chat-backend-api.sdkgen.yaml`
+- `openapi/sdkwork-im-backend-api.sdkgen.yaml`
   Generator-compatible derived input.
 
 ## Generation

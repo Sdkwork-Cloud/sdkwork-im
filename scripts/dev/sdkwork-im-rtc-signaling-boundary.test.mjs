@@ -48,7 +48,7 @@ function relativeToWorkspace(absolutePath) {
   return path.relative(workspaceRoot, absolutePath).replaceAll('\\', '/');
 }
 
-const callServicePath = 'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-chat/src/services/CallService.ts';
+const callServicePath = 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/CallService.ts';
 const callServiceSource = read(callServicePath);
 
 assert.doesNotMatch(

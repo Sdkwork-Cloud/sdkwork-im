@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Upgrade the `docs/sites` SDK documentation so it reads like a production-grade developer portal while staying strictly aligned with the current Craw Chat repository state.
+**Goal:** Upgrade the `docs/sites` SDK documentation so it reads like a production-grade developer portal while staying strictly aligned with the current Sdkwork IM repository state.
 
 **Architecture:** Reframe the SDK section around consumer workflows first, then document generated/manual ownership, contract sources, and release-state caveats. Add language-specific pages for TypeScript and Flutter, keep admin coverage precise, and wire the new pages into VitePress navigation.
 

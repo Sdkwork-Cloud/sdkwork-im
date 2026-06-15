@@ -1,5 +1,5 @@
-use craw_chat_runtime_link::{LinkConnectionState, LinkSession, OutboundQueuePolicy, ResumeWindow};
-use craw_chat_runtime_route::{RouteBindingRequest, RouteDirectory};
+use sdkwork_im_runtime_link::{LinkConnectionState, LinkSession, OutboundQueuePolicy, ResumeWindow};
+use sdkwork_im_runtime_route::{RouteBindingRequest, RouteDirectory};
 
 #[test]
 fn test_step04_runtime_plane_skeleton_supports_link_lifecycle_and_route_epoch_migration() {

@@ -857,7 +857,7 @@ async fn test_local_minimal_profile_persists_pending_realtime_outbox_across_runt
     let projection_service = Arc::new(projection_service::TimelineProjectionService::default());
     let realtime_cluster = Arc::new(RealtimeClusterBridge::default());
     let runtime_dir = std::env::temp_dir().join(format!(
-        "craw_chat_realtime_outbox_restart_{}",
+        "sdkwork_im_realtime_outbox_restart_{}",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .expect("system time should be after unix epoch")
@@ -1399,7 +1399,7 @@ async fn test_local_minimal_profile_rejects_sessionless_rebind_after_cross_node_
                             "tenant_id": "t_demo",
                             "login_scope": "TENANT",
                             "user_id": "u_demo",
-                            "app_id": "craw-chat",
+                            "app_id": "sdkwork-im",
                             "auth_level": "password",
                             "subject_type": "user"
                         })
@@ -1411,7 +1411,7 @@ async fn test_local_minimal_profile_rejects_sessionless_rebind_after_cross_node_
                         "tenant_id": "t_demo",
                         "login_scope": "TENANT",
                         "user_id": "u_demo",
-                        "app_id": "craw-chat",
+                        "app_id": "sdkwork-im",
                         "environment": "dev",
                         "deployment_mode": "local",
                         "auth_level": "password",

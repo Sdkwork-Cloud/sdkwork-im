@@ -1,8 +1,8 @@
-# Craw Chat Admin SDK Standardization Design
+# Sdkwork IM Admin SDK Standardization Design
 
 ## Goal
 
-Build `sdkwork-control-plane-sdk` into the single professional admin SDK family for Craw Chat, aligned with the mature `sdkwork-im-sdk` standard:
+Build `sdkwork-control-plane-sdk` into the single professional admin SDK family for Sdkwork IM, aligned with the mature `sdkwork-im-sdk` standard:
 
 - real OpenAPI 3.x schema fetched from a running admin or control-plane service
 - strict `generated` versus `composed` ownership

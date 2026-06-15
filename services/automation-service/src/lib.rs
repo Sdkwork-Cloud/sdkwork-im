@@ -9,11 +9,11 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use craw_chat_api_registry::HttpMethod;
-use craw_chat_contract_agent::{AgentSubject, AutomationExecutionRecord, AutomationExecutionStore};
-use craw_chat_contract_core::ContractError;
-use craw_chat_contract_message::{CommitJournal, CommitPosition};
-use craw_chat_openapi::{
+use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_contract_agent::{AgentSubject, AutomationExecutionRecord, AutomationExecutionStore};
+use sdkwork_im_contract_core::ContractError;
+use sdkwork_im_contract_message::{CommitJournal, CommitPosition};
+use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use im_app_context::{
@@ -30,14 +30,14 @@ use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
-const AUTOMATION_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "CRAW_CHAT_AUTOMATION_MAX_IN_FLIGHT_REQUESTS";
+const AUTOMATION_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_AUTOMATION_MAX_IN_FLIGHT_REQUESTS";
 const AUTOMATION_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 const AUTOMATION_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
-const AUTOMATION_MAX_REQUEST_BODY_BYTES_ENV: &str = "CRAW_CHAT_AUTOMATION_MAX_REQUEST_BODY_BYTES";
+const AUTOMATION_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_AUTOMATION_MAX_REQUEST_BODY_BYTES";
 const AUTOMATION_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const AUTOMATION_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 const AUTOMATION_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
-    "CRAW_CHAT_AUTOMATION_REQUIRE_DUAL_TOKEN_HEADERS";
+    "SDKWORK_IM_AUTOMATION_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
 struct AppState {
@@ -1510,7 +1510,7 @@ fn build_automation_service_openapi_document() -> Result<serde_json::Value, Stri
 
 fn automation_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
-        title: "Craw Chat Automation Service API",
+        title: "Sdkwork IM Automation Service API",
         version: env!("CARGO_PKG_VERSION"),
         description: "Live OpenAPI contract generated from the automation-service router for execution requests, governance inspection, agent response streams, tool call workflows, and execution lookup flows.",
         openapi_path: "/openapi.json",

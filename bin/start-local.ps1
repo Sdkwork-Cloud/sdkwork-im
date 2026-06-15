@@ -162,7 +162,7 @@ else {
         )
 
         foreach ($configFile in Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName) {
-            $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
+            $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "SDKWORK_IM_RUNTIME_DIR"
             if (-not [string]::IsNullOrWhiteSpace($configRuntimeDir)) {
                 return $configRuntimeDir
             }
@@ -250,49 +250,49 @@ if ($null -ne $runningProcess) {
     throw "local-minimal-node is already running with PID $($runningProcess.Id). Stop it before starting a new instance."
 }
 
-$configBindAddress = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "CRAW_CHAT_BIND_ADDR"
+$configBindAddress = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "SDKWORK_IM_BIND_ADDR"
 $resolvedBindAddress = if ([string]::IsNullOrWhiteSpace($BindAddress)) { $configBindAddress } else { $BindAddress }
 if ([string]::IsNullOrWhiteSpace($resolvedBindAddress)) {
     $resolvedBindAddress = "127.0.0.1:18090"
 }
 $resolvedRuntimeDir = $runtimeDir
-$configFriendRequestCursorSecret = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"
+$configFriendRequestCursorSecret = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET"
 $resolvedFriendRequestCursorSecret = if ([string]::IsNullOrWhiteSpace($configFriendRequestCursorSecret)) {
-    $env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET
+    $env:SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET
 }
 else {
     $configFriendRequestCursorSecret
 }
-$configAppContextRequireSignature = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE"
+$configAppContextRequireSignature = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE"
 $resolvedAppContextRequireSignature = if ([string]::IsNullOrWhiteSpace($configAppContextRequireSignature)) {
-    $env:CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE
+    $env:SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE
 }
 else {
     $configAppContextRequireSignature
 }
-$configAppContextSignatureSecret = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET"
+$configAppContextSignatureSecret = Resolve-ConfigValueFromProfile -Root $root -ProfileName $ProfileName -Key "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET"
 $resolvedAppContextSignatureSecret = if ([string]::IsNullOrWhiteSpace($configAppContextSignatureSecret)) {
-    $env:CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET
+    $env:SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET
 }
 else {
     $configAppContextSignatureSecret
 }
 
-$previousBindAddress = $env:CRAW_CHAT_BIND_ADDR
+$previousBindAddress = $env:SDKWORK_IM_BIND_ADDR
 $hadPreviousBindAddress = $null -ne $previousBindAddress
-$previousRuntimeDir = $env:CRAW_CHAT_RUNTIME_DIR
+$previousRuntimeDir = $env:SDKWORK_IM_RUNTIME_DIR
 $hadPreviousRuntimeDir = $null -ne $previousRuntimeDir
-$previousFriendRequestCursorSecret = $env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET
+$previousFriendRequestCursorSecret = $env:SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET
 $hadPreviousFriendRequestCursorSecret = $null -ne $previousFriendRequestCursorSecret
-$previousAppContextRequireSignature = $env:CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE
+$previousAppContextRequireSignature = $env:SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE
 $hadPreviousAppContextRequireSignature = $null -ne $previousAppContextRequireSignature
-$previousAppContextSignatureSecret = $env:CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET
+$previousAppContextSignatureSecret = $env:SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET
 $hadPreviousAppContextSignatureSecret = $null -ne $previousAppContextSignatureSecret
-$env:CRAW_CHAT_BIND_ADDR = $resolvedBindAddress
-$env:CRAW_CHAT_RUNTIME_DIR = $resolvedRuntimeDir
-$env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET = $resolvedFriendRequestCursorSecret
-$env:CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE = $resolvedAppContextRequireSignature
-$env:CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET = $resolvedAppContextSignatureSecret
+$env:SDKWORK_IM_BIND_ADDR = $resolvedBindAddress
+$env:SDKWORK_IM_RUNTIME_DIR = $resolvedRuntimeDir
+$env:SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET = $resolvedFriendRequestCursorSecret
+$env:SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE = $resolvedAppContextRequireSignature
+$env:SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET = $resolvedAppContextSignatureSecret
 
 try {
     if ($Foreground) {
@@ -351,37 +351,37 @@ try {
 }
 finally {
     if ($hadPreviousBindAddress) {
-        $env:CRAW_CHAT_BIND_ADDR = $previousBindAddress
+        $env:SDKWORK_IM_BIND_ADDR = $previousBindAddress
     }
     else {
-        Remove-Item Env:CRAW_CHAT_BIND_ADDR -ErrorAction SilentlyContinue
+        Remove-Item Env:SDKWORK_IM_BIND_ADDR -ErrorAction SilentlyContinue
     }
 
     if ($hadPreviousRuntimeDir) {
-        $env:CRAW_CHAT_RUNTIME_DIR = $previousRuntimeDir
+        $env:SDKWORK_IM_RUNTIME_DIR = $previousRuntimeDir
     }
     else {
-        Remove-Item Env:CRAW_CHAT_RUNTIME_DIR -ErrorAction SilentlyContinue
+        Remove-Item Env:SDKWORK_IM_RUNTIME_DIR -ErrorAction SilentlyContinue
     }
 
     if ($hadPreviousFriendRequestCursorSecret) {
-        $env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET = $previousFriendRequestCursorSecret
+        $env:SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET = $previousFriendRequestCursorSecret
     }
     else {
-        Remove-Item Env:CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET -ErrorAction SilentlyContinue
+        Remove-Item Env:SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET -ErrorAction SilentlyContinue
     }
 
     if ($hadPreviousAppContextRequireSignature) {
-        $env:CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE = $previousAppContextRequireSignature
+        $env:SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE = $previousAppContextRequireSignature
     }
     else {
-        Remove-Item Env:CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE -ErrorAction SilentlyContinue
+        Remove-Item Env:SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE -ErrorAction SilentlyContinue
     }
 
     if ($hadPreviousAppContextSignatureSecret) {
-        $env:CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET = $previousAppContextSignatureSecret
+        $env:SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET = $previousAppContextSignatureSecret
     }
     else {
-        Remove-Item Env:CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET -ErrorAction SilentlyContinue
+        Remove-Item Env:SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET -ErrorAction SilentlyContinue
     }
 }

@@ -1,6 +1,6 @@
 openapi: 3.1.2
 info:
-  title: Craw Chat Backend Management API
+  title: Sdkwork IM Backend Management API
   version: 0.1.0
   description: Backend management OpenAPI contract for operator, governance, control, and admin APIs under one SDK family.
 servers:
@@ -52,8 +52,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/ops/cluster:
     get:
       tags:
@@ -89,8 +89,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/ops/lag:
     get:
       tags:
@@ -126,8 +126,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/ops/replay_status:
     get:
       tags:
@@ -163,8 +163,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/ops/commercial_readiness:
     get:
       tags:
@@ -200,8 +200,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/ops/runtime_dir:
     get:
       tags:
@@ -237,8 +237,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/ops/provider_bindings:
     get:
       tags:
@@ -274,8 +274,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/ops/provider_bindings/drift:
     get:
       tags:
@@ -311,8 +311,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/ops/diagnostics:
     get:
       tags:
@@ -348,8 +348,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/audit/records:
     get:
       tags:
@@ -385,8 +385,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       tags:
         - audit
@@ -421,8 +421,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/audit/export:
     get:
       tags:
@@ -458,8 +458,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/automation/governance:
     get:
       tags:
@@ -495,8 +495,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/nodes/{nodeId}/activate:
     post:
       operationId: nodes.activate
@@ -556,8 +556,8 @@ paths:
       summary: Activate a realtime node and clear drain state.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/nodes/{nodeId}/drain:
     post:
       operationId: nodes.drain
@@ -617,8 +617,8 @@ paths:
       summary: Mark a realtime node as draining.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/nodes/{nodeId}/routes/migrate:
     post:
       operationId: nodes.routes.migrate
@@ -685,8 +685,8 @@ paths:
       summary: Migrate owned routes from the source node to the target node.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/protocol_governance:
     get:
       operationId: protocolGovernance.retrieve
@@ -739,8 +739,8 @@ paths:
       summary: Read the control-plane protocol governance snapshot.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/protocol_registry:
     get:
       operationId: protocolRegistry.retrieve
@@ -793,8 +793,8 @@ paths:
       summary: Read the control-plane protocol registry snapshot.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/provider_policies:
     get:
       operationId: providerPolicies.list
@@ -847,8 +847,8 @@ paths:
       summary: Read provider policy history.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/provider_policies/diff:
     get:
       operationId: providerPolicies.diff.list
@@ -916,8 +916,8 @@ paths:
       summary: Read provider policy diff between two versions.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/provider_policies/preview:
     post:
       operationId: providerPolicies.preview
@@ -977,8 +977,8 @@ paths:
       summary: Preview the effective provider policy result before commit.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/provider_policies/rollback:
     post:
       operationId: providerPolicies.rollback
@@ -1038,8 +1038,8 @@ paths:
       summary: Rollback provider policy history to a target version.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/provider_registry:
     get:
       operationId: providerRegistry.retrieve
@@ -1092,8 +1092,8 @@ paths:
       summary: Read the provider registry snapshot.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/provider_bindings:
     get:
       operationId: control.providerBindings.list
@@ -1153,8 +1153,8 @@ paths:
       summary: Read effective provider bindings.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: control.providerBindings.create
       requestBody:
@@ -1213,8 +1213,8 @@ paths:
       summary: Upsert a provider binding policy.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/direct_chats/bindings:
     post:
       operationId: social.directChats.bindings.create
@@ -1274,8 +1274,8 @@ paths:
       summary: Bind a direct chat to a conversation.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/direct_chats/{directChatId}:
     get:
       operationId: social.directChats.retrieve
@@ -1335,8 +1335,8 @@ paths:
       summary: Read a direct chat snapshot.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/external_connections:
     post:
       operationId: social.externalConnections.create
@@ -1396,8 +1396,8 @@ paths:
       summary: Establish an external collaboration connection.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/external_connections/{connectionId}:
     get:
       operationId: social.externalConnections.retrieve
@@ -1457,8 +1457,8 @@ paths:
       summary: Read an external connection snapshot.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/external_member_links:
     post:
       operationId: social.externalMemberLinks.create
@@ -1518,8 +1518,8 @@ paths:
       summary: Bind an external member link.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/external_member_links/{linkId}:
     get:
       operationId: social.externalMemberLinks.retrieve
@@ -1579,8 +1579,8 @@ paths:
       summary: Read an external member link snapshot.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/friend_requests:
     post:
       operationId: social.friendRequests.create
@@ -1640,8 +1640,8 @@ paths:
       summary: Submit a friend request event.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/friend_requests/{requestId}:
     get:
       operationId: social.friendRequests.retrieve
@@ -1701,8 +1701,8 @@ paths:
       summary: Read a friend request snapshot.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/friend_requests/{requestId}/accept:
     post:
       operationId: social.friendRequests.accept
@@ -1769,8 +1769,8 @@ paths:
       summary: Accept a friend request.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/friend_requests/{requestId}/decline:
     post:
       operationId: social.friendRequests.decline
@@ -1837,8 +1837,8 @@ paths:
       summary: Decline a friend request.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/friend_requests/{requestId}/cancel:
     post:
       operationId: social.friendRequests.cancel
@@ -1905,8 +1905,8 @@ paths:
       summary: Cancel a friend request.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/friendships:
     post:
       operationId: social.friendships.create
@@ -1966,8 +1966,8 @@ paths:
       summary: Activate a friendship event.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/friendships/{friendshipId}:
     get:
       operationId: social.friendships.retrieve
@@ -2027,8 +2027,8 @@ paths:
       summary: Read a friendship snapshot.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/friendships/{friendshipId}/remove:
     post:
       operationId: social.friendships.remove
@@ -2095,8 +2095,8 @@ paths:
       summary: Remove a friendship.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/claim_pending_shared_channel_sync_targeted:
     post:
       operationId: social.runtime.claimPendingSharedChannelSyncTargeted.create
@@ -2156,8 +2156,8 @@ paths:
       summary: Claim selected pending shared-channel sync entries.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/dead_letter_shared_channel_sync:
     get:
       operationId: social.runtime.deadLetterSharedChannelSync.list
@@ -2210,8 +2210,8 @@ paths:
       summary: Read the dead-letter shared-channel sync queue.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/delivered_shared_channel_sync:
     get:
       operationId: social.runtime.deliveredSharedChannelSync.list
@@ -2264,8 +2264,8 @@ paths:
       summary: Read the delivered shared-channel sync ledger.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/delivery_state_shared_channel_sync:
     get:
       operationId: social.runtime.deliveryStateSharedChannelSync.list
@@ -2318,8 +2318,8 @@ paths:
       summary: Read merged shared-channel sync delivery state.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/pending_shared_channel_sync:
     get:
       operationId: social.runtime.pendingSharedChannelSync.list
@@ -2372,8 +2372,8 @@ paths:
       summary: Read the pending shared-channel sync queue.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/reclaim_stale_pending_shared_channel_sync:
     post:
       operationId: social.runtime.reclaimStalePendingSharedChannelSync.create
@@ -2426,8 +2426,8 @@ paths:
       summary: Reclaim stale shared-channel sync pending ownership.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/release_pending_shared_channel_sync_targeted:
     post:
       operationId: social.runtime.releasePendingSharedChannelSyncTargeted.create
@@ -2487,8 +2487,8 @@ paths:
       summary: Release selected pending shared-channel sync entries.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/repair_derived_snapshot:
     post:
       operationId: social.runtime.repairDerivedSnapshot.create
@@ -2541,8 +2541,8 @@ paths:
       summary: Repair the persisted social runtime derived snapshot.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/repair_shared_channel_sync:
     post:
       operationId: social.runtime.repairSharedChannelSync.create
@@ -2595,8 +2595,8 @@ paths:
       summary: Repair shared-channel sync backlog state.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/republish_pending_shared_channel_sync_targeted:
     post:
       operationId: social.runtime.republishPendingSharedChannelSyncTargeted.create
@@ -2656,8 +2656,8 @@ paths:
       summary: Republish selected pending shared-channel sync entries.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync:
     post:
       operationId: social.runtime.requeueDeadLetterSharedChannelSync.create
@@ -2710,8 +2710,8 @@ paths:
       summary: Requeue all dead-letter shared-channel sync entries.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/requeue_dead_letter_shared_channel_sync_targeted:
     post:
       operationId: social.runtime.requeueDeadLetterSharedChannelSyncTargeted.create
@@ -2771,8 +2771,8 @@ paths:
       summary: Requeue selected dead-letter shared-channel sync entries.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/runtime/takeover_pending_shared_channel_sync_targeted:
     post:
       operationId: social.runtime.takeoverPendingSharedChannelSyncTargeted.create
@@ -2832,8 +2832,8 @@ paths:
       summary: Take over selected pending shared-channel sync entries.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/shared_channel_policies:
     post:
       operationId: social.sharedChannelPolicies.create
@@ -2893,8 +2893,8 @@ paths:
       summary: Apply a shared-channel policy.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/shared_channel_policies/{policyId}:
     get:
       operationId: social.sharedChannelPolicies.retrieve
@@ -2954,8 +2954,8 @@ paths:
       summary: Read a shared-channel policy snapshot.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/user_blocks:
     post:
       operationId: social.userBlocks.create
@@ -3015,8 +3015,8 @@ paths:
       summary: Block a user in the social graph.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/control/social/user_blocks/{blockId}:
     get:
       operationId: social.userBlocks.retrieve
@@ -3076,8 +3076,8 @@ paths:
       summary: Read a user block snapshot.
       tags:
         - control
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/api_key_groups:
     get:
       operationId: apiKeyGroups.list
@@ -3100,8 +3100,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: apiKeyGroups.create
       tags:
@@ -3129,8 +3129,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/api_key_groups/{groupId}:
     patch:
       operationId: apiKeyGroups.update
@@ -3159,8 +3159,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     delete:
       operationId: apiKeyGroups.delete
       tags:
@@ -3184,8 +3184,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/api_key_groups/{groupId}/status:
     post:
       operationId: apiKeyGroups.status
@@ -3214,8 +3214,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/api_keys:
     get:
       operationId: apiKeys.list
@@ -3238,8 +3238,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: apiKeys.create
       tags:
@@ -3267,8 +3267,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/api_keys/{hashedKey}:
     put:
       operationId: apiKeys.update
@@ -3297,8 +3297,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     delete:
       operationId: apiKeys.delete
       tags:
@@ -3322,8 +3322,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/api_keys/{hashedKey}/status:
     post:
       operationId: apiKeys.status
@@ -3352,8 +3352,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/billing/events:
     get:
       operationId: billing.events.list
@@ -3376,8 +3376,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/billing/events/summary:
     get:
       operationId: billing.events.summary.retrieve
@@ -3400,8 +3400,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/billing/summary:
     get:
       operationId: billing.summary.retrieve
@@ -3424,8 +3424,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/channel_models:
     get:
       operationId: channelModels.list
@@ -3448,8 +3448,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: channelModels.create
       tags:
@@ -3477,8 +3477,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/channel_models/{channelId}/models/{modelId}:
     delete:
       operationId: channelModels.models.delete
@@ -3503,8 +3503,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/channels:
     get:
       operationId: channels.list
@@ -3527,8 +3527,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: channels.create
       tags:
@@ -3556,8 +3556,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/channels/{channelId}:
     delete:
       operationId: channels.delete
@@ -3582,8 +3582,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/credentials:
     get:
       operationId: credentials.list
@@ -3606,8 +3606,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: credentials.create
       tags:
@@ -3635,8 +3635,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/credentials/{tenantId}/providers/{providerId}/keys/{keyReference}:
     delete:
       operationId: credentials.providers.keys.delete
@@ -3661,8 +3661,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/extensions/runtime_reloads:
     post:
       operationId: extensions.runtimeReloads.create
@@ -3691,8 +3691,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/extensions/runtime_statuses:
     get:
       operationId: extensions.runtimeStatuses.list
@@ -3715,8 +3715,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/gateway/rate_limit_policies:
     get:
       operationId: gateway.rateLimitPolicies.list
@@ -3739,8 +3739,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: gateway.rateLimitPolicies.create
       tags:
@@ -3768,8 +3768,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/gateway/rate_limit_windows:
     get:
       operationId: gateway.rateLimitWindows.list
@@ -3792,8 +3792,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/marketing/campaigns:
     get:
       operationId: marketing.campaigns.list
@@ -3816,8 +3816,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: marketing.campaigns.create
       tags:
@@ -3845,8 +3845,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/marketing/campaigns/{marketingCampaignId}/status:
     post:
       operationId: marketing.campaigns.status
@@ -3875,8 +3875,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/model_prices:
     get:
       operationId: modelPrices.list
@@ -3899,8 +3899,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: modelPrices.create
       tags:
@@ -3928,8 +3928,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/model_prices/{channelId}/models/{modelId}/providers/{proxyProviderId}:
     delete:
       operationId: modelPrices.models.providers.delete
@@ -3954,8 +3954,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/models:
     get:
       operationId: models.list
@@ -3978,8 +3978,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: models.create
       tags:
@@ -4007,8 +4007,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/models/{externalName}/providers/{providerId}:
     delete:
       operationId: models.providers.delete
@@ -4033,8 +4033,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/providers:
     get:
       operationId: providers.list
@@ -4057,8 +4057,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: providers.create
       tags:
@@ -4086,8 +4086,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/providers/{providerId}:
     delete:
       operationId: providers.delete
@@ -4112,8 +4112,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/routing/decision_logs:
     get:
       operationId: routing.decisionLogs.list
@@ -4136,8 +4136,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/routing/health_snapshots:
     get:
       operationId: routing.healthSnapshots.retrieve
@@ -4160,8 +4160,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/routing/profiles:
     get:
       operationId: routing.profiles.list
@@ -4184,8 +4184,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: routing.profiles.create
       tags:
@@ -4213,8 +4213,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/routing/snapshots:
     get:
       operationId: routing.snapshots.list
@@ -4237,8 +4237,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/storage/audit:
     get:
       operationId: storage.audit.list
@@ -4261,8 +4261,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/storage/config:
     get:
       operationId: storage.config.retrieve
@@ -4285,8 +4285,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: storage.config.create
       tags:
@@ -4314,8 +4314,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/storage/config/tenants/{tenantId}:
     get:
       operationId: storage.config.tenants.retrieve
@@ -4338,8 +4338,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     post:
       operationId: storage.config.tenants.create
       tags:
@@ -4367,8 +4367,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
     delete:
       operationId: storage.config.tenants.delete
       tags:
@@ -4392,8 +4392,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/storage/effective/tenants/{tenantId}:
     get:
       operationId: storage.effective.tenants.retrieve
@@ -4416,8 +4416,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/storage/providers:
     get:
       operationId: storage.providers.list
@@ -4440,8 +4440,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/storage/validate:
     post:
       operationId: storage.validation.create
@@ -4470,8 +4470,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/storage/validate/tenants/{tenantId}:
     post:
       operationId: storage.validation.tenants.create
@@ -4500,8 +4500,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/usage/records:
     get:
       operationId: usage.records.list
@@ -4524,8 +4524,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
   /backend/v3/api/admin/usage/summary:
     get:
       operationId: usage.summary.retrieve
@@ -4548,8 +4548,8 @@ paths:
       security:
         - AuthToken: []
           AccessToken: []
-      x-sdkwork-owner: craw-chat
-      x-sdkwork-api-authority: craw-chat.backend
+      x-sdkwork-owner: sdkwork-im
+      x-sdkwork-api-authority: sdkwork-im.backend
 components:
   securitySchemes:
     AuthToken:
@@ -5465,5 +5465,5 @@ components:
     LooseJsonObject:
       type: object
       additionalProperties: true
-x-sdkwork-owner: craw-chat
-x-sdkwork-api-authority: craw-chat.backend
+x-sdkwork-owner: sdkwork-im
+x-sdkwork-api-authority: sdkwork-im.backend

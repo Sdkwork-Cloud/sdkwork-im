@@ -10,7 +10,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- |
 | Name | `im-app-context` |
 | Type | `rust-crate` |
-| Root | `craw-chat/crates/im-app-context` |
+| Root | `sdkwork-im/crates/im-app-context` |
 | Domain | `communication` |
 | Capability | `im` |
 | Languages | `rust` |
@@ -48,8 +48,8 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Runtime Config Keys
 
-- `CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE`
-- `CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET`
+- `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE`
+- `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET`
 
 ## Local Extension Specs
 
@@ -57,4 +57,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/crates/im-app-context/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/crates/im-app-context/Cargo.toml`

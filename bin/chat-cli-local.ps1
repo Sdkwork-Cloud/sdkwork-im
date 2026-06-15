@@ -20,7 +20,7 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 $profileDir = if ($release) { "release" } else { "debug" }
-$exePath = Join-Path $root "target\$profileDir\craw-chat-cli.exe"
+$exePath = Join-Path $root "target\$profileDir\sdkwork-im-cli.exe"
 
 function Get-ChatCliBuildInputs {
     param(
@@ -73,7 +73,7 @@ function Test-ChatCliExecutableNeedsBuild {
 }
 
 if (Test-ChatCliExecutableNeedsBuild -Root $root -ExePath $exePath) {
-    $cargoArgs = @("build", "-p", "craw-chat-cli")
+    $cargoArgs = @("build", "-p", "sdkwork-im-cli")
     if ($release) {
         $cargoArgs += "--release"
     }
@@ -85,7 +85,7 @@ if (Test-ChatCliExecutableNeedsBuild -Root $root -ExePath $exePath) {
 }
 
 if (-not (Test-Path $exePath)) {
-    throw "craw-chat-cli binary was not found after build: $exePath"
+    throw "sdkwork-im-cli binary was not found after build: $exePath"
 }
 
 & $exePath @cliArgs

@@ -107,7 +107,7 @@ else
     local config_runtime_dir=""
 
     while IFS= read -r config_file; do
-      config_runtime_dir="$(read_config_value_from_file "$config_file" "CRAW_CHAT_RUNTIME_DIR" || true)"
+      config_runtime_dir="$(read_config_value_from_file "$config_file" "SDKWORK_IM_RUNTIME_DIR" || true)"
       if [[ -n "$config_runtime_dir" ]]; then
         printf '%s\n' "$config_runtime_dir"
         return 0
@@ -158,14 +158,14 @@ mkdir -p "$CONFIG_DIR" "$RUNTIME_DIR" "$LOGS_DIR" "$PIDS_DIR" "$STATE_DIR"
 
 if [[ -f "$CONFIG_FILE" && "$force_mode" -ne 1 ]]; then
   missing_config=()
-  if [[ -z "$(read_config_value_from_file "$CONFIG_FILE" "CRAW_CHAT_RUNTIME_PROFILE" || true)" ]]; then
-    missing_config+=("CRAW_CHAT_RUNTIME_PROFILE=${profile_name}")
+  if [[ -z "$(read_config_value_from_file "$CONFIG_FILE" "SDKWORK_IM_RUNTIME_PROFILE" || true)" ]]; then
+    missing_config+=("SDKWORK_IM_RUNTIME_PROFILE=${profile_name}")
   fi
-  if [[ -z "$(read_config_value_from_file "$CONFIG_FILE" "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE" || true)" ]]; then
-    missing_config+=("CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true")
+  if [[ -z "$(read_config_value_from_file "$CONFIG_FILE" "SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE" || true)" ]]; then
+    missing_config+=("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE=true")
   fi
-  if [[ -z "$(read_config_value_from_file "$CONFIG_FILE" "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET" || true)" ]]; then
-    missing_config+=("CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET=$(generate_random_secret)")
+  if [[ -z "$(read_config_value_from_file "$CONFIG_FILE" "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET" || true)" ]]; then
+    missing_config+=("SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET=$(generate_random_secret)")
   fi
 
   if [[ "${#missing_config[@]}" -gt 0 ]]; then
@@ -178,23 +178,23 @@ if [[ -f "$CONFIG_FILE" && "$force_mode" -ne 1 ]]; then
   exit 0
 fi
 
-friend_request_cursor_secret="$(read_config_value_from_file "$CONFIG_FILE" "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET" || true)"
+friend_request_cursor_secret="$(read_config_value_from_file "$CONFIG_FILE" "SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET" || true)"
 if [[ -z "$friend_request_cursor_secret" ]]; then
   friend_request_cursor_secret="$(generate_random_secret)"
 fi
-app_context_signature_secret="$(read_config_value_from_file "$CONFIG_FILE" "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET" || true)"
+app_context_signature_secret="$(read_config_value_from_file "$CONFIG_FILE" "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET" || true)"
 if [[ -z "$app_context_signature_secret" ]]; then
   app_context_signature_secret="$(generate_random_secret)"
 fi
 
 cat >"$CONFIG_FILE" <<EOF
 # ${profile_name} runtime config
-CRAW_CHAT_BIND_ADDR=${bind_addr}
-CRAW_CHAT_RUNTIME_DIR=${RUNTIME_DIR}
-CRAW_CHAT_RUNTIME_PROFILE=${profile_name}
-CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=${friend_request_cursor_secret}
-CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true
-CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET=${app_context_signature_secret}
+SDKWORK_IM_BIND_ADDR=${bind_addr}
+SDKWORK_IM_RUNTIME_DIR=${RUNTIME_DIR}
+SDKWORK_IM_RUNTIME_PROFILE=${profile_name}
+SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET=${friend_request_cursor_secret}
+SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE=true
+SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET=${app_context_signature_secret}
 EOF
 
 echo "Config written: ${CONFIG_FILE}"

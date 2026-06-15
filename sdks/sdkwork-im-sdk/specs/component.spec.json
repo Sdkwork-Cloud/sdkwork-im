@@ -6,7 +6,7 @@
     "displayName": "SDKWork IM SDK",
     "version": "0.1.0",
     "type": "sdk-family",
-    "root": "craw-chat/sdks/sdkwork-im-sdk",
+    "root": "sdkwork-im/sdks/sdkwork-im-sdk",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "im",
@@ -74,10 +74,10 @@
     "apiAuthority": {
       "name": "sdkwork-im-open-api",
       "prefix": "/im/v3/api",
-      "authorityOpenApi": "openapi/craw-chat-im.openapi.yaml",
+      "authorityOpenApi": "openapi/sdkwork-im-im.openapi.yaml",
       "derivedOpenApi": [
-        "openapi/craw-chat-im.sdkgen.yaml",
-        "openapi/craw-chat-im.flutter.sdkgen.yaml"
+        "openapi/sdkwork-im-im.sdkgen.yaml",
+        "openapi/sdkwork-im-im.flutter.sdkgen.yaml"
       ],
       "standard": "../../../sdkwork-specs/SDK_WORKSPACE_GENERATION_SPEC.md"
     },

@@ -9,7 +9,7 @@ use axum::http::{HeaderMap, Request, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::post;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use craw_chat_cli::{CommandOutput, execute_command, parse_cli_args};
+use sdkwork_im_cli::{CommandOutput, execute_command, parse_cli_args};
 use serde_json::{Value, json};
 use tokio::net::TcpListener;
 
@@ -678,7 +678,7 @@ fn test_continuous_optimization_docs_freeze_sdk_release_catalog_schema_contract(
         schema_json["$id"],
         "artifacts/releases/schemas/sdk-release-catalog.schema.json"
     );
-    assert_eq!(schema_json["title"], "craw-chat sdk release catalog");
+    assert_eq!(schema_json["title"], "sdkwork-im sdk release catalog");
     assert_eq!(
         schema_json["properties"]["artifact"]["const"],
         "sdk-release-catalog"
@@ -1331,7 +1331,7 @@ fn test_chat_cli_wrappers_rebuild_when_sources_are_newer_than_local_binary() {
         "chat_cli_binary_needs_build",
         "tools/chat-cli/src",
         "Cargo.lock",
-        "build -p craw-chat-cli",
+        "build -p sdkwork-im-cli",
     ] {
         assert!(
             chat_cli_local_sh.contains(required_text),
@@ -1367,7 +1367,7 @@ async fn test_chat_cli_timeline_connect_failure_surfaces_actionable_service_unre
 
     let error = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -1389,7 +1389,7 @@ async fn test_chat_cli_timeline_connect_failure_surfaces_actionable_service_unre
 
     let message = error.to_string();
     assert!(
-        message.contains("unable to connect to craw-chat service"),
+        message.contains("unable to connect to sdkwork-im service"),
         "connectivity failure should explain root cause\nmessage:\n{message}"
     );
     assert!(
@@ -1412,7 +1412,7 @@ async fn test_chat_cli_watch_connect_failure_surfaces_actionable_realtime_unreac
 
     let error = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -1475,7 +1475,7 @@ async fn test_chat_cli_http_commands_keep_authority_in_token_not_business_body()
 
     let create_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -1501,7 +1501,7 @@ async fn test_chat_cli_http_commands_keep_authority_in_token_not_business_body()
 
     let send_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -1579,7 +1579,7 @@ async fn test_chat_cli_token_command_freezes_header_and_token_only_contract() {
     let local_default = command_output_json(
         execute_command(
             parse_cli_args([
-                "craw-chat-cli",
+                "sdkwork-im-cli",
                 "--tenant-id",
                 "t_token",
                 "--user-id",
@@ -1616,7 +1616,7 @@ async fn test_chat_cli_token_command_freezes_header_and_token_only_contract() {
     let local_token_only = command_output_json(
         execute_command(
             parse_cli_args([
-                "craw-chat-cli",
+                "sdkwork-im-cli",
                 "--tenant-id",
                 "t_token",
                 "--user-id",
@@ -1648,7 +1648,7 @@ async fn test_chat_cli_token_command_freezes_header_and_token_only_contract() {
     let provided_token_only = command_output_json(
         execute_command(
             parse_cli_args([
-                "craw-chat-cli",
+                "sdkwork-im-cli",
                 "--tenant-id",
                 "t_token",
                 "--user-id",
@@ -1677,7 +1677,7 @@ async fn test_chat_cli_token_command_normalizes_lowercase_bearer_prefix() {
     let provided_default = command_output_json(
         execute_command(
             parse_cli_args([
-                "craw-chat-cli",
+                "sdkwork-im-cli",
                 "--tenant-id",
                 "t_token",
                 "--user-id",
@@ -1705,7 +1705,7 @@ async fn test_chat_cli_token_command_normalizes_lowercase_bearer_prefix() {
     let provided_token_only = command_output_json(
         execute_command(
             parse_cli_args([
-                "craw-chat-cli",
+                "sdkwork-im-cli",
                 "--tenant-id",
                 "t_token",
                 "--user-id",
@@ -1737,7 +1737,7 @@ async fn test_chat_cli_token_command_does_not_synthesize_claims_for_provided_bea
     let provided_default = command_output_json(
         execute_command(
             parse_cli_args([
-                "craw-chat-cli",
+                "sdkwork-im-cli",
                 "--tenant-id",
                 "t_local_context",
                 "--user-id",
@@ -1770,7 +1770,7 @@ async fn test_chat_cli_token_command_does_not_synthesize_claims_for_provided_bea
     let provided_token_only = command_output_json(
         execute_command(
             parse_cli_args([
-                "craw-chat-cli",
+                "sdkwork-im-cli",
                 "--tenant-id",
                 "t_local_context",
                 "--user-id",

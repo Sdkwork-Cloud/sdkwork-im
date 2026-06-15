@@ -29,7 +29,7 @@ Today the normal Rust consumption boundary is the composed crate under `composed
 
 ## What Ships Today
 
-- live-schema generation from the same Craw Chat OpenAPI 3.x export as every official language
+- live-schema generation from the same Sdkwork IM OpenAPI 3.x export as every official language
 - verified generated-versus-semantic ownership split between `generated/server-openapi` and `composed`
 - a checked-in `ImSdkClient` with route-aligned modules for session, presence, realtime, inbox,
   conversations, messages, media, streams, and calls

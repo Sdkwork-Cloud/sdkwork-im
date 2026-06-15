@@ -24,7 +24,7 @@ const retiredPublicSdkMarkers = [
   marker("/sdk", "/im", "-admin", "-sdk"),
   marker("Control", "-Plane", " SDK"),
   marker("IM", " Admin", " SDK"),
-  "sdkwork-craw-chat-sdk-management",
+  "sdkwork-sdkwork-im-sdk-management",
   "/sdk/management-sdk",
 ];
 
@@ -126,7 +126,7 @@ for (const marker of [
   "sdkwork-im-app-sdk",
   "/app/v3/api",
   "SdkworkAppClient",
-  "craw-chat-app-api.openapi.yaml",
+  "sdkwork-im-app-api.openapi.yaml",
   "must not contain backend, admin, or control routes",
 ]) {
   requireIncludes(appSdkSource, appSdkPath, marker, `must include ${marker}`);
@@ -239,7 +239,7 @@ const controlPlaneSource = readRequired(controlPlanePath);
 for (const marker of [
   "sdkwork-im-backend-sdk",
   "control modules",
-  "craw-chat-backend-api.openapi.yaml",
+  "sdkwork-im-backend-api.openapi.yaml",
   "[Backend SDK](/sdk/backend-sdk)",
 ]) {
   requireIncludes(controlPlaneSource, controlPlanePath, marker, `must include ${marker}`);

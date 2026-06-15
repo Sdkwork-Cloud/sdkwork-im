@@ -2,7 +2,7 @@
 
 ## Goal
 
-Define the long-term `sdkwork-rtc-sdk` standard for the new Craw Chat application as a
+Define the long-term `sdkwork-rtc-sdk` standard for the new Sdkwork IM application as a
 provider-pluggable RTC SDK family with these properties:
 
 - one stable, JDBC-inspired driver standard across languages

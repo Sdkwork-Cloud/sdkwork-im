@@ -48,9 +48,9 @@ repo-local generation state:
 
 | Workspace | Current authority | Verification entry |
 | --- | --- | --- |
-| `sdks/sdkwork-im-sdk` | `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml` | `node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs` |
-| `sdks/sdkwork-im-app-sdk` | `sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml` | `node ./sdks/sdkwork-im-app-sdk/bin/verify-sdk.mjs` |
-| `sdks/sdkwork-im-backend-sdk` | `sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml` | `node ./sdks/sdkwork-im-backend-sdk/bin/verify-sdk.mjs` |
+| `sdks/sdkwork-im-sdk` | `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml` | `node ./sdks/sdkwork-im-sdk/bin/verify-sdk.mjs` |
+| `sdks/sdkwork-im-app-sdk` | `sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml` | `node ./sdks/sdkwork-im-app-sdk/bin/verify-sdk.mjs` |
+| `sdks/sdkwork-im-backend-sdk` | `sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml` | `node ./sdks/sdkwork-im-backend-sdk/bin/verify-sdk.mjs` |
 | `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk` | `../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/.sdkwork-assembly.json` | `node ../../../../sdkwork-rtc/sdks/sdkwork-rtc-sdk/bin/verify-sdk.mjs` |
 
 The OpenAPI-generated families share the SDKWork dual-token standard and generate from OpenAPI 3.x.

@@ -25,7 +25,7 @@ fn unique_runtime_dir() -> PathBuf {
         .as_nanos();
     let counter = UNIQUE_RUNTIME_DIR_COUNTER.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!(
-        "craw_chat_principal_profile_provider_http_{unique}_{counter}"
+        "sdkwork_im_principal_profile_provider_http_{unique}_{counter}"
     ))
 }
 
@@ -80,9 +80,9 @@ async fn test_local_minimal_profile_gets_unavailable_external_principal_profile_
     let runtime_dir = unique_runtime_dir();
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
 
-    let provider_key = "CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER";
-    let catalog_key = "CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH";
-    let system_key = "CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_SYSTEM";
+    let provider_key = "SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER";
+    let catalog_key = "SDKWORK_IM_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH";
+    let system_key = "SDKWORK_IM_PRINCIPAL_PROFILE_EXTERNAL_SYSTEM";
     let previous_provider = std::env::var(provider_key).ok();
     let previous_catalog = std::env::var(catalog_key).ok();
     let previous_system = std::env::var(system_key).ok();

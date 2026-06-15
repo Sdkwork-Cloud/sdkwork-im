@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "kind": "sdkwork.component.spec",
   "component": {
-    "name": "craw-chat",
-    "displayName": "Craw Chat",
+    "name": "sdkwork-im",
+    "displayName": "Sdkwork IM",
     "version": "0.1.0",
     "type": "app",
-    "root": "craw-chat",
+    "root": "sdkwork-im",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "chat",
@@ -125,7 +125,7 @@
     {
       "file": "im-app-api-sdk-integration.spec.md",
       "path": "./im-app-api-sdk-integration.spec.md",
-      "purpose": "Craw Chat IM API, IM app API, IM backend API, product SDK ownership, IAM login integration, shared database, local source-link development, and git-backed release dependency rules."
+      "purpose": "Sdkwork IM IM API, IM app API, IM backend API, product SDK ownership, IAM login integration, shared database, local source-link development, and git-backed release dependency rules."
     },
     {
       "file": "database-prefix-registry.json",
@@ -166,8 +166,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -180,8 +180,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -194,8 +194,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -208,8 +208,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -222,8 +222,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -236,8 +236,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -250,8 +250,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -264,8 +264,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -278,8 +278,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -292,8 +292,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       }
@@ -307,30 +307,30 @@
     "foundationApiGateway": {
       "targetApplication": "sdkwork-api-gateway",
       "targetMode": "shared-gateway",
-      "commonSdkRootEnv": "SDKWORK_CHAT_SERVER_API_BASE_URL",
+      "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
       "gatewayBaseUrlEnvKeys": [
-        "CRAW_CHAT_FOUNDATION_API_GATEWAY_BASE_URL",
+        "SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL",
         "SDKWORK_API_GATEWAY_BASE_URL"
       ],
       "gatewayBindEnv": "SDKWORK_API_GATEWAY_BIND",
       "defaultLocalGatewayBaseUrl": "http://127.0.0.1:3900",
-      "browserSdkRootEnv": "VITE_CRAW_CHAT_APP_API_BASE_URL",
+      "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
       "authority": "cargo-workspace",
       "catalogPolicy": "no-dedicated-gateway-catalog",
-      "productApiPolicy": "Craw Chat IM APIs remain product-owned SDKWork API surfaces",
+      "productApiPolicy": "Sdkwork IM IM APIs remain product-owned SDKWork API surfaces",
       "migrationState": "shared-gateway-default",
       "splitOverrideEnvKeys": {
         "sdkwork-appbase-app-api": [
-          "CRAW_CHAT_APPBASE_APP_API_UPSTREAM",
+          "SDKWORK_IM_APPBASE_APP_API_UPSTREAM",
           "SDKWORK_APPBASE_APP_API_BIND_ADDR"
         ],
         "sdkwork-drive-app-api": [
-          "CRAW_CHAT_DRIVE_APP_API_UPSTREAM",
+          "SDKWORK_IM_DRIVE_APP_API_UPSTREAM",
           "SDKWORK_DRIVE_APP_API_UPSTREAM",
           "SDKWORK_DRIVE_APP_API_BASE_URL"
         ],
         "sdkwork-notary-app-api": [
-          "CRAW_CHAT_NOTARY_APP_API_UPSTREAM",
+          "SDKWORK_IM_NOTARY_APP_API_UPSTREAM",
           "SDKWORK_NOTARY_APP_API_UPSTREAM",
           "SDKWORK_NOTARY_APP_API_BASE_URL"
         ]
@@ -344,8 +344,8 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/Cargo.toml",
-      "node scripts/dev/sdkwork-chat-database-naming-standard.test.mjs"
+      "cargo test --workspace",
+      "node scripts/dev/sdkwork-im-database-naming-standard.test.mjs"
     ]
   },
   "metadata": {

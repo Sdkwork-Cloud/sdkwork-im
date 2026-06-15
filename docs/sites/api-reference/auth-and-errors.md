@@ -1,7 +1,7 @@
 # Authentication and Errors
 
 <p class="api-page-intro">
-  This page defines the security model and error envelope shared across the Craw Chat HTTP APIs.
+  This page defines the security model and error envelope shared across the Sdkwork IM HTTP APIs.
   Individual operation pages document only endpoint-specific authorization requirements or conflict
   conditions on top of these defaults.
 </p>
@@ -35,13 +35,13 @@ access token:
 - `Access-Token: <access-token>`
 
 Tenant, user, session, app, device, actor, data-scope, and permission-scope context is resolved from
-those token claims. `craw-chat` does not own login or token issuance.
+those token claims. `sdkwork-im` does not own login or token issuance.
 
 | Item | Value |
 | --- | --- |
 | External auth owner | `sdkwork-appbase` |
 | Required public token model | SDKWork dual token |
-| Craw Chat input | Dual-token claims, or private signed trusted-edge projection |
+| Sdkwork IM input | Dual-token claims, or private signed trusted-edge projection |
 | Resolver | `resolve_app_context()` |
 
 ### `AppContextProjection`

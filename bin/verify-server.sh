@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/verify-server.sh [--instance <name>] [--config-dir <path>] [--release-gate-path <path-to-release-gate.json>] [--output-format <text|json>]
 
-Validate config, storage wiring, and ready state for craw-chat-server, and optionally audit the machine-readable release-gate bundle for semantic contract drift, decisionStatus, contractsValid, platforms, and semanticIssues.
+Validate config, storage wiring, and ready state for sdkwork-im-server, and optionally audit the machine-readable release-gate bundle for semantic contract drift, decisionStatus, contractsValid, platforms, and semanticIssues.
 EOF
 }
 
@@ -171,7 +171,7 @@ fi
 if [[ "$output_format" == "json" ]]; then
   cat <<EOF
 {
-  "product": "craw-chat-server",
+  "product": "sdkwork-im-server",
   "instance": "${instance_name}",
   "config": "${config_dir}",
   "configValid": ${config_valid},
@@ -183,7 +183,7 @@ if [[ "$output_format" == "json" ]]; then
 }
 EOF
 else
-  echo "craw-chat-server verify report"
+  echo "sdkwork-im-server verify report"
   echo "config: ${config_dir}"
   echo "configValid: ${config_valid}"
   echo "storageValid: ${config_valid}"

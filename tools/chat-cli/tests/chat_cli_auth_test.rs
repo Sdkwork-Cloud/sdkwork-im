@@ -1,4 +1,4 @@
-use craw_chat_cli::{CommandOutput, execute_command, parse_cli_args};
+use sdkwork_im_cli::{CommandOutput, execute_command, parse_cli_args};
 
 fn command_output_json(output: CommandOutput) -> serde_json::Value {
     match output {
@@ -10,7 +10,7 @@ fn command_output_json(output: CommandOutput) -> serde_json::Value {
 #[test]
 fn test_chat_cli_rejects_removed_login_command() {
     let error = parse_cli_args([
-        "craw-chat-cli",
+        "sdkwork-im-cli",
         "--base-url",
         "http://127.0.0.1:18090",
         "--tenant-id",
@@ -25,7 +25,7 @@ fn test_chat_cli_rejects_removed_login_command() {
         "--password",
         "Guest#2026",
     ])
-    .expect_err("craw-chat CLI must not expose a craw-chat-owned login command");
+    .expect_err("sdkwork-im CLI must not expose a sdkwork-im-owned login command");
 
     assert!(
         error.message().contains("unknown command: login"),
@@ -38,7 +38,7 @@ fn test_chat_cli_rejects_removed_login_command() {
 async fn test_chat_cli_token_command_uses_supplied_bearer_token_without_login() {
     let output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             "http://127.0.0.1:18090",
             "--tenant-id",
@@ -57,7 +57,7 @@ async fn test_chat_cli_token_command_uses_supplied_bearer_token_without_login() 
         .expect("token args should parse"),
     )
     .await
-    .expect("token command should not call craw-chat login");
+    .expect("token command should not call sdkwork-im login");
 
     let json = command_output_json(output);
     assert_eq!(json["source"], "providedBearerToken");

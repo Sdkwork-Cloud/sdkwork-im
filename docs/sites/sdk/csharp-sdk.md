@@ -26,7 +26,7 @@ future semantic .NET package remains reserved under `composed`.
 
 ## What Ships Today
 
-- live-schema generation from the Craw Chat OpenAPI 3.x contract
+- live-schema generation from the Sdkwork IM OpenAPI 3.x contract
 - verified generated package naming and assembly metadata
 - a stable ownership split between `generated/server-openapi` and `composed`
 - a raw generated transport client named `ImTransportClient`
@@ -107,7 +107,7 @@ C# workspace wrappers:
 
 ## When To Choose C#
 
-- Choose C# when you need a verified .NET transport package generated from the Craw Chat app API.
+- Choose C# when you need a verified .NET transport package generated from the Sdkwork IM app API.
 - Choose C# when your application or service can work directly against generated request or
   response models and route-group methods.
 - Choose TypeScript when you need the current message-first and live-runtime semantic baseline.

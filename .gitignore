@@ -49,12 +49,7 @@ apps/control-plane/dist/
 apps/control-plane/dist-portal/
 apps/control-plane/src-tauri/target/
 apps/control-plane/src-tauri/target-local/
-apps/craw-chat-admin/node_modules.__stale__donor*/
-apps/craw-chat-admin/dist/
-apps/craw-chat-admin/dist-portal/
-apps/craw-chat-admin/src-tauri/target/
-apps/craw-chat-admin/src-tauri/target-local/
-apps/sdkwork-chat-pc.zip
+apps/sdkwork-im-pc.zip
 
 # SDKWork local environment and runtime config overrides
 .env.local

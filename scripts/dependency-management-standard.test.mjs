@@ -21,12 +21,12 @@ const sourceDependencyFiles = [
   'Cargo.toml',
   '.github/workflows/im-commercial-gates.yml',
   '.github/workflows/package.yml',
-  'apps/sdkwork-chat-pc/package.json',
-  'apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/package.json',
-  'apps/sdkwork-chat-pc/pnpm-lock.yaml',
-  'apps/sdkwork-chat-pc/pnpm-workspace.yaml',
-  'apps/sdkwork-chat-pc/tsconfig.json',
-  'apps/sdkwork-chat-pc/vite.config.ts',
+  'apps/sdkwork-im-pc/package.json',
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/package.json',
+  'apps/sdkwork-im-pc/pnpm-lock.yaml',
+  'apps/sdkwork-im-pc/pnpm-workspace.yaml',
+  'apps/sdkwork-im-pc/tsconfig.json',
+  'apps/sdkwork-im-pc/vite.config.ts',
   'crates/im-domain-core/Cargo.toml',
   'crates/im-platform-contracts/Cargo.toml',
   'services/local-minimal-node/Cargo.toml',
@@ -242,40 +242,40 @@ function assertSharedGatewayFoundationIntegration() {
     'specs/component.spec.json foundationApiGateway.targetMode must be shared-gateway',
   );
   assert(
-    foundationGateway?.commonSdkRootEnv === 'SDKWORK_CHAT_SERVER_API_BASE_URL',
-    'specs/component.spec.json must use SDKWORK_CHAT_SERVER_API_BASE_URL as the server common SDK root',
+    foundationGateway?.commonSdkRootEnv === 'SDKWORK_IM_SERVER_API_BASE_URL',
+    'specs/component.spec.json must use SDKWORK_IM_SERVER_API_BASE_URL as the server common SDK root',
   );
   assert(
-    foundationGateway?.browserSdkRootEnv === 'VITE_CRAW_CHAT_APP_API_BASE_URL',
-    'specs/component.spec.json must use VITE_CRAW_CHAT_APP_API_BASE_URL as the browser app-api gateway root',
+    foundationGateway?.browserSdkRootEnv === 'VITE_SDKWORK_IM_APP_API_BASE_URL',
+    'specs/component.spec.json must use VITE_SDKWORK_IM_APP_API_BASE_URL as the browser app-api gateway root',
   );
   assert(
     foundationGateway?.authority === 'cargo-workspace',
-    'Craw Chat shared gateway integration must use Cargo workspace metadata as build authority',
+    'Sdkwork IM shared gateway integration must use Cargo workspace metadata as build authority',
   );
   assert(
     foundationGateway?.catalogPolicy === 'no-dedicated-gateway-catalog',
-    'Craw Chat must not introduce a standalone gateway catalog',
+    'Sdkwork IM must not introduce a standalone gateway catalog',
   );
   assert(
-    foundationGateway?.productApiPolicy === 'Craw Chat IM APIs remain product-owned SDKWork API surfaces',
-    'Craw Chat component spec must keep IM APIs product-owned',
+    foundationGateway?.productApiPolicy === 'Sdkwork IM IM APIs remain product-owned SDKWork API surfaces',
+    'Sdkwork IM component spec must keep IM APIs product-owned',
   );
   assert(
     foundationGateway?.migrationState === 'shared-gateway-default',
-    'Craw Chat foundation API defaults must use sdkwork-api-gateway instead of product-local aggregation',
+    'Sdkwork IM foundation API defaults must use sdkwork-api-gateway instead of product-local aggregation',
   );
 
   assert(
     !componentSpecText.includes('legacyCompatibilityComponents')
       && !componentSpecText.includes('legacyDirectFoundationRuntimeDependencies')
       && !componentSpecText.includes('legacy-web-gateway'),
-    'Craw Chat shared-gateway migration is complete only when component.spec.json no longer declares legacy web-gateway compatibility or direct foundation runtime dependencies',
+    'Sdkwork IM shared-gateway migration is complete only when component.spec.json no longer declares legacy web-gateway compatibility or direct foundation runtime dependencies',
   );
 
   assert(
     !Array.isArray(foundationGateway?.legacyCompatibilityDefaultFoundationUpstreams),
-    'Craw Chat must not document per-module foundation upstreams as defaults beside the shared gateway root',
+    'Sdkwork IM must not document per-module foundation upstreams as defaults beside the shared gateway root',
   );
   const explicitSplitOverrideUpstreams = (foundationGateway?.splitOverrideFoundationUpstreams ?? [])
     .slice()
@@ -287,7 +287,7 @@ function assertSharedGatewayFoundationIntegration() {
     ].sort();
   assert(
     JSON.stringify(explicitSplitOverrideUpstreams) === JSON.stringify(expectedSplitOverrideUpstreams),
-    'Craw Chat may keep per-module foundation upstreams only as explicit split-deployment overrides',
+    'Sdkwork IM may keep per-module foundation upstreams only as explicit split-deployment overrides',
   );
 
   for (const relativePath of ['Cargo.toml', 'services/web-gateway/Cargo.toml']) {
@@ -385,7 +385,7 @@ function assertSharedGatewayFoundationIntegration() {
   }
 
   for (const relativePath of [
-    'crates/craw-chat-gateway-config/src/lib.rs',
+    'crates/sdkwork-im-gateway-config/src/lib.rs',
     'services/web-gateway/src/main.rs',
     'services/web-gateway/src/lib.rs',
   ]) {

@@ -7,7 +7,7 @@
 
 ## Why This Round
 
-- `craw-chat-cli token` already separated generated and provided token sources.
+- `sdkwork-im-cli token` already separated generated and provided token sources.
 - But `providedBearerToken` still exposed `claims` synthesized from local CLI inputs, which overstated what the CLI knew about an external token.
 - This was the next smallest real Step 12 contract gap after token-only and lowercase bearer normalization.
 
@@ -32,8 +32,8 @@
 ## Verification
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_does_not_synthesize_claims_for_provided_bearer_tokens -- --exact --nocapture
-cargo test -p craw-chat-cli --offline -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_does_not_synthesize_claims_for_provided_bearer_tokens -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 ```
 

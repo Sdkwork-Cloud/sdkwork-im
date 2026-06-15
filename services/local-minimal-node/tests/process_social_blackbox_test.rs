@@ -34,7 +34,7 @@ fn unique_runtime_dir(prefix: &str) -> PathBuf {
         .expect("system time should be after epoch")
         .as_nanos();
     let sequence = NEXT_RUNTIME_DIR_ID.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("craw_chat_{prefix}_{unique}_{sequence}"))
+    std::env::temp_dir().join(format!("sdkwork_im_{prefix}_{unique}_{sequence}"))
 }
 
 fn reserve_local_port() -> u16 {
@@ -59,10 +59,10 @@ fn spawn_local_minimal_server_with_env(
     let bind_addr = format!("127.0.0.1:{port}");
     let mut command = Command::new(env!("CARGO_BIN_EXE_local-minimal-node"));
     command
-        .env("CRAW_CHAT_RUNTIME_DIR", runtime_dir)
-        .env("CRAW_CHAT_BIND_ADDR", bind_addr.as_str())
+        .env("SDKWORK_IM_RUNTIME_DIR", runtime_dir)
+        .env("SDKWORK_IM_BIND_ADDR", bind_addr.as_str())
         .env(
-            "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET",
+            "SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET",
             "blackbox-test-secret",
         )
         .stdin(Stdio::null())
@@ -429,7 +429,7 @@ fn test_local_minimal_process_blackbox_concurrent_accepts_converge_idempotently_
         runtime_dir.as_path(),
         port_a,
         &[(
-            "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
+            "SDKWORK_IM_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
             "250",
         )],
     );
@@ -437,7 +437,7 @@ fn test_local_minimal_process_blackbox_concurrent_accepts_converge_idempotently_
         runtime_dir.as_path(),
         port_b,
         &[(
-            "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
+            "SDKWORK_IM_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
             "250",
         )],
     );
@@ -543,7 +543,7 @@ fn test_local_minimal_process_blackbox_cross_instance_accept_and_submit_same_pai
     let server_a = spawn_local_minimal_server_with_env(
         runtime_dir.as_path(),
         port_a,
-        &[("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "400")],
+        &[("SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "400")],
     );
     let server_b = spawn_local_minimal_server(runtime_dir.as_path(), port_b);
 
@@ -744,7 +744,7 @@ fn test_local_minimal_process_blackbox_restart_repairs_pending_acceptance_after_
     let mut server_a = spawn_local_minimal_server_with_env(
         runtime_dir.as_path(),
         port_a,
-        &[("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "15000")],
+        &[("SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "15000")],
     );
 
     let (submit_status, submit_json) = send_json_request(

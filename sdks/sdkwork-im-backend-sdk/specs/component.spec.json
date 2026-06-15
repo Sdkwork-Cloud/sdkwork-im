@@ -6,7 +6,7 @@
     "displayName": "SDKWork IM Backend API SDK",
     "version": "0.1.0",
     "type": "sdk-family",
-    "root": "craw-chat/sdks/sdkwork-im-backend-sdk",
+    "root": "sdkwork-im/sdks/sdkwork-im-backend-sdk",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "im",
@@ -139,9 +139,9 @@
     "apiAuthority": {
       "name": "sdkwork-im-backend-api",
       "prefix": "/backend/v3/api",
-      "authorityOpenApi": "openapi/craw-chat-backend-api.openapi.yaml",
+      "authorityOpenApi": "openapi/sdkwork-im-backend-api.openapi.yaml",
       "derivedOpenApi": [
-        "openapi/craw-chat-backend-api.sdkgen.yaml"
+        "openapi/sdkwork-im-backend-api.sdkgen.yaml"
       ],
       "standard": "../../../../../specs/SDK_WORKSPACE_GENERATION_SPEC.md"
     },

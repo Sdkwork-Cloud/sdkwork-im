@@ -14,7 +14,7 @@
 
 ### Existing files to modify
 
-- `crates/craw-chat-contract-admin/src/lib.rs`
+- `crates/sdkwork-im-contract-admin/src/lib.rs`
 - `crates/sdkwork-api-product-runtime/src/admin_sandbox.rs`
 - `crates/sdkwork-api-product-runtime/src/lib.rs` if the sandbox dispatch needs route plumbing
 - `apps/control-plane/dev/admin-sandbox-seed.json`
@@ -43,8 +43,8 @@
 
 ### New files to create
 
-- `crates/craw-chat-contract-admin/src/storage.rs`
-- `crates/craw-chat-contract-admin/tests/storage_contract_test.rs`
+- `crates/sdkwork-im-contract-admin/src/storage.rs`
+- `crates/sdkwork-im-contract-admin/tests/storage_contract_test.rs`
 - `crates/sdkwork-api-product-runtime/tests/admin_storage_sandbox_test.rs`
 - `apps/control-plane/packages/sdkwork-control-plane-admin-api/src/storage.ts`
 - `apps/control-plane/packages/sdkwork-control-plane-types/src/storage.ts`
@@ -66,9 +66,9 @@
 ### Task 1: Define The Storage Contract And Visibility Model
 
 **Files:**
-- Create: `crates/craw-chat-contract-admin/src/storage.rs`
-- Modify: `crates/craw-chat-contract-admin/src/lib.rs`
-- Create: `crates/craw-chat-contract-admin/tests/storage_contract_test.rs`
+- Create: `crates/sdkwork-im-contract-admin/src/storage.rs`
+- Modify: `crates/sdkwork-im-contract-admin/src/lib.rs`
+- Create: `crates/sdkwork-im-contract-admin/tests/storage_contract_test.rs`
 
 - [ ] **Step 1: Write the failing contract tests**
 
@@ -83,7 +83,7 @@ Add tests that require:
 Run:
 
 ```bash
-cargo test -p craw-chat-contract-admin storage_contract_test -- --exact
+cargo test -p sdkwork-im-contract-admin storage_contract_test -- --exact
 ```
 
 Expected: FAIL because the storage contract types and helpers do not exist yet.
@@ -107,7 +107,7 @@ Keep the storage domain separate from generic provider credentials so the new ad
 Run:
 
 ```bash
-cargo test -p craw-chat-contract-admin storage_contract_test -- --exact
+cargo test -p sdkwork-im-contract-admin storage_contract_test -- --exact
 ```
 
 Expected: PASS
@@ -115,7 +115,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add crates/craw-chat-contract-admin/src/storage.rs crates/craw-chat-contract-admin/src/lib.rs crates/craw-chat-contract-admin/tests/storage_contract_test.rs
+git add crates/sdkwork-im-contract-admin/src/storage.rs crates/sdkwork-im-contract-admin/src/lib.rs crates/sdkwork-im-contract-admin/tests/storage_contract_test.rs
 git commit -m "feat(storage): define admin storage contract"
 ```
 
@@ -414,7 +414,7 @@ git commit -m "docs(api): add storage management reference"
 Run:
 
 ```bash
-cargo test -p craw-chat-contract-admin
+cargo test -p sdkwork-im-contract-admin
 cargo test -p sdkwork-api-product-runtime admin_storage_sandbox_test -- --exact
 ```
 

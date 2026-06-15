@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build professional app-facing SDK workspaces for `craw-chat` TypeScript and Flutter by introducing an OpenAPI 3.x authority contract, a generator-compatible derived spec, root regeneration wrappers, and language workspaces that keep generated output isolated from manual-owned files.
+Build professional app-facing SDK workspaces for `sdkwork-im` TypeScript and Flutter by introducing an OpenAPI 3.x authority contract, a generator-compatible derived spec, root regeneration wrappers, and language workspaces that keep generated output isolated from manual-owned files.
 
 ## Decisions
 
@@ -21,9 +21,9 @@ The workspace root `sdks/sdkwork-im-sdk` will own the OpenAPI source, regenerati
 
 ## Files And Responsibilities
 
-- `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
-  Authority OpenAPI 3.x contract for the app-facing craw-chat surface.
-- `sdks/sdkwork-im-sdk/openapi/craw-chat-im.sdkgen.yaml`
+- `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml`
+  Authority OpenAPI 3.x contract for the app-facing sdkwork-im surface.
+- `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.sdkgen.yaml`
   Generator-compatible derived spec consumed by `sdkwork-sdk-generator`.
 - `sdks/sdkwork-im-sdk/openapi/README.md`
   Documents authority-vs-derived ownership and offline regeneration rules.

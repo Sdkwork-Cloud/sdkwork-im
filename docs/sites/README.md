@@ -1,11 +1,11 @@
-# craw-chat-docs
+# sdkwork-im-docs
 
 Domain: communication
-Capability: craw-chat-docs
+Capability: sdkwork-im-docs
 Package type: node-package
 Status: standard
 
-This README is the SDKWork module entrypoint for `craw-chat-docs`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../sdkwork-specs/`.
+This README is the SDKWork module entrypoint for `sdkwork-im-docs`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../sdkwork-specs/`.
 
 ## Public API
 

@@ -315,14 +315,14 @@ let request = build_text_message("hello world", PostTextOptions {
 assert_eq!(request.text.as_deref(), Some("hello world"));
 
 let frame = build_text_stream_frame(7, "partial chunk", TextFrameOptions {
-    schema_ref: Some("urn:craw-chat:stream:text".into()),
+    schema_ref: Some("urn:sdkwork-im:stream:text".into()),
     attributes: Some(hashmap([("role", "assistant")])),
 });
 assert_eq!(frame.frame_type, "text");
 assert_eq!(frame.encoding, "text/plain; charset=utf-8");
 
 let signal = build_json_rtc_signal("offer", &json!({"sdp":"v=0","type":"offer"}), JsonRtcSignalOptions {
-    schema_ref: Some("urn:craw-chat:rtc:signal".into()),
+    schema_ref: Some("urn:sdkwork-im:rtc:signal".into()),
     signaling_stream_id: Some("signal-stream-1".into()),
 });
 assert_eq!(signal.signal_type, "offer");

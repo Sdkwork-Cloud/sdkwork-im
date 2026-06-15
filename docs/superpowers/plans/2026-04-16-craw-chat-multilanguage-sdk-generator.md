@@ -1,10 +1,10 @@
-# Craw Chat Multilanguage SDK Generator Implementation Plan
+# Sdkwork IM Multilanguage SDK Generator Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Expand `sdks/sdkwork-im-sdk` into a verified multi-language SDK workspace that standardizes generation, normalization, assembly, verification, and docs for `typescript`, `flutter`, `rust`, `java`, `csharp`, `swift`, `kotlin`, `go`, and `python`, using the live Craw Chat OpenAPI 3.x schema as the source of truth.
+**Goal:** Expand `sdks/sdkwork-im-sdk` into a verified multi-language SDK workspace that standardizes generation, normalization, assembly, verification, and docs for `typescript`, `flutter`, `rust`, `java`, `csharp`, `swift`, `kotlin`, `go`, and `python`, using the live Sdkwork IM OpenAPI 3.x schema as the source of truth.
 
-**Architecture:** Keep OpenAPI generation isolated under each language workspace's `generated/server-openapi` boundary and treat all live runtime, message ergonomics, RTC helpers, and higher-level product-facing workflows as non-generated semantic code. In the current writable scope, implementation focuses on the Craw Chat workspace itself: root wrappers, language workspace skeletons, capability metadata, verification, and docs. Any generator-core fixes outside `apps/craw-chat` are captured as workspace-level contract failures and follow-up backlog rather than edited directly here.
+**Architecture:** Keep OpenAPI generation isolated under each language workspace's `generated/server-openapi` boundary and treat all live runtime, message ergonomics, RTC helpers, and higher-level product-facing workflows as non-generated semantic code. In the current writable scope, implementation focuses on the Sdkwork IM workspace itself: root wrappers, language workspace skeletons, capability metadata, verification, and docs. Any generator-core fixes outside `apps/sdkwork-im` are captured as workspace-level contract failures and follow-up backlog rather than edited directly here.
 
 **Tech Stack:** Node.js, PowerShell, POSIX shell, OpenAPI 3.0.3, existing `sdkwork-sdk-generator` CLI integration, TypeScript verification scripts, VitePress docs, language-native package metadata formats
 
@@ -500,7 +500,7 @@ Run:
 powershell -ExecutionPolicy Bypass -File sdks/sdkwork-im-sdk/bin/generate-sdk.ps1 -Languages typescript,flutter,rust,java,csharp,swift,kotlin,go,python
 ```
 
-Expected: every language is attempted from the same live Craw Chat schema export.
+Expected: every language is attempted from the same live Sdkwork IM schema export.
 
 - [ ] **Step 2: Run full workspace verification**
 
@@ -626,8 +626,8 @@ git commit -m "docs(sdk): add multilanguage sdk site coverage"
 **Files:**
 - Create: `sdks/sdkwork-im-sdk/docs/multilanguage-generator-standard.md`
 - Modify: `sdks/sdkwork-im-sdk/README.md`
-- Modify: `docs/superpowers/specs/2026-04-16-craw-chat-multilanguage-sdk-generator-design.md`
-- Modify: `docs/superpowers/plans/2026-04-16-craw-chat-multilanguage-sdk-generator.md`
+- Modify: `docs/superpowers/specs/2026-04-16-sdkwork-im-multilanguage-sdk-generator-design.md`
+- Modify: `docs/superpowers/plans/2026-04-16-sdkwork-im-multilanguage-sdk-generator.md`
 - Test: `sdks/sdkwork-im-sdk/bin/verify-internal-docs.mjs`
 
 - [ ] **Step 1: Write the missing maintainer-doc assertions**
@@ -673,7 +673,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-im-sdk/docs/multilanguage-generator-standard.md sdks/sdkwork-im-sdk/README.md docs/superpowers/specs/2026-04-16-craw-chat-multilanguage-sdk-generator-design.md docs/superpowers/plans/2026-04-16-craw-chat-multilanguage-sdk-generator.md
+git add sdks/sdkwork-im-sdk/docs/multilanguage-generator-standard.md sdks/sdkwork-im-sdk/README.md docs/superpowers/specs/2026-04-16-sdkwork-im-multilanguage-sdk-generator-design.md docs/superpowers/plans/2026-04-16-sdkwork-im-multilanguage-sdk-generator.md
 git commit -m "docs(sdk): formalize multilanguage generator standard"
 ```
 

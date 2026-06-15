@@ -6,7 +6,7 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{any, get},
 };
-use craw_chat_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
+use sdkwork_im_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
 use http_body_util::BodyExt;
 use im_app_context::{
     AppContext, build_dual_token_headers_for_context, local_service_app_context,
@@ -32,7 +32,7 @@ fn gateway_test_app_context() -> AppContext {
         ["*"],
     );
     context.session_id = Some("session_real".to_owned());
-    context.app_id = Some("sdkwork-chat-pc".to_owned());
+    context.app_id = Some("sdkwork-im-pc".to_owned());
     context
 }
 
@@ -67,7 +67,7 @@ fn gateway_numeric_auth_headers() -> HeaderMap {
     );
     context.organization_id = Some("30001".to_owned());
     context.session_id = Some("session_numeric".to_owned());
-    context.app_id = Some("sdkwork-chat-pc".to_owned());
+    context.app_id = Some("sdkwork-im-pc".to_owned());
     build_dual_token_headers_for_context(&context, context.permission_scope.iter())
 }
 
@@ -292,7 +292,7 @@ async fn gateway_derives_proxied_im_http_context_from_appbase_dual_tokens_not_cl
 #[tokio::test]
 async fn gateway_drops_sdkwork_internal_headers_when_signature_secret_is_configured() {
     let _signature_secret = ScopedEnvVar::set(
-        "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
+        "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET",
         "gateway-signing-secret",
     );
     let appbase = spawn_app_upstream(Router::new().route(
@@ -621,7 +621,7 @@ async fn gateway_handles_browser_cors_preflight_for_im_app_iam_routes() {
     assert!(
         response
             .headers()
-            .get("x-craw-chat-upstream-service")
+            .get("x-sdkwork-im-upstream-service")
             .is_none(),
         "gateway should answer browser preflight itself instead of proxying it to appbase"
     );
@@ -682,14 +682,14 @@ async fn gateway_adds_browser_cors_headers_to_im_app_iam_responses() {
     assert_eq!(
         response
             .headers()
-            .get("x-craw-chat-upstream-service")
+            .get("x-sdkwork-im-upstream-service")
             .and_then(|value| value.to_str().ok()),
         Some("sdkwork-appbase-app-api")
     );
 }
 
 fn test_gateway_config(
-    upstreams: Vec<craw_chat_gateway_config::ServiceUpstreamConfig>,
+    upstreams: Vec<sdkwork_im_gateway_config::ServiceUpstreamConfig>,
 ) -> WebGatewayConfig {
     WebGatewayConfig {
         bind_addr: "127.0.0.1:0".to_owned(),

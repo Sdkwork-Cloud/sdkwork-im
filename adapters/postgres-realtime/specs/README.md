@@ -10,7 +10,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- |
 | Name | `im-adapters-postgres-realtime` |
 | Type | `rust-crate` |
-| Root | `craw-chat/adapters/postgres-realtime` |
+| Root | `sdkwork-im/adapters/postgres-realtime` |
 | Domain | `communication` |
 | Capability | `im` |
 | Languages | `rust` |
@@ -52,4 +52,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/adapters/postgres-realtime/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/adapters/postgres-realtime/Cargo.toml`

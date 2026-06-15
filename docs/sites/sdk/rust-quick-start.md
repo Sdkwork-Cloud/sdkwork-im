@@ -2,7 +2,7 @@
 
 ## Audience
 
-Use this page when you are integrating Craw Chat from a Rust backend, service, or systems-oriented
+Use this page when you are integrating Sdkwork IM from a Rust backend, service, or systems-oriented
 application and want the preferred composed crate.
 
 ## Crate

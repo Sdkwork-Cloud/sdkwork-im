@@ -7,11 +7,11 @@ use im_domain_core::conversation::{
 };
 use im_domain_core::media::{DriveReference, MediaKind, MediaResource, MediaSource};
 use im_domain_core::message::{
-    CRAW_CHAT_CUSTOM_MESSAGE_SCHEMA_PREFIX, CRAW_CHAT_MESSAGE_SCHEMA_AGENT,
-    CRAW_CHAT_MESSAGE_SCHEMA_AI_IMAGE, CRAW_CHAT_MESSAGE_SCHEMA_AI_VIDEO,
-    CRAW_CHAT_MESSAGE_SCHEMA_CARD, CRAW_CHAT_MESSAGE_SCHEMA_CONTACT, CRAW_CHAT_MESSAGE_SCHEMA_LINK,
-    CRAW_CHAT_MESSAGE_SCHEMA_LOCATION, CRAW_CHAT_MESSAGE_SCHEMA_MUSIC,
-    CRAW_CHAT_MESSAGE_SCHEMA_STICKER, CRAW_CHAT_MESSAGE_SCHEMA_VOICE, ContentPart, DataPart,
+    SDKWORK_IM_CUSTOM_MESSAGE_SCHEMA_PREFIX, SDKWORK_IM_MESSAGE_SCHEMA_AGENT,
+    SDKWORK_IM_MESSAGE_SCHEMA_AI_IMAGE, SDKWORK_IM_MESSAGE_SCHEMA_AI_VIDEO,
+    SDKWORK_IM_MESSAGE_SCHEMA_CARD, SDKWORK_IM_MESSAGE_SCHEMA_CONTACT, SDKWORK_IM_MESSAGE_SCHEMA_LINK,
+    SDKWORK_IM_MESSAGE_SCHEMA_LOCATION, SDKWORK_IM_MESSAGE_SCHEMA_MUSIC,
+    SDKWORK_IM_MESSAGE_SCHEMA_STICKER, SDKWORK_IM_MESSAGE_SCHEMA_VOICE, ContentPart, DataPart,
     MediaPart, Message, MessageBody, MessageEdited, MessageLocatorIndex, MessageRecalled,
     MessageType, Sender,
 };
@@ -912,7 +912,7 @@ fn test_message_mutation_payloads_serialize_stable_shape() {
 fn test_message_body_derives_summary_for_rich_structured_message_schemas() {
     let cases = [
         (
-            CRAW_CHAT_MESSAGE_SCHEMA_LOCATION,
+            SDKWORK_IM_MESSAGE_SCHEMA_LOCATION,
             json!({
                 "name": "The Bund",
                 "latitude": 31.2400,
@@ -921,7 +921,7 @@ fn test_message_body_derives_summary_for_rich_structured_message_schemas() {
             "Location: The Bund",
         ),
         (
-            CRAW_CHAT_MESSAGE_SCHEMA_LINK,
+            SDKWORK_IM_MESSAGE_SCHEMA_LINK,
             json!({
                 "title": "Realtime architecture",
                 "url": "https://example.com/realtime"
@@ -929,14 +929,14 @@ fn test_message_body_derives_summary_for_rich_structured_message_schemas() {
             "Link: Realtime architecture",
         ),
         (
-            CRAW_CHAT_MESSAGE_SCHEMA_CARD,
+            SDKWORK_IM_MESSAGE_SCHEMA_CARD,
             json!({
                 "title": "Support escalation"
             }),
             "Card: Support escalation",
         ),
         (
-            CRAW_CHAT_MESSAGE_SCHEMA_MUSIC,
+            SDKWORK_IM_MESSAGE_SCHEMA_MUSIC,
             json!({
                 "title": "Ambient Focus",
                 "url": "https://example.com/music"
@@ -944,28 +944,28 @@ fn test_message_body_derives_summary_for_rich_structured_message_schemas() {
             "Music: Ambient Focus",
         ),
         (
-            CRAW_CHAT_MESSAGE_SCHEMA_CONTACT,
+            SDKWORK_IM_MESSAGE_SCHEMA_CONTACT,
             json!({
                 "displayName": "Alice"
             }),
             "Contact: Alice",
         ),
         (
-            CRAW_CHAT_MESSAGE_SCHEMA_STICKER,
+            SDKWORK_IM_MESSAGE_SCHEMA_STICKER,
             json!({
                 "stickerId": "sticker_wave"
             }),
             "Sticker",
         ),
         (
-            CRAW_CHAT_MESSAGE_SCHEMA_VOICE,
+            SDKWORK_IM_MESSAGE_SCHEMA_VOICE,
             json!({
                 "durationSeconds": 7
             }),
             "Voice message",
         ),
         (
-            CRAW_CHAT_MESSAGE_SCHEMA_AGENT,
+            SDKWORK_IM_MESSAGE_SCHEMA_AGENT,
             json!({
                 "agentId": "agent_sales_router",
                 "agentName": "Sales Router"
@@ -973,14 +973,14 @@ fn test_message_body_derives_summary_for_rich_structured_message_schemas() {
             "Agent: Sales Router",
         ),
         (
-            CRAW_CHAT_MESSAGE_SCHEMA_AI_IMAGE,
+            SDKWORK_IM_MESSAGE_SCHEMA_AI_IMAGE,
             json!({
                 "prompt": "A skyline at sunset"
             }),
             "AI image generated",
         ),
         (
-            CRAW_CHAT_MESSAGE_SCHEMA_AI_VIDEO,
+            SDKWORK_IM_MESSAGE_SCHEMA_AI_VIDEO,
             json!({
                 "prompt": "Launch teaser"
             }),
@@ -1006,7 +1006,7 @@ fn test_message_body_derives_summary_for_rich_structured_message_schemas() {
     let custom_body = MessageBody {
         summary: None,
         parts: vec![ContentPart::Data(DataPart {
-            schema_ref: format!("{CRAW_CHAT_CUSTOM_MESSAGE_SCHEMA_PREFIX}workflow.approval"),
+            schema_ref: format!("{SDKWORK_IM_CUSTOM_MESSAGE_SCHEMA_PREFIX}workflow.approval"),
             encoding: "application/json".into(),
             payload: json!({
                 "approvalId": "approval_demo"
@@ -1030,7 +1030,7 @@ fn test_message_body_prefers_structured_semantics_and_media_signal_fallbacks() {
         parts: vec![
             ContentPart::text("caption that should not become the summary"),
             ContentPart::Data(DataPart {
-                schema_ref: CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+                schema_ref: SDKWORK_IM_MESSAGE_SCHEMA_LOCATION.into(),
                 encoding: "application/json".into(),
                 payload: json!({
                     "name": "West Lake",
@@ -1109,7 +1109,7 @@ fn test_message_body_with_derived_summary_preserves_explicit_summary_and_normali
     let explicit = MessageBody {
         summary: Some("Pinned place".into()),
         parts: vec![ContentPart::Data(DataPart {
-            schema_ref: CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+            schema_ref: SDKWORK_IM_MESSAGE_SCHEMA_LOCATION.into(),
             encoding: "application/json".into(),
             payload: json!({
                 "name": "The Bund"
@@ -1125,7 +1125,7 @@ fn test_message_body_with_derived_summary_preserves_explicit_summary_and_normali
     let normalized = MessageBody {
         summary: Some("   ".into()),
         parts: vec![ContentPart::Data(DataPart {
-            schema_ref: CRAW_CHAT_MESSAGE_SCHEMA_CARD.into(),
+            schema_ref: SDKWORK_IM_MESSAGE_SCHEMA_CARD.into(),
             encoding: "application/json".into(),
             payload: json!({
                 "title": "Escalation runbook"

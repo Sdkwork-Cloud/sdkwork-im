@@ -6,7 +6,7 @@
     "displayName": "SDKWork IM RPC SDK",
     "version": "0.1.0",
     "type": "sdk-family",
-    "root": "craw-chat/sdks/sdkwork-im-rpc-sdk",
+    "root": "sdkwork-im/sdks/sdkwork-im-rpc-sdk",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "chat",
@@ -205,7 +205,7 @@
   },
   "verification": {
     "commands": [
-      "node scripts/dev/sdkwork-chat-rpc-contract.test.mjs",
+      "node scripts/dev/sdkwork-im-rpc-contract.test.mjs",
       "node ../sdkwork-sdk-generator/bin/sdkgen.js generate --protocol rpc --input sdks/sdkwork-im-rpc-sdk/rpc/sdkwork-im-rpc.manifest.json --proto-root proto --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language typescript --package-name @sdkwork/im-rpc-sdk --dry-run --no-sync-published-version",
       "node ../sdkwork-sdk-generator/bin/sdkgen.js generate --protocol rpc --input sdks/sdkwork-im-rpc-sdk/rpc/sdkwork-im-rpc.manifest.json --proto-root proto --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-go --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language go --package-name github.com/sdkwork/im-rpc-sdk-go --dry-run --no-sync-published-version",
       "node ../sdkwork-sdk-generator/bin/sdkgen.js generate --protocol rpc --input sdks/sdkwork-im-rpc-sdk/rpc/sdkwork-im-rpc.manifest.json --proto-root proto --output sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-java --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language java --package-name com.sdkwork.im.rpc --dry-run --no-sync-published-version",

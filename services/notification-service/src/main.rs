@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-const BIND_ADDR_ENV: &str = "CRAW_CHAT_NOTIFICATION_SERVICE_BIND_ADDR";
+const BIND_ADDR_ENV: &str = "SDKWORK_IM_NOTIFICATION_SERVICE_BIND_ADDR";
 const DEFAULT_BIND_ADDR: &str = "127.0.0.1:18087";
 
 #[tokio::main]

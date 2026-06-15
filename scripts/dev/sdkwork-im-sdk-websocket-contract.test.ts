@@ -16,12 +16,12 @@ type ImWebSocketLike = import('../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescri
 const tsxReentryEnv = 'SDKWORK_IM_SDK_WEBSOCKET_CONTRACT_TSX';
 const scriptPath = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(scriptPath), '..', '..');
-const tsxCliPath = path.join(repoRoot, 'apps', 'sdkwork-chat-pc', 'node_modules', 'tsx', 'dist', 'cli.mjs');
+const tsxCliPath = path.join(repoRoot, 'apps', 'sdkwork-im-pc', 'node_modules', 'tsx', 'dist', 'cli.mjs');
 
 if (process.env[tsxReentryEnv] !== '1') {
   if (!existsSync(tsxCliPath)) {
     console.error(`[sdkwork-im-sdk-websocket-contract] missing tsx runner: ${tsxCliPath}`);
-    console.error('[sdkwork-im-sdk-websocket-contract] run pnpm install from apps/sdkwork-chat-pc first');
+    console.error('[sdkwork-im-sdk-websocket-contract] run pnpm install from apps/sdkwork-im-pc first');
     process.exit(1);
   }
 

@@ -11,7 +11,7 @@ fn runtime_config_env_guard() -> std::sync::MutexGuard<'static, ()> {
 #[test]
 fn test_resolve_bind_addr_defaults_and_supports_container_override() {
     let _guard = runtime_config_env_guard();
-    let key = "CRAW_CHAT_BIND_ADDR";
+    let key = "SDKWORK_IM_BIND_ADDR";
     let previous = std::env::var(key).ok();
     unsafe {
         std::env::remove_var(key);
@@ -39,7 +39,7 @@ fn test_resolve_bind_addr_defaults_and_supports_container_override() {
 #[test]
 fn test_resolve_runtime_dir_defaults_and_supports_override() {
     let _guard = runtime_config_env_guard();
-    let key = "CRAW_CHAT_RUNTIME_DIR";
+    let key = "SDKWORK_IM_RUNTIME_DIR";
     let previous = std::env::var(key).ok();
     unsafe {
         std::env::remove_var(key);
@@ -113,18 +113,18 @@ fn assert_schema_source_path_defaults_and_supports_override(
 fn test_resolve_openapi_schema_source_paths_default_to_split_surface_contracts_and_support_override()
  {
     assert_schema_source_path_defaults_and_supports_override(
-        "CRAW_CHAT_IM_OPENAPI_SCHEMA_PATH",
-        "sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml",
+        "SDKWORK_IM_IM_OPENAPI_SCHEMA_PATH",
+        "sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml",
         local_minimal_node::resolve_im_openapi_schema_source_path,
     );
     assert_schema_source_path_defaults_and_supports_override(
-        "CRAW_CHAT_APP_API_OPENAPI_SCHEMA_PATH",
-        "sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml",
+        "SDKWORK_IM_APP_API_OPENAPI_SCHEMA_PATH",
+        "sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml",
         local_minimal_node::resolve_app_api_openapi_schema_source_path,
     );
     assert_schema_source_path_defaults_and_supports_override(
-        "CRAW_CHAT_BACKEND_API_OPENAPI_SCHEMA_PATH",
-        "sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml",
+        "SDKWORK_IM_BACKEND_API_OPENAPI_SCHEMA_PATH",
+        "sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml",
         local_minimal_node::resolve_backend_api_openapi_schema_source_path,
     );
 }
@@ -132,7 +132,7 @@ fn test_resolve_openapi_schema_source_paths_default_to_split_surface_contracts_a
 #[test]
 fn test_resolve_public_browser_origins_defaults_and_supports_override() {
     let _guard = runtime_config_env_guard();
-    let key = "CRAW_CHAT_BROWSER_ORIGINS";
+    let key = "SDKWORK_IM_BROWSER_ORIGINS";
     let previous = std::env::var(key).ok();
     unsafe {
         std::env::remove_var(key);
@@ -175,7 +175,7 @@ fn test_resolve_public_browser_origins_defaults_and_supports_override() {
 #[test]
 fn test_resolve_public_browser_origins_rejects_invalid_explicit_entries() {
     let _guard = runtime_config_env_guard();
-    let key = "CRAW_CHAT_BROWSER_ORIGINS";
+    let key = "SDKWORK_IM_BROWSER_ORIGINS";
     let previous = std::env::var(key).ok();
     unsafe {
         std::env::set_var(key, "https://portal.example.com/app");

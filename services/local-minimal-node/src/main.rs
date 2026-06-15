@@ -457,7 +457,7 @@ async fn run() -> Result<(), String> {
 }
 
 fn resolve_commercial_evidence_root() -> PathBuf {
-    std::env::var(local_minimal_node::CRAW_CHAT_COMMERCIAL_EVIDENCE_ROOT_ENV)
+    std::env::var(local_minimal_node::SDKWORK_IM_COMMERCIAL_EVIDENCE_ROOT_ENV)
         .map(PathBuf::from)
         .unwrap_or_else(|_| local_minimal_node::resolve_commercial_evidence_root())
 }

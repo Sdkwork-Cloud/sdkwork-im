@@ -1,8 +1,8 @@
-# Craw Chat Admin Design
+# Sdkwork IM Admin Design
 
 ## Goal
 
-Build `apps/control-plane` as the professional IM control-plane workspace for Craw Chat by fully reproducing the architecture standard of `apps/sdkwork-api-router/apps/sdkwork-router-admin`, including:
+Build `apps/control-plane` as the professional IM control-plane workspace for Sdkwork IM by fully reproducing the architecture standard of `apps/sdkwork-api-router/apps/sdkwork-router-admin`, including:
 
 - a standalone React and Tauri workspace
 - a thin root app with package-first composition

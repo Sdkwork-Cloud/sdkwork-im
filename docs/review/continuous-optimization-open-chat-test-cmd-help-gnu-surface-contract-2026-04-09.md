@@ -37,7 +37,7 @@
 Red:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_open_chat_test_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_open_chat_test_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
 ```
 
 - Failed before the patch because `open-chat-test.cmd --help` only printed `-OwnerUserId`, `-ScriptedValidation`, and `-ValidationMessage` style usage.
@@ -45,8 +45,8 @@ cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_open_chat_te
 Green:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test -- --nocapture
-cargo test -p craw-chat-cli --offline -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test -- --nocapture
+cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 cmd /c .\bin\open-chat-test.cmd --help
 ```

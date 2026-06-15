@@ -149,8 +149,8 @@ pub use build::{
     build_public_app_with_runtime_dir, try_build_public_app,
 };
 pub use commercial_readiness::{
-    CRAW_CHAT_COMMERCIAL_EVIDENCE_ROOT_ENV, CRAW_CHAT_DATABASE_URL_ENV,
-    CRAW_CHAT_POSTGRES_CONFIG_ENV, CRAW_CHAT_RUNTIME_PROFILE_ENV, CRAW_CHAT_STORAGE_PROVIDER_ENV,
+    SDKWORK_IM_COMMERCIAL_EVIDENCE_ROOT_ENV, SDKWORK_IM_DATABASE_URL_ENV,
+    SDKWORK_IM_POSTGRES_CONFIG_ENV, SDKWORK_IM_RUNTIME_PROFILE_ENV, SDKWORK_IM_STORAGE_PROVIDER_ENV,
     CommercialReadinessBlocker, CommercialReadinessInputs, CommercialReadinessReport,
     CommercialReadinessStatus, CommercialStep11Evidence, commercial_readiness_required_for_profile,
     commercial_readiness_required_from_env, evaluate_commercial_readiness,
@@ -253,18 +253,18 @@ const PROJECTION_SNAPSHOT_CHECKPOINT_KEY: &str = "conversation-snapshot-checkpoi
 const LOCAL_NODE_AUDIT_AGGREGATE_ID_MAX_BYTES: usize = 256;
 const LOCAL_NODE_AUDIT_RECORD_ID_MAX_BYTES: usize = 256;
 const LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS_ENV: &str =
-    "CRAW_CHAT_LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS";
+    "SDKWORK_IM_LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS";
 const LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 const LOCAL_MINIMAL_NODE_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 50_000;
 const LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES_ENV: &str =
-    "CRAW_CHAT_LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES";
+    "SDKWORK_IM_LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES";
 const LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const LOCAL_MINIMAL_NODE_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 const LOCAL_MINIMAL_NODE_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
-    "CRAW_CHAT_LOCAL_MINIMAL_NODE_REQUIRE_DUAL_TOKEN_HEADERS";
-const IM_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_IM_OPENAPI_SCHEMA_PATH";
-const APP_API_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_APP_API_OPENAPI_SCHEMA_PATH";
-const BACKEND_API_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_BACKEND_API_OPENAPI_SCHEMA_PATH";
+    "SDKWORK_IM_LOCAL_MINIMAL_NODE_REQUIRE_DUAL_TOKEN_HEADERS";
+const IM_OPENAPI_SCHEMA_PATH_ENV: &str = "SDKWORK_IM_IM_OPENAPI_SCHEMA_PATH";
+const APP_API_OPENAPI_SCHEMA_PATH_ENV: &str = "SDKWORK_IM_APP_API_OPENAPI_SCHEMA_PATH";
+const BACKEND_API_OPENAPI_SCHEMA_PATH_ENV: &str = "SDKWORK_IM_BACKEND_API_OPENAPI_SCHEMA_PATH";
 const IM_OPENAPI_SCHEMA_PATH: &str = "/im/v3/openapi.json";
 const APP_API_OPENAPI_SCHEMA_PATH: &str = "/app/v3/openapi.json";
 const BACKEND_API_OPENAPI_SCHEMA_PATH: &str = "/backend/v3/openapi.json";
@@ -276,12 +276,12 @@ pub(crate) struct PublicAppGuardrails {
     app_context_signature_config: AppContextSignatureConfig,
 }
 const IM_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
-    include_str!("../../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml");
+    include_str!("../../../sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml");
 const APP_API_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
-    include_str!("../../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml");
+    include_str!("../../../sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml");
 const BACKEND_API_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
-    include_str!("../../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml");
-const PUBLIC_BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
+    include_str!("../../../sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml");
+const PUBLIC_BROWSER_ORIGINS_ENV: &str = "SDKWORK_IM_BROWSER_ORIGINS";
 const DEFAULT_PUBLIC_BROWSER_ORIGINS: &[&str] = &["http://127.0.0.1:4176", "http://localhost:4176"];
 
 fn stable_local_audit_aggregate_id(namespace: &str, business_id: &str) -> String {
@@ -1624,17 +1624,17 @@ impl IntoResponse for ApiError {
 }
 
 pub fn resolve_bind_addr() -> String {
-    std::env::var("CRAW_CHAT_BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:18090".into())
+    std::env::var("SDKWORK_IM_BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:18090".into())
 }
 
 pub fn resolve_runtime_dir() -> PathBuf {
-    std::env::var("CRAW_CHAT_RUNTIME_DIR")
+    std::env::var("SDKWORK_IM_RUNTIME_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from(".runtime").join("local-minimal"))
 }
 
 pub fn resolve_commercial_evidence_root() -> PathBuf {
-    env::var(CRAW_CHAT_COMMERCIAL_EVIDENCE_ROOT_ENV)
+    env::var(SDKWORK_IM_COMMERCIAL_EVIDENCE_ROOT_ENV)
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
 }
@@ -1678,21 +1678,21 @@ fn load_openapi_schema_json(
 pub fn resolve_im_openapi_schema_source_path() -> PathBuf {
     resolve_openapi_schema_source_path(
         IM_OPENAPI_SCHEMA_PATH_ENV,
-        "../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml",
+        "../../sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml",
     )
 }
 
 pub fn resolve_app_api_openapi_schema_source_path() -> PathBuf {
     resolve_openapi_schema_source_path(
         APP_API_OPENAPI_SCHEMA_PATH_ENV,
-        "../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml",
+        "../../sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml",
     )
 }
 
 pub fn resolve_backend_api_openapi_schema_source_path() -> PathBuf {
     resolve_openapi_schema_source_path(
         BACKEND_API_OPENAPI_SCHEMA_PATH_ENV,
-        "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml",
+        "../../sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml",
     )
 }
 
@@ -1700,7 +1700,7 @@ fn load_im_openapi_schema_json() -> Result<Value, ApiError> {
     load_openapi_schema_json(
         "im-open-api",
         IM_OPENAPI_SCHEMA_PATH_ENV,
-        "../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml",
+        "../../sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml",
         IM_OPENAPI_SCHEMA_EMBEDDED_YAML,
     )
 }
@@ -1709,7 +1709,7 @@ fn load_app_api_openapi_schema_json() -> Result<Value, ApiError> {
     load_openapi_schema_json(
         "im-app-api",
         APP_API_OPENAPI_SCHEMA_PATH_ENV,
-        "../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml",
+        "../../sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml",
         APP_API_OPENAPI_SCHEMA_EMBEDDED_YAML,
     )
 }
@@ -1718,7 +1718,7 @@ fn load_backend_api_openapi_schema_json() -> Result<Value, ApiError> {
     load_openapi_schema_json(
         "im-backend-api",
         BACKEND_API_OPENAPI_SCHEMA_PATH_ENV,
-        "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml",
+        "../../sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml",
         BACKEND_API_OPENAPI_SCHEMA_EMBEDDED_YAML,
     )
 }

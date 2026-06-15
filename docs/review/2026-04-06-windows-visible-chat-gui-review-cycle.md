@@ -52,8 +52,8 @@
 - 执行 `bin/open-chat-test.ps1 -SkipStart`
 - 成功创建会话：`c_demo_20260406210328`
 - 系统可枚举到 2 个可见聊天窗口：
-  - `craw-chat [owner] [c_demo_20260406210328]`
-  - `craw-chat [guest] [c_demo_20260406210328]`
+  - `sdkwork-im [owner] [c_demo_20260406210328]`
+  - `sdkwork-im [guest] [c_demo_20260406210328]`
 - 初始化消息成功发送到该会话
 
 ## 当前可直接使用

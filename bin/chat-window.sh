@@ -107,7 +107,7 @@ resolve_base_url() {
   fi
 
   local bind_address
-  bind_address="$(read_config_value CRAW_CHAT_BIND_ADDR || true)"
+  bind_address="$(read_config_value SDKWORK_IM_BIND_ADDR || true)"
   if [[ -z "$bind_address" ]]; then
     base_url="http://127.0.0.1:18090"
     return 0

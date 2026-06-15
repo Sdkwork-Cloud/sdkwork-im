@@ -13,8 +13,8 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use craw_chat_api_registry::HttpMethod;
-use craw_chat_openapi::{
+use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use im_app_context::{
@@ -32,15 +32,15 @@ use tokio::sync::Semaphore;
 use super::*;
 
 const CONVERSATION_RUNTIME_MAX_IN_FLIGHT_REQUESTS_ENV: &str =
-    "CRAW_CHAT_CONVERSATION_RUNTIME_MAX_IN_FLIGHT_REQUESTS";
+    "SDKWORK_IM_CONVERSATION_RUNTIME_MAX_IN_FLIGHT_REQUESTS";
 const CONVERSATION_RUNTIME_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 const CONVERSATION_RUNTIME_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 50_000;
 const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_ENV: &str =
-    "CRAW_CHAT_CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES";
+    "SDKWORK_IM_CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES";
 const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 const CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
-    "CRAW_CHAT_CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS";
+    "SDKWORK_IM_CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
 struct AppState {
@@ -191,11 +191,11 @@ impl PrincipalDirectory for StaticPrincipalDirectory {
 const SHARED_CHANNEL_SYNC_PERMISSION: &str = "conversation.shared_channel.sync";
 const SHARED_CHANNEL_SYNC_ACTOR_ID: &str = "control-plane-sync";
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS_ENV: &str =
-    "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS";
+    "SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS";
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS_ENV: &str =
-    "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS";
+    "SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS";
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS_ENV: &str =
-    "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS";
+    "SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS";
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_REQUESTS: u32 = 120;
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_WINDOW_SECONDS: u64 = 60;
 const SHARED_CHANNEL_SYNC_RATE_LIMIT_DEFAULT_MAX_BUCKETS: usize = 10_000;
@@ -1078,7 +1078,7 @@ fn build_conversation_runtime_openapi_document() -> Result<serde_json::Value, St
 
 fn conversation_runtime_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
-        title: "Craw Chat Conversation Runtime API",
+        title: "Sdkwork IM Conversation Runtime API",
         version: env!("CARGO_PKG_VERSION"),
         description: "Live OpenAPI contract generated from the conversation-runtime router for conversation creation, membership changes, messaging, read cursor updates, and shared_channel sync commands.",
         openapi_path: "/openapi.json",
@@ -2175,7 +2175,7 @@ mod tests {
             None,
             None,
             vec![ContentPart::Data(im_domain_core::message::DataPart {
-                schema_ref: im_domain_core::message::CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+                schema_ref: im_domain_core::message::SDKWORK_IM_MESSAGE_SCHEMA_LOCATION.into(),
                 encoding: "application/json".into(),
                 payload: serde_json::json!({
                     "name": "The Bund",
@@ -2198,7 +2198,7 @@ mod tests {
             Some("caption".into()),
             None,
             vec![ContentPart::Data(im_domain_core::message::DataPart {
-                schema_ref: im_domain_core::message::CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+                schema_ref: im_domain_core::message::SDKWORK_IM_MESSAGE_SCHEMA_LOCATION.into(),
                 encoding: "application/json".into(),
                 payload: serde_json::json!({
                     "name": "West Lake",

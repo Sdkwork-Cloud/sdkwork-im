@@ -10,7 +10,7 @@
 
 - `bin/chat-cli-local.cmd` reused the generic PowerShell forwarder `_cmd-forward-powershell.cmd`.
 - That forwarder normalized `--help` into `-Help`.
-- `craw-chat-cli` does not accept `-Help`, so `bin/chat-cli.cmd --help` failed with `unknown global flag: -Help`.
+- `sdkwork-im-cli` does not accept `-Help`, so `bin/chat-cli.cmd --help` failed with `unknown global flag: -Help`.
 
 ## Decision
 
@@ -33,7 +33,7 @@
 Red:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_cli_cmd_wrapper_preserves_help_contract -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_cli_cmd_wrapper_preserves_help_contract -- --exact --nocapture
 ```
 
 - Failed before the patch because the `.cmd` wrapper rewrote `--help` to `-Help`.
@@ -41,8 +41,8 @@ cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_cli_cmd
 Green:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_cli_cmd_wrapper_preserves_help_contract -- --exact --nocapture
-cargo test -p craw-chat-cli --offline -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_cli_cmd_wrapper_preserves_help_contract -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 ```
 

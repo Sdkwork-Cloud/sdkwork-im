@@ -13,8 +13,8 @@ families.
 | SDK workspace root | `sdks/sdkwork-im-backend-sdk` |
 | API prefix | `/backend/v3/api` |
 | Schema discovery | `/backend/v3/openapi.json` |
-| Authority snapshot | `sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml` |
-| Derived generator input | `sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.sdkgen.yaml` |
+| Authority snapshot | `sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml` |
+| Derived generator input | `sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.sdkgen.yaml` |
 | Primary generated TypeScript client | `SdkworkBackendClient` |
 
 Current backend modules include:

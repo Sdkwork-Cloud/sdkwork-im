@@ -1,7 +1,7 @@
 # Media
 
 <p class="api-page-intro">
-  Media in Craw Chat is a message-domain usage contract. File upload, binary storage, object
+  Media in Sdkwork IM is a message-domain usage contract. File upload, binary storage, object
   versioning, download authorization, and retention are owned by <code>sdkwork-drive</code>.
   IM carries standardized references to Drive nodes through <code>ContentPart.drive</code> and
   <code>MediaResource</code>.
@@ -22,7 +22,7 @@
 - resolve versions, permissions, previews, and download access
 - enforce storage provider and tenant policies
 
-Craw Chat does not create a parallel media storage system. Its IM contract only records how a
+Sdkwork IM does not create a parallel media storage system. Its IM contract only records how a
 message uses a file that already exists in Drive.
 
 The canonical Drive URI shape is:

@@ -1,9 +1,0 @@
-[package]
-name = "craw-chat-contract-message"
-edition.workspace = true
-license.workspace = true
-version.workspace = true
-
-[dependencies]
-craw-chat-contract-core = { path = "../craw-chat-contract-core" }
-im-domain-events = { path = "../im-domain-events" }

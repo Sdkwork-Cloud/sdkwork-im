@@ -5,13 +5,13 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-craw-chat-contract-admin = { path = "../craw-chat-contract-admin" }
-craw-chat-contract-agent = { path = "../craw-chat-contract-agent" }
-craw-chat-contract-control = { path = "../craw-chat-contract-control" }
-craw-chat-contract-core = { path = "../craw-chat-contract-core" }
-craw-chat-contract-message = { path = "../craw-chat-contract-message" }
-craw-chat-contract-notification = { path = "../craw-chat-contract-notification" }
-craw-chat-contract-stream = { path = "../craw-chat-contract-stream" }
+sdkwork-im-contract-admin = { path = "../sdkwork-im-contract-admin" }
+sdkwork-im-contract-agent = { path = "../sdkwork-im-contract-agent" }
+sdkwork-im-contract-control = { path = "../sdkwork-im-contract-control" }
+sdkwork-im-contract-core = { path = "../sdkwork-im-contract-core" }
+sdkwork-im-contract-message = { path = "../sdkwork-im-contract-message" }
+sdkwork-im-contract-notification = { path = "../sdkwork-im-contract-notification" }
+sdkwork-im-contract-stream = { path = "../sdkwork-im-contract-stream" }
 im-domain-core = { path = "../im-domain-core" }
 im-domain-events = { path = "../im-domain-events" }
 im-time = { path = "../im-time" }
@@ -19,14 +19,14 @@ sdkwork-rtc-core.workspace = true
 serde.workspace = true
 
 [dev-dependencies]
-craw-chat-ccp-binding-http = { path = "../craw-chat-ccp-binding-http" }
-craw-chat-ccp-binding-mqtt = { path = "../craw-chat-ccp-binding-mqtt" }
-craw-chat-ccp-binding-sse = { path = "../craw-chat-ccp-binding-sse" }
-craw-chat-ccp-binding-ws = { path = "../craw-chat-ccp-binding-ws" }
-craw-chat-ccp-codec = { path = "../craw-chat-ccp-codec" }
-craw-chat-ccp-codec-cbor = { path = "../craw-chat-ccp-codec-cbor" }
-craw-chat-ccp-codec-json = { path = "../craw-chat-ccp-codec-json" }
-craw-chat-ccp-control = { path = "../craw-chat-ccp-control" }
-craw-chat-ccp-core = { path = "../craw-chat-ccp-core" }
-craw-chat-ccp-registry = { path = "../craw-chat-ccp-registry" }
+sdkwork-im-ccp-binding-http = { path = "../sdkwork-im-ccp-binding-http" }
+sdkwork-im-ccp-binding-mqtt = { path = "../sdkwork-im-ccp-binding-mqtt" }
+sdkwork-im-ccp-binding-sse = { path = "../sdkwork-im-ccp-binding-sse" }
+sdkwork-im-ccp-binding-ws = { path = "../sdkwork-im-ccp-binding-ws" }
+sdkwork-im-ccp-codec = { path = "../sdkwork-im-ccp-codec" }
+sdkwork-im-ccp-codec-cbor = { path = "../sdkwork-im-ccp-codec-cbor" }
+sdkwork-im-ccp-codec-json = { path = "../sdkwork-im-ccp-codec-json" }
+sdkwork-im-ccp-control = { path = "../sdkwork-im-ccp-control" }
+sdkwork-im-ccp-core = { path = "../sdkwork-im-ccp-core" }
+sdkwork-im-ccp-registry = { path = "../sdkwork-im-ccp-registry" }
 serde_json.workspace = true

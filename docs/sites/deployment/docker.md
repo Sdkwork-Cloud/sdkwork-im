@@ -1,7 +1,7 @@
 # Docker
 
 Docker deployment is the recommended path for local container validation and demo-style bring-up.
-It is not the formal packaged `craw-chat-server` install contract.
+It is not the formal packaged `sdkwork-im-server` install contract.
 
 ## Compose Profiles
 
@@ -14,11 +14,11 @@ It is not the formal packaged `craw-chat-server` install contract.
 
 The repo Compose profile currently sets:
 
-- container name: `craw-chat-local-minimal`
-- `CRAW_CHAT_BIND_ADDR=0.0.0.0:18090`
-- `CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=local-minimal-friend-request-cursor-dev-secret`
-- `CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true`
-- `CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET=local-minimal-app-context-signature-dev-secret`
+- container name: `sdkwork-im-local-minimal`
+- `SDKWORK_IM_BIND_ADDR=0.0.0.0:18090`
+- `SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET=local-minimal-friend-request-cursor-dev-secret`
+- `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE=true`
+- `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET=local-minimal-app-context-signature-dev-secret`
 - port mapping: `18090:18090`
 - healthcheck: `curl -fsS http://127.0.0.1:18090/healthz`
 

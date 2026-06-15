@@ -47,7 +47,7 @@
     "version": "0.1.0",
     "language": "rust",
     "sdkType": "backend",
-    "outputPath": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-rust\\generated\\server-openapi",
+    "outputPath": "E:\\sdkwork-space\\sdkwork-im\\sdks\\sdkwork-im-backend-sdk\\sdkwork-im-backend-sdk-rust\\generated\\server-openapi",
     "packageName": "sdkwork-im-backend-api-generated"
   },
   "versioning": {

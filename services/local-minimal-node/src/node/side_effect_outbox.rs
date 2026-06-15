@@ -109,7 +109,7 @@ impl MessageSideEffectOutboxRecord {
             actor_id: self.actor_id.clone(),
             actor_kind: self.actor_kind.clone(),
             session_id: self.actor_session_id.clone(),
-            app_id: Some("craw-chat".into()),
+            app_id: Some("sdkwork-im".into()),
             environment: None,
             deployment_mode: None,
             auth_level: None,
@@ -764,7 +764,7 @@ mod tests {
             .as_nanos();
         let sequence = NEXT_OUTBOX_TEST_RUNTIME_DIR_SEQUENCE.fetch_add(1, Ordering::Relaxed);
         std::env::temp_dir().join(format!(
-            "craw_chat_message_side_effect_outbox_{prefix}_{unique}_{sequence}"
+            "sdkwork_im_message_side_effect_outbox_{prefix}_{unique}_{sequence}"
         ))
     }
 
@@ -776,7 +776,7 @@ mod tests {
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),
             session_id: Some("s_demo".into()),
-            app_id: Some("craw-chat".into()),
+            app_id: Some("sdkwork-im".into()),
             environment: None,
             deployment_mode: None,
             auth_level: None,

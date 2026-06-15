@@ -6,7 +6,7 @@
     "displayName": "Im Adapters Local Memory",
     "version": "0.1.0",
     "type": "rust-crate",
-    "root": "craw-chat/adapters/local-memory",
+    "root": "sdkwork-im/adapters/local-memory",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "im",
@@ -110,7 +110,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/adapters/local-memory/Cargo.toml"
+      "cargo test --manifest-path apps/sdkwork-im/adapters/local-memory/Cargo.toml"
     ]
   },
   "metadata": {

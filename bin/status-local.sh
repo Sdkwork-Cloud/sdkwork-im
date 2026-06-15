@@ -86,7 +86,7 @@ resolve_bind_addr_from_profile() {
   local config_bind_addr=""
 
   while IFS= read -r config_file; do
-    config_bind_addr="$(read_config_value_from_file "$config_file" "CRAW_CHAT_BIND_ADDR" || true)"
+    config_bind_addr="$(read_config_value_from_file "$config_file" "SDKWORK_IM_BIND_ADDR" || true)"
     if [[ -n "$config_bind_addr" ]]; then
       printf '%s\n' "$config_bind_addr"
       return 0

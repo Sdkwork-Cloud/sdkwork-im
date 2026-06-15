@@ -37,7 +37,7 @@ if [[ "$release_mode" -eq 1 ]]; then
   profile_dir="release"
 fi
 
-binary_path="${ROOT_DIR}/target/${profile_dir}/craw-chat-cli"
+binary_path="${ROOT_DIR}/target/${profile_dir}/sdkwork-im-cli"
 chat_cli_build_inputs=(
   "${ROOT_DIR}/Cargo.lock"
   "${ROOT_DIR}/tools/chat-cli/Cargo.toml"
@@ -98,7 +98,7 @@ chat_cli_binary_needs_build() {
 }
 
 if chat_cli_binary_needs_build; then
-  cargo_args=(build -p craw-chat-cli)
+  cargo_args=(build -p sdkwork-im-cli)
   if [[ "$release_mode" -eq 1 ]]; then
     cargo_args+=(--release)
   fi
@@ -106,7 +106,7 @@ if chat_cli_binary_needs_build; then
 fi
 
 if [[ ! -x "${binary_path}" ]]; then
-  echo "craw-chat-cli binary was not found after build: ${binary_path}" >&2
+  echo "sdkwork-im-cli binary was not found after build: ${binary_path}" >&2
   exit 1
 fi
 

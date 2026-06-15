@@ -9,9 +9,9 @@ audit-service = { path = "../audit-service" }
 axum.workspace = true
 base64 = "0.22.1"
 bytes = "1.11.1"
-craw-chat-api-registry = { path = "../../crates/craw-chat-api-registry" }
-craw-chat-openapi = { path = "../../crates/craw-chat-openapi" }
-craw-chat-ccp-registry = { path = "../../crates/craw-chat-ccp-registry" }
+sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
+sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+sdkwork-im-ccp-registry = { path = "../../crates/sdkwork-im-ccp-registry" }
 fs4 = "0.13.1"
 getrandom = "0.3.4"
 hmac = "0.12.1"

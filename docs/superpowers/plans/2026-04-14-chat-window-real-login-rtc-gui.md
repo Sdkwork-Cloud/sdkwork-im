@@ -22,7 +22,7 @@ Add or extend Windows wrapper tests that assert the operator contract now includ
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p craw-chat-cli test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact`
 Expected: FAIL because the help text does not yet describe the expanded operator surface.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -31,7 +31,7 @@ Update the relevant script help strings and wrapper-exposed usage text so the ne
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cargo test -p craw-chat-cli test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -53,7 +53,7 @@ Add a regression test that prepares a real-login conversation, launches the GUI 
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p craw-chat-cli test_chat_window_gui_manual_login_launch_is_idle -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_window_gui_manual_login_launch_is_idle -- --exact`
 Expected: FAIL because the current GUI always assumes authenticated chat mode.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -62,7 +62,7 @@ Teach the GUI script to distinguish pre-authenticated launch from manual-login l
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cargo test -p craw-chat-cli test_chat_window_gui_manual_login_launch_is_idle -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_window_gui_manual_login_launch_is_idle -- --exact`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -95,7 +95,7 @@ Add a real-login integration test that exercises the intended operator RTC seque
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p craw-chat-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
 Expected: FAIL because the current helper layer does not expose one cohesive operator workflow for RTC from the window support layer.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -104,7 +104,7 @@ Add reusable helper functions that mirror the intended GUI RTC actions and make 
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cargo test -p craw-chat-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -127,7 +127,7 @@ Use the new helper-focused regression from Task 3 as the failing spec for shared
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p craw-chat-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
 Expected: FAIL against current helper structure.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -141,7 +141,7 @@ Refactor the PowerShell scripts so they share:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cargo test -p craw-chat-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -163,7 +163,7 @@ Extend the GUI launch diagnostics test to assert that the form exposes manual lo
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p craw-chat-cli test_chat_window_gui_manual_login_launch_is_idle -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_window_gui_manual_login_launch_is_idle -- --exact`
 Expected: FAIL
 
 - [ ] **Step 3: Write minimal implementation**
@@ -184,7 +184,7 @@ Gate send/refresh until auth succeeds.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cargo test -p craw-chat-cli test_chat_window_gui_manual_login_launch_is_idle -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_window_gui_manual_login_launch_is_idle -- --exact`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -206,7 +206,7 @@ Use the RTC operator workflow test as the failing specification for create/invit
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p craw-chat-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
 Expected: FAIL until the window helper layer can drive the RTC lifecycle consistently.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -226,7 +226,7 @@ Append results to diagnostics and refresh the timeline after durable RTC actions
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cargo test -p craw-chat-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_chat_cli_real_login_rtc_operator_flow -- --exact`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -249,7 +249,7 @@ Add or extend launcher tests to assert that seeded auto-login still works while 
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cargo test -p craw-chat-cli test_open_chat_test_cmd_help_surfaces_gnu_style_named_flags -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_open_chat_test_cmd_help_surfaces_gnu_style_named_flags -- --exact`
 Expected: FAIL if the launcher contract does not expose the updated modes clearly enough.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -258,7 +258,7 @@ Update launcher help text and flow so operators can choose manual-login or auto-
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cargo test -p craw-chat-cli test_open_chat_test_cmd_help_surfaces_gnu_style_named_flags -- --exact`
+Run: `cargo test -p sdkwork-im-cli test_open_chat_test_cmd_help_surfaces_gnu_style_named_flags -- --exact`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -279,16 +279,16 @@ git commit -m "feat(tooling): align launcher with gui login and rtc flow"
 Run:
 
 ```bash
-cargo test -p craw-chat-cli test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact
-cargo test -p craw-chat-cli test_chat_window_gui_manual_login_launch_is_idle -- --exact
-cargo test -p craw-chat-cli test_chat_cli_real_login_rtc_operator_flow -- --exact
+cargo test -p sdkwork-im-cli test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact
+cargo test -p sdkwork-im-cli test_chat_window_gui_manual_login_launch_is_idle -- --exact
+cargo test -p sdkwork-im-cli test_chat_cli_real_login_rtc_operator_flow -- --exact
 ```
 
 Expected: PASS
 
 - [ ] **Step 2: Run broader package verification**
 
-Run: `cargo test -p craw-chat-cli`
+Run: `cargo test -p sdkwork-im-cli`
 Expected: PASS
 
 - [ ] **Step 3: Run real local service validation**

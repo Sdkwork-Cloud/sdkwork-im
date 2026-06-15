@@ -1,5 +1,5 @@
-use craw_chat_contract_control::{RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore};
-use craw_chat_contract_core::ContractError;
+use sdkwork_im_contract_control::{RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore};
+use sdkwork_im_contract_core::ContractError;
 use im_time::rfc3339_le;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

@@ -298,7 +298,7 @@ for (const link of sidebarLinks) {
     ["sdk", ".auth.me"].join(""),
   ]) {
     if (markdownContent.includes(legacyAuthMarker)) {
-      issues.push(`${link}: operation page must not document craw-chat-owned identity marker ${legacyAuthMarker}`);
+      issues.push(`${link}: operation page must not document sdkwork-im-owned identity marker ${legacyAuthMarker}`);
     }
   }
 }

@@ -39,7 +39,7 @@ async fn run() -> Result<(), String> {
 
 fn resolve_bind_addr() -> Result<SocketAddr, String> {
     let session_gateway_bind_addr = std::env::var("SESSION_GATEWAY_BIND_ADDR").ok();
-    let workspace_bind_addr = std::env::var("CRAW_CHAT_BIND_ADDR").ok();
+    let workspace_bind_addr = std::env::var("SDKWORK_IM_BIND_ADDR").ok();
 
     resolve_bind_addr_from_env(
         session_gateway_bind_addr.as_deref(),

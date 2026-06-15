@@ -18,7 +18,7 @@
   - `compatibility matrix`
   - `sdkwork-im-sdk`
   - `sdkwork-control-plane-sdk`
-  - `craw-chat-cli`
+  - `sdkwork-im-cli`
   - `open-chat-test`
   - `chat_cli_contract_test.rs`
   - `chat_cli_e2e_test.rs`
@@ -52,7 +52,7 @@
 
 ## 4. fresh evidence
 
-- `cargo test -p craw-chat-cli --offline test_continuous_optimization_docs_freeze_single_validation_index -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline test_continuous_optimization_docs_freeze_single_validation_index -- --nocapture`
 
 ## 5. 当前判断
 

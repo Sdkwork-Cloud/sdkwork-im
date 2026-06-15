@@ -16,7 +16,7 @@ RUN apt-get update \
 
 COPY --from=builder /workspace/target/release/local-minimal-node /usr/local/bin/local-minimal-node
 
-ENV CRAW_CHAT_BIND_ADDR=0.0.0.0:18090
+ENV SDKWORK_IM_BIND_ADDR=0.0.0.0:18090
 EXPOSE 18090
 
 CMD ["/usr/local/bin/local-minimal-node"]

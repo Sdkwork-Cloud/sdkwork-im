@@ -37,7 +37,7 @@
 - IM standardized endpoints under `/im/v3/api/*` map to [IM Standard API](/api-reference/im-api) and `sdkwork-im-sdk`.
 - Backend management, control, admin, operator, and audit endpoints map to [Backend API](/api-reference/backend-api) and `sdkwork-im-backend-sdk`.
 - App API routes do not own login, account, tenant, organization, or token refresh; those contexts are supplied by the upstream appbase identity system.
-- In packaged installs, the same App API surface is exposed through the unified `craw-chat-server`
+- In packaged installs, the same App API surface is exposed through the unified `sdkwork-im-server`
   / `web-gateway` public origin rather than a separate public app-node port.
 
 ## How To Use This Page

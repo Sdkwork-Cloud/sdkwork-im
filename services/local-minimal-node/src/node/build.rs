@@ -141,7 +141,7 @@ pub fn build_default_app_with_runtime_dir_and_principal_profile_provider(
 }
 
 fn configured_runtime_dir() -> Option<PathBuf> {
-    std::env::var("CRAW_CHAT_RUNTIME_DIR")
+    std::env::var("SDKWORK_IM_RUNTIME_DIR")
         .ok()
         .map(PathBuf::from)
 }
@@ -470,9 +470,9 @@ fn build_local_minimal_postgres_realtime_plane(
 
 fn resolve_local_minimal_realtime_storage_config_from_env()
 -> Result<LocalMinimalRealtimeStorageConfig, String> {
-    let storage_provider = std::env::var(CRAW_CHAT_STORAGE_PROVIDER_ENV).ok();
-    let database_url = std::env::var(CRAW_CHAT_DATABASE_URL_ENV).ok();
-    let postgres_config = std::env::var(CRAW_CHAT_POSTGRES_CONFIG_ENV).ok();
+    let storage_provider = std::env::var(SDKWORK_IM_STORAGE_PROVIDER_ENV).ok();
+    let database_url = std::env::var(SDKWORK_IM_DATABASE_URL_ENV).ok();
+    let postgres_config = std::env::var(SDKWORK_IM_POSTGRES_CONFIG_ENV).ok();
     resolve_local_minimal_realtime_storage_config(
         storage_provider.as_deref(),
         database_url.as_deref(),
@@ -501,7 +501,7 @@ fn resolve_local_minimal_realtime_storage_config(
                 load_local_minimal_postgres_realtime_config(config_path.as_str())?
             } else {
                 return Err(format!(
-                    "{CRAW_CHAT_STORAGE_PROVIDER_ENV}=postgresql requires {CRAW_CHAT_DATABASE_URL_ENV} or {CRAW_CHAT_POSTGRES_CONFIG_ENV}"
+                    "{SDKWORK_IM_STORAGE_PROVIDER_ENV}=postgresql requires {SDKWORK_IM_DATABASE_URL_ENV} or {SDKWORK_IM_POSTGRES_CONFIG_ENV}"
                 ));
             };
             Ok(LocalMinimalRealtimeStorageConfig {
@@ -510,7 +510,7 @@ fn resolve_local_minimal_realtime_storage_config(
             })
         }
         Some(provider) => Err(format!(
-            "{CRAW_CHAT_STORAGE_PROVIDER_ENV} has unsupported realtime storage provider `{provider}`; supported values are local-disk and postgresql"
+            "{SDKWORK_IM_STORAGE_PROVIDER_ENV} has unsupported realtime storage provider `{provider}`; supported values are local-disk and postgresql"
         )),
     }
 }
@@ -521,14 +521,14 @@ fn load_local_minimal_postgres_realtime_config(
     let config_path = PathBuf::from(config_path);
     let body = std::fs::read_to_string(&config_path).map_err(|error| {
         format!(
-            "failed to read {CRAW_CHAT_POSTGRES_CONFIG_ENV} at {}: {error}",
+            "failed to read {SDKWORK_IM_POSTGRES_CONFIG_ENV} at {}: {error}",
             config_path.display()
         )
     })?;
     let parsed: LocalMinimalPostgresConfigFile =
         serde_yaml::from_str(body.as_str()).map_err(|error| {
             format!(
-                "failed to parse {CRAW_CHAT_POSTGRES_CONFIG_ENV} at {}: {error}",
+                "failed to parse {SDKWORK_IM_POSTGRES_CONFIG_ENV} at {}: {error}",
                 config_path.display()
             )
         })?;
@@ -557,7 +557,7 @@ fn load_local_minimal_postgres_realtime_config(
         Ok(postgres)
     } else {
         Err(format!(
-            "{CRAW_CHAT_POSTGRES_CONFIG_ENV} provider must be postgresql, got `{}`",
+            "{SDKWORK_IM_POSTGRES_CONFIG_ENV} provider must be postgresql, got `{}`",
             parsed.provider
         ))
     }
@@ -599,7 +599,7 @@ fn validate_local_minimal_postgres_config(
         Ok(())
     } else {
         Err(format!(
-            "{CRAW_CHAT_POSTGRES_CONFIG_ENV} has invalid PostgreSQL settings: {}",
+            "{SDKWORK_IM_POSTGRES_CONFIG_ENV} has invalid PostgreSQL settings: {}",
             errors.join("; ")
         ))
     }
@@ -1605,11 +1605,11 @@ mod tests {
             .expect_err("postgresql realtime storage must not silently fall back to local disk");
 
         assert!(
-            error.contains(CRAW_CHAT_DATABASE_URL_ENV),
+            error.contains(SDKWORK_IM_DATABASE_URL_ENV),
             "missing PostgreSQL database URL should name the executable runtime env var: {error}"
         );
         assert!(
-            error.contains(CRAW_CHAT_POSTGRES_CONFIG_ENV),
+            error.contains(SDKWORK_IM_POSTGRES_CONFIG_ENV),
             "missing PostgreSQL database URL should explain why config-only input is insufficient: {error}"
         );
     }
@@ -1643,7 +1643,7 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .expect("system time should be after epoch")
             .as_nanos();
-        let config_root = std::env::temp_dir().join(format!("craw_chat_postgres_config_{unique}"));
+        let config_root = std::env::temp_dir().join(format!("sdkwork_im_postgres_config_{unique}"));
         let storage_dir = config_root.join("storage");
         let secrets_dir = config_root.join("secrets");
         std::fs::create_dir_all(&storage_dir).expect("storage dir should be created");
@@ -1657,11 +1657,11 @@ mod tests {
 connection:
   host: 127.0.0.1
   port: 15432
-  database: craw_chat
-  username: craw_chat_app
+  database: sdkwork_im
+  username: sdkwork_im_app
   passwordFile: ./secrets/postgresql.password
   sslmode: require
-  applicationName: craw-chat-server
+  applicationName: sdkwork-im-server
   connectTimeoutSeconds: 10
 pool:
   minConnections: 5
@@ -1694,11 +1694,11 @@ pool:
         for expected in [
             "host='127.0.0.1'",
             "port=15432",
-            "dbname='craw_chat'",
-            "user='craw_chat_app'",
+            "dbname='sdkwork_im'",
+            "user='sdkwork_im_app'",
             "password='demo-secret'",
             "sslmode='require'",
-            "application_name='craw-chat-server'",
+            "application_name='sdkwork-im-server'",
             "connect_timeout=10",
         ] {
             assert!(
@@ -1716,7 +1716,7 @@ pool:
             .expect_err("unknown realtime storage providers should fail closed");
 
         assert!(
-            error.contains(CRAW_CHAT_STORAGE_PROVIDER_ENV) && error.contains("memory"),
+            error.contains(SDKWORK_IM_STORAGE_PROVIDER_ENV) && error.contains("memory"),
             "unknown provider error should be actionable: {error}"
         );
     }
@@ -1726,11 +1726,11 @@ pool:
         let connection = LocalMinimalPostgresConnectionConfig {
             host: "127.0.0.1".into(),
             port: 5432,
-            database: "craw_chat".into(),
-            username: "craw_chat_app".into(),
+            database: "sdkwork_im".into(),
+            username: "sdkwork_im_app".into(),
             password_file: "unused".into(),
             sslmode: "require".into(),
-            application_name: Some("craw-chat-server".into()),
+            application_name: Some("sdkwork-im-server".into()),
             connect_timeout_seconds: Some(10),
         };
 
@@ -1749,7 +1749,7 @@ pool:
             .expect("system time should be after epoch")
             .as_nanos();
         let config_root =
-            std::env::temp_dir().join(format!("craw_chat_postgres_invalid_config_{unique}"));
+            std::env::temp_dir().join(format!("sdkwork_im_postgres_invalid_config_{unique}"));
         let storage_dir = config_root.join("storage");
         let secrets_dir = config_root.join("secrets");
         std::fs::create_dir_all(&storage_dir).expect("storage dir should be created");
@@ -1762,8 +1762,8 @@ pool:
             r#"provider: postgresql
 connection:
   host: "   "
-  database: craw_chat
-  username: craw_chat_app
+  database: sdkwork_im
+  username: sdkwork_im_app
   passwordFile: ./secrets/postgresql.password
   sslmode: trust-me
 pool:
@@ -1807,7 +1807,7 @@ pool:
             .expect("system time should be after epoch")
             .as_nanos();
         let config_root =
-            std::env::temp_dir().join(format!("craw_chat_postgres_zero_config_{unique}"));
+            std::env::temp_dir().join(format!("sdkwork_im_postgres_zero_config_{unique}"));
         let storage_dir = config_root.join("storage");
         let secrets_dir = config_root.join("secrets");
         std::fs::create_dir_all(&storage_dir).expect("storage dir should be created");
@@ -1821,8 +1821,8 @@ pool:
 connection:
   host: 127.0.0.1
   port: 0
-  database: craw_chat
-  username: craw_chat_app
+  database: sdkwork_im
+  username: sdkwork_im_app
   passwordFile: ./secrets/postgresql.password
   sslmode: prefer
   connectTimeoutSeconds: 0

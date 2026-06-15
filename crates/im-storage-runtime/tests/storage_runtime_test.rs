@@ -1,4 +1,4 @@
-use craw_chat_contract_core::ContractError;
+use sdkwork_im_contract_core::ContractError;
 use im_storage_contracts::{
     StorageCatalog, StorageConfigUpsertBindingInput, StorageConfigUpsertConfigInput,
     StorageConfigUpsertInput, StorageConfigUpsertSecretInput, StorageCredentialMode,

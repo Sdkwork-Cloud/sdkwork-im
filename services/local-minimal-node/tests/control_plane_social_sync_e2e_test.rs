@@ -29,7 +29,7 @@ impl TestRuntimeDir {
             .expect("system time should be after epoch")
             .as_nanos();
         let sequence = NEXT_RUNTIME_DIR_ID.fetch_add(1, Ordering::Relaxed);
-        let path = std::env::temp_dir().join(format!("craw_chat_{prefix}_{unique}_{sequence}"));
+        let path = std::env::temp_dir().join(format!("sdkwork_im_{prefix}_{unique}_{sequence}"));
         fs::create_dir_all(path.join("state")).expect("test runtime dir state should be created");
         Self { path }
     }

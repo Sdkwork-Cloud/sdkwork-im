@@ -8,11 +8,11 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
-use craw_chat_api_registry::{
+use sdkwork_im_api_registry::{
     HttpMethod, RouteDescriptor, RouteProtocol, RouteVisibility, SdkTarget, build_registry,
 };
-use craw_chat_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
-use craw_chat_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
+use sdkwork_im_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
+use sdkwork_im_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
 use futures_util::{SinkExt, StreamExt};
 use im_app_context::{AppContext, build_dual_token_headers_for_context, local_service_app_context};
 use serde_json::json;
@@ -38,7 +38,7 @@ async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
 }
 
 fn test_gateway_config(
-    upstreams: Vec<craw_chat_gateway_config::ServiceUpstreamConfig>,
+    upstreams: Vec<sdkwork_im_gateway_config::ServiceUpstreamConfig>,
 ) -> WebGatewayConfig {
     WebGatewayConfig {
         bind_addr: "127.0.0.1:0".to_owned(),
@@ -57,7 +57,7 @@ fn gateway_test_app_context() -> AppContext {
         ["*"],
     );
     context.session_id = Some("session_real".to_owned());
-    context.app_id = Some("sdkwork-chat-pc".to_owned());
+    context.app_id = Some("sdkwork-im-pc".to_owned());
     context
 }
 
@@ -542,7 +542,7 @@ async fn gateway_derives_realtime_websocket_context_from_appbase_dual_tokens_not
 async fn gateway_drops_realtime_websocket_sdkwork_internal_headers_when_signature_secret_is_configured()
  {
     let _signature_secret = ScopedEnvVar::set(
-        "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
+        "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET",
         "gateway-signing-secret",
     );
     let appbase_app = Router::new().route(

@@ -560,36 +560,36 @@ pub fn is_interactive_command(command: &CliCommand) -> bool {
 fn build_command_context(global: GlobalOptions) -> CommandContext {
     let user_id = global
         .user_id
-        .or_else(|| std::env::var("CRAW_CHAT_CLI_USER_ID").ok())
+        .or_else(|| std::env::var("SDKWORK_IM_CLI_USER_ID").ok())
         .unwrap_or_else(|| DEFAULT_USER_ID.to_owned());
     let sanitized_user_id = sanitize_identifier(user_id.as_str());
     let tenant_id = global
         .tenant_id
-        .or_else(|| std::env::var("CRAW_CHAT_CLI_TENANT_ID").ok())
+        .or_else(|| std::env::var("SDKWORK_IM_CLI_TENANT_ID").ok())
         .unwrap_or_else(|| DEFAULT_TENANT_ID.to_owned());
     let actor_kind = global
         .actor_kind
-        .or_else(|| std::env::var("CRAW_CHAT_CLI_ACTOR_KIND").ok())
+        .or_else(|| std::env::var("SDKWORK_IM_CLI_ACTOR_KIND").ok())
         .unwrap_or_else(|| "user".to_owned());
     let session_id = global
         .session_id
-        .or_else(|| std::env::var("CRAW_CHAT_CLI_SESSION_ID").ok())
+        .or_else(|| std::env::var("SDKWORK_IM_CLI_SESSION_ID").ok())
         .unwrap_or_else(|| format!("s_{sanitized_user_id}"));
     let device_id = global
         .device_id
-        .or_else(|| std::env::var("CRAW_CHAT_CLI_DEVICE_ID").ok())
+        .or_else(|| std::env::var("SDKWORK_IM_CLI_DEVICE_ID").ok())
         .unwrap_or_else(|| format!("d_{sanitized_user_id}"));
     let permissions = global
         .permissions
         .or_else(|| {
-            std::env::var("CRAW_CHAT_CLI_PERMISSIONS")
+            std::env::var("SDKWORK_IM_CLI_PERMISSIONS")
                 .ok()
                 .map(parse_permissions)
         })
         .unwrap_or_default();
     let base_url = global
         .base_url
-        .or_else(|| std::env::var("CRAW_CHAT_BASE_URL").ok())
+        .or_else(|| std::env::var("SDKWORK_IM_BASE_URL").ok())
         .or_else(resolve_base_url_from_config)
         .unwrap_or_else(|| DEFAULT_BASE_URL.to_owned());
 
@@ -609,7 +609,7 @@ fn build_command_context(global: GlobalOptions) -> CommandContext {
 
 fn resolve_base_url_from_config() -> Option<String> {
     let config_path = find_local_env_file()?;
-    let bind_address = read_env_file_value(config_path.as_path(), "CRAW_CHAT_BIND_ADDR")?;
+    let bind_address = read_env_file_value(config_path.as_path(), "SDKWORK_IM_BIND_ADDR")?;
     Some(bind_address_to_base_url(bind_address.as_str()))
 }
 
@@ -737,7 +737,7 @@ fn is_command_name(value: &str) -> bool {
 fn cli_usage() -> String {
     format!(
         concat!(
-            "Usage: craw-chat-cli [global options] <command> [command options]\n\n",
+            "Usage: sdkwork-im-cli [global options] <command> [command options]\n\n",
             "Global options:\n",
             "  --base-url <url>                 Service base url. Default: {base}\n",
             "  --tenant-id <id>                 Tenant id. Default: {tenant}\n",
@@ -759,7 +759,7 @@ fn cli_usage() -> String {
             "  watch --conversation-id <id> [--event-type <type>]... [--exit-after-events <n>] [--idle-timeout-seconds <n>]\n\n",
             "  chat-session --conversation-id <id> [--label <name>] [--message-prefix <prefix>] [--event-type <type>]... [--idle-timeout-seconds <n>]\n\n",
             "Example:\n",
-            "  craw-chat-cli --user-id u_owner --device-id d_owner --session-id s_owner create-conversation --conversation-id c_demo --conversation-type group\n"
+            "  sdkwork-im-cli --user-id u_owner --device-id d_owner --session-id s_owner create-conversation --conversation-id c_demo --conversation-type group\n"
         ),
         base = DEFAULT_BASE_URL,
         tenant = DEFAULT_TENANT_ID,
@@ -768,35 +768,35 @@ fn cli_usage() -> String {
 }
 
 fn token_usage() -> String {
-    "Usage: craw-chat-cli [global options] token [--token-only]".to_owned()
+    "Usage: sdkwork-im-cli [global options] token [--token-only]".to_owned()
 }
 
 fn create_conversation_usage() -> String {
-    "Usage: craw-chat-cli [global options] create-conversation --conversation-id <id> [--conversation-type <type>]".to_owned()
+    "Usage: sdkwork-im-cli [global options] create-conversation --conversation-id <id> [--conversation-type <type>]".to_owned()
 }
 
 fn add_member_usage() -> String {
-    "Usage: craw-chat-cli [global options] add-member --conversation-id <id> --principal-id <id> [--principal-kind <kind>] [--role <role>]".to_owned()
+    "Usage: sdkwork-im-cli [global options] add-member --conversation-id <id> --principal-id <id> [--principal-kind <kind>] [--role <role>]".to_owned()
 }
 
 fn members_usage() -> String {
-    "Usage: craw-chat-cli [global options] members --conversation-id <id>".to_owned()
+    "Usage: sdkwork-im-cli [global options] members --conversation-id <id>".to_owned()
 }
 
 fn send_message_usage() -> String {
-    "Usage: craw-chat-cli [global options] send-message --conversation-id <id> [--summary <text>] [--text <text>] [--client-msg-id <id>]".to_owned()
+    "Usage: sdkwork-im-cli [global options] send-message --conversation-id <id> [--summary <text>] [--text <text>] [--client-msg-id <id>]".to_owned()
 }
 
 fn timeline_usage() -> String {
-    "Usage: craw-chat-cli [global options] timeline --conversation-id <id>".to_owned()
+    "Usage: sdkwork-im-cli [global options] timeline --conversation-id <id>".to_owned()
 }
 
 fn watch_usage() -> String {
-    "Usage: craw-chat-cli [global options] watch --conversation-id <id> [--event-type <type>]... [--exit-after-events <n>] [--idle-timeout-seconds <n>]".to_owned()
+    "Usage: sdkwork-im-cli [global options] watch --conversation-id <id> [--event-type <type>]... [--exit-after-events <n>] [--idle-timeout-seconds <n>]".to_owned()
 }
 
 fn chat_session_usage() -> String {
-    "Usage: craw-chat-cli [global options] chat-session --conversation-id <id> [--label <name>] [--message-prefix <prefix>] [--event-type <type>]... [--idle-timeout-seconds <n>]".to_owned()
+    "Usage: sdkwork-im-cli [global options] chat-session --conversation-id <id> [--label <name>] [--message-prefix <prefix>] [--event-type <type>]... [--idle-timeout-seconds <n>]".to_owned()
 }
 
 #[derive(Debug, Clone)]
@@ -852,7 +852,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("system time should be after unix epoch")
             .as_nanos();
-        std::env::temp_dir().join(format!("craw_chat_cli_{name}_{unique}.env"))
+        std::env::temp_dir().join(format!("sdkwork_im_cli_{name}_{unique}.env"))
     }
 
     #[test]
@@ -863,12 +863,12 @@ mod tests {
             "\
 # comment
 NOT_A_VALID_ENV_LINE
-CRAW_CHAT_BIND_ADDR=127.0.0.1:18124
+SDKWORK_IM_BIND_ADDR=127.0.0.1:18124
 ",
         )
         .expect("temp env file should be written");
 
-        let value = read_env_file_value(path.as_path(), "CRAW_CHAT_BIND_ADDR");
+        let value = read_env_file_value(path.as_path(), "SDKWORK_IM_BIND_ADDR");
 
         let _ = fs::remove_file(&path);
         assert_eq!(value.as_deref(), Some("127.0.0.1:18124"));

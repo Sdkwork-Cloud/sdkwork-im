@@ -36,7 +36,7 @@
 Red:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
 ```
 
 - Failed before the patch because `chat-window-gui.cmd --help` only printed `-ConversationId`, `-UserId`, and `-MessagePrefix` style usage.
@@ -44,9 +44,9 @@ cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_
 Green:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test -- --nocapture
-cargo test -p craw-chat-cli --offline -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test -- --nocapture
+cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 cmd /c .\bin\chat-window-gui.cmd --help
 ```

@@ -926,7 +926,7 @@
   - 新增 `build_public_app_with_shared_channel_sync_trigger(...)`
   - 新增 `configured_public_shared_channel_sync_trigger(...)`
   - 新增 `SHARED_CHANNEL_SYNC_TARGET_BASE_URL_ENV`
-  - `services/control-plane-api/src/main.rs` 当前会在检测到 `CRAW_CHAT_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` 时装配真实 consumer；未配置时回落到原有 `build_public_app()`
+  - `services/control-plane-api/src/main.rs` 当前会在检测到 `SDKWORK_IM_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` 时装配真实 consumer；未配置时回落到原有 `build_public_app()`
   - shared-channel sync 当前通过 public bearer 身份调用 standalone `conversation-runtime` 的 `/im/v3/api/chat/conversations/shared_channel_links/sync`
   - 当前 bridge 只支持 `http://` public runtime target；`https://` 与 cross-service outbox / retry / remote republish 继续 deferred
 - TDD：
@@ -1550,7 +1550,7 @@
   - social runtime 收敛为统一 `SocialControlState`
   - 新增 `state/social-state.json`
   - 新增 `state/social-commit-journal.json`
-  - `CRAW_CHAT_RUNTIME_DIR` 命中时自动启用 file-backed social store
+  - `SDKWORK_IM_RUNTIME_DIR` 命中时自动启用 file-backed social store
   - 新增 `build_app_with_cluster_and_governance_sinks_and_runtime_dir(...)`
 - 以 TDD 新增并锁定：
   - `test_control_plane_social_file_runtime_restores_friend_request_snapshot_and_outbox`
@@ -1772,15 +1772,15 @@
 - Loop：`19`
 - 影响 step：`S09`、`S10`
 - 在 `crates/im-domain-core/src/conversation.rs` 收紧 `ConversationPolicy::normalize()`：仅允许 `joined / world_readable`，并对 `invited/shared` 返回显式 unsupported，终止“已发布但未实现”的 history visibility 漂移。
-- 在 `crates/craw-chat-ccp-registry/src/lib.rs` 把 `businessPolicyVocabulary.historyVisibilityModes` 收敛为 `joined / world_readable`，使 registry、control-plane、runtime 对外口径一致。
+- 在 `crates/sdkwork-im-ccp-registry/src/lib.rs` 把 `businessPolicyVocabulary.historyVisibilityModes` 收敛为 `joined / world_readable`，使 registry、control-plane、runtime 对外口径一致。
 - 在 `services/conversation-runtime/src/runtime/policy.rs` 移除 `invited/shared` 的隐式活跃成员语义；若 runtime 读路径遇到 legacy 快照，返回显式 unsupported，而不是继续伪装成受支持模式。
-- 以 TDD 扩展 `crates/im-domain-core/tests/conversation_domain_builder_test.rs`、`crates/craw-chat-ccp-registry/tests/governance_snapshot_test.rs`、`services/control-plane-api/tests/protocol_governance_test.rs`、`services/conversation-runtime/tests/http_smoke_test.rs`，先证明 domain/registry/control-plane/runtime 都在错误接受或发布未实现模式，再转绿。
+- 以 TDD 扩展 `crates/im-domain-core/tests/conversation_domain_builder_test.rs`、`crates/sdkwork-im-ccp-registry/tests/governance_snapshot_test.rs`、`services/control-plane-api/tests/protocol_governance_test.rs`、`services/conversation-runtime/tests/http_smoke_test.rs`，先证明 domain/registry/control-plane/runtime 都在错误接受或发布未实现模式，再转绿。
 - 更新 `docs/review/S09-*`、`docs/review/S10-准入判断-2026-04-10.md`、`docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`、`docs/架构/152CJ-Loop19补充-2026-04-10.md`、`docs/release/2026-04-10-v0.0.19-loop-19.md`，把 `S09` 正式提升为 `step_closure`，并解除 `S10` 准入阻塞。
 - fresh verification：
   - `cargo test -p im-domain-core --offline`：`passed`
   - `cargo test -p conversation-runtime --offline --tests`：`passed`
   - `cargo test -p control-plane-api --offline --tests`：`passed`
-  - `cargo test -p craw-chat-ccp-registry --offline`：`passed`
+  - `cargo test -p sdkwork-im-ccp-registry --offline`：`passed`
   - `cargo test -p im-platform-contracts --offline`：`passed`
 - 结论：`S09` 已完成“published policy vocabulary == real runtime support”闭环；`S10` 现已具备真实准入条件，未来若要重新发布 `invited/shared`，必须先完成对应 durable truth。
 
@@ -1798,7 +1798,7 @@
   - `cargo test -p im-domain-core --offline`：`passed`
   - `cargo test -p conversation-runtime --offline --tests`：`passed`
   - `cargo test -p control-plane-api --offline --tests`：`passed`
-  - `cargo test -p craw-chat-ccp-registry --offline`：`passed`
+  - `cargo test -p sdkwork-im-ccp-registry --offline`：`passed`
   - `cargo test -p im-platform-contracts --offline`：`passed`
 - 结论：`S09` 获得更强的 `local_closure = runtime history visibility partial read consumption`，但 `invited/shared` 仍折叠为活跃成员读取语义，`retention_policy_ref` 仍归 `S13` owner，因此 `S10` 继续阻塞。
 
@@ -1816,7 +1816,7 @@
   - `cargo test -p im-domain-core --offline`：`32 passed`
   - `cargo test -p conversation-runtime --offline --tests`：`113 passed`
   - `cargo test -p control-plane-api --offline --tests`：`40 passed`
-  - `cargo test -p craw-chat-ccp-registry --offline`：`2 passed`
+  - `cargo test -p sdkwork-im-ccp-registry --offline`：`2 passed`
   - `cargo test -p im-platform-contracts --offline`：`16 passed`
 - 结论：`S09` 获得更强的 `local_closure = runtime capability policy consumption`，但 `history_visibility` 尚无读路径、`retention_policy_ref` 尚无 owner 闭环，故仍不是 `step_closure`；`S10` 继续阻塞。
 
@@ -1826,13 +1826,13 @@
 
 - Loop：`16`
 - 影响 step：`S09`、`S10`
-- 在 `crates/craw-chat-ccp-registry/src/lib.rs` 为 `ProtocolGovernanceSnapshot` 新增 `business_policy_vocabulary`，正式冻结 `policy_version / capability_flags / history_visibility / retention_policy_ref` 字段名，以及 `historyVisibilityModes / retentionPolicyScopes` 的稳定值集合。
+- 在 `crates/sdkwork-im-ccp-registry/src/lib.rs` 为 `ProtocolGovernanceSnapshot` 新增 `business_policy_vocabulary`，正式冻结 `policy_version / capability_flags / history_visibility / retention_policy_ref` 字段名，以及 `historyVisibilityModes / retentionPolicyScopes` 的稳定值集合。
 - 在 `services/control-plane-api/src/lib.rs` 为 `/backend/v3/api/control/protocol-governance` 新增 `businessPolicyVocabulary` 输出，使协议治理快照对 control-plane reader 与后续 SDK facade 可直接消费，不再只停留在架构文档口径。
-- 以 TDD 扩展 `crates/craw-chat-ccp-registry/tests/governance_snapshot_test.rs`、`services/control-plane-api/tests/protocol_governance_test.rs`，先得到缺字段红灯，再转协议快照与 JSON surface 绿灯。
+- 以 TDD 扩展 `crates/sdkwork-im-ccp-registry/tests/governance_snapshot_test.rs`、`services/control-plane-api/tests/protocol_governance_test.rs`，先得到缺字段红灯，再转协议快照与 JSON surface 绿灯。
 - 更新 `docs/review/S09-*`、`docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`、`docs/架构/152CJ-Loop16补充-2026-04-10.md`、`sdks/README.md`、`sdks/sdkwork-im-sdk/README.md`、`sdks/sdkwork-control-plane-sdk/README.md`、`docs/release/2026-04-10-v0.0.16-loop-16.md`，把 `S09` 的协议词汇发布面回写为当前 as-built。
 - fresh verification：
   - `cargo test -p control-plane-api --offline --tests`：`40 passed`
-  - `cargo test -p craw-chat-ccp-registry --offline`：`2 passed`
+  - `cargo test -p sdkwork-im-ccp-registry --offline`：`2 passed`
   - `cargo test -p im-platform-contracts --offline`：`16 passed`
 - 结论：`S09` 获得 `local_closure = protocol business policy vocabulary publication`，但 `step_closure` 仍待 runtime/business model 对齐；`S10` 继续被 `S09` 阻塞。
 
@@ -1986,7 +1986,7 @@
 - 影响 step：`S08`、`S09`、`S10`
 - 新增 `docs/review/S08-执行卡-2026-04-10.md`，把新 `S08` 正式冻结为“projection / notification / read model” step，并明确旧 `step-08` 资料不再作为新编号闭环证据。
 - 新增 `docs/review/S10-准入判断-2026-04-10.md`，基于 fresh evidence 给出正式结论：`S10` 代码面可运行，但因 `S08 + S09` 未收口而 `暂不准入`。
-- fresh 执行 `projection-service`、`notification-service`、`control-plane-api`、`craw-chat-ccp-registry`、`im-platform-contracts`、`streaming-service`、`im-call-runtime`、`media-service`，把 `S08/S09/S10` 的判断统一建立在本轮证据上。
+- fresh 执行 `projection-service`、`notification-service`、`control-plane-api`、`sdkwork-im-ccp-registry`、`im-platform-contracts`、`streaming-service`、`im-call-runtime`、`media-service`，把 `S08/S09/S10` 的判断统一建立在本轮证据上。
 - 新增 `docs/release/2026-04-10-v0.0.5-loop-05.md`，固化本轮准入判断、阻塞项、评分与下一轮输入。
 
 ## v0.0.4 - 2026-04-10
@@ -2001,7 +2001,7 @@
 
 - Loop：03
 - 影响 step：`S09`、`S14`
-- fresh 执行 `cargo test -p craw-chat-ccp-registry --offline` 与 `cargo test -p im-platform-contracts --offline`，确认 `S09` 的 registry / contract / provider policy 基线具备可执行证据。
+- fresh 执行 `cargo test -p sdkwork-im-ccp-registry --offline` 与 `cargo test -p im-platform-contracts --offline`，确认 `S09` 的 registry / contract / provider policy 基线具备可执行证据。
 - 在 `services/control-plane-api/tests/protocol_governance_test.rs` 新增 `protocolGovernancePath` 断言，锁定 `sdkCompatibilityBaseline` 的控制面治理路径。
 - 更新 `sdks/README.md`、`sdks/sdkwork-im-sdk/README.md`、`sdks/sdkwork-control-plane-sdk/README.md`，使 SDK 文档与 `sdkCompatibilityBaseline` 的 facade、registry、governance、matrix 口径完全一致。
 

@@ -1,6 +1,6 @@
-# Craw Chat Component Specs
+# Sdkwork IM Component Specs
 
-This directory is the local standards index for `craw-chat`.
+This directory is the local standards index for `sdkwork-im`.
 
 Root SDKWork standards remain authoritative. Local component specs can narrow or document this component, but they must not contradict [the root standards](../sdkwork-specs/README.md).
 
@@ -8,9 +8,9 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 | Field | Value |
 | --- | --- |
-| Name | `craw-chat` |
+| Name | `sdkwork-im` |
 | Type | `app` |
-| Root | `craw-chat` |
+| Root | `sdkwork-im` |
 | Domain | `communication` |
 | Capability | `chat` |
 | Languages | `javascript, rust` |
@@ -20,14 +20,14 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 - [component.spec.json](./component.spec.json) is the machine-readable component contract.
 - Shared foundation API composition targets `sdkwork-api-gateway` through the existing
-  `SDKWORK_CHAT_SERVER_API_BASE_URL` server common SDK root and
-  `VITE_CRAW_CHAT_APP_API_BASE_URL` browser app-api root. `services/web-gateway` and
-  `crates/craw-chat-gateway-config` keep product-owned IM routing only; foundation API routing is
+  `SDKWORK_IM_SERVER_API_BASE_URL` server common SDK root and
+  `VITE_SDKWORK_IM_APP_API_BASE_URL` browser app-api root. `services/web-gateway` and
+  `crates/sdkwork-im-gateway-config` keep product-owned IM routing only; foundation API routing is
   owned by the shared gateway boundary.
 - Local PC development starts the sibling `sdkwork-api-gateway` Cargo service as the shared
   foundation gateway. Product-local server env defaults route Drive and Notary app-api traffic to
   that gateway root; dependency-specific upstream env keys are split-deployment overrides only.
-- `crates/craw-chat-gateway-config` defaults Appbase, Drive, and Notary service upstreams to the
+- `crates/sdkwork-im-gateway-config` defaults Appbase, Drive, and Notary service upstreams to the
   shared gateway root. Direct module URLs remain explicit split-deployment overrides.
 - Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
 - Generated SDK language outputs are represented at their SDK family root instead of duplicating local specs in generated folders.
@@ -63,12 +63,25 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Local Extension Specs
 
-- [im-app-api-sdk-integration.spec.md](./im-app-api-sdk-integration.spec.md) defines Craw Chat's IM API, IM app API, IM backend API, product SDK ownership, IAM login integration, shared database, local source-link development, and git-backed release dependency rules.
-- [database-prefix-registry.json](./database-prefix-registry.json) registers `im` as the controlled prefix for instant-messaging tables in the `chat` app.
+- [im-app-api-sdk-integration.spec.md](./im-app-api-sdk-integration.spec.md) defines Sdkwork IM's IM API, IM app API, IM backend API, product SDK ownership, IAM login integration, shared database, local source-link development, and git-backed release dependency rules.
+- [database-prefix-registry.json](./database-prefix-registry.json) registers `im` as the controlled prefix for instant-messaging tables in the `im` app.
 - [database-table-registry.json](./database-table-registry.json) lists the checked-in IM table contracts, table profiles, write owners, and migration source.
 - [database-table-naming-standard.md](../docs/部署/database-table-naming-standard.md) documents the local naming policy: IM tables use `im_`; non-IM tables keep their own business prefix or approved legacy name.
 
+## PC Client Packages
+
+The PC client app lives under `apps/sdkwork-im-pc` and is composed of capability
+packages following the SDKWork PC architecture segment. Canonical package naming:
+
+- Console surface: `sdkwork-im-console-*` (normalized PC target `sdkwork-im-pc-console-*`).
+- Admin surface: `sdkwork-im-admin-*` (normalized PC target `sdkwork-im-pc-admin-*`).
+- PC-native capabilities: `sdkwork-im-pc-*`.
+
+Historical `sdkwork-clawchat-*` package names were retired by the
+`sdkwork-im → sdkwork-im` rebrand and must not be reintroduced.
+
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/Cargo.toml`
-- `node scripts/dev/sdkwork-chat-database-naming-standard.test.mjs`
+- `cargo test --workspace`
+- `node scripts/dev/sdkwork-im-database-naming-standard.test.mjs`
+- `node scripts/sdkwork-workspace-structure-standard.test.mjs`

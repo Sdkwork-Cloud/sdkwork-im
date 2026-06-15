@@ -35,11 +35,11 @@ fn test_local_minimal_realtime_plane_selects_postgres_adapter_for_postgresql_pro
         "local-minimal realtime storage must have a single env-to-config resolver"
     );
     assert!(
-        build_source.contains("CRAW_CHAT_STORAGE_PROVIDER_ENV"),
+        build_source.contains("SDKWORK_IM_STORAGE_PROVIDER_ENV"),
         "runtime storage selection must use the standardized storage provider env name"
     );
     assert!(
-        build_source.contains("CRAW_CHAT_DATABASE_URL_ENV"),
+        build_source.contains("SDKWORK_IM_DATABASE_URL_ENV"),
         "PostgreSQL runtime storage must use the standardized database URL env name"
     );
     assert!(

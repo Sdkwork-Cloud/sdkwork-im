@@ -27,7 +27,7 @@ Add unit tests that:
 Run:
 
 ```powershell
-$env:CARGO_TARGET_DIR='<workspace-root>\craw-chat\target\tdd-local-disk-red'; cargo test -p im-adapters-local-disk pending_tmp -- --nocapture
+$env:CARGO_TARGET_DIR='<workspace-root>\sdkwork-im\target\tdd-local-disk-red'; cargo test -p im-adapters-local-disk pending_tmp -- --nocapture
 ```
 
 Expected: failures because the current shared reader ignores pending temp files.
@@ -60,7 +60,7 @@ Update the shared writer to:
 Run:
 
 ```powershell
-$env:CARGO_TARGET_DIR='<workspace-root>\craw-chat\target\tdd-local-disk-green'; cargo test -p im-adapters-local-disk pending_tmp -- --nocapture
+$env:CARGO_TARGET_DIR='<workspace-root>\sdkwork-im\target\tdd-local-disk-green'; cargo test -p im-adapters-local-disk pending_tmp -- --nocapture
 ```
 
 Expected: the new recovery tests pass.
@@ -77,7 +77,7 @@ Expected: the new recovery tests pass.
 Run:
 
 ```powershell
-$env:CARGO_TARGET_DIR='<workspace-root>\craw-chat\target\verify-local-disk'; cargo test -p im-adapters-local-disk
+$env:CARGO_TARGET_DIR='<workspace-root>\sdkwork-im\target\verify-local-disk'; cargo test -p im-adapters-local-disk
 ```
 
 - [ ] **Step 2: Run runtime smoke regressions that exercise persisted state**
@@ -85,8 +85,8 @@ $env:CARGO_TARGET_DIR='<workspace-root>\craw-chat\target\verify-local-disk'; car
 Run:
 
 ```powershell
-$env:CARGO_TARGET_DIR='<workspace-root>\craw-chat\target\verify-local-disk-restart'; cargo test -p local-minimal-node --test real_auth_restart_e2e_test
-$env:CARGO_TARGET_DIR='<workspace-root>\craw-chat\target\verify-local-disk-auth'; cargo test -p local-minimal-node --test real_auth_e2e_test
+$env:CARGO_TARGET_DIR='<workspace-root>\sdkwork-im\target\verify-local-disk-restart'; cargo test -p local-minimal-node --test real_auth_restart_e2e_test
+$env:CARGO_TARGET_DIR='<workspace-root>\sdkwork-im\target\verify-local-disk-auth'; cargo test -p local-minimal-node --test real_auth_e2e_test
 ```
 
 - [ ] **Step 3: Commit**

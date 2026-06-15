@@ -27,7 +27,7 @@ semantic Swift package remains reserved under `composed`.
 
 ## What Ships Today
 
-- live-schema generation from the Craw Chat OpenAPI 3.x export
+- live-schema generation from the Sdkwork IM OpenAPI 3.x export
 - Swift workspace normalization that preserves the generated package name `ImSdkGenerated`
 - verified generated package boundary and assembly metadata
 - a raw generated transport client named `ImTransportClient`

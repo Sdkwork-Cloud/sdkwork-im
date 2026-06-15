@@ -15,7 +15,7 @@ fn unique_runtime_dir(prefix: &str) -> PathBuf {
         .expect("system time should be after epoch")
         .as_nanos();
     let sequence = NEXT_RUNTIME_DIR_ID.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("craw_chat_{prefix}_{unique}_{sequence}"))
+    std::env::temp_dir().join(format!("sdkwork_im_{prefix}_{unique}_{sequence}"))
 }
 
 fn repo_root() -> PathBuf {
@@ -30,11 +30,11 @@ fn run_local_minimal_cli_with_env(args: &[&str], envs: &[(&str, &str)]) -> Outpu
     let mut command = Command::new(env!("CARGO_BIN_EXE_local-minimal-node"));
     command
         .args(args)
-        .env_remove("CRAW_CHAT_RUNTIME_PROFILE")
-        .env_remove("CRAW_CHAT_STORAGE_PROVIDER")
-        .env_remove("CRAW_CHAT_DATABASE_URL")
-        .env_remove("CRAW_CHAT_POSTGRES_CONFIG")
-        .env_remove("CRAW_CHAT_COMMERCIAL_EVIDENCE_ROOT")
+        .env_remove("SDKWORK_IM_RUNTIME_PROFILE")
+        .env_remove("SDKWORK_IM_STORAGE_PROVIDER")
+        .env_remove("SDKWORK_IM_DATABASE_URL")
+        .env_remove("SDKWORK_IM_POSTGRES_CONFIG")
+        .env_remove("SDKWORK_IM_COMMERCIAL_EVIDENCE_ROOT")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -94,11 +94,11 @@ fn test_commercial_readiness_cli_reports_blockers_as_json() {
     let output = run_local_minimal_cli_with_env(
         &["commercial-readiness", "--json"],
         &[
-            ("CRAW_CHAT_RUNTIME_PROFILE", "production-postgres"),
-            ("CRAW_CHAT_STORAGE_PROVIDER", "postgresql"),
+            ("SDKWORK_IM_RUNTIME_PROFILE", "production-postgres"),
+            ("SDKWORK_IM_STORAGE_PROVIDER", "postgresql"),
             (
-                "CRAW_CHAT_DATABASE_URL",
-                "postgres://example.invalid/craw_chat",
+                "SDKWORK_IM_DATABASE_URL",
+                "postgres://example.invalid/sdkwork_im",
             ),
         ],
     );
@@ -139,11 +139,11 @@ fn test_commercial_readiness_cli_uses_explicit_evidence_root() {
             "--json",
         ],
         &[
-            ("CRAW_CHAT_RUNTIME_PROFILE", "production-postgres"),
-            ("CRAW_CHAT_STORAGE_PROVIDER", "postgresql"),
+            ("SDKWORK_IM_RUNTIME_PROFILE", "production-postgres"),
+            ("SDKWORK_IM_STORAGE_PROVIDER", "postgresql"),
             (
-                "CRAW_CHAT_DATABASE_URL",
-                "postgres://example.invalid/craw_chat",
+                "SDKWORK_IM_DATABASE_URL",
+                "postgres://example.invalid/sdkwork_im",
             ),
         ],
     );
@@ -172,15 +172,15 @@ fn test_server_startup_blocks_production_profile_before_binding_listener() {
     let output = run_local_minimal_cli_with_env(
         &[],
         &[
-            ("CRAW_CHAT_RUNTIME_PROFILE", "production-postgres"),
-            ("CRAW_CHAT_STORAGE_PROVIDER", "postgresql"),
+            ("SDKWORK_IM_RUNTIME_PROFILE", "production-postgres"),
+            ("SDKWORK_IM_STORAGE_PROVIDER", "postgresql"),
             (
-                "CRAW_CHAT_DATABASE_URL",
-                "postgres://example.invalid/craw_chat",
+                "SDKWORK_IM_DATABASE_URL",
+                "postgres://example.invalid/sdkwork_im",
             ),
-            ("CRAW_CHAT_BIND_ADDR", "127.0.0.1:0"),
+            ("SDKWORK_IM_BIND_ADDR", "127.0.0.1:0"),
             (
-                "CRAW_CHAT_COMMERCIAL_EVIDENCE_ROOT",
+                "SDKWORK_IM_COMMERCIAL_EVIDENCE_ROOT",
                 evidence_root_text.as_str(),
             ),
         ],
@@ -229,8 +229,8 @@ fn test_server_startup_rejects_invalid_postgres_config_without_leaking_password(
         r#"provider: postgresql
 connection:
   host: " "
-  database: craw_chat
-  username: craw_chat_app
+  database: sdkwork_im
+  username: sdkwork_im_app
   passwordFile: ./secrets/postgresql.password
   sslmode: trust-me
 pool:
@@ -245,10 +245,10 @@ pool:
     let output = run_local_minimal_cli_with_env(
         &[],
         &[
-            ("CRAW_CHAT_RUNTIME_DIR", runtime_dir_text.as_str()),
-            ("CRAW_CHAT_STORAGE_PROVIDER", "postgresql"),
-            ("CRAW_CHAT_POSTGRES_CONFIG", postgres_config_text.as_str()),
-            ("CRAW_CHAT_BIND_ADDR", "127.0.0.1:0"),
+            ("SDKWORK_IM_RUNTIME_DIR", runtime_dir_text.as_str()),
+            ("SDKWORK_IM_STORAGE_PROVIDER", "postgresql"),
+            ("SDKWORK_IM_POSTGRES_CONFIG", postgres_config_text.as_str()),
+            ("SDKWORK_IM_BIND_ADDR", "127.0.0.1:0"),
         ],
     );
 

@@ -87,7 +87,7 @@ export async function assertImCommercialGatesWorkflowContracts({
   );
   assert.doesNotMatch(
     workflow,
-    /apps\/craw-chat-admin|apps\/craw-chat-portal/,
+    /apps\/sdkwork-im-admin|apps\/sdkwork-im-portal/,
     'im commercial gates workflow must not reference retired admin or portal app paths',
   );
 
@@ -113,12 +113,12 @@ export async function assertImCommercialGatesWorkflowContracts({
     'commercial gates governance node test runner must include the commercial readiness contract test',
   );
   assert.ok(
-    governedNodeTests.includes('apps/sdkwork-chat-pc/scripts/auth-appbase-ui-contract.test.mjs'),
-    'commercial gates governance node test runner must include the SDKWork Chat PC appbase auth UI contract test',
+    governedNodeTests.includes('apps/sdkwork-im-pc/scripts/auth-appbase-ui-contract.test.mjs'),
+    'commercial gates governance node test runner must include the Sdkwork IM PC appbase auth UI contract test',
   );
   assert.ok(
-    governedNodeTests.includes('apps/sdkwork-chat-pc/scripts/notary-app-sdk-integration-contract.test.mjs'),
-    'commercial gates governance node test runner must include the SDKWork Chat PC notary app SDK integration contract test',
+    governedNodeTests.includes('apps/sdkwork-im-pc/scripts/notary-app-sdk-integration-contract.test.mjs'),
+    'commercial gates governance node test runner must include the Sdkwork IM PC notary app SDK integration contract test',
   );
   assert.ok(
     governedNodeTests.includes('scripts/im-commercial-gates-workflow.test.mjs'),

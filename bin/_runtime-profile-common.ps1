@@ -59,7 +59,7 @@ function Resolve-RuntimeDirFromProfile {
     )
 
     foreach ($configFile in Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName) {
-        $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
+        $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "SDKWORK_IM_RUNTIME_DIR"
         if (-not [string]::IsNullOrWhiteSpace($configRuntimeDir)) {
             return $configRuntimeDir
         }

@@ -7,7 +7,7 @@ import { officialLanguages } from '../../workspace-im-v3-sdk-family.mjs';
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const assemblyPath = path.join(workspaceRoot, '.sdkwork-assembly.json');
-const authorityPath = path.join(workspaceRoot, 'openapi', 'craw-chat-im.openapi.yaml');
+const authorityPath = path.join(workspaceRoot, 'openapi', 'sdkwork-im-im.openapi.yaml');
 const yaml = await loadGeneratorYaml(workspaceRoot);
 const authority = yaml.load(readFileSync(authorityPath, 'utf8'));
 
@@ -59,7 +59,7 @@ const languages = officialLanguages.map((language) => {
     manifestPath: `${generatedPath}/${languageManifests[language]}`,
     name: packageNames[language],
     version: authority.info?.version || '0.1.0',
-    description: `Generator-owned ${languageDescriptions[language]} transport SDK for the Craw Chat IM standardized development API.`,
+    description: `Generator-owned ${languageDescriptions[language]} transport SDK for the Sdkwork IM IM standardized development API.`,
   };
   if (language === 'typescript') {
     entry.consumerSurface = {
@@ -77,11 +77,11 @@ const assembly = {
   title: 'SDKWork IM SDK',
   apiVersion: authority.info?.version || '0.1.0',
   openapiVersion: authority.openapi || '3.1.0',
-  authoritySpec: 'openapi/craw-chat-im.openapi.yaml',
-  generationInputSpec: 'openapi/craw-chat-im.sdkgen.yaml',
+  authoritySpec: 'openapi/sdkwork-im-im.openapi.yaml',
+  generationInputSpec: 'openapi/sdkwork-im-im.sdkgen.yaml',
   derivedSpecs: {
-    default: 'openapi/craw-chat-im.sdkgen.yaml',
-    flutter: 'openapi/craw-chat-im.flutter.sdkgen.yaml',
+    default: 'openapi/sdkwork-im-im.sdkgen.yaml',
+    flutter: 'openapi/sdkwork-im-im.flutter.sdkgen.yaml',
   },
   discoverySurface: {
     sdkTarget: 'im',
@@ -92,8 +92,8 @@ const assembly = {
   },
   sdkDependencies: [],
   languages,
-  sdkOwner: 'craw-chat',
-  apiAuthority: 'craw-chat.im',
+  sdkOwner: 'sdkwork-im',
+  apiAuthority: 'sdkwork-im.im',
 };
 
 const next = `${JSON.stringify(assembly, null, 2)}\n`;

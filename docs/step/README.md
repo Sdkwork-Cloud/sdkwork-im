@@ -1,4 +1,4 @@
-# Craw Chat 分步实施计划索引
+# Sdkwork IM 分步实施计划索引
 
 ## 1. 文档定位
 
@@ -13,7 +13,7 @@
 
 ## 2. 适用范围
 
-本计划适用于当前 `craw-chat` 仓库的以下真实结构：
+本计划适用于当前 `sdkwork-im` 仓库的以下真实结构：
 
 - `crates/`
 - `services/`
@@ -235,7 +235,7 @@
     当前仍为 `template_only_pending_execution`，默认预发布 profile 为 `local-default`，目标容量环境为 `capacity-dedicated`
     对应部署文档为 `docs/部署/性能与灾备演练场景.md`，对应 gate 模板为 `tools/perf/step-11-pre-release-tier-gate.json` 与 `tools/perf/step-11-capacity-tier-gate.json`
 12. Step 12 的持续优化样例可直接参考 [`continuous-optimization-chat-cli-token-only-contract-2026-04-09`](./continuous-optimization-chat-cli-token-only-contract-2026-04-09.md)
-    本轮收敛 `craw-chat-cli token --token-only` 的真实行为边界，明确默认 header 形态与裸 token 形态
+    本轮收敛 `sdkwork-im-cli token --token-only` 的真实行为边界，明确默认 header 形态与裸 token 形态
     对应架构文档为 `docs/架构/09AS-chat-cli-token-only-contract-implementation-plan-2026-04-09.md` 与 `docs/架构/150AS-chat-cli-token-only-contract-design-2026-04-09.md`
     对应 catalog 为 `tools/perf/step-11-scenario-catalog.json`，未来高阶 `artifactRoot` 证据归档根目录为 `artifacts/perf/step-11/pre-release` 与 `artifacts/perf/step-11/capacity`
     对应 schema 为 `tools/perf/schemas/step-11-scenario-catalog.schema.json` 与 `tools/perf/schemas/step-11-tier-gate.schema.json`
@@ -280,7 +280,7 @@
     本轮收敛 `bin/chat-window-gui.cmd` 的 GNU-style named flag 入口边界，固定 `.cmd` 路径必须真正进入 GUI 脚本，而不是在参数绑定失败后直接打印 usage
     对应架构文档为 `docs/架构/09BE-chat-window-gui-cmd-gnu-flag-contract-implementation-plan-2026-04-09.md` 与 `docs/架构/150BE-chat-window-gui-cmd-gnu-flag-contract-design-2026-04-09.md`
     本轮收敛 `bin/chat-cli.cmd --help` 的 Windows 入口边界，固定 `.cmd` wrapper 必须把 CLI 原始参数透传给 `chat-cli-local.ps1`
-    禁止 wrapper 再把 `--help` 改写成 `-Help` 这类 `craw-chat-cli` 不接受的 PowerShell 风格参数
+    禁止 wrapper 再把 `--help` 改写成 `-Help` 这类 `sdkwork-im-cli` 不接受的 PowerShell 风格参数
     对应架构文档为 `docs/架构/09AV-chat-cli-cmd-help-pass-through-contract-implementation-plan-2026-04-09.md` 与 `docs/架构/150AV-chat-cli-cmd-help-pass-through-contract-design-2026-04-09.md`
     evidence slot 语义字段还包含 `scenarioFamily`、`required`、`reportId`，用于区分场景槽位与报告槽位
     最小示例值统一冻结为 `scenarioFamily = connection` / `scenarioFamily = failover`、`required = true`、`reportId = capacity_report` / `reportId = recovery_report`

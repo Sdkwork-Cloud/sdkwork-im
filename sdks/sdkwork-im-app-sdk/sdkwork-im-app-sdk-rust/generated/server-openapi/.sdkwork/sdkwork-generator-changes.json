@@ -154,7 +154,7 @@
         "title": "Unified package check",
         "required": true,
         "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-im\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",
@@ -172,7 +172,7 @@
         "title": "Unified package build",
         "required": true,
         "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-im\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",

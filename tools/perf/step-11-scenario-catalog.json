@@ -290,7 +290,7 @@
         "post_rollback_protocol_error_rate"
       ],
       "repoAssets": [
-        "crates/craw-chat-ccp-registry/tests/compatibility_matrix_test.rs",
+        "crates/sdkwork-im-ccp-registry/tests/compatibility_matrix_test.rs",
         "services/local-minimal-node/tests/performance_ha_dr_drill_test.rs",
         "services/control-plane-api/tests/protocol_registry_test.rs",
         "services/control-plane-api/tests/protocol_governance_test.rs",

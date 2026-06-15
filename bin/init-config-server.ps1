@@ -48,7 +48,7 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/init-config-server.ps1 [-InstanceName <name>] [-ConfigDir <path>] [-DataDir <path>] [-LogDir <path>] [-RunDir <path>] [-BindAddress <host:port>] [-BaseUrl <url>] [-ApiBaseUrl <url>] [-WebsocketBaseUrl <url>] [-BrowserOrigins <csv>] [-NonInteractive] [-Force]"
     Write-Host "Usage: cmd /c .\bin\init-config-server.cmd [--instance <name>] [--config-dir <path>] [--data-dir <path>] [--log-dir <path>] [--run-dir <path>] [--bind-address <host:port>] [--base-url <url>] [--api-base-url <url>] [--websocket-base-url <url>] [--browser-origins <csv>] [--non-interactive] [--force]"
-    Write-Host "Render craw-chat-server configuration files for the selected instance and preserve file-based PostgreSQL settings."
+    Write-Host "Render sdkwork-im-server configuration files for the selected instance and preserve file-based PostgreSQL settings."
     exit 0
 }
 
@@ -127,25 +127,25 @@ max_connections = 16
 
 if ((-not (Test-Path $serverEnvPath)) -or $Force) {
     @"
-SDKWORK_CHAT_DEPLOYMENT_MODE=server
-SDKWORK_CHAT_CONFIG_FILE=$chatTomlPath
-SDKWORK_CHAT_DATA_DIR=$DataDir
-SDKWORK_CHAT_LOG_DIR=$LogDir
-SDKWORK_CHAT_RUN_DIR=$RunDir
-SDKWORK_CHAT_SERVER_BIND=$BindAddress
-SDKWORK_CHAT_SERVER_BASE_URL=$BaseUrl
-SDKWORK_CHAT_SERVER_API_BASE_URL=$ApiBaseUrl
-SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL=$WebsocketBaseUrl
-SDKWORK_CHAT_DATABASE_ENGINE=postgresql
-SDKWORK_CHAT_DATABASE_HOST=127.0.0.1
-SDKWORK_CHAT_DATABASE_PORT=5432
-SDKWORK_CHAT_DATABASE_NAME=sdkwork_chat_prod
-SDKWORK_CHAT_DATABASE_SCHEMA=sdkwork_chat_prod
-SDKWORK_CHAT_DATABASE_USERNAME=sdkwork_chat_prod
-SDKWORK_CHAT_DATABASE_PASSWORD_FILE=$passwordFilePath
-SDKWORK_CHAT_DATABASE_SSL_MODE=require
-SDKWORK_CHAT_DATABASE_MAX_CONNECTIONS=20
-CRAW_CHAT_BROWSER_ORIGINS=$BrowserOrigins
+SDKWORK_IM_DEPLOYMENT_MODE=server
+SDKWORK_IM_CONFIG_FILE=$chatTomlPath
+SDKWORK_IM_DATA_DIR=$DataDir
+SDKWORK_IM_LOG_DIR=$LogDir
+SDKWORK_IM_RUN_DIR=$RunDir
+SDKWORK_IM_SERVER_BIND=$BindAddress
+SDKWORK_IM_SERVER_BASE_URL=$BaseUrl
+SDKWORK_IM_SERVER_API_BASE_URL=$ApiBaseUrl
+SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=$WebsocketBaseUrl
+SDKWORK_IM_DATABASE_ENGINE=postgresql
+SDKWORK_IM_DATABASE_HOST=127.0.0.1
+SDKWORK_IM_DATABASE_PORT=5432
+SDKWORK_IM_DATABASE_NAME=sdkwork_chat_prod
+SDKWORK_IM_DATABASE_SCHEMA=sdkwork_chat_prod
+SDKWORK_IM_DATABASE_USERNAME=sdkwork_chat_prod
+SDKWORK_IM_DATABASE_PASSWORD_FILE=$passwordFilePath
+SDKWORK_IM_DATABASE_SSL_MODE=require
+SDKWORK_IM_DATABASE_MAX_CONNECTIONS=20
+SDKWORK_IM_BROWSER_ORIGINS=$BrowserOrigins
 "@ | Set-Content -Path $serverEnvPath -Encoding utf8
 }
 
@@ -186,7 +186,7 @@ if ((-not (Test-Path $passwordFilePath)) -or $Force) {
     "replace-me" | Set-Content -Path $passwordFilePath -Encoding utf8
 }
 
-Write-Host "Rendered craw-chat-server configuration for instance '$InstanceName'."
+Write-Host "Rendered sdkwork-im-server configuration for instance '$InstanceName'."
 Write-Host "chat.toml: $chatTomlPath"
 Write-Host "server.env: $serverEnvPath"
 Write-Host "postgresql.yaml: $postgresqlPath"

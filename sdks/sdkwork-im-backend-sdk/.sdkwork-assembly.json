@@ -3,10 +3,10 @@
   "title": "SDKWork IM Backend API SDK",
   "apiVersion": "0.1.0",
   "openapiVersion": "3.1.2",
-  "authoritySpec": "openapi/craw-chat-backend-api.openapi.yaml",
-  "generationInputSpec": "openapi/craw-chat-backend-api.sdkgen.yaml",
+  "authoritySpec": "openapi/sdkwork-im-backend-api.openapi.yaml",
+  "generationInputSpec": "openapi/sdkwork-im-backend-api.sdkgen.yaml",
   "derivedSpecs": {
-    "default": "openapi/craw-chat-backend-api.sdkgen.yaml"
+    "default": "openapi/sdkwork-im-backend-api.sdkgen.yaml"
   },
   "discoverySurface": {
     "sdkTarget": "backend",
@@ -48,7 +48,7 @@
       "manifestPath": "sdkwork-im-backend-sdk-typescript/generated/server-openapi/package.json",
       "name": "@sdkwork-internal/im-backend-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned TypeScript transport SDK for the Craw Chat backend/operator API.",
+      "description": "Generator-owned TypeScript transport SDK for the Sdkwork IM backend/operator API.",
       "consumerSurface": {
         "primaryClient": "SdkworkImBackendClient",
         "legacyClient": "SdkworkBackendClient",
@@ -64,7 +64,7 @@
       "manifestPath": "sdkwork-im-backend-sdk-flutter/generated/server-openapi/pubspec.yaml",
       "name": "im_backend_api_generated",
       "version": "0.1.0",
-      "description": "Generator-owned Flutter transport SDK for the Craw Chat backend/operator API."
+      "description": "Generator-owned Flutter transport SDK for the Sdkwork IM backend/operator API."
     },
     {
       "language": "rust",
@@ -75,7 +75,7 @@
       "manifestPath": "sdkwork-im-backend-sdk-rust/generated/server-openapi/Cargo.toml",
       "name": "sdkwork-im-backend-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned Rust transport SDK for the Craw Chat backend/operator API."
+      "description": "Generator-owned Rust transport SDK for the Sdkwork IM backend/operator API."
     },
     {
       "language": "java",
@@ -86,7 +86,7 @@
       "manifestPath": "sdkwork-im-backend-sdk-java/generated/server-openapi/pom.xml",
       "name": "com.sdkwork:im-backend-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned Java transport SDK for the Craw Chat backend/operator API."
+      "description": "Generator-owned Java transport SDK for the Sdkwork IM backend/operator API."
     },
     {
       "language": "csharp",
@@ -97,7 +97,7 @@
       "manifestPath": "sdkwork-im-backend-sdk-csharp/generated/server-openapi/Sdkwork.Im.BackendApi.Generated.csproj",
       "name": "Sdkwork.Im.BackendApi.Generated",
       "version": "0.1.0",
-      "description": "Generator-owned C# transport SDK for the Craw Chat backend/operator API."
+      "description": "Generator-owned C# transport SDK for the Sdkwork IM backend/operator API."
     },
     {
       "language": "swift",
@@ -108,7 +108,7 @@
       "manifestPath": "sdkwork-im-backend-sdk-swift/generated/server-openapi/Package.swift",
       "name": "ImBackendApiGenerated",
       "version": "0.1.0",
-      "description": "Generator-owned Swift transport SDK for the Craw Chat backend/operator API."
+      "description": "Generator-owned Swift transport SDK for the Sdkwork IM backend/operator API."
     },
     {
       "language": "kotlin",
@@ -119,7 +119,7 @@
       "manifestPath": "sdkwork-im-backend-sdk-kotlin/generated/server-openapi/build.gradle.kts",
       "name": "com.sdkwork:im-backend-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned Kotlin transport SDK for the Craw Chat backend/operator API."
+      "description": "Generator-owned Kotlin transport SDK for the Sdkwork IM backend/operator API."
     },
     {
       "language": "go",
@@ -130,7 +130,7 @@
       "manifestPath": "sdkwork-im-backend-sdk-go/generated/server-openapi/go.mod",
       "name": "github.com/sdkwork/im-backend-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned Go transport SDK for the Craw Chat backend/operator API."
+      "description": "Generator-owned Go transport SDK for the Sdkwork IM backend/operator API."
     },
     {
       "language": "python",
@@ -141,9 +141,9 @@
       "manifestPath": "sdkwork-im-backend-sdk-python/generated/server-openapi/pyproject.toml",
       "name": "sdkwork-im-backend-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned Python transport SDK for the Craw Chat backend/operator API."
+      "description": "Generator-owned Python transport SDK for the Sdkwork IM backend/operator API."
     }
   ],
-  "sdkOwner": "craw-chat",
-  "apiAuthority": "craw-chat.backend"
+  "sdkOwner": "sdkwork-im",
+  "apiAuthority": "sdkwork-im.backend"
 }

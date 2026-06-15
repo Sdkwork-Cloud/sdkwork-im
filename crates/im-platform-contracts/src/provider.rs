@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Mutex, MutexGuard};
 
-use craw_chat_contract_core::ContractError;
+use sdkwork_im_contract_core::ContractError;
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 

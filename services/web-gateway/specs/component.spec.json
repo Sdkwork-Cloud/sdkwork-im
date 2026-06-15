@@ -6,7 +6,7 @@
     "displayName": "Web Gateway",
     "version": "0.1.0",
     "type": "rust-crate",
-    "root": "craw-chat/services/web-gateway",
+    "root": "sdkwork-im/services/web-gateway",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "chat",
@@ -110,7 +110,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/services/web-gateway/Cargo.toml"
+      "cargo test --manifest-path apps/sdkwork-im/services/web-gateway/Cargo.toml"
     ]
   },
   "metadata": {

@@ -6,7 +6,7 @@
     "displayName": "Im App Sdk",
     "version": "0.1.0",
     "type": "flutter-package",
-    "root": "craw-chat/sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-flutter/composed",
+    "root": "sdkwork-im/sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-flutter/composed",
     "domain": "communication",
     "capability": "im-app-sdk",
     "languages": [

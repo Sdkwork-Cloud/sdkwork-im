@@ -6,7 +6,7 @@
     "displayName": "Im App Context",
     "version": "0.1.0",
     "type": "rust-crate",
-    "root": "craw-chat/crates/im-app-context",
+    "root": "sdkwork-im/crates/im-app-context",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "im",
@@ -100,8 +100,8 @@
     "sdkClients": [],
     "events": [],
     "configKeys": [
-      "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE",
-      "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET"
+      "SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE",
+      "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET"
     ],
     "routeManifest": null
   },
@@ -113,7 +113,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/crates/im-app-context/Cargo.toml"
+      "cargo test --manifest-path apps/sdkwork-im/crates/im-app-context/Cargo.toml"
     ]
   },
   "metadata": {

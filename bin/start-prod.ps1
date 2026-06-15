@@ -16,7 +16,7 @@ $ErrorActionPreference = "Stop"
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/start-prod.ps1 [-InstanceName <name>] [-InstallRoot <path>] [-ConfigDir <path>] [-LogDir <path>] [-RunDir <path>] [-EnvFile <path>] [-BinaryPath <path>] [-Foreground] [-HealthUrl <url>] [-SkipHealthCheck]"
-    Write-Host "Start packaged Craw Chat server in production/release mode."
+    Write-Host "Start packaged Sdkwork IM server in production/release mode."
     exit 0
 }
 

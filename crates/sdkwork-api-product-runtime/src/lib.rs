@@ -25,7 +25,7 @@ use admin_sandbox::{handle_admin_sandbox_request, SharedAdminSandboxState};
 const JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 const BACKEND_ADMIN_API_PREFIX: &str = "/backend/v3/api/admin";
 const ADMIN_BACKEND_NOT_CONFIGURED_MESSAGE: &str = "Admin backend proxy target is not configured. Set SDKWORK_ADMIN_PROXY_TARGET to a backend that serves /backend/v3/api/admin.";
-const PC_PRODUCT_API_UPSTREAM_ENV: &str = "CRAW_CHAT_PC_API_UPSTREAM";
+const PC_PRODUCT_API_UPSTREAM_ENV: &str = "SDKWORK_IM_PC_API_UPSTREAM";
 const CACHE_CONTROL_HEADER: &str = "cache-control";
 const CONTENT_SECURITY_POLICY_HEADER: &str = "content-security-policy";
 const CROSS_ORIGIN_RESOURCE_POLICY_HEADER: &str = "cross-origin-resource-policy";
@@ -195,7 +195,7 @@ fn build_runtime_proxy_state(
             None => SharedAdminSandboxState::seeded(),
         };
         eprintln!(
-            "warning: SDKWORK_ADMIN_SANDBOX is enabled. Admin sandbox consumes sdkwork-appbase bearer tokens and does not provide craw-chat login endpoints."
+            "warning: SDKWORK_ADMIN_SANDBOX is enabled. Admin sandbox consumes sdkwork-appbase bearer tokens and does not provide sdkwork-im login endpoints."
         );
         Some(state)
     } else {
@@ -310,7 +310,7 @@ async fn get_portal_snapshot(Path(section): Path<String>) -> Response {
 async fn get_portal_workspace() -> Response {
     json_response(
         StatusCode::OK,
-        r#"{"name":"Craw Chat Local","slug":"craw-chat-local","tier":"local","region":"local","supportPlan":"local","seats":1,"activeBrands":1,"uptime":"local"}"#,
+        r#"{"name":"Sdkwork IM Local","slug":"sdkwork-im-local","tier":"local","region":"local","supportPlan":"local","seats":1,"activeBrands":1,"uptime":"local"}"#,
     )
 }
 
@@ -478,7 +478,7 @@ fn inject_portal_api_base_url(html: &str, portal_api_base_url: &str, script_nonc
     let serialized_url = serde_json::to_string(portal_api_base_url)
         .expect("portal api base url should serialize into javascript");
     let script = format!(
-        "<script nonce=\"{script_nonce}\">window.__CRAW_CHAT_PORTAL_API_BASE_URL__ = {serialized_url};</script>"
+        "<script nonce=\"{script_nonce}\">window.__SDKWORK_IM_PORTAL_API_BASE_URL__ = {serialized_url};</script>"
     );
 
     if let Some(head_close_index) = html.find("</head>") {
@@ -738,7 +738,7 @@ fn portal_snapshot_json(section: &str) -> String {
             "\"modules\":{{\"items\":[{modules}]}},",
             "\"organizationDirectory\":{{",
             "\"departments\":[",
-            "{{\"id\":\"dept-root\",\"name\":\"Craw Chat\",\"parentId\":null,\"order\":0}},",
+            "{{\"id\":\"dept-root\",\"name\":\"Sdkwork IM\",\"parentId\":null,\"order\":0}},",
             "{{\"id\":\"dept-product\",\"name\":\"Product\",\"parentId\":\"dept-root\",\"order\":10}},",
             "{{\"id\":\"dept-support\",\"name\":\"Support\",\"parentId\":\"dept-root\",\"order\":20}}",
             "]",
@@ -1088,7 +1088,7 @@ mod tests {
             .text()
             .await
             .expect("portal index body should be readable");
-        assert!(body.contains("__CRAW_CHAT_PORTAL_API_BASE_URL__"));
+        assert!(body.contains("__SDKWORK_IM_PORTAL_API_BASE_URL__"));
         assert!(body.contains("https://portal-api.example.com/runtime-edge"));
         let nonce_start = body
             .find("script nonce=\"")
@@ -1301,7 +1301,7 @@ mod tests {
             .text()
             .await
             .expect("agent api body should be readable")
-            .contains("CRAW_CHAT_PC_API_UPSTREAM"));
+            .contains("SDKWORK_IM_PC_API_UPSTREAM"));
 
         let admin_api =
             fetch_response(base_url.as_str(), "/backend/v3/api/admin/storage/config").await;

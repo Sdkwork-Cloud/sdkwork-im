@@ -1,6 +1,6 @@
 # @sdkwork/im-sdk
 
-Layered TypeScript SDK for Craw Chat IM runtime APIs.
+Layered TypeScript SDK for Sdkwork IM IM runtime APIs.
 
 This package exposes the app-facing `ImSdkClient` facade. Generated HTTP
 transport is consumed through `@sdkwork/im-sdk-generated`, whose source remains

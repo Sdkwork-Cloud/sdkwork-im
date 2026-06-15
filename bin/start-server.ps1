@@ -44,7 +44,7 @@ if ($PSBoundParameters.ContainsKey("InstanceName") -and -not $PSBoundParameters.
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/start-server.ps1 [-InstanceName <name>] [-InstallRoot <path>] [-ConfigDir <path>] [-LogDir <path>] [-RunDir <path>] [-EnvFile <path>] [-BinaryPath <path>] [-Release] [-Foreground] [-HealthUrl <url>] [-SkipHealthCheck]"
     Write-Host "Usage: cmd /c .\bin\start-server.cmd [--instance <name>] [--install-root <path>] [--config-dir <path>] [--log-dir <path>] [--run-dir <path>] [--env-file <path>] [--binary-path <path>] [--release] [--foreground] [--health-url <url>] [--skip-health-check]"
-    Write-Host "Start the craw-chat-server runtime service for an instance with config loading, binary resolution, log and run directory management, health checks, and status-friendly foreground or background execution."
+    Write-Host "Start the sdkwork-im-server runtime service for an instance with config loading, binary resolution, log and run directory management, health checks, and status-friendly foreground or background execution."
     exit 0
 }
 
@@ -139,21 +139,21 @@ function Resolve-ServerBinaryPath {
     if (-not [string]::IsNullOrWhiteSpace($ExplicitBinaryPath) -and (Test-Path $ExplicitBinaryPath)) {
         return $ExplicitBinaryPath
     }
-    $envBinaryPath = [Environment]::GetEnvironmentVariable("CRAW_CHAT_SERVER_BINARY_PATH")
+    $envBinaryPath = [Environment]::GetEnvironmentVariable("SDKWORK_IM_SERVER_BINARY_PATH")
     if (-not [string]::IsNullOrWhiteSpace($envBinaryPath) -and (Test-Path $envBinaryPath)) {
         return $envBinaryPath
     }
 
     $installCandidates = @(
-        (Join-Path $InstallRoot "bin\craw-chat-server.exe"),
+        (Join-Path $InstallRoot "bin\sdkwork-im-server.exe"),
         (Join-Path $InstallRoot "bin\web-gateway.exe")
     )
     foreach ($candidate in $installCandidates) {
         if (Test-Path $candidate) { return $candidate }
     }
 
-    $releaseCandidate = Join-Path $Root "target\release\craw-chat-server.exe"
-    $debugCandidate = Join-Path $Root "target\debug\craw-chat-server.exe"
+    $releaseCandidate = Join-Path $Root "target\release\sdkwork-im-server.exe"
+    $debugCandidate = Join-Path $Root "target\debug\sdkwork-im-server.exe"
     $legacyReleaseCandidate = Join-Path $Root "target\release\web-gateway.exe"
     $legacyDebugCandidate = Join-Path $Root "target\debug\web-gateway.exe"
     $candidates = if ($PreferRelease) {
@@ -213,7 +213,7 @@ function Get-ManagedProcess {
 $root = Split-Path -Parent $PSScriptRoot
 $serverEnvPath = Resolve-ServerEnvFilePath -ExplicitEnvFile $EnvFile -ResolvedConfigDir $ConfigDir
 Import-ServerEnvFile -EnvFilePath $serverEnvPath
-$standardConfigFile = Get-FirstEnvValue @("SDKWORK_CHAT_CONFIG_FILE")
+$standardConfigFile = Get-FirstEnvValue @("SDKWORK_IM_CONFIG_FILE")
 if ([string]::IsNullOrWhiteSpace($standardConfigFile)) {
     $serverYamlPath = Join-Path $ConfigDir "chat.toml"
     if (-not (Test-Path $serverYamlPath)) {
@@ -233,7 +233,7 @@ if (-not (Test-Path $serverYamlPath)) {
     }
 }
 
-$standardBindAddress = Get-FirstEnvValue @("SDKWORK_CHAT_SERVER_BIND", "CRAW_CHAT_SERVER_BIND_ADDRESS")
+$standardBindAddress = Get-FirstEnvValue @("SDKWORK_IM_SERVER_BIND", "SDKWORK_IM_SERVER_BIND_ADDRESS")
 $resolvedBindAddress = if (-not [string]::IsNullOrWhiteSpace($standardBindAddress)) {
     $standardBindAddress
 }
@@ -251,14 +251,14 @@ if ([string]::IsNullOrWhiteSpace($resolvedBindAddress)) {
 }
 $resolvedBinaryPath = Resolve-ServerBinaryPath -Root $root -InstallRoot $InstallRoot -ExplicitBinaryPath $BinaryPath -PreferRelease:$Release
 if ([string]::IsNullOrWhiteSpace($resolvedBinaryPath)) {
-    throw "Unable to resolve craw-chat-server binary. Set -BinaryPath, install a packaged binary under $InstallRoot, or build web-gateway."
+    throw "Unable to resolve sdkwork-im-server binary. Set -BinaryPath, install a packaged binary under $InstallRoot, or build web-gateway."
 }
 
 $resolvedHealthUrl = Resolve-HealthUrl -ExplicitHealthUrl $HealthUrl -ResolvedBindAddress $resolvedBindAddress
-$stdoutLog = Join-Path $LogDir "craw-chat-server.out.log"
-$stderrLog = Join-Path $LogDir "craw-chat-server.err.log"
-$pidFile = Join-Path $RunDir "craw-chat-server.pid"
-$processInfoPath = Join-Path $RunDir "craw-chat-server.process.json"
+$stdoutLog = Join-Path $LogDir "sdkwork-im-server.out.log"
+$stderrLog = Join-Path $LogDir "sdkwork-im-server.err.log"
+$pidFile = Join-Path $RunDir "sdkwork-im-server.pid"
+$processInfoPath = Join-Path $RunDir "sdkwork-im-server.process.json"
 foreach ($path in @($LogDir, $RunDir)) {
     if (-not (Test-Path $path)) {
         New-Item -ItemType Directory -Path $path -Force | Out-Null
@@ -268,19 +268,19 @@ foreach ($path in @($LogDir, $RunDir)) {
 $expectedProcessName = [System.IO.Path]::GetFileNameWithoutExtension($resolvedBinaryPath)
 $existing = Get-ManagedProcess -PidFile $pidFile -ExpectedProcessName $expectedProcessName
 if ($null -ne $existing) {
-    throw "craw-chat-server is already running with PID $($existing.Id)."
+    throw "sdkwork-im-server is already running with PID $($existing.Id)."
 }
 
-$env:SDKWORK_CHAT_SERVER_BIND = $resolvedBindAddress
-$env:CRAW_CHAT_WEB_GATEWAY_BIND = $resolvedBindAddress
-if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_CHAT_SERVER_API_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:CRAW_CHAT_SERVER_API_BASE_URL)) {
-    $env:CRAW_CHAT_SERVER_API_BASE_URL = $env:SDKWORK_CHAT_SERVER_API_BASE_URL
+$env:SDKWORK_IM_SERVER_BIND = $resolvedBindAddress
+$env:SDKWORK_IM_WEB_GATEWAY_BIND = $resolvedBindAddress
+if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_API_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_API_BASE_URL)) {
+    $env:SDKWORK_IM_SERVER_API_BASE_URL = $env:SDKWORK_IM_SERVER_API_BASE_URL
 }
-if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_CHAT_SERVER_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:CRAW_CHAT_SERVER_BASE_URL)) {
-    $env:CRAW_CHAT_SERVER_BASE_URL = $env:SDKWORK_CHAT_SERVER_BASE_URL
+if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_BASE_URL)) {
+    $env:SDKWORK_IM_SERVER_BASE_URL = $env:SDKWORK_IM_SERVER_BASE_URL
 }
-if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL)) {
-    $env:CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL = $env:SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL
+if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL)) {
+    $env:SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL = $env:SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL
 }
 $serverArguments = @("--config", $serverYamlPath)
 
@@ -303,12 +303,12 @@ if (-not $SkipHealthCheck) {
         Start-Sleep -Seconds 1
         if ($null -eq (Get-Process -Id $process.Id -ErrorAction SilentlyContinue)) {
             Remove-Item -Path $pidFile -Force -ErrorAction SilentlyContinue
-            throw "craw-chat-server exited before becoming healthy. Check logs: $stderrLog"
+            throw "sdkwork-im-server exited before becoming healthy. Check logs: $stderrLog"
         }
         try {
             $response = Invoke-WebRequest -Uri $resolvedHealthUrl -UseBasicParsing -TimeoutSec 2
             if ($response.StatusCode -eq 200) {
-                Write-Host "Started craw-chat-server in background on $resolvedHealthUrl"
+                Write-Host "Started sdkwork-im-server in background on $resolvedHealthUrl"
                 exit 0
             }
         }
@@ -316,7 +316,7 @@ if (-not $SkipHealthCheck) {
     }
     Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
     Remove-Item -Path $pidFile -Force -ErrorAction SilentlyContinue
-    throw "craw-chat-server did not become healthy within 30 seconds: $resolvedHealthUrl"
+    throw "sdkwork-im-server did not become healthy within 30 seconds: $resolvedHealthUrl"
 }
 
-Write-Host "Started craw-chat-server in background without health wait."
+Write-Host "Started sdkwork-im-server in background without health wait."

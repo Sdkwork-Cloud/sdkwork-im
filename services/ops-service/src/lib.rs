@@ -6,8 +6,8 @@ use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{Json, Router, routing::get};
-use craw_chat_api_registry::HttpMethod;
-use craw_chat_openapi::{
+use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use im_app_context::{
@@ -17,13 +17,13 @@ use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
-const OPS_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "CRAW_CHAT_OPS_MAX_IN_FLIGHT_REQUESTS";
+const OPS_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_OPS_MAX_IN_FLIGHT_REQUESTS";
 const OPS_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 const OPS_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
-const OPS_MAX_REQUEST_BODY_BYTES_ENV: &str = "CRAW_CHAT_OPS_MAX_REQUEST_BODY_BYTES";
+const OPS_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_OPS_MAX_REQUEST_BODY_BYTES";
 const OPS_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const OPS_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
-const OPS_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str = "CRAW_CHAT_OPS_REQUIRE_DUAL_TOKEN_HEADERS";
+const OPS_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str = "SDKWORK_IM_OPS_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
 struct AppState {
@@ -957,7 +957,7 @@ fn build_ops_service_openapi_document() -> Result<serde_json::Value, String> {
 
 fn ops_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
-        title: "Craw Chat Ops Service API",
+        title: "Sdkwork IM Ops Service API",
         version: env!("CARGO_PKG_VERSION"),
         description: "Live OpenAPI contract generated from the ops-service router for cluster, lag, diagnostics, runtime_dir, replay status, and provider binding inspections.",
         openapi_path: "/openapi.json",

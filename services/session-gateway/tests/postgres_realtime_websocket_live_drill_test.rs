@@ -15,7 +15,7 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
-const POSTGRES_TEST_DATABASE_URL_ENV: &str = "CRAW_CHAT_POSTGRES_TEST_DATABASE_URL";
+const POSTGRES_TEST_DATABASE_URL_ENV: &str = "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL";
 const CORE_SCHEMA_SQL: &str =
     include_str!("../../../deployments/database/postgres/migrations/001_im_core_schema.sql");
 const TENANT_ID_PREFIX: &str = "t_ws_pg_drill";
@@ -252,7 +252,7 @@ fn test_auth_token(tenant_id: &str, principal_id: &str) -> String {
         "login_scope": "TENANT",
         "user_id": principal_id,
         "session_id": SESSION_ID,
-        "app_id": "craw-chat",
+        "app_id": "sdkwork-im",
         "auth_level": "password",
         "subject_type": "user"
     })
@@ -265,7 +265,7 @@ fn test_access_token(tenant_id: &str, principal_id: &str, device_id: &str) -> St
         "login_scope": "TENANT",
         "user_id": principal_id,
         "session_id": SESSION_ID,
-        "app_id": "craw-chat",
+        "app_id": "sdkwork-im",
         "environment": "dev",
         "deployment_mode": "local",
         "auth_level": "password",

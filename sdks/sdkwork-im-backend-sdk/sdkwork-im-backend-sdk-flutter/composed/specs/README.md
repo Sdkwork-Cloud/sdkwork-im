@@ -2,7 +2,7 @@
 
 This directory is the local SDKWork component contract for `im_backend_sdk`.
 
-- Component root: `craw-chat/sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-flutter/composed`
+- Component root: `sdkwork-im/sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-flutter/composed`
 - Canonical standards: `../../../../../sdkwork-specs/README.md`
 - Machine-readable contract: `specs/component.spec.json`
 

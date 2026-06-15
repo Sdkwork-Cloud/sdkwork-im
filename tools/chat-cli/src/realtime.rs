@@ -1,13 +1,13 @@
 use std::time::Duration;
 
-use craw_chat_ccp_binding_ws::{CCP_WS_SUBPROTOCOL, WsBinding, WsBindingMessage, WsOpcode};
-use craw_chat_ccp_codec::CcpCodec;
-use craw_chat_ccp_codec_json::JsonEnvelopeCodec;
-use craw_chat_ccp_control::{
+use sdkwork_im_ccp_binding_ws::{CCP_WS_SUBPROTOCOL, WsBinding, WsBindingMessage, WsOpcode};
+use sdkwork_im_ccp_codec::CcpCodec;
+use sdkwork_im_ccp_codec_json::JsonEnvelopeCodec;
+use sdkwork_im_ccp_control::{
     AuthBindFrame, AuthOkFrame, ControlFrame, HelloAckFrame, HelloFrame, SessionResumeFrame,
     SessionResumedFrame,
 };
-use craw_chat_ccp_core::{CapabilitySet, CcpEnvelope, ProtocolVersion, TransportBinding};
+use sdkwork_im_ccp_core::{CapabilitySet, CcpEnvelope, ProtocolVersion, TransportBinding};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
 use tokio::net::TcpStream;
@@ -253,7 +253,7 @@ fn format_realtime_connect_error(
 ) -> CliError {
     match error {
         tokio_tungstenite::tungstenite::Error::Io(io_error) => CliError::runtime(format!(
-            "unable to connect realtime websocket to craw-chat service at {} using {}; verify the service is running and the --base-url is correct: {}",
+            "unable to connect realtime websocket to sdkwork-im service at {} using {}; verify the service is running and the --base-url is correct: {}",
             base_url, ws_url, io_error
         )),
         other => CliError::runtime(format!("failed to connect websocket: {other}")),

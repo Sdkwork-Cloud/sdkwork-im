@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Verify the current `craw-chat` implementation against the documented architecture, harden the highest-risk runtime and deployment paths, and leave the local install/start/restart/stop flow directly usable on multiple operating systems.
+**Goal:** Verify the current `sdkwork-im` implementation against the documented architecture, harden the highest-risk runtime and deployment paths, and leave the local install/start/restart/stop flow directly usable on multiple operating systems.
 
 **Architecture:** Work in short review-and-fix waves. First verify the actual deployment lifecycle scripts and runtime layout, then inspect shared domain semantics that can corrupt session state or break cross-service contracts, add regression tests for every confirmed defect, and finally document the hardened behavior under `docs/`.
 

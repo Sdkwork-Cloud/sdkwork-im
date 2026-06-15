@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build OpenAPI-driven TypeScript and Flutter app SDK workspaces for `craw-chat` and generate both SDKs through `sdkwork-sdk-generator`.
+**Goal:** Build OpenAPI-driven TypeScript and Flutter app SDK workspaces for `sdkwork-im` and generate both SDKs through `sdkwork-sdk-generator`.
 
 **Architecture:** The workspace root owns the authority OpenAPI contract, the derived generator input, and regeneration wrappers. TypeScript and Flutter each receive a layered workspace whose generator-owned output is isolated under `generated/server-openapi`, with manual docs and scripts outside the generated boundary.
 
@@ -28,7 +28,7 @@
 ### Task 2: Author The OpenAPI Authority Contract
 
 **Files:**
-- Create: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
+- Create: `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml`
 
 - [ ] Step 1: Map the app-facing path list from `services/local-minimal-node/src/node/build.rs`.
 - [ ] Step 2: Encode bearer auth, shared responses, and tag taxonomy in the authority contract.
@@ -39,7 +39,7 @@
 ### Task 3: Add The Derived sdkgen Input And Regeneration Scripts
 
 **Files:**
-- Create: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.sdkgen.yaml`
+- Create: `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.sdkgen.yaml`
 - Create: `sdks/sdkwork-im-sdk/bin/prepare-openapi-source.mjs`
 - Create: `sdks/sdkwork-im-sdk/bin/assemble-sdk.mjs`
 - Create: `sdks/sdkwork-im-sdk/bin/generate-sdk.ps1`

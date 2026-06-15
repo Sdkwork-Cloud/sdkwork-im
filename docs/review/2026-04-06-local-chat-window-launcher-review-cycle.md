@@ -37,7 +37,7 @@
 ### 已验证
 
 - `cargo fmt --all`
-- `cargo test -p craw-chat-cli --offline`
+- `cargo test -p sdkwork-im-cli --offline`
 - `bin/chat-window.ps1 -Help`
 - `bin/open-chat-test.ps1 -Help`
 - `bin/open-chat-test.ps1` 实际执行成功

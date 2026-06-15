@@ -6,7 +6,7 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
-craw-chat-ccp-core = { path = "../craw-chat-ccp-core" }
+sdkwork-im-ccp-core = { path = "../sdkwork-im-ccp-core" }
 base64 = "0.22.1"
 hmac = "0.12.1"
 serde_json.workspace = true

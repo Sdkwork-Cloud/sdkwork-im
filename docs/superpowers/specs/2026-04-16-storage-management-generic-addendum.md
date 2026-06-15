@@ -1,6 +1,6 @@
 # Storage Management Generic Architecture Addendum
 
-This addendum supersedes the craw-chat-specific storage ownership assumption in the earlier design note.
+This addendum supersedes the sdkwork-im-specific storage ownership assumption in the earlier design note.
 
 ## Updated Ownership
 
@@ -9,7 +9,7 @@ This addendum supersedes the craw-chat-specific storage ownership assumption in 
 - `im-storage-runtime` also owns adapter-facing JSON upsert parsing plus provider- and credential-mode-aware validation so admin/product entry points do not duplicate storage schema rules.
 - Shared storage HTTP/input payloads should be expressed as typed storage contract structs instead of ad-hoc JSON maps wherever Rust backends or adapters own request decoding.
 - Shared storage persistence boundaries should be expressed through generic storage snapshot contracts and store traits so future admin/control-plane backends can hydrate runtime state without re-encoding provider rules.
-- `craw-chat-contract-admin` is an adapter entry point that re-exports the generic storage contracts for admin consumers that still anchor on the craw-chat admin package.
+- `sdkwork-im-contract-admin` is an adapter entry point that re-exports the generic storage contracts for admin consumers that still anchor on the sdkwork-im admin package.
 - `apps/control-plane` is a consumer of the storage domain through typed API and view-model adapters. It does not define a separate storage model.
 - `sdkwork-api-product-runtime` and any future admin/control-plane backends should consume the generic runtime/contracts instead of encoding storage rules directly in sandbox or product-specific handlers.
 
@@ -30,7 +30,7 @@ The current implementation baseline in this branch is:
 
 - `crates/im-storage-contracts`
 - `crates/im-storage-runtime`
-- `crates/craw-chat-contract-admin` re-export compatibility for `storage`
+- `crates/sdkwork-im-contract-admin` re-export compatibility for `storage`
 - `crates/sdkwork-api-product-runtime/src/admin_sandbox.rs` generic storage sandbox wiring
 - `apps/control-plane/dev/admin-sandbox.mjs` storage route support
 - `apps/control-plane/packages/sdkwork-control-plane-types/src/storage.ts`

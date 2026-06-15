@@ -2,8 +2,8 @@
 
 ## 1. Review scope
 
-- [restart-local.ps1](<workspace-root>/craw-chat/bin/restart-local.ps1)
-- [deployment_profile_test.rs](<workspace-root>/craw-chat/services/local-minimal-node/tests/deployment_profile_test.rs)
+- [restart-local.ps1](<workspace-root>/sdkwork-im/bin/restart-local.ps1)
+- [deployment_profile_test.rs](<workspace-root>/sdkwork-im/services/local-minimal-node/tests/deployment_profile_test.rs)
 
 ## 2. Finding
 

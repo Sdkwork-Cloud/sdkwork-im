@@ -35,4 +35,4 @@
 4. 实现 HTTP 调用层和 WebSocket 监听层。
 5. 实现本地签名 Token 生成和配置文件 secret 自动发现。
 6. 新增 `bin/chat-cli.ps1/.cmd/.sh` 和 `bin/chat-cli` 统一跨平台入口，保留 `chat-cli-local*` 兼容包装。
-7. 执行 `cargo test -p craw-chat-cli --offline`、`cargo fmt --all`，并做一次真实 CLI 烟雾验证。
+7. 执行 `cargo test -p sdkwork-im-cli --offline`、`cargo fmt --all`，并做一次真实 CLI 烟雾验证。

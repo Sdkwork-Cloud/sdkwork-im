@@ -1,9 +1,9 @@
-# Craw Chat Multilanguage SDK Generator Design
+# Sdkwork IM Multilanguage SDK Generator Design
 
 ## Goal
 
 Define the production standard for expanding `sdkwork-im-sdk` from a TypeScript-first
-workspace into a real multi-language SDK family that is generated from the live Craw Chat OpenAPI
+workspace into a real multi-language SDK family that is generated from the live Sdkwork IM OpenAPI
 3.x contract and then assembled into language-appropriate consumer SDKs.
 
 This design treats the current TypeScript SDK as the baseline public standard for:
@@ -56,7 +56,7 @@ cross-language reference point.
 - make generated transport the default public integration surface
 - force every language to reach full TypeScript semantic depth in the first phase
 - move WebSocket receive orchestration into OpenAPI generation
-- maintain a local fork of `sdkwork-sdk-generator` inside `apps/craw-chat`
+- maintain a local fork of `sdkwork-sdk-generator` inside `apps/sdkwork-im`
 - treat checked-in OpenAPI YAML as the source of truth when a live service schema is available
 
 ## Constraints
@@ -65,7 +65,7 @@ cross-language reference point.
 
 The current writable scope is limited to:
 
-- `apps/craw-chat/**`
+- `apps/sdkwork-im/**`
 
 The actual generator source currently lives outside that writable root:
 
@@ -89,7 +89,7 @@ The external generator already advertises support for these languages:
 - `go`
 - `python`
 
-The current Craw Chat workspace only formally integrates:
+The current Sdkwork IM workspace only formally integrates:
 
 - `typescript`
 - `flutter`
@@ -314,7 +314,7 @@ Every generation run must use the live service schema as its input source of tru
 
 Required root pipeline:
 
-1. Verify or start the target Craw Chat service.
+1. Verify or start the target Sdkwork IM service.
 2. Fetch the live OpenAPI 3.x schema from `/im/v3/openapi.json`.
 3. Refresh the checked-in authority snapshot under `openapi/`.
 4. Derive generator-specific normalized inputs from the authority schema.
@@ -332,7 +332,7 @@ Rules:
 
 - no language may generate directly from a stale local file when a live schema export is available
 - no language may skip post-generation normalization if the generator output is not yet aligned
-  with Craw Chat standards
+  with Sdkwork IM standards
 - generation is not complete until verification and assembly pass
 
 ## Root Wrapper Standard
@@ -531,7 +531,7 @@ with:
 
 ## Implementation Phases
 
-### Phase 1: Standardize the Craw Chat Multi-Language Workspace
+### Phase 1: Standardize the Sdkwork IM Multi-Language Workspace
 
 - extend root scripts to recognize every supported language
 - add or scaffold every language workspace
@@ -542,7 +542,7 @@ with:
 
 ### Phase 2: Run Real Generation and Capture Gaps
 
-- run every language against the live Craw Chat schema
+- run every language against the live Sdkwork IM schema
 - record generation and verification results
 - identify naming, auth, structure, and docs drift
 - turn generator shortcomings into explicit workspace-level problem reports and guardrails
@@ -560,7 +560,7 @@ Once writable access to `sdkwork-sdk-generator` is available:
 - move validated naming rules into the generator
 - move validated generated-namespace rules into the generator
 - move validated package metadata rules into the generator
-- keep Craw Chat as the contract-test workspace for regression coverage
+- keep Sdkwork IM as the contract-test workspace for regression coverage
 
 ## Acceptance Criteria
 
@@ -579,6 +579,6 @@ This design is successful when:
 ## Decision
 
 The correct next step is to treat `sdkwork-im-sdk` as the official multi-language SDK
-standard workspace for Craw Chat, expand it to cover the full generator language set, and use it to
+standard workspace for Sdkwork IM, expand it to cover the full generator language set, and use it to
 lock package structure, naming, verification, and documentation standards before generator-core
 changes are made outside the writable scope.

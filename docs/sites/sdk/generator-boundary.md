@@ -8,7 +8,7 @@ behavior.
 Every official language starts from the same live contract export:
 
 - endpoint: `/im/v3/openapi.json`
-- checked-in authority snapshot: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
+- checked-in authority snapshot: `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml`
 
 The root wrappers refresh that authority snapshot before generation. Language-specific SDK delivery
 then starts from the same contract instead of diverging per workspace.

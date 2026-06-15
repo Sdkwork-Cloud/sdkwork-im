@@ -6,7 +6,7 @@
     "displayName": "Projection Service",
     "version": "0.1.0",
     "type": "rust-crate",
-    "root": "craw-chat/services/projection-service",
+    "root": "sdkwork-im/services/projection-service",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "chat",
@@ -110,7 +110,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/services/projection-service/Cargo.toml"
+      "cargo test --manifest-path apps/sdkwork-im/services/projection-service/Cargo.toml"
     ]
   },
   "metadata": {

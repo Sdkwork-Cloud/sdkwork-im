@@ -29,9 +29,9 @@
 ## Verification
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_status_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_status_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
 cmd /c .\bin\status-local.cmd --help
-cargo test -p craw-chat-cli --offline -- --nocapture
+cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 ```
 

@@ -5,8 +5,8 @@ use axum::http::{HeaderMap, Request, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{Json, Router, routing::get};
-use craw_chat_api_registry::HttpMethod;
-use craw_chat_openapi::{
+use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use im_app_context::{AppContext, AppContextError, resolve_app_context};
@@ -15,13 +15,13 @@ use im_time::utc_now_rfc3339_millis;
 use serde::Serialize;
 use tokio::sync::Semaphore;
 
-const MEDIA_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "CRAW_CHAT_MEDIA_MAX_IN_FLIGHT_REQUESTS";
+const MEDIA_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_MEDIA_MAX_IN_FLIGHT_REQUESTS";
 const MEDIA_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 const MEDIA_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
-const MEDIA_MAX_REQUEST_BODY_BYTES_ENV: &str = "CRAW_CHAT_MEDIA_MAX_REQUEST_BODY_BYTES";
+const MEDIA_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_MEDIA_MAX_REQUEST_BODY_BYTES";
 const MEDIA_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 256 * 1024;
 const MEDIA_MAX_REQUEST_BODY_BYTES_MAX: usize = 1024 * 1024;
-const MEDIA_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str = "CRAW_CHAT_MEDIA_REQUIRE_DUAL_TOKEN_HEADERS";
+const MEDIA_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str = "SDKWORK_IM_MEDIA_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
 struct AppState {
@@ -238,7 +238,7 @@ fn build_media_service_openapi_document() -> Result<serde_json::Value, String> {
 
 fn media_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
-        title: "Craw Chat Media Reference API",
+        title: "Sdkwork IM Media Reference API",
         version: env!("CARGO_PKG_VERSION"),
         description: "Drive-backed media reference and health endpoints. Upload, download grant, object metadata, provider, and storage lifecycle operations are owned by SDKWork Drive.",
         openapi_path: "/openapi.json",

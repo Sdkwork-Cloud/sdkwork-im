@@ -7,7 +7,7 @@
 
 ## Why This Round
 
-- `craw-chat-cli token --token-only` was parsed but not actually narrowing the returned auth material.
+- `sdkwork-im-cli token --token-only` was parsed but not actually narrowing the returned auth material.
 - This was a small, real, user-facing contract gap on the CLI operator surface.
 
 ## Closure Target
@@ -31,8 +31,8 @@
 ## Verification
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_freezes_header_and_token_only_contract -- --exact --nocapture
-cargo test -p craw-chat-cli --offline --test chat_cli_contract_test -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_freezes_header_and_token_only_contract -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test -- --nocapture
 cargo fmt --all --check
 ```
 

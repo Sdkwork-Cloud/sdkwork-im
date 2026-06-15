@@ -1,0 +1,10 @@
+{
+  "name": "@sdkwork/im-pc-knowledge",
+  "version": "1.0.0",
+  "main": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "dependencies": {
+    "@sdkwork/agent-app-sdk": "workspace:*",
+    "@sdkwork/im-pc-core": "workspace:*"
+  }
+}

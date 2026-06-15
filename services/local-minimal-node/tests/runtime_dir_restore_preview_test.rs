@@ -47,7 +47,7 @@ fn unique_path(prefix: &str) -> PathBuf {
         .expect("system time should be after epoch")
         .as_nanos();
     let sequence = NEXT_RUNTIME_DIR_ID.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("craw_chat_{prefix}_{unique}_{sequence}"))
+    std::env::temp_dir().join(format!("sdkwork_im_{prefix}_{unique}_{sequence}"))
 }
 
 fn state_file(root: &Path, file_name: &str) -> PathBuf {

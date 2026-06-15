@@ -4,7 +4,7 @@
 
 - Current loop: continue after Step 12 closure, only close a real remaining gap.
 - Surface: `tools/chat-cli`
-- Contract: `craw-chat-cli token --token-only`
+- Contract: `sdkwork-im-cli token --token-only`
 
 ## Gap
 
@@ -38,7 +38,7 @@
 Red:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_freezes_header_and_token_only_contract -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_freezes_header_and_token_only_contract -- --exact --nocapture
 ```
 
 - Failed before the patch because `--token-only` still returned `Bearer <token>`.
@@ -46,7 +46,7 @@ cargo test -p craw-chat-cli --offline --test chat_cli_contract_test test_chat_cl
 Green:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_contract_test -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test -- --nocapture
 cargo fmt --all --check
 ```
 

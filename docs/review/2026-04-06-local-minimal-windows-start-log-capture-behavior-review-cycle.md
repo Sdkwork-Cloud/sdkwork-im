@@ -2,8 +2,8 @@
 
 ## 1. Review 范围
 
-- [deployment_profile_test.rs](<workspace-root>/craw-chat/services/local-minimal-node/tests/deployment_profile_test.rs)
-- [start-local.ps1](<workspace-root>/craw-chat/bin/start-local.ps1)
+- [deployment_profile_test.rs](<workspace-root>/sdkwork-im/services/local-minimal-node/tests/deployment_profile_test.rs)
+- [start-local.ps1](<workspace-root>/sdkwork-im/bin/start-local.ps1)
 - `/docs/review/` 与 `/docs/架构/` 中本轮行为回归标准文档
 
 ## 2. 问题列表

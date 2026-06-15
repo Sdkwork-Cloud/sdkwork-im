@@ -2,7 +2,7 @@
 
 Flutter SDK boundary for `sdkwork-im-sdk`.
 
-This package belongs to the Craw Chat `/im/v3/api` SDK family. It is generated
+This package belongs to the Sdkwork IM `/im/v3/api` SDK family. It is generated
 from the IM OpenAPI authority and must stay separate from app-business,
 backend/operator, appbase, Drive, and RTC provider-standard SDK ownership.
 

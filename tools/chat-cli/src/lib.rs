@@ -271,7 +271,7 @@ async fn http_request_json(
         .map_err(|error| {
             if error.is_connect() {
                 return CliError::runtime(format!(
-                    "unable to connect to craw-chat service at {} while calling {} {}; verify the service is running and the --base-url is correct: {}",
+                    "unable to connect to sdkwork-im service at {} while calling {} {}; verify the service is running and the --base-url is correct: {}",
                     context.base_url,
                     method.as_str(),
                     path,
@@ -530,7 +530,7 @@ pub(crate) fn resolve_access_token(auth: &AuthInput) -> Result<String, CliError>
         "actor_kind": auth.actor_kind,
         "session_id": auth.session_id,
         "device_id": auth.device_id,
-        "app_id": "craw-chat",
+        "app_id": "sdkwork-im",
         "environment": "dev",
         "deployment_mode": "local",
         "auth_level": "password",

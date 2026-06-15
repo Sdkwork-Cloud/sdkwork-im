@@ -24,11 +24,11 @@
 ## 修复方案
 
 - 增加默认提供商选择配置：
-  - `CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER=local|external`
+  - `SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER=local|external`
   - 默认 `local`
 - 增加 external 目录配置：
-  - `CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH=<json>`
-  - `CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_SYSTEM=<name>`，默认 `external-directory`
+  - `SDKWORK_IM_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH=<json>`
+  - `SDKWORK_IM_PRINCIPAL_PROFILE_EXTERNAL_SYSTEM=<name>`，默认 `external-directory`
 - 新增真实 `ExternalCatalogPrincipalProfileProvider`
   - 从外部目录 JSON 读取用户
   - 统一输出 `displayName / externalSystem / externalPrincipalId / principalProfilePluginId`

@@ -52,7 +52,7 @@ fn deterministic_social_id_for_test(prefix: &str, seed: &str) -> String {
 fn assert_professional_chat_id(chat_id: &str) {
     assert!(
         chat_id.starts_with("cc"),
-        "public chat id should use the Craw Chat product id prefix"
+        "public chat id should use the Sdkwork IM product id prefix"
     );
     assert!(
         (10..=18).contains(&chat_id.len()),
@@ -76,7 +76,7 @@ fn unique_test_runtime_dir(prefix: &str) -> std::path::PathBuf {
         .expect("system clock should be after unix epoch")
         .as_nanos();
     let sequence = NEXT_TEST_RUNTIME_DIR_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("craw_chat_{prefix}_{unique}_{sequence}"))
+    std::env::temp_dir().join(format!("sdkwork_im_{prefix}_{unique}_{sequence}"))
 }
 
 #[derive(Clone)]
@@ -5723,7 +5723,7 @@ async fn test_local_minimal_profile_derives_standardized_summaries_for_rich_mess
                         "parts":[
                             {
                                 "kind":"data",
-                                "schemaRef":"urn:sdkwork:craw-chat:message:location",
+                                "schemaRef":"urn:sdkwork:sdkwork-im:message:location",
                                 "encoding":"application/json",
                                 "payload":"{\"name\":\"The Bund\",\"latitude\":31.2400,\"longitude\":121.4900}"
                             }
@@ -5750,7 +5750,7 @@ async fn test_local_minimal_profile_derives_standardized_summaries_for_rich_mess
                         "parts":[
                             {
                                 "kind":"data",
-                                "schemaRef":"urn:sdkwork:craw-chat:message:custom:workflow.approval",
+                                "schemaRef":"urn:sdkwork:sdkwork-im:message:custom:workflow.approval",
                                 "encoding":"application/json",
                                 "payload":"{\"approvalId\":\"approval_demo\"}"
                             }
@@ -5777,7 +5777,7 @@ async fn test_local_minimal_profile_derives_standardized_summaries_for_rich_mess
                         "parts":[
                             {
                                 "kind":"data",
-                                "schemaRef":"urn:sdkwork:craw-chat:message:ai_image",
+                                "schemaRef":"urn:sdkwork:sdkwork-im:message:ai_image",
                                 "encoding":"application/json",
                                 "payload":"{\"prompt\":\"Shanghai skyline at sunset\",\"status\":\"completed\",\"model\":\"gpt-image-1\"}"
                             },
@@ -11559,7 +11559,7 @@ async fn test_local_minimal_profile_accept_converges_when_request_was_externally
  {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_snapshot_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_PRE_COMMIT_DELAY_MS", "200");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_ACCEPT_PRE_COMMIT_DELAY_MS", "200");
 
     let runtime_dir = unique_test_runtime_dir("friend_request_accept_external_after_snapshot");
     fs::create_dir_all(runtime_dir.join("state")).expect("runtime dir state should be created");
@@ -11723,7 +11723,7 @@ async fn test_local_minimal_profile_decline_converges_when_request_was_externall
  {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _decline_snapshot_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_DECLINE_PRE_COMMIT_DELAY_MS", "200");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_DECLINE_PRE_COMMIT_DELAY_MS", "200");
 
     let app = local_minimal_node::build_default_app();
 
@@ -11865,7 +11865,7 @@ async fn test_local_minimal_profile_cancel_converges_when_request_was_externally
  {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _cancel_snapshot_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_CANCEL_PRE_COMMIT_DELAY_MS", "200");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_CANCEL_PRE_COMMIT_DELAY_MS", "200");
 
     let app = local_minimal_node::build_default_app();
 
@@ -12007,7 +12007,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
  {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "50");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "50");
 
     let app = local_minimal_node::build_default_app();
 
@@ -12275,7 +12275,7 @@ async fn test_local_minimal_profile_cancel_after_accept_commit_is_rejected_witho
 async fn test_local_minimal_profile_repairs_pending_friend_request_acceptance_after_restart() {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
 
     let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
@@ -12471,7 +12471,7 @@ async fn test_local_minimal_profile_contacts_read_repairs_pending_friend_request
  {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
 
     let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_contacts");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
@@ -12619,7 +12619,7 @@ async fn test_local_minimal_profile_second_instance_contacts_read_repairs_pendin
  {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
 
     let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_second_instance");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
@@ -12814,7 +12814,7 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
  {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
 
     let runtime_dir =
         unique_test_runtime_dir("friend_request_accept_repair_same_instance_contacts_wait");
@@ -13072,9 +13072,9 @@ async fn test_local_minimal_profile_same_instance_concurrent_contacts_wait_for_p
 async fn test_local_minimal_profile_healthz_stays_responsive_while_repair_store_io_is_delayed() {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
     let _repair_store_delay = set_scoped_env_var(
-        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
+        "SDKWORK_IM_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
         "250",
     );
 
@@ -13271,7 +13271,7 @@ async fn test_local_minimal_profile_cross_instance_pending_accept_repairs_preser
  {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "500");
 
     let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_multi_instance");
     fs::create_dir_all(&runtime_dir).expect("runtime dir should be created");
@@ -13802,7 +13802,7 @@ async fn test_local_minimal_profile_discards_stale_pending_friend_request_accept
 async fn test_local_minimal_profile_discards_blocked_pending_friend_request_accept_repair() {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _accept_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "400");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "400");
 
     let runtime_dir = unique_test_runtime_dir("friend_request_accept_repair_blocked");
     fs::create_dir_all(runtime_dir.join("state")).expect("runtime dir state should be created");
@@ -13966,7 +13966,7 @@ async fn test_local_minimal_profile_discards_canceled_pending_friend_request_acc
  {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _repair_snapshot_delay = set_scoped_env_var(
-        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_POST_SNAPSHOT_DELAY_MS",
+        "SDKWORK_IM_TEST_SOCIAL_ACCEPT_REPAIR_POST_SNAPSHOT_DELAY_MS",
         "200",
     );
 
@@ -14337,7 +14337,7 @@ async fn test_local_minimal_profile_discards_pre_accept_blocked_pending_friend_r
 async fn test_local_minimal_profile_concurrent_accepts_converge_idempotently_across_instances() {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _repair_store_delay = set_scoped_env_var(
-        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
+        "SDKWORK_IM_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS",
         "250",
     );
 
@@ -14763,7 +14763,7 @@ async fn test_local_minimal_profile_friendship_remove_converges_when_friendship_
  {
     let _env_lock = lock_social_accept_delay_env_guard().await;
     let _remove_snapshot_delay =
-        set_scoped_env_var("CRAW_CHAT_TEST_SOCIAL_REMOVE_PRE_COMMIT_DELAY_MS", "200");
+        set_scoped_env_var("SDKWORK_IM_TEST_SOCIAL_REMOVE_PRE_COMMIT_DELAY_MS", "200");
 
     let app = local_minimal_node::build_default_app();
     let fixture = create_active_friendship_direct_chat_fixture(&app).await;

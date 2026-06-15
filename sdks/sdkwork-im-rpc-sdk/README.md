@@ -1,10 +1,10 @@
 # SDKWork IM RPC SDK
 
-`sdkwork-im-rpc-sdk` is the canonical gRPC SDK family for Craw Chat communication services. It is additive to the existing HTTP SDK families and does not replace `sdkwork-im-sdk`, `sdkwork-im-app-sdk`, or `sdkwork-im-backend-sdk`.
+`sdkwork-im-rpc-sdk` is the canonical gRPC SDK family for Sdkwork IM communication services. It is additive to the existing HTTP SDK families and does not replace `sdkwork-im-sdk`, `sdkwork-im-app-sdk`, or `sdkwork-im-backend-sdk`.
 
 ## Current Capability Inventory
 
-The current Craw Chat repository already has several capabilities that can be wrapped as RPC adapters once their runtime boundaries are wired to tonic or another approved gRPC server stack:
+The current Sdkwork IM repository already has several capabilities that can be wrapped as RPC adapters once their runtime boundaries are wired to tonic or another approved gRPC server stack:
 
 | Existing capability | Current owner | RPC service group | Notes |
 | --- | --- | --- | --- |
@@ -59,7 +59,7 @@ This RPC SDK is designed for multiple deployment shapes:
 | single-process local mode | `local-minimal-node` hosts app, runtime, realtime, and control behavior in one process. | RPC may bind to loopback for local tools and native desktop hosts. |
 | split service mode | Conversation, realtime, streaming, notification, automation, ops, and control-plane processes run separately. | App/backend RPC clients call explicit service endpoints; metadata providers attach auth, access token, trace, deadline, and idempotency metadata. |
 | sharded realtime mode | Multiple realtime/session nodes own route leases and fanout shards. | Internal RPC uses `RuntimeTopologyService`, `RouteLeaseService`, and `DomainEventRelayService` for node discovery, route ownership, event relay, and repair. |
-| private integration mode | Other backend services integrate Craw Chat without browser HTTP SDKs. | Backend/internal RPC clients use TLS or mTLS, health checking, deadlines, and retry rules from the manifest. |
+| private integration mode | Other backend services integrate Sdkwork IM without browser HTTP SDKs. | Backend/internal RPC clients use TLS or mTLS, health checking, deadlines, and retry rules from the manifest. |
 
 Production distributed deployments should use TLS, service-to-service mTLS for internal RPC, standard gRPC health checking, and controlled reflection. Reflection is allowed in local/private development and must be disabled or access-controlled for public production.
 
@@ -178,7 +178,7 @@ Frontend/browser UI should continue to use generated HTTP app/open/backend SDKs 
 Minimum verification for this contract slice:
 
 ```powershell
-node .\scripts\dev\sdkwork-chat-rpc-contract.test.mjs
+node .\scripts\dev\sdkwork-im-rpc-contract.test.mjs
 node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-typescript --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language typescript --package-name @sdkwork/im-rpc-sdk --dry-run --no-sync-published-version
 node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-go --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language go --package-name github.com/sdkwork/im-rpc-sdk-go --dry-run --no-sync-published-version
 node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-java --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language java --package-name com.sdkwork.im.rpc --dry-run --no-sync-published-version

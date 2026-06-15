@@ -39,7 +39,7 @@ fn test_server_lifecycle_scripts_do_not_render_local_identity_config() {
         for forbidden in forbidden_terms {
             assert!(
                 !content.contains(forbidden.as_str()),
-                "{relative_path} must not keep craw-chat owned identity config debt `{forbidden}`"
+                "{relative_path} must not keep sdkwork-im owned identity config debt `{forbidden}`"
             );
         }
     }
@@ -51,7 +51,7 @@ fn test_principal_profile_provider_contract_is_read_only_and_not_user_lifecycle(
         "crates/im-platform-contracts/src/provider.rs",
         "services/local-minimal-node/src/node.rs",
         "services/local-minimal-node/src/node/build.rs",
-        "sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml",
+        "sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml",
     ] {
         let content = read_workspace_file(relative_path);
         let forbidden_terms = vec![
@@ -69,7 +69,7 @@ fn test_principal_profile_provider_contract_is_read_only_and_not_user_lifecycle(
         for forbidden in forbidden_terms {
             assert!(
                 !content.contains(forbidden.as_str()),
-                "{relative_path} must not keep craw-chat owned user lifecycle/provider debt `{forbidden}`"
+                "{relative_path} must not keep sdkwork-im owned user lifecycle/provider debt `{forbidden}`"
             );
         }
     }
@@ -86,7 +86,7 @@ fn test_principal_profile_provider_contract_is_read_only_and_not_user_lifecycle(
 }
 
 #[test]
-fn test_craw_chat_does_not_keep_local_token_or_iam_context_runtime() {
+fn test_sdkwork_im_does_not_keep_local_token_or_iam_context_runtime() {
     for relative_path in [
         "Cargo.toml",
         "crates/im-app-context/Cargo.toml",
@@ -106,7 +106,7 @@ fn test_craw_chat_does_not_keep_local_token_or_iam_context_runtime() {
             marker(&["resolve", "_principal_context"]),
             marker(&["resolve", "_trusted_principal_headers"]),
             marker(&["PUBLIC", "_BEARER"]),
-            marker(&["CRAW_CHAT_PUBLIC", "_BEARER"]),
+            marker(&["SDKWORK_IM_PUBLIC", "_BEARER"]),
             marker(&["encode", "_hs256_bearer_token"]),
             marker(&["resolve", "_public_bearer_auth_context"]),
             marker(&["resolve", "_bearer_auth_context"]),
@@ -122,7 +122,7 @@ fn test_craw_chat_does_not_keep_local_token_or_iam_context_runtime() {
         for forbidden in forbidden_terms {
             assert!(
                 !content.contains(forbidden.as_str()),
-                "{relative_path} must not keep craw-chat-owned token/IAM runtime debt `{forbidden}`"
+                "{relative_path} must not keep sdkwork-im-owned token/IAM runtime debt `{forbidden}`"
             );
         }
     }
@@ -130,7 +130,7 @@ fn test_craw_chat_does_not_keep_local_token_or_iam_context_runtime() {
     let legacy_auth_context_crate = workspace_root().join(marker(&["crates/im", "-auth-context"]));
     assert!(
         !legacy_auth_context_crate.exists(),
-        "craw-chat must not keep a local IAM/auth-context crate at {}",
+        "sdkwork-im must not keep a local IAM/auth-context crate at {}",
         legacy_auth_context_crate.display()
     );
 
@@ -138,14 +138,14 @@ fn test_craw_chat_does_not_keep_local_token_or_iam_context_runtime() {
         workspace_root().join(marker(&["crates/im", "-principal-context"]));
     assert!(
         !legacy_principal_context_crate.exists(),
-        "craw-chat must not keep a principal-context crate at {}",
+        "sdkwork-im must not keep a principal-context crate at {}",
         legacy_principal_context_crate.display()
     );
 
     let app_context_crate = workspace_root().join("crates/im-app-context");
     assert!(
         app_context_crate.exists(),
-        "craw-chat should keep an app-context crate that only consumes sdkwork-appbase AppContext projection"
+        "sdkwork-im should keep an app-context crate that only consumes sdkwork-appbase AppContext projection"
     );
 
     let app_context_source = read_workspace_file("crates/im-app-context/src/lib.rs");

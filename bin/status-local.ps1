@@ -114,7 +114,7 @@ else {
         )
 
         foreach ($configFile in Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName) {
-            $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
+            $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "SDKWORK_IM_RUNTIME_DIR"
             if (-not [string]::IsNullOrWhiteSpace($configRuntimeDir)) {
                 return $configRuntimeDir
             }
@@ -153,7 +153,7 @@ function Resolve-BindAddressFromProfile {
     )
 
     foreach ($configFile in Resolve-RuntimeProfileConfigFiles -Root $Root -ProfileName $ProfileName) {
-        $configBindAddress = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_BIND_ADDR"
+        $configBindAddress = Read-ConfigValue -ConfigFile $configFile -Key "SDKWORK_IM_BIND_ADDR"
         if (-not [string]::IsNullOrWhiteSpace($configBindAddress)) {
             return $configBindAddress
         }

@@ -15,7 +15,7 @@
 
 ## Closure Target
 
-1. Add a regression for `CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER=external` without catalog path.
+1. Add a regression for `SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER=external` without catalog path.
 2. Reproduce the startup panic first.
 3. Route the missing-path branch into the existing unavailable provider error model.
 4. Backwrite review, step, and architecture docs for this loop.

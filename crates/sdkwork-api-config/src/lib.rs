@@ -60,12 +60,12 @@ fn resolve_admin_proxy_target() -> Result<String> {
 
 fn resolve_portal_api_base_url() -> Result<String> {
     for key in [
-        "CRAW_CHAT_PORTAL_API_BASE_URL",
+        "SDKWORK_IM_PORTAL_API_BASE_URL",
         "SDKWORK_PORTAL_API_BASE_URL",
-        "SDKWORK_CHAT_SERVER_API_BASE_URL",
-        "SDKWORK_CHAT_SERVER_BASE_URL",
-        "CRAW_CHAT_SERVER_API_BASE_URL",
-        "CRAW_CHAT_SERVER_BASE_URL",
+        "SDKWORK_IM_SERVER_API_BASE_URL",
+        "SDKWORK_IM_SERVER_BASE_URL",
+        "SDKWORK_IM_SERVER_API_BASE_URL",
+        "SDKWORK_IM_SERVER_BASE_URL",
     ] {
         if let Some(value) = env::var(key)
             .ok()
@@ -76,7 +76,7 @@ fn resolve_portal_api_base_url() -> Result<String> {
         }
     }
 
-    if let Some(value) = env::var("CRAW_CHAT_BIND_ADDR")
+    if let Some(value) = env::var("SDKWORK_IM_BIND_ADDR")
         .ok()
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
@@ -127,7 +127,7 @@ fn normalize_explicit_portal_api_base_url(env_name: &str, value: &str) -> Result
 fn normalize_portal_api_base_url_from_bind_addr(value: &str) -> Result<String> {
     let trimmed = value.trim().trim_end_matches('/');
     if trimmed.is_empty() {
-        anyhow::bail!("CRAW_CHAT_BIND_ADDR cannot be empty when used as a portal api fallback");
+        anyhow::bail!("SDKWORK_IM_BIND_ADDR cannot be empty when used as a portal api fallback");
     }
 
     if let Ok(socket_addr) = trimmed.parse::<SocketAddr>() {
@@ -139,11 +139,11 @@ fn normalize_portal_api_base_url_from_bind_addr(value: &str) -> Result<String> {
     }
 
     let mut url = Url::parse(normalize_upstream_url(trimmed)?.as_str()).with_context(|| {
-        format!("CRAW_CHAT_BIND_ADDR must be a host:port or absolute url: {trimmed}")
+        format!("SDKWORK_IM_BIND_ADDR must be a host:port or absolute url: {trimmed}")
     })?;
 
     let Some(host) = url.host_str().map(str::to_owned) else {
-        anyhow::bail!("CRAW_CHAT_BIND_ADDR must include a host");
+        anyhow::bail!("SDKWORK_IM_BIND_ADDR must include a host");
     };
     if is_unspecified_host(host.as_str()) {
         let normalized_host = if matches!(url.host(), Some(url::Host::Ipv6(_))) {
@@ -245,23 +245,23 @@ mod tests {
     fn resolve_portal_api_base_url_prefers_explicit_url_and_falls_back_to_bind_addr() {
         let _guard = env_guard();
         let _explicit = ScopedEnvVar::set(
-            "CRAW_CHAT_PORTAL_API_BASE_URL",
+            "SDKWORK_IM_PORTAL_API_BASE_URL",
             " https://portal-api.example.com/runtime-edge/ ",
         );
-        let _sdkwork_chat_server_api = ScopedEnvVar::remove("SDKWORK_CHAT_SERVER_API_BASE_URL");
-        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_CHAT_SERVER_BASE_URL");
-        let _server_api = ScopedEnvVar::remove("CRAW_CHAT_SERVER_API_BASE_URL");
-        let _server_base = ScopedEnvVar::remove("CRAW_CHAT_SERVER_BASE_URL");
-        let _bind = ScopedEnvVar::set("CRAW_CHAT_BIND_ADDR", "127.0.0.1:19990");
+        let _sdkwork_chat_server_api = ScopedEnvVar::remove("SDKWORK_IM_SERVER_API_BASE_URL");
+        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
+        let _server_api = ScopedEnvVar::remove("SDKWORK_IM_SERVER_API_BASE_URL");
+        let _server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
+        let _bind = ScopedEnvVar::set("SDKWORK_IM_BIND_ADDR", "127.0.0.1:19990");
         assert_eq!(
             resolve_portal_api_base_url().expect("explicit portal api base url should resolve"),
             "https://portal-api.example.com/runtime-edge"
         );
 
         unsafe {
-            env::remove_var("CRAW_CHAT_PORTAL_API_BASE_URL");
+            env::remove_var("SDKWORK_IM_PORTAL_API_BASE_URL");
             env::set_var(
-                "SDKWORK_CHAT_SERVER_API_BASE_URL",
+                "SDKWORK_IM_SERVER_API_BASE_URL",
                 " https://chat.example.com/sdkwork/chat/ ",
             );
         }
@@ -273,9 +273,9 @@ mod tests {
         );
 
         unsafe {
-            env::remove_var("SDKWORK_CHAT_SERVER_API_BASE_URL");
+            env::remove_var("SDKWORK_IM_SERVER_API_BASE_URL");
             env::set_var(
-                "SDKWORK_CHAT_SERVER_BASE_URL",
+                "SDKWORK_IM_SERVER_BASE_URL",
                 " https://chat.example.com/sdkwork/chat/ ",
             );
         }
@@ -286,9 +286,9 @@ mod tests {
         );
 
         unsafe {
-            env::remove_var("SDKWORK_CHAT_SERVER_BASE_URL");
+            env::remove_var("SDKWORK_IM_SERVER_BASE_URL");
             env::set_var(
-                "CRAW_CHAT_SERVER_API_BASE_URL",
+                "SDKWORK_IM_SERVER_API_BASE_URL",
                 " https://chat.example.com/api-edge/ ",
             );
         }
@@ -299,8 +299,8 @@ mod tests {
         );
 
         unsafe {
-            env::remove_var("CRAW_CHAT_SERVER_API_BASE_URL");
-            env::set_var("CRAW_CHAT_SERVER_BASE_URL", " https://chat.example.com/ ");
+            env::remove_var("SDKWORK_IM_SERVER_API_BASE_URL");
+            env::set_var("SDKWORK_IM_SERVER_BASE_URL", " https://chat.example.com/ ");
         }
         assert_eq!(
             resolve_portal_api_base_url()
@@ -309,7 +309,7 @@ mod tests {
         );
 
         unsafe {
-            env::remove_var("CRAW_CHAT_SERVER_BASE_URL");
+            env::remove_var("SDKWORK_IM_SERVER_BASE_URL");
         }
         assert_eq!(
             resolve_portal_api_base_url().expect("bind addr fallback should resolve"),
@@ -317,7 +317,7 @@ mod tests {
         );
 
         unsafe {
-            env::set_var("CRAW_CHAT_BIND_ADDR", "0.0.0.0:29990");
+            env::set_var("SDKWORK_IM_BIND_ADDR", "0.0.0.0:29990");
         }
         assert_eq!(
             resolve_portal_api_base_url().expect("wildcard ipv4 bind should normalize"),
@@ -325,7 +325,7 @@ mod tests {
         );
 
         unsafe {
-            env::set_var("CRAW_CHAT_BIND_ADDR", "[::]:39990");
+            env::set_var("SDKWORK_IM_BIND_ADDR", "[::]:39990");
         }
         assert_eq!(
             resolve_portal_api_base_url().expect("wildcard ipv6 bind should normalize"),
@@ -336,24 +336,24 @@ mod tests {
     #[test]
     fn resolve_portal_api_base_url_rejects_unspecified_explicit_public_url() {
         let _guard = env_guard();
-        let _explicit = ScopedEnvVar::set("CRAW_CHAT_PORTAL_API_BASE_URL", "http://0.0.0.0:18090");
-        let _sdkwork_chat_server_api = ScopedEnvVar::remove("SDKWORK_CHAT_SERVER_API_BASE_URL");
-        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_CHAT_SERVER_BASE_URL");
-        let _server_api = ScopedEnvVar::remove("CRAW_CHAT_SERVER_API_BASE_URL");
-        let _server_base = ScopedEnvVar::remove("CRAW_CHAT_SERVER_BASE_URL");
-        let _bind = ScopedEnvVar::remove("CRAW_CHAT_BIND_ADDR");
+        let _explicit = ScopedEnvVar::set("SDKWORK_IM_PORTAL_API_BASE_URL", "http://0.0.0.0:18090");
+        let _sdkwork_chat_server_api = ScopedEnvVar::remove("SDKWORK_IM_SERVER_API_BASE_URL");
+        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
+        let _server_api = ScopedEnvVar::remove("SDKWORK_IM_SERVER_API_BASE_URL");
+        let _server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
+        let _bind = ScopedEnvVar::remove("SDKWORK_IM_BIND_ADDR");
 
         let error = resolve_portal_api_base_url()
             .expect_err("unspecified explicit public url should be rejected");
-        assert!(error.to_string().contains("CRAW_CHAT_PORTAL_API_BASE_URL"));
+        assert!(error.to_string().contains("SDKWORK_IM_PORTAL_API_BASE_URL"));
 
         unsafe {
-            env::remove_var("CRAW_CHAT_PORTAL_API_BASE_URL");
-            env::set_var("CRAW_CHAT_SERVER_API_BASE_URL", "http://0.0.0.0:18079");
+            env::remove_var("SDKWORK_IM_PORTAL_API_BASE_URL");
+            env::set_var("SDKWORK_IM_SERVER_API_BASE_URL", "http://0.0.0.0:18079");
         }
 
         let error = resolve_portal_api_base_url()
             .expect_err("unspecified server api public url should be rejected");
-        assert!(error.to_string().contains("CRAW_CHAT_SERVER_API_BASE_URL"));
+        assert!(error.to_string().contains("SDKWORK_IM_SERVER_API_BASE_URL"));
     }
 }

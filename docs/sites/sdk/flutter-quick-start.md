@@ -2,7 +2,7 @@
 
 ## Audience
 
-Use this page when you are integrating Craw Chat into a Flutter application and want the preferred
+Use this page when you are integrating Sdkwork IM into a Flutter application and want the preferred
 composed SDK layer.
 
 ## Package

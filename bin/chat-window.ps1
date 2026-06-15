@@ -61,7 +61,7 @@ function Resolve-BaseUrl {
     }
 
     $configFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".runtime\local-minimal\config\local-minimal.env"
-    $bindAddress = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_BIND_ADDR"
+    $bindAddress = Read-ConfigValue -ConfigFile $configFile -Key "SDKWORK_IM_BIND_ADDR"
     if ([string]::IsNullOrWhiteSpace($bindAddress)) {
         return "http://127.0.0.1:18090"
     }
@@ -332,7 +332,7 @@ $resolvedAuthContext = Resolve-ChatAuthContext `
     -ResolvedDeviceId $resolvedDeviceId
 
 try {
-    $host.UI.RawUI.WindowTitle = "craw-chat [$resolvedLabel] [$ConversationId]"
+    $host.UI.RawUI.WindowTitle = "sdkwork-im [$resolvedLabel] [$ConversationId]"
 }
 catch {
 }

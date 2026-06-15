@@ -1,7 +1,7 @@
 # Gateway OpenAPI
 
 <p class="api-page-intro">
-  The unified <code>web-gateway</code> is the external HTTP entrypoint for the current Craw Chat
+  The unified <code>web-gateway</code> is the external HTTP entrypoint for the current Sdkwork IM
   server runtime. It publishes the aggregate OpenAPI 3.1 document, a machine-readable service
   schema index, and service-specific schema or rendered-doc views on the same operator-facing
   port.
@@ -66,7 +66,7 @@
 - `websocketSubprotocols` lists the declared websocket subprotocols owned by a service on the unified gateway contract. It is omitted for HTTP-only services.
 - `session-gateway` now publishes separate `sessions`, `presence`, and `realtime` operation groups in the index so generated SDKs and operator-facing docs can preserve the same conceptual boundaries as the live service contract.
 - The index intentionally does not expose direct upstream health URLs because the unified deployment contract is the single `web-gateway` port, not the split internal bind set.
-- Startup output on the `craw-chat-server` process prints the aggregate schema URL, the schema index URL, the runtime summary URL, a separate `SDK Contracts` section for `im-api`, `app-api`, and `backend-api`, an `Upstream Operational Service Contracts` section for service-level schema/docs URLs, the currently public gateway endpoint patterns derived from the route registry, and a `service + operationGroup` surface summary aligned with the runtime-summary/index metadata.
+- Startup output on the `sdkwork-im-server` process prints the aggregate schema URL, the schema index URL, the runtime summary URL, a separate `SDK Contracts` section for `im-api`, `app-api`, and `backend-api`, an `Upstream Operational Service Contracts` section for service-level schema/docs URLs, the currently public gateway endpoint patterns derived from the route registry, and a `service + operationGroup` surface summary aligned with the runtime-summary/index metadata.
 
 ## Related Pages
 

@@ -116,7 +116,7 @@ else
     local config_runtime_dir=""
 
     while IFS= read -r config_file; do
-      config_runtime_dir="$(read_config_value_from_file "$config_file" "CRAW_CHAT_RUNTIME_DIR" || true)"
+      config_runtime_dir="$(read_config_value_from_file "$config_file" "SDKWORK_IM_RUNTIME_DIR" || true)"
       if [[ -n "$config_runtime_dir" ]]; then
         printf '%s\n' "$config_runtime_dir"
         return 0
@@ -274,7 +274,7 @@ resolve_bind_addr() {
   fi
 
   local config_bind_addr=""
-  config_bind_addr="$(resolve_config_value_from_profile "$ROOT_DIR" "$profile_name" "CRAW_CHAT_BIND_ADDR" || true)"
+  config_bind_addr="$(resolve_config_value_from_profile "$ROOT_DIR" "$profile_name" "SDKWORK_IM_BIND_ADDR" || true)"
   if [[ -n "$config_bind_addr" ]]; then
     printf '%s\n' "$config_bind_addr"
     return
@@ -331,27 +331,27 @@ fi
 
 resolved_bind_addr="$(resolve_bind_addr "$bind_addr")"
 resolved_runtime_dir="$RUNTIME_DIR"
-resolved_friend_request_cursor_secret="$(resolve_config_value_from_profile "$ROOT_DIR" "$profile_name" "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET" || true)"
+resolved_friend_request_cursor_secret="$(resolve_config_value_from_profile "$ROOT_DIR" "$profile_name" "SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET" || true)"
 if [[ -z "$resolved_friend_request_cursor_secret" ]]; then
-  resolved_friend_request_cursor_secret="${CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET:-}"
+  resolved_friend_request_cursor_secret="${SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET:-}"
 fi
-resolved_app_context_require_signature="$(resolve_config_value_from_profile "$ROOT_DIR" "$profile_name" "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE" || true)"
+resolved_app_context_require_signature="$(resolve_config_value_from_profile "$ROOT_DIR" "$profile_name" "SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE" || true)"
 if [[ -z "$resolved_app_context_require_signature" ]]; then
-  resolved_app_context_require_signature="${CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE:-}"
+  resolved_app_context_require_signature="${SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE:-}"
 fi
-resolved_app_context_signature_secret="$(resolve_config_value_from_profile "$ROOT_DIR" "$profile_name" "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET" || true)"
+resolved_app_context_signature_secret="$(resolve_config_value_from_profile "$ROOT_DIR" "$profile_name" "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET" || true)"
 if [[ -z "$resolved_app_context_signature_secret" ]]; then
-  resolved_app_context_signature_secret="${CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET:-}"
+  resolved_app_context_signature_secret="${SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET:-}"
 fi
 
 if [[ "$foreground" -eq 1 ]]; then
   echo "Starting local-minimal-node in foreground on http://${resolved_bind_addr}"
   exec env \
-    CRAW_CHAT_BIND_ADDR="$resolved_bind_addr" \
-    CRAW_CHAT_RUNTIME_DIR="$resolved_runtime_dir" \
-    CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="$resolved_friend_request_cursor_secret" \
-    CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE="$resolved_app_context_require_signature" \
-    CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET="$resolved_app_context_signature_secret" \
+    SDKWORK_IM_BIND_ADDR="$resolved_bind_addr" \
+    SDKWORK_IM_RUNTIME_DIR="$resolved_runtime_dir" \
+    SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET="$resolved_friend_request_cursor_secret" \
+    SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE="$resolved_app_context_require_signature" \
+    SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET="$resolved_app_context_signature_secret" \
     "$EXE_PATH"
 fi
 
@@ -362,11 +362,11 @@ fi
 
 echo "Starting local-minimal-node in background on http://${resolved_bind_addr}"
 nohup env \
-  CRAW_CHAT_BIND_ADDR="$resolved_bind_addr" \
-  CRAW_CHAT_RUNTIME_DIR="$resolved_runtime_dir" \
-  CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="$resolved_friend_request_cursor_secret" \
-  CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE="$resolved_app_context_require_signature" \
-  CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET="$resolved_app_context_signature_secret" \
+  SDKWORK_IM_BIND_ADDR="$resolved_bind_addr" \
+  SDKWORK_IM_RUNTIME_DIR="$resolved_runtime_dir" \
+  SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET="$resolved_friend_request_cursor_secret" \
+  SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE="$resolved_app_context_require_signature" \
+  SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET="$resolved_app_context_signature_secret" \
   "$EXE_PATH" >>"$STDOUT_LOG" 2>>"$STDERR_LOG" &
 pid=$!
 echo "$pid" >"$PID_FILE"

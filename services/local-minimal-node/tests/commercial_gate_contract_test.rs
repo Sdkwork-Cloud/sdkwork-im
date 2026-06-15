@@ -122,8 +122,8 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
     }
 
     assert!(
-        !workflow.contains("apps/craw-chat-admin")
-            && !workflow.contains("apps/craw-chat-portal")
+        !workflow.contains("apps/sdkwork-im-admin")
+            && !workflow.contains("apps/sdkwork-im-portal")
             && !workflow.contains("tests/admin-architecture.test.mjs")
             && !workflow.contains("tests/portal-build-smoke.test.mjs")
             && !workflow.contains("tests/portal-real-auth.test.mjs"),
@@ -148,18 +148,18 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
         "commercial gate workflow must provision a PostgreSQL service for live realtime storage integration"
     );
     assert!(
-        workflow.contains("CRAW_CHAT_POSTGRES_TEST_DATABASE_URL:"),
-        "commercial gate workflow must set CRAW_CHAT_POSTGRES_TEST_DATABASE_URL so the live PostgreSQL realtime test cannot silently skip in CI"
+        workflow.contains("SDKWORK_IM_POSTGRES_TEST_DATABASE_URL:"),
+        "commercial gate workflow must set SDKWORK_IM_POSTGRES_TEST_DATABASE_URL so the live PostgreSQL realtime test cannot silently skip in CI"
     );
     assert!(
         workflow
-            .matches("CRAW_CHAT_POSTGRES_TEST_DATABASE_URL:")
+            .matches("SDKWORK_IM_POSTGRES_TEST_DATABASE_URL:")
             .count()
             >= 3,
         "commercial gate workflow must wire the PostgreSQL database URL into adapter-level, session-gateway runtime, and websocket live tests"
     );
     assert!(
-        workflow.contains("postgres://craw_chat_test:craw_chat_test@localhost:5432/craw_chat_test"),
+        workflow.contains("postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test"),
         "commercial gate workflow must wire the live PostgreSQL realtime test to the provisioned test database"
     );
 }

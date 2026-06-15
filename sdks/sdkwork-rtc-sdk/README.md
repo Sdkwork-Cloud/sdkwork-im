@@ -1,10 +1,10 @@
 # SDKWork RTC SDK
 
-`sdkwork-rtc-sdk` is the RTC provider-standard SDK family for Craw Chat. It is
+`sdkwork-rtc-sdk` is the RTC provider-standard SDK family for Sdkwork IM. It is
 not a route-generated SDK workspace and does not own an OpenAPI route prefix.
 
 The authoritative implementation workspace currently lives at
-`../sdkwork-rtc/sdks/sdkwork-rtc-sdk`. This in-repository README is the Craw Chat
+`../sdkwork-rtc/sdks/sdkwork-rtc-sdk`. This in-repository README is the Sdkwork IM
 boundary index used by release, CLI, and SDK documentation contracts.
 
 ## Boundary

@@ -11,7 +11,7 @@ use tower::ServiceExt;
 
 static UNIQUE_CATALOG_COUNTER: AtomicU64 = AtomicU64::new(0);
 const CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
-    "CRAW_CHAT_CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS";
+    "SDKWORK_IM_CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS";
 
 struct ScopedEnvVar {
     name: &'static str,
@@ -116,7 +116,7 @@ async fn test_public_app_exports_live_openapi_json() {
         serde_json::from_slice(&body).expect("body should be valid json");
 
     assert_eq!(value["openapi"], "3.1.0");
-    assert_eq!(value["info"]["title"], "Craw Chat Conversation Runtime API");
+    assert_eq!(value["info"]["title"], "Sdkwork IM Conversation Runtime API");
     assert!(value["paths"]["/im/v3/api/chat/conversations/{conversation_id}/messages"].is_object());
 }
 
@@ -140,7 +140,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
     let html = String::from_utf8(body.to_vec()).expect("docs should be valid utf-8");
 
     assert!(html.contains("OpenAPI 3.1"));
-    assert!(html.contains("Craw Chat Conversation Runtime API"));
+    assert!(html.contains("Sdkwork IM Conversation Runtime API"));
     assert!(html.contains("/openapi.json"));
 }
 

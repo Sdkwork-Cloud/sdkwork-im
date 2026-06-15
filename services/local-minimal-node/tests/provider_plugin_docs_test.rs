@@ -40,7 +40,7 @@ fn test_provider_docs_use_principal_profile_provider_names_and_paths() {
             marker(&["user", "_module"]),
             marker(&["User", "Module"]),
             marker(&["user", "Module"]),
-            marker(&["CRAW_CHAT_USER", "_MODULE"]),
+            marker(&["SDKWORK_IM_USER", "_MODULE"]),
             marker(&["/backend/v3/api/user", "_module/provider_health"]),
         ];
         for forbidden in forbidden_terms {
@@ -64,8 +64,8 @@ fn test_provider_docs_use_principal_profile_provider_names_and_paths() {
 
     let deployment = read_repo_file("docs/sites/deployment/profiles-and-env.md");
     assert!(
-        deployment.contains("CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER")
-            && deployment.contains("CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH"),
+        deployment.contains("SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER")
+            && deployment.contains("SDKWORK_IM_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH"),
         "deployment docs must document principal-profile provider env keys"
     );
 }

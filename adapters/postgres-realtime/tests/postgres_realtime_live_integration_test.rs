@@ -15,7 +15,7 @@ use im_platform_contracts::{
 };
 use r2d2_postgres::postgres::{Client, NoTls};
 
-const POSTGRES_TEST_DATABASE_URL_ENV: &str = "CRAW_CHAT_POSTGRES_TEST_DATABASE_URL";
+const POSTGRES_TEST_DATABASE_URL_ENV: &str = "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL";
 const CORE_SCHEMA_SQL: &str =
     include_str!("../../../deployments/database/postgres/migrations/001_im_core_schema.sql");
 

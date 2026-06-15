@@ -58,14 +58,14 @@ Use `open-chat-test` for end-to-end local validation before treating CLI or SDK 
 
 | Script family | Description |
 | --- | --- |
-| `install-server.*` | Create the `craw-chat-server` install/config/data/log/run directory skeleton and stage canonical payload examples |
+| `install-server.*` | Create the `sdkwork-im-server` install/config/data/log/run directory skeleton and stage canonical payload examples |
 | `init-config-server.*` | Materialize the standard `server.yaml`, `server.env`, and related config overlays for one instance |
 | `init-storage-server.*` | Validate the PostgreSQL storage contract and write the storage readiness report |
 | `verify-server.*` | Validate `server.yaml`, PostgreSQL wiring, readiness inputs, and optional release-gate bundle integrity |
-| `start-server.*` | Resolve the canonical `craw-chat-server` binary, start the unified gateway, and perform health waits |
+| `start-server.*` | Resolve the canonical `sdkwork-im-server` binary, start the unified gateway, and perform health waits |
 | `status-server.*` | Show generated service contract paths, storage-report status, and optional release-gate summary |
-| `restart-server.*` | Restart the managed `craw-chat-server` instance |
-| `stop-server.*` | Stop the managed `craw-chat-server` instance |
+| `restart-server.*` | Restart the managed `sdkwork-im-server` instance |
+| `stop-server.*` | Stop the managed `sdkwork-im-server` instance |
 
 ## Server Service And Release Tools
 
@@ -151,9 +151,9 @@ The IM standard SDK workspace is `sdks/sdkwork-im-sdk`.
 
 Its checked-in authority and derived generator inputs live under `openapi/`:
 
-- `openapi/craw-chat-im.openapi.yaml`
-- `openapi/craw-chat-im.sdkgen.yaml`
-- `openapi/craw-chat-im.flutter.sdkgen.yaml`
+- `openapi/sdkwork-im-im.openapi.yaml`
+- `openapi/sdkwork-im-im.sdkgen.yaml`
+- `openapi/sdkwork-im-im.flutter.sdkgen.yaml`
 
 Run from the repository root:
 
@@ -254,7 +254,7 @@ Examples:
 3. Runtime repair and restore should use the managed scripts and binary entrypoints before editing
    `state/*.json` manually.
 4. Formal server installs should preserve the canonical startup contract
-   `craw-chat-server --config <config-root>/server.yaml` rather than inventing a parallel service
+   `sdkwork-im-server --config <config-root>/server.yaml` rather than inventing a parallel service
    command line.
 
 ## What To Read Next

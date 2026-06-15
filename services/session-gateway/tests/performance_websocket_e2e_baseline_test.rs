@@ -4,11 +4,11 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use axum::Router;
-use craw_chat_ccp_binding_ws::{CCP_WS_SUBPROTOCOL, WsBinding, WsBindingMessage, WsOpcode};
-use craw_chat_ccp_codec::CcpCodec;
-use craw_chat_ccp_codec_json::JsonEnvelopeCodec;
-use craw_chat_ccp_control::{AuthBindFrame, ControlFrame, HelloFrame};
-use craw_chat_ccp_core::{CapabilitySet, CcpEnvelope, ProtocolVersion, TransportBinding};
+use sdkwork_im_ccp_binding_ws::{CCP_WS_SUBPROTOCOL, WsBinding, WsBindingMessage, WsOpcode};
+use sdkwork_im_ccp_codec::CcpCodec;
+use sdkwork_im_ccp_codec_json::JsonEnvelopeCodec;
+use sdkwork_im_ccp_control::{AuthBindFrame, ControlFrame, HelloFrame};
+use sdkwork_im_ccp_core::{CapabilitySet, CcpEnvelope, ProtocolVersion, TransportBinding};
 use futures_util::{SinkExt, StreamExt};
 use im_adapters_local_memory::{
     MemoryRealtimeCheckpointStore, MemoryRealtimeEventWindowStore, MemoryRealtimeSubscriptionStore,
@@ -237,7 +237,7 @@ async fn connect_ccp_device(url: &str, device_id: &str) -> (ConnectedDevice, f64
                     "login_scope": "TENANT",
                     "user_id": PRINCIPAL_ID,
                     "session_id": SESSION_ID,
-                    "app_id": "craw-chat",
+                    "app_id": "sdkwork-im",
                     "auth_level": "password",
                     "subject_type": PRINCIPAL_KIND
                 })
@@ -250,7 +250,7 @@ async fn connect_ccp_device(url: &str, device_id: &str) -> (ConnectedDevice, f64
                 "login_scope": "TENANT",
                 "user_id": PRINCIPAL_ID,
                 "session_id": SESSION_ID,
-                "app_id": "craw-chat",
+                "app_id": "sdkwork-im",
                 "environment": "dev",
                 "deployment_mode": "local",
                 "auth_level": "password",

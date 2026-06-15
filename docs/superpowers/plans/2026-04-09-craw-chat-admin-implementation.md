@@ -1,4 +1,4 @@
-# Craw Chat Admin Implementation Plan
+# Sdkwork IM Admin Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -78,7 +78,7 @@ Add tests that assert:
 - IM admin foundation packages exist
 - IM business packages exist
 - route manifest exposes IM modules instead of router modules
-- auth surface uses Craw Chat Admin language
+- auth surface uses Sdkwork IM Admin language
 - admin SDK boundary forbids raw admin fetch wrappers
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -95,7 +95,7 @@ Do not weaken expectations to match the empty workspace.
 
 ```bash
 git add apps/control-plane/tests
-git commit -m "test: define craw chat admin workspace contract"
+git commit -m "test: define sdkwork im admin workspace contract"
 ```
 
 ### Task 2: Materialize The Reference Workspace Skeleton
@@ -140,7 +140,7 @@ Expected: still FAIL, but now on missing IM-specific modules and product languag
 
 ```bash
 git add apps/control-plane
-git commit -m "feat: bootstrap craw chat admin workspace skeleton"
+git commit -m "feat: bootstrap sdkwork im admin workspace skeleton"
 ```
 
 ### Task 3: Recompose Core, Shell, And Auth Around The IM Domain
@@ -205,7 +205,7 @@ Expected: PASS.
 
 ```bash
 git add apps/control-plane
-git commit -m "feat: convert admin shell and auth to craw chat domain"
+git commit -m "feat: convert admin shell and auth to sdkwork im domain"
 ```
 
 ### Task 4: Stand Up IM Product Modules With Operator-Grade Surfaces
@@ -309,5 +309,5 @@ Expected: PASS.
 
 ```bash
 git add apps/control-plane
-git commit -m "feat: finalize craw chat admin workspace"
+git commit -m "feat: finalize sdkwork im admin workspace"
 ```

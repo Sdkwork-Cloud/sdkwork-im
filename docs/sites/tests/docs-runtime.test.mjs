@@ -115,7 +115,7 @@ test('api reference generation scripts preserve AppContext security terminology'
   }
 });
 
-test('sdk docs preserve SDKWork credential and Craw Chat client-route terminology', () => {
+test('sdk docs preserve SDKWork credential and Sdkwork IM client-route terminology', () => {
   const checkedRoots = [
     path.join(docsRoot, 'sdk'),
     path.join(docsRoot, 'api-reference'),
@@ -142,7 +142,7 @@ test('sdk docs preserve SDKWork credential and Craw Chat client-route terminolog
         assert.doesNotMatch(
           source,
           forbidden,
-          `${relativePath} must use SDKWork appbase credential wording and Craw Chat client-route naming`,
+          `${relativePath} must use SDKWork appbase credential wording and Sdkwork IM client-route naming`,
         );
       }
     }
@@ -211,7 +211,7 @@ test('authority openapi contract exposes Drive-backed media references without u
     'sdks',
     'sdkwork-im-sdk',
     'openapi',
-    'craw-chat-im.openapi.yaml',
+    'sdkwork-im-im.openapi.yaml',
   );
   const openapi = readFileSync(openapiPath, 'utf8');
 
@@ -389,8 +389,8 @@ test('cli docs describe app sdk verification and assembly commands', () => {
   const cliDoc = readFileSync(path.join(docsRoot, 'reference', 'cli-and-scripts.md'), 'utf8');
 
   assert.match(cliDoc, /sdkwork-im-sdk/);
-  assert.match(cliDoc, /craw-chat-im\.sdkgen\.yaml/);
-  assert.match(cliDoc, /craw-chat-im\.flutter\.sdkgen\.yaml/);
+  assert.match(cliDoc, /sdkwork-im-im\.sdkgen\.yaml/);
+  assert.match(cliDoc, /sdkwork-im-im\.flutter\.sdkgen\.yaml/);
   assert.match(cliDoc, /node \.\\sdks\\sdkwork-im-sdk\\bin\\verify-sdk\.mjs/);
   assert.match(cliDoc, /\.sdkwork-assembly\.json/);
 });

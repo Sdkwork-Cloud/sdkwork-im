@@ -10,7 +10,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- |
 | Name | `sdkwork-api-config` |
 | Type | `rust-crate` |
-| Root | `craw-chat/crates/sdkwork-api-config` |
+| Root | `sdkwork-im/crates/sdkwork-api-config` |
 | Domain | `communication` |
 | Capability | `chat` |
 | Languages | `rust` |
@@ -52,4 +52,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/crates/sdkwork-api-config/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/crates/sdkwork-api-config/Cargo.toml`

@@ -1,7 +1,7 @@
 # Runtime Operations
 
 Runtime directory management is a first-class operational surface in the current repository.
-It does not replace the formal packaged `craw-chat-server` contract.
+It does not replace the formal packaged `sdkwork-im-server` contract.
 
 ## Shell Wrappers
 

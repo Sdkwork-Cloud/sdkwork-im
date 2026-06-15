@@ -2,8 +2,8 @@
 
 ## 1. Review 范围
 
-- [restart-local.sh](<workspace-root>/craw-chat/bin/restart-local.sh)
-- [deployment_profile_test.rs](<workspace-root>/craw-chat/services/local-minimal-node/tests/deployment_profile_test.rs)
+- [restart-local.sh](<workspace-root>/sdkwork-im/bin/restart-local.sh)
+- [deployment_profile_test.rs](<workspace-root>/sdkwork-im/services/local-minimal-node/tests/deployment_profile_test.rs)
 - 本轮 `/docs/review/` 与 `/docs/架构/` 文档沉淀
 
 ## 2. 问题列表

@@ -2,7 +2,7 @@
 
 The runtime directory is a core part of the current `local-minimal-node` contract, not an optional
 side folder.
-It is not the formal packaged `craw-chat-server` config contract.
+It is not the formal packaged `sdkwork-im-server` config contract.
 
 ## Default Structure
 
@@ -13,7 +13,7 @@ When local config is initialized, the managed runtime directory contains:
 - `pids/`
 - `state/`
 
-The default path is `.runtime/local-minimal` unless a different `CRAW_CHAT_RUNTIME_DIR` is
+The default path is `.runtime/local-minimal` unless a different `SDKWORK_IM_RUNTIME_DIR` is
 configured.
 
 ## Managed State Files

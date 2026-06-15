@@ -26,7 +26,7 @@ The semantic Kotlin artifact remains reserved under `composed`.
 
 ## What Ships Today
 
-- live-schema generation from the Craw Chat OpenAPI 3.x export
+- live-schema generation from the Sdkwork IM OpenAPI 3.x export
 - verified generated artifact naming and assembly metadata
 - a stable split between `generated/server-openapi` and `composed`
 - a raw generated transport client named `ImTransportClient`
@@ -109,7 +109,7 @@ Kotlin workspace wrappers:
 
 ## When To Choose Kotlin
 
-- Choose Kotlin when you need a verified JVM-side transport artifact generated from the Craw Chat
+- Choose Kotlin when you need a verified JVM-side transport artifact generated from the Sdkwork IM
   app schema.
 - Choose Kotlin when you can work directly against generated request or response models and
   transport-level route groups.

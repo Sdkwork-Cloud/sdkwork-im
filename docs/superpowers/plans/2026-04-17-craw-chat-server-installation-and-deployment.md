@@ -1,8 +1,8 @@
-# Craw Chat Server Installation And Deployment Implementation Plan
+# Sdkwork IM Server Installation And Deployment Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Establish the first production-grade `craw-chat-server` install, config, PostgreSQL initialization, and service-management contract across Linux, macOS, and Windows.
+**Goal:** Establish the first production-grade `sdkwork-im-server` install, config, PostgreSQL initialization, and service-management contract across Linux, macOS, and Windows.
 
 **Architecture:** Keep the existing `local-minimal` deployment surface intact and add a parallel `server` deployment surface. Reuse the repo's existing release bundle and deployment-doc conventions, introduce shared server path/profile helpers, define file-based PostgreSQL configuration, and add cross-platform lifecycle scripts plus a first `systemd` service template. Start with archive-friendly payload semantics and leave native installer packaging as the next layer.
 
@@ -23,13 +23,13 @@
 
 ### New files to create
 
-- `docs/superpowers/specs/2026-04-17-craw-chat-server-installation-and-deployment-design.md`
-- `docs/superpowers/plans/2026-04-17-craw-chat-server-installation-and-deployment.md`
+- `docs/superpowers/specs/2026-04-17-sdkwork-im-server-installation-and-deployment-design.md`
+- `docs/superpowers/plans/2026-04-17-sdkwork-im-server-installation-and-deployment.md`
 - `deployments/templates/server.yaml.example`
 - `deployments/templates/server.env.example`
 - `deployments/templates/postgresql.yaml.example`
 - `deployments/templates/quickstart-server-compose.env.example`
-- `deployments/systemd/craw-chat-server.service`
+- `deployments/systemd/sdkwork-im-server.service`
 - `bin/install-server.ps1`
 - `bin/install-server.sh`
 - `bin/install-server.cmd`
@@ -245,7 +245,7 @@ Confirm PASS.
 ### Task 6: Add Initial Service Wrapper Surface
 
 **Files:**
-- Create: `deployments/systemd/craw-chat-server.service`
+- Create: `deployments/systemd/sdkwork-im-server.service`
 - Create: `bin/install-service-server.ps1`
 - Create: `bin/install-service-server.sh`
 - Create: `bin/install-service-server.cmd`

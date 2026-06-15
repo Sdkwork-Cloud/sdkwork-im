@@ -4,7 +4,7 @@
 
 - Current loop: continue after Step 12 closure, only close a real remaining gap.
 - Surface: `tools/chat-cli`
-- Contract: `craw-chat-cli token [--token-only]` when `source = providedBearerToken`
+- Contract: `sdkwork-im-cli token [--token-only]` when `source = providedBearerToken`
 
 ## Gap
 
@@ -40,7 +40,7 @@
 Red:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_does_not_synthesize_claims_for_provided_bearer_tokens -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_does_not_synthesize_claims_for_provided_bearer_tokens -- --exact --nocapture
 ```
 
 - Failed before the patch because `providedBearerToken` still returned local synthesized claims.
@@ -48,8 +48,8 @@ cargo test -p craw-chat-cli --offline --test chat_cli_contract_test test_chat_cl
 Green:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_does_not_synthesize_claims_for_provided_bearer_tokens -- --exact --nocapture
-cargo test -p craw-chat-cli --offline -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_does_not_synthesize_claims_for_provided_bearer_tokens -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 ```
 

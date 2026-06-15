@@ -5,7 +5,7 @@ use axum::extract::ws::WebSocket;
 use axum::extract::{Extension, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
-use craw_chat_runtime_link::{
+use sdkwork_im_runtime_link::{
     LinkWebsocketMode, LinkWebsocketUpgradeHandoff, prepare_websocket_upgrade,
     supported_websocket_subprotocols,
 };
@@ -89,7 +89,7 @@ pub(crate) fn realtime_websocket_subprotocols() -> [&'static str; 1] {
 pub(crate) fn select_realtime_websocket_mode(
     selected_protocol: Option<&str>,
 ) -> RealtimeWebsocketMode {
-    map_runtime_link_websocket_mode(craw_chat_runtime_link::select_websocket_mode(
+    map_runtime_link_websocket_mode(sdkwork_im_runtime_link::select_websocket_mode(
         selected_protocol,
     ))
 }
@@ -150,7 +150,7 @@ async fn serve_realtime_websocket_upgrade(
 mod tests {
     use std::sync::Arc;
 
-    use craw_chat_runtime_link::LinkWebsocketMode;
+    use sdkwork_im_runtime_link::LinkWebsocketMode;
     use im_app_context::AppContext;
 
     use super::{

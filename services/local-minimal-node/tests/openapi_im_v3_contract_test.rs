@@ -3,16 +3,16 @@ use std::fs;
 
 use serde_json::Value;
 
-const IM_OPENAPI_SCHEMA: &str = "../../sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml";
+const IM_OPENAPI_SCHEMA: &str = "../../sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml";
 const APP_OPENAPI_SCHEMA: &str =
-    "../../sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml";
+    "../../sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml";
 const BACKEND_OPENAPI_SCHEMA: &str =
-    "../../sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml";
+    "../../sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml";
 const APP_SDK_ASSEMBLY: &str = "../../sdks/sdkwork-im-app-sdk/.sdkwork-assembly.json";
 const APP_SDK_COMPONENT_SPEC: &str = "../../sdks/sdkwork-im-app-sdk/specs/component.spec.json";
 const API_STANDARD_SPEC: &str = "../../../sdkwork-specs/API_SPEC.md";
 const MEDIA_RESOURCE_STANDARD_SPEC: &str = "../../../sdkwork-specs/MEDIA_RESOURCE_SPEC.md";
-const CRAW_CHAT_LOCAL_STANDARD_SPEC: &str = "../../specs/im-app-api-sdk-integration.spec.md";
+const SDKWORK_IM_LOCAL_STANDARD_SPEC: &str = "../../specs/im-app-api-sdk-integration.spec.md";
 const LOCAL_MINIMAL_NODE_BUILD_RS: &str = "src/node/build.rs";
 const CONTROL_PLANE_API_LIB_RS: &str = "../control-plane-api/src/lib.rs";
 const ADMIN_SANDBOX_RS: &str = "../../crates/sdkwork-api-product-runtime/src/admin_sandbox.rs";
@@ -405,9 +405,9 @@ fn assert_sdk_dependency(
 }
 
 #[test]
-fn test_workspace_api_standard_documents_craw_chat_three_surface_authority() {
+fn test_workspace_api_standard_documents_sdkwork_im_three_surface_authority() {
     let api_standard = load_workspace_standard_source(API_STANDARD_SPEC);
-    let local_standard = load_workspace_standard_source(CRAW_CHAT_LOCAL_STANDARD_SPEC);
+    let local_standard = load_workspace_standard_source(SDKWORK_IM_LOCAL_STANDARD_SPEC);
 
     assert!(
         api_standard.contains("SDKWork uses three canonical API surfaces."),
@@ -417,7 +417,7 @@ fn test_workspace_api_standard_documents_craw_chat_three_surface_authority() {
         api_standard.contains(
             "| Open API | `open-api` | Any approved SDKWork HTTP API prefix that is not `/app/v3/api` and not `/backend/v3/api`, for example `/im/v3/api` |"
         ) && api_standard.contains(
-            "Craw Chat IM open routes `MUST` start with `/im/v3/api`"
+            "Sdkwork IM IM open routes `MUST` start with `/im/v3/api`"
         ),
         "API standard must define /im/v3/api as the current IM open-api prefix"
     );
@@ -430,29 +430,29 @@ fn test_workspace_api_standard_documents_craw_chat_three_surface_authority() {
     assert!(
         local_standard
             .contains("| IM Open API | `/im/v3/api` | `im-open-api` | `@sdkwork/im-sdk` |"),
-        "Craw Chat local standard must define product-owned im-open-api"
+        "Sdkwork IM local standard must define product-owned im-open-api"
     );
     assert!(
         local_standard
             .contains("| IM App API | `/app/v3/api` | `im-app-api` | `sdkwork-im-app-sdk` |"),
-        "Craw Chat local standard must point app API integration at sdkwork-im-app-sdk"
+        "Sdkwork IM local standard must point app API integration at sdkwork-im-app-sdk"
     );
     assert!(
         local_standard.contains(
             "| IM Backend API | `/backend/v3/api` | `im-backend-api` | `sdkwork-im-backend-sdk` |"
         ),
-        "Craw Chat local standard must point backend API integration at sdkwork-im-backend-sdk"
+        "Sdkwork IM local standard must point backend API integration at sdkwork-im-backend-sdk"
     );
     assert!(
         local_standard
-            .contains("Craw Chat uses product-scoped SDKs, not generic Spring SDK packages."),
-        "Craw Chat local standard must override generic Spring SDK examples"
+            .contains("Sdkwork IM uses product-scoped SDKs, not generic Spring SDK packages."),
+        "Sdkwork IM local standard must override generic Spring SDK examples"
     );
     assert!(
         local_standard.contains(
-            "Craw Chat app code must not import retired generic Spring app/backend SDK packages or authorities."
+            "Sdkwork IM app code must not import retired generic Spring app/backend SDK packages or authorities."
         ),
-        "Craw Chat local standard must forbid generic app/backend SDK imports"
+        "Sdkwork IM local standard must forbid generic app/backend SDK imports"
     );
 }
 
@@ -482,7 +482,7 @@ fn test_openapi_surfaces_use_sdkwork_v3_path_and_operation_style() {
 }
 
 #[test]
-fn test_im_openapi_uses_im_v3_api_paths_without_craw_chat_identity_or_legacy_sessions() {
+fn test_im_openapi_uses_im_v3_api_paths_without_sdkwork_im_identity_or_legacy_sessions() {
     let schema = load_schema(IM_OPENAPI_SCHEMA);
     let paths = path_map(&schema);
 
@@ -516,7 +516,7 @@ fn test_im_openapi_uses_im_v3_api_paths_without_craw_chat_identity_or_legacy_ses
     for forbidden_path in forbidden_paths {
         assert!(
             !paths.contains_key(forbidden_path.as_str()),
-            "craw-chat OpenAPI must not expose legacy identity/login/session path {forbidden_path}"
+            "sdkwork-im OpenAPI must not expose legacy identity/login/session path {forbidden_path}"
         );
     }
 }
@@ -1952,7 +1952,7 @@ fn test_app_api_openapi_uses_sdkwork_im_app_sdk_owner_only_contract_with_depende
     for forbidden_path in forbidden_paths {
         assert!(
             !paths.contains_key(forbidden_path.as_str()),
-            "craw-chat im-app-api must not expose private/conflicting path {forbidden_path}"
+            "sdkwork-im im-app-api must not expose private/conflicting path {forbidden_path}"
         );
     }
 }
@@ -1975,7 +1975,7 @@ fn test_openapi_paths_match_local_minimal_node_runtime_route_tables() {
     );
     assert!(
         !build_source.contains("fn app_business_api_routes()"),
-        "local-minimal-node must not keep a private Craw Chat im-app-api route table"
+        "local-minimal-node must not keep a private Sdkwork IM im-app-api route table"
     );
     let mut im_routes = extract_runtime_route_paths(extract_source_section(
         &build_source,
@@ -2031,9 +2031,9 @@ fn test_openapi_paths_match_local_minimal_node_runtime_route_tables() {
 fn test_openapi_sources_do_not_keep_legacy_authority_files_or_identity_wording_debt() {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     for relative_path in [
-        "../../sdks/sdkwork-im-sdk/openapi/craw-chat-app.openapi.yaml",
-        "../../sdks/sdkwork-im-sdk/openapi/craw-chat-app.sdkgen.yaml",
-        "../../sdks/sdkwork-im-sdk/openapi/craw-chat-app.flutter.sdkgen.yaml",
+        "../../sdks/sdkwork-im-sdk/openapi/sdkwork-im-app.openapi.yaml",
+        "../../sdks/sdkwork-im-sdk/openapi/sdkwork-im-app.sdkgen.yaml",
+        "../../sdks/sdkwork-im-sdk/openapi/sdkwork-im-app.flutter.sdkgen.yaml",
     ] {
         let absolute_path = manifest_dir.join(relative_path);
         assert!(
@@ -2079,7 +2079,7 @@ fn test_backend_api_openapi_uses_backend_v3_api_paths_without_login_or_client_se
     for forbidden_path in forbidden_paths {
         assert!(
             !paths.contains_key(forbidden_path.as_str()),
-            "craw-chat im-backend-api must not expose forbidden path {forbidden_path}"
+            "sdkwork-im im-backend-api must not expose forbidden path {forbidden_path}"
         );
     }
 }

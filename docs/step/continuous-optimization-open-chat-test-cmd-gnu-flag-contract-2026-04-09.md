@@ -40,8 +40,8 @@
 ## Verification
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_open_chat_test_cmd_wrapper_accepts_gnu_style_named_flags_for_scripted_validation -- --exact --nocapture
-cargo test -p craw-chat-cli --offline -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_open_chat_test_cmd_wrapper_accepts_gnu_style_named_flags_for_scripted_validation -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 ```
 

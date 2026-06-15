@@ -1,8 +1,8 @@
-# Craw Chat OpenAPI And SDK Boundary Redesign
+# Sdkwork IM OpenAPI And SDK Boundary Redesign
 
 ## Goal
 
-Redesign the Craw Chat OpenAPI grouping and SDK family layout so the repository exposes one clear
+Redesign the Sdkwork IM OpenAPI grouping and SDK family layout so the repository exposes one clear
 contract model:
 
 - `sdkwork-im-sdk` remains the only SDK family for IM standardized development APIs under

@@ -35,7 +35,7 @@ This round does not cover:
 ## Decisions
 
 - Workspace family: `sdks/sdkwork-im-sdk` becomes a three-language app-facing SDK workspace for `typescript`, `flutter`, and `rust`.
-- Contract source: continue using `openapi/craw-chat-im.openapi.yaml` as authority and derived sdkgen inputs under `openapi/`.
+- Contract source: continue using `openapi/sdkwork-im-im.openapi.yaml` as authority and derived sdkgen inputs under `openapi/`.
 - Auth model: continue enforcing the public bearer-token model. Generated public auth surfaces must not drift toward trusted internal headers.
 - Realtime boundary: generated SDKs continue to cover HTTP coordination only. WebSocket transport remains documented but not implemented as a handwritten adapter in this round.
 - TypeScript and Flutter architecture: keep the existing layered shape of `generated/server-openapi + composed`.
@@ -302,7 +302,7 @@ Generated output itself is not hand-edited under TDD. Instead:
 - Risk: Rust generated output is not cleanly consumable by a composed crate.
   Control: fix generator templates and tests first; do not hand-edit generated files.
 
-- Risk: auth semantics drift away from the Craw Chat bearer-only public model.
+- Risk: auth semantics drift away from the Sdkwork IM bearer-only public model.
   Control: keep auth normalization in the root wrapper flow and verify public surfaces explicitly.
 
 - Risk: TypeScript, Flutter, and Rust diverge into unrelated SDK styles.

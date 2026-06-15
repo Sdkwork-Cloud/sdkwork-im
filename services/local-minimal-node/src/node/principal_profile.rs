@@ -13,10 +13,10 @@ use sha2::{Digest, Sha256};
 
 use super::*;
 
-const PRINCIPAL_PROFILE_PROVIDER_ENV: &str = "CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER";
+const PRINCIPAL_PROFILE_PROVIDER_ENV: &str = "SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER";
 const PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH_ENV: &str =
-    "CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH";
-const PRINCIPAL_PROFILE_EXTERNAL_SYSTEM_ENV: &str = "CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_SYSTEM";
+    "SDKWORK_IM_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH";
+const PRINCIPAL_PROFILE_EXTERNAL_SYSTEM_ENV: &str = "SDKWORK_IM_PRINCIPAL_PROFILE_EXTERNAL_SYSTEM";
 const PUBLIC_CHAT_ID_PREFIX: &str = "cc";
 const PUBLIC_CHAT_ID_HASH_CHARS: usize = 10;
 const PUBLIC_CHAT_ID_ALPHABET: &[u8; 32] = b"abcdefghijklmnopqrstuvwxyz234567";
@@ -277,7 +277,7 @@ fn public_chat_id_digest_suffix(seed: &str) -> String {
 }
 
 fn explicit_public_chat_id_from_profile(profile: &PrincipalProfile) -> Option<String> {
-    ["chatId", "crawChatId", "imId", "sdkworkChatId"]
+    ["chatId", "sdkworkImId", "imId", "sdkworkChatId"]
         .into_iter()
         .find_map(|key| {
             profile

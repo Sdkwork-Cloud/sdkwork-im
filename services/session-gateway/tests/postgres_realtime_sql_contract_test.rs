@@ -11,7 +11,7 @@ use session_gateway::{
     realtime_postgres_sql_contract_specs,
 };
 
-use craw_chat_contract_control::{RealtimeCheckpointRecord, RealtimeSubscriptionRecord};
+use sdkwork_im_contract_control::{RealtimeCheckpointRecord, RealtimeSubscriptionRecord};
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
 
 fn postgres_realtime_sql_source() -> String {

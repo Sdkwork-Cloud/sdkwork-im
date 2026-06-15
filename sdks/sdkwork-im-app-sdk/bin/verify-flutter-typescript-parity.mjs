@@ -76,12 +76,12 @@ export async function verifyFlutterTypeScriptParity(workspaceRoot) {
   const yaml = await loadGeneratorYaml(path.resolve(root, '..'));
   const typescriptSpec = loadOpenApiDocument({
     prefix: 'sdkwork-im-app-sdk',
-    filePath: path.join(root, 'openapi', 'craw-chat-app-api.sdkgen.yaml'),
+    filePath: path.join(root, 'openapi', 'sdkwork-im-app-api.sdkgen.yaml'),
     yaml,
   });
   const flutterSpec = loadOpenApiDocument({
     prefix: 'sdkwork-im-app-sdk',
-    filePath: path.join(root, 'openapi', 'craw-chat-app-api.flutter.sdkgen.yaml'),
+    filePath: path.join(root, 'openapi', 'sdkwork-im-app-api.flutter.sdkgen.yaml'),
     yaml,
   });
 

@@ -1,4 +1,4 @@
-use craw_chat_contract_core::ContractError;
+use sdkwork_im_contract_core::ContractError;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 

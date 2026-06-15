@@ -13,8 +13,8 @@
 ### Task 1: Lock The New Public Contract With Failing Tests
 
 **Files:**
-- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/test/craw-chat-client.test.mjs`
-- Assemble to: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/test/craw-chat-client.test.mjs`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/composed/test/sdkwork-im-client.test.mjs`
+- Assemble to: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/test/sdkwork-im-client.test.mjs`
 
 - [ ] **Step 1: Write failing tests for the new root construction and domain layout**
 

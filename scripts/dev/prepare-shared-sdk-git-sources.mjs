@@ -267,7 +267,7 @@ function resolveEmptyGitConfigPath(env = process.env) {
   }
 
   const tempRoot = String(env.RUNNER_TEMP ?? '').trim() || os.tmpdir();
-  const configPath = path.join(tempRoot, 'craw-chat-shared-sdk-empty-gitconfig');
+  const configPath = path.join(tempRoot, 'sdkwork-im-shared-sdk-empty-gitconfig');
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
   if (!fs.existsSync(configPath)) {
     fs.writeFileSync(configPath, '', 'utf8');

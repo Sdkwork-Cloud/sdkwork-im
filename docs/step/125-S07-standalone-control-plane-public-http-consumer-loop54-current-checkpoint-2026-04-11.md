@@ -29,7 +29,7 @@
 - actual_changes:
   - `control-plane-api` 新增 `PublicSharedChannelLinkedMemberSyncTrigger`，以 public bearer 身份把 ready-pair sync 请求投递到 standalone `conversation-runtime` 的 `POST /im/v3/api/chat/conversations/shared_channel_links/sync`
   - 新增 `build_public_shared_channel_sync_trigger(...)`、`build_public_app_with_shared_channel_sync_trigger(...)`、`configured_public_shared_channel_sync_trigger(...)` 与 `SHARED_CHANNEL_SYNC_TARGET_BASE_URL_ENV`
-  - `services/control-plane-api/src/main.rs` 现在会在检测到 `CRAW_CHAT_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` 时装配真实 public HTTP trigger；未配置时继续回落到原有 `build_public_app()`
+  - `services/control-plane-api/src/main.rs` 现在会在检测到 `SDKWORK_IM_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` 时装配真实 public HTTP trigger；未配置时继续回落到原有 `build_public_app()`
   - 新增跨进程 e2e：启动 standalone `conversation-runtime::build_public_app()`，通过 public `control-plane-api` 写入 `external_connection / shared_channel_policy / external_member_link`，最终验证 linked actor 能经 public runtime 直接读取 shared history
 - changed_files:
   - `services/control-plane-api/Cargo.toml`

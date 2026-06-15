@@ -43,8 +43,8 @@ The TypeScript standard is now intentionally narrow and explicit:
 import { ImSdkClient } from '@sdkwork/im-sdk';
 
 const sdk = new ImSdkClient({
-  baseUrl: import.meta.env.VITE_CRAW_CHAT_BASE_URL,
-  authToken: window.localStorage.getItem('craw-chat-token') ?? undefined,
+  baseUrl: import.meta.env.VITE_SDKWORK_IM_BASE_URL,
+  authToken: window.localStorage.getItem('sdkwork-im-token') ?? undefined,
 });
 ```
 
@@ -54,8 +54,8 @@ const sdk = new ImSdkClient({
 import { ImSdkClient } from '@sdkwork/im-sdk';
 
 const sdk = new ImSdkClient({
-  baseUrl: process.env.CRAW_CHAT_BASE_URL!,
-  authToken: process.env.CRAW_CHAT_TOKEN,
+  baseUrl: process.env.SDKWORK_IM_BASE_URL!,
+  authToken: process.env.SDKWORK_IM_TOKEN,
 });
 ```
 
@@ -67,7 +67,7 @@ If HTTP and realtime upgrades terminate on different origins, keep the config fl
 const sdk = new ImSdkClient({
   apiBaseUrl: 'https://api.example.com',
   websocketBaseUrl: 'wss://realtime.example.com',
-  authToken: window.localStorage.getItem('craw-chat-token') ?? undefined,
+  authToken: window.localStorage.getItem('sdkwork-im-token') ?? undefined,
 });
 ```
 
@@ -77,7 +77,7 @@ normal use.
 ## Authentication
 
 Authentication is issued by `sdkwork-appbase`. The IM SDK passes the resulting appbase-issued credential
-through constructor `authToken`; Craw Chat receives the verified AppContext projection and does not implement login, token refresh,
+through constructor `authToken`; Sdkwork IM receives the verified AppContext projection and does not implement login, token refresh,
 tenant, organization, or current-account resolution.
 
 ```ts
@@ -571,7 +571,7 @@ import { ImSdkClient, ImWebSocketAuthOptions } from '@sdkwork/im-sdk';
 
 const sdk = new ImSdkClient({
   baseUrl: 'https://api.example.com',
-  authToken: window.localStorage.getItem('craw-chat-token') ?? undefined,
+  authToken: window.localStorage.getItem('sdkwork-im-token') ?? undefined,
   webSocketAuth: ImWebSocketAuthOptions.queryBearer({
     queryParameterName: 'rt',
     credentialProvider: async ({ authToken }) =>
@@ -601,8 +601,8 @@ const live = await sdk.connect({
 import WebSocket from 'ws';
 
 const sdk = new ImSdkClient({
-  baseUrl: process.env.CRAW_CHAT_BASE_URL!,
-  authToken: process.env.CRAW_CHAT_TOKEN,
+  baseUrl: process.env.SDKWORK_IM_BASE_URL!,
+  authToken: process.env.SDKWORK_IM_TOKEN,
   webSocketAuth: ImWebSocketAuthOptions.headerBearer(),
   webSocketFactory: ({ url, protocols, headers }) =>
     new WebSocket(url, protocols, { headers }),
@@ -726,7 +726,7 @@ Local verification from the TypeScript workspace:
 node ../bin/verify-typescript-workspace.mjs
 node ./bin/assemble-single-package.mjs
 node ../../../../../sdk/sdkwork-sdk-generator/node_modules/typescript/bin/tsc -p tsconfig.build.json --noEmit
-node ./test/craw-chat-client.test.mjs
+node ./test/sdkwork-im-client.test.mjs
 ```
 
 From the repository root, the family-level entrypoint is:

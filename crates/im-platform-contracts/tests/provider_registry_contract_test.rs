@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use craw_chat_contract_core::ContractError;
+use sdkwork_im_contract_core::ContractError;
 use im_platform_contracts::{
     EffectiveProviderBinding, ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor,
     ObjectStorageProvider, ObjectStoragePutRequest, ObjectStorageUploadSession,
@@ -145,7 +145,7 @@ impl ObjectStorageProvider for StubObjectStorageProvider {
     fn put_object(
         &self,
         request: ObjectStoragePutRequest,
-    ) -> Result<ObjectStorageObjectDescriptor, craw_chat_contract_core::ContractError> {
+    ) -> Result<ObjectStorageObjectDescriptor, sdkwork_im_contract_core::ContractError> {
         Ok(ObjectStorageObjectDescriptor {
             bucket: request.bucket,
             object_key: request.object_key,
@@ -157,7 +157,7 @@ impl ObjectStorageProvider for StubObjectStorageProvider {
     fn signed_upload_url(
         &self,
         request: ObjectStorageUploadUrlRequest,
-    ) -> Result<ObjectStorageUploadSession, craw_chat_contract_core::ContractError> {
+    ) -> Result<ObjectStorageUploadSession, sdkwork_im_contract_core::ContractError> {
         Ok(ObjectStorageUploadSession {
             method: "PUT".into(),
             url: format!(
@@ -172,7 +172,7 @@ impl ObjectStorageProvider for StubObjectStorageProvider {
     fn signed_download_url(
         &self,
         request: ObjectStorageDownloadUrlRequest,
-    ) -> Result<String, craw_chat_contract_core::ContractError> {
+    ) -> Result<String, sdkwork_im_contract_core::ContractError> {
         Ok(format!(
             "https://storage.example/{}/{}?ttl={}",
             request.bucket, request.object_key, request.expires_in_seconds
@@ -204,7 +204,7 @@ impl PrincipalProfileProvider for StubPrincipalProfileProvider {
         tenant_id: &str,
         principal_id: &str,
         _principal_kind: &str,
-    ) -> Result<Option<PrincipalProfile>, craw_chat_contract_core::ContractError> {
+    ) -> Result<Option<PrincipalProfile>, sdkwork_im_contract_core::ContractError> {
         Ok(Some(PrincipalProfile {
             tenant_id: tenant_id.into(),
             principal_id: principal_id.into(),
@@ -221,7 +221,7 @@ impl PrincipalProfileProvider for StubPrincipalProfileProvider {
         tenant_id: &str,
         principal_kind: &str,
         principal_ids: &[String],
-    ) -> Result<Vec<PrincipalProfile>, craw_chat_contract_core::ContractError> {
+    ) -> Result<Vec<PrincipalProfile>, sdkwork_im_contract_core::ContractError> {
         principal_ids
             .iter()
             .map(|principal_id| self.get_profile(tenant_id, principal_id, principal_kind))
@@ -234,7 +234,7 @@ impl PrincipalProfileProvider for StubPrincipalProfileProvider {
         tenant_id: &str,
         principal_kind: &str,
         keyword: &str,
-    ) -> Result<Vec<PrincipalProfile>, craw_chat_contract_core::ContractError> {
+    ) -> Result<Vec<PrincipalProfile>, sdkwork_im_contract_core::ContractError> {
         Ok(self
             .get_profile(tenant_id, keyword, principal_kind)?
             .into_iter()
@@ -247,7 +247,7 @@ impl PrincipalProfileProvider for StubPrincipalProfileProvider {
         _principal_kind: &str,
         external_system: &str,
         external_principal_id: &str,
-    ) -> Result<Option<PrincipalProfile>, craw_chat_contract_core::ContractError> {
+    ) -> Result<Option<PrincipalProfile>, sdkwork_im_contract_core::ContractError> {
         Ok(Some(PrincipalProfile {
             tenant_id: tenant_id.into(),
             principal_id: "mapped-principal".into(),

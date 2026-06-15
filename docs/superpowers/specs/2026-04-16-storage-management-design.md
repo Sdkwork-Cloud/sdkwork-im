@@ -2,7 +2,7 @@
 
 ## 1. 背景
 
-当前 `craw-chat` 已经具备通用的 provider / credential / provider registry 能力，但对象存储仍停留在“通用绑定 + S3-compatible 适配器”的阶段。这个形态可以支撑基础上传与下载，但不足以承载一套行业级、可维护、可审计、可扩展的对象存储管理体系。
+当前 `sdkwork-im` 已经具备通用的 provider / credential / provider registry 能力，但对象存储仍停留在“通用绑定 + S3-compatible 适配器”的阶段。这个形态可以支撑基础上传与下载，但不足以承载一套行业级、可维护、可审计、可扩展的对象存储管理体系。
 
 本次设计的目标不是“再加几个配置项”，而是把对象存储提升为独立的一等公民领域，贯通以下层面：
 
@@ -520,4 +520,4 @@ provider-specific 字段必须按 provider 注册 schema，不允许强行压扁
 
 本方案的核心是：**对象存储作为独立业务域管理，tenant override 只做整套覆盖，secret 与 config 分离，多 provider 通过 schema registry 和 driver registry 支撑，SDK 通过统一 upload 流程屏蔽云厂商差异。**
 
-这套设计可以满足当前 `craw-chat` 的控制台管理、运行时上传、SDK 接入和后续多语言扩展要求，也能保持与现有 provider registry 语义一致。
+这套设计可以满足当前 `sdkwork-im` 的控制台管理、运行时上传、SDK 接入和后续多语言扩展要求，也能保持与现有 provider registry 语义一致。

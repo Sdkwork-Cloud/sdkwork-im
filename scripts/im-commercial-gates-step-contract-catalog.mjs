@@ -7,14 +7,14 @@ export const IM_COMMERCIAL_GATES_WORKFLOW_STEP_CONTRACTS = [
     message: 'im commercial gates workflow must provision Node via actions/setup-node@v5 before delegating governance node tests to the repository-owned runner',
   },
   {
-    id: 'pc-auth-appbase-ui-contract-uses-sdkwork-chat-pc-workspace',
-    patternSource: String.raw`Test SDKWork Chat PC auth appbase UI contract[\s\S]*?working-directory:\s*apps\/sdkwork-chat-pc[\s\S]*?run:\s*node scripts\/auth-appbase-ui-contract\.test\.mjs`,
-    message: 'im commercial gates workflow must execute the SDKWork Chat PC auth appbase UI contract inside apps/sdkwork-chat-pc',
+    id: 'pc-auth-appbase-ui-contract-uses-sdkwork-im-pc-workspace',
+    patternSource: String.raw`Test Sdkwork IM PC auth appbase UI contract[\s\S]*?working-directory:\s*apps\/sdkwork-im-pc[\s\S]*?run:\s*node scripts\/auth-appbase-ui-contract\.test\.mjs`,
+    message: 'im commercial gates workflow must execute the Sdkwork IM PC auth appbase UI contract inside apps/sdkwork-im-pc',
   },
   {
-    id: 'pc-notary-app-sdk-contract-uses-sdkwork-chat-pc-workspace',
-    patternSource: String.raw`Test SDKWork Chat PC notary app SDK integration contract[\s\S]*?working-directory:\s*apps\/sdkwork-chat-pc[\s\S]*?run:\s*node scripts\/notary-app-sdk-integration-contract\.test\.mjs`,
-    message: 'im commercial gates workflow must execute the SDKWork Chat PC notary app SDK integration contract inside apps/sdkwork-chat-pc',
+    id: 'pc-notary-app-sdk-contract-uses-sdkwork-im-pc-workspace',
+    patternSource: String.raw`Test Sdkwork IM PC notary app SDK integration contract[\s\S]*?working-directory:\s*apps\/sdkwork-im-pc[\s\S]*?run:\s*node scripts\/notary-app-sdk-integration-contract\.test\.mjs`,
+    message: 'im commercial gates workflow must execute the Sdkwork IM PC notary app SDK integration contract inside apps/sdkwork-im-pc',
   },
 ];
 

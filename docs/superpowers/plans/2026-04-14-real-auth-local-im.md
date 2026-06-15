@@ -72,8 +72,8 @@ fn test_public_bearer_contract_accepts_actor_kind_and_permissions_claims_from_lo
         "sid": "s_guest",
         "did": "d_guest",
         "permissions": ["conversation.*"],
-        "iss": "craw-chat",
-        "aud": "craw-chat-public"
+        "iss": "sdkwork-im",
+        "aud": "sdkwork-im-public"
     }), "secret").unwrap();
     // assert resolver reads the contract correctly
 }
@@ -178,7 +178,7 @@ git commit -m "feat(auth): add real local login and portal snapshots"
 #[tokio::test]
 async fn test_login_command_posts_credentials_and_returns_tokens() {
     let command = parse_cli_args([
-        "craw-chat-cli",
+        "sdkwork-im-cli",
         "--base-url", server.base_url(),
         "login",
         "--tenant-id", "t_demo",
@@ -196,7 +196,7 @@ async fn test_login_command_posts_credentials_and_returns_tokens() {
 
 - [ ] **Step 2: Run the CLI auth tests and verify `login` is unknown**
 
-Run: `cargo test -p craw-chat-cli --test chat_cli_auth_test --quiet`
+Run: `cargo test -p sdkwork-im-cli --test chat_cli_auth_test --quiet`
 Expected: FAIL with unknown command or missing flags.
 
 - [ ] **Step 3: Implement the new command and reuse returned bearer tokens**
@@ -212,7 +212,7 @@ CommandOperation::Login {
 
 - [ ] **Step 4: Keep legacy secret minting only as an explicit fallback path**
 
-Run: `cargo test -p craw-chat-cli --test chat_cli_auth_test --test chat_cli_contract_test --quiet`
+Run: `cargo test -p sdkwork-im-cli --test chat_cli_auth_test --test chat_cli_contract_test --quiet`
 Expected: PASS for new login flow and existing token contract tests.
 
 - [ ] **Step 5: Commit the CLI auth changes**
@@ -229,7 +229,7 @@ git commit -m "feat(cli): add real login flow for local chat auth"
 - Modify: `bin/open-chat-test.ps1`
 - Modify: `bin/start-local.ps1`
 - Modify: `.runtime/local-minimal/config/local-minimal.env`
-- Create: `tests/bin/chat-window-gui.ps1.test.ps1` or `apps/craw-chat-portal/tests/chat-helper-contract.test.mjs`
+- Create: `tests/bin/chat-window-gui.ps1.test.ps1` or `apps/sdkwork-im-portal/tests/chat-helper-contract.test.mjs`
 
 - [ ] **Step 1: Write a failing script contract test or deterministic validation harness**
 
@@ -276,13 +276,13 @@ git commit -m "feat(scripts): auto-start local service and log in seeded users"
 ### Task 5: Replace Portal Mock Auth And Mock Snapshots With Real HTTP Integration
 
 **Files:**
-- Create: `apps/craw-chat-portal/packages/craw-chat-portal-portal-api/src/runtime/dataSources/httpPortalDataSource.js`
-- Modify: `apps/craw-chat-portal/packages/craw-chat-portal-portal-api/src/runtime/createPortalDataSource.js`
-- Modify: `apps/craw-chat-portal/packages/craw-chat-portal-portal-api/src/index.js`
-- Modify: `apps/craw-chat-portal/packages/craw-chat-portal-core/src/store/usePortalAuthStore.js`
-- Modify: `apps/craw-chat-portal/packages/craw-chat-portal-auth/src/index.js`
-- Modify: `apps/craw-chat-portal/packages/craw-chat-portal-core/src/application/app/PortalProductApp.js`
-- Modify: `apps/craw-chat-portal/tests/portal-routing-and-state.test.mjs`
+- Create: `apps/sdkwork-im-portal/packages/sdkwork-im-portal-portal-api/src/runtime/dataSources/httpPortalDataSource.js`
+- Modify: `apps/sdkwork-im-portal/packages/sdkwork-im-portal-portal-api/src/runtime/createPortalDataSource.js`
+- Modify: `apps/sdkwork-im-portal/packages/sdkwork-im-portal-portal-api/src/index.js`
+- Modify: `apps/sdkwork-im-portal/packages/sdkwork-im-portal-core/src/store/usePortalAuthStore.js`
+- Modify: `apps/sdkwork-im-portal/packages/sdkwork-im-portal-auth/src/index.js`
+- Modify: `apps/sdkwork-im-portal/packages/sdkwork-im-portal-core/src/application/app/PortalProductApp.js`
+- Modify: `apps/sdkwork-im-portal/tests/portal-routing-and-state.test.mjs`
 
 - [ ] **Step 1: Write failing portal tests for real login form and HTTP data source behavior**
 
@@ -302,7 +302,7 @@ test('portal auth page renders tenant, login, and password inputs', async () => 
 
 - [ ] **Step 2: Run the portal test suite and verify current mock-only behavior fails**
 
-Run: `node --test --experimental-test-isolation=none apps/craw-chat-portal/tests/portal-routing-and-state.test.mjs`
+Run: `node --test --experimental-test-isolation=none apps/sdkwork-im-portal/tests/portal-routing-and-state.test.mjs`
 Expected: FAIL on the new sign-in and HTTP bootstrap assertions.
 
 - [ ] **Step 3: Implement the HTTP portal data source and explicit auth store inputs**
@@ -320,13 +320,13 @@ async signIn(credentials) {
 
 - [ ] **Step 4: Convert `/login` UI from demo button to real form submission**
 
-Run: `node --test --experimental-test-isolation=none apps/craw-chat-portal/tests/portal-routing-and-state.test.mjs`
+Run: `node --test --experimental-test-isolation=none apps/sdkwork-im-portal/tests/portal-routing-and-state.test.mjs`
 Expected: PASS for auth store, routing, retry, and sign-out regressions.
 
 - [ ] **Step 5: Commit the portal integration**
 
 ```bash
-git add apps/craw-chat-portal/packages/craw-chat-portal-portal-api/src/runtime/dataSources/httpPortalDataSource.js apps/craw-chat-portal/packages/craw-chat-portal-portal-api/src/runtime/createPortalDataSource.js apps/craw-chat-portal/packages/craw-chat-portal-portal-api/src/index.js apps/craw-chat-portal/packages/craw-chat-portal-core/src/store/usePortalAuthStore.js apps/craw-chat-portal/packages/craw-chat-portal-auth/src/index.js apps/craw-chat-portal/packages/craw-chat-portal-core/src/application/app/PortalProductApp.js apps/craw-chat-portal/tests/portal-routing-and-state.test.mjs
+git add apps/sdkwork-im-portal/packages/sdkwork-im-portal-portal-api/src/runtime/dataSources/httpPortalDataSource.js apps/sdkwork-im-portal/packages/sdkwork-im-portal-portal-api/src/runtime/createPortalDataSource.js apps/sdkwork-im-portal/packages/sdkwork-im-portal-portal-api/src/index.js apps/sdkwork-im-portal/packages/sdkwork-im-portal-core/src/store/usePortalAuthStore.js apps/sdkwork-im-portal/packages/sdkwork-im-portal-auth/src/index.js apps/sdkwork-im-portal/packages/sdkwork-im-portal-core/src/application/app/PortalProductApp.js apps/sdkwork-im-portal/tests/portal-routing-and-state.test.mjs
 git commit -m "feat(portal): switch local portal to real backend auth"
 ```
 
@@ -349,7 +349,7 @@ Expected: JSON shows `watchDelivered=true` and `timelineContainsValidationMessag
 
 - [ ] **Step 3: Verify portal login bootstrap**
 
-Run: `node --test --experimental-test-isolation=none apps/craw-chat-portal/tests/portal-routing-and-state.test.mjs`
+Run: `node --test --experimental-test-isolation=none apps/sdkwork-im-portal/tests/portal-routing-and-state.test.mjs`
 Expected: PASS.
 
 - [ ] **Step 4: Verify RTC flow with issued bearer tokens**
@@ -362,7 +362,7 @@ Expected: PASS for existing RTC tests plus any new auth-backed cases.
 Run: `cargo test -p local-minimal-node --test real_auth_e2e_test --test public_auth_e2e_test --quiet`
 Expected: PASS.
 
-Run: `cargo test -p craw-chat-cli --test chat_cli_auth_test --test chat_cli_contract_test --quiet`
+Run: `cargo test -p sdkwork-im-cli --test chat_cli_auth_test --test chat_cli_contract_test --quiet`
 Expected: PASS.
 
 - [ ] **Step 6: Commit, merge to the feature branch tip, and push**

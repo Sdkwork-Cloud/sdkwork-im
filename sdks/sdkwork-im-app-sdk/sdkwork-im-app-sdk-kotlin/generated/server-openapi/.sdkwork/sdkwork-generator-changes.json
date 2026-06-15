@@ -143,7 +143,7 @@
         "title": "Unified package check",
         "required": true,
         "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, runtime, build-metadata, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\craw-chat\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-im\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-kotlin\\generated\\server-openapi",
         "command": "node",
         "args": [
           "./bin/publish-core.mjs",

@@ -48,4 +48,4 @@
 
 ## 4. fresh evidence
 
-- `cargo test -p craw-chat-cli --offline test_continuous_optimization_docs_freeze_release_bundle_archive_convention -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline test_continuous_optimization_docs_freeze_release_bundle_archive_convention -- --nocapture`

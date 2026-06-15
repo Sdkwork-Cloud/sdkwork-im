@@ -8,8 +8,8 @@ SDKs.
 The public IM consumer SDK contract is SDKWork appbase based.
 
 - `sdkwork-appbase` owns login, IAM sessions, tenants, users, organizations, and dual-token validation.
-- Craw Chat receives only verified `x-sdkwork-*` AppContext projection headers from the trusted edge.
-- local Craw Chat deployments do not generate or verify Craw Chat-owned public tokens.
+- Sdkwork IM receives only verified `x-sdkwork-*` AppContext projection headers from the trusted edge.
+- local Sdkwork IM deployments do not generate or verify Sdkwork IM-owned public tokens.
 
 If you are documenting or implementing a public consumer path, route authentication through the
 SDKWork app/auth client and do not create local HTTP auth wrappers.
@@ -41,7 +41,7 @@ import { ImSdkClient } from "@sdkwork/im-sdk";
 
 const sdk = new ImSdkClient({
   baseUrl: "http://127.0.0.1:18090",
-  authToken: process.env.CRAW_CHAT_TOKEN,
+  authToken: process.env.SDKWORK_IM_TOKEN,
 });
 
 const live = await sdk.connect({

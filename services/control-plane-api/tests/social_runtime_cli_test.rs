@@ -22,7 +22,7 @@ fn unique_runtime_dir() -> PathBuf {
         .as_nanos();
     let sequence = NEXT_RUNTIME_DIR_ID.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!(
-        "craw_chat_control_plane_social_cli_runtime_{unique}_{sequence}"
+        "sdkwork_im_control_plane_social_cli_runtime_{unique}_{sequence}"
     ))
 }
 

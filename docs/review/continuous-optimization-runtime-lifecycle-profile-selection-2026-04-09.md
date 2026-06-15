@@ -20,7 +20,7 @@
 
 - 为 `init/install/start/stop/restart` 补齐 `-ProfileName` / `--profile`。
 - 统一接入 `_runtime-profile-common.ps1` / `_runtime-profile-common.sh`，按 profile 解析 config 与 runtime-dir。
-- `local-default` 写入独立 config 文件，但仍保持当前 `CRAW_CHAT_RUNTIME_DIR -> .runtime/local-minimal` 兼容合同。
+- `local-default` 写入独立 config 文件，但仍保持当前 `SDKWORK_IM_RUNTIME_DIR -> .runtime/local-minimal` 兼容合同。
 - `restart-local.*` 显式把 profile 传给 `stop/start`；PowerShell 改为真正的命名参数调用。
 - 新增回归测试：
   - `test_restart_local_ps1_forwards_profile_name_to_stop_and_start_scripts`

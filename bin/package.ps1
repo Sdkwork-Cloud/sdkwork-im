@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/package.ps1 [-PackageId <id>] [-Version <value>] [-StagingRoot <dir>] [-OutputDir <dir>] [-All] [-Stage] [-Check] [-DryRun] [-Json]"
-    Write-Host "Stage and/or package Craw Chat release archives. Use -Stage to stage production outputs before packaging."
+    Write-Host "Stage and/or package Sdkwork IM release archives. Use -Stage to stage production outputs before packaging."
     exit 0
 }
 
@@ -23,7 +23,7 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 if ($Stage) {
-    $stageArgs = @("scripts/release/stage-craw-chat-release-package.mjs")
+    $stageArgs = @("scripts/release/stage-sdkwork-im-release-package.mjs")
     if ($All) { $stageArgs += "--all" }
     if (-not [string]::IsNullOrWhiteSpace($PackageId)) { $stageArgs += @("--package-id", $PackageId) }
     if (-not [string]::IsNullOrWhiteSpace($Version)) { $stageArgs += @("--version", $Version) }
@@ -35,7 +35,7 @@ if ($Stage) {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
-$packageArgs = @("scripts/release/build-craw-chat-install-package.mjs")
+$packageArgs = @("scripts/release/build-sdkwork-im-install-package.mjs")
 if ($All) { $packageArgs += "--all" }
 if (-not [string]::IsNullOrWhiteSpace($PackageId)) { $packageArgs += @("--package-id", $PackageId) }
 if (-not [string]::IsNullOrWhiteSpace($Version)) { $packageArgs += @("--version", $Version) }

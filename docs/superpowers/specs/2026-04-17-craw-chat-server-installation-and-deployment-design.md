@@ -1,8 +1,8 @@
-# 2026-04-17 Craw Chat Server Installation And Deployment Design
+# 2026-04-17 Sdkwork IM Server Installation And Deployment Design
 
 ## 1. Goal
 
-Define a production-grade `craw-chat-server` installation, initialization, packaging, and service-management standard that works across Linux, macOS, and Windows. The standard must:
+Define a production-grade `sdkwork-im-server` installation, initialization, packaging, and service-management standard that works across Linux, macOS, and Windows. The standard must:
 
 - treat the unified `web-gateway` as the default external entrypoint
 - make PostgreSQL the default server-edition database baseline
@@ -42,7 +42,7 @@ The current deployment tooling is useful but still optimized for local or minima
 
 ### 4.1 Formal Product
 
-`craw-chat-server`
+`sdkwork-im-server`
 
 - single external base URL
 - default external entrypoint is `web-gateway`
@@ -51,7 +51,7 @@ The current deployment tooling is useful but still optimized for local or minima
 
 ### 4.2 Quickstart Product
 
-`craw-chat-server-quickstart`
+`sdkwork-im-server-quickstart`
 
 - intended for evaluation, smoke verification, single-host trials, and demos
 - may use Docker Compose or equivalent orchestration
@@ -94,19 +94,19 @@ The server uses a product directory plus per-instance directories. The default i
 
 ### 6.1 Linux
 
-- install root: `/opt/craw-chat`
-- config root: `/etc/craw-chat/default`
-- data root: `/var/lib/craw-chat/default`
-- log root: `/var/log/craw-chat/default`
-- run root: `/var/run/craw-chat/default`
+- install root: `/opt/sdkwork-im`
+- config root: `/etc/sdkwork-im/default`
+- data root: `/var/lib/sdkwork-im/default`
+- log root: `/var/log/sdkwork-im/default`
+- run root: `/var/run/sdkwork-im/default`
 
 ### 6.2 macOS
 
-- install root: `/usr/local/lib/craw-chat`
-- config root: `/usr/local/etc/craw-chat/default`
-- data root: `/usr/local/var/lib/craw-chat/default`
-- log root: `/usr/local/var/log/craw-chat/default`
-- run root: `/usr/local/var/run/craw-chat/default`
+- install root: `/usr/local/lib/sdkwork-im`
+- config root: `/usr/local/etc/sdkwork-im/default`
+- data root: `/usr/local/var/lib/sdkwork-im/default`
+- log root: `/usr/local/var/log/sdkwork-im/default`
+- run root: `/usr/local/var/run/sdkwork-im/default`
 
 ### 6.3 Windows
 
@@ -244,9 +244,9 @@ All platforms must expose equivalent semantics through PowerShell, CMD wrappers,
 
 The formal product service identity is one operator-facing service:
 
-- Linux: `craw-chat-server.service`
-- macOS: `com.sdkwork.crawchat.server`
-- Windows: `CrawChatServer`
+- Linux: `sdkwork-im-server.service`
+- macOS: `com.sdkwork.im.server`
+- Windows: `SdkworkImServer`
 
 ### 10.1 Service Host
 

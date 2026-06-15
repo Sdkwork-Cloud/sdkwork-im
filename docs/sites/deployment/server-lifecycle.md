@@ -1,13 +1,13 @@
 # Server Lifecycle
 
 The formal packaged server contract is centered on the unified `web-gateway` service and the
-canonical binary name `craw-chat-server`.
+canonical binary name `sdkwork-im-server`.
 
 ## Canonical Startup Contract
 
-- binary: `craw-chat-server`
+- binary: `sdkwork-im-server`
 - package source: `services/web-gateway`
-- startup command: `craw-chat-server --config <config-root>/server.yaml`
+- startup command: `sdkwork-im-server --config <config-root>/server.yaml`
 - default frozen bind in `deployments/templates/server.yaml.example`: `0.0.0.0:18080`
 
 This is the same startup contract used by foreground starts, generated service-manager assets, and
@@ -77,11 +77,11 @@ development profile.
 
 `install-service-server.*` renders generated assets under `<config-root>/generated/`:
 
-- `craw-chat-server.service`
-- `com.sdkwork.crawchat.server.plist`
-- `CrawChatServer.xml`
-- `install-CrawChatServer.ps1`
-- `uninstall-CrawChatServer.ps1`
+- `sdkwork-im-server.service`
+- `com.sdkwork.im.server.plist`
+- `SdkworkImServer.xml`
+- `install-SdkworkImServer.ps1`
+- `uninstall-SdkworkImServer.ps1`
 
 All of them resolve back to the same canonical startup command and config root.
 

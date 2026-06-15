@@ -27,7 +27,7 @@ use tower::ServiceExt;
 
 static NEXT_RUNTIME_DIR_ID: AtomicU64 = AtomicU64::new(0);
 const TEST_FRIEND_REQUEST_CURSOR_SECRET: &str = "friend-request-cursor-test-secret";
-const FRIEND_REQUEST_CURSOR_SECRET_ENV: &str = "CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET";
+const FRIEND_REQUEST_CURSOR_SECRET_ENV: &str = "SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET";
 
 struct ScopedEnvVar {
     name: &'static str,
@@ -115,7 +115,7 @@ fn unique_runtime_dir() -> PathBuf {
         .as_nanos();
     let sequence = NEXT_RUNTIME_DIR_ID.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!(
-        "craw_chat_control_plane_social_runtime_{unique}_{sequence}"
+        "sdkwork_im_control_plane_social_runtime_{unique}_{sequence}"
     ))
 }
 
@@ -289,7 +289,7 @@ async fn test_control_plane_social_friend_request_write_persists_snapshot_commit
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
-        app_id: Some("craw-chat".into()),
+        app_id: Some("sdkwork-im".into()),
         environment: None,
         deployment_mode: None,
         device_id: None,
@@ -2564,7 +2564,7 @@ async fn test_control_plane_social_friend_request_accept_updates_snapshot_and_au
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
-        app_id: Some("craw-chat".into()),
+        app_id: Some("sdkwork-im".into()),
         environment: None,
         deployment_mode: None,
         device_id: None,
@@ -3150,7 +3150,7 @@ async fn test_control_plane_social_friend_request_decline_updates_snapshot_and_a
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
-        app_id: Some("craw-chat".into()),
+        app_id: Some("sdkwork-im".into()),
         environment: None,
         deployment_mode: None,
         device_id: None,
@@ -3302,7 +3302,7 @@ async fn test_control_plane_social_friend_request_cancel_updates_snapshot_and_au
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
-        app_id: Some("craw-chat".into()),
+        app_id: Some("sdkwork-im".into()),
         environment: None,
         deployment_mode: None,
         device_id: None,
@@ -3442,7 +3442,7 @@ async fn test_control_plane_social_friendship_activation_persists_snapshot_commi
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
-        app_id: Some("craw-chat".into()),
+        app_id: Some("sdkwork-im".into()),
         environment: None,
         deployment_mode: None,
         device_id: None,
@@ -4080,7 +4080,7 @@ async fn test_control_plane_social_friendship_removal_updates_snapshot_and_audit
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
-        app_id: Some("craw-chat".into()),
+        app_id: Some("sdkwork-im".into()),
         environment: None,
         deployment_mode: None,
         device_id: None,
@@ -4524,7 +4524,7 @@ async fn test_control_plane_social_direct_chat_binding_persists_snapshot_commit_
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
-        app_id: Some("craw-chat".into()),
+        app_id: Some("sdkwork-im".into()),
         environment: None,
         deployment_mode: None,
         device_id: None,
@@ -4760,7 +4760,7 @@ async fn test_control_plane_social_user_block_persists_snapshot_commit_and_audit
         actor_id: "u_admin".into(),
         actor_kind: "admin".into(),
         session_id: None,
-        app_id: Some("craw-chat".into()),
+        app_id: Some("sdkwork-im".into()),
         environment: None,
         deployment_mode: None,
         device_id: None,

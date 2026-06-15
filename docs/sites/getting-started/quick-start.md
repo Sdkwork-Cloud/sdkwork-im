@@ -1,6 +1,6 @@
 # Quick Start
 
-This is the shortest verified path to a working local Craw Chat app node.
+This is the shortest verified path to a working local Sdkwork IM app node.
 
 ## 1. Initialize Local Config
 
@@ -45,20 +45,20 @@ bin\init-config-local.cmd --profile local-default
 | Profile | Primary config file | Effective runtime directory |
 | --- | --- | --- |
 | `local-minimal` | `.runtime/local-minimal/config/local-minimal.env` | `.runtime/local-minimal` |
-| `local-default` | `.runtime/local-default/config/local-default.env` | Falls back to `.runtime/local-minimal` unless you override `CRAW_CHAT_RUNTIME_DIR` |
+| `local-default` | `.runtime/local-default/config/local-default.env` | Falls back to `.runtime/local-minimal` unless you override `SDKWORK_IM_RUNTIME_DIR` |
 
 Minimum expected keys:
 
 ```dotenv
-CRAW_CHAT_BIND_ADDR=127.0.0.1:18090
-CRAW_CHAT_RUNTIME_DIR=.runtime/local-minimal
-CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET=<generated-or-manually-set-secret>
+SDKWORK_IM_BIND_ADDR=127.0.0.1:18090
+SDKWORK_IM_RUNTIME_DIR=.runtime/local-minimal
+SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET=<generated-or-manually-set-secret>
 ```
 
 If the browser UI is not served from the default local preview origins, also set
-`CRAW_CHAT_BROWSER_ORIGINS` to the explicit comma-separated allowlist for that deployment.
+`SDKWORK_IM_BROWSER_ORIGINS` to the explicit comma-separated allowlist for that deployment.
 
-`start-local.*` no longer requires a craw-chat-owned public bearer secret. Public and smoke
+`start-local.*` no longer requires a sdkwork-im-owned public bearer secret. Public and smoke
 requests use SDKWork dual-token headers: `Authorization: Bearer <auth-token>` and
 `Access-Token: <access-token>`. Tenant, user, session, device, actor, and permission context comes
 from those token claims.

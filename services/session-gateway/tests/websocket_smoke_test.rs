@@ -2,11 +2,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
-use craw_chat_ccp_binding_ws::{CCP_WS_SUBPROTOCOL, WsBinding, WsBindingMessage, WsOpcode};
-use craw_chat_ccp_codec::CcpCodec;
-use craw_chat_ccp_codec_json::JsonEnvelopeCodec;
-use craw_chat_ccp_control::{AuthBindFrame, ControlFrame, HelloFrame};
-use craw_chat_ccp_core::{CapabilitySet, CcpEnvelope, CcpRoute, ProtocolVersion, TransportBinding};
+use sdkwork_im_ccp_binding_ws::{CCP_WS_SUBPROTOCOL, WsBinding, WsBindingMessage, WsOpcode};
+use sdkwork_im_ccp_codec::CcpCodec;
+use sdkwork_im_ccp_codec_json::JsonEnvelopeCodec;
+use sdkwork_im_ccp_control::{AuthBindFrame, ControlFrame, HelloFrame};
+use sdkwork_im_ccp_core::{CapabilitySet, CcpEnvelope, CcpRoute, ProtocolVersion, TransportBinding};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use tokio::io::AsyncWriteExt;
@@ -165,7 +165,7 @@ fn test_auth_token(
         "login_scope": "TENANT",
         "user_id": principal_id,
         "session_id": session_id,
-        "app_id": "craw-chat",
+        "app_id": "sdkwork-im",
         "auth_level": "password",
         "subject_type": actor_kind
     })
@@ -184,7 +184,7 @@ fn test_access_token(
         "login_scope": "TENANT",
         "user_id": principal_id,
         "session_id": session_id,
-        "app_id": "craw-chat",
+        "app_id": "sdkwork-im",
         "environment": "dev",
         "deployment_mode": "local",
         "auth_level": "password",
@@ -865,7 +865,7 @@ async fn test_realtime_websocket_accepts_ccp_heartbeat_control_frame_after_hands
             "cc.control.heartbeat.v1",
             "control",
             serde_json::to_value(ControlFrame::Heartbeat(
-                craw_chat_ccp_control::HeartbeatFrame { sequence: Some(1) },
+                sdkwork_im_ccp_control::HeartbeatFrame { sequence: Some(1) },
             ))
             .expect("heartbeat frame should serialize"),
         ))

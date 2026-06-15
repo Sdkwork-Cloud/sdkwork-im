@@ -16,14 +16,14 @@ const imRoot = path.join(sdkRoot, 'sdkwork-im-sdk');
 const backendRoot = path.join(sdkRoot, 'sdkwork-im-backend-sdk');
 const appRoot = path.join(sdkRoot, 'sdkwork-im-app-sdk');
 
-const imAuthorityPath = path.join(imRoot, 'openapi', 'craw-chat-im.openapi.yaml');
-const imDerivedPath = path.join(imRoot, 'openapi', 'craw-chat-im.sdkgen.yaml');
-const imFlutterDerivedPath = path.join(imRoot, 'openapi', 'craw-chat-im.flutter.sdkgen.yaml');
-const backendAuthorityPath = path.join(backendRoot, 'openapi', 'craw-chat-backend-api.openapi.yaml');
-const backendDerivedPath = path.join(backendRoot, 'openapi', 'craw-chat-backend-api.sdkgen.yaml');
-const appAuthorityPath = path.join(appRoot, 'openapi', 'craw-chat-app-api.openapi.yaml');
-const appDerivedPath = path.join(appRoot, 'openapi', 'craw-chat-app-api.sdkgen.yaml');
-const appFlutterDerivedPath = path.join(appRoot, 'openapi', 'craw-chat-app-api.flutter.sdkgen.yaml');
+const imAuthorityPath = path.join(imRoot, 'openapi', 'sdkwork-im-im.openapi.yaml');
+const imDerivedPath = path.join(imRoot, 'openapi', 'sdkwork-im-im.sdkgen.yaml');
+const imFlutterDerivedPath = path.join(imRoot, 'openapi', 'sdkwork-im-im.flutter.sdkgen.yaml');
+const backendAuthorityPath = path.join(backendRoot, 'openapi', 'sdkwork-im-backend-api.openapi.yaml');
+const backendDerivedPath = path.join(backendRoot, 'openapi', 'sdkwork-im-backend-api.sdkgen.yaml');
+const appAuthorityPath = path.join(appRoot, 'openapi', 'sdkwork-im-app-api.openapi.yaml');
+const appDerivedPath = path.join(appRoot, 'openapi', 'sdkwork-im-app-api.sdkgen.yaml');
+const appFlutterDerivedPath = path.join(appRoot, 'openapi', 'sdkwork-im-app-api.flutter.sdkgen.yaml');
 const appbaseAppAuthorityPath = path.resolve(
   sdkRoot,
   '..',
@@ -475,7 +475,7 @@ function pruneUnreachableParameters(document) {
 function normalizeImAuthority(im) {
   const next = cloneOpenApiJson(im);
   next.info = {
-    title: 'Craw Chat IM Standardized Development API',
+    title: 'Sdkwork IM IM Standardized Development API',
     version: im.info?.version || '0.1.0',
     description:
       'IM standardized development OpenAPI contract for conversations, messages, realtime, media, streams, and social IM flows.',
@@ -504,7 +504,7 @@ function normalizeImAuthority(im) {
 function normalizeBackendAuthority(backend, dependencyBackendRouteSet) {
   const next = cloneOpenApiJson(backend);
   next.info = {
-    title: 'Craw Chat Backend Management API',
+    title: 'Sdkwork IM Backend Management API',
     version: backend.info?.version || '0.1.0',
     description:
       'Backend management OpenAPI contract for operator, governance, control, and admin APIs under one SDK family.',
@@ -534,10 +534,10 @@ function normalizeBackendAuthority(backend, dependencyBackendRouteSet) {
 function normalizeAppAuthority(app, im, dependencyAppRouteSet) {
   const next = cloneOpenApiJson(app);
   next.info = {
-    title: app.info?.title || 'Craw Chat App API',
+    title: app.info?.title || 'Sdkwork IM App API',
     version: app.info?.version || '0.1.0',
     description:
-      'Owner-only app-development OpenAPI contract for Craw Chat-owned app-business and non-management HTTP APIs. Dependency capabilities, including sdkwork-appbase identity/session/IAM/QR auth, are consumed through sdkDependencies and dependency SDKs instead of being regenerated here.',
+      'Owner-only app-development OpenAPI contract for Sdkwork IM-owned app-business and non-management HTTP APIs. Dependency capabilities, including sdkwork-appbase identity/session/IAM/QR auth, are consumed through sdkDependencies and dependency SDKs instead of being regenerated here.',
   };
   const appNativePaths = collectRebasedPaths({
     sources: [app],
@@ -643,7 +643,7 @@ const dependencyBackendRouteSet = appbaseBackendRouteSet;
 
 const consolidatedIm = normalizeImAuthority(im);
 applySdkworkV3OpenApiStandard(consolidatedIm);
-annotateOwnerMetadata(consolidatedIm, { owner: 'craw-chat', apiAuthority: 'craw-chat.im' });
+annotateOwnerMetadata(consolidatedIm, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.im' });
 const consolidatedImSdkgen = sdkgenDerivedDocument(consolidatedIm, {
   describeRealtimeWebsocketExclusion: true,
 });
@@ -655,11 +655,11 @@ const consolidatedImFlutter = sdkgenDerivedDocument(consolidatedIm, {
 
 const consolidatedBackend = normalizeBackendAuthority(backend, dependencyBackendRouteSet);
 applySdkworkV3OpenApiStandard(consolidatedBackend);
-annotateOwnerMetadata(consolidatedBackend, { owner: 'craw-chat', apiAuthority: 'craw-chat.backend' });
+annotateOwnerMetadata(consolidatedBackend, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.backend' });
 
 const consolidatedApp = normalizeAppAuthority(app, im, dependencyAppRouteSet);
 applySdkworkV3OpenApiStandard(consolidatedApp);
-annotateOwnerMetadata(consolidatedApp, { owner: 'craw-chat', apiAuthority: 'craw-chat.app' });
+annotateOwnerMetadata(consolidatedApp, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.app' });
 const consolidatedAppSdkgen = sdkgenDerivedDocument(consolidatedApp);
 const consolidatedAppFlutter = sdkgenDerivedDocument(consolidatedApp, {
   applyFlutterCompatibility: true,

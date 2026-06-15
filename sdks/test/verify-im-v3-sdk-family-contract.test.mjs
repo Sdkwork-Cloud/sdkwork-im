@@ -245,37 +245,37 @@ const boundaryMaterializerSource = read('materialize-im-v3-openapi-boundaries.mj
 const yaml = await loadGeneratorYaml(sdkRoot);
 const imAuthority = loadOpenApiDocument({
   prefix: 'sdkwork-im-sdk',
-  filePath: path.join(sdkRoot, 'sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml'),
+  filePath: path.join(sdkRoot, 'sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml'),
   yaml,
 });
 const imDerived = loadOpenApiDocument({
   prefix: 'sdkwork-im-sdk',
-  filePath: path.join(sdkRoot, 'sdkwork-im-sdk/openapi/craw-chat-im.sdkgen.yaml'),
+  filePath: path.join(sdkRoot, 'sdkwork-im-sdk/openapi/sdkwork-im-im.sdkgen.yaml'),
   yaml,
 });
 const imFlutterDerived = loadOpenApiDocument({
   prefix: 'sdkwork-im-sdk',
-  filePath: path.join(sdkRoot, 'sdkwork-im-sdk/openapi/craw-chat-im.flutter.sdkgen.yaml'),
+  filePath: path.join(sdkRoot, 'sdkwork-im-sdk/openapi/sdkwork-im-im.flutter.sdkgen.yaml'),
   yaml,
 });
 const appAuthority = loadOpenApiDocument({
   prefix: 'sdkwork-im-app-sdk',
-  filePath: path.join(sdkRoot, 'sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml'),
+  filePath: path.join(sdkRoot, 'sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml'),
   yaml,
 });
 const appDerived = loadOpenApiDocument({
   prefix: 'sdkwork-im-app-sdk',
-  filePath: path.join(sdkRoot, 'sdkwork-im-app-sdk/openapi/craw-chat-app-api.sdkgen.yaml'),
+  filePath: path.join(sdkRoot, 'sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.sdkgen.yaml'),
   yaml,
 });
 const appFlutterDerived = loadOpenApiDocument({
   prefix: 'sdkwork-im-app-sdk',
-  filePath: path.join(sdkRoot, 'sdkwork-im-app-sdk/openapi/craw-chat-app-api.flutter.sdkgen.yaml'),
+  filePath: path.join(sdkRoot, 'sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.flutter.sdkgen.yaml'),
   yaml,
 });
 const backendAuthority = loadOpenApiDocument({
   prefix: 'sdkwork-im-backend-sdk',
-  filePath: path.join(sdkRoot, 'sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml'),
+  filePath: path.join(sdkRoot, 'sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml'),
   yaml,
 });
 const appbaseBackendAuthority = loadOpenApiDocument({
@@ -698,8 +698,8 @@ for (const [label, document, prefix] of [
   const description = String(document.info?.description ?? '');
   assert.match(
     description,
-    /Craw Chat-owned/i,
-    `${label} info.description must state that the generated input is Craw Chat-owned.`,
+    /Sdkwork IM-owned/i,
+    `${label} info.description must state that the generated input is Sdkwork IM-owned.`,
   );
   assert.match(
     description,
@@ -713,7 +713,7 @@ for (const [label, document, prefix] of [
   );
   assert.ok(
     !/appbase API/i.test(description),
-    `${label} info.description must not describe appbase APIs as part of the craw-chat SDK input.`,
+    `${label} info.description must not describe appbase APIs as part of the sdkwork-im SDK input.`,
   );
   assertAllPathsUsePrefix(label, document, prefix);
   assertNoPathsUsePrefix(label, document, '/im/v3/api');
@@ -784,7 +784,7 @@ assert.match(appConfigSource, /legacyClient:\s*'SdkworkAppClient'/, 'app SDK fam
 assert.match(appConfigSource, /primaryClient:\s*'SdkworkImAppClient'/, 'app SDK family must verify product-scoped SdkworkImAppClient.');
 assert.match(
   appConfigSource,
-  /generatedApiLabel:\s*'Craw Chat app-development API'/,
+  /generatedApiLabel:\s*'Sdkwork IM app-development API'/,
   'app SDK family config must label generated app-development transport packages.',
 );
 assert.match(appConfigSource, /apiPrefix:\s*'\/app\/v3\/api'/, 'app SDK family must target /app/v3/api.');
@@ -1020,7 +1020,7 @@ assert.match(backendConfigSource, /legacyClient:\s*'SdkworkBackendClient'/, 'bac
 assert.match(backendConfigSource, /primaryClient:\s*'SdkworkImBackendClient'/, 'backend SDK family must verify product-scoped SdkworkImBackendClient.');
 assert.match(
   backendConfigSource,
-  /generatedApiLabel:\s*'Craw Chat backend\/operator API'/,
+  /generatedApiLabel:\s*'Sdkwork IM backend\/operator API'/,
   'backend SDK family config must label generated backend/operator transport packages.',
 );
 assert.match(backendConfigSource, /apiPrefix:\s*'\/backend\/v3\/api'/, 'backend SDK family must target /backend/v3/api.');
@@ -1194,7 +1194,7 @@ assert.match(imConfigSource, /sdkTarget:\s*'im'/, 'IM SDK family config must use
 assert.match(imConfigSource, /primaryClient:\s*'SdkworkImClient'/, 'IM SDK family must verify SdkworkImClient.');
 assert.match(
   imConfigSource,
-  /generatedApiLabel:\s*'Craw Chat IM standardized development API'/,
+  /generatedApiLabel:\s*'Sdkwork IM IM standardized development API'/,
   'IM SDK family config must label generated IM standardized development transport packages.',
 );
 assert.match(imConfigSource, /apiPrefix:\s*'\/im\/v3\/api'/, 'IM SDK family must target /im/v3/api.');
@@ -1318,7 +1318,7 @@ assert.equal(
 assert.equal(
   imTypeScriptGeneratedPackage.private,
   true,
-  'IM TypeScript generated package manifest must mark generated transport private without Craw Chat post-processing.',
+  'IM TypeScript generated package manifest must mark generated transport private without Sdkwork IM post-processing.',
 );
 assert.equal(
   imTypeScriptGeneratedPackage.description,

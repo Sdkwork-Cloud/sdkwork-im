@@ -1,18 +1,18 @@
 use std::any::type_name;
 
-use craw_chat_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilityProfileStore};
-use craw_chat_contract_agent::AutomationExecutionStore;
-use craw_chat_contract_control::{
+use sdkwork_im_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilityProfileStore};
+use sdkwork_im_contract_agent::AutomationExecutionStore;
+use sdkwork_im_contract_control::{
     PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
     RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore, RealtimeSubscriptionRecord,
     RealtimeSubscriptionStore,
 };
-use craw_chat_contract_core::{
+use sdkwork_im_contract_core::{
     ContractError, MetadataStore, ObjectDescriptor, ObjectPutRequest, ObjectStore,
 };
-use craw_chat_contract_message::{CommitJournal, CommitPosition, TimelineProjectionStore};
-use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
-use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
+use sdkwork_im_contract_message::{CommitJournal, CommitPosition, TimelineProjectionStore};
+use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
+use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
 use im_domain_core::rtc::{RtcStateRecord, RtcStateStore};
 use sdkwork_rtc_core::RtcContractError;
 
@@ -314,13 +314,13 @@ impl AutomationExecutionStore for NullAutomationStore {
         _principal_kind: &str,
         _principal_id: &str,
         _execution_id: &str,
-    ) -> Result<Option<craw_chat_contract_agent::AutomationExecutionRecord>, ContractError> {
+    ) -> Result<Option<sdkwork_im_contract_agent::AutomationExecutionRecord>, ContractError> {
         Ok(None)
     }
 
     fn save_execution(
         &self,
-        _record: craw_chat_contract_agent::AutomationExecutionRecord,
+        _record: sdkwork_im_contract_agent::AutomationExecutionRecord,
     ) -> Result<(), ContractError> {
         Ok(())
     }
@@ -421,7 +421,7 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
         type_name::<im_platform_contracts::NotificationTaskRecord>()
     );
     assert_eq!(
-        type_name::<craw_chat_contract_agent::AutomationExecutionRecord>(),
+        type_name::<sdkwork_im_contract_agent::AutomationExecutionRecord>(),
         type_name::<im_platform_contracts::AutomationExecutionRecord>()
     );
 

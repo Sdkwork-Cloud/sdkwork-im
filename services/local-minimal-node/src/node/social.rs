@@ -21,7 +21,7 @@ const SOCIAL_ACCEPT_REPAIR_RUN_LOCK_FILE_NAME: &str =
 const SOCIAL_ACCEPT_REPAIR_LOCK_POLL_INTERVAL_MS: u64 = 10;
 #[cfg(debug_assertions)]
 const SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE_ENV: &str =
-    "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE";
+    "SDKWORK_IM_TEST_SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE";
 static NEXT_SOCIAL_ID_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 struct PendingFriendRequestAcceptRepairLockGuard {
@@ -1545,7 +1545,7 @@ async fn repair_pending_friend_request_acceptance(
         actor_id: repair.target_user_id.clone(),
         actor_kind: "user".into(),
         session_id: None,
-        app_id: Some("craw-chat".into()),
+        app_id: Some("sdkwork-im".into()),
         environment: None,
         deployment_mode: None,
         auth_level: None,
@@ -1862,7 +1862,7 @@ async fn finalize_friend_request_acceptance_repair(
 #[cfg(debug_assertions)]
 async fn maybe_pause_friend_request_accept_after_request_commit() {
     const SOCIAL_ACCEPT_TEST_POST_COMMIT_DELAY_ENV: &str =
-        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS";
+        "SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS";
     let Ok(raw_delay_ms) = std::env::var(SOCIAL_ACCEPT_TEST_POST_COMMIT_DELAY_ENV) else {
         return;
     };
@@ -1882,7 +1882,7 @@ async fn maybe_pause_friend_request_accept_after_request_commit() {}
 #[cfg(debug_assertions)]
 async fn maybe_pause_friend_request_accept_before_request_commit() {
     const SOCIAL_ACCEPT_TEST_PRE_COMMIT_DELAY_ENV: &str =
-        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_PRE_COMMIT_DELAY_MS";
+        "SDKWORK_IM_TEST_SOCIAL_ACCEPT_PRE_COMMIT_DELAY_MS";
     let Ok(raw_delay_ms) = std::env::var(SOCIAL_ACCEPT_TEST_PRE_COMMIT_DELAY_ENV) else {
         return;
     };
@@ -1963,7 +1963,7 @@ fn same_friend_request_pair(
 #[cfg(debug_assertions)]
 async fn maybe_pause_friend_request_decline_before_request_commit() {
     const SOCIAL_DECLINE_TEST_PRE_COMMIT_DELAY_ENV: &str =
-        "CRAW_CHAT_TEST_SOCIAL_DECLINE_PRE_COMMIT_DELAY_MS";
+        "SDKWORK_IM_TEST_SOCIAL_DECLINE_PRE_COMMIT_DELAY_MS";
     let Ok(raw_delay_ms) = std::env::var(SOCIAL_DECLINE_TEST_PRE_COMMIT_DELAY_ENV) else {
         return;
     };
@@ -1983,7 +1983,7 @@ async fn maybe_pause_friend_request_decline_before_request_commit() {}
 #[cfg(debug_assertions)]
 async fn maybe_pause_friend_request_cancel_before_request_commit() {
     const SOCIAL_CANCEL_TEST_PRE_COMMIT_DELAY_ENV: &str =
-        "CRAW_CHAT_TEST_SOCIAL_CANCEL_PRE_COMMIT_DELAY_MS";
+        "SDKWORK_IM_TEST_SOCIAL_CANCEL_PRE_COMMIT_DELAY_MS";
     let Ok(raw_delay_ms) = std::env::var(SOCIAL_CANCEL_TEST_PRE_COMMIT_DELAY_ENV) else {
         return;
     };
@@ -2003,7 +2003,7 @@ async fn maybe_pause_friend_request_cancel_before_request_commit() {}
 #[cfg(debug_assertions)]
 async fn maybe_pause_friendship_remove_before_request_commit() {
     const SOCIAL_REMOVE_TEST_PRE_COMMIT_DELAY_ENV: &str =
-        "CRAW_CHAT_TEST_SOCIAL_REMOVE_PRE_COMMIT_DELAY_MS";
+        "SDKWORK_IM_TEST_SOCIAL_REMOVE_PRE_COMMIT_DELAY_MS";
     let Ok(raw_delay_ms) = std::env::var(SOCIAL_REMOVE_TEST_PRE_COMMIT_DELAY_ENV) else {
         return;
     };
@@ -2023,7 +2023,7 @@ async fn maybe_pause_friendship_remove_before_request_commit() {}
 #[cfg(debug_assertions)]
 async fn maybe_pause_friend_request_accept_repair_after_snapshot() {
     const SOCIAL_ACCEPT_REPAIR_TEST_POST_SNAPSHOT_DELAY_ENV: &str =
-        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_POST_SNAPSHOT_DELAY_MS";
+        "SDKWORK_IM_TEST_SOCIAL_ACCEPT_REPAIR_POST_SNAPSHOT_DELAY_MS";
     let Ok(raw_delay_ms) = std::env::var(SOCIAL_ACCEPT_REPAIR_TEST_POST_SNAPSHOT_DELAY_ENV) else {
         return;
     };
@@ -2043,7 +2043,7 @@ async fn maybe_pause_friend_request_accept_repair_after_snapshot() {}
 #[cfg(debug_assertions)]
 fn maybe_pause_pending_friend_request_accept_repair_store_io() {
     const SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_ENV: &str =
-        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS";
+        "SDKWORK_IM_TEST_SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_MS";
     let Ok(raw_delay_ms) = std::env::var(SOCIAL_ACCEPT_REPAIR_STORE_IO_DELAY_ENV) else {
         return;
     };
@@ -2672,7 +2672,7 @@ mod tests {
 
     static NEXT_SOCIAL_TEST_RUNTIME_DIR_SEQUENCE: AtomicU64 = AtomicU64::new(0);
     const SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE_ENV: &str =
-        "CRAW_CHAT_TEST_SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE";
+        "SDKWORK_IM_TEST_SOCIAL_ACCEPT_REPAIR_STORE_FAIL_AFTER_TEMP_WRITE";
 
     struct ScopedEnvVar {
         name: &'static str,
@@ -2718,7 +2718,7 @@ mod tests {
             .expect("system time should be after unix epoch")
             .as_nanos();
         let sequence = NEXT_SOCIAL_TEST_RUNTIME_DIR_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-        std::env::temp_dir().join(format!("craw_chat_social_{prefix}_{unique}_{sequence}"))
+        std::env::temp_dir().join(format!("sdkwork_im_social_{prefix}_{unique}_{sequence}"))
     }
 
     #[test]

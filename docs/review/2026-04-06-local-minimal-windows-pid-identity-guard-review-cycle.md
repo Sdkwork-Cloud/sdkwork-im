@@ -2,10 +2,10 @@
 
 ## 1. Review scope
 
-- [start-local.ps1](<workspace-root>/craw-chat/bin/start-local.ps1)
-- [status-local.ps1](<workspace-root>/craw-chat/bin/status-local.ps1)
-- [stop-local.ps1](<workspace-root>/craw-chat/bin/stop-local.ps1)
-- [deployment_profile_test.rs](<workspace-root>/craw-chat/services/local-minimal-node/tests/deployment_profile_test.rs)
+- [start-local.ps1](<workspace-root>/sdkwork-im/bin/start-local.ps1)
+- [status-local.ps1](<workspace-root>/sdkwork-im/bin/status-local.ps1)
+- [stop-local.ps1](<workspace-root>/sdkwork-im/bin/stop-local.ps1)
+- [deployment_profile_test.rs](<workspace-root>/sdkwork-im/services/local-minimal-node/tests/deployment_profile_test.rs)
 
 ## 2. Findings
 

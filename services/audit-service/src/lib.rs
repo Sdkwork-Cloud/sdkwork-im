@@ -10,8 +10,8 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use craw_chat_api_registry::HttpMethod;
-use craw_chat_openapi::{
+use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use im_app_context::{
@@ -29,13 +29,13 @@ const AUDIT_ACTION_MAX_BYTES: usize = 128;
 const AUDIT_PAYLOAD_MAX_BYTES: usize = 128 * 1024;
 const AUDIT_RECORD_LIST_MAX_LIMIT: usize = 1000;
 const AUDIT_RECORD_DELIVERY_PROOF_VERSION: &str = "audit.record.delivery-proof.v1";
-const AUDIT_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "CRAW_CHAT_AUDIT_MAX_IN_FLIGHT_REQUESTS";
+const AUDIT_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_AUDIT_MAX_IN_FLIGHT_REQUESTS";
 const AUDIT_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 const AUDIT_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
-const AUDIT_MAX_REQUEST_BODY_BYTES_ENV: &str = "CRAW_CHAT_AUDIT_MAX_REQUEST_BODY_BYTES";
+const AUDIT_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_AUDIT_MAX_REQUEST_BODY_BYTES";
 const AUDIT_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const AUDIT_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
-const AUDIT_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str = "CRAW_CHAT_AUDIT_REQUIRE_DUAL_TOKEN_HEADERS";
+const AUDIT_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str = "SDKWORK_IM_AUDIT_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
 struct AppState {
@@ -714,7 +714,7 @@ fn build_audit_service_openapi_document() -> Result<serde_json::Value, String> {
 
 fn audit_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
-        title: "Craw Chat Audit Service API",
+        title: "Sdkwork IM Audit Service API",
         version: env!("CARGO_PKG_VERSION"),
         description: "Live OpenAPI contract generated from the audit-service router for audit record mutation, export, verification, and record listing flows.",
         openapi_path: "/openapi.json",

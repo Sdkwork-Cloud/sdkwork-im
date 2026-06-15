@@ -12,7 +12,7 @@ document this component, but they must not contradict
 | --- | --- |
 | Name | `sdkwork-im-sdk` |
 | Type | `sdk-family` |
-| Root | `craw-chat/sdks/sdkwork-im-sdk` |
+| Root | `sdkwork-im/sdks/sdkwork-im-sdk` |
 | Domain | `communication` |
 | Capability | `im` |
 | Languages | `csharp, flutter, go, java, kotlin, python, rust, swift, typescript` |
@@ -24,8 +24,8 @@ document this component, but they must not contradict
 | --- | --- |
 | Authority | `sdkwork-im-open-api` |
 | Prefix | `/im/v3/api` |
-| Authority OpenAPI | `openapi/craw-chat-im.openapi.yaml` |
-| Derived OpenAPI | `openapi/craw-chat-im.sdkgen.yaml`, `openapi/craw-chat-im.flutter.sdkgen.yaml` |
+| Authority OpenAPI | `openapi/sdkwork-im-im.openapi.yaml` |
+| Derived OpenAPI | `openapi/sdkwork-im-im.sdkgen.yaml`, `openapi/sdkwork-im-im.flutter.sdkgen.yaml` |
 
 ## Contract Manifest
 

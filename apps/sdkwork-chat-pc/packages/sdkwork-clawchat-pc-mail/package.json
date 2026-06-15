@@ -1,7 +1,0 @@
-{
-  "name": "@sdkwork/clawchat-pc-mail",
-  "version": "1.0.0",
-  "main": "./src/index.tsx",
-  "types": "./src/index.tsx",
-  "dependencies": {}
-}

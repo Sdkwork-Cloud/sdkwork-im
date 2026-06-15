@@ -1,9 +1,0 @@
-[package]
-name = "craw-chat-ccp-control"
-edition.workspace = true
-license.workspace = true
-version.workspace = true
-
-[dependencies]
-craw-chat-ccp-core = { path = "../craw-chat-ccp-core" }
-serde.workspace = true

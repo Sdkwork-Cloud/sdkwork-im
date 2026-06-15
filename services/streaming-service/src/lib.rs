@@ -13,10 +13,10 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use craw_chat_api_registry::HttpMethod;
-use craw_chat_contract_core::ContractError;
-use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
-use craw_chat_openapi::{
+use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_contract_core::ContractError;
+use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
+use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use im_app_context::{
@@ -45,14 +45,14 @@ const STREAM_MAX_FRAME_ATTRIBUTES_BYTES: usize = 64 * 1024;
 const STREAM_MAX_RESULT_MESSAGE_ID_BYTES: usize = 256;
 const STREAM_MAX_ABORT_REASON_BYTES: usize = 8 * 1024;
 const STREAM_FRAME_LIST_MAX_LIMIT: usize = 1000;
-const STREAMING_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "CRAW_CHAT_STREAMING_MAX_IN_FLIGHT_REQUESTS";
+const STREAMING_MAX_IN_FLIGHT_REQUESTS_ENV: &str = "SDKWORK_IM_STREAMING_MAX_IN_FLIGHT_REQUESTS";
 const STREAMING_MAX_IN_FLIGHT_REQUESTS_DEFAULT: usize = 1_000;
 const STREAMING_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
-const STREAMING_MAX_REQUEST_BODY_BYTES_ENV: &str = "CRAW_CHAT_STREAMING_MAX_REQUEST_BODY_BYTES";
+const STREAMING_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_STREAMING_MAX_REQUEST_BODY_BYTES";
 const STREAMING_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const STREAMING_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
 const STREAMING_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
-    "CRAW_CHAT_STREAMING_REQUIRE_DUAL_TOKEN_HEADERS";
+    "SDKWORK_IM_STREAMING_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
 struct AppState {
@@ -1016,7 +1016,7 @@ fn build_streaming_service_openapi_document() -> Result<serde_json::Value, Strin
 
 fn streaming_service_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
-        title: "Craw Chat Streaming Service API",
+        title: "Sdkwork IM Streaming Service API",
         version: env!("CARGO_PKG_VERSION"),
         description: "Live OpenAPI contract generated from the streaming-service router for stream session lifecycle and frame append/query flows.",
         openapi_path: "/openapi.json",

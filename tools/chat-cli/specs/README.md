@@ -1,6 +1,6 @@
-# Craw Chat Cli Component Specs
+# Sdkwork IM Cli Component Specs
 
-This directory is the local standards index for `craw-chat-cli`.
+This directory is the local standards index for `sdkwork-im-cli`.
 
 Root SDKWork standards remain authoritative. Local component specs can narrow or document this component, but they must not contradict [the root standards](../../../../../specs/README.md).
 
@@ -8,9 +8,9 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 | Field | Value |
 | --- | --- |
-| Name | `craw-chat-cli` |
+| Name | `sdkwork-im-cli` |
 | Type | `rust-crate` |
-| Root | `craw-chat/tools/chat-cli` |
+| Root | `sdkwork-im/tools/chat-cli` |
 | Domain | `communication` |
 | Capability | `chat` |
 | Languages | `rust` |
@@ -52,4 +52,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/tools/chat-cli/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/tools/chat-cli/Cargo.toml`

@@ -10,7 +10,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- |
 | Name | `im-adapters-local-disk` |
 | Type | `rust-crate` |
-| Root | `craw-chat/adapters/local-disk` |
+| Root | `sdkwork-im/adapters/local-disk` |
 | Domain | `communication` |
 | Capability | `im` |
 | Languages | `rust` |
@@ -52,4 +52,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/adapters/local-disk/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/adapters/local-disk/Cargo.toml`

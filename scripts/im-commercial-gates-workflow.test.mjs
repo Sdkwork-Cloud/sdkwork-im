@@ -173,7 +173,7 @@ test('repository exposes a governed im commercial gates workflow with repository
   );
   assert.doesNotMatch(
     workflow,
-    /apps\/craw-chat-admin|apps\/craw-chat-portal/,
+    /apps\/sdkwork-im-admin|apps\/sdkwork-im-portal/,
     'im commercial gates workflow must not reference retired admin or portal app paths',
   );
   assert.match(contractSource, /im-commercial-gates-watch-catalog\.mjs/);
@@ -250,7 +250,7 @@ test('im commercial gates workflow contract helper rejects workflows that still 
     workflowText: `${read('.github/workflows/im-commercial-gates.yml')}
 
       - name: Retired portal path
-        working-directory: apps/craw-chat-portal
+        working-directory: apps/sdkwork-im-portal
         run: node --version
 `,
   });
@@ -259,7 +259,7 @@ test('im commercial gates workflow contract helper rejects workflows that still 
     contracts.assertImCommercialGatesWorkflowContracts({
       repoRoot: fixtureRoot,
     }),
-    /retired admin or portal app paths|apps\/craw-chat-portal/i,
+    /retired admin or portal app paths|apps\/sdkwork-im-portal/i,
   );
 });
 

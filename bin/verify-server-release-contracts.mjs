@@ -43,7 +43,7 @@ function showHelp() {
     [
       "Usage: node bin/verify-server-release-contracts.mjs --release-gate-path <path> [--format <json|text>] [--field <path>]",
       "",
-      "Validate craw-chat server release-gate bundle consistency across release-gate, release-execution, package-catalog, release-provenance, acceptance manifests, and checklist contracts.",
+      "Validate sdkwork-im server release-gate bundle consistency across release-gate, release-execution, package-catalog, release-provenance, acceptance manifests, and checklist contracts.",
       "",
     ].join("\n"),
   );

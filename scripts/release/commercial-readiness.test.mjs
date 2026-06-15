@@ -49,7 +49,7 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   }
   assert.equal(
     checks.find((check) => check.id === 'pc-install')?.cwd,
-    path.join(repoRoot, 'apps', 'sdkwork-chat-pc'),
+    path.join(repoRoot, 'apps', 'sdkwork-im-pc'),
   );
   assert.deepEqual(
     checks.find((check) => check.id === 'pc-install')?.args,
@@ -57,7 +57,7 @@ test('commercial readiness checks cover the verified frontend and backend gate c
   );
   assert.equal(
     checks.find((check) => check.id === 'pc-lint')?.cwd,
-    path.join(repoRoot, 'apps', 'sdkwork-chat-pc'),
+    path.join(repoRoot, 'apps', 'sdkwork-im-pc'),
   );
   assert.deepEqual(
     checks.find((check) => check.id === 'pc-lint')?.args,
@@ -228,7 +228,7 @@ test('commercial readiness rejects missing configured working directories before
   assert.equal(result.checks.length, 0);
   assert.equal(result.failure.stage, 'pc-install');
   assert.match(result.failure.summary, /configured cwd does not exist/);
-  assert.match(result.failure.summary, /apps[\\/]sdkwork-chat-pc/);
+  assert.match(result.failure.summary, /apps[\\/]sdkwork-im-pc/);
   assert.match(logs.stderr.join('\n'), /pc-install/);
 });
 

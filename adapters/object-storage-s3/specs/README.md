@@ -10,7 +10,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- |
 | Name | `im-adapter-object-storage-s3` |
 | Type | `rust-crate` |
-| Root | `craw-chat/adapters/object-storage-s3` |
+| Root | `sdkwork-im/adapters/object-storage-s3` |
 | Domain | `communication` |
 | Capability | `im` |
 | Languages | `rust` |
@@ -52,4 +52,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/adapters/object-storage-s3/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/adapters/object-storage-s3/Cargo.toml`

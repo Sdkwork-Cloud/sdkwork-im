@@ -64,7 +64,7 @@ async fn request_json(
                 .uri(path.as_ref())
                 .header(axum::http::header::AUTHORIZATION, "Bearer auth-token")
                 .header("access-token", "access-token")
-                .with_dual_token_app("sdkwork-craw-chat-pc")
+                .with_dual_token_app("sdkwork-sdkwork-im-pc")
                 .with_dual_token_tenant("t_demo")
                 .with_dual_token_user("u_demo")
                 .with_dual_token_actor_kind("user")
@@ -89,7 +89,7 @@ async fn read_json(response: axum::response::Response) -> Value {
 }
 
 #[tokio::test]
-async fn test_public_app_does_not_expose_craw_chat_private_app_api_bootstrap_routes() {
+async fn test_public_app_does_not_expose_sdkwork_im_private_app_api_bootstrap_routes() {
     let app = local_minimal_node::build_public_app();
 
     for (method, path, body) in [
@@ -125,7 +125,7 @@ async fn test_public_app_does_not_expose_craw_chat_private_app_api_bootstrap_rou
         assert_eq!(
             response.status(),
             StatusCode::NOT_FOUND,
-            "{path} must not be reimplemented by Craw Chat; /app/v3/api is provided by sdkwork-appbase"
+            "{path} must not be reimplemented by Sdkwork IM; /app/v3/api is provided by sdkwork-appbase"
         );
     }
 }
@@ -143,7 +143,7 @@ async fn test_im_v3_api_uses_presence_realtime_namespace_and_does_not_expose_ide
     assert_eq!(
         authorization_only.status(),
         StatusCode::UNAUTHORIZED,
-        "craw-chat must require the trusted SDKWork AppContext projection; an authorization header alone is not enough"
+        "sdkwork-im must require the trusted SDKWork AppContext projection; an authorization header alone is not enough"
     );
 
     let heartbeat = post_json(
@@ -221,7 +221,7 @@ async fn test_im_v3_api_uses_presence_realtime_namespace_and_does_not_expose_ide
         assert_eq!(
             response.status(),
             StatusCode::NOT_FOUND,
-            "{path} must not be reimplemented by Craw Chat; sdkwork-appbase owns /app/v3/api"
+            "{path} must not be reimplemented by Sdkwork IM; sdkwork-appbase owns /app/v3/api"
         );
     }
 
@@ -250,7 +250,7 @@ async fn test_im_v3_api_uses_presence_realtime_namespace_and_does_not_expose_ide
         assert_eq!(
             response.status(),
             StatusCode::NOT_FOUND,
-            "{removed_path} must not be exposed by craw-chat; only SDKWork app v3 IAM routes belong here"
+            "{removed_path} must not be exposed by sdkwork-im; only SDKWork app v3 IAM routes belong here"
         );
     }
 }

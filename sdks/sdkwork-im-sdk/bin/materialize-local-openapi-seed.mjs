@@ -6,7 +6,7 @@ import { loadGeneratorYaml } from '../../workspace-sdk-generator-root-shared.mjs
 import { applySdkworkV3OpenApiStandard } from '../../workspace-openapi-v3-standard.mjs';
 
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const outputPath = path.join(workspaceRoot, 'openapi', 'craw-chat-im.openapi.yaml');
+const outputPath = path.join(workspaceRoot, 'openapi', 'sdkwork-im-im.openapi.yaml');
 const apiPrefix = '/im/v3/api';
 
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
@@ -1023,7 +1023,7 @@ const paths = Object.fromEntries([
 const document = {
   openapi: '3.1.0',
   info: {
-    title: 'Craw Chat IM Standardized Development API',
+    title: 'Sdkwork IM IM Standardized Development API',
     version: '0.1.0',
     description: 'IM standardized development OpenAPI contract for conversations, messages, realtime, calls, media, streams, and social IM flows.',
   },

@@ -55,5 +55,5 @@ cargo test -p local-minimal-node --offline -- --nocapture
 
 ## Remaining Gap
 
-- Invalid `CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER` still panics fast.
+- Invalid `SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER` still panics fast.
 - Unified provider registry / selected-plugin visibility is still not surfaced through a single ops or control-plane view.

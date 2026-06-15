@@ -2,7 +2,7 @@ use axum::response::IntoResponse;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
-use craw_chat_contract_agent::AgentSubject;
+use sdkwork_im_contract_agent::AgentSubject;
 use http_body_util::BodyExt;
 use im_app_context::AppContext;
 use im_domain_events::CommitEnvelope;

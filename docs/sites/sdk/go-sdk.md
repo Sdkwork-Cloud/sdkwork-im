@@ -25,7 +25,7 @@ semantic Go module remains reserved under `composed`.
 
 ## What Ships Today
 
-- live-schema generation from the Craw Chat OpenAPI 3.x export
+- live-schema generation from the Sdkwork IM OpenAPI 3.x export
 - verified generated module naming and assembly metadata
 - a stable split between `generated/server-openapi` and `composed`
 - a raw generated transport client named `ImTransportClient`
@@ -106,7 +106,7 @@ Go workspace wrappers:
 
 ## When To Choose Go
 
-- Choose Go when you need a verified transport module generated from the Craw Chat schema for
+- Choose Go when you need a verified transport module generated from the Sdkwork IM schema for
   services or automation.
 - Choose Go when you can work directly against generated request or response models and
   transport-level route groups.

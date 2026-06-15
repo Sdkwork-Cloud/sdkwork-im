@@ -3,12 +3,12 @@
 ## Context
 
 - Current loop: continue provider/runtime alignment after the `principal-profile-external-catalog` default bootstrap fix.
-- Surface: default runtime bootstrap for `CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER=external`
+- Surface: default runtime bootstrap for `SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER=external`
 - Contract: external provider config errors must be explicitly exposed instead of crashing the whole app before business and ops surfaces can react.
 
 ## Confirmed Bug
 
-- `CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER=external` without `CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH` panicked during app assembly.
+- `SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER=external` without `SDKWORK_IM_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH` panicked during app assembly.
 - The same provider already modeled unreadable or invalid catalogs as `ContractError::Unavailable` and `ProviderHealthSnapshot.status=unavailable`.
 - That created a split-brain failure model:
   - missing catalog path -> startup panic
@@ -22,7 +22,7 @@
 
 ## Decision
 
-- Keep `CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER=local|external` unchanged.
+- Keep `SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER=local|external` unchanged.
 - Keep invalid provider mode values as fast rejection.
 - Only convert the missing external catalog-path branch into an `UnavailablePrincipalProfileProvider`.
 - Reuse the existing `provider_unavailable` API path instead of inventing a new error family.
@@ -45,7 +45,7 @@ cargo test -p local-minimal-node --offline missing_catalog_path_and_returns_prov
 ```
 
 - Failed before the patch because app assembly panicked at:
-  - `CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH is required when CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER=external`
+  - `SDKWORK_IM_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH is required when SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER=external`
 
 Green:
 

@@ -109,18 +109,18 @@ const sidebar = {
 
 export default defineConfig({
   lang: "en-US",
-  title: "Craw Chat",
+  title: "Sdkwork IM",
   description:
-    "Open-source product documentation for Craw Chat, aligned to the currently implemented architecture, runtime behavior, APIs, SDKs, and deployment workflows.",
+    "Open-source product documentation for Sdkwork IM, aligned to the currently implemented architecture, runtime behavior, APIs, SDKs, and deployment workflows.",
   cleanUrls: true,
   lastUpdated: true,
   head: [
     ["meta", { name: "theme-color", content: "#8f5b34" }],
     ["meta", { property: "og:type", content: "website" }],
-    ["meta", { property: "og:title", content: "Craw Chat Docs" }],
+    ["meta", { property: "og:title", content: "Sdkwork IM Docs" }],
   ],
   themeConfig: {
-    siteTitle: "Craw Chat",
+    siteTitle: "Sdkwork IM",
     nav,
     sidebar,
     logo: {

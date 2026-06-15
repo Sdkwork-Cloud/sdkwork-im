@@ -25,7 +25,7 @@ fn test_local_runtime_scripts_do_not_keep_public_bearer_debt() {
         let script = fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("missing local runtime script: {}", path.display()));
         for legacy_token in [
-            "CRAW_CHAT_PUBLIC_BEARER",
+            "SDKWORK_IM_PUBLIC_BEARER",
             "PUBLIC_BEARER",
             "--public-bearer-secret",
             "PublicBearerSecret",
@@ -34,7 +34,7 @@ fn test_local_runtime_scripts_do_not_keep_public_bearer_debt() {
         ] {
             assert!(
                 !script.contains(legacy_token),
-                "{relative_path} must not keep legacy craw-chat IAM/Public Bearer token `{legacy_token}` after AppContext integration"
+                "{relative_path} must not keep legacy sdkwork-im IAM/Public Bearer token `{legacy_token}` after AppContext integration"
             );
         }
     }
@@ -52,12 +52,12 @@ fn test_local_runtime_configs_keep_only_domain_cursor_secret() {
         let content = fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("missing local runtime config: {}", path.display()));
         assert!(
-            content.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"),
+            content.contains("SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET"),
             "{relative_path} must keep the domain cursor signing secret"
         );
         assert!(
-            !content.contains("CRAW_CHAT_PUBLIC_BEARER"),
-            "{relative_path} must not configure legacy craw-chat IAM/Public Bearer secrets"
+            !content.contains("SDKWORK_IM_PUBLIC_BEARER"),
+            "{relative_path} must not configure legacy sdkwork-im IAM/Public Bearer secrets"
         );
     }
 }
@@ -76,12 +76,12 @@ fn test_runtime_configs_require_signed_app_context_projection() {
         let content = fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("missing runtime config: {}", path.display()));
         assert!(
-            content.contains("CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true")
-                || content.contains("CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE: \"true\""),
+            content.contains("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE=true")
+                || content.contains("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE: \"true\""),
             "{relative_path} must require signed SDKWork AppContext projections"
         );
         assert!(
-            content.contains("CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET"),
+            content.contains("SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET"),
             "{relative_path} must configure the shared gateway/service AppContext signing secret"
         );
     }
@@ -100,8 +100,8 @@ fn test_local_runtime_scripts_materialize_and_forward_signed_app_context_config(
         let script = fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("missing local runtime script: {}", path.display()));
         for required_contract in [
-            "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE",
-            "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
+            "SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE",
+            "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET",
         ] {
             assert!(
                 script.contains(required_contract),
@@ -140,7 +140,7 @@ fn test_smoke_scripts_use_dual_token_headers_not_client_projection_headers() {
             );
         }
         for legacy_token in [
-            "CRAW_CHAT_PUBLIC_BEARER",
+            "SDKWORK_IM_PUBLIC_BEARER",
             "PUBLIC_BEARER",
             "--public-bearer-secret",
         ] {

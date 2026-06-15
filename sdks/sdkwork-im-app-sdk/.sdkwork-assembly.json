@@ -3,11 +3,11 @@
   "title": "SDKWork IM App API SDK",
   "apiVersion": "0.1.0",
   "openapiVersion": "3.1.2",
-  "authoritySpec": "openapi/craw-chat-app-api.openapi.yaml",
-  "generationInputSpec": "openapi/craw-chat-app-api.sdkgen.yaml",
+  "authoritySpec": "openapi/sdkwork-im-app-api.openapi.yaml",
+  "generationInputSpec": "openapi/sdkwork-im-app-api.sdkgen.yaml",
   "derivedSpecs": {
-    "default": "openapi/craw-chat-app-api.sdkgen.yaml",
-    "flutter": "openapi/craw-chat-app-api.flutter.sdkgen.yaml"
+    "default": "openapi/sdkwork-im-app-api.sdkgen.yaml",
+    "flutter": "openapi/sdkwork-im-app-api.flutter.sdkgen.yaml"
   },
   "discoverySurface": {
     "sdkTarget": "app",
@@ -106,7 +106,7 @@
       "manifestPath": "sdkwork-im-app-sdk-typescript/generated/server-openapi/package.json",
       "name": "@sdkwork-internal/im-app-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned TypeScript transport SDK for the Craw Chat app-development API.",
+      "description": "Generator-owned TypeScript transport SDK for the Sdkwork IM app-development API.",
       "consumerSurface": {
         "primaryClient": "SdkworkImAppClient",
         "legacyClient": "SdkworkAppClient",
@@ -122,7 +122,7 @@
       "manifestPath": "sdkwork-im-app-sdk-flutter/generated/server-openapi/pubspec.yaml",
       "name": "im_app_api_generated",
       "version": "0.1.0",
-      "description": "Generator-owned Flutter transport SDK for the Craw Chat app-development API."
+      "description": "Generator-owned Flutter transport SDK for the Sdkwork IM app-development API."
     },
     {
       "language": "rust",
@@ -133,7 +133,7 @@
       "manifestPath": "sdkwork-im-app-sdk-rust/generated/server-openapi/Cargo.toml",
       "name": "sdkwork-im-app-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned Rust transport SDK for the Craw Chat app-development API."
+      "description": "Generator-owned Rust transport SDK for the Sdkwork IM app-development API."
     },
     {
       "language": "java",
@@ -144,7 +144,7 @@
       "manifestPath": "sdkwork-im-app-sdk-java/generated/server-openapi/pom.xml",
       "name": "com.sdkwork:im-app-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned Java transport SDK for the Craw Chat app-development API."
+      "description": "Generator-owned Java transport SDK for the Sdkwork IM app-development API."
     },
     {
       "language": "csharp",
@@ -155,7 +155,7 @@
       "manifestPath": "sdkwork-im-app-sdk-csharp/generated/server-openapi/Sdkwork.Im.AppApi.Generated.csproj",
       "name": "Sdkwork.Im.AppApi.Generated",
       "version": "0.1.0",
-      "description": "Generator-owned C# transport SDK for the Craw Chat app-development API."
+      "description": "Generator-owned C# transport SDK for the Sdkwork IM app-development API."
     },
     {
       "language": "swift",
@@ -166,7 +166,7 @@
       "manifestPath": "sdkwork-im-app-sdk-swift/generated/server-openapi/Package.swift",
       "name": "ImAppApiGenerated",
       "version": "0.1.0",
-      "description": "Generator-owned Swift transport SDK for the Craw Chat app-development API."
+      "description": "Generator-owned Swift transport SDK for the Sdkwork IM app-development API."
     },
     {
       "language": "kotlin",
@@ -177,7 +177,7 @@
       "manifestPath": "sdkwork-im-app-sdk-kotlin/generated/server-openapi/build.gradle.kts",
       "name": "com.sdkwork:im-app-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned Kotlin transport SDK for the Craw Chat app-development API."
+      "description": "Generator-owned Kotlin transport SDK for the Sdkwork IM app-development API."
     },
     {
       "language": "go",
@@ -188,7 +188,7 @@
       "manifestPath": "sdkwork-im-app-sdk-go/generated/server-openapi/go.mod",
       "name": "github.com/sdkwork/im-app-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned Go transport SDK for the Craw Chat app-development API."
+      "description": "Generator-owned Go transport SDK for the Sdkwork IM app-development API."
     },
     {
       "language": "python",
@@ -199,9 +199,9 @@
       "manifestPath": "sdkwork-im-app-sdk-python/generated/server-openapi/pyproject.toml",
       "name": "sdkwork-im-app-api-generated",
       "version": "0.1.0",
-      "description": "Generator-owned Python transport SDK for the Craw Chat app-development API."
+      "description": "Generator-owned Python transport SDK for the Sdkwork IM app-development API."
     }
   ],
-  "sdkOwner": "craw-chat",
-  "apiAuthority": "craw-chat.app"
+  "sdkOwner": "sdkwork-im",
+  "apiAuthority": "sdkwork-im.app"
 }

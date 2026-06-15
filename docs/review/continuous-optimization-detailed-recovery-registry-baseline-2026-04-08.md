@@ -7,10 +7,10 @@
 ## 红绿证据
 
 - 红灯：
-  - `cargo test -p craw-chat-cli --offline test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline -- --exact --nocapture`
+  - `cargo test -p sdkwork-im-cli --offline test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline -- --exact --nocapture`
   - 失败信息：`Step 12 CLI doc must contain detailed recovery baseline text 4001`
 - 绿灯：
-  - `cargo test -p craw-chat-cli --offline test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline -- --exact --nocapture`
+  - `cargo test -p sdkwork-im-cli --offline test_continuous_optimization_docs_freeze_detailed_recovery_registry_baseline -- --exact --nocapture`
 
 ## 本轮改动
 

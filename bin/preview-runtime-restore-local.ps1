@@ -73,7 +73,7 @@ else {
         }
 
         foreach ($configFile in $configFiles) {
-            $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "CRAW_CHAT_RUNTIME_DIR"
+            $configRuntimeDir = Read-ConfigValue -ConfigFile $configFile -Key "SDKWORK_IM_RUNTIME_DIR"
             if (-not [string]::IsNullOrWhiteSpace($configRuntimeDir)) {
                 return $configRuntimeDir
             }

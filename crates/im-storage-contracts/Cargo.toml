@@ -5,6 +5,6 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-craw-chat-contract-core = { path = "../craw-chat-contract-core" }
+sdkwork-im-contract-core = { path = "../sdkwork-im-contract-core" }
 serde.workspace = true
 serde_json.workspace = true

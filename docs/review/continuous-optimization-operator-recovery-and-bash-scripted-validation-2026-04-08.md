@@ -55,9 +55,9 @@
 
 ## 4. fresh evidence
 
-- `cargo test -p craw-chat-cli --offline test_step12_open_chat_test_scripts_freeze_scripted_validation_contract -- --nocapture`
-- `cargo test -p craw-chat-cli --offline test_step12_cli_and_sdk_docs_freeze_recovery_baseline -- --nocapture`
-- `cargo test -p craw-chat-cli --offline test_open_chat_test_bash_scripted_validation_emits_json_summary -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline test_step12_open_chat_test_scripts_freeze_scripted_validation_contract -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline test_step12_cli_and_sdk_docs_freeze_recovery_baseline -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline test_open_chat_test_bash_scripted_validation_emits_json_summary -- --nocapture`
 
 ## 5. 当前判断
 

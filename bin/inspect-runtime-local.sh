@@ -9,7 +9,7 @@ Inspect managed local runtime-dir state files for the selected local-minimal/loc
 EOF
 }
 
-# Resolves CRAW_CHAT_RUNTIME_DIR from the selected profile config before preferring target/debug/local-minimal-node or target/release/local-minimal-node.
+# Resolves SDKWORK_IM_RUNTIME_DIR from the selected profile config before preferring target/debug/local-minimal-node or target/release/local-minimal-node.
 profile_name="local-minimal"
 runtime_dir=""
 json_output=0

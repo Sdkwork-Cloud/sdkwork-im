@@ -38,7 +38,7 @@
 Red:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_cmd_wrapper_preserves_exclamation_mark_in_message_prefix -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_cmd_wrapper_preserves_exclamation_mark_in_message_prefix -- --exact --nocapture
 ```
 
 - Failed before the patch because the conversation timeline contained `[bang] hello from chat-window cmd bang` instead of `[bang!] hello from chat-window cmd bang`.
@@ -46,9 +46,9 @@ cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_
 Green:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_cmd_wrapper_preserves_exclamation_mark_in_message_prefix -- --exact --nocapture
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interactive_session -- --exact --nocapture
-cargo test -p craw-chat-cli --offline -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_cmd_wrapper_preserves_exclamation_mark_in_message_prefix -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interactive_session -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 cmd /c .\bin\chat-window.cmd --help
 ```

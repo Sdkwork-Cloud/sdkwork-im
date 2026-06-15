@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use craw_chat_contract_control::{
+use sdkwork_im_contract_control::{
     PresenceStateStore, RealtimeCheckpointStore, RealtimeDisconnectFenceStore,
     RealtimeSubscriptionStore,
 };

@@ -49,9 +49,9 @@ scripts, templates, and Compose entry points, but it still reuses the current
 ::: 
 
 The current packaged server boundary is the unified gateway and the canonical binary is
-`craw-chat-server`.
+`sdkwork-im-server`.
 
-In the current server boundary section, the canonical binary is `craw-chat-server`.
+In the current server boundary section, the canonical binary is `sdkwork-im-server`.
 
 ## What To Read Next
 

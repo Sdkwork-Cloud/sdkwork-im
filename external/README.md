@@ -1,7 +1,7 @@
 # external
 
 This directory is reserved for external source references. It must not copy or
-fork business implementation code into Craw Chat.
+fork business implementation code into Sdkwork IM.
 
 ## xiaozhi
 
@@ -13,5 +13,5 @@ fork business implementation code into Craw Chat.
 
 - AIoT device, telemetry, command, twin, and protocol behavior is owned by the
   sibling `sdkwork-aiot` workspace.
-- Craw Chat may consume published `sdkwork-aiot` SDKs, Rust crates, or mounted
+- Sdkwork IM may consume published `sdkwork-aiot` SDKs, Rust crates, or mounted
   API bridges, but must not recreate local device/provider adapters here.

@@ -1,8 +1,8 @@
 # Local Binary
 
 The local binary workflow is the most complete and transparent deployment path in the repository.
-It is not the formal packaged `craw-chat-server` install contract.
-The local binary workflow is optimized for development, and it is not the formal packaged `craw-chat-server` install contract.
+It is not the formal packaged `sdkwork-im-server` install contract.
+The local binary workflow is optimized for development, and it is not the formal packaged `sdkwork-im-server` install contract.
 
 ## Lifecycle Scripts
 
@@ -59,8 +59,8 @@ PowerShell uses `-Help`. CMD and Bash wrappers expose shell-style help flags for
 
 1. Runs `install-local.ps1`
 2. Resolves the effective config file and runtime directory
-3. Resolves the optional `CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET`
-4. Resolves `CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE` and `CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET` from the selected local profile config
+3. Resolves the optional `SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET`
+4. Resolves `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE` and `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET` from the selected local profile config
 5. Starts the process in foreground or background mode
 6. Writes PID and log targets
 7. Waits up to 30 seconds for `/healthz`

@@ -3,17 +3,17 @@ const marker = (...parts) => parts.join('');
 export const sdkFamilyConfig = {
   importMetaUrl: import.meta.url,
   sdkName: 'sdkwork-im-backend-sdk',
-  sdkOwner: 'craw-chat',
+  sdkOwner: 'sdkwork-im',
   sdkTarget: 'backend',
   sdkType: 'backend',
-  apiAuthority: 'craw-chat.backend',
-  generatedApiLabel: 'Craw Chat backend/operator API',
+  apiAuthority: 'sdkwork-im.backend',
+  generatedApiLabel: 'Sdkwork IM backend/operator API',
   legacyClient: 'SdkworkBackendClient',
   primaryClient: 'SdkworkImBackendClient',
   apiPrefix: '/backend/v3/api',
   schemaUrl: '/backend/v3/openapi.json',
-  authoritySpec: 'openapi/craw-chat-backend-api.openapi.yaml',
-  derivedSpec: 'openapi/craw-chat-backend-api.sdkgen.yaml',
+  authoritySpec: 'openapi/sdkwork-im-backend-api.openapi.yaml',
+  derivedSpec: 'openapi/sdkwork-im-backend-api.sdkgen.yaml',
   flutterDerivedSpec: '',
   sdkDependencies: [
     {

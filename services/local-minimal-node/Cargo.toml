@@ -45,9 +45,9 @@ tracing.workspace = true
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 [dev-dependencies]
-craw-chat-ccp-control = { path = "../../crates/craw-chat-ccp-control" }
-craw-chat-ccp-core = { path = "../../crates/craw-chat-ccp-core" }
-craw-chat-ccp-registry = { path = "../../crates/craw-chat-ccp-registry" }
-craw-chat-runtime-link = { path = "../../crates/craw-chat-runtime-link" }
+sdkwork-im-ccp-control = { path = "../../crates/sdkwork-im-ccp-control" }
+sdkwork-im-ccp-core = { path = "../../crates/sdkwork-im-ccp-core" }
+sdkwork-im-ccp-registry = { path = "../../crates/sdkwork-im-ccp-registry" }
+sdkwork-im-runtime-link = { path = "../../crates/sdkwork-im-runtime-link" }
 regex = "1.11.1"
 tokio-tungstenite = "0.28.0"

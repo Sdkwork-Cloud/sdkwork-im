@@ -39,9 +39,9 @@ function nextArgument(argv, index, flagName) {
 
 function defaultEnv(runtimeDir = DEFAULT_RUNTIME_DIR) {
   return {
-    CRAW_CHAT_BIND_ADDR: '127.0.0.1:18090',
-    CRAW_CHAT_RUNTIME_DIR: runtimeDir,
-    CRAW_CHAT_USER_MODULE_PROVIDER: 'local',
+    SDKWORK_IM_BIND_ADDR: '127.0.0.1:18090',
+    SDKWORK_IM_RUNTIME_DIR: runtimeDir,
+    SDKWORK_IM_USER_MODULE_PROVIDER: 'local',
   };
 }
 
@@ -175,25 +175,25 @@ function readEnvFile({ envFilePath, readFileSyncImpl = readFileSync } = {}) {
 function createCliEnvironmentOverrides(options) {
   return {
     ...(normalizeText(options.bindAddr)
-      ? { CRAW_CHAT_BIND_ADDR: normalizeText(options.bindAddr) }
+      ? { SDKWORK_IM_BIND_ADDR: normalizeText(options.bindAddr) }
       : {}),
     ...(normalizeText(options.browserOrigins)
-      ? { CRAW_CHAT_BROWSER_ORIGINS: normalizeText(options.browserOrigins) }
+      ? { SDKWORK_IM_BROWSER_ORIGINS: normalizeText(options.browserOrigins) }
       : {}),
     ...(normalizeText(options.runtimeDir)
-      ? { CRAW_CHAT_RUNTIME_DIR: normalizeText(options.runtimeDir) }
+      ? { SDKWORK_IM_RUNTIME_DIR: normalizeText(options.runtimeDir) }
       : {}),
     ...(normalizeText(options.userModuleProvider)
-      ? { CRAW_CHAT_USER_MODULE_PROVIDER: normalizeText(options.userModuleProvider) }
+      ? { SDKWORK_IM_USER_MODULE_PROVIDER: normalizeText(options.userModuleProvider) }
       : {}),
     ...(normalizeText(options.userModuleExternalCatalogPath)
       ? {
-          CRAW_CHAT_USER_MODULE_EXTERNAL_CATALOG_PATH:
+          SDKWORK_IM_USER_MODULE_EXTERNAL_CATALOG_PATH:
             normalizeText(options.userModuleExternalCatalogPath),
         }
       : {}),
     ...(normalizeText(options.userModuleExternalSystem)
-      ? { CRAW_CHAT_USER_MODULE_EXTERNAL_SYSTEM: normalizeText(options.userModuleExternalSystem) }
+      ? { SDKWORK_IM_USER_MODULE_EXTERNAL_SYSTEM: normalizeText(options.userModuleExternalSystem) }
       : {}),
     ...(options.extraEnv ?? {}),
   };
@@ -201,11 +201,11 @@ function createCliEnvironmentOverrides(options) {
 
 function maybeOverrideDerivedDefaults(environment) {
   const env = { ...environment };
-  if (!normalizeText(env.CRAW_CHAT_RUNTIME_DIR)) {
-    env.CRAW_CHAT_RUNTIME_DIR = DEFAULT_RUNTIME_DIR;
+  if (!normalizeText(env.SDKWORK_IM_RUNTIME_DIR)) {
+    env.SDKWORK_IM_RUNTIME_DIR = DEFAULT_RUNTIME_DIR;
   }
-  if (!normalizeText(env.CRAW_CHAT_USER_MODULE_PROVIDER)) {
-    env.CRAW_CHAT_USER_MODULE_PROVIDER = 'local';
+  if (!normalizeText(env.SDKWORK_IM_USER_MODULE_PROVIDER)) {
+    env.SDKWORK_IM_USER_MODULE_PROVIDER = 'local';
   }
   return env;
 }
@@ -217,8 +217,8 @@ export function createRunLocalMinimalEnvironment({
   repoRoot: resolvedRepoRoot = repoRoot,
 } = {}) {
   const runtimeDir = normalizeText(options.runtimeDir)
-    ?? normalizeText(envFileEnv.CRAW_CHAT_RUNTIME_DIR)
-    ?? normalizeText(baseEnv.CRAW_CHAT_RUNTIME_DIR)
+    ?? normalizeText(envFileEnv.SDKWORK_IM_RUNTIME_DIR)
+    ?? normalizeText(baseEnv.SDKWORK_IM_RUNTIME_DIR)
     ?? DEFAULT_RUNTIME_DIR;
   const mergedEnv = {
     ...defaultEnv(runtimeDir),
@@ -240,9 +240,9 @@ function requireConfiguredValue(environment, envName) {
 }
 
 export function assertRunLocalMinimalEnvironment(environment = {}) {
-  const userModuleProvider = normalizeText(environment.CRAW_CHAT_USER_MODULE_PROVIDER)?.toLowerCase();
+  const userModuleProvider = normalizeText(environment.SDKWORK_IM_USER_MODULE_PROVIDER)?.toLowerCase();
   if (userModuleProvider === 'external') {
-    requireConfiguredValue(environment, 'CRAW_CHAT_USER_MODULE_EXTERNAL_CATALOG_PATH');
+    requireConfiguredValue(environment, 'SDKWORK_IM_USER_MODULE_EXTERNAL_CATALOG_PATH');
   }
   return environment;
 }
@@ -275,12 +275,12 @@ export function createRunLocalMinimalCommandPlan({
 
 function formatCommandPlan(plan) {
   return plan.map((step) => {
-    const bindAddr = normalizeText(step.env?.CRAW_CHAT_BIND_ADDR);
-    const runtimeDir = normalizeText(step.env?.CRAW_CHAT_RUNTIME_DIR);
+    const bindAddr = normalizeText(step.env?.SDKWORK_IM_BIND_ADDR);
+    const runtimeDir = normalizeText(step.env?.SDKWORK_IM_RUNTIME_DIR);
     return [
       `[${step.label}] ${step.command} ${step.args.join(' ')}`,
-      ...(bindAddr ? [`  CRAW_CHAT_BIND_ADDR=${bindAddr}`] : []),
-      ...(runtimeDir ? [`  CRAW_CHAT_RUNTIME_DIR=${runtimeDir}`] : []),
+      ...(bindAddr ? [`  SDKWORK_IM_BIND_ADDR=${bindAddr}`] : []),
+      ...(runtimeDir ? [`  SDKWORK_IM_RUNTIME_DIR=${runtimeDir}`] : []),
     ].join('\n');
   }).join('\n');
 }
@@ -291,12 +291,12 @@ function createUsageText() {
     '',
     'Options:',
     '  --env-file <path>                                   Load an env file before applying CLI overrides',
-    '  --bind-addr <host:port>                            Override CRAW_CHAT_BIND_ADDR',
-    '  --runtime_dir <path>                               Override CRAW_CHAT_RUNTIME_DIR',
-    '  --browser-origins <csv>                            Override CRAW_CHAT_BROWSER_ORIGINS',
-    '  --user-module-provider <local|external>            Override CRAW_CHAT_USER_MODULE_PROVIDER',
-    '  --user-module-external-catalog-path <path>         Override CRAW_CHAT_USER_MODULE_EXTERNAL_CATALOG_PATH',
-    '  --user-module-external-system <value>              Override CRAW_CHAT_USER_MODULE_EXTERNAL_SYSTEM',
+    '  --bind-addr <host:port>                            Override SDKWORK_IM_BIND_ADDR',
+    '  --runtime_dir <path>                               Override SDKWORK_IM_RUNTIME_DIR',
+    '  --browser-origins <csv>                            Override SDKWORK_IM_BROWSER_ORIGINS',
+    '  --user-module-provider <local|external>            Override SDKWORK_IM_USER_MODULE_PROVIDER',
+    '  --user-module-external-catalog-path <path>         Override SDKWORK_IM_USER_MODULE_EXTERNAL_CATALOG_PATH',
+    '  --user-module-external-system <value>              Override SDKWORK_IM_USER_MODULE_EXTERNAL_SYSTEM',
     '  --set-env KEY=VALUE                                Inject an additional environment variable',
     '  --no-build                                         Skip cargo build and only run the service',
     '  --dry-run                                          Print the execution plan without starting the service',

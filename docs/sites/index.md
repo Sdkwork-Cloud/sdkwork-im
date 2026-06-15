@@ -2,9 +2,9 @@
 layout: home
 
 hero:
-  name: Craw Chat
+  name: Sdkwork IM
   text: Implementation-aligned product documentation
-  tagline: "Open-source docs aligned to the current Craw Chat repository state: runtime architecture, HTTP APIs, SDK workspaces, and deployment workflows."
+  tagline: "Open-source docs aligned to the current Sdkwork IM repository state: runtime architecture, HTTP APIs, SDK workspaces, and deployment workflows."
   actions:
     - theme: brand
       text: SDK Overview
@@ -33,9 +33,9 @@ features:
     details: The site is organized as a product documentation portal with clear entry points for onboarding, operations, architecture, APIs, SDKs, and reference material.
 ---
 
-## What Craw Chat Is
+## What Sdkwork IM Is
 
-Craw Chat is a Rust workspace with three primary runtime surfaces in the current repository state,
+Sdkwork IM is a Rust workspace with three primary runtime surfaces in the current repository state,
 plus checked-in SDK workspaces built from those services:
 
 - `services/local-minimal-node`, the IM open-platform node that serves Realtime Presence, conversation, message,
@@ -43,7 +43,7 @@ plus checked-in SDK workspaces built from those services:
 - `services/control-plane-api`, the separate governance surface for protocol registry, provider
   policy, and node lifecycle operations.
 - `services/web-gateway`, the unified external entrypoint that publishes the canonical
-  `craw-chat-server` binary, aggregates OpenAPI discovery, and fronts operator-facing single-port
+  `sdkwork-im-server` binary, aggregates OpenAPI discovery, and fronts operator-facing single-port
   server installs.
 - `sdks/`, which currently contains the IM standard, App API, Backend API, and independent RTC SDK
   families used by product, app-business, backend/operator, admin, governance, and provider-runtime
@@ -71,7 +71,7 @@ For most new integrations, the fastest reading order is:
   </div>
   <div class="fact-card">
     <h3>Unified Server Listener</h3>
-    <p><code>0.0.0.0:18080</code> in the frozen <code>server.yaml.example</code> contract for <code>craw-chat-server</code> and the unified <code>web-gateway</code>.</p>
+    <p><code>0.0.0.0:18080</code> in the frozen <code>server.yaml.example</code> contract for <code>sdkwork-im-server</code> and the unified <code>web-gateway</code>.</p>
   </div>
   <div class="fact-card">
     <h3>Control Plane Listener</h3>
@@ -79,7 +79,7 @@ For most new integrations, the fastest reading order is:
   </div>
   <div class="fact-card">
     <h3>Public Auth Model</h3>
-    <p>Public clients authenticate through SDKWork dual tokens; craw-chat receives only verified <code>x-sdkwork-*</code> AppContext projection headers.</p>
+    <p>Public clients authenticate through SDKWork dual tokens; sdkwork-im receives only verified <code>x-sdkwork-*</code> AppContext projection headers.</p>
   </div>
   <div class="fact-card">
     <h3>SDK Delivery State</h3>
@@ -101,7 +101,7 @@ For most new integrations, the fastest reading order is:
    [Admin Storage Contract](/reference/admin-storage-contract) open when you need the current
    `/backend/v3/api/admin/storage/*` route set and sandbox promotion boundary.
 5. Use [Server Lifecycle](/deployment/server-lifecycle) when validating the packaged
-   `craw-chat-server` install contract, PostgreSQL-backed storage wiring, or unified gateway
+   `sdkwork-im-server` install contract, PostgreSQL-backed storage wiring, or unified gateway
    endpoints.
 6. Use [API Reference](/api-reference/index) for the OpenAPI-style operation catalog with sidebar
    links to every documented endpoint.
@@ -131,10 +131,10 @@ For most new integrations, the fastest reading order is:
 | --- | --- |
 | App runtime | Presence heartbeat, realtime delivery, conversations, membership, messages, media, streams, RTC, notifications, automation, audit, ops, and provider health |
 | Control plane | Protocol registry, protocol governance, provider registry, effective bindings, provider policy preview and rollback, plus node drain, activate, and route migration |
-| Unified gateway and server | `web-gateway` publishes the canonical `craw-chat-server` binary, the aggregate OpenAPI and discovery routes, service-schema proxies, rendered docs, and the single-port server install contract |
+| Unified gateway and server | `web-gateway` publishes the canonical `sdkwork-im-server` binary, the aggregate OpenAPI and discovery routes, service-schema proxies, rendered docs, and the single-port server install contract |
 | Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, server install/service-management scripts, runtime inspection, repair, backup listing, archive, preview, and restore |
 | SDK workspaces | IM standard SDK for `/im/v3/api`; App API SDK for `/app/v3/api`; Backend SDK for `/backend/v3/api` including control and admin modules; independent RTC provider-standard SDK for provider runtime integration |
-| Frontend apps | `apps/craw-chat-admin` already provides a verified standalone operator shell, a first-class storage-management workflow, and a documented `/backend/v3/api/admin/storage/*` contract surface, while `apps/craw-chat-portal` exists in-repo but is not yet documented here as a mature product surface |
+| Frontend apps | `apps/sdkwork-im-admin` already provides a verified standalone operator shell, a first-class storage-management workflow, and a documented `/backend/v3/api/admin/storage/*` contract surface, while `apps/sdkwork-im-portal` exists in-repo but is not yet documented here as a mature product surface |
 
 ::: warning Scope rule
 This documentation intentionally describes only what can be verified from the current repository

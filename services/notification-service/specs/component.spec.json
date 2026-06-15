@@ -6,7 +6,7 @@
     "displayName": "Notification Service",
     "version": "0.1.0",
     "type": "rust-crate",
-    "root": "craw-chat/services/notification-service",
+    "root": "sdkwork-im/services/notification-service",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "chat",
@@ -110,7 +110,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/services/notification-service/Cargo.toml"
+      "cargo test --manifest-path apps/sdkwork-im/services/notification-service/Cargo.toml"
     ]
   },
   "metadata": {

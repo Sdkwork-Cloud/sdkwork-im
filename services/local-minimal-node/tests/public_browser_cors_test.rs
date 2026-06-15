@@ -6,7 +6,7 @@ use axum::http::{Request, StatusCode};
 use tokio::sync::{Mutex, MutexGuard};
 use tower::ServiceExt;
 
-const PUBLIC_BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
+const PUBLIC_BROWSER_ORIGINS_ENV: &str = "SDKWORK_IM_BROWSER_ORIGINS";
 
 struct ScopedEnvVar {
     name: &'static str,

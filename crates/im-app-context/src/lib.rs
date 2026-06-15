@@ -8,7 +8,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use craw_chat_ccp_core::{CcpActor, CcpAuthority, CcpSender};
+use sdkwork_im_ccp_core::{CcpActor, CcpAuthority, CcpSender};
 use hmac::{Hmac, Mac};
 use sdkwork_http_context::{
     AppRequestAuthLevel, AppRequestAuthMode, AppRequestContext, AppRequestDeploymentMode,
@@ -20,8 +20,8 @@ use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
-const APP_CONTEXT_REQUIRE_SIGNATURE_ENV: &str = "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE";
-const APP_CONTEXT_SIGNATURE_SECRET_ENV: &str = "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET";
+const APP_CONTEXT_REQUIRE_SIGNATURE_ENV: &str = "SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE";
+const APP_CONTEXT_SIGNATURE_SECRET_ENV: &str = "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET";
 const SDKWORK_CONTEXT_SIGNATURE_HEADER: &str = "x-sdkwork-context-signature";
 const SIGNED_APP_CONTEXT_HEADER_NAMES: &[&str] = &[
     "x-sdkwork-app-id",
@@ -305,7 +305,7 @@ where
         organization_id: None,
         user_id: user_id.to_owned(),
         session_id: Some("s_local_service".to_owned()),
-        app_id: Some("craw-chat".to_owned()),
+        app_id: Some("sdkwork-im".to_owned()),
         environment: Some("dev".to_owned()),
         deployment_mode: Some("local".to_owned()),
         auth_level: Some("password".to_owned()),
@@ -480,7 +480,7 @@ where
     let app_id = context
         .app_id
         .clone()
-        .unwrap_or_else(|| "craw-chat".to_owned());
+        .unwrap_or_else(|| "sdkwork-im".to_owned());
 
     let auth_token = encode_local_jwt_claims(json!({
         "tenant_id": context.tenant_id,

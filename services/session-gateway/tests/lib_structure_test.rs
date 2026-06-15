@@ -121,9 +121,9 @@ fn test_session_gateway_realtime_storage_surface_moves_out_of_realtime_impl() {
 fn test_realtime_control_contracts_use_explicit_principal_kind() {
     let contract_source = std::fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../crates/craw-chat-contract-control/src/lib.rs"),
+            .join("../../crates/sdkwork-im-contract-control/src/lib.rs"),
     )
-    .expect("craw-chat-contract-control source should exist")
+    .expect("sdkwork-im-contract-control source should exist")
     .replace("\r\n", "\n");
 
     for required_symbol in [
@@ -149,9 +149,9 @@ fn test_realtime_control_contracts_use_explicit_principal_kind() {
 fn test_realtime_subscription_store_requires_durable_fanout_query_implementation() {
     let contract_source = std::fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../crates/craw-chat-contract-control/src/lib.rs"),
+            .join("../../crates/sdkwork-im-contract-control/src/lib.rs"),
     )
-    .expect("craw-chat-contract-control source should exist")
+    .expect("sdkwork-im-contract-control source should exist")
     .replace("\r\n", "\n");
     let trait_source = contract_source
         .split("pub trait RealtimeSubscriptionStore")

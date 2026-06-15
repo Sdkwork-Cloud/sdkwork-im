@@ -1,4 +1,4 @@
-pub use craw_chat_contract_core::ContractError;
+pub use sdkwork_im_contract_core::ContractError;
 
 pub mod storage;
 

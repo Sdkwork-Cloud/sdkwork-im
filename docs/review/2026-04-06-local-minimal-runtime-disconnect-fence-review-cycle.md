@@ -34,15 +34,15 @@ This review cycle implemented the following:
   - `build_default_app_with_runtime_dir(...)`
   - `build_public_app_with_runtime_dir(...)`
 - Bound managed local-minimal runtime persistence through:
-  - `CRAW_CHAT_RUNTIME_DIR`
+  - `SDKWORK_IM_RUNTIME_DIR`
   - `.runtime/local-minimal/state/realtime-disconnect-fences.json`
 - Hardened `RealtimeClusterBridge`
   - fence save/load/clear now return controlled `RealtimeClusterError`
   - store failures surface as `disconnect_fence_store_unavailable`
   - HTTP/API adapters map that condition to `503 Service Unavailable`
 - Updated lifecycle scripts
-  - `init-config-local.*` now writes `CRAW_CHAT_RUNTIME_DIR`
-  - `start-local.*` now exports `CRAW_CHAT_RUNTIME_DIR`
+  - `init-config-local.*` now writes `SDKWORK_IM_RUNTIME_DIR`
+  - `start-local.*` now exports `SDKWORK_IM_RUNTIME_DIR`
   - runtime `state/` directory is part of the managed runtime layout
 
 ## 4. Regression Coverage
@@ -74,9 +74,9 @@ The bridge no longer treats durable store failures as panics.
 
 ## 7. Residual Risk
 
-- `build_default_app()` and `build_public_app()` still fall back to in-memory fence state when `CRAW_CHAT_RUNTIME_DIR` is not configured.
+- `build_default_app()` and `build_public_app()` still fall back to in-memory fence state when `SDKWORK_IM_RUNTIME_DIR` is not configured.
 - This is intentional to preserve isolated test semantics and non-managed in-process usage.
-- Commercial/private deployment must use the managed scripts or explicitly configure `CRAW_CHAT_RUNTIME_DIR`.
+- Commercial/private deployment must use the managed scripts or explicitly configure `SDKWORK_IM_RUNTIME_DIR`.
 
 ## 8. Next Wave
 

@@ -9,12 +9,12 @@ Windows GUI 聊天窗 `bin/chat-window-gui.ps1` 通过 `bin/chat-cli.ps1` 拉起
 - GUI 窗口可打开，但实际聊天体验不稳定。
 - `bin/chat-cli.ps1` 的交互会话会把 Cargo 输出混入会话输出：
   - `Finished 'dev' profile ...`
-  - `Running 'target\\debug\\craw-chat-cli.exe ...'`
+  - `Running 'target\\debug\\sdkwork-im-cli.exe ...'`
 - 双窗同时打开时，每个窗口都可能触发一次 `cargo run`，引入文件锁竞争和额外启动噪音。
 
 ## 根因
 
-`bin/chat-cli-local.ps1` 与 `bin/chat-cli-local.sh` 使用 `cargo run -p craw-chat-cli -- ...` 作为运行时入口，而不是直接执行已构建好的 `craw-chat-cli` 二进制。
+`bin/chat-cli-local.ps1` 与 `bin/chat-cli-local.sh` 使用 `cargo run -p sdkwork-im-cli -- ...` 作为运行时入口，而不是直接执行已构建好的 `sdkwork-im-cli` 二进制。
 
 这会带来两个直接问题：
 
@@ -24,13 +24,13 @@ Windows GUI 聊天窗 `bin/chat-window-gui.ps1` 通过 `bin/chat-cli.ps1` 拉起
 ## 修复方案
 
 - PowerShell 本地入口改为：
-  - 优先执行 `target\\debug\\craw-chat-cli.exe`
-  - `-Release` 时执行 `target\\release\\craw-chat-cli.exe`
-  - 仅在二进制缺失时执行 `cargo build -p craw-chat-cli`
+  - 优先执行 `target\\debug\\sdkwork-im-cli.exe`
+  - `-Release` 时执行 `target\\release\\sdkwork-im-cli.exe`
+  - 仅在二进制缺失时执行 `cargo build -p sdkwork-im-cli`
 - Bash 本地入口改为：
-  - 优先执行 `target/debug/craw-chat-cli`
-  - `--release` 时执行 `target/release/craw-chat-cli`
-  - 仅在二进制缺失时执行 `cargo build -p craw-chat-cli`
+  - 优先执行 `target/debug/sdkwork-im-cli`
+  - `--release` 时执行 `target/release/sdkwork-im-cli`
+  - 仅在二进制缺失时执行 `cargo build -p sdkwork-im-cli`
 
 ## 涉及文件
 
@@ -51,14 +51,14 @@ Windows GUI 聊天窗 `bin/chat-window-gui.ps1` 通过 `bin/chat-cli.ps1` 拉起
 
 已通过：
 
-- `cargo test -p craw-chat-cli --offline`
+- `cargo test -p sdkwork-im-cli --offline`
 
 已完成人工复核：
 
 - 使用与 GUI 同构的 `ProcessStartInfo + RedirectStandardInput/Output` 链路发送消息成功。
 - 真实可见窗口已成功打开：
-  - `craw-chat [owner] [c_gui_visible_20260406b]`
-  - `craw-chat [guest] [c_gui_visible_20260406b]`
+  - `sdkwork-im [owner] [c_gui_visible_20260406b]`
+  - `sdkwork-im [guest] [c_gui_visible_20260406b]`
 - 会话 `c_gui_visible_20260406b` 已写入种子消息：
   - `窗口已修复并重新打开，现在可以直接聊天测试`
 

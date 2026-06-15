@@ -10,7 +10,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- |
 | Name | `local-minimal-node` |
 | Type | `rust-crate` |
-| Root | `craw-chat/services/local-minimal-node` |
+| Root | `sdkwork-im/services/local-minimal-node` |
 | Domain | `communication` |
 | Capability | `im` |
 | Languages | `rust` |
@@ -52,4 +52,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/services/local-minimal-node/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/services/local-minimal-node/Cargo.toml`

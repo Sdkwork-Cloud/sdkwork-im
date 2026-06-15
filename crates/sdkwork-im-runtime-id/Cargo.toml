@@ -1,0 +1,8 @@
+[package]
+name = "sdkwork-im-runtime-id"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork_id.workspace = true

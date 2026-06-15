@@ -1,9 +1,9 @@
-# Craw Chat
+# Sdkwork IM
 
 Current docs site source: [docs/sites](./docs/sites). SDK workspace index:
 [sdks/README.md](./sdks/README.md).
 
-`craw-chat` 是一个面向即时通信场景的 Rust 多 crate 工作区，当前聚焦于可快速安装、可本地运行、可逐步演进为分布式部署的 IM 服务端实现。
+`sdkwork-im` 是一个面向即时通信场景的 Rust 多 crate 工作区，当前聚焦于可快速安装、可本地运行、可逐步演进为分布式部署的 IM 服务端实现。
 
 当前仓库已经包含以下核心能力：
 
@@ -21,7 +21,7 @@ Current docs site source: [docs/sites](./docs/sites). SDK workspace index:
 ## 仓库结构
 
 ```text
-craw-chat/
+sdkwork-im/
 ├─ adapters/       # 本地内存、本地磁盘等适配器
 ├─ crates/         # 核心领域、事件、契约、鉴权、时间工具
 ├─ services/       # 会话、实时、流、RTC、媒体、通知等服务
@@ -225,7 +225,7 @@ bash bin/deploy-local.sh --profile local-default --smoke-base-url http://127.0.0
 ```
 
 当前阶段 `local-default` 已是受支持的部署 profile 名称，但仍复用 `local-minimal` 的 compose 服务合同与 smoke 链路。
-Docker smoke 现在使用 `x-sdkwork-*` AppContext 投影头；`local-minimal` compose 只保留 `CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET` 作为好友请求 cursor 的业务签名 secret。
+Docker smoke 现在使用 `x-sdkwork-*` AppContext 投影头；`local-minimal` compose 只保留 `SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET` 作为好友请求 cursor 的业务签名 secret。
 
 Docker Compose:
 
@@ -363,8 +363,8 @@ Extension points are limited to declared public exports, runtime entrypoints, SD
 
 ### Verification
 
-- `cargo test --manifest-path apps/craw-chat/Cargo.toml`
-- `node scripts/dev/sdkwork-chat-database-naming-standard.test.mjs`
+- `cargo test --workspace`
+- `node scripts/dev/sdkwork-im-database-naming-standard.test.mjs`
 
 ### Owner And Status
 

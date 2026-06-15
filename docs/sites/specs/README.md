@@ -1,8 +1,8 @@
 # Component Specs
 
-This directory is the local SDKWork component contract for `craw-chat-docs`.
+This directory is the local SDKWork component contract for `sdkwork-im-docs`.
 
-- Component root: `craw-chat/docs/sites`
+- Component root: `sdkwork-im/docs/sites`
 - Canonical standards: `../../../sdkwork-specs/README.md`
 - Machine-readable contract: `specs/component.spec.json`
 

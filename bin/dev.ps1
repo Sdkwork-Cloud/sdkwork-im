@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/dev.ps1 [-Postgres] [-Desktop]"
-    Write-Host "Start Craw Chat development mode. Browser is default; -Desktop starts the Tauri desktop dev flow; -Postgres loads .env.postgres."
+    Write-Host "Start Sdkwork IM development mode. Browser is default; -Desktop starts the Tauri desktop dev flow; -Postgres loads .env.postgres."
     exit 0
 }
 

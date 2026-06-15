@@ -6,7 +6,7 @@
     "displayName": "Im Postgres Realtime Contracts",
     "version": "0.1.0",
     "type": "rust-crate",
-    "root": "craw-chat/crates/im-postgres-realtime-contracts",
+    "root": "sdkwork-im/crates/im-postgres-realtime-contracts",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "im",
@@ -110,7 +110,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/crates/im-postgres-realtime-contracts/Cargo.toml"
+      "cargo test --manifest-path apps/sdkwork-im/crates/im-postgres-realtime-contracts/Cargo.toml"
     ]
   },
   "metadata": {

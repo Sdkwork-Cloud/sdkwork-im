@@ -7,12 +7,12 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use craw_chat_ccp_control::{HelloAckFrame, HelloFrame};
-use craw_chat_ccp_core::{CapabilitySet, ProtocolVersion, TransportBinding};
-use craw_chat_ccp_registry::{
+use sdkwork_im_ccp_control::{HelloAckFrame, HelloFrame};
+use sdkwork_im_ccp_core::{CapabilitySet, ProtocolVersion, TransportBinding};
+use sdkwork_im_ccp_registry::{
     CcpRegistry, ClientCompatibilityDescriptor, EffectiveProtocolSnapshot, ReleaseChannel,
 };
-use craw_chat_runtime_link::{LinkHelloError, LinkSession, OutboundQueuePolicy};
+use sdkwork_im_runtime_link::{LinkHelloError, LinkSession, OutboundQueuePolicy};
 use http_body_util::BodyExt;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -158,7 +158,7 @@ fn unique_path(prefix: &str) -> PathBuf {
         .expect("system time should be after epoch")
         .as_nanos();
     let sequence = NEXT_RUNTIME_DIR_ID.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("craw_chat_{prefix}_{unique}_{sequence}"))
+    std::env::temp_dir().join(format!("sdkwork_im_{prefix}_{unique}_{sequence}"))
 }
 
 fn write_state_file(root: &Path, file_name: &str, content: &str) {

@@ -173,7 +173,7 @@ fn unique_store_file() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_disconnect_fence_store_{unique}.json"))
+    std::env::temp_dir().join(format!("sdkwork_im_disconnect_fence_store_{unique}.json"))
 }
 
 fn unique_checkpoint_store_file() -> PathBuf {
@@ -181,7 +181,7 @@ fn unique_checkpoint_store_file() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_realtime_checkpoint_store_{unique}.json"))
+    std::env::temp_dir().join(format!("sdkwork_im_realtime_checkpoint_store_{unique}.json"))
 }
 
 fn unique_subscription_store_file() -> PathBuf {
@@ -190,7 +190,7 @@ fn unique_subscription_store_file() -> PathBuf {
         .expect("system time should be after epoch")
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "craw_chat_realtime_subscription_store_{unique}.json"
+        "sdkwork_im_realtime_subscription_store_{unique}.json"
     ))
 }
 
@@ -200,7 +200,7 @@ fn unique_event_window_store_file() -> PathBuf {
         .expect("system time should be after epoch")
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "craw_chat_realtime_event_window_store_{unique}.json"
+        "sdkwork_im_realtime_event_window_store_{unique}.json"
     ))
 }
 
@@ -209,7 +209,7 @@ fn unique_commit_journal_file() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_commit_journal_{unique}.json"))
+    std::env::temp_dir().join(format!("sdkwork_im_commit_journal_{unique}.json"))
 }
 
 fn unique_stream_state_store_file() -> PathBuf {
@@ -217,7 +217,7 @@ fn unique_stream_state_store_file() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_stream_state_store_{unique}.json"))
+    std::env::temp_dir().join(format!("sdkwork_im_stream_state_store_{unique}.json"))
 }
 
 fn unique_notification_task_store_file() -> PathBuf {
@@ -225,7 +225,7 @@ fn unique_notification_task_store_file() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_notification_task_store_{unique}.json"))
+    std::env::temp_dir().join(format!("sdkwork_im_notification_task_store_{unique}.json"))
 }
 
 fn unique_automation_execution_store_file() -> PathBuf {
@@ -234,7 +234,7 @@ fn unique_automation_execution_store_file() -> PathBuf {
         .expect("system time should be after epoch")
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "craw_chat_automation_execution_store_{unique}.json"
+        "sdkwork_im_automation_execution_store_{unique}.json"
     ))
 }
 
@@ -243,7 +243,7 @@ fn unique_presence_state_store_file() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_presence_state_store_{unique}.json"))
+    std::env::temp_dir().join(format!("sdkwork_im_presence_state_store_{unique}.json"))
 }
 
 fn pending_temp_file(file_path: &Path) -> PathBuf {

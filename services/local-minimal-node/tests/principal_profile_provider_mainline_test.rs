@@ -24,7 +24,7 @@ fn unique_runtime_dir() -> PathBuf {
         .as_nanos();
     let counter = UNIQUE_RUNTIME_DIR_COUNTER.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!(
-        "craw_chat_principal_profile_provider_runtime_{unique}_{counter}"
+        "sdkwork_im_principal_profile_provider_runtime_{unique}_{counter}"
     ))
 }
 

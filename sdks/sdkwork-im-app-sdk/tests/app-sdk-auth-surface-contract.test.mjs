@@ -8,8 +8,8 @@ import { sdkFamilyConfig } from '../bin/sdk-family-config.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sdkRoot = path.resolve(__dirname, '..');
-const crawChatRoot = path.resolve(sdkRoot, '..', '..');
-const appbaseRoot = path.resolve(crawChatRoot, '..', 'sdkwork-appbase');
+const sdkworkImRoot = path.resolve(sdkRoot, '..', '..');
+const appbaseRoot = path.resolve(sdkworkImRoot, '..', 'sdkwork-appbase');
 
 const appPrefix = '/app/v3/api';
 
@@ -168,17 +168,17 @@ const appbaseAuthority = readExternalYaml(path.join(
   'openapi',
   'sdkwork-appbase-app-api.openapi.yaml',
 ));
-const crawChatAuthority = readYaml('openapi/craw-chat-app-api.openapi.yaml');
-const crawChatDerived = readYaml('openapi/craw-chat-app-api.sdkgen.yaml');
-const crawChatFlutterDerived = readYaml('openapi/craw-chat-app-api.flutter.sdkgen.yaml');
+const sdkworkImAuthority = readYaml('openapi/sdkwork-im-app-api.openapi.yaml');
+const sdkworkImDerived = readYaml('openapi/sdkwork-im-app-api.sdkgen.yaml');
+const sdkworkImFlutterDerived = readYaml('openapi/sdkwork-im-app-api.flutter.sdkgen.yaml');
 const assembly = readJson('.sdkwork-assembly.json');
 const componentSpec = readJson('specs/component.spec.json');
 const readme = readText('README.md');
 
 assertRoutesPresent('sdkwork-appbase-app-sdk authority OpenAPI', appbaseAuthority, appPrefix, appbaseOwnedAppRoutes);
-assertRoutesAbsent('craw-chat app authority OpenAPI', crawChatAuthority, appPrefix, appbaseOwnedAppRoutes);
-assertRoutesAbsent('craw-chat app sdkgen OpenAPI', crawChatDerived, appPrefix, appbaseOwnedAppRoutes);
-assertRoutesAbsent('craw-chat app Flutter sdkgen OpenAPI', crawChatFlutterDerived, appPrefix, appbaseOwnedAppRoutes);
+assertRoutesAbsent('sdkwork-im app authority OpenAPI', sdkworkImAuthority, appPrefix, appbaseOwnedAppRoutes);
+assertRoutesAbsent('sdkwork-im app sdkgen OpenAPI', sdkworkImDerived, appPrefix, appbaseOwnedAppRoutes);
+assertRoutesAbsent('sdkwork-im app Flutter sdkgen OpenAPI', sdkworkImFlutterDerived, appPrefix, appbaseOwnedAppRoutes);
 
 assert.equal(
   sdkFamilyConfig.ownsIdentityLifecycle,

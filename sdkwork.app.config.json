@@ -4,8 +4,8 @@
   "app": {
     "key": "chat",
     "name": "chat",
-    "displayName": "SDKWork Chat",
-    "description": "SDKWork Chat application.",
+    "displayName": "Sdkwork IM",
+    "description": "Sdkwork IM application.",
     "vendor": "SDKWork",
     "officialWebsiteUrl": "https://sdkwork.com/apps/chat",
     "supportUrl": "https://sdkwork.com/support",
@@ -84,12 +84,12 @@
         "format": "PNG",
         "fileSizeBytes": 1048576,
         "alphaChannel": false,
-        "caption": "SDKWork Chat product screenshot.",
+        "caption": "Sdkwork IM product screenshot.",
         "sortOrder": 0,
         "enabled": true,
         "metadata": {
           "generatedPlaceholder": true,
-          "altText": "SDKWork Chat app screenshot."
+          "altText": "Sdkwork IM app screenshot."
         }
       }
     ],
@@ -106,12 +106,12 @@
         "format": "PNG",
         "fileSizeBytes": 786432,
         "alphaChannel": false,
-        "caption": "SDKWork Chat preview.",
+        "caption": "Sdkwork IM preview.",
         "sortOrder": 0,
         "enabled": true,
         "metadata": {
           "generatedPlaceholder": true,
-          "altText": "SDKWork Chat preview cover."
+          "altText": "Sdkwork IM preview cover."
         }
       }
     ],
@@ -135,7 +135,7 @@
     "storeUrl": "https://sdkwork.com/apps/chat",
     "stores": [],
     "config": {
-      "workspaceRoot": "apps/craw-chat",
+      "workspaceRoot": "apps/sdkwork-im-pc",
       "framework": "web",
       "managedBy": "apps/scripts/initialize-sdkwork-app-standard-v3.mjs"
     }
@@ -166,7 +166,7 @@
       "packages": [
         {
           "id": "web-production",
-          "name": "SDKWork Chat Web Bundle",
+          "name": "Sdkwork IM Web Bundle",
           "sourceType": "WEB_URL",
           "packageFormat": "ZIP",
           "platform": "WEB",
@@ -178,7 +178,7 @@
         },
         {
           "id": "desktop-windows",
-          "name": "SDKWork Chat Windows Bundle",
+          "name": "Sdkwork IM Windows Bundle",
           "sourceType": "BINARY_URL",
           "packageFormat": "ZIP",
           "platform": "DESKTOP_WINDOWS",
@@ -191,7 +191,7 @@
         },
         {
           "id": "desktop-macos",
-          "name": "SDKWork Chat macOS Bundle",
+          "name": "Sdkwork IM macOS Bundle",
           "sourceType": "BINARY_URL",
           "packageFormat": "DMG",
           "platform": "DESKTOP_MACOS",
@@ -204,7 +204,7 @@
         },
         {
           "id": "desktop-linux",
-          "name": "SDKWork Chat Linux Bundle",
+          "name": "Sdkwork IM Linux Bundle",
           "sourceType": "BINARY_URL",
           "packageFormat": "APPIMAGE",
           "platform": "DESKTOP_LINUX",
@@ -221,7 +221,7 @@
         }
       ],
       "metadata": {
-        "workspaceRoot": "apps/craw-chat",
+        "workspaceRoot": "apps/sdkwork-im-pc",
         "framework": "web",
         "packageManager": "pnpm@10.0.0",
         "migratedFromLegacyConfig": true
@@ -238,9 +238,9 @@
       {
         "version": "0.1.0",
         "releaseChannel": "STABLE",
-        "title": "SDKWork Chat 0.1.0",
-        "summary": "SDKWork Chat initialized standard release.",
-        "content": "Initial SDKWork App Standard v3 manifest for SDKWork Chat.",
+        "title": "Sdkwork IM 0.1.0",
+        "summary": "Sdkwork IM initialized standard release.",
+        "content": "Initial SDKWork App Standard v3 manifest for Sdkwork IM.",
         "highlights": [
           "SDKWork App Standard v3 configuration initialized",
           "PlusApp projection metadata standardized",
@@ -269,7 +269,7 @@
     "build": {
       "targets": []
     },
-    "sourceRoot": "apps/craw-chat"
+    "sourceRoot": "apps/sdkwork-im-pc"
   },
   "metadata": {
     "standardOwner": "sdkwork-platform",

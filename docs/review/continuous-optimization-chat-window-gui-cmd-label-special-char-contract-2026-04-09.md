@@ -37,7 +37,7 @@
 Red:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_wrapper_preserves_exclamation_mark_in_label -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_wrapper_preserves_exclamation_mark_in_label -- --exact --nocapture
 ```
 
 - Failed before the patch because diagnostics showed `script start label=guest conversation=...` instead of preserving `guest!`.
@@ -45,10 +45,10 @@ cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_
 Green:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_wrapper_preserves_exclamation_mark_in_label -- --exact --nocapture
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test -- --nocapture
-cargo test -p craw-chat-cli --offline -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_wrapper_preserves_exclamation_mark_in_label -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test -- --nocapture
+cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 cmd /c .\bin\chat-window-gui.cmd --help
 ```

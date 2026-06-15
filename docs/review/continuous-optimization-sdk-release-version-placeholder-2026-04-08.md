@@ -49,5 +49,5 @@
 ## 4. fresh evidence
 
 - `cargo fmt --all --check`
-- `cargo test -p craw-chat-cli --offline test_continuous_optimization_sdk_release_catalog_freezes_version_placeholder_contract -- --exact --nocapture`
-- `cargo test -p craw-chat-cli --offline --test chat_cli_contract_test -- --nocapture`
+- `cargo test -p sdkwork-im-cli --offline test_continuous_optimization_sdk_release_catalog_freezes_version_placeholder_contract -- --exact --nocapture`
+- `cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test -- --nocapture`

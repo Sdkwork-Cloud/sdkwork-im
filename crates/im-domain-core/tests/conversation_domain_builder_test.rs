@@ -9,7 +9,7 @@ use im_domain_core::conversation::{
     member_id,
 };
 use im_domain_core::message::{
-    CRAW_CHAT_MESSAGE_SCHEMA_CARD, CRAW_CHAT_MESSAGE_SCHEMA_LOCATION, ContentPart,
+    SDKWORK_IM_MESSAGE_SCHEMA_CARD, SDKWORK_IM_MESSAGE_SCHEMA_LOCATION, ContentPart,
     ConversationMessageLog, DataPart, Message, MessageBody, MessageEdited, MessageLocatorIndex,
     MessageReactionAdded, MessageReactionRemoved, MessageRecalled, MessageType, Sender,
 };
@@ -459,7 +459,7 @@ fn test_conversation_message_log_derives_summary_for_missing_rich_message_summar
     message.body = MessageBody {
         summary: None,
         parts: vec![ContentPart::Data(DataPart {
-            schema_ref: CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+            schema_ref: SDKWORK_IM_MESSAGE_SCHEMA_LOCATION.into(),
             encoding: "application/json".into(),
             payload: serde_json::json!({
                 "name": "The Bund",
@@ -489,7 +489,7 @@ fn test_conversation_message_log_derives_summary_for_missing_rich_message_summar
         body: MessageBody {
             summary: None,
             parts: vec![ContentPart::Data(DataPart {
-                schema_ref: CRAW_CHAT_MESSAGE_SCHEMA_CARD.into(),
+                schema_ref: SDKWORK_IM_MESSAGE_SCHEMA_CARD.into(),
                 encoding: "application/json".into(),
                 payload: serde_json::json!({
                     "title": "Escalation runbook"

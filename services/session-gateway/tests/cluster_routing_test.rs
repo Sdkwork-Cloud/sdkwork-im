@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
 use std::time::Duration;
 
-use craw_chat_runtime_route::{RouteBinding, RouteMigrationResult, RouteNodeLifecycle};
+use sdkwork_im_runtime_route::{RouteBinding, RouteMigrationResult, RouteNodeLifecycle};
 use im_adapters_local_memory::MemoryRealtimeCheckpointStore;
 use im_platform_contracts::{ContractError, RealtimeCheckpointRecord, RealtimeCheckpointStore};
 use session_gateway::{

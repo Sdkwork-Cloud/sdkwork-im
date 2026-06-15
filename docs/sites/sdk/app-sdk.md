@@ -14,9 +14,9 @@ transport for app-business APIs outside the standardized IM SDK surface.
 | SDK workspace root | `sdks/sdkwork-im-app-sdk` |
 | API prefix | `/app/v3/api` |
 | Schema discovery | `/app/v3/openapi.json` |
-| Authority snapshot | `sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.openapi.yaml` |
-| Derived generator input | `sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.sdkgen.yaml` |
-| Flutter HTTP generator input | `sdks/sdkwork-im-app-sdk/openapi/craw-chat-app-api.flutter.sdkgen.yaml` |
+| Authority snapshot | `sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml` |
+| Derived generator input | `sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.sdkgen.yaml` |
+| Flutter HTTP generator input | `sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.flutter.sdkgen.yaml` |
 | Primary generated TypeScript client | `SdkworkAppClient` |
 
 The family currently includes app-business routes such as portal snapshots, app-facing device and

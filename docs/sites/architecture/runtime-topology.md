@@ -31,7 +31,7 @@ Client / SDK / CLI
 External Client / Operator / SDK
               |
               v
-      web-gateway / craw-chat-server (:18080 by server template)
+      web-gateway / sdkwork-im-server (:18080 by server template)
               |
               +-- /healthz / /readyz
               +-- /openapi.json / /openapi/index.json / /openapi/runtime-summary.json
@@ -104,9 +104,9 @@ The control plane is parallel to the app node. It is not a nested route tree ins
 
 The formal packaged server install flow uses the unified gateway as the operator-facing entrypoint:
 
-- binary: `craw-chat-server`
+- binary: `sdkwork-im-server`
 - package source: `services/web-gateway`
-- startup contract: `craw-chat-server --config <config-root>/server.yaml`
+- startup contract: `sdkwork-im-server --config <config-root>/server.yaml`
 - frozen server template bind: `0.0.0.0:18080`
 - storage baseline: PostgreSQL through `storage/postgresql.yaml`
 

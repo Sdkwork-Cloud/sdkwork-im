@@ -10,7 +10,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- |
 | Name | `audit-service` |
 | Type | `rust-crate` |
-| Root | `craw-chat/services/audit-service` |
+| Root | `sdkwork-im/services/audit-service` |
 | Domain | `communication` |
 | Capability | `chat` |
 | Languages | `rust` |
@@ -52,4 +52,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/services/audit-service/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/services/audit-service/Cargo.toml`

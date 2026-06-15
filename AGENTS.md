@@ -75,9 +75,9 @@ Run commands from this directory unless a command explicitly targets another pat
 - `pnpm run check:commercial-readiness`: run repository verification or architecture checks.
 - `pnpm run test:database-naming-standard`: run the configured test suite for this scope.
 - `pnpm run test:runtime-standard`: run the configured test suite for this scope.
-- `pnpm run test:sdkwork-chat-pc-dev-command`: run the configured test suite for this scope.
-- `pnpm run test:sdkwork-chat-pc-i18n`: run the configured test suite for this scope.
-- `pnpm run test:sdkwork-chat-pc-sidebar-modules`: run the configured test suite for this scope.
+- `pnpm run test:sdkwork-im-pc-dev-command`: run the configured test suite for this scope.
+- `pnpm run test:sdkwork-im-pc-i18n`: run the configured test suite for this scope.
+- `pnpm run test:sdkwork-im-pc-sidebar-modules`: run the configured test suite for this scope.
 - `pnpm run test:workflow-commercial-gates`: run the configured test suite for this scope.
 - `cargo fmt --all --check`: verify Rust formatting across workspace crates.
 - `cargo test --workspace`: run workspace Rust tests.
@@ -99,7 +99,7 @@ The repository-specific guidance below was preserved from the previous `AGENTS.m
 
 ### Project Structure & Module Organization
 
-This repository is a Rust 2024 workspace for Craw Chat, with SDK, docs, and release tooling. Core domain and contract crates live in `crates/`, runtime services in `services/`, storage/provider integrations in `adapters/`, and command-line tools in `tools/`. Local lifecycle scripts are under `bin/`, deployment helpers under `deployments/`, docs under `docs/`, SDK work under `sdks/`, and Node governance scripts under `scripts/`. Rust tests are colocated with each crate or service in `tests/`. Avoid editing `vendor/`, `.runtime/`, `target/`, and generated SDK outputs unless explicitly required.
+This repository is a Rust 2024 workspace for Sdkwork IM, with SDK, docs, and release tooling. Core domain and contract crates live in `crates/`, runtime services in `services/`, storage/provider integrations in `adapters/`, and command-line tools in `tools/`. Local lifecycle scripts are under `bin/`, deployment helpers under `deployments/`, docs under `docs/`, SDK work under `sdks/`, and Node governance scripts under `scripts/`. Rust tests are colocated with each crate or service in `tests/`. Avoid editing `vendor/`, `.runtime/`, `target/`, and generated SDK outputs unless explicitly required.
 
 ### Build, Test, and Development Commands
 
@@ -125,4 +125,4 @@ Recent history uses Conventional Commit prefixes such as `feat:`, `fix:`, `test:
 
 ### Security & Configuration Tips
 
-Do not commit secrets, local runtime state, or generated caches. Keep license-sensitive changes aligned with `COMMERCIAL-LICENSE.md`, and use environment variables such as `CRAW_CHAT_POSTGRES_TEST_DATABASE_URL` for live PostgreSQL integration tests.
+Do not commit secrets, local runtime state, or generated caches. Keep license-sensitive changes aligned with `COMMERCIAL-LICENSE.md`, and use environment variables such as `SDKWORK_IM_POSTGRES_TEST_DATABASE_URL` for live PostgreSQL integration tests.

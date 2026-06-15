@@ -5,16 +5,16 @@ license.workspace = true
 version.workspace = true
 
 [[bin]]
-name = "craw-chat-server"
+name = "sdkwork-im-server"
 path = "src/main.rs"
 
 [dependencies]
 axum.workspace = true
-craw-chat-api-registry = { path = "../../crates/craw-chat-api-registry" }
-craw-chat-openapi = { path = "../../crates/craw-chat-openapi" }
-craw-chat-gateway-config = { path = "../../crates/craw-chat-gateway-config" }
-craw-chat-gateway-observability = { path = "../../crates/craw-chat-gateway-observability" }
-craw-chat-runtime-link = { path = "../../crates/craw-chat-runtime-link" }
+sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
+sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+sdkwork-im-gateway-config = { path = "../../crates/sdkwork-im-gateway-config" }
+sdkwork-im-gateway-observability = { path = "../../crates/sdkwork-im-gateway-observability" }
+sdkwork-im-runtime-link = { path = "../../crates/sdkwork-im-runtime-link" }
 futures-util.workspace = true
 im-app-context = { path = "../../crates/im-app-context" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }

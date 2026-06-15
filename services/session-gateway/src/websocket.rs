@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, close_code};
-use craw_chat_ccp_binding_ws::{WsBinding, WsBindingMessage, WsOpcode};
-use craw_chat_ccp_codec::CcpCodec;
-use craw_chat_ccp_codec_json::JsonEnvelopeCodec;
-use craw_chat_ccp_control::{AuthOkFrame, ControlFrame, ErrorFrame};
-use craw_chat_ccp_core::{CcpEnvelope, CcpRoute, ProtocolVersion, TransportBinding};
-use craw_chat_runtime_link::{
+use sdkwork_im_ccp_binding_ws::{WsBinding, WsBindingMessage, WsOpcode};
+use sdkwork_im_ccp_codec::CcpCodec;
+use sdkwork_im_ccp_codec_json::JsonEnvelopeCodec;
+use sdkwork_im_ccp_control::{AuthOkFrame, ControlFrame, ErrorFrame};
+use sdkwork_im_ccp_core::{CcpEnvelope, CcpRoute, ProtocolVersion, TransportBinding};
+use sdkwork_im_runtime_link::{
     LINK_WEBSOCKET_SUBPROTOCOL, LinkBufferedPushDrainDriver, LinkBufferedPushDrainStatus,
     LinkBufferedPushFetchedWindow, LinkBufferedPushPlan, LinkGoAwayDirective,
     LinkOutboundQueueState, LinkSession, OutboundQueuePolicy,
@@ -1919,9 +1919,9 @@ async fn send_json(socket: &mut WebSocket, value: Value) -> Result<(), axum::Err
 
 #[cfg(test)]
 mod tests {
-    use craw_chat_ccp_control::HelloFrame;
-    use craw_chat_ccp_core::{CapabilitySet, ProtocolVersion, TransportBinding};
-    use craw_chat_runtime_link::{LinkConnectionState, OutboundQueuePolicy, ResumeWindow};
+    use sdkwork_im_ccp_control::HelloFrame;
+    use sdkwork_im_ccp_core::{CapabilitySet, ProtocolVersion, TransportBinding};
+    use sdkwork_im_runtime_link::{LinkConnectionState, OutboundQueuePolicy, ResumeWindow};
     use im_app_context::AppContext;
 
     use super::*;

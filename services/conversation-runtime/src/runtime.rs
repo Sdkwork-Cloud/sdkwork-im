@@ -1,5 +1,5 @@
-use craw_chat_contract_core::ContractError;
-use craw_chat_contract_message::{CommitJournal, CommitPosition};
+use sdkwork_im_contract_core::ContractError;
+use sdkwork_im_contract_message::{CommitJournal, CommitPosition};
 use im_app_context::AppContext;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -78,7 +78,7 @@ const CONVERSATION_CREATE_DELIVERY_PROOF_VERSION: &str = "conversation.create.de
 const CONVERSATION_MESSAGE_DELIVERY_PROOF_VERSION: &str = "conversation.message.delivery-proof.v1";
 const CONVERSATION_MAX_IN_MEMORY_DEFAULT: usize = 10_000;
 const CONVERSATION_IDLE_EVICTION_TARGET_RATIO: f64 = 0.8;
-const CONVERSATION_MAX_IN_MEMORY_ENV: &str = "CRAW_CHAT_CONVERSATION_MAX_IN_MEMORY";
+const CONVERSATION_MAX_IN_MEMORY_ENV: &str = "SDKWORK_IM_CONVERSATION_MAX_IN_MEMORY";
 
 fn normalize_message_history_limit(limit: Option<usize>) -> Result<usize, String> {
     let limit = limit.unwrap_or(MESSAGE_HISTORY_DEFAULT_LIMIT);
@@ -1731,7 +1731,7 @@ enum AgentHandoffStatusTransitionOutcome {
 }
 
 const IN_MEMORY_JOURNAL_MAX_EVENTS_DEFAULT: usize = 100_000;
-const IN_MEMORY_JOURNAL_MAX_EVENTS_ENV: &str = "CRAW_CHAT_JOURNAL_MAX_EVENTS";
+const IN_MEMORY_JOURNAL_MAX_EVENTS_ENV: &str = "SDKWORK_IM_JOURNAL_MAX_EVENTS";
 
 #[derive(Clone)]
 pub struct InMemoryJournal {

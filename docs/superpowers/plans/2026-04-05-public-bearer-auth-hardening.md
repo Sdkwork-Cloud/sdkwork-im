@@ -4,7 +4,7 @@
 
 **Goal:** Close the public-route auth hardening wave by requiring signed public bearer tokens everywhere, updating all affected tests, and documenting the deploy/runtime contract.
 
-**Architecture:** Public HTTP entrypoints now use a strict verifier that only accepts HS256 bearer tokens signed with `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`. Test suites must stop using `alg=none` fixtures, must provision the public secret explicitly, and must serialize env-mutation access inside each test binary because bearer verification now depends on process environment.
+**Architecture:** Public HTTP entrypoints now use a strict verifier that only accepts HS256 bearer tokens signed with `SDKWORK_IM_PUBLIC_BEARER_HS256_SECRET`. Test suites must stop using `alg=none` fixtures, must provision the public secret explicitly, and must serialize env-mutation access inside each test binary because bearer verification now depends on process environment.
 
 **Tech Stack:** Rust, Axum, Tokio, serde_json, HMAC-SHA256 bearer verification.
 
@@ -72,7 +72,7 @@ Expected: PASS.
 
 Document:
 - public routes reject `alg=none`
-- secret source is `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`
+- secret source is `SDKWORK_IM_PUBLIC_BEARER_HS256_SECRET`
 - trusted identity headers remain internal-only
 - local deployment scripts must provision the secret
 

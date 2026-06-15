@@ -6,7 +6,7 @@ use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::Router;
-use craw_chat_cli::{
+use sdkwork_im_cli::{
     CommandOutput, execute_command, execute_interactive_command_with_io, parse_cli_args,
 };
 use serde_json::Value;
@@ -32,7 +32,7 @@ fn unique_runtime_dir() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system clock should be after unix epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_cli_real_auth_runtime_{unique}"))
+    std::env::temp_dir().join(format!("sdkwork_im_cli_real_auth_runtime_{unique}"))
 }
 
 fn resolve_usable_bash() -> Option<PathBuf> {
@@ -62,8 +62,8 @@ fn resolve_usable_bash() -> Option<PathBuf> {
     #[cfg(not(windows))]
     candidates.push(PathBuf::from("bash"));
 
-    const BASH_PROBE_SENTINEL: &str = "craw_chat_cli_bash_probe_ok";
-    const BASH_PROBE_SCRIPT: &str = "command -v grep >/dev/null 2>&1 && command -v sed >/dev/null 2>&1 && command -v mktemp >/dev/null 2>&1 && printf craw_chat_cli_bash_probe_ok";
+    const BASH_PROBE_SENTINEL: &str = "sdkwork_im_cli_bash_probe_ok";
+    const BASH_PROBE_SCRIPT: &str = "command -v grep >/dev/null 2>&1 && command -v sed >/dev/null 2>&1 && command -v mktemp >/dev/null 2>&1 && printf sdkwork_im_cli_bash_probe_ok";
 
     candidates.into_iter().find(|candidate| {
         let version_ok = Command::new(candidate)
@@ -114,7 +114,7 @@ async fn run_real_login_watch_validation_flow(
 
     let create_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url,
             "--tenant-id",
@@ -140,7 +140,7 @@ async fn run_real_login_watch_validation_flow(
 
     let add_member_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url,
             "--tenant-id",
@@ -176,7 +176,7 @@ async fn run_real_login_watch_validation_flow(
     let watch_task = tokio::spawn(async move {
         execute_command(
             parse_cli_args([
-                "craw-chat-cli",
+                "sdkwork-im-cli",
                 "--base-url",
                 watch_base_url.as_str(),
                 "--tenant-id",
@@ -206,7 +206,7 @@ async fn run_real_login_watch_validation_flow(
 
     let send_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url,
             "--tenant-id",
@@ -264,7 +264,7 @@ async fn run_real_login_watch_validation_flow(
 
     let timeline_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url,
             "--tenant-id",
@@ -303,7 +303,7 @@ async fn login_seeded_im_user(
 ) -> (String, String) {
     let token_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url,
             "--tenant-id",
@@ -341,7 +341,7 @@ async fn prepare_real_login_conversation(base_url: &str, conversation_id: &str) 
 
     let create_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url,
             "--tenant-id",
@@ -367,7 +367,7 @@ async fn prepare_real_login_conversation(base_url: &str, conversation_id: &str) 
 
     let add_member_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url,
             "--tenant-id",
@@ -403,7 +403,7 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
 
     let create_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -429,7 +429,7 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
 
     let add_member_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -461,7 +461,7 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
     let watch_task = tokio::spawn(async move {
         execute_command(
             parse_cli_args([
-                "craw-chat-cli",
+                "sdkwork-im-cli",
                 "--base-url",
                 watch_base_url.as_str(),
                 "--tenant-id",
@@ -491,7 +491,7 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
 
     let send_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -549,7 +549,7 @@ async fn test_chat_cli_can_drive_two_party_http_and_websocket_validation_flow() 
 
     let timeline_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -620,7 +620,7 @@ async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() 
 
     execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -644,7 +644,7 @@ async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() 
 
     execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -671,7 +671,7 @@ async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() 
     .expect("add member should succeed");
 
     let chat_session_command = parse_cli_args([
-        "craw-chat-cli",
+        "sdkwork-im-cli",
         "--base-url",
         base_url.as_str(),
         "--tenant-id",
@@ -705,7 +705,7 @@ async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() 
 
     execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -764,7 +764,7 @@ async fn test_chat_cli_chat_session_can_receive_and_send_messages_before_quit() 
 
     let timeline_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -809,7 +809,7 @@ async fn test_chat_cli_powershell_entry_wrapper_can_send_interactive_messages() 
 
     execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -833,7 +833,7 @@ async fn test_chat_cli_powershell_entry_wrapper_can_send_interactive_messages() 
 
     execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -915,15 +915,15 @@ async fn test_chat_cli_powershell_entry_wrapper_can_send_interactive_messages() 
     let stderr_text = String::from_utf8_lossy(&output.stderr);
     assert!(
         !stdout_text.contains("Finished `dev` profile")
-            && !stdout_text.contains("Running `target\\debug\\craw-chat-cli.exe")
+            && !stdout_text.contains("Running `target\\debug\\sdkwork-im-cli.exe")
             && !stderr_text.contains("Finished `dev` profile")
-            && !stderr_text.contains("Running `target\\debug\\craw-chat-cli.exe"),
+            && !stderr_text.contains("Running `target\\debug\\sdkwork-im-cli.exe"),
         "wrapper must not leak cargo launcher output into interactive session\nstdout:\n{stdout_text}\nstderr:\n{stderr_text}"
     );
 
     let timeline_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -1047,7 +1047,7 @@ async fn test_chat_window_cmd_wrapper_accepts_gnu_style_named_flags_for_interact
 
     let timeline_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -1092,7 +1092,7 @@ async fn test_chat_window_cmd_wrapper_preserves_exclamation_mark_in_message_pref
 
     execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -1116,7 +1116,7 @@ async fn test_chat_window_cmd_wrapper_preserves_exclamation_mark_in_message_pref
 
     execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -1199,7 +1199,7 @@ async fn test_chat_window_cmd_wrapper_preserves_exclamation_mark_in_message_pref
 
     let timeline_output = execute_command(
         parse_cli_args([
-            "craw-chat-cli",
+            "sdkwork-im-cli",
             "--base-url",
             base_url.as_str(),
             "--tenant-id",
@@ -1267,7 +1267,7 @@ async fn test_chat_cli_cmd_wrapper_preserves_help_contract() {
 
     let stdout_text = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout_text.contains("Usage: craw-chat-cli"),
+        stdout_text.contains("Usage: sdkwork-im-cli"),
         "cmd wrapper help must preserve the CLI usage surface\nstdout:\n{}\nstderr:\n{}",
         stdout_text,
         String::from_utf8_lossy(&output.stderr)

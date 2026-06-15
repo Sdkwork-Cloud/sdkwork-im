@@ -50,7 +50,7 @@ function showHelp() {
     [
       "Usage: node bin/plan-release-server-contracts.mjs --release-gate-path <path> [--platform <all|linux|macos|windows>] [--format <json|text>] [--field <path>]",
       "",
-      "Emit the craw-chat server release execution plan from the machine-readable release-gate bundle.",
+      "Emit the sdkwork-im server release execution plan from the machine-readable release-gate bundle.",
       "",
     ].join("\n"),
   );
@@ -122,7 +122,7 @@ function serializeFieldValue(value) {
 
 function buildTextSummary(report) {
   const lines = [
-    "craw-chat-server release plan",
+    "sdkwork-im-server release plan",
     `bundle: ${report.bundleId ?? ""}`,
     `wave: ${report.wave ?? ""}`,
     `selectedPlatform: ${report.selectedPlatform ?? ""}`,
@@ -231,7 +231,7 @@ function main() {
   });
 
   const result = {
-    product: "craw-chat-server",
+    product: "sdkwork-im-server",
     gatePath: releaseGateAbsolutePath,
     bundleId: releaseGate.bundleId,
     wave: releaseGate.wave,

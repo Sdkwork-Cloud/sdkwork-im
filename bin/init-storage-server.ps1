@@ -54,7 +54,7 @@ if ($postgresqlContent -match 'migrationMode:\s*([^\r\n]+)') {
 }
 
 $report = [ordered]@{
-    product = "craw-chat-server"
+    product = "sdkwork-im-server"
     instance = $InstanceName
     mode = $Mode
     storage = "postgresql"
@@ -74,7 +74,7 @@ if ($OutputFormat -eq "json") {
     Write-Output $json
 }
 else {
-    Write-Host "craw-chat-server storage report"
+    Write-Host "sdkwork-im-server storage report"
     Write-Host "mode: $Mode"
     Write-Host "storage: postgresql"
     Write-Host "configValid: $($report.configValid)"

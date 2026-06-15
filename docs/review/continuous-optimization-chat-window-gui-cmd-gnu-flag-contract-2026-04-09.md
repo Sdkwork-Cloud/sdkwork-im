@@ -36,7 +36,7 @@
 Red:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_wrapper_accepts_gnu_style_named_flags_for_launch -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_wrapper_accepts_gnu_style_named_flags_for_launch -- --exact --nocapture
 ```
 
 - Failed before the patch because the GNU-style launch helper exited without entering the GUI script flow and produced no diagnostics.
@@ -44,11 +44,11 @@ cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_
 Green:
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_wrapper_accepts_gnu_style_named_flags_for_launch -- --exact --nocapture
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_wrapper_preserves_exclamation_mark_in_label -- --exact --nocapture
-cargo test -p craw-chat-cli --offline --test chat_cli_e2e_test -- --nocapture
-cargo test -p craw-chat-cli --offline -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_wrapper_accepts_gnu_style_named_flags_for_launch -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_chat_window_gui_cmd_wrapper_preserves_exclamation_mark_in_label -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test -- --nocapture
+cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 ```
 

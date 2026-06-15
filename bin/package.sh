@@ -5,14 +5,14 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/package.sh [--package-id <id>] [--version <value>] [--staging-root <dir>] [--output-dir <dir>] [--all] [--stage] [--check] [--dry-run] [--json]
 
-Stage and/or package Craw Chat release archives. Use --stage to stage production outputs before packaging.
+Stage and/or package Sdkwork IM release archives. Use --stage to stage production outputs before packaging.
 EOF
 }
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 stage=0
-stage_args=("scripts/release/stage-craw-chat-release-package.mjs")
-package_args=("scripts/release/build-craw-chat-install-package.mjs")
+stage_args=("scripts/release/stage-sdkwork-im-release-package.mjs")
+package_args=("scripts/release/build-sdkwork-im-install-package.mjs")
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

@@ -21,7 +21,7 @@ Without a behavior-level stderr regression, a future script change could silentl
 
 ## 3. Constraints
 
-- Work inside `apps/craw-chat`.
+- Work inside `apps/sdkwork-im`.
 - Keep production lifecycle behavior unchanged unless a real defect is proven.
 - Prefer deterministic test fixtures over environment-sensitive system executables.
 - Current Windows host does not provide a usable POSIX shell runtime for executing `bash`-based behavior tests:

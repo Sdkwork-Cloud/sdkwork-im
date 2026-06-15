@@ -30,7 +30,7 @@ $authToken = New-LocalJwt -Claims @{
     login_scope = "TENANT"
     user_id = $userId
     session_id = $sessionId
-    app_id = "craw-chat"
+    app_id = "sdkwork-im"
     auth_level = "password"
     subject_type = $actorKind
 }
@@ -40,7 +40,7 @@ $accessToken = New-LocalJwt -Claims @{
     login_scope = "TENANT"
     user_id = $userId
     session_id = $sessionId
-    app_id = "craw-chat"
+    app_id = "sdkwork-im"
     environment = "dev"
     deployment_mode = "local"
     auth_level = "password"

@@ -1,7 +1,7 @@
 # SDKWork IM App SDK
 
 `sdkwork-im-app-sdk` is the `/app/v3/api` SDK family for developers building instant messaging
-applications on top of Craw Chat.
+applications on top of Sdkwork IM.
 
 This workspace is intentionally separate from `sdkwork-im-sdk`:
 
@@ -62,11 +62,11 @@ Package-level dependency names:
 
 ## Contract Files
 
-- `openapi/craw-chat-app-api.openapi.yaml`
+- `openapi/sdkwork-im-app-api.openapi.yaml`
   Authority OpenAPI 3.x contract for `/app/v3/api`.
-- `openapi/craw-chat-app-api.sdkgen.yaml`
+- `openapi/sdkwork-im-app-api.sdkgen.yaml`
   Default generator-compatible derived input.
-- `openapi/craw-chat-app-api.flutter.sdkgen.yaml`
+- `openapi/sdkwork-im-app-api.flutter.sdkgen.yaml`
   Flutter-compatible derived input with primitive component refs expanded.
 
 ## Generation

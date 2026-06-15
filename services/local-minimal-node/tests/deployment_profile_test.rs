@@ -35,7 +35,7 @@ fn unique_temp_root(prefix: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_{prefix}_{unique}"))
+    std::env::temp_dir().join(format!("sdkwork_im_{prefix}_{unique}"))
 }
 
 fn write_file_with_parents(path: &Path, content: &str) {
@@ -349,71 +349,71 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
     }
 
     for template_content in [&local_minimal_template, &local_default_template] {
-        assert!(template_content.contains("CRAW_CHAT_BIND_ADDR="));
-        assert!(template_content.contains("CRAW_CHAT_RUNTIME_DIR="));
-        assert!(template_content.contains("CRAW_CHAT_RUNTIME_PROFILE="));
-        assert!(template_content.contains("CRAW_CHAT_BROWSER_ORIGINS="));
-        assert!(!template_content.contains("CRAW_CHAT_PUBLIC_BEARER"));
-        assert!(template_content.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
-        assert!(template_content.contains("CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true"));
-        assert!(template_content.contains("CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET="));
+        assert!(template_content.contains("SDKWORK_IM_BIND_ADDR="));
+        assert!(template_content.contains("SDKWORK_IM_RUNTIME_DIR="));
+        assert!(template_content.contains("SDKWORK_IM_RUNTIME_PROFILE="));
+        assert!(template_content.contains("SDKWORK_IM_BROWSER_ORIGINS="));
+        assert!(!template_content.contains("SDKWORK_IM_PUBLIC_BEARER"));
+        assert!(template_content.contains("SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
+        assert!(template_content.contains("SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE=true"));
+        assert!(template_content.contains("SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET="));
         assert!(
-            template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=")
+            template_content.contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=")
         );
         assert!(
-            template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=")
+            template_content.contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=")
         );
-        assert!(template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS="));
-        assert!(template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS="));
+        assert!(template_content.contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS="));
+        assert!(template_content.contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS="));
         assert!(
             template_content
-                .contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED=")
-        );
-        assert!(
-            template_content
-                .contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS=")
+                .contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED=")
         );
         assert!(
             template_content
-                .contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS=")
-        );
-        assert!(template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT="));
-        assert!(
-            template_content.contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY=")
+                .contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS=")
         );
         assert!(
             template_content
-                .contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS=")
+                .contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS=")
+        );
+        assert!(template_content.contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT="));
+        assert!(
+            template_content.contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY=")
         );
         assert!(
             template_content
-                .contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES=")
+                .contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS=")
         );
         assert!(
             template_content
-                .contains("CRAW_CHAT_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS=")
+                .contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES=")
         );
-        assert!(template_content.contains("CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP="));
+        assert!(
+            template_content
+                .contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS=")
+        );
+        assert!(template_content.contains("SDKWORK_IM_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP="));
     }
 
     for env_name in [
-        "CRAW_CHAT_BROWSER_ORIGINS",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES",
-        "CRAW_CHAT_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS",
-        "CRAW_CHAT_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP",
-        "CRAW_CHAT_RUNTIME_PROFILE",
-        "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE",
-        "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET",
+        "SDKWORK_IM_BROWSER_ORIGINS",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES",
+        "SDKWORK_IM_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS",
+        "SDKWORK_IM_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP",
+        "SDKWORK_IM_RUNTIME_PROFILE",
+        "SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE",
+        "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET",
     ] {
         assert!(
             site_profiles_env_doc.contains(env_name),
@@ -856,7 +856,7 @@ fn test_local_default_release_bundle_freezes_evidence_index_schema_contract() {
     );
     assert_eq!(
         schema_json["title"],
-        "craw-chat post-release evidence index"
+        "sdkwork-im post-release evidence index"
     );
     assert_eq!(schema_json["type"], "object");
     assert_eq!(
@@ -2095,12 +2095,12 @@ fn test_local_minimal_compose_injects_only_domain_cursor_secret_for_public_smoke
         .unwrap_or_else(|_| panic!("missing compose profile: {}", compose_path.display()));
 
     assert!(
-        !compose.contains("CRAW_CHAT_PUBLIC_BEARER"),
-        "local-minimal.yml must not configure craw-chat IAM/Public Bearer secrets after AppContext integration"
+        !compose.contains("SDKWORK_IM_PUBLIC_BEARER"),
+        "local-minimal.yml must not configure sdkwork-im IAM/Public Bearer secrets after AppContext integration"
     );
     assert!(
-        compose.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"),
-        "local-minimal.yml must inject CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET so friend request cursors stay stable across restarts and replicas"
+        compose.contains("SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET"),
+        "local-minimal.yml must inject SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET so friend request cursors stay stable across restarts and replicas"
     );
 }
 
@@ -2126,7 +2126,7 @@ fn test_local_stack_smoke_scripts_require_dual_token_contract() {
             !script.contains("eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0."),
             "local stack smoke scripts must not embed alg=none bearer tokens"
         );
-        assert!(!script.contains("CRAW_CHAT_PUBLIC_BEARER"));
+        assert!(!script.contains("SDKWORK_IM_PUBLIC_BEARER"));
         assert!(script.contains("Authorization"));
         assert!(script.contains("Access-Token"));
         assert!(!script.contains("x-sdkwork-tenant-id"));
@@ -2144,11 +2144,11 @@ fn test_local_minimal_install_doc_describes_dual_token_client_contract() {
         .unwrap_or_else(|_| panic!("missing deployment doc: {}", install_doc_path.display()));
 
     assert!(
-        !install_doc.contains("CRAW_CHAT_PUBLIC_BEARER"),
-        "本地最小安装与运行.md must not document craw-chat-owned Public Bearer secrets"
+        !install_doc.contains("SDKWORK_IM_PUBLIC_BEARER"),
+        "本地最小安装与运行.md must not document sdkwork-im-owned Public Bearer secrets"
     );
     assert!(
-        install_doc.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"),
+        install_doc.contains("SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET"),
         "install doc must document the friend request cursor signing secret contract"
     );
     assert!(
@@ -2810,7 +2810,7 @@ fn test_status_local_ps1_uses_local_default_profile_config_when_requested() {
     fs::write(
         local_default_config_dir.join("local-default.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\r\nCRAW_CHAT_BIND_ADDR=127.0.0.1:19090\r\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\r\nSDKWORK_IM_BIND_ADDR=127.0.0.1:19090\r\n",
             local_default_runtime_dir.display()
         ),
     )
@@ -2818,7 +2818,7 @@ fn test_status_local_ps1_uses_local_default_profile_config_when_requested() {
     fs::write(
         local_minimal_config_dir.join("local-minimal.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\r\nCRAW_CHAT_BIND_ADDR=127.0.0.1:18090\r\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\r\nSDKWORK_IM_BIND_ADDR=127.0.0.1:18090\r\n",
             local_minimal_runtime_dir.display()
         ),
     )
@@ -2912,7 +2912,7 @@ fn test_status_local_cmd_supports_profile_switch() {
     fs::write(
         local_default_config_dir.join("local-default.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\r\nCRAW_CHAT_BIND_ADDR=127.0.0.1:19090\r\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\r\nSDKWORK_IM_BIND_ADDR=127.0.0.1:19090\r\n",
             local_default_runtime_dir.display()
         ),
     )
@@ -2971,7 +2971,7 @@ fn test_status_local_sh_uses_local_default_profile_config_when_requested() {
     fs::write(
         local_default_config_dir.join("local-default.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\nCRAW_CHAT_BIND_ADDR=127.0.0.1:19090\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\nSDKWORK_IM_BIND_ADDR=127.0.0.1:19090\n",
             local_default_runtime_dir.display()
         ),
     )
@@ -2979,7 +2979,7 @@ fn test_status_local_sh_uses_local_default_profile_config_when_requested() {
     fs::write(
         local_minimal_config_dir.join("local-minimal.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\nCRAW_CHAT_BIND_ADDR=127.0.0.1:18090\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\nSDKWORK_IM_BIND_ADDR=127.0.0.1:18090\n",
             local_minimal_runtime_dir.display()
         ),
     )
@@ -3486,9 +3486,9 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(bin_start_ps1.contains("ExpectedProcessName = \"local-minimal-node\""));
     assert!(bin_start_ps1.contains("$process.ProcessName -ieq $ExpectedProcessName"));
     assert!(bin_start_ps1.contains("Stop-ManagedProcessAndRemovePidFile"));
-    assert!(bin_start_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
-    assert!(!bin_start_ps1.contains("CRAW_CHAT_PUBLIC_BEARER"));
-    assert!(bin_start_ps1.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
+    assert!(bin_start_ps1.contains("SDKWORK_IM_RUNTIME_DIR"));
+    assert!(!bin_start_ps1.contains("SDKWORK_IM_PUBLIC_BEARER"));
+    assert!(bin_start_ps1.contains("SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_start_sh.contains("local-minimal-node"));
     assert!(bin_start_sh.contains("nohup"));
     assert_eq!(first_non_empty_line(&bin_start_sh), "#!/usr/bin/env bash");
@@ -3502,9 +3502,9 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(bin_start_sh.contains("command -v wget"));
     assert!(bin_start_sh.contains("wget -q -O /dev/null"));
     assert!(bin_start_sh.contains("Neither curl nor wget is available for health verification."));
-    assert!(bin_start_sh.contains("CRAW_CHAT_RUNTIME_DIR"));
-    assert!(!bin_start_sh.contains("CRAW_CHAT_PUBLIC_BEARER"));
-    assert!(bin_start_sh.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
+    assert!(bin_start_sh.contains("SDKWORK_IM_RUNTIME_DIR"));
+    assert!(!bin_start_sh.contains("SDKWORK_IM_PUBLIC_BEARER"));
+    assert!(bin_start_sh.contains("SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_start_sh.contains("EXPECTED_PROCESS_NAME=\"local-minimal-node\""));
     assert!(bin_start_sh.contains("pid_matches_expected_process"));
     assert!(bin_start_sh.contains("stop_managed_process_and_remove_pid_file"));
@@ -3594,12 +3594,12 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(!bin_status_cmd.contains("powershell -NoProfile -ExecutionPolicy Bypass -File"));
 
     assert!(bin_inspect_runtime_ps1.contains("inspect-runtime-dir"));
-    assert!(bin_inspect_runtime_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
+    assert!(bin_inspect_runtime_ps1.contains("SDKWORK_IM_RUNTIME_DIR"));
     assert!(bin_inspect_runtime_ps1.contains("target\\release\\local-minimal-node.exe"));
     assert!(bin_inspect_runtime_ps1.contains("target\\debug\\local-minimal-node.exe"));
     assert_eq!(first_non_empty_line(&bin_inspect_runtime_ps1), "param(");
     assert!(bin_inspect_runtime_sh.contains("inspect-runtime-dir"));
-    assert!(bin_inspect_runtime_sh.contains("CRAW_CHAT_RUNTIME_DIR"));
+    assert!(bin_inspect_runtime_sh.contains("SDKWORK_IM_RUNTIME_DIR"));
     assert!(bin_inspect_runtime_sh.contains("target/release/local-minimal-node"));
     assert!(bin_inspect_runtime_sh.contains("target/debug/local-minimal-node"));
     assert_eq!(
@@ -3612,12 +3612,12 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     );
 
     assert!(bin_repair_runtime_ps1.contains("repair-runtime-dir"));
-    assert!(bin_repair_runtime_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
+    assert!(bin_repair_runtime_ps1.contains("SDKWORK_IM_RUNTIME_DIR"));
     assert!(bin_repair_runtime_ps1.contains("target\\release\\local-minimal-node.exe"));
     assert!(bin_repair_runtime_ps1.contains("target\\debug\\local-minimal-node.exe"));
     assert_eq!(first_non_empty_line(&bin_repair_runtime_ps1), "param(");
     assert!(bin_repair_runtime_sh.contains("repair-runtime-dir"));
-    assert!(bin_repair_runtime_sh.contains("CRAW_CHAT_RUNTIME_DIR"));
+    assert!(bin_repair_runtime_sh.contains("SDKWORK_IM_RUNTIME_DIR"));
     assert!(bin_repair_runtime_sh.contains("target/release/local-minimal-node"));
     assert!(bin_repair_runtime_sh.contains("target/debug/local-minimal-node"));
     assert_eq!(
@@ -3632,14 +3632,14 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(bin_restore_runtime_ps1.contains("restore-runtime-dir"));
     assert!(bin_restore_runtime_ps1.contains("ExpectedPreviewFingerprint"));
     assert!(bin_restore_runtime_ps1.contains("--expected-preview-fingerprint"));
-    assert!(bin_restore_runtime_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
+    assert!(bin_restore_runtime_ps1.contains("SDKWORK_IM_RUNTIME_DIR"));
     assert!(bin_restore_runtime_ps1.contains("target\\release\\local-minimal-node.exe"));
     assert!(bin_restore_runtime_ps1.contains("target\\debug\\local-minimal-node.exe"));
     assert_eq!(first_non_empty_line(&bin_restore_runtime_ps1), "param(");
     assert!(bin_restore_runtime_sh.contains("restore-runtime-dir"));
     assert!(bin_restore_runtime_sh.contains("expected_preview_fingerprint"));
     assert!(bin_restore_runtime_sh.contains("--expected-preview-fingerprint"));
-    assert!(bin_restore_runtime_sh.contains("CRAW_CHAT_RUNTIME_DIR"));
+    assert!(bin_restore_runtime_sh.contains("SDKWORK_IM_RUNTIME_DIR"));
     assert!(bin_restore_runtime_sh.contains("target/release/local-minimal-node"));
     assert!(bin_restore_runtime_sh.contains("target/debug/local-minimal-node"));
     assert_eq!(
@@ -3652,7 +3652,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     );
 
     assert!(bin_preview_restore_runtime_ps1.contains("preview-runtime-restore"));
-    assert!(bin_preview_restore_runtime_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
+    assert!(bin_preview_restore_runtime_ps1.contains("SDKWORK_IM_RUNTIME_DIR"));
     assert!(bin_preview_restore_runtime_ps1.contains("target\\release\\local-minimal-node.exe"));
     assert!(bin_preview_restore_runtime_ps1.contains("target\\debug\\local-minimal-node.exe"));
     assert_eq!(
@@ -3660,7 +3660,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
         "param("
     );
     assert!(bin_preview_restore_runtime_sh.contains("preview-runtime-restore"));
-    assert!(bin_preview_restore_runtime_sh.contains("CRAW_CHAT_RUNTIME_DIR"));
+    assert!(bin_preview_restore_runtime_sh.contains("SDKWORK_IM_RUNTIME_DIR"));
     assert!(bin_preview_restore_runtime_sh.contains("target/release/local-minimal-node"));
     assert!(bin_preview_restore_runtime_sh.contains("target/debug/local-minimal-node"));
     assert_eq!(
@@ -3674,7 +3674,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     );
 
     assert!(bin_list_runtime_backups_ps1.contains("list-runtime-backups"));
-    assert!(bin_list_runtime_backups_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
+    assert!(bin_list_runtime_backups_ps1.contains("SDKWORK_IM_RUNTIME_DIR"));
     assert!(bin_list_runtime_backups_ps1.contains("target\\release\\local-minimal-node.exe"));
     assert!(bin_list_runtime_backups_ps1.contains("target\\debug\\local-minimal-node.exe"));
     assert_eq!(
@@ -3682,7 +3682,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
         "param("
     );
     assert!(bin_list_runtime_backups_sh.contains("list-runtime-backups"));
-    assert!(bin_list_runtime_backups_sh.contains("CRAW_CHAT_RUNTIME_DIR"));
+    assert!(bin_list_runtime_backups_sh.contains("SDKWORK_IM_RUNTIME_DIR"));
     assert!(bin_list_runtime_backups_sh.contains("target/release/local-minimal-node"));
     assert!(bin_list_runtime_backups_sh.contains("target/debug/local-minimal-node"));
     assert_eq!(
@@ -3695,10 +3695,10 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
             .contains("powershell -NoProfile -ExecutionPolicy Bypass -File")
     );
 
-    assert!(bin_init_config_ps1.contains("CRAW_CHAT_BIND_ADDR"));
-    assert!(bin_init_config_ps1.contains("CRAW_CHAT_RUNTIME_DIR"));
-    assert!(!bin_init_config_ps1.contains("CRAW_CHAT_PUBLIC_BEARER"));
-    assert!(bin_init_config_ps1.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
+    assert!(bin_init_config_ps1.contains("SDKWORK_IM_BIND_ADDR"));
+    assert!(bin_init_config_ps1.contains("SDKWORK_IM_RUNTIME_DIR"));
+    assert!(!bin_init_config_ps1.contains("SDKWORK_IM_PUBLIC_BEARER"));
+    assert!(bin_init_config_ps1.contains("SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_init_config_ps1.contains("local-minimal.env"));
     assert!(bin_init_config_ps1.contains("local-default.env"));
     assert!(bin_init_config_ps1.contains("state"));
@@ -3706,10 +3706,10 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert!(bin_init_config_ps1.contains("[string]$ProfileName = \"local-minimal\""));
     assert!(bin_init_config_ps1.contains("_runtime-profile-common.ps1"));
     assert!(bin_init_config_ps1.contains("Resolve-RuntimeDirFromProfile"));
-    assert!(bin_init_config_sh.contains("CRAW_CHAT_BIND_ADDR"));
-    assert!(bin_init_config_sh.contains("CRAW_CHAT_RUNTIME_DIR"));
-    assert!(!bin_init_config_sh.contains("CRAW_CHAT_PUBLIC_BEARER"));
-    assert!(bin_init_config_sh.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
+    assert!(bin_init_config_sh.contains("SDKWORK_IM_BIND_ADDR"));
+    assert!(bin_init_config_sh.contains("SDKWORK_IM_RUNTIME_DIR"));
+    assert!(!bin_init_config_sh.contains("SDKWORK_IM_PUBLIC_BEARER"));
+    assert!(bin_init_config_sh.contains("SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET"));
     assert!(bin_init_config_sh.contains("local-minimal.env"));
     assert!(bin_init_config_sh.contains("local-default.env"));
     assert!(bin_init_config_sh.contains("state"));
@@ -3755,7 +3755,7 @@ fn test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints
     assert_eq!(first_non_empty_line(&smoke), "param(");
     assert!(smoke_sh.contains("http://127.0.0.1:18090/healthz"));
     assert!(!smoke_sh.contains("resolve_authorization_header"));
-    assert!(!smoke_sh.contains("CRAW_CHAT_PUBLIC_BEARER"));
+    assert!(!smoke_sh.contains("SDKWORK_IM_PUBLIC_BEARER"));
     assert!(smoke_sh.contains("Authorization"));
     assert!(smoke_sh.contains("Access-Token"));
     assert!(!smoke_sh.contains("x-sdkwork-tenant-id"));
@@ -3809,7 +3809,7 @@ fn test_inspect_runtime_local_ps1_uses_local_default_profile_config_when_request
     fs::write(
         local_default_config_dir.join("local-default.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\r\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\r\n",
             local_default_runtime_dir.display()
         ),
     )
@@ -3817,7 +3817,7 @@ fn test_inspect_runtime_local_ps1_uses_local_default_profile_config_when_request
     fs::write(
         local_minimal_config_dir.join("local-minimal.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\r\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\r\n",
             local_minimal_runtime_dir.display()
         ),
     )
@@ -3905,7 +3905,7 @@ fn test_inspect_runtime_local_cmd_supports_profile_switch() {
     fs::write(
         local_default_config_dir.join("local-default.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\r\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\r\n",
             local_default_runtime_dir.display()
         ),
     )
@@ -3983,7 +3983,7 @@ fn test_repair_runtime_local_sh_uses_local_default_profile_config_when_requested
     fs::write(
         local_default_config_dir.join("local-default.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\n",
             local_default_runtime_dir.display()
         ),
     )
@@ -3991,7 +3991,7 @@ fn test_repair_runtime_local_sh_uses_local_default_profile_config_when_requested
     fs::write(
         local_minimal_config_dir.join("local-minimal.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\n",
             local_minimal_runtime_dir.display()
         ),
     )
@@ -4220,7 +4220,7 @@ fn test_runtime_operation_ps1_wrappers_forward_profile_and_backup_arguments() {
     fs::write(
         local_default_config_dir.join("local-default.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\r\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\r\n",
             local_default_runtime_dir.display()
         ),
     )
@@ -4228,7 +4228,7 @@ fn test_runtime_operation_ps1_wrappers_forward_profile_and_backup_arguments() {
     fs::write(
         local_minimal_config_dir.join("local-minimal.env"),
         format!(
-            "CRAW_CHAT_RUNTIME_DIR={}\r\n",
+            "SDKWORK_IM_RUNTIME_DIR={}\r\n",
             local_minimal_runtime_dir.display()
         ),
     )
@@ -4500,13 +4500,13 @@ fn test_init_config_local_ps1_uses_local_default_profile_when_requested() {
         )
     });
     assert!(
-        config.contains("CRAW_CHAT_BIND_ADDR=127.0.0.1:19101"),
+        config.contains("SDKWORK_IM_BIND_ADDR=127.0.0.1:19101"),
         "init-config-local.ps1 must write the selected bind address into the local-default config. actual config: {config}"
     );
     assert!(
         config.contains(
             format!(
-                "CRAW_CHAT_RUNTIME_DIR={}",
+                "SDKWORK_IM_RUNTIME_DIR={}",
                 local_minimal_runtime_dir.display()
             )
             .as_str()
@@ -4514,11 +4514,11 @@ fn test_init_config_local_ps1_uses_local_default_profile_when_requested() {
         "init-config-local.ps1 must preserve the current local-default runtime contract fallback to the local-minimal runtime dir. actual config: {config}"
     );
     assert!(
-        !config.contains("CRAW_CHAT_PUBLIC_BEARER"),
-        "init-config-local.ps1 must not materialize craw-chat IAM/Public Bearer secrets in the selected profile config. actual config: {config}"
+        !config.contains("SDKWORK_IM_PUBLIC_BEARER"),
+        "init-config-local.ps1 must not materialize sdkwork-im IAM/Public Bearer secrets in the selected profile config. actual config: {config}"
     );
     assert!(
-        config.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="),
+        config.contains("SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET="),
         "init-config-local.ps1 must materialize a stable friend request cursor signing secret in the selected profile config. actual config: {config}"
     );
     assert!(
@@ -4586,10 +4586,10 @@ fn test_init_config_cmd_normalizes_cmd_style_switches() {
         .join("local-minimal.env");
     let config = fs::read_to_string(&config_file)
         .unwrap_or_else(|_| panic!("missing temp config file: {}", config_file.display()));
-    assert!(config.contains("CRAW_CHAT_BIND_ADDR=127.0.0.1:18101"));
-    assert!(config.contains("CRAW_CHAT_RUNTIME_DIR="));
-    assert!(!config.contains("CRAW_CHAT_PUBLIC_BEARER"));
-    assert!(config.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
+    assert!(config.contains("SDKWORK_IM_BIND_ADDR=127.0.0.1:18101"));
+    assert!(config.contains("SDKWORK_IM_RUNTIME_DIR="));
+    assert!(!config.contains("SDKWORK_IM_PUBLIC_BEARER"));
+    assert!(config.contains("SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
 
     let _ = fs::remove_dir_all(&temp_root);
 }
@@ -4663,10 +4663,10 @@ fn test_install_local_cmd_rewrites_existing_config_when_bind_address_is_explicit
         .join("local-minimal.env");
     let config = fs::read_to_string(&config_file)
         .unwrap_or_else(|_| panic!("missing temp config file: {}", config_file.display()));
-    assert!(config.contains("CRAW_CHAT_BIND_ADDR=127.0.0.1:18111"));
-    assert!(config.contains("CRAW_CHAT_RUNTIME_DIR="));
-    assert!(!config.contains("CRAW_CHAT_PUBLIC_BEARER"));
-    assert!(config.contains("CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
+    assert!(config.contains("SDKWORK_IM_BIND_ADDR=127.0.0.1:18111"));
+    assert!(config.contains("SDKWORK_IM_RUNTIME_DIR="));
+    assert!(!config.contains("SDKWORK_IM_PUBLIC_BEARER"));
+    assert!(config.contains("SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET="));
 
     let _ = fs::remove_dir_all(&temp_root);
 }
@@ -5397,7 +5397,7 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    let runtime_dir = env::var("CRAW_CHAT_RUNTIME_DIR").expect("runtime dir env should be present");
+    let runtime_dir = env::var("SDKWORK_IM_RUNTIME_DIR").expect("runtime dir env should be present");
     let marker = PathBuf::from(runtime_dir).join("state").join("health-timeout-probe.pid");
     if let Some(parent) = marker.parent() {
         fs::create_dir_all(parent).expect("marker parent dir should exist");
@@ -5600,7 +5600,7 @@ const SIGTERM: i32 = 15;
 const SIG_IGN: usize = 1usize;
 
 fn main() {
-    let runtime_dir = env::var("CRAW_CHAT_RUNTIME_DIR").expect("runtime dir env should be present");
+    let runtime_dir = env::var("SDKWORK_IM_RUNTIME_DIR").expect("runtime dir env should be present");
     let marker = PathBuf::from(runtime_dir).join("state").join("health-timeout-force-kill-probe.pid");
     if let Some(parent) = marker.parent() {
         fs::create_dir_all(parent).expect("marker parent dir should exist");
@@ -5791,18 +5791,18 @@ fn test_server_templates_freeze_cross_platform_contract() {
     }
 
     for contract in [
-        "CRAW_CHAT_SERVER_INSTANCE=",
-        "CRAW_CHAT_SERVER_CONFIG_DIR=",
-        "CRAW_CHAT_SERVER_DATA_DIR=",
-        "CRAW_CHAT_SERVER_LOG_DIR=",
-        "CRAW_CHAT_SERVER_RUN_DIR=",
-        "CRAW_CHAT_SERVER_BASE_URL=",
-        "CRAW_CHAT_SERVER_API_BASE_URL=",
-        "CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=",
-        "CRAW_CHAT_BROWSER_ORIGINS=",
-        "CRAW_CHAT_PC_API_UPSTREAM=",
-        "CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE=true",
-        "CRAW_CHAT_APP_CONTEXT_SIGNATURE_SECRET=",
+        "SDKWORK_IM_SERVER_INSTANCE=",
+        "SDKWORK_IM_SERVER_CONFIG_DIR=",
+        "SDKWORK_IM_SERVER_DATA_DIR=",
+        "SDKWORK_IM_SERVER_LOG_DIR=",
+        "SDKWORK_IM_SERVER_RUN_DIR=",
+        "SDKWORK_IM_SERVER_BASE_URL=",
+        "SDKWORK_IM_SERVER_API_BASE_URL=",
+        "SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=",
+        "SDKWORK_IM_BROWSER_ORIGINS=",
+        "SDKWORK_IM_PC_API_UPSTREAM=",
+        "SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE=true",
+        "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET=",
     ] {
         assert!(
             server_env_template.contains(contract),
@@ -5811,7 +5811,7 @@ fn test_server_templates_freeze_cross_platform_contract() {
     }
     assert!(
         !server_env_template.contains(
-            "CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=wss://realtime.example.com/im/v3/api/realtime/ws"
+            "SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=wss://realtime.example.com/im/v3/api/realtime/ws"
         ),
         "server.env.example must document the websocket base URL, not the SDK-owned realtime websocket endpoint"
     );
@@ -5834,14 +5834,14 @@ fn test_server_templates_freeze_cross_platform_contract() {
     }
 
     for contract in [
-        "CRAW_CHAT_SERVER_IMAGE=",
-        "CRAW_CHAT_SERVER_BASE_URL=",
-        "CRAW_CHAT_SERVER_API_BASE_URL=",
-        "CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=",
-        "CRAW_CHAT_BROWSER_ORIGINS=",
-        "CRAW_CHAT_PC_API_UPSTREAM=",
-        "CRAW_CHAT_POSTGRES_HOST=",
-        "CRAW_CHAT_POSTGRES_DATABASE=",
+        "SDKWORK_IM_SERVER_IMAGE=",
+        "SDKWORK_IM_SERVER_BASE_URL=",
+        "SDKWORK_IM_SERVER_API_BASE_URL=",
+        "SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=",
+        "SDKWORK_IM_BROWSER_ORIGINS=",
+        "SDKWORK_IM_PC_API_UPSTREAM=",
+        "SDKWORK_IM_POSTGRES_HOST=",
+        "SDKWORK_IM_POSTGRES_DATABASE=",
     ] {
         assert!(
             quickstart_env_template.contains(contract),
@@ -5850,7 +5850,7 @@ fn test_server_templates_freeze_cross_platform_contract() {
     }
     assert!(
         !quickstart_env_template.contains(
-            "CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL=ws://127.0.0.1:18080/im/v3/api/realtime/ws"
+            "SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=ws://127.0.0.1:18080/im/v3/api/realtime/ws"
         ),
         "quickstart-server-compose.env.example must document the websocket base URL, not the SDK-owned realtime websocket endpoint"
     );
@@ -5902,7 +5902,7 @@ fn test_server_install_scripts_expose_consistent_help_surface() {
             script.display()
         );
         assert!(
-            content.contains("CRAW_CHAT_BROWSER_ORIGINS"),
+            content.contains("SDKWORK_IM_BROWSER_ORIGINS"),
             "{} must materialize the browser CORS origin allowlist in server.env",
             script.display()
         );
@@ -6028,8 +6028,8 @@ runtime:
         r#"provider: postgresql
 connection:
   host: 127.0.0.1
-database: craw_chat
-username: craw_chat
+database: sdkwork_im
+username: sdkwork_im
 passwordFile: ./secrets/postgresql.password
 migrationMode: validate
 "#,
@@ -6081,7 +6081,7 @@ migrationMode: validate
         )
     });
 
-    assert_eq!(report["product"], "craw-chat-server");
+    assert_eq!(report["product"], "sdkwork-im-server");
     assert_eq!(report["instance"], "demo");
     assert_eq!(report["configValid"], true);
     assert_eq!(report["storageValid"], true);
@@ -6099,7 +6099,7 @@ migrationMode: validate
     );
     assert_eq!(
         report["releaseContracts"]["canonicalStartupCommand"],
-        "craw-chat-server --config <config-root>/server.yaml"
+        "sdkwork-im-server --config <config-root>/server.yaml"
     );
     assert_eq!(report["releaseContracts"]["packageArtifactCount"], 7);
     assert_eq!(report["releaseContracts"]["platformCount"], 3);
@@ -6170,8 +6170,8 @@ runtime:
         r#"provider: postgresql
 connection:
   host: 127.0.0.1
-database: craw_chat
-username: craw_chat
+database: sdkwork_im
+username: sdkwork_im
 passwordFile: ./secrets/postgresql.password
 migrationMode: validate
 "#,
@@ -6305,15 +6305,15 @@ fn test_server_service_surface_is_frozen() {
     let systemd_unit_path = root
         .join("deployments")
         .join("systemd")
-        .join("craw-chat-server.service");
+        .join("sdkwork-im-server.service");
     let launchd_plist_path = root
         .join("deployments")
         .join("launchd")
-        .join("com.sdkwork.crawchat.server.plist");
+        .join("com.sdkwork.im.server.plist");
     let windows_service_xml_path = root
         .join("deployments")
         .join("windows-service")
-        .join("CrawChatServer.xml");
+        .join("SdkworkImServer.xml");
     let install_service_ps1_path = root.join("bin").join("install-service-server.ps1");
     let install_service_sh_path = root.join("bin").join("install-service-server.sh");
     let status_server_ps1_path = root.join("bin").join("status-server.ps1");
@@ -6366,22 +6366,22 @@ fn test_server_service_surface_is_frozen() {
         "[Unit]",
         "[Service]",
         "[Install]",
-        "craw-chat-server",
+        "sdkwork-im-server",
         "server.env",
         "server.yaml",
     ] {
         assert!(
             systemd_unit.contains(contract),
-            "craw-chat-server.service must freeze the systemd contract `{contract}`"
+            "sdkwork-im-server.service must freeze the systemd contract `{contract}`"
         );
     }
 
     for contract in [
         "<plist",
         "<key>Label</key>",
-        "com.sdkwork.crawchat.server",
+        "com.sdkwork.im.server",
         "<key>ProgramArguments</key>",
-        "craw-chat-server",
+        "sdkwork-im-server",
         "server.yaml",
         "RunAtLoad",
         "KeepAlive",
@@ -6390,15 +6390,15 @@ fn test_server_service_surface_is_frozen() {
     ] {
         assert!(
             launchd_plist.contains(contract),
-            "com.sdkwork.crawchat.server.plist must freeze the launchd contract `{contract}`"
+            "com.sdkwork.im.server.plist must freeze the launchd contract `{contract}`"
         );
     }
 
     for contract in [
         "<service>",
-        "<id>CrawChatServer</id>",
-        "<name>CrawChatServer</name>",
-        "craw-chat-server.exe",
+        "<id>SdkworkImServer</id>",
+        "<name>SdkworkImServer</name>",
+        "sdkwork-im-server.exe",
         "--config",
         "server.yaml",
         "<logpath>",
@@ -6406,7 +6406,7 @@ fn test_server_service_surface_is_frozen() {
     ] {
         assert!(
             windows_service_xml.contains(contract),
-            "CrawChatServer.xml must freeze the Windows Service wrapper contract `{contract}`"
+            "SdkworkImServer.xml must freeze the Windows Service wrapper contract `{contract}`"
         );
     }
 
@@ -6469,33 +6469,33 @@ fn test_status_server_ps1_can_summarize_machine_readable_release_contract_bundle
     fs::create_dir_all(&generated_dir).expect("generated dir should be created");
 
     fs::write(
-        generated_dir.join("craw-chat-server.service"),
-        "[Unit]\nDescription=craw-chat-server\n",
+        generated_dir.join("sdkwork-im-server.service"),
+        "[Unit]\nDescription=sdkwork-im-server\n",
     )
     .expect("generated systemd unit should be written");
     fs::write(
-        generated_dir.join("com.sdkwork.crawchat.server.plist"),
-        "<plist><dict><key>Label</key><string>com.sdkwork.crawchat.server</string></dict></plist>",
+        generated_dir.join("com.sdkwork.im.server.plist"),
+        "<plist><dict><key>Label</key><string>com.sdkwork.im.server</string></dict></plist>",
     )
     .expect("generated launchd plist should be written");
     fs::write(
-        generated_dir.join("CrawChatServer.xml"),
-        "<service><id>CrawChatServer</id></service>",
+        generated_dir.join("SdkworkImServer.xml"),
+        "<service><id>SdkworkImServer</id></service>",
     )
     .expect("generated windows service xml should be written");
     fs::write(
-        generated_dir.join("install-CrawChatServer.ps1"),
+        generated_dir.join("install-SdkworkImServer.ps1"),
         "Write-Host 'install service'\n",
     )
     .expect("generated install script should be written");
     fs::write(
-        generated_dir.join("uninstall-CrawChatServer.ps1"),
+        generated_dir.join("uninstall-SdkworkImServer.ps1"),
         "Write-Host 'uninstall service'\n",
     )
     .expect("generated uninstall script should be written");
     fs::write(
         config_dir.join("storage-init-report.json"),
-        r#"{"product":"craw-chat-server","ready":true}"#,
+        r#"{"product":"sdkwork-im-server","ready":true}"#,
     )
     .expect("storage-init-report.json should be written");
 
@@ -6542,7 +6542,7 @@ fn test_status_server_ps1_can_summarize_machine_readable_release_contract_bundle
         )
     });
 
-    assert_eq!(report["product"], "craw-chat-server");
+    assert_eq!(report["product"], "sdkwork-im-server");
     assert_eq!(report["instance"], "demo");
     assert_eq!(report["status"], "configuration-only skeleton");
     assert_eq!(report["config"], config_dir.display().to_string());
@@ -6579,33 +6579,33 @@ fn test_status_server_ps1_reports_semantic_release_contract_drift() {
     fs::create_dir_all(&generated_dir).expect("generated dir should be created");
 
     fs::write(
-        generated_dir.join("craw-chat-server.service"),
-        "[Unit]\nDescription=craw-chat-server\n",
+        generated_dir.join("sdkwork-im-server.service"),
+        "[Unit]\nDescription=sdkwork-im-server\n",
     )
     .expect("generated systemd unit should be written");
     fs::write(
-        generated_dir.join("com.sdkwork.crawchat.server.plist"),
-        "<plist><dict><key>Label</key><string>com.sdkwork.crawchat.server</string></dict></plist>",
+        generated_dir.join("com.sdkwork.im.server.plist"),
+        "<plist><dict><key>Label</key><string>com.sdkwork.im.server</string></dict></plist>",
     )
     .expect("generated launchd plist should be written");
     fs::write(
-        generated_dir.join("CrawChatServer.xml"),
-        "<service><id>CrawChatServer</id></service>",
+        generated_dir.join("SdkworkImServer.xml"),
+        "<service><id>SdkworkImServer</id></service>",
     )
     .expect("generated windows service xml should be written");
     fs::write(
-        generated_dir.join("install-CrawChatServer.ps1"),
+        generated_dir.join("install-SdkworkImServer.ps1"),
         "Write-Host 'install service'\n",
     )
     .expect("generated install script should be written");
     fs::write(
-        generated_dir.join("uninstall-CrawChatServer.ps1"),
+        generated_dir.join("uninstall-SdkworkImServer.ps1"),
         "Write-Host 'uninstall service'\n",
     )
     .expect("generated uninstall script should be written");
     fs::write(
         config_dir.join("storage-init-report.json"),
-        r#"{"product":"craw-chat-server","ready":true}"#,
+        r#"{"product":"sdkwork-im-server","ready":true}"#,
     )
     .expect("storage-init-report.json should be written");
 
@@ -6821,7 +6821,7 @@ fn test_install_service_server_ps1_renders_instance_specific_systemd_unit() {
 
     let generated_unit = config_dir
         .join("generated")
-        .join("craw-chat-server.service");
+        .join("sdkwork-im-server.service");
     let unit_content = fs::read_to_string(&generated_unit).unwrap_or_else(|_| {
         panic!(
             "generated systemd unit should exist at {}",
@@ -6838,7 +6838,7 @@ fn test_install_service_server_ps1_renders_instance_specific_systemd_unit() {
     );
     assert!(
         unit_content.contains(&format!(
-            "ExecStart={}/bin/craw-chat-server --config {}",
+            "ExecStart={}/bin/sdkwork-im-server --config {}",
             install_root.display(),
             config_dir.join("server.yaml").display()
         )),
@@ -6890,7 +6890,7 @@ fn test_install_service_server_ps1_renders_instance_specific_launchd_plist() {
 
     let generated_plist = config_dir
         .join("generated")
-        .join("com.sdkwork.crawchat.server.plist");
+        .join("com.sdkwork.im.server.plist");
     let plist_content = fs::read_to_string(&generated_plist).unwrap_or_else(|_| {
         panic!(
             "generated launchd plist should exist at {}",
@@ -6899,12 +6899,12 @@ fn test_install_service_server_ps1_renders_instance_specific_launchd_plist() {
     });
 
     assert!(
-        plist_content.contains("<string>com.sdkwork.crawchat.server</string>"),
+        plist_content.contains("<string>com.sdkwork.im.server</string>"),
         "generated launchd plist must preserve the canonical launchd label"
     );
     assert!(
         plist_content.contains(&format!(
-            "<string>{}/bin/craw-chat-server</string>",
+            "<string>{}/bin/sdkwork-im-server</string>",
             install_root.display()
         )),
         "generated launchd plist must point at the selected install root"
@@ -6920,10 +6920,10 @@ fn test_install_service_server_ps1_renders_instance_specific_launchd_plist() {
     assert!(
         plist_content.contains(&format!(
             "<string>{}</string>",
-            log_dir.join("craw-chat-server.out.log").display()
+            log_dir.join("sdkwork-im-server.out.log").display()
         )) && plist_content.contains(&format!(
             "<string>{}</string>",
-            log_dir.join("craw-chat-server.err.log").display()
+            log_dir.join("sdkwork-im-server.err.log").display()
         )),
         "generated launchd plist must render instance-specific stdout and stderr log targets"
     );
@@ -6971,13 +6971,13 @@ fn test_install_service_server_ps1_renders_instance_specific_windows_service_con
         "install-service-server.ps1 should render a generated windows service contract"
     );
 
-    let generated_xml = config_dir.join("generated").join("CrawChatServer.xml");
+    let generated_xml = config_dir.join("generated").join("SdkworkImServer.xml");
     let generated_install_script = config_dir
         .join("generated")
-        .join("install-CrawChatServer.ps1");
+        .join("install-SdkworkImServer.ps1");
     let generated_uninstall_script = config_dir
         .join("generated")
-        .join("uninstall-CrawChatServer.ps1");
+        .join("uninstall-SdkworkImServer.ps1");
 
     let xml_content = fs::read_to_string(&generated_xml).unwrap_or_else(|_| {
         panic!(
@@ -7001,13 +7001,13 @@ fn test_install_service_server_ps1_renders_instance_specific_windows_service_con
         });
 
     assert!(
-        xml_content.contains("<id>CrawChatServer</id>")
-            && xml_content.contains("<name>CrawChatServer</name>"),
+        xml_content.contains("<id>SdkworkImServer</id>")
+            && xml_content.contains("<name>SdkworkImServer</name>"),
         "generated windows service wrapper config must preserve the canonical service identity"
     );
     assert!(
         xml_content.contains(&format!(
-            "<executable>{}\\bin\\craw-chat-server.exe</executable>",
+            "<executable>{}\\bin\\sdkwork-im-server.exe</executable>",
             install_root.display()
         )),
         "generated windows service wrapper config must point at the selected install root"
@@ -7024,12 +7024,12 @@ fn test_install_service_server_ps1_renders_instance_specific_windows_service_con
         "generated windows service wrapper config must render the selected log directory"
     );
     assert!(
-        install_script_content.contains("CrawChatServer.exe")
+        install_script_content.contains("SdkworkImServer.exe")
             && install_script_content.contains(" install"),
         "generated windows service install script must invoke the service wrapper install entrypoint"
     );
     assert!(
-        uninstall_script_content.contains("CrawChatServer.exe")
+        uninstall_script_content.contains("SdkworkImServer.exe")
             && uninstall_script_content.contains(" uninstall"),
         "generated windows service uninstall script must invoke the service wrapper uninstall entrypoint"
     );
@@ -7038,7 +7038,7 @@ fn test_install_service_server_ps1_renders_instance_specific_windows_service_con
 }
 
 #[test]
-fn test_server_runtime_uses_canonical_craw_chat_server_binary_contract() {
+fn test_server_runtime_uses_canonical_sdkwork_im_server_binary_contract() {
     let root = workspace_root();
     let gateway_cargo =
         fs::read_to_string(root.join("services").join("web-gateway").join("Cargo.toml"))
@@ -7049,18 +7049,18 @@ fn test_server_runtime_uses_canonical_craw_chat_server_binary_contract() {
         .expect("start-server.sh should exist");
 
     assert!(
-        gateway_cargo.contains("[[bin]]") && gateway_cargo.contains("name = \"craw-chat-server\""),
-        "web-gateway package must publish the canonical craw-chat-server binary entrypoint"
+        gateway_cargo.contains("[[bin]]") && gateway_cargo.contains("name = \"sdkwork-im-server\""),
+        "web-gateway package must publish the canonical sdkwork-im-server binary entrypoint"
     );
     assert!(
-        start_ps1.contains("target\\release\\craw-chat-server.exe")
-            && start_ps1.contains("target\\debug\\craw-chat-server.exe"),
-        "start-server.ps1 must prefer the canonical craw-chat-server build artifacts"
+        start_ps1.contains("target\\release\\sdkwork-im-server.exe")
+            && start_ps1.contains("target\\debug\\sdkwork-im-server.exe"),
+        "start-server.ps1 must prefer the canonical sdkwork-im-server build artifacts"
     );
     assert!(
-        start_sh.contains("target/release/craw-chat-server")
-            && start_sh.contains("target/debug/craw-chat-server"),
-        "start-server.sh must prefer the canonical craw-chat-server build artifacts"
+        start_sh.contains("target/release/sdkwork-im-server")
+            && start_sh.contains("target/debug/sdkwork-im-server"),
+        "start-server.sh must prefer the canonical sdkwork-im-server build artifacts"
     );
 }
 
@@ -7107,7 +7107,7 @@ fn test_server_docs_and_release_bundle_freeze_external_postgresql_install_contra
 
     for content in [&deployment_readme, &install_doc] {
         for contract in [
-            "craw-chat-server",
+            "sdkwork-im-server",
             "install-server",
             "init-config-server",
             "init-storage-server",
@@ -7151,7 +7151,7 @@ fn test_server_docs_and_release_bundle_freeze_external_postgresql_install_contra
         "systemd",
         "launchd",
         "windows service",
-        "CrawChatServer",
+        "SdkworkImServer",
         "openapi/index.json",
         "openapi/services",
         "docs/services",
@@ -7167,7 +7167,7 @@ fn test_server_docs_and_release_bundle_freeze_external_postgresql_install_contra
     for contract in [
         "canonical",
         "payload",
-        "craw-chat-server",
+        "sdkwork-im-server",
         "plan-release-server",
         "tar.gz",
         "zip",
@@ -7302,7 +7302,7 @@ fn test_plan_release_server_contract_helper_can_emit_machine_readable_release_ex
         )
     });
 
-    assert_eq!(report["product"], "craw-chat-server");
+    assert_eq!(report["product"], "sdkwork-im-server");
     assert_eq!(report["bundleId"], "wave-d-2026-04-08");
     assert_eq!(report["selectedPlatform"], "linux");
     assert_eq!(report["contractsValid"], true);
@@ -7468,17 +7468,17 @@ fn test_plan_release_server_ps1_can_emit_machine_readable_release_execution_plan
         )
     });
 
-    assert_eq!(report["product"], "craw-chat-server");
+    assert_eq!(report["product"], "sdkwork-im-server");
     assert_eq!(report["bundleId"], "wave-d-2026-04-08");
     assert_eq!(report["wave"], "wave-d");
     assert_eq!(report["selectedPlatform"], "windows");
     assert_eq!(
         report["canonicalBuildCommand"],
-        "cargo build -p web-gateway --release --bin craw-chat-server --offline"
+        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline"
     );
     assert_eq!(
         report["canonicalStartupCommand"],
-        "craw-chat-server --config <config-root>/server.yaml"
+        "sdkwork-im-server --config <config-root>/server.yaml"
     );
     assert_eq!(report["contractsValid"], true);
     assert_eq!(report["packageArtifactCount"], 7);
@@ -7585,8 +7585,8 @@ fn test_server_release_bundle_freezes_windows_service_wrapper_payload_contract()
         });
 
     for contract in [
-        "bin/CrawChatServer.exe",
-        "deployments/windows-service/CrawChatServer.xml",
+        "bin/SdkworkImServer.exe",
+        "deployments/windows-service/SdkworkImServer.xml",
         "wrapper-required",
         "server.yaml",
         "install-service-server",
@@ -7605,12 +7605,12 @@ fn test_server_release_bundle_freezes_windows_service_wrapper_payload_contract()
 
     for contract in [
         "template_only_pending_payload",
-        "bin/craw-chat-server.exe",
-        "bin/CrawChatServer.exe",
-        "deployments/windows-service/CrawChatServer.xml",
-        "generated/CrawChatServer.xml",
-        "install-CrawChatServer.ps1",
-        "uninstall-CrawChatServer.ps1",
+        "bin/sdkwork-im-server.exe",
+        "bin/SdkworkImServer.exe",
+        "deployments/windows-service/SdkworkImServer.xml",
+        "generated/SdkworkImServer.xml",
+        "install-SdkworkImServer.ps1",
+        "uninstall-SdkworkImServer.ps1",
         "server.yaml",
     ] {
         assert!(
@@ -7659,11 +7659,11 @@ fn test_server_release_bundle_freezes_root_payload_index_contract() {
     for contract in [
         "server/README.md",
         "canonical payload layout",
-        "bin/craw-chat-server",
+        "bin/sdkwork-im-server",
         "deployments/templates/server.yaml.example",
-        "deployments/systemd/craw-chat-server.service",
-        "deployments/launchd/com.sdkwork.crawchat.server.plist",
-        "deployments/windows-service/CrawChatServer.xml",
+        "deployments/systemd/sdkwork-im-server.service",
+        "deployments/launchd/com.sdkwork.im.server.plist",
+        "deployments/windows-service/SdkworkImServer.xml",
     ] {
         assert!(
             releases_readme.contains(contract),
@@ -7679,14 +7679,14 @@ fn test_server_release_bundle_freezes_root_payload_index_contract() {
     for contract in [
         "template_only_pending_payload",
         "artifacts/releases/wave-d-2026-04-08/server",
-        "bin/craw-chat-server",
-        "bin/craw-chat-server.exe",
+        "bin/sdkwork-im-server",
+        "bin/sdkwork-im-server.exe",
         "deployments/templates/server.yaml.example",
         "deployments/templates/server.env.example",
         "deployments/templates/postgresql.yaml.example",
-        "deployments/systemd/craw-chat-server.service",
-        "deployments/launchd/com.sdkwork.crawchat.server.plist",
-        "deployments/windows-service/CrawChatServer.xml",
+        "deployments/systemd/sdkwork-im-server.service",
+        "deployments/launchd/com.sdkwork.im.server.plist",
+        "deployments/windows-service/SdkworkImServer.xml",
         "windows-service/README.md",
         "server.yaml",
         "install-service-server",
@@ -7778,9 +7778,9 @@ fn test_server_release_bundle_freezes_bin_and_deployments_payload_group_contract
     for contract in [
         "template_only_pending_payload",
         "artifacts/releases/wave-d-2026-04-08/server/bin",
-        "bin/craw-chat-server",
-        "bin/craw-chat-server.exe",
-        "bin/CrawChatServer.exe",
+        "bin/sdkwork-im-server",
+        "bin/sdkwork-im-server.exe",
+        "bin/SdkworkImServer.exe",
     ] {
         assert!(
             server_bin_readme.contains(contract),
@@ -7794,9 +7794,9 @@ fn test_server_release_bundle_freezes_bin_and_deployments_payload_group_contract
         "deployments/templates/server.yaml.example",
         "deployments/templates/server.env.example",
         "deployments/templates/postgresql.yaml.example",
-        "deployments/systemd/craw-chat-server.service",
-        "deployments/launchd/com.sdkwork.crawchat.server.plist",
-        "deployments/windows-service/CrawChatServer.xml",
+        "deployments/systemd/sdkwork-im-server.service",
+        "deployments/launchd/com.sdkwork.im.server.plist",
+        "deployments/windows-service/SdkworkImServer.xml",
     ] {
         assert!(
             server_deployments_readme.contains(contract),
@@ -8119,13 +8119,13 @@ fn test_server_release_bundle_freezes_package_artifact_naming_and_install_root_c
     for contract in [
         "SHA256SUMS",
         "artifact-file-list.txt",
-        "craw-chat-server-linux-x86_64.tar.gz",
-        "craw-chat-server_<version>_amd64.deb",
-        "craw-chat-server-<version>-1.x86_64.rpm",
-        "craw-chat-server-darwin-universal.tar.gz",
-        "craw-chat-server-<version>.pkg",
-        "craw-chat-server-windows-x86_64.zip",
-        "craw-chat-server-<version>-x64.msi",
+        "sdkwork-im-server-linux-x86_64.tar.gz",
+        "sdkwork-im-server_<version>_amd64.deb",
+        "sdkwork-im-server-<version>-1.x86_64.rpm",
+        "sdkwork-im-server-darwin-universal.tar.gz",
+        "sdkwork-im-server-<version>.pkg",
+        "sdkwork-im-server-windows-x86_64.zip",
+        "sdkwork-im-server-<version>-x64.msi",
     ] {
         assert!(
             packages_index.contains(contract),
@@ -8134,11 +8134,11 @@ fn test_server_release_bundle_freezes_package_artifact_naming_and_install_root_c
     }
 
     for contract in [
-        "/opt/craw-chat",
-        "/etc/craw-chat/default",
-        "/var/lib/craw-chat/default",
-        "/var/log/craw-chat/default",
-        "/var/run/craw-chat/default",
+        "/opt/sdkwork-im",
+        "/etc/sdkwork-im/default",
+        "/var/lib/sdkwork-im/default",
+        "/var/log/sdkwork-im/default",
+        "/var/run/sdkwork-im/default",
     ] {
         assert!(
             linux_packages.contains(contract),
@@ -8153,7 +8153,7 @@ fn test_server_release_bundle_freezes_package_artifact_naming_and_install_root_c
     for contract in [
         "ProgramFiles",
         "CommonApplicationData",
-        "CrawChat",
+        "SdkworkIm",
         "config",
         "data",
         "logs",
@@ -8166,13 +8166,13 @@ fn test_server_release_bundle_freezes_package_artifact_naming_and_install_root_c
     }
 
     for contract in [
-        "craw-chat-server-linux-x86_64.tar.gz",
-        "craw-chat-server_<version>_amd64.deb",
-        "craw-chat-server-<version>-1.x86_64.rpm",
-        "craw-chat-server-darwin-universal.tar.gz",
-        "craw-chat-server-<version>.pkg",
-        "craw-chat-server-windows-x86_64.zip",
-        "craw-chat-server-<version>-x64.msi",
+        "sdkwork-im-server-linux-x86_64.tar.gz",
+        "sdkwork-im-server_<version>_amd64.deb",
+        "sdkwork-im-server-<version>-1.x86_64.rpm",
+        "sdkwork-im-server-darwin-universal.tar.gz",
+        "sdkwork-im-server-<version>.pkg",
+        "sdkwork-im-server-windows-x86_64.zip",
+        "sdkwork-im-server-<version>-x64.msi",
     ] {
         assert!(
             packages_artifact_list.contains(contract),
@@ -8182,8 +8182,8 @@ fn test_server_release_bundle_freezes_package_artifact_naming_and_install_root_c
 
     for contract in [
         "sha256:<pending>",
-        "craw-chat-server-linux-x86_64.tar.gz",
-        "craw-chat-server-windows-x86_64.zip",
+        "sdkwork-im-server-linux-x86_64.tar.gz",
+        "sdkwork-im-server-windows-x86_64.zip",
     ] {
         assert!(
             packages_sha256s.contains(contract),
@@ -8321,11 +8321,11 @@ fn test_server_release_bundle_freezes_platform_artifact_staging_and_checksum_wor
     for contract in [
         "template_only_pending_payload",
         "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts",
-        "cargo build -p web-gateway --release --bin craw-chat-server --offline",
+        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline",
         "sha256sum -b",
         "artifact-file-list.txt",
         "SHA256SUMS",
-        "craw-chat-server-linux-x86_64.tar.gz",
+        "sdkwork-im-server-linux-x86_64.tar.gz",
     ] {
         assert!(
             linux_artifacts.contains(contract),
@@ -8336,11 +8336,11 @@ fn test_server_release_bundle_freezes_platform_artifact_staging_and_checksum_wor
     for contract in [
         "template_only_pending_payload",
         "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts",
-        "cargo build -p web-gateway --release --bin craw-chat-server --offline",
+        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline",
         "shasum -a 256",
         "artifact-file-list.txt",
         "SHA256SUMS",
-        "craw-chat-server-darwin-universal.tar.gz",
+        "sdkwork-im-server-darwin-universal.tar.gz",
     ] {
         assert!(
             macos_artifacts.contains(contract),
@@ -8351,12 +8351,12 @@ fn test_server_release_bundle_freezes_platform_artifact_staging_and_checksum_wor
     for contract in [
         "template_only_pending_payload",
         "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts",
-        "cargo build -p web-gateway --release --bin craw-chat-server --offline",
+        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline",
         "Get-FileHash -Algorithm SHA256",
         "artifact-file-list.txt",
         "SHA256SUMS",
-        "craw-chat-server-windows-x86_64.zip",
-        "CrawChatServer.exe",
+        "sdkwork-im-server-windows-x86_64.zip",
+        "SdkworkImServer.exe",
     ] {
         assert!(
             windows_artifacts.contains(contract),
@@ -8470,7 +8470,7 @@ fn test_server_release_bundle_freezes_release_checklist_and_ordered_packaging_st
         "Step 3",
         "Step 4",
         "Step 5",
-        "cargo build -p web-gateway --release --bin craw-chat-server --offline",
+        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline",
         "artifact-file-list.txt",
         "SHA256SUMS",
         "go / no-go",
@@ -8617,9 +8617,9 @@ fn test_server_release_bundle_freezes_machine_auditable_package_layout_tree_cont
 
     for contract in [
         "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/",
-        "craw-chat-server-linux-x86_64.tar.gz",
-        "craw-chat-server_<version>_amd64.deb",
-        "craw-chat-server-<version>-1.x86_64.rpm",
+        "sdkwork-im-server-linux-x86_64.tar.gz",
+        "sdkwork-im-server_<version>_amd64.deb",
+        "sdkwork-im-server-<version>-1.x86_64.rpm",
     ] {
         assert!(
             linux_layout_tree.contains(contract),
@@ -8629,8 +8629,8 @@ fn test_server_release_bundle_freezes_machine_auditable_package_layout_tree_cont
 
     for contract in [
         "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/",
-        "craw-chat-server-darwin-universal.tar.gz",
-        "craw-chat-server-<version>.pkg",
+        "sdkwork-im-server-darwin-universal.tar.gz",
+        "sdkwork-im-server-<version>.pkg",
     ] {
         assert!(
             macos_layout_tree.contains(contract),
@@ -8640,8 +8640,8 @@ fn test_server_release_bundle_freezes_machine_auditable_package_layout_tree_cont
 
     for contract in [
         "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/",
-        "craw-chat-server-windows-x86_64.zip",
-        "craw-chat-server-<version>-x64.msi",
+        "sdkwork-im-server-windows-x86_64.zip",
+        "sdkwork-im-server-<version>-x64.msi",
     ] {
         assert!(
             windows_layout_tree.contains(contract),
@@ -8715,7 +8715,7 @@ fn test_server_release_bundle_freezes_machine_readable_package_catalog_contract(
         catalog_json["$schema"],
         "../../schemas/server-package-catalog.schema.json"
     );
-    assert_eq!(schema_json["title"], "craw-chat server package catalog");
+    assert_eq!(schema_json["title"], "sdkwork-im server package catalog");
     assert_eq!(schema_json["type"], "object");
     assert_eq!(
         schema_json["properties"]["artifact"]["const"],
@@ -8804,13 +8804,13 @@ fn test_server_release_bundle_freezes_machine_readable_package_catalog_contract(
             "linux-tar-gz",
             "linux",
             "tar.gz",
-            "craw-chat-server-linux-x86_64.tar.gz",
+            "sdkwork-im-server-linux-x86_64.tar.gz",
             "archive",
-            "/opt/craw-chat",
-            "/etc/craw-chat/default",
-            "/var/lib/craw-chat/default",
-            "/var/log/craw-chat/default",
-            "/var/run/craw-chat/default",
+            "/opt/sdkwork-im",
+            "/etc/sdkwork-im/default",
+            "/var/lib/sdkwork-im/default",
+            "/var/log/sdkwork-im/default",
+            "/var/run/sdkwork-im/default",
             "systemd",
             "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
             "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
@@ -8819,13 +8819,13 @@ fn test_server_release_bundle_freezes_machine_readable_package_catalog_contract(
             "linux-deb",
             "linux",
             "deb",
-            "craw-chat-server_<version>_amd64.deb",
+            "sdkwork-im-server_<version>_amd64.deb",
             "native-installer",
-            "/opt/craw-chat",
-            "/etc/craw-chat/default",
-            "/var/lib/craw-chat/default",
-            "/var/log/craw-chat/default",
-            "/var/run/craw-chat/default",
+            "/opt/sdkwork-im",
+            "/etc/sdkwork-im/default",
+            "/var/lib/sdkwork-im/default",
+            "/var/log/sdkwork-im/default",
+            "/var/run/sdkwork-im/default",
             "systemd",
             "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
             "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
@@ -8834,13 +8834,13 @@ fn test_server_release_bundle_freezes_machine_readable_package_catalog_contract(
             "linux-rpm",
             "linux",
             "rpm",
-            "craw-chat-server-<version>-1.x86_64.rpm",
+            "sdkwork-im-server-<version>-1.x86_64.rpm",
             "native-installer",
-            "/opt/craw-chat",
-            "/etc/craw-chat/default",
-            "/var/lib/craw-chat/default",
-            "/var/log/craw-chat/default",
-            "/var/run/craw-chat/default",
+            "/opt/sdkwork-im",
+            "/etc/sdkwork-im/default",
+            "/var/lib/sdkwork-im/default",
+            "/var/log/sdkwork-im/default",
+            "/var/run/sdkwork-im/default",
             "systemd",
             "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/layout-tree.txt",
             "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/README.md",
@@ -8849,13 +8849,13 @@ fn test_server_release_bundle_freezes_machine_readable_package_catalog_contract(
             "macos-tar-gz",
             "macos",
             "tar.gz",
-            "craw-chat-server-darwin-universal.tar.gz",
+            "sdkwork-im-server-darwin-universal.tar.gz",
             "archive",
-            "/opt/craw-chat",
-            "/etc/craw-chat/default",
-            "/var/lib/craw-chat/default",
-            "/var/log/craw-chat/default",
-            "/var/run/craw-chat/default",
+            "/opt/sdkwork-im",
+            "/etc/sdkwork-im/default",
+            "/var/lib/sdkwork-im/default",
+            "/var/log/sdkwork-im/default",
+            "/var/run/sdkwork-im/default",
             "launchd",
             "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt",
             "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md",
@@ -8864,13 +8864,13 @@ fn test_server_release_bundle_freezes_machine_readable_package_catalog_contract(
             "macos-pkg",
             "macos",
             "pkg",
-            "craw-chat-server-<version>.pkg",
+            "sdkwork-im-server-<version>.pkg",
             "native-installer",
-            "/opt/craw-chat",
-            "/etc/craw-chat/default",
-            "/var/lib/craw-chat/default",
-            "/var/log/craw-chat/default",
-            "/var/run/craw-chat/default",
+            "/opt/sdkwork-im",
+            "/etc/sdkwork-im/default",
+            "/var/lib/sdkwork-im/default",
+            "/var/log/sdkwork-im/default",
+            "/var/run/sdkwork-im/default",
             "launchd",
             "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/layout-tree.txt",
             "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts/README.md",
@@ -8879,13 +8879,13 @@ fn test_server_release_bundle_freezes_machine_readable_package_catalog_contract(
             "windows-zip",
             "windows",
             "zip",
-            "craw-chat-server-windows-x86_64.zip",
+            "sdkwork-im-server-windows-x86_64.zip",
             "archive",
-            "%ProgramFiles%\\\\CrawChat",
-            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\config",
-            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\data",
-            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\logs",
-            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\run",
+            "%ProgramFiles%\\\\SdkworkIm",
+            "%CommonApplicationData%\\\\SdkworkIm\\\\default\\\\config",
+            "%CommonApplicationData%\\\\SdkworkIm\\\\default\\\\data",
+            "%CommonApplicationData%\\\\SdkworkIm\\\\default\\\\logs",
+            "%CommonApplicationData%\\\\SdkworkIm\\\\default\\\\run",
             "windows-service",
             "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt",
             "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md",
@@ -8894,13 +8894,13 @@ fn test_server_release_bundle_freezes_machine_readable_package_catalog_contract(
             "windows-msi",
             "windows",
             "msi",
-            "craw-chat-server-<version>-x64.msi",
+            "sdkwork-im-server-<version>-x64.msi",
             "native-installer",
-            "%ProgramFiles%\\\\CrawChat",
-            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\config",
-            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\data",
-            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\logs",
-            "%CommonApplicationData%\\\\CrawChat\\\\default\\\\run",
+            "%ProgramFiles%\\\\SdkworkIm",
+            "%CommonApplicationData%\\\\SdkworkIm\\\\default\\\\config",
+            "%CommonApplicationData%\\\\SdkworkIm\\\\default\\\\data",
+            "%CommonApplicationData%\\\\SdkworkIm\\\\default\\\\logs",
+            "%CommonApplicationData%\\\\SdkworkIm\\\\default\\\\run",
             "windows-service",
             "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/layout-tree.txt",
             "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/README.md",
@@ -8923,7 +8923,7 @@ fn test_server_release_bundle_freezes_machine_readable_package_catalog_contract(
         assert_eq!(package_entry["serviceManager"], service_manager);
         assert_eq!(
             package_entry["startupCommand"],
-            "craw-chat-server --config <config-root>/server.yaml"
+            "sdkwork-im-server --config <config-root>/server.yaml"
         );
         assert_eq!(package_entry["layoutTreePath"], layout_tree_path);
         assert_eq!(package_entry["stagingReadmePath"], staging_readme_path);
@@ -9227,7 +9227,7 @@ fn test_server_release_bundle_freezes_platform_package_acceptance_manifest_contr
 
     assert_eq!(
         acceptance_schema_json["title"],
-        "craw-chat server package acceptance manifest"
+        "sdkwork-im server package acceptance manifest"
     );
     assert_eq!(acceptance_schema_json["type"], "object");
     assert_eq!(
@@ -9295,8 +9295,8 @@ fn test_server_release_bundle_freezes_platform_package_acceptance_manifest_contr
                 ("linux-rpm", "rpm", "native-installer"),
             ],
             "systemd",
-            "bin/craw-chat-server",
-            "deployments/systemd/craw-chat-server.service",
+            "bin/sdkwork-im-server",
+            "deployments/systemd/sdkwork-im-server.service",
         ),
         (
             &macos_acceptance_json,
@@ -9307,8 +9307,8 @@ fn test_server_release_bundle_freezes_platform_package_acceptance_manifest_contr
                 ("macos-pkg", "pkg", "native-installer"),
             ],
             "launchd",
-            "bin/craw-chat-server",
-            "deployments/launchd/com.sdkwork.crawchat.server.plist",
+            "bin/sdkwork-im-server",
+            "deployments/launchd/com.sdkwork.im.server.plist",
         ),
         (
             &windows_acceptance_json,
@@ -9319,8 +9319,8 @@ fn test_server_release_bundle_freezes_platform_package_acceptance_manifest_contr
                 ("windows-msi", "msi", "native-installer"),
             ],
             "windows-service",
-            "bin/craw-chat-server.exe",
-            "deployments/windows-service/CrawChatServer.xml",
+            "bin/sdkwork-im-server.exe",
+            "deployments/windows-service/SdkworkImServer.xml",
         ),
     ] {
         assert_eq!(
@@ -9360,7 +9360,7 @@ fn test_server_release_bundle_freezes_platform_package_acceptance_manifest_contr
             assert_eq!(package_check["serviceManager"], expected_service_manager);
             assert_eq!(
                 package_check["startupCommand"],
-                "craw-chat-server --config <config-root>/server.yaml"
+                "sdkwork-im-server --config <config-root>/server.yaml"
             );
             assert_eq!(package_check["status"], "pending_validation");
             assert!(
@@ -9387,7 +9387,7 @@ fn test_server_release_bundle_freezes_platform_package_acceptance_manifest_contr
                 assert!(
                     required_entries
                         .iter()
-                        .any(|entry| entry.as_str() == Some("bin/CrawChatServer.exe")),
+                        .any(|entry| entry.as_str() == Some("bin/SdkworkImServer.exe")),
                     "windows acceptance checks must require the dedicated service-host wrapper"
                 );
             }
@@ -9515,7 +9515,7 @@ fn test_server_release_bundle_freezes_machine_readable_release_execution_contrac
     );
     assert_eq!(
         schema_json["title"],
-        "craw-chat server release execution manifest"
+        "sdkwork-im server release execution manifest"
     );
     assert_eq!(schema_json["type"], "object");
     assert_eq!(
@@ -9593,7 +9593,7 @@ fn test_server_release_bundle_freezes_machine_readable_release_execution_contrac
     );
     assert_eq!(
         execution_manifest_json["canonicalBuild"]["command"],
-        "cargo build -p web-gateway --release --bin craw-chat-server --offline"
+        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline"
     );
     assert_eq!(
         execution_manifest_json["canonicalBuild"]["package"],
@@ -9601,7 +9601,7 @@ fn test_server_release_bundle_freezes_machine_readable_release_execution_contrac
     );
     assert_eq!(
         execution_manifest_json["canonicalBuild"]["binary"],
-        "craw-chat-server"
+        "sdkwork-im-server"
     );
     assert_eq!(
         execution_manifest_json["canonicalBuild"]["profile"],
@@ -9609,7 +9609,7 @@ fn test_server_release_bundle_freezes_machine_readable_release_execution_contrac
     );
     assert_eq!(
         execution_manifest_json["canonicalStartupCommand"],
-        "craw-chat-server --config <config-root>/server.yaml"
+        "sdkwork-im-server --config <config-root>/server.yaml"
     );
     assert_eq!(
         execution_manifest_json["packageCatalogPath"],
@@ -9804,7 +9804,7 @@ fn test_server_release_bundle_freezes_machine_readable_release_provenance_contra
     );
     assert_eq!(
         schema_json["title"],
-        "craw-chat server release provenance manifest"
+        "sdkwork-im server release provenance manifest"
     );
     assert_eq!(schema_json["type"], "object");
     assert_eq!(
@@ -9851,7 +9851,7 @@ fn test_server_release_bundle_freezes_machine_readable_release_provenance_contra
     assert_eq!(provenance_json["state"], "template_only_pending_capture");
     assert_eq!(
         provenance_json["canonicalBuildCommand"],
-        "cargo build -p web-gateway --release --bin craw-chat-server --offline"
+        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline"
     );
 
     let contract_paths = provenance_json["contractPaths"]
@@ -9883,9 +9883,9 @@ fn test_server_release_bundle_freezes_machine_readable_release_provenance_contra
         "deployments/templates/server.yaml.example",
         "deployments/templates/server.env.example",
         "deployments/templates/postgresql.yaml.example",
-        "deployments/systemd/craw-chat-server.service",
-        "deployments/launchd/com.sdkwork.crawchat.server.plist",
-        "deployments/windows-service/CrawChatServer.xml",
+        "deployments/systemd/sdkwork-im-server.service",
+        "deployments/launchd/com.sdkwork.im.server.plist",
+        "deployments/windows-service/SdkworkImServer.xml",
     ] {
         assert!(
             payload_source_paths
@@ -10024,7 +10024,7 @@ fn test_server_release_bundle_freezes_machine_readable_release_gate_contract() {
         gate_json["$schema"],
         "../../schemas/server-release-gate.schema.json"
     );
-    assert_eq!(schema_json["title"], "craw-chat server release gate");
+    assert_eq!(schema_json["title"], "sdkwork-im server release gate");
     assert_eq!(schema_json["type"], "object");
     assert_eq!(
         schema_json["properties"]["artifact"]["const"],

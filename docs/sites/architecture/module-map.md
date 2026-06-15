@@ -10,7 +10,7 @@ directories are stable enough to document as product surfaces.
 | `adapters/` | Provider and storage adapters such as local disk, local memory, IoT access, IoT MQTT, object storage, and RTC providers |
 | `crates/` | Shared contracts, CCP protocol crates, AppContext projection, runtime links, route ownership models, and domain primitives |
 | `services/` | App runtime services, control-plane API, operator services, and business subsystems |
-| `services/web-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `craw-chat-server` binary |
+| `services/web-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary |
 | `tools/` | Local verification tools such as `chat-cli` and smoke workflows |
 | `bin/` | PowerShell, Bash, and CMD lifecycle wrappers for local development and operations |
 | `deployments/` | Dockerfile, Compose profiles, environment templates, and bootstrap scripts |
@@ -39,20 +39,20 @@ directories are stable enough to document as product surfaces.
 
 | Crate group | Why it matters |
 | --- | --- |
-| `craw-chat-contract-*` | Business and transport contracts for IM open-platform surfaces |
-| `craw-chat-ccp-*` | CCP binding, codec, control, core, and registry surfaces |
+| `sdkwork-im-contract-*` | Business and transport contracts for IM open-platform surfaces |
+| `sdkwork-im-ccp-*` | CCP binding, codec, control, core, and registry surfaces |
 | `im-platform-contracts` | Provider registry, effective binding, and platform integration contracts |
 | `im-storage-*` | Shared storage provider schema, validation, fallback resolution, audit, and snapshot persistence seams |
 | `im-app-context` | Shared SDKWork AppContext projection parsing from trusted `x-sdkwork-*` headers |
-| `craw-chat-runtime-*` | Runtime linking and route-ownership contracts |
+| `sdkwork-im-runtime-*` | Runtime linking and route-ownership contracts |
 | `im-domain-*` | Core domain and event-level models reused by services |
 
 ## What The Docs Deliberately Do Not Overstate
 
-- `apps/craw-chat-admin` and `apps/craw-chat-portal` are not documented as complete products.
+- `apps/sdkwork-im-admin` and `apps/sdkwork-im-portal` are not documented as complete products.
 - SDK workspaces are documented separately from actual release status.
 - Checked-in OpenAPI authority now exists for the app, admin, and management SDK workspaces.
-- `web-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `craw-chat-server` binary.
+- `web-gateway` | Unified external entrypoint, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary.
 - The admin control-plane TypeScript SDK is locally verified, but that does not imply that every
   browser `/backend/v3/api/admin/*` route has already been promoted into the formal control-plane authority.
 

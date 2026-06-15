@@ -1,10 +1,10 @@
 # SDKWork Appbase IAM Integration Standard
 
 - Version: 1.0
-- Scope: app-side login, registration, sessions, verification codes, OAuth device authorization QR login, appbase IAM UI integration, generated app SDK integration, Craw Chat gateway/local runtime parity
+- Scope: app-side login, registration, sessions, verification codes, OAuth device authorization QR login, appbase IAM UI integration, generated app SDK integration, Sdkwork IM gateway/local runtime parity
 - Related: `IAM_SPEC.md`, `SDK_SPEC.md`, `APP_PC_REACT_UI_SPEC.md`, `CONFIG_SPEC.md`, `SECURITY_SPEC.md`, `TEST_SPEC.md`, `DEPLOYMENT_SPEC.md`
 
-This standard defines how applications integrate `sdkwork-appbase` IAM login and registration. It is based on the current Craw Chat PC integration and is intended as the reusable reference for other SDKWork apps.
+This standard defines how applications integrate `sdkwork-appbase` IAM login and registration. It is based on the current Sdkwork IM PC integration and is intended as the reusable reference for other SDKWork apps.
 
 The integration goal is simple: product UI reuses appbase IAM UI, product runtime adapts appbase IAM contracts to the generated app SDK, and all HTTP traffic uses the standard `/app/v3/api` IAM routes through the gateway or configured appbase upstream. Applications must not create parallel login/register forms, raw HTTP auth clients, local SDK forks, or app-specific IAM route names.
 
@@ -93,7 +93,7 @@ Rules:
 
 Reference implementation:
 
-- `apps/sdkwork-chat-pc/src/AuthGate.tsx`
+- `apps/sdkwork-im-pc/src/AuthGate.tsx`
 
 ## 4. Product Runtime Contract
 
@@ -143,7 +143,7 @@ Rules:
 
 Reference implementation:
 
-- `apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appAuthRuntime.ts`
+- `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/appAuthRuntime.ts`
 
 ## 5. App Auth Service Contract
 
@@ -192,7 +192,7 @@ getIam().oauth.deviceAuthorizations.passwordCompletions.create(deviceAuthorizati
 
 Reference implementation:
 
-- `apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appAuthService.ts`
+- `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/appAuthService.ts`
 
 ## 6. App SDK Client And Token Rules
 
@@ -212,7 +212,7 @@ resolveAppSdkBaseUrl()
 
 Rules:
 
-- Generated app SDK source is the only remote business transport source. Craw Chat uses `@sdkwork-internal/im-app-api-generated` for the app-api surface that includes appbase IAM paths.
+- Generated app SDK source is the only remote business transport source. Sdkwork IM uses `@sdkwork-internal/im-app-api-generated` for the app-api surface that includes appbase IAM paths.
 - Base URL normalization must remove SDK-owned suffixes such as `/app/v3/api` and `/im/v3/api` before constructing the generated SDK client, when the generated client expects an origin/base root.
 - Production builds may use same-origin fallback when the web build is served by the unified gateway origin.
 - Development may use a documented local gateway fallback, for example `http://127.0.0.1:18079`.
@@ -243,8 +243,8 @@ Access-Token: <accessToken>
 
 Reference implementations:
 
-- `apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appSdkClient.ts`
-- `apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/session.ts`
+- `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/appSdkClient.ts`
+- `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session.ts`
 
 ## 7. AppContext Header Rules
 
@@ -316,7 +316,7 @@ Rules:
 
 Reference implementation:
 
-- `apps/sdkwork-chat-pc/scripts/sdkwork-chat-iam-env.mjs`
+- `apps/sdkwork-im-pc/scripts/sdkwork-chat-iam-env.mjs`
 
 ## 9. Gateway And Backend Routing
 
@@ -348,7 +348,7 @@ Reference implementations:
 
 - `services/web-gateway/src/lib.rs`
 - `services/web-gateway/tests/http_proxy_test.rs`
-- `crates/craw-chat-gateway-config/src/lib.rs`
+- `crates/sdkwork-im-gateway-config/src/lib.rs`
 
 ## 10. Local/Private Runtime Parity
 
@@ -432,8 +432,8 @@ Rules:
 
 Reference implementation:
 
-- `apps/sdkwork-chat-pc/vite.config.ts`
-- `apps/sdkwork-chat-pc/scripts/auth-appbase-ui-contract.test.mjs`
+- `apps/sdkwork-im-pc/vite.config.ts`
+- `apps/sdkwork-im-pc/scripts/auth-appbase-ui-contract.test.mjs`
 
 ## 12. Verification Requirements
 
@@ -464,10 +464,10 @@ Gateway/runtime checks:
 - OpenAPI app schema includes standard IAM and OAuth device authorization paths.
 - OpenAPI app schema excludes legacy auth paths.
 
-Reference commands for Craw Chat:
+Reference commands for Sdkwork IM:
 
 ```text
-node apps/sdkwork-chat-pc/scripts/auth-appbase-ui-contract.test.mjs
+node apps/sdkwork-im-pc/scripts/auth-appbase-ui-contract.test.mjs
 cargo test -p web-gateway --test http_proxy_test
 cargo test -p local-minimal-node --test openapi_schema_export_test
 cargo test -p local-minimal-node --test openapi_im_v3_contract_test
@@ -476,18 +476,18 @@ cargo test -p local-minimal-node --test chat_runtime_session_namespace_test
 
 Run narrower tests first, then broader workspace checks when the blast radius warrants it.
 
-## 13. Current Craw Chat Reference Map
+## 13. Current Sdkwork IM Reference Map
 
 | Responsibility | Reference file |
 | --- | --- |
-| Auth route guard and appbase auth UI mounting | `apps/sdkwork-chat-pc/src/AuthGate.tsx` |
-| Product IAM runtime, token store, appbase runtime config, appearance | `apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appAuthRuntime.ts` |
-| Product auth service facade over IAM SDK adapter | `apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appAuthService.ts` |
-| Generated app SDK client bootstrap and base URL normalization | `apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/appSdkClient.ts` |
-| Session persistence, token manager, AppContext headers | `apps/sdkwork-chat-pc/packages/sdkwork-clawchat-pc-core/src/sdk/session.ts` |
-| IAM deployment mode and env bootstrap | `apps/sdkwork-chat-pc/scripts/sdkwork-chat-iam-env.mjs` |
-| Appbase package aliasing | `apps/sdkwork-chat-pc/vite.config.ts` |
-| Appbase UI/service structural contract tests | `apps/sdkwork-chat-pc/scripts/auth-appbase-ui-contract.test.mjs` |
+| Auth route guard and appbase auth UI mounting | `apps/sdkwork-im-pc/src/AuthGate.tsx` |
+| Product IAM runtime, token store, appbase runtime config, appearance | `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/appAuthRuntime.ts` |
+| Product auth service facade over IAM SDK adapter | `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/appAuthService.ts` |
+| Generated app SDK client bootstrap and base URL normalization | `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/appSdkClient.ts` |
+| Session persistence, token manager, AppContext headers | `apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session.ts` |
+| IAM deployment mode and env bootstrap | `apps/sdkwork-im-pc/scripts/sdkwork-chat-iam-env.mjs` |
+| Appbase package aliasing | `apps/sdkwork-im-pc/vite.config.ts` |
+| Appbase UI/service structural contract tests | `apps/sdkwork-im-pc/scripts/auth-appbase-ui-contract.test.mjs` |
 | Gateway route descriptors, CORS, embedded fallback | `services/web-gateway/src/lib.rs` |
 | Gateway routing and local IAM proxy tests | `services/web-gateway/tests/http_proxy_test.rs` |
 | Local/private IAM parity router | `crates/sdkwork-api-product-runtime/src/local_iam.rs` |

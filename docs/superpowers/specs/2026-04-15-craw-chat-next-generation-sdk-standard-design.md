@@ -1,8 +1,8 @@
-# Craw Chat Next-Generation SDK Standard Design
+# Sdkwork IM Next-Generation SDK Standard Design
 
 ## Goal
 
-Define the long-term public SDK standard for the new Craw Chat application, with no backward-compatibility constraints and no transport-first public API compromises.
+Define the long-term public SDK standard for the new Sdkwork IM application, with no backward-compatibility constraints and no transport-first public API compromises.
 
 The target is an industry-grade Chat IM SDK system with these properties:
 
@@ -27,7 +27,7 @@ The first landing implementation is TypeScript for browser and Node.js, but the 
 - TypeScript SDK workspace: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript`
 - SDK root workspace: `sdks/sdkwork-im-sdk`
 - Current live schema export endpoint: `/im/v3/openapi.json`
-- Checked-in authority schema: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
+- Checked-in authority schema: `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml`
 - Current live schema refresh script: `sdks/sdkwork-im-sdk/bin/refresh-live-openapi-source.mjs`
 - Current TypeScript client implementation: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/sdk.ts`
 - Current TypeScript public types: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/types.ts`
@@ -205,8 +205,8 @@ Preferred shape:
 import { ImSdkClient } from '@sdkwork/im-sdk';
 
 const sdk = new ImSdkClient({
-  baseUrl: import.meta.env.VITE_CRAW_CHAT_BASE_URL,
-  authToken: window.localStorage.getItem('craw-chat-token')!,
+  baseUrl: import.meta.env.VITE_SDKWORK_IM_BASE_URL,
+  authToken: window.localStorage.getItem('sdkwork-im-token')!,
 });
 ```
 
@@ -281,8 +281,8 @@ Guiding rule:
 
 ## Authentication Standard
 
-Authentication and IAM context are issued by `sdkwork-appbase`, not by Craw Chat SDK packages.
-The public Craw Chat SDK auth surface is token consumption only.
+Authentication and IAM context are issued by `sdkwork-appbase`, not by Sdkwork IM SDK packages.
+The public Sdkwork IM SDK auth surface is token consumption only.
 
 Required public shape:
 
@@ -291,7 +291,7 @@ Required public shape:
 - `authToken` constructor config
 
 Current-user, tenant, organization, login, refresh, and dual-token lifecycle flows stay in appbase.
-Craw Chat receives an appbase bearer token and applies it to IM HTTP and realtime requests.
+Sdkwork IM receives an appbase bearer token and applies it to IM HTTP and realtime requests.
 
 ## Connection Standard
 
@@ -581,7 +581,7 @@ This preserves the current important rule already reflected in the workspace scr
 
 ## Generator Responsibility Standard
 
-`sdkwork-sdk-generator` must support OpenAPI 3.x broadly across products, not only Craw Chat.
+`sdkwork-sdk-generator` must support OpenAPI 3.x broadly across products, not only Sdkwork IM.
 
 The generator should standardize these capabilities:
 
@@ -604,9 +604,9 @@ The TypeScript standard should converge toward this usage model:
 import { ImSdkClient } from '@sdkwork/im-sdk';
 
 const sdk = new ImSdkClient({
-  apiBaseUrl: import.meta.env.VITE_CRAW_CHAT_API_BASE_URL,
-  websocketBaseUrl: import.meta.env.VITE_CRAW_CHAT_WS_BASE_URL,
-  authToken: window.localStorage.getItem('craw-chat-token')!,
+  apiBaseUrl: import.meta.env.VITE_SDKWORK_IM_API_BASE_URL,
+  websocketBaseUrl: import.meta.env.VITE_SDKWORK_IM_WS_BASE_URL,
+  authToken: window.localStorage.getItem('sdkwork-im-token')!,
 });
 
 const live = await sdk.connect({
@@ -704,7 +704,7 @@ The new standard is successful when all of the following are true:
 
 ## Decision Summary
 
-The new Craw Chat application should standardize on a professional semantic SDK architecture:
+The new Sdkwork IM application should standardize on a professional semantic SDK architecture:
 
 - single package
 - single primary client

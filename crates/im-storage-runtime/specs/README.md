@@ -10,7 +10,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- |
 | Name | `im-storage-runtime` |
 | Type | `rust-crate` |
-| Root | `craw-chat/crates/im-storage-runtime` |
+| Root | `sdkwork-im/crates/im-storage-runtime` |
 | Domain | `communication` |
 | Capability | `im` |
 | Languages | `rust` |
@@ -52,4 +52,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/crates/im-storage-runtime/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/crates/im-storage-runtime/Cargo.toml`

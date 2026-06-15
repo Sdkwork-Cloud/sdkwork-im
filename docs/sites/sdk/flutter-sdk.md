@@ -83,7 +83,7 @@ final client = ImTransportClient.withBaseUrl(
   authToken: 'sdkwork-appbase-credential',
 );
 
-// Tokens are issued by sdkwork-appbase and passed into Craw Chat.
+// Tokens are issued by sdkwork-appbase and passed into Sdkwork IM.
 final inbox = await client.chat.inboxRetrieve();
 
 await client.chat.conversationsMessagesCreate(
@@ -355,7 +355,7 @@ process in the current environment.
 
 ## Source-of-Truth Notes
 
-- Authority contract: `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
+- Authority contract: `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml`
 - Generated transport manifest: `sdkwork-im-sdk-flutter/generated/server-openapi/pubspec.yaml`
 - Assembly metadata: `sdks/sdkwork-im-sdk/.sdkwork-assembly.json`
 

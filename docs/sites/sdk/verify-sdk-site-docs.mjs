@@ -116,7 +116,7 @@ export function verifySdkSiteDocs(options = {}) {
     marker('IM', ' Admin', ' SDK'),
     marker('control', '_plane', '_sdk'),
     marker('im', '_admin', '_sdk'),
-    'sdkwork-craw-chat-sdk-management',
+    'sdkwork-sdkwork-im-sdk-management',
     '/sdk/management-sdk',
   ];
 
@@ -201,7 +201,7 @@ export function verifySdkSiteDocs(options = {}) {
   for (const requiredEntry of [
     'sdkwork-im-backend-sdk',
     'control modules',
-    'sdks/sdkwork-im-backend-sdk/openapi/craw-chat-backend-api.openapi.yaml',
+    'sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml',
   ]) {
     expectIncludes(
       failures,

@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "kind": "sdkwork.component.spec",
   "component": {
-    "name": "craw-chat-docs",
-    "displayName": "Craw Chat Docs",
+    "name": "sdkwork-im-docs",
+    "displayName": "Sdkwork IM Docs",
     "version": "0.1.0",
     "type": "node-package",
-    "root": "craw-chat/docs/sites",
+    "root": "sdkwork-im/docs/sites",
     "domain": "communication",
-    "capability": "craw-chat-docs",
+    "capability": "sdkwork-im-docs",
     "languages": [
       "typescript"
     ],

@@ -73,7 +73,7 @@ Extension points are limited to declared public exports, runtime entrypoints, SD
 
 ### Verification
 
-- `cargo test --manifest-path apps/craw-chat/adapters/local-memory/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/adapters/local-memory/Cargo.toml`
 
 ### Owner And Status
 

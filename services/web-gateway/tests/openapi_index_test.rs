@@ -5,11 +5,11 @@ use axum::{
     http::{Method, Request, StatusCode},
     routing::any,
 };
-use craw_chat_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
-use craw_chat_gateway_observability::{
+use sdkwork_im_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
+use sdkwork_im_gateway_observability::{
     build_startup_summary_with_registry, format_startup_summary,
 };
-use craw_chat_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
+use sdkwork_im_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
 use http_body_util::BodyExt;
 use serde_json::json;
 use std::sync::Arc;
@@ -40,7 +40,7 @@ async fn gateway_exposes_aggregate_openapi_json() {
         "projection-service",
         json!({
             "openapi": "3.1.0",
-            "info": { "title": "Craw Chat Projection Service API", "version": "0.1.0" },
+            "info": { "title": "Sdkwork IM Projection Service API", "version": "0.1.0" },
             "paths": {
                 "/im/v3/api/chat/conversations/{conversation_id}/messages": {
                     "get": { "summary": "Get messages", "responses": { "200": { "description": "ok" } } }
@@ -53,7 +53,7 @@ async fn gateway_exposes_aggregate_openapi_json() {
         "conversation-runtime",
         json!({
             "openapi": "3.1.0",
-            "info": { "title": "Craw Chat Conversation Runtime API", "version": "0.1.0" },
+            "info": { "title": "Sdkwork IM Conversation Runtime API", "version": "0.1.0" },
             "paths": {
                 "/im/v3/api/chat/conversations/{conversation_id}/messages": {
                     "post": { "summary": "Post message", "responses": { "200": { "description": "ok" } } }
@@ -90,7 +90,7 @@ async fn gateway_exposes_aggregate_openapi_json() {
     .expect("aggregate openapi should be valid json");
 
     assert_eq!(value["openapi"], "3.1.0");
-    assert_eq!(value["info"]["title"], "Craw Chat Unified Gateway API");
+    assert_eq!(value["info"]["title"], "Sdkwork IM Unified Gateway API");
     assert!(value["paths"]["/openapi/runtime-summary.json"]["get"].is_object());
     assert_eq!(
         value["paths"]["/openapi/index.json"]["get"]["responses"]["200"]["content"]["application/json"]
@@ -301,7 +301,7 @@ async fn gateway_service_index_surfaces_session_websocket_metadata() {
         "session-gateway",
         json!({
             "openapi": "3.1.0",
-            "info": { "title": "Craw Chat Session Gateway API", "version": "0.1.0" },
+            "info": { "title": "Sdkwork IM Session Gateway API", "version": "0.1.0" },
             "paths": {
                 "/im/v3/api/presence/me": {
                     "get": { "summary": "Get current presence", "responses": { "200": { "description": "ok" } } }
@@ -310,8 +310,8 @@ async fn gateway_service_index_surfaces_session_websocket_metadata() {
                     "get": {
                         "summary": "Open realtime websocket session",
                         "responses": { "101": { "description": "websocket upgrade successful" } },
-                        "x-craw-chat-protocol": "websocket",
-                        "x-craw-chat-websocket-subprotocols": ["ccp"]
+                        "x-sdkwork-im-protocol": "websocket",
+                        "x-sdkwork-im-websocket-subprotocols": ["ccp"]
                     }
                 }
             }
@@ -402,7 +402,7 @@ async fn gateway_service_index_does_not_surface_projection_device_metadata() {
         "projection-service",
         json!({
             "openapi": "3.1.0",
-            "info": { "title": "Craw Chat Projection Service API", "version": "0.1.0" },
+            "info": { "title": "Sdkwork IM Projection Service API", "version": "0.1.0" },
             "paths": {
                 "/im/v3/api/chat/inbox": {
                     "get": { "summary": "Get inbox", "responses": { "200": { "description": "ok" } } }
@@ -492,7 +492,7 @@ async fn gateway_exposes_runtime_summary_json() {
         "session-gateway",
         json!({
             "openapi": "3.1.0",
-            "info": { "title": "Craw Chat Session Gateway API", "version": "0.1.0" },
+            "info": { "title": "Sdkwork IM Session Gateway API", "version": "0.1.0" },
             "paths": {
                 "/im/v3/api/presence/me": {
                     "get": { "summary": "Get current presence", "responses": { "200": { "description": "ok" } } }
@@ -501,8 +501,8 @@ async fn gateway_exposes_runtime_summary_json() {
                     "get": {
                         "summary": "Open realtime websocket session",
                         "responses": { "101": { "description": "websocket upgrade successful" } },
-                        "x-craw-chat-protocol": "websocket",
-                        "x-craw-chat-websocket-subprotocols": ["ccp"]
+                        "x-sdkwork-im-protocol": "websocket",
+                        "x-sdkwork-im-websocket-subprotocols": ["ccp"]
                     }
                 }
             }
@@ -678,7 +678,7 @@ fn startup_summary_hides_per_service_schema_and_docs_endpoints() {
 }
 
 fn test_gateway_config(
-    upstreams: Vec<craw_chat_gateway_config::ServiceUpstreamConfig>,
+    upstreams: Vec<sdkwork_im_gateway_config::ServiceUpstreamConfig>,
 ) -> WebGatewayConfig {
     WebGatewayConfig {
         bind_addr: "127.0.0.1:0".to_owned(),

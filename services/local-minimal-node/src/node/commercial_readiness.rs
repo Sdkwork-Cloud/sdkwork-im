@@ -4,11 +4,11 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub const CRAW_CHAT_RUNTIME_PROFILE_ENV: &str = "CRAW_CHAT_RUNTIME_PROFILE";
-pub const CRAW_CHAT_STORAGE_PROVIDER_ENV: &str = "CRAW_CHAT_STORAGE_PROVIDER";
-pub const CRAW_CHAT_DATABASE_URL_ENV: &str = "CRAW_CHAT_DATABASE_URL";
-pub const CRAW_CHAT_POSTGRES_CONFIG_ENV: &str = "CRAW_CHAT_POSTGRES_CONFIG";
-pub const CRAW_CHAT_COMMERCIAL_EVIDENCE_ROOT_ENV: &str = "CRAW_CHAT_COMMERCIAL_EVIDENCE_ROOT";
+pub const SDKWORK_IM_RUNTIME_PROFILE_ENV: &str = "SDKWORK_IM_RUNTIME_PROFILE";
+pub const SDKWORK_IM_STORAGE_PROVIDER_ENV: &str = "SDKWORK_IM_STORAGE_PROVIDER";
+pub const SDKWORK_IM_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+pub const SDKWORK_IM_POSTGRES_CONFIG_ENV: &str = "SDKWORK_IM_POSTGRES_CONFIG";
+pub const SDKWORK_IM_COMMERCIAL_EVIDENCE_ROOT_ENV: &str = "SDKWORK_IM_COMMERCIAL_EVIDENCE_ROOT";
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CommercialStep11Evidence {
@@ -139,14 +139,14 @@ pub fn evaluate_commercial_readiness_from_workspace(
 pub fn evaluate_commercial_readiness_from_env(
     workspace_root: impl AsRef<Path>,
 ) -> Result<CommercialReadinessReport, String> {
-    let postgres_database_configured = has_non_empty_env(CRAW_CHAT_DATABASE_URL_ENV)
-        || has_non_empty_env(CRAW_CHAT_POSTGRES_CONFIG_ENV);
+    let postgres_database_configured = has_non_empty_env(SDKWORK_IM_DATABASE_URL_ENV)
+        || has_non_empty_env(SDKWORK_IM_POSTGRES_CONFIG_ENV);
 
     evaluate_commercial_readiness_from_workspace(
         workspace_root,
         CommercialReadinessInputs {
-            runtime_profile: std::env::var(CRAW_CHAT_RUNTIME_PROFILE_ENV).ok(),
-            storage_provider: std::env::var(CRAW_CHAT_STORAGE_PROVIDER_ENV).ok(),
+            runtime_profile: std::env::var(SDKWORK_IM_RUNTIME_PROFILE_ENV).ok(),
+            storage_provider: std::env::var(SDKWORK_IM_STORAGE_PROVIDER_ENV).ok(),
             postgres_database_configured,
             postgres_runtime_adapter_status: Some("contract_only".into()),
             step11_evidence: CommercialStep11Evidence::default(),
@@ -155,7 +155,7 @@ pub fn evaluate_commercial_readiness_from_env(
 }
 
 pub fn commercial_readiness_required_from_env() -> bool {
-    let runtime_profile = std::env::var(CRAW_CHAT_RUNTIME_PROFILE_ENV).ok();
+    let runtime_profile = std::env::var(SDKWORK_IM_RUNTIME_PROFILE_ENV).ok();
     commercial_readiness_required_for_profile(runtime_profile.as_deref())
 }
 

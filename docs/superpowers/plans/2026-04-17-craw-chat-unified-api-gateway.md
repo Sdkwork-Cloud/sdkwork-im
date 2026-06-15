@@ -1,8 +1,8 @@
-# Craw Chat Unified API Gateway Implementation Plan
+# Sdkwork IM Unified API Gateway Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a single-port built-in web gateway for all Craw Chat server APIs, publish live service-level and aggregate OpenAPI 3.1 contracts, and align docs and SDK inputs with the new authority-contract workflow.
+**Goal:** Add a single-port built-in web gateway for all Sdkwork IM server APIs, publish live service-level and aggregate OpenAPI 3.1 contracts, and align docs and SDK inputs with the new authority-contract workflow.
 
 **Architecture:** Introduce a dedicated `web-gateway` service and shared registry/openapi crates instead of expanding `local-minimal-node` into the long-term external API owner. Keep existing services as business owners, add live OpenAPI export to each service, centralize path ownership in a route registry, and let the gateway generate aggregate schemas and schema indexes from those live contracts. Preserve `local-minimal-node` as an embedded/local runtime profile rather than the authority schema source.
 
@@ -46,26 +46,26 @@
 
 ### New files to create
 
-- `crates/craw-chat-api-registry/Cargo.toml`
-- `crates/craw-chat-api-registry/src/lib.rs`
-- `crates/craw-chat-api-registry/tests/route_registry_test.rs`
-- `crates/craw-chat-openapi/Cargo.toml`
-- `crates/craw-chat-openapi/src/lib.rs`
-- `crates/craw-chat-openapi/tests/openapi_aggregate_test.rs`
-- `crates/craw-chat-gateway-config/Cargo.toml`
-- `crates/craw-chat-gateway-config/src/lib.rs`
-- `crates/craw-chat-gateway-observability/Cargo.toml`
-- `crates/craw-chat-gateway-observability/src/lib.rs`
+- `crates/sdkwork-im-api-registry/Cargo.toml`
+- `crates/sdkwork-im-api-registry/src/lib.rs`
+- `crates/sdkwork-im-api-registry/tests/route_registry_test.rs`
+- `crates/sdkwork-im-openapi/Cargo.toml`
+- `crates/sdkwork-im-openapi/src/lib.rs`
+- `crates/sdkwork-im-openapi/tests/openapi_aggregate_test.rs`
+- `crates/sdkwork-im-gateway-config/Cargo.toml`
+- `crates/sdkwork-im-gateway-config/src/lib.rs`
+- `crates/sdkwork-im-gateway-observability/Cargo.toml`
+- `crates/sdkwork-im-gateway-observability/src/lib.rs`
 - `services/web-gateway/Cargo.toml`
 - `services/web-gateway/src/lib.rs`
 - `services/web-gateway/src/main.rs`
 - `services/web-gateway/tests/http_proxy_test.rs`
 - `services/web-gateway/tests/websocket_proxy_test.rs`
 - `services/web-gateway/tests/openapi_index_test.rs`
-- `openapi/aggregate/craw-chat-gateway.openapi.json`
+- `openapi/aggregate/sdkwork-im-gateway.openapi.json`
 - `openapi/aggregate/openapi-index.json`
-- `openapi/public/craw-chat-im.openapi.yaml`
-- `openapi/public/craw-chat-control.openapi.json`
+- `openapi/public/sdkwork-im-im.openapi.yaml`
+- `openapi/public/sdkwork-im-control.openapi.json`
 - `openapi/services/README.md`
 - `docs/sites/api-reference/gateway-overview.md`
 - `docs/sites/api-reference/service-contracts.md`
@@ -75,9 +75,9 @@
 ### Task 1: Add The Shared Route Registry And Schema Index Model
 
 **Files:**
-- Create: `crates/craw-chat-api-registry/Cargo.toml`
-- Create: `crates/craw-chat-api-registry/src/lib.rs`
-- Create: `crates/craw-chat-api-registry/tests/route_registry_test.rs`
+- Create: `crates/sdkwork-im-api-registry/Cargo.toml`
+- Create: `crates/sdkwork-im-api-registry/src/lib.rs`
+- Create: `crates/sdkwork-im-api-registry/tests/route_registry_test.rs`
 - Modify: `Cargo.toml`
 
 - [ ] **Step 1: Write the failing registry tests**
@@ -106,7 +106,7 @@ fn registry_rejects_duplicate_method_path_owner() {
 Run:
 
 ```bash
-cargo test -p craw-chat-api-registry route_registry_test -- --nocapture
+cargo test -p sdkwork-im-api-registry route_registry_test -- --nocapture
 ```
 
 Expected: FAIL because the new registry crate does not exist yet.
@@ -127,7 +127,7 @@ Define:
 Run:
 
 ```bash
-cargo test -p craw-chat-api-registry route_registry_test -- --nocapture
+cargo test -p sdkwork-im-api-registry route_registry_test -- --nocapture
 ```
 
 Expected: PASS
@@ -135,8 +135,8 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Cargo.toml crates/craw-chat-api-registry
-git commit -m "feat(api): add craw chat route registry"
+git add Cargo.toml crates/sdkwork-im-api-registry
+git commit -m "feat(api): add sdkwork im route registry"
 ```
 
 ### Task 2: Add Live OpenAPI 3.1 Export To Standalone Services
@@ -153,8 +153,8 @@ git commit -m "feat(api): add craw chat route registry"
 - Modify: `services/automation-service/src/lib.rs`
 - Modify: `services/audit-service/src/lib.rs`
 - Modify: `services/ops-service/src/lib.rs`
-- Create: `crates/craw-chat-openapi/Cargo.toml`
-- Create: `crates/craw-chat-openapi/src/lib.rs`
+- Create: `crates/sdkwork-im-openapi/Cargo.toml`
+- Create: `crates/sdkwork-im-openapi/src/lib.rs`
 
 - [ ] **Step 1: Write a failing service-schema smoke test**
 
@@ -187,7 +187,7 @@ Expected: FAIL because the route does not exist yet.
 
 - [ ] **Step 3: Implement shared OpenAPI helpers**
 
-Use `craw-chat-openapi` to provide:
+Use `sdkwork-im-openapi` to provide:
 - service spec metadata
 - JSON serialization helpers
 - docs page rendering helpers
@@ -214,17 +214,17 @@ Expected: PASS for the new schema routes on the covered services.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add crates/craw-chat-openapi services/session-gateway services/control-plane-api services/conversation-runtime services/projection-service services/streaming-service services/im-call-runtime services/media-service services/notification-service services/automation-service services/audit-service services/ops-service
-git commit -m "feat(api): add live openapi export to craw chat services"
+git add crates/sdkwork-im-openapi services/session-gateway services/control-plane-api services/conversation-runtime services/projection-service services/streaming-service services/im-call-runtime services/media-service services/notification-service services/automation-service services/audit-service services/ops-service
+git commit -m "feat(api): add live openapi export to sdkwork im services"
 ```
 
 ### Task 3: Introduce The Single-Port Web Gateway
 
 **Files:**
-- Create: `crates/craw-chat-gateway-config/Cargo.toml`
-- Create: `crates/craw-chat-gateway-config/src/lib.rs`
-- Create: `crates/craw-chat-gateway-observability/Cargo.toml`
-- Create: `crates/craw-chat-gateway-observability/src/lib.rs`
+- Create: `crates/sdkwork-im-gateway-config/Cargo.toml`
+- Create: `crates/sdkwork-im-gateway-config/src/lib.rs`
+- Create: `crates/sdkwork-im-gateway-observability/Cargo.toml`
+- Create: `crates/sdkwork-im-gateway-observability/src/lib.rs`
 - Create: `services/web-gateway/Cargo.toml`
 - Create: `services/web-gateway/src/lib.rs`
 - Create: `services/web-gateway/src/main.rs`
@@ -281,7 +281,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Cargo.toml crates/craw-chat-gateway-config crates/craw-chat-gateway-observability services/web-gateway
+git add Cargo.toml crates/sdkwork-im-gateway-config crates/sdkwork-im-gateway-observability services/web-gateway
 git commit -m "feat(api): add single-port web gateway"
 ```
 
@@ -291,7 +291,7 @@ git commit -m "feat(api): add single-port web gateway"
 - Modify: `services/web-gateway/src/lib.rs`
 - Create: `services/web-gateway/tests/websocket_proxy_test.rs`
 - Modify: `services/session-gateway/src/lib.rs`
-- Modify: `crates/craw-chat-api-registry/src/lib.rs`
+- Modify: `crates/sdkwork-im-api-registry/src/lib.rs`
 
 - [ ] **Step 1: Write the failing websocket proxy test**
 
@@ -332,7 +332,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services/web-gateway services/session-gateway crates/craw-chat-api-registry
+git add services/web-gateway services/session-gateway crates/sdkwork-im-api-registry
 git commit -m "feat(api): proxy realtime websocket through gateway"
 ```
 
@@ -342,12 +342,12 @@ git commit -m "feat(api): proxy realtime websocket through gateway"
 - Modify: `services/web-gateway/src/lib.rs`
 - Modify: `services/web-gateway/src/main.rs`
 - Create: `services/web-gateway/tests/openapi_index_test.rs`
-- Modify: `crates/craw-chat-openapi/src/lib.rs`
-- Modify: `crates/craw-chat-gateway-observability/src/lib.rs`
-- Create: `openapi/aggregate/craw-chat-gateway.openapi.json`
+- Modify: `crates/sdkwork-im-openapi/src/lib.rs`
+- Modify: `crates/sdkwork-im-gateway-observability/src/lib.rs`
+- Create: `openapi/aggregate/sdkwork-im-gateway.openapi.json`
 - Create: `openapi/aggregate/openapi-index.json`
-- Create: `openapi/public/craw-chat-im.openapi.yaml`
-- Create: `openapi/public/craw-chat-control.openapi.json`
+- Create: `openapi/public/sdkwork-im-im.openapi.yaml`
+- Create: `openapi/public/sdkwork-im-control.openapi.json`
 
 - [ ] **Step 1: Write the failing aggregate-schema tests**
 
@@ -382,7 +382,7 @@ Add:
 Run:
 
 ```bash
-cargo test -p web-gateway -p craw-chat-openapi openapi -- --nocapture
+cargo test -p web-gateway -p sdkwork-im-openapi openapi -- --nocapture
 ```
 
 Expected: PASS
@@ -390,7 +390,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services/web-gateway crates/craw-chat-openapi crates/craw-chat-gateway-observability openapi
+git add services/web-gateway crates/sdkwork-im-openapi crates/sdkwork-im-gateway-observability openapi
 git commit -m "feat(api): add aggregate schemas and schema index"
 ```
 
@@ -417,7 +417,7 @@ Add checks that require:
 Run:
 
 ```bash
-rg -n "craw-chat-im.openapi.yaml|openapi/index.json|single-port|gateway" docs sdks services/local-minimal-node
+rg -n "sdkwork-im-im.openapi.yaml|openapi/index.json|single-port|gateway" docs sdks services/local-minimal-node
 ```
 
 Expected: missing or inconsistent references.
@@ -450,8 +450,8 @@ git commit -m "docs(api): align gateway authority contracts"
 ### Task 7: Add CI Drift Guards And Rollout Verification
 
 **Files:**
-- Create: `crates/craw-chat-openapi/tests/openapi_aggregate_test.rs`
-- Modify: `crates/craw-chat-api-registry/src/lib.rs`
+- Create: `crates/sdkwork-im-openapi/tests/openapi_aggregate_test.rs`
+- Modify: `crates/sdkwork-im-api-registry/src/lib.rs`
 - Modify: `services/web-gateway/tests/openapi_index_test.rs`
 - Modify: `Cargo.toml`
 
@@ -467,7 +467,7 @@ Require:
 Run:
 
 ```bash
-cargo test -p craw-chat-api-registry -p craw-chat-openapi -p web-gateway drift -- --nocapture
+cargo test -p sdkwork-im-api-registry -p sdkwork-im-openapi -p web-gateway drift -- --nocapture
 ```
 
 Expected: FAIL before the checks are fully implemented.
@@ -485,7 +485,7 @@ Add:
 Run:
 
 ```bash
-cargo test -p craw-chat-api-registry -p craw-chat-openapi -p web-gateway drift -- --nocapture
+cargo test -p sdkwork-im-api-registry -p sdkwork-im-openapi -p web-gateway drift -- --nocapture
 ```
 
 Expected: PASS
@@ -495,7 +495,7 @@ Expected: PASS
 Run:
 
 ```bash
-cargo test -p craw-chat-api-registry -p craw-chat-openapi -p web-gateway -p session-gateway -p control-plane-api -p conversation-runtime -p projection-service -- --nocapture
+cargo test -p sdkwork-im-api-registry -p sdkwork-im-openapi -p web-gateway -p session-gateway -p control-plane-api -p conversation-runtime -p projection-service -- --nocapture
 ```
 
 Expected: PASS
@@ -503,7 +503,7 @@ Expected: PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add Cargo.toml crates/craw-chat-api-registry crates/craw-chat-openapi services/web-gateway
+git add Cargo.toml crates/sdkwork-im-api-registry crates/sdkwork-im-openapi services/web-gateway
 git commit -m "test(api): enforce gateway and schema drift guards"
 ```
 
@@ -516,8 +516,8 @@ git commit -m "test(api): enforce gateway and schema drift guards"
 
 ## Final Verification Checklist
 
-- [ ] `cargo test -p craw-chat-api-registry -- --nocapture`
-- [ ] `cargo test -p craw-chat-openapi -- --nocapture`
+- [ ] `cargo test -p sdkwork-im-api-registry -- --nocapture`
+- [ ] `cargo test -p sdkwork-im-openapi -- --nocapture`
 - [ ] `cargo test -p web-gateway -- --nocapture`
 - [ ] `cargo test -p session-gateway -p control-plane-api -p conversation-runtime -p projection-service -- --nocapture`
 - [ ] start the gateway locally and verify `/healthz`, `/openapi.json`, `/openapi/index.json`, `/docs`, and `/im/v3/api/realtime/ws`

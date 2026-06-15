@@ -1,6 +1,6 @@
 # SDKWork IM SDK
 
-`sdkwork-im-sdk` is the Craw Chat standard IM SDK family for `/im/v3/api`.
+`sdkwork-im-sdk` is the Sdkwork IM standard IM SDK family for `/im/v3/api`.
 Runtime schema discovery uses `/im/v3/openapi.json`.
 
 The family owns the open IM runtime surface: client route presence, realtime
@@ -21,9 +21,9 @@ The TypeScript family is layered:
 
 | Path | Ownership |
 | --- | --- |
-| `openapi/craw-chat-im.openapi.yaml` | Owner-only authority OpenAPI for `/im/v3/api` |
-| `openapi/craw-chat-im.sdkgen.yaml` | Derived HTTP generator input |
-| `openapi/craw-chat-im.flutter.sdkgen.yaml` | Flutter-compatible derived generator input |
+| `openapi/sdkwork-im-im.openapi.yaml` | Owner-only authority OpenAPI for `/im/v3/api` |
+| `openapi/sdkwork-im-im.sdkgen.yaml` | Derived HTTP generator input |
+| `openapi/sdkwork-im-im.flutter.sdkgen.yaml` | Flutter-compatible derived generator input |
 | `sdkwork-im-sdk-*/generated/server-openapi` | Generator-owned transport SDK output |
 | `sdkwork-im-sdk-typescript/src` | Authored TypeScript composed facade and websocket adapter |
 

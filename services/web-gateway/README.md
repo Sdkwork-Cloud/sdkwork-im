@@ -33,7 +33,7 @@ Extension points are limited to public exports, runtime entrypoints, SDK clients
 
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/services/web-gateway/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/services/web-gateway/Cargo.toml`
 
 ## Owner And Status
 

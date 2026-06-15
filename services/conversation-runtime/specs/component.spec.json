@@ -6,7 +6,7 @@
     "displayName": "Conversation Runtime",
     "version": "0.1.0",
     "type": "rust-crate",
-    "root": "craw-chat/services/conversation-runtime",
+    "root": "sdkwork-im/services/conversation-runtime",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "im",
@@ -110,7 +110,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/services/conversation-runtime/Cargo.toml"
+      "cargo test --manifest-path apps/sdkwork-im/services/conversation-runtime/Cargo.toml"
     ]
   },
   "metadata": {

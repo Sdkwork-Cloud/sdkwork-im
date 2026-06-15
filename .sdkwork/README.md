@@ -1,6 +1,6 @@
 # SDKWork Workspace
 
-This .sdkwork/ directory is source-controlled workspace metadata for craw-chat.
+This .sdkwork/ directory is source-controlled workspace metadata for sdkwork-im.
 
 It is governed by `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md` and follows the standards entrypoint at `../sdkwork-specs/README.md`.
 

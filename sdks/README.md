@@ -1,6 +1,6 @@
 # SDK Workspace Overview
 
-`sdks/` is the repository home for Craw Chat SDK workspaces. The directory is organized by public
+`sdks/` is the repository home for Sdkwork IM SDK workspaces. The directory is organized by public
 consumer SDK family and by authoritative API boundary, not by historical generated-package dumps.
 
 The current standard model has three OpenAPI-generated HTTP SDK families, one communication
@@ -27,7 +27,7 @@ gRPC/RPC SDK family, plus one independent RTC provider-standard SDK family:
 For day-to-day engineering, the checked-in SDK workspaces and their `.sdkwork-assembly.json`
 snapshots are the source of truth.
 
-The three Craw Chat HTTP-contract SDK families are separated by target surface:
+The three Sdkwork IM HTTP-contract SDK families are separated by target surface:
 
 - `sdkwork-im-sdk` owns `sdkwork-im-open-api`, the IM standardized development API under
   `/im/v3/api/*`.
@@ -185,7 +185,7 @@ node .\sdks\sdkwork-im-backend-sdk\bin\verify-sdk.mjs
 Run the RPC contract check before generating RPC SDK scaffolds:
 
 ```powershell
-node .\scripts\dev\sdkwork-chat-rpc-contract.test.mjs
+node .\scripts\dev\sdkwork-im-rpc-contract.test.mjs
 node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-typescript --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language typescript --package-name @sdkwork/im-rpc-sdk --dry-run --no-sync-published-version
 node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-go --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language go --package-name github.com/sdkwork/im-rpc-sdk-go --dry-run --no-sync-published-version
 node ..\sdkwork-sdk-generator\bin\sdkgen.js generate --protocol rpc --input .\sdks\sdkwork-im-rpc-sdk\rpc\sdkwork-im-rpc.manifest.json --proto-root .\proto --output .\sdks\sdkwork-im-rpc-sdk\sdkwork-im-rpc-sdk-java --name SdkworkImRpc --sdk-name sdkwork-im-rpc-sdk --language java --package-name com.sdkwork.im.rpc --dry-run --no-sync-published-version

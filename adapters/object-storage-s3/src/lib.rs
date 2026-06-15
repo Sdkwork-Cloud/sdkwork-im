@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use craw_chat_contract_core::ContractError;
+use sdkwork_im_contract_core::ContractError;
 use im_platform_contracts::{
     ObjectStorageDownloadUrlRequest, ObjectStorageObjectDescriptor, ObjectStorageProvider,
     ObjectStoragePutRequest, ObjectStorageUploadSession, ObjectStorageUploadUrlRequest,

@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-const BIND_ADDR_ENV: &str = "CRAW_CHAT_CONTROL_PLANE_API_BIND_ADDR";
+const BIND_ADDR_ENV: &str = "SDKWORK_IM_CONTROL_PLANE_API_BIND_ADDR";
 const DEFAULT_BIND_ADDR: &str = "127.0.0.1:18081";
 
 #[tokio::main]
@@ -62,7 +62,7 @@ async fn run() -> Result<(), String> {
             let Some(runtime_dir) = runtime_dir.or_else(control_plane_api::configured_runtime_dir)
             else {
                 return Err(
-                    "--runtime_dir is required for repair-social-runtime_dir when CRAW_CHAT_RUNTIME_DIR is unset"
+                    "--runtime_dir is required for repair-social-runtime_dir when SDKWORK_IM_RUNTIME_DIR is unset"
                         .to_owned(),
                 );
             };

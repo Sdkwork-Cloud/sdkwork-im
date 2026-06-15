@@ -1,6 +1,6 @@
-use craw_chat_contract_control::{PresenceStateRecord, PresenceStateStore};
-use craw_chat_contract_core::ContractError;
-use craw_chat_runtime_link::decide_resume;
+use sdkwork_im_contract_control::{PresenceStateRecord, PresenceStateStore};
+use sdkwork_im_contract_core::ContractError;
+use sdkwork_im_runtime_link::decide_resume;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard};
 

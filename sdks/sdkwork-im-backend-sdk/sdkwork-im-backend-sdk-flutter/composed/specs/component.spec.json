@@ -6,7 +6,7 @@
     "displayName": "Im Backend Sdk",
     "version": "0.1.0",
     "type": "flutter-package",
-    "root": "craw-chat/sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-flutter/composed",
+    "root": "sdkwork-im/sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-flutter/composed",
     "domain": "communication",
     "capability": "im-backend-sdk",
     "languages": [

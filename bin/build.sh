@@ -5,12 +5,12 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/build.sh [--target server|desktop|all] [--target-triple <triple>] [--platform <platform>] [--arch <arch>] [--dry-run] [--json]
 
-Build Craw Chat production server binary/web assets and/or desktop installer artifacts.
+Build Sdkwork IM production server binary/web assets and/or desktop installer artifacts.
 EOF
 }
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-args=("scripts/release/build-craw-chat-production.mjs")
+args=("scripts/release/build-sdkwork-im-production.mjs")
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

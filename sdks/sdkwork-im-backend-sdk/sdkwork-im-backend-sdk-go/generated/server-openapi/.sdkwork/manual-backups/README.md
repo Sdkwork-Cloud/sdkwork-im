@@ -1,6 +1,6 @@
 # sdkwork-im-backend-sdk
 
-Generator-owned Go transport SDK for the Craw Chat backend/operator API.
+Generator-owned Go transport SDK for the Sdkwork IM backend/operator API.
 
 This package is generated transport. It targets `/backend/v3/api` and is not a login,
 user, tenant, organization, or account-session SDK. Those identity and token lifecycles are

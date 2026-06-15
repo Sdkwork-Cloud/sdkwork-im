@@ -1,5 +1,5 @@
 [package]
-name = "craw-chat-cli"
+name = "sdkwork-im-cli"
 edition.workspace = true
 license.workspace = true
 version.workspace = true
@@ -7,11 +7,11 @@ version.workspace = true
 [dependencies]
 base64 = "0.22.1"
 bytes = "1.11.1"
-craw-chat-ccp-binding-ws = { path = "../../crates/craw-chat-ccp-binding-ws" }
-craw-chat-ccp-codec = { path = "../../crates/craw-chat-ccp-codec" }
-craw-chat-ccp-codec-json = { path = "../../crates/craw-chat-ccp-codec-json" }
-craw-chat-ccp-control = { path = "../../crates/craw-chat-ccp-control" }
-craw-chat-ccp-core = { path = "../../crates/craw-chat-ccp-core" }
+sdkwork-im-ccp-binding-ws = { path = "../../crates/sdkwork-im-ccp-binding-ws" }
+sdkwork-im-ccp-codec = { path = "../../crates/sdkwork-im-ccp-codec" }
+sdkwork-im-ccp-codec-json = { path = "../../crates/sdkwork-im-ccp-codec-json" }
+sdkwork-im-ccp-control = { path = "../../crates/sdkwork-im-ccp-control" }
+sdkwork-im-ccp-core = { path = "../../crates/sdkwork-im-ccp-core" }
 futures-util.workspace = true
 hyper = { version = "1.9.0", features = ["client", "http1"] }
 hyper-util = { version = "0.1.20", features = ["client", "client-legacy", "http1", "tokio"] }

@@ -22,7 +22,7 @@ fn token_headers() -> HeaderMap {
         "user_id": "u_demo",
         "session_id": "as_demo",
         "device_id": "d_demo",
-        "app_id": "craw-chat",
+        "app_id": "sdkwork-im",
         "environment": "dev",
         "deployment_mode": "private",
         "auth_level": "password",
@@ -106,7 +106,7 @@ fn test_resolve_app_context_uses_dual_token_claims() {
     assert_eq!(context.actor_kind, "user");
     assert_eq!(context.session_id.as_deref(), Some("as_demo"));
     assert_eq!(context.device_id.as_deref(), Some("d_demo"));
-    assert_eq!(context.app_id.as_deref(), Some("craw-chat"));
+    assert_eq!(context.app_id.as_deref(), Some("sdkwork-im"));
     assert_eq!(context.environment.as_deref(), Some("dev"));
     assert_eq!(context.deployment_mode.as_deref(), Some("private"));
     assert_eq!(context.auth_level.as_deref(), Some("password"));
@@ -133,7 +133,7 @@ fn test_signature_config_compatibility_resolves_dual_token_claims() {
 #[test]
 fn test_app_context_signature_verifies_canonical_projection_headers() {
     let mut headers = HeaderMap::new();
-    headers.insert("x-sdkwork-app-id", HeaderValue::from_static("craw-chat"));
+    headers.insert("x-sdkwork-app-id", HeaderValue::from_static("sdkwork-im"));
     headers.insert("x-sdkwork-tenant-id", HeaderValue::from_static("t_demo"));
     headers.insert("x-sdkwork-user-id", HeaderValue::from_static("u_demo"));
     headers.insert("x-sdkwork-session-id", HeaderValue::from_static("s_demo"));
@@ -199,7 +199,7 @@ fn test_resolve_app_context_for_request_exposes_appbase_context() {
     assert_eq!(principal.tenant_id, "t_demo");
     assert_eq!(principal.organization_id.as_deref(), Some("o_demo"));
     assert_eq!(principal.user_id, "u_demo");
-    assert_eq!(principal.app_id, "craw-chat");
+    assert_eq!(principal.app_id, "sdkwork-im");
 }
 
 #[test]
@@ -220,13 +220,13 @@ fn test_resolve_app_context_rejects_mismatched_user() {
         "tenant_id": "t_demo",
         "user_id": "u_auth",
         "session_id": "as_demo",
-        "app_id": "craw-chat"
+        "app_id": "sdkwork-im"
     }));
     let access = local_token(json!({
         "tenant_id": "t_demo",
         "user_id": "u_access",
         "session_id": "as_demo",
-        "app_id": "craw-chat"
+        "app_id": "sdkwork-im"
     }));
     headers.insert(
         header::AUTHORIZATION,

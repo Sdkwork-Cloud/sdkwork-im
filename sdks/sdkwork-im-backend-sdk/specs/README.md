@@ -10,7 +10,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- |
 | Name | `sdkwork-im-backend-sdk` |
 | Type | `sdk-family` |
-| Root | `craw-chat/sdks/sdkwork-im-backend-sdk` |
+| Root | `sdkwork-im/sdks/sdkwork-im-backend-sdk` |
 | Domain | `communication` |
 | Capability | `im` |
 | Languages | `csharp, flutter, go, java, kotlin, python, rust, swift, typescript` |
@@ -22,8 +22,8 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- |
 | Authority | `sdkwork-im-backend-api` |
 | Prefix | `/backend/v3/api` |
-| Authority OpenAPI | `openapi/craw-chat-backend-api.openapi.yaml` |
-| Derived OpenAPI | `openapi/craw-chat-backend-api.sdkgen.yaml` |
+| Authority OpenAPI | `openapi/sdkwork-im-backend-api.openapi.yaml` |
+| Derived OpenAPI | `openapi/sdkwork-im-backend-api.sdkgen.yaml` |
 
 ## Contract Manifest
 

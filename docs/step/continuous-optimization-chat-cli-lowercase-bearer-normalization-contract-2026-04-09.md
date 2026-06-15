@@ -7,7 +7,7 @@
 
 ## Why This Round
 
-- `craw-chat-cli token` already distinguished default header output and `--token-only` bare token output.
+- `sdkwork-im-cli token` already distinguished default header output and `--token-only` bare token output.
 - But externally provided lowercase bearer input still leaked `bearer ` into `authorization`, `token`, and `--token-only`.
 - This was the next smallest real CLI contract gap after the token-only fix.
 
@@ -33,8 +33,8 @@
 ## Verification
 
 ```powershell
-cargo test -p craw-chat-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_normalizes_lowercase_bearer_prefix -- --exact --nocapture
-cargo test -p craw-chat-cli --offline -- --nocapture
+cargo test -p sdkwork-im-cli --offline --test chat_cli_contract_test test_chat_cli_token_command_normalizes_lowercase_bearer_prefix -- --exact --nocapture
+cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 ```
 

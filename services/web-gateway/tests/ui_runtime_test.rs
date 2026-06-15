@@ -2,7 +2,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use craw_chat_gateway_config::{GatewayRuntimeMode, WebGatewayConfig};
+use sdkwork_im_gateway_config::{GatewayRuntimeMode, WebGatewayConfig};
 use http_body_util::BodyExt;
 use sdkwork_api_config::StandaloneConfig;
 use sdkwork_api_product_runtime::{
@@ -69,7 +69,7 @@ async fn unified_gateway_fallback_serves_portal_and_admin_shells() {
     )
     .expect("portal body should be utf8");
     assert!(portal_body.contains("portal-shell"));
-    assert!(portal_body.contains("__CRAW_CHAT_PORTAL_API_BASE_URL__"));
+    assert!(portal_body.contains("__SDKWORK_IM_PORTAL_API_BASE_URL__"));
     assert!(portal_body.contains(r#"type="importmap" nonce=""#));
 
     let admin_response = app
@@ -112,7 +112,7 @@ fn unique_temp_root(prefix: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("craw_chat_web_gateway_{prefix}_{unique}"))
+    std::env::temp_dir().join(format!("sdkwork_im_web_gateway_{prefix}_{unique}"))
 }
 
 fn write_file(path: &Path, contents: &str) {

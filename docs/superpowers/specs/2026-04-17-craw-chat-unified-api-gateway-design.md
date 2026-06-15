@@ -1,8 +1,8 @@
-# 2026-04-17 Craw Chat Unified API Gateway Design
+# 2026-04-17 Sdkwork IM Unified API Gateway Design
 
 ## 1. Goal
 
-Introduce a built-in single-port web gateway for all current Craw Chat server-style APIs. The gateway becomes the only standard external entrypoint, while independent services remain available as internal upstreams. The design must standardize:
+Introduce a built-in single-port web gateway for all current Sdkwork IM server-style APIs. The gateway becomes the only standard external entrypoint, while independent services remain available as internal upstreams. The design must standardize:
 
 - single-port access for HTTP and WebSocket traffic
 - service-level and aggregate OpenAPI 3.1 contracts
@@ -60,13 +60,13 @@ External clients must only rely on the gateway base URL, never on direct service
 - `services/web-gateway`
   - single external web host
   - HTTP proxy, WebSocket proxy, health, docs, aggregate schemas
-- `crates/craw-chat-api-registry`
+- `crates/sdkwork-im-api-registry`
   - service registry, route registry, ownership rules, visibility rules
-- `crates/craw-chat-openapi`
+- `crates/sdkwork-im-openapi`
   - service schema indexing, aggregate OpenAPI generation, docs HTML helpers
-- `crates/craw-chat-gateway-config`
+- `crates/sdkwork-im-gateway-config`
   - bind addresses, upstream config, schema refresh policy, runtime mode
-- `crates/craw-chat-gateway-observability`
+- `crates/sdkwork-im-gateway-observability`
   - startup summary, route summary, schema status reporting
 
 ### 5.2 Existing Components To Preserve
@@ -180,7 +180,7 @@ Gateway endpoints:
 - `/openapi.json`
 - `/openapi/index.json`
 - `/im/v3/openapi.json`
-- `/openapi/craw-chat-control.openapi.json`
+- `/openapi/sdkwork-im-control.openapi.json`
 - `/openapi/services/{serviceId}.openapi.json`
 - `/docs`
 - `/docs/services/{serviceId}`
@@ -192,15 +192,15 @@ Direct service endpoints should converge on:
 
 ### 9.2 Repo Authority Snapshots
 
-- `openapi/aggregate/craw-chat-gateway.openapi.json`
+- `openapi/aggregate/sdkwork-im-gateway.openapi.json`
 - `openapi/aggregate/openapi-index.json`
-- `openapi/public/craw-chat-im.openapi.yaml`
-- `openapi/public/craw-chat-control.openapi.json`
+- `openapi/public/sdkwork-im-im.openapi.yaml`
+- `openapi/public/sdkwork-im-control.openapi.json`
 - `openapi/services/{serviceId}.openapi.json`
 
 For compatibility with existing SDK workflows, the app authority snapshot may also be mirrored into:
 
-- `sdks/sdkwork-im-sdk/openapi/craw-chat-im.openapi.yaml`
+- `sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml`
 
 The long-term source of truth remains `openapi/*`, not `sdks/*`.
 

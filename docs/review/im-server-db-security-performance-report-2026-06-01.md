@@ -1,4 +1,4 @@
-# Craw Chat 即时通信服务端与数据库审计报告（2026-06-01）
+# Sdkwork IM 即时通信服务端与数据库审计报告（2026-06-01）
 
 ## 1. 审计范围
 - 代码范围：`services/*`（重点：`control-plane-api`、`local-minimal-node`、`session-gateway`、`conversation-runtime`、`projection-service`）。
@@ -18,14 +18,14 @@
 - 已通过：`cargo test -p session-gateway --test database_schema_contract_test`、`cargo test -p session-gateway --test postgres_realtime_sql_contract_test`。
 
 ### 2.3 OpenAPI operationId 生成器对齐规范（本轮新增）
-- `crates/craw-chat-openapi/src/lib.rs` 已从 `method_path` 改为 `dotted lowerCamel` 资源动作风格，并移除路径参数、处理标准动作词。
+- `crates/sdkwork-im-openapi/src/lib.rs` 已从 `method_path` 改为 `dotted lowerCamel` 资源动作风格，并移除路径参数、处理标准动作词。
 - 新增规范映射单测（覆盖 `sessions.create`、`users.retrieve`、`organizationMemberships.list`、`roles.permissions.delete` 等）。
-- 已通过：`cargo test -p craw-chat-openapi`、`cargo check -p local-minimal-node`、`cargo test -p local-minimal-node --test openapi_im_v3_contract_test`。
+- 已通过：`cargo test -p sdkwork-im-openapi`、`cargo check -p local-minimal-node`、`cargo test -p local-minimal-node --test openapi_im_v3_contract_test`。
 
 ## 3. 当前仍存在的问题（按优先级）
 
 ### P1 安全：AppContext 签名校验仍是“可选开启”
-- 证据：`crates/im-app-context/src/lib.rs` 中 `AppContextSignatureConfig::from_env()` 依赖 `CRAW_CHAT_APP_CONTEXT_REQUIRE_SIGNATURE`，默认不强制。
+- 证据：`crates/im-app-context/src/lib.rs` 中 `AppContextSignatureConfig::from_env()` 依赖 `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE`，默认不强制。
 - 风险：未强制签名的部署中，上下文仍主要依赖透传头，存在伪造/越权窗口。
 - 建议：受保护入口默认强制签名；将“签名 + token introspection/JWKS”设为统一生产基线。
 

@@ -10,17 +10,17 @@ use axum::{
     response::{IntoResponse, Response},
     routing::get,
 };
-use craw_chat_api_registry::{
+use sdkwork_im_api_registry::{
     ContractKind, HttpMethod, RouteDescriptor, RouteProtocol, RouteRegistry, RouteVisibility,
     SdkTarget, ServiceSchemaIndexEntry, build_registry, sdk_contract_summaries,
 };
-use craw_chat_gateway_config::WebGatewayConfig;
-use craw_chat_gateway_observability::{
+use sdkwork_im_gateway_config::WebGatewayConfig;
+use sdkwork_im_gateway_observability::{
     GatewayStartupSummary, build_startup_summary_with_registry, route_summaries,
     surface_group_summaries,
 };
-use craw_chat_openapi::{OpenApiServiceSpec, render_docs_html};
-use craw_chat_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
+use sdkwork_im_openapi::{OpenApiServiceSpec, render_docs_html};
+use sdkwork_im_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
 use futures_util::{SinkExt, StreamExt};
 use im_app_context::{build_dual_token_headers_for_context, resolve_app_context};
 use reqwest::Client;
@@ -36,7 +36,7 @@ use tokio_tungstenite::{
 use tower::ServiceExt;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
-const BROWSER_ORIGINS_ENV: &str = "CRAW_CHAT_BROWSER_ORIGINS";
+const BROWSER_ORIGINS_ENV: &str = "SDKWORK_IM_BROWSER_ORIGINS";
 const IM_REALTIME_WEBSOCKET_PATH: &str = "/im/v3/api/realtime/ws";
 const WEBSOCKET_AUTH_INIT_TIMEOUT_SECONDS: u64 = 10;
 const WEBSOCKET_UPSTREAM_CONNECT_TIMEOUT_SECONDS: u64 = 5;
@@ -830,7 +830,7 @@ async fn build_proxy_response(service_id: &str, upstream_response: reqwest::Resp
     let body = upstream_response.bytes().await.unwrap_or_default();
     let mut response = build_raw_response(status, &headers, Body::from(body));
     response.headers_mut().insert(
-        "x-craw-chat-upstream-service",
+        "x-sdkwork-im-upstream-service",
         HeaderValue::from_str(service_id)
             .expect("static gateway upstream service id should be a valid header value"),
     );
@@ -1483,7 +1483,7 @@ fn build_aggregate_openapi_document(documents: &[ServiceOpenApiDocument]) -> Val
     document.insert(
         "info".to_owned(),
         json!({
-            "title": "Craw Chat Unified Gateway API",
+            "title": "Sdkwork IM Unified Gateway API",
             "version": env!("CARGO_PKG_VERSION"),
             "description": "Aggregate OpenAPI contract assembled by the web-gateway from live upstream service schemas."
         }),
@@ -1967,16 +1967,16 @@ fn visibility_for_service(service_id: &str) -> RouteVisibility {
 
 fn aggregate_gateway_openapi_spec() -> OpenApiServiceSpec<'static> {
     OpenApiServiceSpec {
-        title: "Craw Chat Unified Gateway API",
+        title: "Sdkwork IM Unified Gateway API",
         version: env!("CARGO_PKG_VERSION"),
-        description: "Aggregate OpenAPI contract served by the web-gateway for the unified Craw Chat external HTTP surface.",
+        description: "Aggregate OpenAPI contract served by the web-gateway for the unified Sdkwork IM external HTTP surface.",
         openapi_path: "/openapi.json",
         docs_path: "/docs",
     }
 }
 
 fn service_openapi_spec(service_id: &str) -> OpenApiServiceSpec<'static> {
-    let title = Box::leak(format!("Craw Chat {} Service Contract", service_id).into_boxed_str());
+    let title = Box::leak(format!("Sdkwork IM {} Service Contract", service_id).into_boxed_str());
     let description = Box::leak(
         format!("Gateway-hosted service contract view for {service_id}.").into_boxed_str(),
     );

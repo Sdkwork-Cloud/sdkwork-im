@@ -1,27 +1,27 @@
 mod provider;
 
-pub use craw_chat_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilityProfileStore};
-pub use craw_chat_contract_agent::{
+pub use sdkwork_im_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilityProfileStore};
+pub use sdkwork_im_contract_agent::{
     AgentSubject, AgentSubjectRecord, AgentSubjectStore, AutomationExecutionRecord,
     AutomationExecutionStore,
 };
-pub use craw_chat_contract_control::{
+pub use sdkwork_im_contract_control::{
     PresenceStateRecord, PresenceStateStore, RealtimeCheckpointRecord, RealtimeCheckpointStore,
     RealtimeDisconnectFenceRecord, RealtimeDisconnectFenceStore,
     RealtimeEventWindowDiagnosticsSnapshot, RealtimeEventWindowHighRiskRecord,
     RealtimeEventWindowRecord, RealtimeEventWindowStore, RealtimeMatchingSubscriptionQuery,
     RealtimeSubscriptionRecord, RealtimeSubscriptionStore,
 };
-pub use craw_chat_contract_core::{
+pub use sdkwork_im_contract_core::{
     ContractError, LeaseGrant, LeaseStore, MetadataSnapshotRecord, MetadataStore, ObjectDescriptor,
     ObjectPutRequest, ObjectStore,
 };
-pub use craw_chat_contract_message::{
+pub use sdkwork_im_contract_message::{
     CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionBatch,
     TimelineProjectionRecord, TimelineProjectionStore,
 };
-pub use craw_chat_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
-pub use craw_chat_contract_stream::{StreamStateRecord, StreamStateStore};
+pub use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
+pub use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
 pub use im_domain_core::rtc::{RtcStateRecord, RtcStateStore};
 pub use provider::*;
 pub use sdkwork_rtc_core::{

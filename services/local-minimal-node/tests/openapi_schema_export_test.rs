@@ -9,9 +9,9 @@ use serde_json::Value;
 use tokio::sync::{Mutex, MutexGuard};
 use tower::ServiceExt;
 
-const IM_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_IM_OPENAPI_SCHEMA_PATH";
-const APP_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_APP_API_OPENAPI_SCHEMA_PATH";
-const BACKEND_OPENAPI_SCHEMA_PATH_ENV: &str = "CRAW_CHAT_BACKEND_API_OPENAPI_SCHEMA_PATH";
+const IM_OPENAPI_SCHEMA_PATH_ENV: &str = "SDKWORK_IM_IM_OPENAPI_SCHEMA_PATH";
+const APP_OPENAPI_SCHEMA_PATH_ENV: &str = "SDKWORK_IM_APP_API_OPENAPI_SCHEMA_PATH";
+const BACKEND_OPENAPI_SCHEMA_PATH_ENV: &str = "SDKWORK_IM_BACKEND_API_OPENAPI_SCHEMA_PATH";
 
 struct ScopedEnvVar {
     name: &'static str,
@@ -189,7 +189,7 @@ async fn test_local_minimal_node_exports_backend_api_openapi_schema() {
 async fn test_local_minimal_node_exports_im_openapi_schema_from_runtime_override_path() {
     let _guard = openapi_schema_env_guard().await;
     let schema_fixture_dir = std::env::temp_dir().join(format!(
-        "craw-chat-im-openapi-export-test-{}",
+        "sdkwork-im-im-openapi-export-test-{}",
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock should be after unix epoch")
@@ -232,7 +232,7 @@ paths:
 async fn test_local_minimal_node_exports_app_openapi_schema_from_runtime_override_path() {
     let _guard = openapi_schema_env_guard().await;
     let schema_fixture_dir = std::env::temp_dir().join(format!(
-        "craw-chat-openapi-export-test-{}",
+        "sdkwork-im-openapi-export-test-{}",
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock should be after unix epoch")
@@ -293,7 +293,7 @@ paths:
 async fn test_local_minimal_node_exports_backend_api_openapi_schema_from_runtime_override_path() {
     let _guard = openapi_schema_env_guard().await;
     let schema_fixture_dir = std::env::temp_dir().join(format!(
-        "craw-chat-backend-openapi-export-test-{}",
+        "sdkwork-im-backend-openapi-export-test-{}",
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock should be after unix epoch")
@@ -338,7 +338,7 @@ async fn test_local_minimal_node_does_not_expose_legacy_or_single_surface_openap
     let app = local_minimal_node::build_default_app();
 
     for legacy_path in [
-        "/openapi/craw-chat-app.openapi.yaml",
+        "/openapi/sdkwork-im-app.openapi.yaml",
         "/im/v3/api/openapi.json",
         "/app/v3/api/openapi.json",
         "/backend/v3/api/openapi.json",

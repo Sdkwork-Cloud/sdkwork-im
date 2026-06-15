@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "kind": "sdkwork.component.spec",
   "component": {
-    "name": "craw-chat-cli",
-    "displayName": "Craw Chat Cli",
+    "name": "sdkwork-im-cli",
+    "displayName": "Sdkwork IM Cli",
     "version": "0.1.0",
     "type": "rust-crate",
-    "root": "craw-chat/tools/chat-cli",
+    "root": "sdkwork-im/tools/chat-cli",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "chat",
@@ -110,7 +110,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/tools/chat-cli/Cargo.toml"
+      "cargo test --manifest-path apps/sdkwork-im/tools/chat-cli/Cargo.toml"
     ]
   },
   "metadata": {

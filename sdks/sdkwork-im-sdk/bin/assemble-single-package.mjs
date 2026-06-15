@@ -15,7 +15,7 @@ const manifest = {
   version: generatedManifest.version || '0.1.0',
   private: true,
   type: 'module',
-  description: 'Layered TypeScript SDK for Craw Chat IM runtime APIs and realtime adapters.',
+  description: 'Layered TypeScript SDK for Sdkwork IM IM runtime APIs and realtime adapters.',
   main: './dist/index.cjs',
   module: './dist/index.js',
   types: './dist/index.d.ts',

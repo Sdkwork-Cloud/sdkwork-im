@@ -1,6 +1,6 @@
 # Getting Started
 
-This section is for engineers, integrators, and operators who need to run the current Craw Chat
+This section is for engineers, integrators, and operators who need to run the current Sdkwork IM
 repository with minimal surprises.
 
 ## What You Get
@@ -51,7 +51,7 @@ The fallback behavior is not documentation guesswork. It is implemented in the s
 
 Public clients authenticate through SDKWork appbase dual-token headers:
 `Authorization: Bearer <auth-token>` and `Access-Token: <access-token>`. `sdkwork-appbase` owns
-login, IAM sessions, tenant/user/org context, and token issuance. `craw-chat` derives tenant, user,
+login, IAM sessions, tenant/user/org context, and token issuance. `sdkwork-im` derives tenant, user,
 session, device, actor, and permission context from those token claims, or from a private signed
 projection created by a trusted gateway after token validation.
 

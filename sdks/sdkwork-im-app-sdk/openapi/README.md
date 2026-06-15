@@ -6,17 +6,17 @@ API.
 
 ## Files
 
-- `craw-chat-app-api.openapi.yaml`
+- `sdkwork-im-app-api.openapi.yaml`
   Authority OpenAPI 3.x contract for app developers building instant messaging apps.
-- `craw-chat-app-api.sdkgen.yaml`
+- `sdkwork-im-app-api.sdkgen.yaml`
   Generator-compatible derived input.
-- `craw-chat-app-api.flutter.sdkgen.yaml`
+- `sdkwork-im-app-api.flutter.sdkgen.yaml`
   Flutter-compatible derived input.
 
 ## Rules
 
 - `/app/v3/openapi.json` is the live service schema export.
-- `CRAW_CHAT_APP_API_OPENAPI_SCHEMA_PATH` can override the runtime schema export source.
+- `SDKWORK_IM_APP_API_OPENAPI_SCHEMA_PATH` can override the runtime schema export source.
 - Non-management provider, platform callback, or health HTTP routes belong here when they are
   exposed to app/business integrations.
 - AIoT `/app/v3/api/iot/*` routes belong to `sdkwork-aiot` and are consumed through

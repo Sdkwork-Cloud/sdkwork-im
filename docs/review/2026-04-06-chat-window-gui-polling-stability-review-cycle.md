@@ -63,8 +63,8 @@
   - guest `158980`
 - 命令返回 10 秒后，两个窗口进程仍然存活
 - Win32 窗口标题枚举结果：
-  - `craw-chat [owner] [c_demo_20260406213321]`
-  - `craw-chat [guest] [c_demo_20260406213321]`
+  - `sdkwork-im [owner] [c_demo_20260406213321]`
+  - `sdkwork-im [guest] [c_demo_20260406213321]`
 
 ## 当前结论
 

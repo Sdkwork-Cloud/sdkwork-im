@@ -93,7 +93,7 @@ else
     local config_runtime_dir=""
 
     while IFS= read -r config_file; do
-      config_runtime_dir="$(read_config_value_from_file "$config_file" "CRAW_CHAT_RUNTIME_DIR" || true)"
+      config_runtime_dir="$(read_config_value_from_file "$config_file" "SDKWORK_IM_RUNTIME_DIR" || true)"
       if [[ -n "$config_runtime_dir" ]]; then
         printf '%s\n' "$config_runtime_dir"
         return 0

@@ -103,8 +103,8 @@ assertContains("reference/cli-and-scripts.md", "sdkwork-im-sdk");
 assertContains("reference/cli-and-scripts.md", "sdkwork-im-app-sdk");
 assertContains("reference/cli-and-scripts.md", "sdkwork-im-backend-sdk");
 assertContains("reference/cli-and-scripts.md", "sdkwork-rtc-sdk");
-assertContains("reference/cli-and-scripts.md", "craw-chat-im.sdkgen.yaml");
-assertContains("reference/cli-and-scripts.md", "craw-chat-im.flutter.sdkgen.yaml");
+assertContains("reference/cli-and-scripts.md", "sdkwork-im-im.sdkgen.yaml");
+assertContains("reference/cli-and-scripts.md", "sdkwork-im-im.flutter.sdkgen.yaml");
 assertContains(
   "reference/cli-and-scripts.md",
   "node .\\sdks\\sdkwork-im-sdk\\bin\\verify-sdk.mjs",
@@ -134,10 +134,10 @@ assertDoesNotContain(
   marker("sdkwork", "-im", "-admin", "-sdk"),
 );
 
-const adminReadmePath = path.join(repoRoot, "apps/craw-chat-admin/README.md");
+const adminReadmePath = path.join(repoRoot, "apps/sdkwork-im-admin/README.md");
 if (fs.existsSync(adminReadmePath)) {
   assertContains(
-    "apps/craw-chat-admin/README.md",
+    "apps/sdkwork-im-admin/README.md",
     "../../docs/sites/reference/admin-storage-contract.md",
     repoRoot,
   );
