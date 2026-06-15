@@ -273,7 +273,7 @@ async fn test_step11_local_drain_rebalance_drill_emits_metrics() {
         projection_service.clone(),
         realtime_cluster.clone(),
     );
-    let control_app = control_plane_api::build_app_with_cluster(realtime_cluster.clone());
+    let control_app = governance_service::build_app_with_cluster(realtime_cluster.clone());
 
     let create_conversation = app_b
         .clone()

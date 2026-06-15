@@ -15,7 +15,7 @@ use im_domain_core::message::{ContentPart, MessageBody, MessageType};
 fn demo_auth() -> AppContext {
     AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: None,
+        organization_id: "default".to_owned(),
         user_id: "svc_ops".into(),
         session_id: Some("s_system".into()),
         app_id: None,

@@ -10,6 +10,7 @@ use im_adapters_postgres_realtime::{
 use serde::Deserialize;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
+#[allow(dead_code)]
 trait SharedChannelLinkedMemberSyncTrigger: Send + Sync {
     fn trigger(&self, request: SharedChannelLinkedMemberSyncRequest) -> Result<(), String>;
 }
@@ -60,6 +61,7 @@ struct LocalMinimalPostgresPoolConfig {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct LocalMinimalSharedChannelLinkedMemberSyncTrigger {
     conversation_runtime: Arc<ConversationRuntime<ProjectionJournal>>,
 }
@@ -821,7 +823,7 @@ fn build_local_minimal_control_plane_app(
         None => Arc::new(SocialRuntime::default()),
     };
     let social_router = social_service::build_app(social_runtime.clone());
-    let governance_router = control_plane_api::build_control_surface_with_cluster_and_governance_sinks(
+    let governance_router = governance_service::build_control_surface_with_cluster_and_governance_sinks(
         realtime_cluster,
         ops_runtime,
         audit_runtime,
@@ -1051,7 +1053,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         bind_addr.clone(),
         vec![
             "conversation-runtime".into(),
-            "control-plane-api".into(),
+            "governance-service".into(),
             "projection-service".into(),
             "media-service".into(),
             "streaming-service".into(),

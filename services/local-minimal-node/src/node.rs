@@ -125,7 +125,7 @@ use self::im_calls::{FileImCallStateStore, RtcStateRecord, validate_im_call_stat
 fn rtc_app_context_from_auth(auth: &AppContext) -> RtcAppContext {
     RtcAppContext {
         tenant_id: auth.tenant_id.clone(),
-        organization_id: auth.organization_id.clone(),
+        organization_id: Some(auth.organization_id.clone()),
         user_id: auth.user_id.clone(),
         session_id: auth.session_id.clone(),
         app_id: auth.app_id.clone(),

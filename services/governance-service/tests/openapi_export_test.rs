@@ -1,7 +1,7 @@
 #[test]
 fn test_library_exports_control_plane_openapi_document() {
     let document =
-        control_plane_api::export_openapi_document().expect("openapi document should export");
+        governance_service::export_openapi_document().expect("openapi document should export");
 
     assert_eq!(document["openapi"], "3.1.2");
     assert_eq!(document["info"]["title"], "Control Plane API");
@@ -11,7 +11,7 @@ fn test_library_exports_control_plane_openapi_document() {
 #[test]
 fn test_control_plane_openapi_uses_sdkwork_dual_token_security() {
     let document =
-        control_plane_api::export_openapi_document().expect("openapi document should export");
+        governance_service::export_openapi_document().expect("openapi document should export");
 
     let schemes = document
         .pointer("/components/securitySchemes")
@@ -52,7 +52,7 @@ fn test_control_plane_openapi_uses_sdkwork_dual_token_security() {
 #[test]
 fn test_control_plane_openapi_error_responses_use_problem_json() {
     let document =
-        control_plane_api::export_openapi_document().expect("openapi document should export");
+        governance_service::export_openapi_document().expect("openapi document should export");
 
     let error_response = document
         .pointer(

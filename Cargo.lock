@@ -282,28 +282,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 
 [[package]]
-name = "control-plane-api"
-version = "0.1.0"
-dependencies = [
- "audit-service",
- "axum",
- "http-body-util",
- "im-app-context",
- "im-platform-contracts",
- "ops-service",
- "sdkwork-im-api-registry",
- "sdkwork-im-ccp-registry",
- "sdkwork-im-openapi",
- "serde",
- "serde_json",
- "session-gateway",
- "tokio",
- "tower",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "conversation-runtime"
 version = "0.1.0"
 dependencies = [
@@ -611,6 +589,28 @@ dependencies = [
  "rand_core 0.10.1",
  "wasip2",
  "wasip3",
+]
+
+[[package]]
+name = "governance-service"
+version = "0.1.0"
+dependencies = [
+ "audit-service",
+ "axum",
+ "http-body-util",
+ "im-app-context",
+ "im-platform-contracts",
+ "ops-service",
+ "sdkwork-im-api-registry",
+ "sdkwork-im-ccp-registry",
+ "sdkwork-im-openapi",
+ "serde",
+ "serde_json",
+ "session-gateway",
+ "tokio",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -1002,7 +1002,7 @@ dependencies = [
  "postgres",
  "r2d2",
  "r2d2_postgres",
- "sdkwork-pool-config",
+ "sdkwork-database-config",
  "serde_json",
  "sha2 0.10.9",
  "tokio",
@@ -1202,10 +1202,10 @@ dependencies = [
  "audit-service",
  "automation-service",
  "axum",
- "control-plane-api",
  "conversation-runtime",
  "fs4",
  "futures-util",
+ "governance-service",
  "http-body-util",
  "im-adapters-local-disk",
  "im-adapters-local-memory",
@@ -1826,9 +1826,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.12.3"
+version = "1.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e10754a14b9137dd7b1e3e5b0493cc9171fdd105e0ab477f51b72e7f3ac0e276"
+checksum = "f1292b7759ae1cb9ec195452d1390a074f0cd8541ab7a5a8c31cd6db45d4a6ba"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -1849,9 +1849,9 @@ dependencies = [
 
 [[package]]
 name = "regex-syntax"
-version = "0.8.10"
+version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
+checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "reqwest"
@@ -2012,6 +2012,17 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
+]
+
+[[package]]
+name = "sdkwork-database-config"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+ "toml",
+ "tracing",
 ]
 
 [[package]]
@@ -2238,6 +2249,7 @@ dependencies = [
 name = "sdkwork-im-runtime-id"
 version = "0.1.0"
 dependencies = [
+ "im-platform-contracts",
  "sdkwork-platform-id-service",
 ]
 
@@ -2273,17 +2285,6 @@ dependencies = [
 [[package]]
 name = "sdkwork-platform-id-service"
 version = "0.1.0"
-
-[[package]]
-name = "sdkwork-pool-config"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror",
- "toml",
- "tracing",
-]
 
 [[package]]
 name = "sdkwork-rtc-adapter-agora"

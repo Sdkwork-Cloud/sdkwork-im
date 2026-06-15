@@ -14,7 +14,7 @@ const API_STANDARD_SPEC: &str = "../../../sdkwork-specs/API_SPEC.md";
 const MEDIA_RESOURCE_STANDARD_SPEC: &str = "../../../sdkwork-specs/MEDIA_RESOURCE_SPEC.md";
 const SDKWORK_IM_LOCAL_STANDARD_SPEC: &str = "../../specs/im-app-api-sdk-integration.spec.md";
 const LOCAL_MINIMAL_NODE_BUILD_RS: &str = "src/node/build.rs";
-const CONTROL_PLANE_API_LIB_RS: &str = "../control-plane-api/src/lib.rs";
+const CONTROL_PLANE_API_LIB_RS: &str = "../governance-service/src/lib.rs";
 const ADMIN_SANDBOX_RS: &str = "../../crates/sdkwork-api-product-runtime/src/admin_sandbox.rs";
 
 fn load_schema(relative_path: &str) -> Value {

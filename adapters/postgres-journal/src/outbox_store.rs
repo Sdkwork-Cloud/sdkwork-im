@@ -9,7 +9,7 @@ use r2d2::Pool;
 use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
 
-use crate::{now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io, sha256_hex};
+use crate::{now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 pub type PostgresJournalPool = Pool<PostgresConnectionManager<NoTls>>;
 
@@ -97,26 +97,25 @@ impl OutboxStore for PostgresOutboxStore {
     fn enqueue(&self, event: OutboxEventRecord) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "enqueue")?;
-            let result = client.execute(
-                ENQUEUE_SQL,
-                &[
-                    &event.tenant_id,
-                    &event.organization_id,
-                    &event.outbox_id,
-                    &event.aggregate_type,
-                    &event.aggregate_id,
-                    &event.event_id,
-                    &event.event_type,
-                    &event.payload_json,
-                    &event.payload_hash,
-                    &event.publish_status.as_str(),
-                    &event.attempt_count as &dyn postgres::types::ToSql,
-                    &event.available_at,
-                    &event.created_at,
-                    &event.updated_at,
-                ],
-            );
+            let mut client = postgres_pool_client(&pool, "enqueue")?;
+            let attempt_count_i32 = event.attempt_count as i32;
+            let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
+                &event.tenant_id,
+                &event.organization_id,
+                &event.outbox_id,
+                &event.aggregate_type,
+                &event.aggregate_id,
+                &event.event_id,
+                &event.event_type,
+                &event.payload_json,
+                &event.payload_hash,
+                &event.publish_status.as_str(),
+                &attempt_count_i32,
+                &event.available_at,
+                &event.created_at,
+                &event.updated_at,
+            ];
+            let result = client.execute(ENQUEUE_SQL, params);
             match result {
                 Ok(_) => Ok(()),
                 Err(error) => {
@@ -162,7 +161,7 @@ impl OutboxStore for PostgresOutboxStore {
         let outbox_id = outbox_id.to_owned();
         let now = now_rfc3339();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "mark_published")?;
+            let mut client = postgres_pool_client(&pool, "mark_published")?;
             client
                 .execute(MARK_PUBLISHED_SQL, &[&tenant_id, &organization_id, &outbox_id, &now])
                 .map_err(|error| postgres_unavailable("mark_published", error))?;
@@ -183,7 +182,7 @@ impl OutboxStore for PostgresOutboxStore {
         let outbox_id = outbox_id.to_owned();
         let now = now_rfc3339();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "mark_failed")?;
+            let mut client = postgres_pool_client(&pool, "mark_failed")?;
             client
                 .execute(MARK_FAILED_SQL, &[&tenant_id, &organization_id, &outbox_id, &now])
                 .map_err(|error| postgres_unavailable("mark_failed", error))?;
@@ -202,7 +201,7 @@ impl OutboxStore for PostgresOutboxStore {
         let organization_id = organization_id.to_owned();
         let event_id = event_id.to_owned();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "read_by_event_id")?;
+            let mut client = postgres_pool_client(&pool, "read_by_event_id")?;
             let row = client
                 .query_opt(READ_BY_EVENT_ID_SQL, &[&tenant_id, &organization_id, &event_id])
                 .map_err(|error| postgres_unavailable("read_by_event_id", error))?;
@@ -219,7 +218,7 @@ impl OutboxStore for PostgresOutboxStore {
         let tenant_id = tenant_id.to_owned();
         let organization_id = organization_id.to_owned();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "count_pending")?;
+            let mut client = postgres_pool_client(&pool, "count_pending")?;
             let row = client
                 .query_one(COUNT_PENDING_SQL, &[&tenant_id, &organization_id])
                 .map_err(|error| postgres_unavailable("count_pending", error))?;
@@ -240,7 +239,7 @@ impl OutboxStore for PostgresOutboxStore {
         let outbox_id = outbox_id.to_owned();
         let now = now_rfc3339();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "retry_failed")?;
+            let mut client = postgres_pool_client(&pool, "retry_failed")?;
             client
                 .execute(
                     "update im_outbox_events set publish_status = 'pending', updated_at = $4 where tenant_id = $1 and organization_id = $2 and outbox_id = $3 and publish_status = 'failed'",

@@ -44,7 +44,7 @@ members = [
     "services/audit-service",
     "services/notification-service",
     "services/ops-service",
-    "services/control-plane-api",
+    "services/governance-service",
     "services/conversation-runtime",
     "services/local-minimal-node",
     "services/media-service",

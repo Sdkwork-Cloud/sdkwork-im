@@ -40,7 +40,7 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
         )
         .expect("route bind should succeed");
 
-    let app = control_plane_api::build_app_with_cluster(cluster.clone());
+    let app = governance_service::build_app_with_cluster(cluster.clone());
 
     let drain_response = app
         .clone()
@@ -109,7 +109,7 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
 
 #[tokio::test]
 async fn test_control_plane_rejects_unknown_node_lifecycle_writes() {
-    let app = control_plane_api::build_app_with_cluster(Arc::new(RealtimeClusterBridge::default()));
+    let app = governance_service::build_app_with_cluster(Arc::new(RealtimeClusterBridge::default()));
 
     let drain_response = app
         .clone()
@@ -171,7 +171,7 @@ async fn test_control_plane_rejects_migrate_when_source_node_is_not_draining() {
     cluster.bind_node_runtime("node_a", runtime_a);
     cluster.bind_node_runtime("node_b", runtime_b);
 
-    let app = control_plane_api::build_app_with_cluster(cluster.clone());
+    let app = governance_service::build_app_with_cluster(cluster.clone());
 
     let migrate_response = app
         .oneshot(

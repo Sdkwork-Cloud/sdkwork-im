@@ -117,9 +117,9 @@ async fn gateway_exposes_health_and_readiness_endpoints() {
 
 #[tokio::test]
 async fn gateway_routes_control_requests_to_control_plane_api() {
-    let control_plane = spawn_upstream("control-plane-api").await;
+    let control_plane = spawn_upstream("governance-service").await;
     let app = web_gateway::build_app(test_gateway_config(vec![service_upstream(
-        "control-plane-api",
+        "governance-service",
         control_plane.base_url.as_str(),
     )]));
 
@@ -143,7 +143,7 @@ async fn gateway_routes_control_requests_to_control_plane_api() {
         .to_bytes();
     let value: serde_json::Value =
         serde_json::from_slice(&body).expect("response body should be valid json");
-    assert_eq!(value["serviceId"], "control-plane-api");
+    assert_eq!(value["serviceId"], "governance-service");
 }
 
 #[tokio::test]

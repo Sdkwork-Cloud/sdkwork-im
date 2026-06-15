@@ -5,7 +5,7 @@ show_help() {
   cat <<'EOF'
 Usage: bash bin/repair-runtime-local.sh [--profile <local-minimal|local-default>] [--runtime-dir <path>] [--json] [--release]
 
-Repair missing managed local runtime-dir state files for the selected local-minimal/local-default profile, then replay social journal truth through control-plane-api when state/social-commit-journal.json is present.
+Repair missing managed local runtime-dir state files for the selected local-minimal/local-default profile, then replay social journal truth through governance-service when state/social-commit-journal.json is present.
 EOF
 }
 
@@ -71,8 +71,8 @@ fi
 resolve_control_plane_binary_path() {
   local root_dir="$1"
   local prefer_release="$2"
-  local release_path="${root_dir}/target/release/control-plane-api"
-  local debug_path="${root_dir}/target/debug/control-plane-api"
+  local release_path="${root_dir}/target/release/governance-service"
+  local debug_path="${root_dir}/target/debug/governance-service"
   local candidate
 
   if [[ "$prefer_release" -eq 1 ]]; then
@@ -129,12 +129,12 @@ fi
 
 if command -v cargo >/dev/null 2>&1; then
   if [[ "$json_output" -eq 1 ]]; then
-    cargo run -p control-plane-api --offline -- "${social_repair_args[@]}" >/dev/null
+    cargo run -p governance-service --offline -- "${social_repair_args[@]}" >/dev/null
   else
-    cargo run -p control-plane-api --offline -- "${social_repair_args[@]}"
+    cargo run -p governance-service --offline -- "${social_repair_args[@]}"
   fi
   exit 0
 fi
 
-echo "social commit journal exists at ${social_journal_path}, but control-plane-api binary was not found under target/debug or target/release and cargo is unavailable." >&2
+echo "social commit journal exists at ${social_journal_path}, but governance-service binary was not found under target/debug or target/release and cargo is unavailable." >&2
 exit 1

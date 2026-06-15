@@ -5,7 +5,7 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn test_healthz_returns_ok_and_service_metadata() {
-    let app = control_plane_api::build_app();
+    let app = governance_service::build_app();
 
     let response = app
         .oneshot(
@@ -29,12 +29,12 @@ async fn test_healthz_returns_ok_and_service_metadata() {
         serde_json::from_slice(&body).expect("body should be valid json");
 
     assert_eq!(value["status"], "ok");
-    assert_eq!(value["service"], "control-plane-api");
+    assert_eq!(value["service"], "governance-service");
 }
 
 #[tokio::test]
 async fn test_public_app_exports_live_openapi_json() {
-    let app = control_plane_api::build_public_app();
+    let app = governance_service::build_public_app();
 
     let response = app
         .oneshot(
@@ -64,7 +64,7 @@ async fn test_public_app_exports_live_openapi_json() {
 
 #[tokio::test]
 async fn test_public_app_serves_docs_page_for_live_openapi() {
-    let app = control_plane_api::build_public_app();
+    let app = governance_service::build_public_app();
 
     let response = app
         .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())

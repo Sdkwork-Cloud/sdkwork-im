@@ -526,10 +526,6 @@ fn postgres_config_error(
     ))
 }
 
-fn postgres_unavailable(action: &'static str, error: impl std::fmt::Display) -> ContractError {
-    ContractError::Unavailable(format!("postgres journal {action} failed: {error}"))
-}
-
 fn postgres_io_thread_panic() -> ContractError {
     ContractError::Unavailable(
         "postgres journal blocking IO worker panicked".into(),

@@ -106,11 +106,11 @@ async fn assert_status(app: Router, expectation: StatusExpectation<'_>) -> Strin
 
 #[tokio::test]
 async fn test_provider_control_plane_status_contract_covers_read_write_and_error_routes() {
-    let runtime_app = control_plane_api::build_app_with_cluster_and_runtime_provider_registry(
+    let runtime_app = governance_service::build_app_with_cluster_and_runtime_provider_registry(
         Arc::new(RealtimeClusterBridge::default()),
         Arc::new(RuntimeProviderRegistry::platform_default()),
     );
-    let static_app = control_plane_api::build_app_with_cluster_and_provider_registry(
+    let static_app = governance_service::build_app_with_cluster_and_provider_registry(
         Arc::new(RealtimeClusterBridge::default()),
         Arc::new(StaticProviderRegistry::platform_default()),
     );

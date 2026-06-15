@@ -141,3 +141,27 @@ impl RuntimeSnowflakeIdGenerator {
         self.inner.node_id()
     }
 }
+
+// ---------------------------------------------------------------------------
+// IdGenerator trait implementation
+// ---------------------------------------------------------------------------
+
+use im_platform_contracts::{ContractError, IdGenerator};
+
+impl IdGenerator for RuntimeSnowflakeIdGenerator {
+    fn next_id(&self) -> Result<i64, ContractError> {
+        self.inner
+            .generate()
+            .map_err(|error| ContractError::Unavailable(format!("snowflake id generation failed: {error:?}")))
+    }
+
+    fn node_id(&self) -> u16 {
+        self.inner.node_id()
+    }
+
+    fn next_id_at(&self, timestamp_millis: u64) -> Result<i64, ContractError> {
+        self.inner
+            .generate_at(timestamp_millis)
+            .map_err(|error| ContractError::Unavailable(format!("snowflake id generation failed: {error:?}")))
+    }
+}

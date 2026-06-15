@@ -10,7 +10,7 @@ use r2d2::Pool;
 use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
 
-use crate::{now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 pub type PostgresJournalPool = Pool<PostgresConnectionManager<NoTls>>;
 
@@ -143,7 +143,7 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         let organization_id = organization_id.to_owned();
         let conversation_id = conversation_id.to_owned();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "load_members")?;
+            let mut client = postgres_pool_client(&pool, "load_members")?;
             let rows = client
                 .query(LOAD_MEMBERS_SQL, &[&tenant_id, &organization_id, &conversation_id])
                 .map_err(|error| postgres_unavailable("load_members", error))?;
@@ -166,7 +166,7 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         let principal_kind = principal_kind.to_owned();
         let principal_id = principal_id.to_owned();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "load_member")?;
+            let mut client = postgres_pool_client(&pool, "load_member")?;
             let row = client
                 .query_opt(LOAD_MEMBER_SQL, &[&tenant_id, &organization_id, &conversation_id, &principal_kind, &principal_id])
                 .map_err(|error| postgres_unavailable("load_member", error))?;
@@ -177,21 +177,22 @@ impl ConversationAggregateStore for PostgresAggregateStore {
     fn upsert_member(&self, member: ConversationMemberRecord) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "upsert_member")?;
+            let mut client = postgres_pool_client(&pool, "upsert_member")?;
+            let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
+                &member.tenant_id,
+                &member.organization_id,
+                &member.conversation_id,
+                &member.principal_kind,
+                &member.principal_id,
+                &member.member_id,
+                &member.membership_role,
+                &member.membership_state,
+                &member.invited_by,
+                &member.joined_at,
+                &member.joined_at,
+            ];
             client
-                .execute(UPSERT_MEMBER_SQL, &[
-                    &member.tenant_id,
-                    &member.organization_id,
-                    &member.conversation_id,
-                    &member.principal_kind,
-                    &member.principal_id,
-                    &member.member_id,
-                    &member.membership_role,
-                    &member.membership_state,
-                    &member.invited_by,
-                    &member.joined_at,
-                    &member.joined_at,
-                ])
+                .execute(UPSERT_MEMBER_SQL, params)
                 .map_err(|error| postgres_unavailable("upsert_member", error))?;
             Ok(())
         })
@@ -214,7 +215,7 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         let principal_id = principal_id.to_owned();
         let removed_at = removed_at.to_owned();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "remove_member")?;
+            let mut client = postgres_pool_client(&pool, "remove_member")?;
             client
                 .execute(REMOVE_MEMBER_SQL, &[&tenant_id, &organization_id, &conversation_id, &principal_kind, &principal_id, &removed_at])
                 .map_err(|error| postgres_unavailable("remove_member", error))?;
@@ -233,7 +234,7 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         let organization_id = organization_id.to_owned();
         let conversation_id = conversation_id.to_owned();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "load_read_cursors")?;
+            let mut client = postgres_pool_client(&pool, "load_read_cursors")?;
             let rows = client
                 .query(LOAD_READ_CURSORS_SQL, &[&tenant_id, &organization_id, &conversation_id])
                 .map_err(|error| postgres_unavailable("load_read_cursors", error))?;
@@ -253,7 +254,7 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         let organization_id = organization_id.to_owned();
         let conversation_id = conversation_id.to_owned();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "load_read_cursor")?;
+            let mut client = postgres_pool_client(&pool, "load_read_cursor")?;
             let row = client
                 .query_opt(LOAD_READ_CURSOR_SQL, &[&tenant_id, &organization_id, &conversation_id, &member_id])
                 .map_err(|error| postgres_unavailable("load_read_cursor", error))?;
@@ -264,19 +265,21 @@ impl ConversationAggregateStore for PostgresAggregateStore {
     fn upsert_read_cursor(&self, cursor: ReadCursorRecord) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "upsert_read_cursor")?;
+            let mut client = postgres_pool_client(&pool, "upsert_read_cursor")?;
+            let read_seq_i64 = cursor.read_seq as i64;
+            let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
+                &cursor.tenant_id,
+                &cursor.organization_id,
+                &cursor.conversation_id,
+                &cursor.member_id,
+                &cursor.principal_kind,
+                &cursor.principal_id,
+                &read_seq_i64,
+                &cursor.last_read_message_id,
+                &cursor.updated_at,
+            ];
             client
-                .execute(UPSERT_READ_CURSOR_SQL, &[
-                    &cursor.tenant_id,
-                    &cursor.organization_id,
-                    &cursor.conversation_id,
-                    &cursor.member_id,
-                    &cursor.principal_kind,
-                    &cursor.principal_id,
-                    &cursor.read_seq as &dyn postgres::types::ToSql,
-                    &cursor.last_read_message_id,
-                    &cursor.updated_at,
-                ])
+                .execute(UPSERT_READ_CURSOR_SQL, params)
                 .map_err(|error| postgres_unavailable("upsert_read_cursor", error))?;
             Ok(())
         })
@@ -321,7 +324,7 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         let organization_id = organization_id.to_owned();
         let conversation_id = conversation_id.to_owned();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "conversation_exists")?;
+            let mut client = postgres_pool_client(&pool, "conversation_exists")?;
             let row = client
                 .query_one(CONVERSATION_EXISTS_SQL, &[&tenant_id, &organization_id, &conversation_id])
                 .map_err(|error| postgres_unavailable("conversation_exists", error))?;

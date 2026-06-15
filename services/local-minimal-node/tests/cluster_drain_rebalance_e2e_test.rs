@@ -24,7 +24,7 @@ async fn test_local_minimal_profile_drain_migrates_routes_and_preserves_realtime
         projection_service.clone(),
         realtime_cluster.clone(),
     );
-    let control_app = control_plane_api::build_app_with_cluster(realtime_cluster.clone());
+    let control_app = governance_service::build_app_with_cluster(realtime_cluster.clone());
 
     let create_conversation = app_b
         .clone()

@@ -2083,7 +2083,7 @@ pub(crate) async fn submit_friend_request(
     let tenant_id = "default";
     let auth = AppContext {
         tenant_id: tenant_id.into(),
-        organization_id: None,
+        organization_id: "default".to_owned(),
         user_id: String::new(),
         session_id: None,
         app_id: None,
@@ -2231,7 +2231,7 @@ pub(crate) async fn activate_friendship(
     let tenant_id = "default";
     let auth = AppContext {
         tenant_id: tenant_id.into(),
-        organization_id: None,
+        organization_id: "default".to_owned(),
         user_id: String::new(),
         session_id: None,
         app_id: None,

@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-const BIND_ADDR_ENV: &str = "SDKWORK_IM_CONTROL_PLANE_API_BIND_ADDR";
+const BIND_ADDR_ENV: &str = "SDKWORK_IM_GOVERNANCE_SERVICE_BIND_ADDR";
 const DEFAULT_BIND_ADDR: &str = "127.0.0.1:18081";
 
 #[tokio::main]
@@ -26,27 +26,27 @@ async fn run() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
     if let Some(command) = args.next() {
         if command == "print-openapi" {
-            let body = serde_json::to_string_pretty(&control_plane_api::render_openapi_document())
+            let body = serde_json::to_string_pretty(&governance_service::render_openapi_document())
                 .map_err(|error| format!("failed to serialize control-plane OpenAPI: {error}"))?;
             println!("{body}");
             return Ok(());
         }
 
-        return Err(format!("Unknown command for control-plane-api: {command}"));
+        return Err(format!("Unknown command for governance-service: {command}"));
     }
 
     let bind_addr = std::env::var(BIND_ADDR_ENV).unwrap_or_else(|_| DEFAULT_BIND_ADDR.to_owned());
     let listener = tokio::net::TcpListener::bind(bind_addr.as_str())
         .await
-        .map_err(|error| format!("control-plane-api failed to bind local listener: {error}"))?;
+        .map_err(|error| format!("governance-service failed to bind local listener: {error}"))?;
 
-    let app = control_plane_api::build_public_app();
+    let app = governance_service::build_public_app();
 
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
             tokio::signal::ctrl_c().await.ok();
         })
         .await
-        .map_err(|error| format!("control-plane-api server should run: {error}"))?;
+        .map_err(|error| format!("governance-service server should run: {error}"))?;
     Ok(())
 }

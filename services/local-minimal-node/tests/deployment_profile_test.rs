@@ -4154,8 +4154,8 @@ fn test_repair_runtime_local_sh_invokes_social_repair_after_generic_repair_when_
         "first call must invoke repair-runtime-dir. actual calls: {captured_calls}"
     );
     assert!(
-        calls[1].contains(&"control-plane-api".to_string()),
-        "second call must target control-plane-api. actual calls: {captured_calls}"
+        calls[1].contains(&"governance-service".to_string()),
+        "second call must target governance-service. actual calls: {captured_calls}"
     );
     assert!(
         calls[1].contains(&"repair-social-runtime-dir".to_string()),
@@ -4380,7 +4380,7 @@ fn test_repair_runtime_local_ps1_propagates_social_repair_failure_when_social_jo
 
     fs::write(
         fake_tools_dir.join("cargo.cmd"),
-        "@echo off\r\nset args=%*\r\n>> \"%~dp0..\\cargo-calls.txt\" echo __CALL__\r\n>> \"%~dp0..\\cargo-calls.txt\" echo %args%\r\necho %args% | findstr /C:\"-p control-plane-api\" >nul\r\nif %errorlevel%==0 exit /b 23\r\nexit /b 0\r\n",
+        "@echo off\r\nset args=%*\r\n>> \"%~dp0..\\cargo-calls.txt\" echo __CALL__\r\n>> \"%~dp0..\\cargo-calls.txt\" echo %args%\r\necho %args% | findstr /C:\"-p governance-service\" >nul\r\nif %errorlevel%==0 exit /b 23\r\nexit /b 0\r\n",
     )
     .expect("fake cargo.cmd should be written");
 
@@ -4438,11 +4438,11 @@ fn test_repair_runtime_local_ps1_propagates_social_repair_failure_when_social_jo
     assert!(
         calls[1]
             .iter()
-            .any(|line| line.contains("control-plane-api"))
+            .any(|line| line.contains("governance-service"))
             && calls[1]
                 .iter()
                 .any(|line| line.contains("repair-social-runtime-dir")),
-        "second call must target control-plane-api repair-social-runtime-dir. actual calls: {captured_calls}"
+        "second call must target governance-service repair-social-runtime-dir. actual calls: {captured_calls}"
     );
 
     let _ = fs::remove_dir_all(&temp_root);

@@ -34,7 +34,7 @@ const SOCIAL_COMMIT_PARTITION: &str = "control-plane-social";
 // ---------------------------------------------------------------------------
 
 #[derive(Clone)]
-pub(crate) enum SocialStateStore {
+pub enum SocialStateStore {
     Memory(Arc<Mutex<SocialControlState>>),
     File {
         file_path: Arc<PathBuf>,
@@ -327,13 +327,13 @@ pub(crate) struct StoredUserBlock {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct StoredDirectChat {
+pub struct StoredDirectChat {
     pub(crate) direct_chat: DirectChat,
     pub(crate) commits: Vec<CommitEnvelope>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct StoredExternalConnection {
+pub struct StoredExternalConnection {
     pub(crate) external_connection: ExternalConnection,
     pub(crate) commits: Vec<CommitEnvelope>,
 }
@@ -510,7 +510,7 @@ impl SocialCommittedEventPointer {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
-pub(crate) struct SocialControlState {
+pub struct SocialControlState {
     pub(crate) friend_requests: BTreeMap<String, StoredFriendRequest>,
     pub(crate) friendships: BTreeMap<String, StoredFriendship>,
     pub(crate) user_blocks: BTreeMap<String, StoredUserBlock>,
@@ -1774,6 +1774,7 @@ impl SocialControlState {
         );
     }
 
+    #[allow(dead_code)]
     pub(crate) fn record_failed_shared_channel_sync_requests(
         &mut self,
         requests: &[SharedChannelLinkedMemberSyncRequest],
@@ -1886,6 +1887,7 @@ pub struct SocialRuntime {
     tx_marker_path: Option<Arc<PathBuf>>,
     write_lock_path: Option<Arc<PathBuf>>,
     snapshot_failpoint_path: Option<Arc<PathBuf>>,
+    #[allow(dead_code)]
     shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool,
 }
 
@@ -3326,6 +3328,7 @@ fn unindex_pending_shared_channel_sync_request(
     }
 }
 
+#[allow(dead_code)]
 fn shared_channel_sync_request_key(request: &SharedChannelLinkedMemberSyncRequest) -> String {
     format!(
         "{}|{}|{}|{}|{}|{}|{}",
@@ -3637,6 +3640,7 @@ pub(crate) fn deterministic_social_id(prefix: &str, seed: &str) -> String {
 // Timestamp helpers
 // ---------------------------------------------------------------------------
 
+#[allow(dead_code)]
 fn current_unix_epoch_millis() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

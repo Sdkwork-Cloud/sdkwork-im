@@ -1540,7 +1540,7 @@ async fn repair_pending_friend_request_acceptance(
 ) -> Result<(), ApiError> {
     let auth = AppContext {
         tenant_id: repair.tenant_id.clone(),
-        organization_id: None,
+        organization_id: String::new(),
         user_id: repair.target_user_id.clone(),
         actor_id: repair.target_user_id.clone(),
         actor_kind: "user".into(),

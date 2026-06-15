@@ -48,6 +48,7 @@ pub(crate) struct AppliedSharedChannelPolicy {
     pub(crate) shared_channel_policy: SharedChannelPolicy,
     pub(crate) latest_commit: CommitEnvelope,
     pub(crate) persistence: SocialWritePersistence,
+    #[allow(dead_code)]
     pub(crate) shared_channel_sync_requests: Vec<SharedChannelLinkedMemberSyncRequest>,
 }
 

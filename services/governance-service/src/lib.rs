@@ -1624,7 +1624,7 @@ async fn require_app_context(
 async fn healthz() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok",
-        service: "control-plane-api",
+        service: "governance-service",
     })
 }
 

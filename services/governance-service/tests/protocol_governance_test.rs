@@ -6,7 +6,7 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn test_control_plane_exposes_protocol_governance_snapshot_to_control_readers() {
-    let app = control_plane_api::build_app();
+    let app = governance_service::build_app();
 
     let response = app
         .oneshot(

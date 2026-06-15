@@ -17,7 +17,7 @@ use tower::ServiceExt;
 fn audit_app_context() -> AppContext {
     AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: None,
+        organization_id: "default".to_owned(),
         user_id: "u_admin".into(),
         session_id: None,
         app_id: None,
@@ -67,12 +67,12 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
 
-    let app = control_plane_api::build_app_with_cluster_and_governance_sinks(
+    let app = governance_service::build_app_with_cluster_and_governance_sinks(
         cluster.clone(),
         ops_runtime.clone(),
         audit_runtime.clone(),
@@ -160,7 +160,7 @@ async fn test_control_plane_provider_bindings_feed_ops_runtime() {
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
@@ -175,7 +175,7 @@ async fn test_control_plane_provider_bindings_feed_ops_runtime() {
             ),
     );
 
-    let app = control_plane_api::build_app_with_cluster_provider_registry_and_governance_sinks(
+    let app = governance_service::build_app_with_cluster_provider_registry_and_governance_sinks(
         cluster,
         provider_registry,
         ops_runtime.clone(),
@@ -260,14 +260,14 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
     let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
 
     let app =
-        control_plane_api::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
+        governance_service::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
             cluster,
             provider_registry,
             ops_runtime.clone(),
@@ -366,14 +366,14 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
     let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
 
     let app =
-        control_plane_api::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
+        governance_service::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
             cluster,
             provider_registry,
             ops_runtime.clone(),
@@ -485,14 +485,14 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
     let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
 
     let app =
-        control_plane_api::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
+        governance_service::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
             cluster,
             provider_registry,
             ops_runtime.clone(),
@@ -583,14 +583,14 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
     let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
 
     let app =
-        control_plane_api::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
+        governance_service::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
             cluster,
             provider_registry,
             ops_runtime.clone(),
@@ -673,14 +673,14 @@ async fn test_control_plane_provider_policy_preview_does_not_touch_ops_or_audit(
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
     let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
 
     let app =
-        control_plane_api::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
+        governance_service::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
             cluster,
             provider_registry,
             ops_runtime.clone(),
@@ -736,14 +736,14 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
     let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
 
     let app =
-        control_plane_api::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
+        governance_service::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
             cluster,
             provider_registry,
             ops_runtime.clone(),
@@ -851,7 +851,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
@@ -860,7 +860,7 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
             .with_deployment_profile(ProviderDomain::ObjectStorage, "object-storage-volcengine"),
     );
 
-    let app = control_plane_api::build_app_with_cluster_provider_registry_and_governance_sinks(
+    let app = governance_service::build_app_with_cluster_provider_registry_and_governance_sinks(
         cluster,
         provider_registry,
         ops_runtime.clone(),
@@ -932,14 +932,14 @@ async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_m
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
     let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
 
     let app =
-        control_plane_api::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
+        governance_service::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
             cluster,
             provider_registry,
             ops_runtime.clone(),
@@ -1002,7 +1002,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
@@ -1012,7 +1012,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
     );
     let tenant_id = "t".repeat(257);
 
-    let app = control_plane_api::build_app_with_cluster_provider_registry_and_governance_sinks(
+    let app = governance_service::build_app_with_cluster_provider_registry_and_governance_sinks(
         cluster,
         provider_registry,
         ops_runtime.clone(),
@@ -1086,7 +1086,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
         "node_a",
         "local-minimal",
         "127.0.0.1:18090",
-        vec!["session-gateway".into(), "control-plane-api".into()],
+        vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
     let audit_runtime = Arc::new(AuditRuntime::default());
@@ -1094,7 +1094,7 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
     let tenant_id = "t".repeat(257);
 
     let app =
-        control_plane_api::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
+        governance_service::build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
             cluster,
             provider_registry,
             ops_runtime.clone(),

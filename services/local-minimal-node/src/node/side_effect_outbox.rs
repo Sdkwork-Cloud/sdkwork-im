@@ -104,7 +104,7 @@ impl MessageSideEffectOutboxRecord {
     fn auth_context(&self) -> AppContext {
         AppContext {
             tenant_id: self.tenant_id.clone(),
-            organization_id: None,
+            organization_id: String::new(),
             user_id: self.actor_id.clone(),
             actor_id: self.actor_id.clone(),
             actor_kind: self.actor_kind.clone(),
@@ -771,7 +771,7 @@ mod tests {
     fn test_auth_context() -> AppContext {
         AppContext {
             tenant_id: "t_demo".into(),
-            organization_id: None,
+            organization_id: String::new(),
             user_id: "u_demo".into(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),

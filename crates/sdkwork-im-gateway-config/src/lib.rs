@@ -164,7 +164,7 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
     vec![
         service_upstream("sdkwork-appbase-app-api", appbase_upstream.as_str()),
         service_upstream("session-gateway", "http://127.0.0.1:18080"),
-        service_upstream("control-plane-api", "http://127.0.0.1:18081"),
+        service_upstream("governance-service", "http://127.0.0.1:18081"),
         service_upstream("conversation-runtime", "http://127.0.0.1:18082"),
         service_upstream("projection-service", "http://127.0.0.1:18083"),
         service_upstream("streaming-service", "http://127.0.0.1:18084"),

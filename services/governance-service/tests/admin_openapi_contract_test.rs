@@ -5,7 +5,7 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn admin_openapi_contract_exposes_live_openapi_document_without_auth() {
-    let app = control_plane_api::build_public_app();
+    let app = governance_service::build_public_app();
 
     let response = app
         .oneshot(

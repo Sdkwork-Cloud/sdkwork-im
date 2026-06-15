@@ -1,5 +1,5 @@
 fn main() {
-    let document = control_plane_api::export_openapi_document()
+    let document = governance_service::export_openapi_document()
         .expect("control-plane openapi document should export");
     println!(
         "{}",

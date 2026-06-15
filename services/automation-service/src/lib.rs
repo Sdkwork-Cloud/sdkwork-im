@@ -2179,7 +2179,7 @@ mod tests {
     fn demo_auth_context() -> AppContext {
         AppContext {
             tenant_id: "t_demo".into(),
-            organization_id: None,
+            organization_id: "default".to_owned(),
             user_id: "u_demo".into(),
             session_id: Some("s_demo".into()),
             app_id: None,

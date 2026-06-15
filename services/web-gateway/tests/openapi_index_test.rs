@@ -24,7 +24,7 @@ struct OpenApiUpstreamState {
 #[tokio::test]
 async fn gateway_exposes_aggregate_openapi_json() {
     let control_plane = spawn_openapi_upstream(
-        "control-plane-api",
+        "governance-service",
         json!({
             "openapi": "3.1.0",
             "info": { "title": "Control Plane API", "version": "0.1.0" },
@@ -63,7 +63,7 @@ async fn gateway_exposes_aggregate_openapi_json() {
     )
     .await;
     let app = web_gateway::build_app(test_gateway_config(vec![
-        service_upstream("control-plane-api", control_plane.base_url.as_str()),
+        service_upstream("governance-service", control_plane.base_url.as_str()),
         service_upstream("projection-service", projection.base_url.as_str()),
         service_upstream("conversation-runtime", runtime.base_url.as_str()),
     ]));
@@ -152,7 +152,7 @@ async fn gateway_exposes_aggregate_openapi_json() {
 #[tokio::test]
 async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
     let control_plane = spawn_openapi_upstream(
-        "control-plane-api",
+        "governance-service",
         json!({
             "openapi": "3.1.0",
             "info": { "title": "Control Plane API", "version": "0.1.0" },
@@ -165,7 +165,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
     )
     .await;
     let app = web_gateway::build_app(test_gateway_config(vec![service_upstream(
-        "control-plane-api",
+        "governance-service",
         control_plane.base_url.as_str(),
     )]));
 
@@ -219,18 +219,18 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
         index_value["sdkContracts"][2]["sdkTarget"],
         "sdkworkImBackendSdk"
     );
-    assert_eq!(index_value["services"][0]["serviceId"], "control-plane-api");
+    assert_eq!(index_value["services"][0]["serviceId"], "governance-service");
     assert_eq!(
         index_value["services"][0]["contractKind"],
         "upstreamOperational"
     );
     assert_eq!(
         index_value["services"][0]["schemaUrl"],
-        "/openapi/services/control-plane-api.openapi.json"
+        "/openapi/services/governance-service.openapi.json"
     );
     assert_eq!(
         index_value["services"][0]["docsUrl"],
-        "/docs/services/control-plane-api"
+        "/docs/services/governance-service"
     );
     assert_eq!(index_value["services"][0]["visibility"], "internal");
     assert_eq!(index_value["services"][0]["routeCount"], 1);
@@ -249,7 +249,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
             .expect("routes should be an array")
             .iter()
             .any(|route| {
-                route["serviceId"] == "control-plane-api"
+                route["serviceId"] == "governance-service"
                     && route["operationGroup"] == "control"
                     && route["pathPattern"] == "/backend/v3/api/control/{*path}"
                     && route["methods"]
@@ -264,7 +264,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
             .expect("surface groups should be an array")
             .iter()
             .any(|group| {
-                group["serviceId"] == "control-plane-api"
+                group["serviceId"] == "governance-service"
                     && group["operationGroup"] == "control"
                     && group["visibility"] == "internal"
                     && group["routeCount"] == 1
@@ -276,7 +276,7 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
     let service_response = app
         .oneshot(
             Request::builder()
-                .uri("/openapi/services/control-plane-api.openapi.json")
+                .uri("/openapi/services/governance-service.openapi.json")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -476,7 +476,7 @@ async fn gateway_service_index_does_not_surface_projection_device_metadata() {
 #[tokio::test]
 async fn gateway_exposes_runtime_summary_json() {
     let control_plane = spawn_openapi_upstream(
-        "control-plane-api",
+        "governance-service",
         json!({
             "openapi": "3.1.0",
             "info": { "title": "Control Plane API", "version": "0.1.0" },
@@ -510,7 +510,7 @@ async fn gateway_exposes_runtime_summary_json() {
     )
     .await;
     let app = web_gateway::build_app(test_gateway_config(vec![
-        service_upstream("control-plane-api", control_plane.base_url.as_str()),
+        service_upstream("governance-service", control_plane.base_url.as_str()),
         service_upstream("session-gateway", session_gateway.base_url.as_str()),
     ]));
 
@@ -565,7 +565,7 @@ async fn gateway_exposes_runtime_summary_json() {
     );
     assert_eq!(
         value["serviceContracts"][0]["schemaUrl"],
-        "http://gateway.example:18079/openapi/services/control-plane-api.openapi.json"
+        "http://gateway.example:18079/openapi/services/governance-service.openapi.json"
     );
     assert_eq!(
         value["serviceContracts"][0]["contractKind"],
@@ -599,7 +599,7 @@ async fn gateway_exposes_runtime_summary_json() {
             .expect("surface groups should be an array")
             .iter()
             .any(|group| {
-                group["serviceId"] == "control-plane-api"
+                group["serviceId"] == "governance-service"
                     && group["operationGroup"] == "control"
                     && group["visibility"] == "internal"
             })
@@ -611,7 +611,7 @@ fn startup_summary_lists_gateway_openapi_endpoints() {
     let registry =
         web_gateway::build_gateway_registry().expect("gateway route registry should build");
     let config = test_gateway_config(vec![service_upstream(
-        "control-plane-api",
+        "governance-service",
         "http://127.0.0.1:18081",
     )]);
     let summary = build_startup_summary_with_registry(&config, &registry, "http://127.0.0.1:18079");
@@ -652,7 +652,7 @@ fn startup_summary_lists_gateway_openapi_endpoints() {
         "public session-gateway realtime [sdk:sdkworkImSdk] [protocols:http,websocket]: 2 routes"
     ));
     assert!(text.contains(
-        "internal control-plane-api control [sdk:sdkworkImBackendSdk] [protocols:http]: 1 routes"
+        "internal governance-service control [sdk:sdkworkImBackendSdk] [protocols:http]: 1 routes"
     ));
 }
 
@@ -661,7 +661,7 @@ fn startup_summary_hides_per_service_schema_and_docs_endpoints() {
     let registry =
         web_gateway::build_gateway_registry().expect("gateway route registry should build");
     let config = test_gateway_config(vec![
-        service_upstream("control-plane-api", "http://127.0.0.1:18081"),
+        service_upstream("governance-service", "http://127.0.0.1:18081"),
         service_upstream("conversation-runtime", "http://127.0.0.1:18082"),
     ]);
     let summary = build_startup_summary_with_registry(&config, &registry, "http://127.0.0.1:18079");
@@ -671,8 +671,8 @@ fn startup_summary_hides_per_service_schema_and_docs_endpoints() {
     assert!(!text.contains("Upstream Operational Service Contracts"));
     assert!(!text.contains("upstream schema:"));
     assert!(!text.contains("upstream docs:"));
-    assert!(!text.contains("/openapi/services/control-plane-api.openapi.json"));
-    assert!(!text.contains("/docs/services/control-plane-api"));
+    assert!(!text.contains("/openapi/services/governance-service.openapi.json"));
+    assert!(!text.contains("/docs/services/governance-service"));
     assert!(!text.contains("/openapi/services/conversation-runtime.openapi.json"));
     assert!(!text.contains("/docs/services/conversation-runtime"));
 }

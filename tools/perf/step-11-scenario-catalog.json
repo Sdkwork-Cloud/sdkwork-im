@@ -218,7 +218,7 @@
       "repoAssets": [
         "services/local-minimal-node/tests/cluster_drain_rebalance_e2e_test.rs",
         "services/local-minimal-node/tests/performance_ha_dr_drill_test.rs",
-        "services/control-plane-api/tests/governance_loop_test.rs",
+        "services/governance-service/tests/governance_loop_test.rs",
         "tools/perf/step-11-cp11-3-local-drill-baseline.json"
       ],
       "nextCheckpoints": [
@@ -292,8 +292,8 @@
       "repoAssets": [
         "crates/sdkwork-im-ccp-registry/tests/compatibility_matrix_test.rs",
         "services/local-minimal-node/tests/performance_ha_dr_drill_test.rs",
-        "services/control-plane-api/tests/protocol_registry_test.rs",
-        "services/control-plane-api/tests/protocol_governance_test.rs",
+        "services/governance-service/tests/protocol_registry_test.rs",
+        "services/governance-service/tests/protocol_governance_test.rs",
         "tools/perf/step-11-cp11-3-local-drill-baseline.json"
       ],
       "nextCheckpoints": [

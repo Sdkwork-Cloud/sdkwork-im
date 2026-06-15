@@ -14,7 +14,7 @@ fn app_context(
 ) -> AppContext {
     AppContext {
         tenant_id: tenant_id.into(),
-        organization_id: None,
+        organization_id: "default".to_owned(),
         user_id: actor_id.into(),
         session_id: session_id.map(str::to_owned),
         app_id: None,

@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "kind": "sdkwork.component.spec",
   "component": {
-    "name": "control-plane-api",
-    "displayName": "Control Plane API",
+    "name": "governance-service",
+    "displayName": "Governance Service",
     "version": "0.1.0",
     "type": "rust-crate",
-    "root": "sdkwork-im/services/control-plane-api",
+    "root": "sdkwork-im/services/governance-service",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "chat",
@@ -110,7 +110,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/sdkwork-im/services/control-plane-api/Cargo.toml"
+      "cargo test --manifest-path apps/sdkwork-im/services/governance-service/Cargo.toml"
     ]
   },
   "metadata": {

@@ -42,7 +42,7 @@ const SIGNED_APP_CONTEXT_HEADER_NAMES: &[&str] = &[
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AppContext {
     pub tenant_id: String,
-    pub organization_id: Option<String>,
+    pub organization_id: String,
     pub user_id: String,
     pub session_id: Option<String>,
     pub app_id: Option<String>,
@@ -213,7 +213,7 @@ impl DualTokenRequestBuilderExt for axum::http::request::Builder {
     {
         let organization_id = organization_id.as_ref().to_owned();
         with_updated_local_dual_token_context(self, move |context| {
-            context.organization_id = Some(organization_id);
+            context.organization_id = organization_id;
         })
     }
 
@@ -302,7 +302,7 @@ where
 {
     AppContext {
         tenant_id: tenant_id.to_owned(),
-        organization_id: None,
+        organization_id: "default".to_owned(),
         user_id: user_id.to_owned(),
         session_id: Some("s_local_service".to_owned()),
         app_id: Some("sdkwork-im".to_owned()),
@@ -468,7 +468,7 @@ where
         permission_scope
     };
     let data_scope = context.data_scope.iter().cloned().collect::<Vec<_>>();
-    let login_scope = if context.organization_id.is_some() {
+    let login_scope = if context.organization_id != "default" && !context.organization_id.is_empty() {
         "ORGANIZATION"
     } else {
         "TENANT"
@@ -695,7 +695,10 @@ fn app_context_from_claims(
 
     AppContext {
         tenant_id: principal.tenant_id.clone(),
-        organization_id: principal.organization_id.clone(),
+        organization_id: principal
+            .organization_id
+            .clone()
+            .unwrap_or_else(|| "default".to_owned()),
         user_id: principal.user_id.clone(),
         session_id: principal.session_id.clone(),
         app_id: Some(principal.app_id.clone()),

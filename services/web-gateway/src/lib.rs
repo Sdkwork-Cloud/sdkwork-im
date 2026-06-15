@@ -983,7 +983,7 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         &[LINK_WEBSOCKET_SUBPROTOCOL],
     ));
     entries.extend(prefix_routes(
-        "control-plane-api",
+        "governance-service",
         all_http_methods(),
         &["/backend/v3/api/control/{*path}"],
         RouteVisibility::Internal,
@@ -1960,7 +1960,7 @@ fn service_visibility(service_routes: &[&RouteDescriptor]) -> Option<RouteVisibi
 
 fn visibility_for_service(service_id: &str) -> RouteVisibility {
     match service_id {
-        "control-plane-api" | "audit-service" | "ops-service" => RouteVisibility::Internal,
+        "governance-service" | "audit-service" | "ops-service" => RouteVisibility::Internal,
         _ => RouteVisibility::Public,
     }
 }

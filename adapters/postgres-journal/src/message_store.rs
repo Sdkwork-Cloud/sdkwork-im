@@ -9,7 +9,7 @@ use r2d2::Pool;
 use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
 
-use crate::{now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io, sha256_hex};
+use crate::{now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
 pub type PostgresJournalConnectionManager = PostgresConnectionManager<NoTls>;
 pub type PostgresJournalPool = Pool<PostgresJournalConnectionManager>;
@@ -103,29 +103,27 @@ impl MessageStore for PostgresMessageStore {
         let pool = self.pool.clone();
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "insert_message")?;
-            let result = client.execute(
-                INSERT_MESSAGE_SQL,
-                &[
-                    &message.tenant_id,
-                    &message.organization_id,
-                    &message.conversation_id,
-                    &message.message_id,
-                    &message.message_seq as &dyn postgres::types::ToSql,
-                    &message.sender_principal_kind,
-                    &message.sender_principal_id,
-                    &message.sender_device_id,
-                    &message.client_msg_id,
-                    &message.message_type,
-                    &message.payload_json,
-                    &message.payload_hash,
-                    &message.created_at,
-                    &message.updated_at,
-                ],
-            );
+            let message_seq_i64 = message.message_seq as i64;
+            let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
+                &message.tenant_id,
+                &message.organization_id,
+                &message.conversation_id,
+                &message.message_id,
+                &message_seq_i64,
+                &message.sender_principal_kind,
+                &message.sender_principal_id,
+                &message.sender_device_id,
+                &message.client_msg_id,
+                &message.message_type,
+                &message.payload_json,
+                &message.payload_hash,
+                &message.created_at,
+                &message.updated_at,
+            ];
+            let result = client.execute(INSERT_MESSAGE_SQL, params);
             match result {
                 Ok(_) => Ok(()),
                 Err(error) => {
-                    // Check for unique constraint violation
                     if error.code() == Some(&postgres::error::SqlState::UNIQUE_VIOLATION) {
                         Err(ContractError::Conflict("message already exists".into()))
                     } else {
@@ -151,7 +149,7 @@ impl MessageStore for PostgresMessageStore {
         let after_seq_i64 = after_seq as i64;
         let limit_i32 = limit as i32;
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "read_window")?;
+            let mut client = postgres_pool_client(&pool, "read_window")?;
             let rows = client
                 .query(READ_WINDOW_SQL, &[&tenant_id, &organization_id, &conversation_id, &after_seq_i64, &limit_i32])
                 .map_err(|error| postgres_unavailable("read_window", error))?;
@@ -194,7 +192,7 @@ impl MessageStore for PostgresMessageStore {
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "read_by_id")?;
+            let mut client = postgres_pool_client(&pool, "read_by_id")?;
             let row = client
                 .query_opt(READ_BY_ID_SQL, &[&tenant_id, &message_id])
                 .map_err(|error| postgres_unavailable("read_by_id", error))?;
@@ -235,7 +233,7 @@ impl MessageStore for PostgresMessageStore {
         let sender_principal_id = sender_principal_id.to_owned();
         let client_msg_id = client_msg_id.to_owned();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "read_by_client_id")?;
+            let mut client = postgres_pool_client(&pool, "read_by_client_id")?;
             let row = client
                 .query_opt(READ_BY_CLIENT_ID_SQL, &[
                     &tenant_id, &organization_id, &conversation_id,
@@ -273,7 +271,7 @@ impl MessageStore for PostgresMessageStore {
         let organization_id = organization_id.to_owned();
         let conversation_id = conversation_id.to_owned();
         run_postgres_io(move || {
-            let client = postgres_pool_client(&pool, "read_high_watermark")?;
+            let mut client = postgres_pool_client(&pool, "read_high_watermark")?;
             let row = client
                 .query_one(READ_HIGH_WATERMARK_SQL, &[&tenant_id, &organization_id, &conversation_id])
                 .map_err(|error| postgres_unavailable("read_high_watermark", error))?;

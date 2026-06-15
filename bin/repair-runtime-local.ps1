@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 if ($Help) {
     Write-Host "Usage: powershell -ExecutionPolicy Bypass -File bin/repair-runtime-local.ps1 [-ProfileName <local-minimal|local-default>] [-RuntimeDir <path>] [-Json] [-Release]"
     Write-Host "Usage: cmd /c .\bin\repair-runtime-local.cmd [--profile <local-minimal|local-default>] [--runtime-dir <path>] [--json] [--release]"
-    Write-Host "Repair missing managed local runtime-dir state files for the selected local-minimal/local-default profile, then replay social journal truth through control-plane-api when state/social-commit-journal.json is present."
+    Write-Host "Repair missing managed local runtime-dir state files for the selected local-minimal/local-default profile, then replay social journal truth through governance-service when state/social-commit-journal.json is present."
     exit 0
 }
 
@@ -114,8 +114,8 @@ function Resolve-ControlPlaneBinaryPath {
         [bool]$PreferRelease
     )
 
-    $releasePath = Join-Path $Root "target\release\control-plane-api.exe"
-    $debugPath = Join-Path $Root "target\debug\control-plane-api.exe"
+    $releasePath = Join-Path $Root "target\release\governance-service.exe"
+    $debugPath = Join-Path $Root "target\debug\governance-service.exe"
     $candidates = if ($PreferRelease) {
         @($releasePath, $debugPath)
     }
@@ -185,7 +185,7 @@ if ($null -ne $controlPlaneBinaryPath) {
 }
 
 if ($null -ne (Get-Command cargo -ErrorAction SilentlyContinue)) {
-    $socialCargoArgs = @("run", "-p", "control-plane-api", "--offline", "--")
+    $socialCargoArgs = @("run", "-p", "governance-service", "--offline", "--")
     $socialCargoArgs += $socialRepairArgs
     if ($Json) {
         $null = cargo @socialCargoArgs
@@ -196,4 +196,4 @@ if ($null -ne (Get-Command cargo -ErrorAction SilentlyContinue)) {
     exit $LASTEXITCODE
 }
 
-throw "social commit journal exists at $socialJournalPath, but control-plane-api binary was not found under target\debug or target\release and cargo is unavailable."
+throw "social commit journal exists at $socialJournalPath, but governance-service binary was not found under target\debug or target\release and cargo is unavailable."

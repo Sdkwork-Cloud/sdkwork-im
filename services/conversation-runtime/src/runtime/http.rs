@@ -1978,7 +1978,7 @@ mod tests {
     ) -> String {
         let owner_auth = AppContext {
             tenant_id: "t_demo".into(),
-            organization_id: None,
+            organization_id: "default".to_owned(),
             user_id: "u_owner".into(),
             actor_id: "u_owner".into(),
             actor_kind: "user".into(),
