@@ -1,6 +1,6 @@
-# Craw Chat Runtime Link Component Specs
+# Sdkwork IM Runtime Link Component Specs
 
-This directory is the local standards index for `craw-chat-runtime-link`.
+This directory is the local standards index for `sdkwork-im-runtime-link`.
 
 Root SDKWork standards remain authoritative. Local component specs can narrow or document this component, but they must not contradict [the root standards](../../../../../specs/README.md).
 
@@ -8,9 +8,9 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 | Field | Value |
 | --- | --- |
-| Name | `craw-chat-runtime-link` |
+| Name | `sdkwork-im-runtime-link` |
 | Type | `rust-crate` |
-| Root | `craw-chat/crates/craw-chat-runtime-link` |
+| Root | `sdkwork-im/crates/sdkwork-im-runtime-link` |
 | Domain | `communication` |
 | Capability | `im` |
 | Languages | `rust` |
@@ -52,4 +52,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `cargo test --manifest-path apps/craw-chat/crates/craw-chat-runtime-link/Cargo.toml`
+- `cargo test --manifest-path apps/sdkwork-im/crates/sdkwork-im-runtime-link/Cargo.toml`

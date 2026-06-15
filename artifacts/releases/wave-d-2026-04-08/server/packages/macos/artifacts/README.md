@@ -8,12 +8,12 @@
 This staging root is where macOS packaging outputs are expected to land when the release execution
 plan is run.
 
-- canonical build command: `cargo build -p web-gateway --release --bin craw-chat-server --offline`
+- canonical build command: `cargo build -p web-gateway --release --bin sdkwork-im-server --offline`
 
 ## Expected staged artifacts
 
-- `craw-chat-server-darwin-universal.tar.gz`
-- `craw-chat-server-<version>.pkg`
+- `sdkwork-im-server-darwin-universal.tar.gz`
+- `sdkwork-im-server-<version>.pkg`
 
 ## Shared staging contracts
 
@@ -24,7 +24,7 @@ plan is run.
 
 ## Canonical workflow
 
-- Step 1: build the canonical `craw-chat-server` binary.
+- Step 1: build the canonical `sdkwork-im-server` binary.
 - Step 2: assemble macOS package outputs into this staging root.
 - Step 3: refresh `../artifact-file-list.txt`.
 - Step 4: refresh `../SHA256SUMS`.

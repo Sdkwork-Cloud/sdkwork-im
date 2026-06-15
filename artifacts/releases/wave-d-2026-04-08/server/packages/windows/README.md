@@ -12,8 +12,8 @@
 
 ## Canonical artifact names
 
-- `craw-chat-server-windows-x86_64.zip`
-- `craw-chat-server-<version>-x64.msi`
+- `sdkwork-im-server-windows-x86_64.zip`
+- `sdkwork-im-server-<version>-x64.msi`
 
 ## Canonical operator entrypoints
 
@@ -28,11 +28,11 @@
 
 ## Default install-root mapping
 
-- install root: `%ProgramFiles%\\CrawChat`
-- config root: `%CommonApplicationData%\\CrawChat\\default\\config`
-- data root: `%CommonApplicationData%\\CrawChat\\default\\data`
-- log root: `%CommonApplicationData%\\CrawChat\\default\\logs`
-- run root: `%CommonApplicationData%\\CrawChat\\default\\run`
+- install root: `%ProgramFiles%\\SdkworkIm`
+- config root: `%CommonApplicationData%\\SdkworkIm\\default\\config`
+- data root: `%CommonApplicationData%\\SdkworkIm\\default\\data`
+- log root: `%CommonApplicationData%\\SdkworkIm\\default\\logs`
+- run root: `%CommonApplicationData%\\SdkworkIm\\default\\run`
 
 ## Related staging contracts
 
@@ -46,6 +46,6 @@
 - the Windows package line is frozen for archive and native-installer packaging
 - actual Windows build outputs are still template-only until packaging execution populates the
   staging root
-- every Windows package form must preserve the wrapper-required contract for `CrawChatServer.exe`
+- every Windows package form must preserve the wrapper-required contract for `SdkworkImServer.exe`
   and the shared `server.yaml` startup contract
 

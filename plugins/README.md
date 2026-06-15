@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Application/runtime plugin source packages for Craw Chat.
+Application/runtime plugin source packages for Sdkwork IM.
 
 ## Owner
 

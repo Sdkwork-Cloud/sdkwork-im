@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "kind": "sdkwork.component.spec",
   "component": {
-    "name": "craw-chat-runtime-link",
-    "displayName": "Craw Chat Runtime Link",
+    "name": "sdkwork-im-runtime-link",
+    "displayName": "Sdkwork IM Runtime Link",
     "version": "0.1.0",
     "type": "rust-crate",
-    "root": "craw-chat/crates/craw-chat-runtime-link",
+    "root": "sdkwork-im/crates/sdkwork-im-runtime-link",
     "domain": "communication",
     "declaredDomain": null,
     "capability": "im",
@@ -110,7 +110,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/craw-chat/crates/craw-chat-runtime-link/Cargo.toml"
+      "cargo test --manifest-path apps/sdkwork-im/crates/sdkwork-im-runtime-link/Cargo.toml"
     ]
   },
   "metadata": {

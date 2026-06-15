@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Developer, validation, generation, migration, and operator tools that are not shipped as Craw Chat
+Developer, validation, generation, migration, and operator tools that are not shipped as Sdkwork IM
 runtime code.
 
 ## Owner

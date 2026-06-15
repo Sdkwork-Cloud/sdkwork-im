@@ -1,3 +1,7 @@
+mod conversation_aggregate_store;
+mod id_generator;
+mod message_store;
+mod outbox_store;
 mod provider;
 
 pub use sdkwork_im_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilityProfileStore};
@@ -24,6 +28,16 @@ pub use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationT
 pub use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
 pub use im_domain_core::rtc::{RtcStateRecord, RtcStateStore};
 pub use provider::*;
+
+// 新增：消息真值存储契约
+pub use conversation_aggregate_store::{
+    ConversationAggregateState, ConversationAggregateStore, ConversationMemberRecord,
+    ReadCursorRecord,
+};
+pub use id_generator::{IdGenerator, IdGeneratorConfig};
+pub use message_store::{MessageStore, MessageWindow, StoredMessageRecord};
+pub use outbox_store::{OutboxEventRecord, OutboxPublishStatus, OutboxStore};
+
 pub use sdkwork_rtc_core::{
     RtcContractError, RtcCreateMediaSessionRequest, RtcMediaSessionMode, RtcParticipantCredential,
     RtcProviderEventKind, RtcProviderPort, RtcProviderWebhookEvent, RtcProviderWebhookParseRequest,

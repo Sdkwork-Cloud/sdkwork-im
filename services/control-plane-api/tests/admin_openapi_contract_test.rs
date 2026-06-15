@@ -56,10 +56,6 @@ async fn admin_openapi_contract_exposes_live_openapi_document_without_auth() {
         "provider registry path should be documented"
     );
     assert!(
-        paths.contains_key("/backend/v3/api/control/social/friend_requests"),
-        "social route group should be documented"
-    );
-    assert!(
         paths.contains_key("/backend/v3/api/control/nodes/{node_id}/drain"),
         "node control route group should be documented"
     );
@@ -73,6 +69,5 @@ async fn admin_openapi_contract_exposes_live_openapi_document_without_auth() {
         .collect::<Vec<_>>();
     assert!(tag_names.contains(&"protocol"));
     assert!(tag_names.contains(&"providers"));
-    assert!(tag_names.contains(&"social"));
     assert!(tag_names.contains(&"nodes"));
 }

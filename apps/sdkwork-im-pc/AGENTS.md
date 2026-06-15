@@ -86,7 +86,7 @@ Console surface uses `sdkwork-im-console-*` (normalized PC target
 `sdkwork-im-pc-console-*`); admin surface uses `sdkwork-im-admin-*` (normalized
 PC target `sdkwork-im-pc-admin-*`); PC-native capabilities use `sdkwork-im-pc-*`.
 Historical `sdkwork-clawchat-console-*` and `sdkwork-clawchat-admin-*` package
-names were retired by the `craw-chat â†’ sdkwork-im` rebrand and must not be
+names were retired by the `sdkwork-im â†?sdkwork-im` rebrand and must not be
 reintroduced.
 
 ## Build, Test, and Verification

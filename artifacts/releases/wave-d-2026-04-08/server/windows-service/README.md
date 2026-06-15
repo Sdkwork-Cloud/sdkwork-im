@@ -4,14 +4,14 @@
 - artifact root: `artifacts/releases/wave-d-2026-04-08/server/windows-service`
 - Windows-service documentation state: `template_only_pending_payload`
 
-This directory documents the Windows Service contract for `craw-chat-server`. It is not a second
+This directory documents the Windows Service contract for `sdkwork-im-server`. It is not a second
 runtime model. It is a wrapper around the same canonical server payload and startup command.
 
 ## Required inputs
 
-- `bin/craw-chat-server.exe`
-- `bin/CrawChatServer.exe`
-- `deployments/windows-service/CrawChatServer.xml`
+- `bin/sdkwork-im-server.exe`
+- `bin/SdkworkImServer.exe`
+- `deployments/windows-service/SdkworkImServer.xml`
 - `deployments/templates/server.yaml.example`
 
 ## Generated instance-specific outputs
@@ -19,18 +19,18 @@ runtime model. It is a wrapper around the same canonical server payload and star
 `install-service-server` is expected to render instance-local service files under
 `<config-root>/generated/`:
 
-- `generated/CrawChatServer.xml`
-- `install-CrawChatServer.ps1`
-- `uninstall-CrawChatServer.ps1`
+- `generated/SdkworkImServer.xml`
+- `install-SdkworkImServer.ps1`
+- `uninstall-SdkworkImServer.ps1`
 
 ## Wrapper contract
 
 - wrapper host:
-  - `bin/CrawChatServer.exe`
+  - `bin/SdkworkImServer.exe`
 - service identity:
-  - `CrawChatServer`
+  - `SdkworkImServer`
 - wrapped process:
-  - `craw-chat-server --config <config-root>/server.yaml`
+  - `sdkwork-im-server --config <config-root>/server.yaml`
 
 ## Delivery constraint
 

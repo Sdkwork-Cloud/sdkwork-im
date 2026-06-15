@@ -1,1 +1,0 @@
-{"version":3,"file":"upsert-provider-binding-policy-request.d.ts","sourceRoot":"","sources":["../../src/types/upsert-provider-binding-policy-request.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,kCAAkC;IACjD,MAAM,EAAE,MAAM,CAAC;IACf,mBAAmB,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IACpC,QAAQ,EAAE,MAAM,CAAC;IACjB,QAAQ,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;CAC1B"}

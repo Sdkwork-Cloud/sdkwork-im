@@ -164,22 +164,22 @@ export function resolveAppbaseAppApiBaseUrl(): string | undefined {
 }
 
 export function resolveProductAppApiBaseUrl(): string | undefined {
-  return readSdkBaseUrlEnvValue('VITE_CRAW_CHAT_APP_API_BASE_URL')
-    ?? readSdkBaseUrlEnvValue('VITE_CRAW_CHAT_SDK_BASE_URL')
+  return readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_APP_API_BASE_URL')
+    ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_SDK_BASE_URL')
     ?? resolveLocalDevBaseUrl('http://127.0.0.1:3900')
     ?? resolveSameOriginHttpBaseUrl();
 }
 
 export function resolveImApiBaseUrl(): string | undefined {
-  return readSdkBaseUrlEnvValue('VITE_CRAW_CHAT_IM_API_BASE_URL')
-    ?? readSdkBaseUrlEnvValue('VITE_CRAW_CHAT_SDK_BASE_URL')
+  return readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_IM_API_BASE_URL')
+    ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_SDK_BASE_URL')
     ?? resolveLocalDevBaseUrl('http://127.0.0.1:3900')
     ?? resolveSameOriginHttpBaseUrl();
 }
 
 export function resolveProductBackendApiBaseUrl(): string | undefined {
-  return readSdkBaseUrlEnvValue('VITE_CRAW_CHAT_BACKEND_API_BASE_URL')
-    ?? readSdkBaseUrlEnvValue('VITE_CRAW_CHAT_SDK_BASE_URL')
+  return readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_BACKEND_API_BASE_URL')
+    ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_SDK_BASE_URL')
     ?? resolveLocalDevBaseUrl('http://127.0.0.1:3900')
     ?? resolveSameOriginHttpBaseUrl();
 }
@@ -193,9 +193,9 @@ export function resolveAppbaseBackendApiBaseUrl(): string | undefined {
 }
 
 export function resolveImWebSocketBaseUrl(): string | undefined {
-  const explicitBaseUrl = readSdkBaseUrlEnvValue('VITE_CRAW_CHAT_IM_WEBSOCKET_BASE_URL');
+  const explicitBaseUrl = readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL');
   return explicitBaseUrl
-    ?? deriveWebSocketBaseUrlFromHttpBaseUrl(readSdkBaseUrlEnvValue('VITE_CRAW_CHAT_IM_API_BASE_URL'))
+    ?? deriveWebSocketBaseUrlFromHttpBaseUrl(readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_IM_API_BASE_URL'))
     ?? resolveLocalDevBaseUrl('ws://127.0.0.1:18079')
     ?? resolveSameOriginWebSocketBaseUrl();
 }

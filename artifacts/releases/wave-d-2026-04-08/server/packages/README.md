@@ -4,7 +4,7 @@
 - artifact root: `artifacts/releases/wave-d-2026-04-08/server/packages`
 - package-matrix documentation state: `template_only_pending_payload`
 
-This directory is the human-readable package matrix for `craw-chat-server`. It maps platform
+This directory is the human-readable package matrix for `sdkwork-im-server`. It maps platform
 delivery forms back to the canonical server payload and the shared startup contract.
 
 ## Package-matrix contracts
@@ -42,13 +42,13 @@ delivery forms back to the canonical server payload and the shared startup contr
 
 ## Frozen artifact names
 
-- `craw-chat-server-linux-x86_64.tar.gz`
-- `craw-chat-server_<version>_amd64.deb`
-- `craw-chat-server-<version>-1.x86_64.rpm`
-- `craw-chat-server-darwin-universal.tar.gz`
-- `craw-chat-server-<version>.pkg`
-- `craw-chat-server-windows-x86_64.zip`
-- `craw-chat-server-<version>-x64.msi`
+- `sdkwork-im-server-linux-x86_64.tar.gz`
+- `sdkwork-im-server_<version>_amd64.deb`
+- `sdkwork-im-server-<version>-1.x86_64.rpm`
+- `sdkwork-im-server-darwin-universal.tar.gz`
+- `sdkwork-im-server-<version>.pkg`
+- `sdkwork-im-server-windows-x86_64.zip`
+- `sdkwork-im-server-<version>-x64.msi`
 
 ## Platform indexes
 
@@ -65,7 +65,7 @@ delivery forms back to the canonical server payload and the shared startup contr
 - all package lines preserve the same `server.yaml` startup contract
 - all package lines preserve the same service identity semantics
 - Windows package lines additionally preserve the dedicated wrapper contract for
-  `CrawChatServer.exe`
+  `SdkworkImServer.exe`
 
 ## Current interpretation
 

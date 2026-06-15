@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make `craw-chat-cli token --token-only` expose a real bare-token contract instead of returning the same bearer-header shape as the default mode.
+Make `sdkwork-im-cli token --token-only` expose a real bare-token contract instead of returning the same bearer-header shape as the default mode.
 
 ## Implementation
 

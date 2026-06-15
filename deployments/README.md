@@ -3,7 +3,7 @@
 ## Purpose
 
 Deployment descriptors, environment topology, packaging handoff files, infrastructure examples, and
-deployment runbooks for Craw Chat.
+deployment runbooks for Sdkwork IM.
 
 ## Owner
 

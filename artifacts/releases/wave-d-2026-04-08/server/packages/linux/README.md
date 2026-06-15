@@ -13,9 +13,9 @@
 
 ## Canonical artifact names
 
-- `craw-chat-server-linux-x86_64.tar.gz`
-- `craw-chat-server_<version>_amd64.deb`
-- `craw-chat-server-<version>-1.x86_64.rpm`
+- `sdkwork-im-server-linux-x86_64.tar.gz`
+- `sdkwork-im-server_<version>_amd64.deb`
+- `sdkwork-im-server-<version>-1.x86_64.rpm`
 
 ## Canonical operator entrypoints
 
@@ -26,11 +26,11 @@
 
 ## Default install-root mapping
 
-- install root: `/opt/craw-chat`
-- config root: `/etc/craw-chat/default`
-- data root: `/var/lib/craw-chat/default`
-- log root: `/var/log/craw-chat/default`
-- run root: `/var/run/craw-chat/default`
+- install root: `/opt/sdkwork-im`
+- config root: `/etc/sdkwork-im/default`
+- data root: `/var/lib/sdkwork-im/default`
+- log root: `/var/log/sdkwork-im/default`
+- run root: `/var/run/sdkwork-im/default`
 
 ## Related staging contracts
 

@@ -29,22 +29,22 @@ directory remain the automation truth for packaging and release gating.
 The canonical server payload is shared across all package forms.
 
 - binaries
-  - `bin/craw-chat-server`
-  - `bin/craw-chat-server.exe`
-  - `bin/CrawChatServer.exe`
+  - `bin/sdkwork-im-server`
+  - `bin/sdkwork-im-server.exe`
+  - `bin/SdkworkImServer.exe`
 - templates
   - `deployments/templates/server.yaml.example`
   - `deployments/templates/server.env.example`
   - `deployments/templates/postgresql.yaml.example`
 - service definitions
-  - `deployments/systemd/craw-chat-server.service`
-  - `deployments/launchd/com.sdkwork.crawchat.server.plist`
-  - `deployments/windows-service/CrawChatServer.xml`
+  - `deployments/systemd/sdkwork-im-server.service`
+  - `deployments/launchd/com.sdkwork.SdkworkIm.server.plist`
+  - `deployments/windows-service/SdkworkImServer.xml`
 
 ## Shared startup contract
 
 - canonical foreground and service-managed process:
-  - `craw-chat-server --config <config-root>/server.yaml`
+  - `sdkwork-im-server --config <config-root>/server.yaml`
 - service-install entrypoint:
   - `install-service-server`
 - shared configuration entrypoint:

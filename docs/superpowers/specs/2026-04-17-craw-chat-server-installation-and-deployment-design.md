@@ -110,11 +110,11 @@ The server uses a product directory plus per-instance directories. The default i
 
 ### 6.3 Windows
 
-- install root: `C:\Program Files\CrawChat`
-- config root: `C:\ProgramData\CrawChat\default\config`
-- data root: `C:\ProgramData\CrawChat\default\data`
-- log root: `C:\ProgramData\CrawChat\default\logs`
-- run root: `C:\ProgramData\CrawChat\default\run`
+- install root: `C:\Program Files\SdkworkIm`
+- config root: `C:\ProgramData\SdkworkIm\default\config`
+- data root: `C:\ProgramData\SdkworkIm\default\data`
+- log root: `C:\ProgramData\SdkworkIm\default\logs`
+- run root: `C:\ProgramData\SdkworkIm\default\run`
 
 ### 6.4 Invariants
 

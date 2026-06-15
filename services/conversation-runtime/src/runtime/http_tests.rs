@@ -307,7 +307,7 @@ fn test_build_message_body_derives_summary_for_structured_message_when_missing()
         None,
         None,
         vec![ContentPart::Data(im_domain_core::message::DataPart {
-            schema_ref: im_domain_core::message::CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+            schema_ref: im_domain_core::message::SDKWORK_IM_MESSAGE_SCHEMA_LOCATION.into(),
             encoding: "application/json".into(),
             payload: serde_json::json!({
                 "name": "The Bund",
@@ -330,7 +330,7 @@ fn test_build_message_body_preserves_explicit_summary_over_derived_summary() {
         Some("caption".into()),
         None,
         vec![ContentPart::Data(im_domain_core::message::DataPart {
-            schema_ref: im_domain_core::message::CRAW_CHAT_MESSAGE_SCHEMA_LOCATION.into(),
+            schema_ref: im_domain_core::message::SDKWORK_IM_MESSAGE_SCHEMA_LOCATION.into(),
             encoding: "application/json".into(),
             payload: serde_json::json!({
                 "name": "West Lake",

@@ -54,4 +54,4 @@ Specs: <the SDKWork specs that own the technical rules cited>
 
 | ADR | Title | Status |
 | --- | --- | --- |
-| [ADR-20260615-crate-naming-alignment](./ADR-20260615-crate-naming-alignment.md) | Crate naming alignment (`craw-chat-*`/`im-*` â†’ `sdkwork-im-*`), batched migration | proposed |
+| [ADR-20260615-crate-naming-alignment](./ADR-20260615-crate-naming-alignment.md) | Crate naming alignment (`sdkwork-im-*`/`im-*` â†?`sdkwork-im-*`), batched migration | proposed |

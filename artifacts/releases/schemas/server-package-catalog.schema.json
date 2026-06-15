@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "artifacts/releases/schemas/server-package-catalog.schema.json",
-  "title": "craw-chat server package catalog",
+  "title": "sdkwork-im server package catalog",
   "type": "object",
   "additionalProperties": false,
   "required": [

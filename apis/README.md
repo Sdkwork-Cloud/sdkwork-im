@@ -3,7 +3,7 @@
 ## Purpose
 
 Author-owned API contracts, API examples, changelogs, route materialization inputs, and validation
-fixtures for Craw Chat.
+fixtures for Sdkwork IM.
 
 ## Owner
 

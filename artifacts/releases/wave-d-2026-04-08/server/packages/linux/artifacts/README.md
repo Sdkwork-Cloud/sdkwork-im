@@ -8,13 +8,13 @@
 This staging root is where Linux packaging outputs are expected to land when the release execution
 plan is run.
 
-- canonical build command: `cargo build -p web-gateway --release --bin craw-chat-server --offline`
+- canonical build command: `cargo build -p web-gateway --release --bin sdkwork-im-server --offline`
 
 ## Expected staged artifacts
 
-- `craw-chat-server-linux-x86_64.tar.gz`
-- `craw-chat-server_<version>_amd64.deb`
-- `craw-chat-server-<version>-1.x86_64.rpm`
+- `sdkwork-im-server-linux-x86_64.tar.gz`
+- `sdkwork-im-server_<version>_amd64.deb`
+- `sdkwork-im-server-<version>-1.x86_64.rpm`
 
 ## Shared staging contracts
 
@@ -25,7 +25,7 @@ plan is run.
 
 ## Canonical workflow
 
-- Step 1: build the canonical `craw-chat-server` binary.
+- Step 1: build the canonical `sdkwork-im-server` binary.
 - Step 2: assemble Linux package outputs into this staging root.
 - Step 3: refresh `../artifact-file-list.txt`.
 - Step 4: refresh `../SHA256SUMS`.

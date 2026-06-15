@@ -4,7 +4,7 @@
 
 **Goal:** Upgrade `sdks/sdkwork-im-sdk` into a production-grade three-language app SDK workspace for TypeScript, Flutter, and Rust, with a strict generated/manual ownership boundary and a professional Rust composed SDK layered above generated HTTP transport.
 
-**Architecture:** Keep `generated/server-openapi` as the only generator-owned output in every language workspace. Extend the root IM SDK wrappers so they generate, normalize, verify, and assemble `typescript`, `flutter`, and `rust`, then add a manual-owned Rust `composed` crate that mirrors the existing TypeScript and Flutter consumer-facing `CrawChatClient + modules + builders` pattern without duplicating DTOs or HTTP transport.
+**Architecture:** Keep `generated/server-openapi` as the only generator-owned output in every language workspace. Extend the root IM SDK wrappers so they generate, normalize, verify, and assemble `typescript`, `flutter`, and `rust`, then add a manual-owned Rust `composed` crate that mirrors the existing TypeScript and Flutter consumer-facing `SdkworkImClient + modules + builders` pattern without duplicating DTOs or HTTP transport.
 
 **Tech Stack:** OpenAPI 3.0.3, Node.js SDK generator, PowerShell, POSIX shell, Rust/Cargo, TypeScript, existing IM SDK verification scripts
 
@@ -201,13 +201,13 @@ git commit -m "feat(sdk): add rust generation and assembly flow"
 ### Task 4: Add failing Rust composed smoke tests and core crate scaffolding
 
 **Files:**
-- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/craw_chat_client_test.rs`
+- Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/sdkwork_im_client_test.rs`
 - Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src/lib.rs`
 - Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src/client.rs`
 - Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src/context.rs`
 - Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src/types.rs`
 - Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src/error.rs`
-- Test: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/craw_chat_client_test.rs`
+- Test: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/sdkwork_im_client_test.rs`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -234,8 +234,8 @@ fn im_client_wraps_generated_client() -> Result<(), Box<dyn std::error::Error>> 
 }
 
 #[test]
-fn craw_chat_client_can_be_built_from_base_url() -> Result<(), Box<dyn std::error::Error>> {
-    let sdk = CrawChatClient::new_with_base_url("http://127.0.0.1:18090")?;
+fn sdkwork_im_client_can_be_built_from_base_url() -> Result<(), Box<dyn std::error::Error>> {
+    let sdk = SdkworkImClient::new_with_base_url("http://127.0.0.1:18090")?;
     sdk.set_auth_token("token");
     Ok(())
 }
@@ -246,8 +246,8 @@ fn craw_chat_client_can_be_built_from_base_url() -> Result<(), Box<dyn std::erro
 Run:
 
 ```bash
-cargo test --manifest-path sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/Cargo.toml craw_chat_client_wraps_generated_backend_client -- --exact
-cargo test --manifest-path sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/Cargo.toml craw_chat_client_can_be_built_from_base_url -- --exact
+cargo test --manifest-path sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/Cargo.toml sdkwork_im_client_wraps_generated_backend_client -- --exact
+cargo test --manifest-path sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/Cargo.toml sdkwork_im_client_can_be_built_from_base_url -- --exact
 ```
 
 Expected: FAIL because the composed Rust crate and its public client surface do not exist yet.
@@ -260,7 +260,7 @@ Create the composed crate core:
 - lib crate name: `im_sdk`
 - dependency on generated crate via `path = "../generated/server-openapi"`
 - core exports in `src/lib.rs`
-- `CrawChatClient` with `new`, `new_with_base_url`, and `set_auth_token`
+- `SdkworkImClient` with `new`, `new_with_base_url`, and `set_auth_token`
 - shared context that owns `SdkworkBackendClient`
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -272,7 +272,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/Cargo.toml sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/craw_chat_client_test.rs
+git add sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/Cargo.toml sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/sdkwork_im_client_test.rs
 git commit -m "test(rust-sdk): scaffold composed client core"
 ```
 
@@ -292,8 +292,8 @@ git commit -m "test(rust-sdk): scaffold composed client core"
 - Create: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src/rtc_module.rs`
 - Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src/client.rs`
 - Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src/lib.rs`
-- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/craw_chat_client_test.rs`
-- Test: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/craw_chat_client_test.rs`
+- Modify: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/sdkwork_im_client_test.rs`
+- Test: `sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/sdkwork_im_client_test.rs`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -333,7 +333,7 @@ assert_eq!(signal.signal_type, "offer");
 Run:
 
 ```bash
-cargo test --manifest-path sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/Cargo.toml --test craw_chat_client_test
+cargo test --manifest-path sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/Cargo.toml --test sdkwork_im_client_test
 ```
 
 Expected: FAIL because the module accessors and builder helpers are still missing.
@@ -369,14 +369,14 @@ self.context.backend_client().conversation()
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cargo test --manifest-path sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/Cargo.toml --test craw_chat_client_test`
+Run: `cargo test --manifest-path sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/Cargo.toml --test sdkwork_im_client_test`
 
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/craw_chat_client_test.rs
+git add sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/src sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed/tests/sdkwork_im_client_test.rs
 git commit -m "feat(rust-sdk): add composed modules and builders"
 ```
 

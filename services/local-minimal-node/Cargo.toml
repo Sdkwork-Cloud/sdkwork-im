@@ -10,6 +10,7 @@ automation-service = { path = "../automation-service" }
 axum.workspace = true
 control-plane-api = { path = "../control-plane-api" }
 conversation-runtime = { path = "../conversation-runtime" }
+social-service = { path = "../social-service" }
 fs4 = "0.13.1"
 futures-util.workspace = true
 http-body-util.workspace = true

@@ -191,7 +191,7 @@ impl PostgresRealtimeConfig {
     }
 
     /// Create config from sdkwork-pool DatabaseConfig
-    pub fn from_pool_config(config: &sdkwork_pool_config::DatabaseConfig) -> Self {
+    pub fn from_pool_config(config: &sdkwork_database_config::DatabaseConfig) -> Self {
         Self {
             database_url: config.url.clone(),
             pool_max_size: config.max_connections,

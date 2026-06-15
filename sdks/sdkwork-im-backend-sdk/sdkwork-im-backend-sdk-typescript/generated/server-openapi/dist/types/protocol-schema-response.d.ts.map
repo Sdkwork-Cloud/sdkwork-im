@@ -1,1 +1,0 @@
-{"version":3,"file":"protocol-schema-response.d.ts","sourceRoot":"","sources":["../../src/types/protocol-schema-response.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,sBAAsB;IACrC,gBAAgB,EAAE,MAAM,EAAE,CAAC;IAC3B,IAAI,EAAE,MAAM,CAAC;IACb,oBAAoB,EAAE,MAAM,EAAE,CAAC;IAC/B,MAAM,EAAE,MAAM,CAAC;IACf,KAAK,EAAE,MAAM,CAAC;IACd,kBAAkB,EAAE,MAAM,EAAE,CAAC;CAC9B"}

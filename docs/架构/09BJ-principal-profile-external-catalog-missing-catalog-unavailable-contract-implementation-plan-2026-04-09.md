@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make `CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER=external` without `CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH` boot with a structured unavailable provider instead of panicking during app assembly.
+Make `sdkwork_im_PRINCIPAL_PROFILE_PROVIDER=external` without `sdkwork_im_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH` boot with a structured unavailable provider instead of panicking during app assembly.
 
 ## Implementation
 

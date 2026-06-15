@@ -11,14 +11,14 @@
     {
       "packageId": "linux-tar-gz",
       "packageType": "tar.gz",
-      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/craw-chat-server-linux-x86_64.tar.gz",
+      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/sdkwork-im-server-linux-x86_64.tar.gz",
       "installModel": "archive",
       "serviceManager": "systemd",
-      "startupCommand": "craw-chat-server --config <config-root>/server.yaml",
+      "startupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
       "requiredEntries": [
-        "bin/craw-chat-server",
+        "bin/sdkwork-im-server",
         "deployments/templates/server.yaml.example",
-        "deployments/systemd/craw-chat-server.service"
+        "deployments/systemd/sdkwork-im-server.service"
       ],
       "validationEvidencePath": null,
       "status": "pending_validation"
@@ -26,14 +26,14 @@
     {
       "packageId": "linux-deb",
       "packageType": "deb",
-      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/craw-chat-server_<version>_amd64.deb",
+      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/sdkwork-im-server_<version>_amd64.deb",
       "installModel": "native-installer",
       "serviceManager": "systemd",
-      "startupCommand": "craw-chat-server --config <config-root>/server.yaml",
+      "startupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
       "requiredEntries": [
-        "bin/craw-chat-server",
+        "bin/sdkwork-im-server",
         "deployments/templates/server.yaml.example",
-        "deployments/systemd/craw-chat-server.service"
+        "deployments/systemd/sdkwork-im-server.service"
       ],
       "validationEvidencePath": null,
       "status": "pending_validation"
@@ -41,14 +41,14 @@
     {
       "packageId": "linux-rpm",
       "packageType": "rpm",
-      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/craw-chat-server-<version>-1.x86_64.rpm",
+      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts/sdkwork-im-server-<version>-1.x86_64.rpm",
       "installModel": "native-installer",
       "serviceManager": "systemd",
-      "startupCommand": "craw-chat-server --config <config-root>/server.yaml",
+      "startupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
       "requiredEntries": [
-        "bin/craw-chat-server",
+        "bin/sdkwork-im-server",
         "deployments/templates/server.yaml.example",
-        "deployments/systemd/craw-chat-server.service"
+        "deployments/systemd/sdkwork-im-server.service"
       ],
       "validationEvidencePath": null,
       "status": "pending_validation"

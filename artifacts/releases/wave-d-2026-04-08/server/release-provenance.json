@@ -6,7 +6,7 @@
   "artifact": "server-release-provenance",
   "state": "template_only_pending_capture",
   "updatedAt": "2026-04-17",
-  "canonicalBuildCommand": "cargo build -p web-gateway --release --bin craw-chat-server --offline",
+  "canonicalBuildCommand": "cargo build -p web-gateway --release --bin sdkwork-im-server --offline",
   "contractPaths": [
     "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
     "artifacts/releases/wave-d-2026-04-08/server/release-execution.json",
@@ -22,9 +22,9 @@
     "deployments/templates/server.yaml.example",
     "deployments/templates/server.env.example",
     "deployments/templates/postgresql.yaml.example",
-    "deployments/systemd/craw-chat-server.service",
-    "deployments/launchd/com.sdkwork.crawchat.server.plist",
-    "deployments/windows-service/CrawChatServer.xml"
+    "deployments/systemd/sdkwork-im-server.service",
+    "deployments/launchd/com.sdkwork.SdkworkIm.server.plist",
+    "deployments/windows-service/SdkworkImServer.xml"
   ],
   "platformArtifactRoots": [
     {

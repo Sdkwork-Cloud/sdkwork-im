@@ -208,7 +208,7 @@ The following names define the intended consumer-facing standard:
 - Flutter package: `im_sdk`
 - Flutter primary entry type: `ImSdkClient` or the nearest idiomatic equivalent
 - Rust crate: `im_sdk`
-- Rust primary client: `ImSdkClient` or `CrawChatClient`
+- Rust primary client: `ImSdkClient` or `SdkworkImClient`
 - Java artifact family: must preserve `im-sdk` in the artifact identity
 - C# package family: must preserve `ImSdk` in the package identity
 - Swift package/product: must preserve `ImSdk`

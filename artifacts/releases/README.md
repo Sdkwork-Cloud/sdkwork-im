@@ -1,6 +1,6 @@
 # artifacts/releases
 
-`artifacts/releases` stores canonical release bundles for Craw Chat.
+`artifacts/releases` stores canonical release bundles for Sdkwork IM.
 
 A release bundle is an auditable snapshot of what would be shipped for a named wave or release
 track on a specific date. This directory is not a scratch area for arbitrary generated files. Its
@@ -102,7 +102,7 @@ Machine-readable bundle artifacts must stay schema-bound.
 
 ## Server Edition Payload Standard
 
-The release bundle is the canonical payload source for `craw-chat-server`.
+The release bundle is the canonical payload source for `sdkwork-im-server`.
 
 - canonical payload contains binaries, templates, service units, migrations, docs, checksums, and
   bundle-manifest metadata
@@ -119,7 +119,7 @@ The canonical payload may not redefine configuration or service semantics per pl
 
 ## Server Payload Layout
 
-Every server bundle must freeze a single canonical payload layout for `craw-chat-server`.
+Every server bundle must freeze a single canonical payload layout for `sdkwork-im-server`.
 
 - bundle-level server payload index:
   - `artifacts/releases/<bundle-id>/server/README.md`
@@ -140,19 +140,19 @@ Every server bundle must freeze a single canonical payload layout for `craw-chat
   - `artifacts/releases/<bundle-id>/server/release-gate.json`
   - freezes machine-readable go / no-go gate inputs for the server bundle
 - required runtime payload:
-  - `bin/craw-chat-server` or `bin/craw-chat-server.exe`
+  - `bin/sdkwork-im-server` or `bin/sdkwork-im-server.exe`
   - `deployments/templates/server.yaml.example`
   - `deployments/templates/server.env.example`
   - `deployments/templates/postgresql.yaml.example`
-  - `deployments/systemd/craw-chat-server.service`
-  - `deployments/launchd/com.sdkwork.crawchat.server.plist`
-  - `deployments/windows-service/CrawChatServer.xml`
+  - `deployments/systemd/sdkwork-im-server.service`
+  - `deployments/launchd/com.sdkwork.SdkworkIm.server.plist`
+  - `deployments/windows-service/SdkworkImServer.xml`
 - Windows Service payload is `wrapper-required`:
-  - bundle or installer must ship `bin/CrawChatServer.exe`
-  - `install-service-server` renders `generated/CrawChatServer.xml`,
-    `install-CrawChatServer.ps1`, and `uninstall-CrawChatServer.ps1`
+  - bundle or installer must ship `bin/SdkworkImServer.exe`
+  - `install-service-server` renders `generated/SdkworkImServer.xml`,
+    `install-SdkworkImServer.ps1`, and `uninstall-SdkworkImServer.ps1`
   - the wrapper must keep the same process contract:
-    `craw-chat-server --config <config-root>/server.yaml`
+    `sdkwork-im-server --config <config-root>/server.yaml`
 - derived installers such as `tar.gz`, `zip`, `deb`, `rpm`, `pkg`, and `msi` may repackage the
   same files, but may not rename the canonical service identity or change `server.yaml` startup
   semantics

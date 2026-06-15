@@ -3,6 +3,7 @@ members = [
     "adapters/local-disk",
     "adapters/local-memory",
     "adapters/postgres-realtime",
+    "adapters/postgres-journal",
     "adapters/object-storage-s3",
     "crates/sdkwork-im-contract-admin",
     "crates/sdkwork-im-contract-agent",
@@ -49,6 +50,7 @@ members = [
     "services/media-service",
     "services/projection-service",
     "services/session-gateway",
+    "services/social-service",
     "services/streaming-service",
     "services/web-gateway",
     "tools/chat-cli",
@@ -78,20 +80,34 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Internal SDKWork workspace members - declared once at workspace root
 im-adapters-local-disk = { path = "adapters/local-disk" }
+im-adapters-postgres-journal = { path = "adapters/postgres-journal" }
 im-storage-contracts = { path = "crates/im-storage-contracts" }
 im-storage-runtime = { path = "crates/im-storage-runtime" }
 sdkwork-api-config = { path = "crates/sdkwork-api-config" }
-# Cross-repository SDKWork dependencies
-sdkwork_id = { path = "../sdkwork-appbase/packages/native-rust/foundation/sdkwork-id-rust" }
-sdkwork_iam_core = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-core-rust" }
-sdkwork_http_context = { path = "../sdkwork-appbase/packages/native-rust/foundation/sdkwork-http-context-rust" }
-sdkwork-rtc-adapter-agora = { path = "../sdkwork-rtc/adapters/rtc-agora" }
-sdkwork-rtc-adapter-aliyun = { path = "../sdkwork-rtc/adapters/rtc-aliyun" }
-sdkwork-rtc-adapter-livekit = { path = "../sdkwork-rtc/adapters/rtc-livekit" }
-sdkwork-rtc-adapter-tencent = { path = "../sdkwork-rtc/adapters/rtc-tencent" }
-sdkwork-rtc-adapter-volcengine = { path = "../sdkwork-rtc/adapters/rtc-volcengine" }
-sdkwork-rtc-core = { path = "../sdkwork-rtc/crates/sdkwork-rtc-core" }
-sdkwork-rtc-app-context = { path = "../sdkwork-rtc/crates/sdkwork-rtc-app-context" }
+# Cross-repository SDKWork dependencies.
+# IM consumes the canonical reusable Rust crates published under
+# `sdkwork-appbase/crates/`. The workspace keys below keep IM's short
+# import names (`sdkwork_id`, `sdkwork_http_context`) while binding them
+# to the real crate paths. See DATABASE_SPEC §6.10 (snowflake ID) and
+# IAM_SPEC §2 (layered package boundary) for the contract these crates
+# implement.
+sdkwork_id = { path = "../sdkwork-appbase/crates/sdkwork-platform-id-service", package = "sdkwork-platform-id-service" }
+sdkwork_http_context = { path = "../sdkwork-appbase/crates/sdkwork-platform-http-context-service", package = "sdkwork-platform-http-context-service" }
+# IM consumes the provider-plugin-era RTC layout (`crates/sdkwork-rtc-core` +
+# `adapters/rtc-*`). That layout was removed from `sdkwork-rtc` `main` at
+# commit 4a65da5 ("standardize rtc authority workspace"). To stay buildable
+# without rewriting IM's RTC integration against an incompatible newer API,
+# the IM-compatible tree is checked out non-destructively into a git worktree
+# at `../sdkwork-rtc-im-compat` (rtc commit 1c1ff3b). The `main` checkout at
+# `../sdkwork-rtc` is left untouched. A follow-up task should either align IM
+# with the new RTC authority layout or pin RTC via a release tag.
+sdkwork-rtc-adapter-agora = { path = "../sdkwork-rtc-im-compat/adapters/rtc-agora" }
+sdkwork-rtc-adapter-aliyun = { path = "../sdkwork-rtc-im-compat/adapters/rtc-aliyun" }
+sdkwork-rtc-adapter-livekit = { path = "../sdkwork-rtc-im-compat/adapters/rtc-livekit" }
+sdkwork-rtc-adapter-tencent = { path = "../sdkwork-rtc-im-compat/adapters/rtc-tencent" }
+sdkwork-rtc-adapter-volcengine = { path = "../sdkwork-rtc-im-compat/adapters/rtc-volcengine" }
+sdkwork-rtc-core = { path = "../sdkwork-rtc-im-compat/crates/sdkwork-rtc-core" }
+sdkwork-rtc-app-context = { path = "../sdkwork-rtc-im-compat/crates/sdkwork-rtc-app-context" }
 
 [profile.release]
 lto = true

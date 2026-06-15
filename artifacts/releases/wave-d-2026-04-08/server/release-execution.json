@@ -7,12 +7,12 @@
   "state": "template_only_pending_execution",
   "updatedAt": "2026-04-17",
   "canonicalBuild": {
-    "command": "cargo build -p web-gateway --release --bin craw-chat-server --offline",
+    "command": "cargo build -p web-gateway --release --bin sdkwork-im-server --offline",
     "package": "web-gateway",
-    "binary": "craw-chat-server",
+    "binary": "sdkwork-im-server",
     "profile": "release"
   },
-  "canonicalStartupCommand": "craw-chat-server --config <config-root>/server.yaml",
+  "canonicalStartupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
   "packageCatalogPath": "artifacts/releases/wave-d-2026-04-08/server/package-catalog.json",
   "releaseChecklistPath": "artifacts/releases/wave-d-2026-04-08/server/packages/release-checklist.md",
   "checksumManifestPath": "artifacts/releases/wave-d-2026-04-08/server/packages/SHA256SUMS",

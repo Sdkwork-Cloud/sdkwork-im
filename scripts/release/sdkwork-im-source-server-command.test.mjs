@@ -14,41 +14,41 @@ const packageJson = readJson('package.json');
 
 assert.equal(
   packageJson.scripts['server:source:plan'],
-  'node scripts/release/run-craw-chat-source-server.mjs plan',
+  'node scripts/release/run-sdkwork-im-source-server.mjs plan',
   'root server:source:plan must print the production source deployment plan',
 );
 assert.equal(
   packageJson.scripts['server:source:build'],
-  'node scripts/release/run-craw-chat-source-server.mjs build',
+  'node scripts/release/run-sdkwork-im-source-server.mjs build',
   'root server:source:build must build production server artifacts from source without packaging',
 );
 assert.equal(
   packageJson.scripts['server:source:start'],
-  'node scripts/release/run-craw-chat-source-server.mjs start',
+  'node scripts/release/run-sdkwork-im-source-server.mjs start',
   'root server:source:start must start the source-built server through the runtime lifecycle script',
 );
 assert.equal(
   packageJson.scripts['test:source-server-deploy'],
-  'node scripts/release/craw-chat-source-server-command.test.mjs',
+  'node scripts/release/sdkwork-im-source-server-command.test.mjs',
   'root test:source-server-deploy must verify the source deployment command contract',
 );
 
 const sourceServerModule = await import(
-  pathToFileURL(path.join(repoRoot, 'scripts/release/run-craw-chat-source-server.mjs')).href
+  pathToFileURL(path.join(repoRoot, 'scripts/release/run-sdkwork-im-source-server.mjs')).href
 );
 
 assert.equal(
-  typeof sourceServerModule.createCrawChatSourceServerPlan,
+  typeof sourceServerModule.createSdkworkImSourceServerPlan,
   'function',
   'source server command must expose an auditable plan creator',
 );
 assert.equal(
-  typeof sourceServerModule.runCrawChatSourceServerPlan,
+  typeof sourceServerModule.runSdkworkImSourceServerPlan,
   'function',
   'source server command must expose a plan runner for tests and package scripts',
 );
 assert.equal(
-  typeof sourceServerModule.serializableCrawChatSourceServerPlan,
+  typeof sourceServerModule.serializableSdkworkImSourceServerPlan,
   'function',
   'source server command must expose a secret-safe serializable plan',
 );
@@ -61,20 +61,20 @@ fs.writeFileSync(
   envFile,
   [
     '# source deployment test env',
-    'export SDKWORK_CHAT_DEPLOYMENT_MODE=server',
-    'SDKWORK_CHAT_CONFIG_FILE=' + configFile.replaceAll('\\', '/'),
-    'SDKWORK_CHAT_SERVER_BIND=0.0.0.0:18080',
-    'SDKWORK_CHAT_SERVER_API_BASE_URL=https://chat.example.com/sdkwork/chat',
-    'SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL=wss://chat.example.com/sdkwork/chat',
-    'SDKWORK_CHAT_DATABASE_PASSWORD=secret-password',
+    'export SDKWORK_IM_DEPLOYMENT_MODE=server',
+    'SDKWORK_IM_CONFIG_FILE=' + configFile.replaceAll('\\', '/'),
+    'SDKWORK_IM_SERVER_BIND=0.0.0.0:18080',
+    'SDKWORK_IM_SERVER_API_BASE_URL=https://chat.example.com/sdkwork/chat',
+    'SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=wss://chat.example.com/sdkwork/chat',
+    'SDKWORK_IM_DATABASE_PASSWORD=secret-password',
     '',
   ].join('\n'),
 );
 
-const buildPlan = sourceServerModule.createCrawChatSourceServerPlan({
+const buildPlan = sourceServerModule.createSdkworkImSourceServerPlan({
   action: 'build',
   env: {
-    SDKWORK_CHAT_SERVER_API_BASE_URL: 'https://override.example.com/sdkwork/chat',
+    SDKWORK_IM_SERVER_API_BASE_URL: 'https://override.example.com/sdkwork/chat',
   },
   envFile,
   platform: 'linux',
@@ -84,7 +84,7 @@ const buildPlan = sourceServerModule.createCrawChatSourceServerPlan({
 assert.equal(buildPlan.action, 'build');
 assert.deepEqual(
   buildPlan.steps.map((step) => step.label),
-  ['build craw-chat source server artifacts'],
+  ['build sdkwork-im source server artifacts'],
   'source build plan must keep package creation out of the source deployment path',
 );
 assert.deepEqual(
@@ -93,48 +93,48 @@ assert.deepEqual(
   'source build plan must reuse the existing production server build without invoking release packaging',
 );
 assert.equal(
-  buildPlan.steps[0].env.SDKWORK_CHAT_DEPLOYMENT_MODE,
+  buildPlan.steps[0].env.SDKWORK_IM_DEPLOYMENT_MODE,
   'server',
   'source build plan must load deployment mode from server.env',
 );
 assert.equal(
-  buildPlan.steps[0].env.SDKWORK_CHAT_SERVER_API_BASE_URL,
+  buildPlan.steps[0].env.SDKWORK_IM_SERVER_API_BASE_URL,
   'https://override.example.com/sdkwork/chat',
   'explicit process env must override server.env when building public frontend base URLs',
 );
 assert.equal(
-  buildPlan.steps[0].env.SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL,
+  buildPlan.steps[0].env.SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL,
   'wss://chat.example.com/sdkwork/chat',
   'source build plan must load websocket base URL from server.env',
 );
 assert.equal(
-  buildPlan.steps[0].env.CRAW_CHAT_ADMIN_SITE_DIR,
-  path.join(repoRoot, 'apps', 'sdkwork-chat-pc', 'dist'),
+  buildPlan.steps[0].env.SDKWORK_IM_ADMIN_SITE_DIR,
+  path.join(repoRoot, 'apps', 'sdkwork-im-pc', 'dist'),
   'source build plan must default admin static site assets to the source checkout dist directory',
 );
 assert.equal(
-  buildPlan.steps[0].env.CRAW_CHAT_PORTAL_SITE_DIR,
-  path.join(repoRoot, 'apps', 'sdkwork-chat-pc', 'dist'),
+  buildPlan.steps[0].env.SDKWORK_IM_PORTAL_SITE_DIR,
+  path.join(repoRoot, 'apps', 'sdkwork-im-pc', 'dist'),
   'source build plan must default portal static site assets to the source checkout dist directory',
 );
 assert.equal(
-  buildPlan.steps[0].env.CRAW_CHAT_SERVER_BINARY_PATH,
-  path.join(repoRoot, 'target', 'release', 'craw-chat-server'),
+  buildPlan.steps[0].env.SDKWORK_IM_SERVER_BINARY_PATH,
+  path.join(repoRoot, 'target', 'release', 'sdkwork-im-server'),
   'source build plan must default the runtime binary path to the release binary built in the source checkout',
 );
 
-const serializableBuildPlan = sourceServerModule.serializableCrawChatSourceServerPlan(buildPlan);
+const serializableBuildPlan = sourceServerModule.serializableSdkworkImSourceServerPlan(buildPlan);
 assert.deepEqual(
   serializableBuildPlan.steps[0].envKeys,
   [
-    'CRAW_CHAT_ADMIN_SITE_DIR',
-    'CRAW_CHAT_PORTAL_SITE_DIR',
-    'CRAW_CHAT_SERVER_BINARY_PATH',
-    'SDKWORK_CHAT_CONFIG_FILE',
-    'SDKWORK_CHAT_DEPLOYMENT_MODE',
-    'SDKWORK_CHAT_SERVER_API_BASE_URL',
-    'SDKWORK_CHAT_SERVER_BIND',
-    'SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL',
+    'SDKWORK_IM_ADMIN_SITE_DIR',
+    'SDKWORK_IM_PORTAL_SITE_DIR',
+    'SDKWORK_IM_SERVER_BINARY_PATH',
+    'SDKWORK_IM_CONFIG_FILE',
+    'SDKWORK_IM_DEPLOYMENT_MODE',
+    'SDKWORK_IM_SERVER_API_BASE_URL',
+    'SDKWORK_IM_SERVER_BIND',
+    'SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL',
   ],
   'source deployment plan JSON must expose only safe deployment keys and omit secret-bearing env values',
 );
@@ -143,7 +143,7 @@ assert.ok(
   'source deployment plan JSON must not include secret values from server.env',
 );
 
-const startPlan = sourceServerModule.createCrawChatSourceServerPlan({
+const startPlan = sourceServerModule.createSdkworkImSourceServerPlan({
   action: 'start',
   env: {},
   envFile,
@@ -166,12 +166,12 @@ assert.deepEqual(
     '--env-file',
     envFile,
     '--binary-path',
-    path.join(repoRoot, 'target', 'release', 'craw-chat-server'),
+    path.join(repoRoot, 'target', 'release', 'sdkwork-im-server'),
   ],
   'Linux source start plan must reuse bin/start-server.sh in foreground mode for systemd-compatible operation',
 );
 
-const windowsStartPlan = sourceServerModule.createCrawChatSourceServerPlan({
+const windowsStartPlan = sourceServerModule.createSdkworkImSourceServerPlan({
   action: 'start',
   env: {},
   envFile,
@@ -197,13 +197,13 @@ assert.deepEqual(
     '-EnvFile',
     envFile,
     '-BinaryPath',
-    path.join(repoRoot, 'target', 'release', 'craw-chat-server.exe'),
+    path.join(repoRoot, 'target', 'release', 'sdkwork-im-server.exe'),
   ],
   'Windows source start plan must reuse bin/start-server.ps1 with the source checkout release binary',
 );
 
 const spawnedSteps = [];
-await sourceServerModule.runCrawChatSourceServerPlan({
+await sourceServerModule.runSdkworkImSourceServerPlan({
   plan: buildPlan,
   spawnImpl(command, args, options) {
     spawnedSteps.push({ args, command, cwd: options.cwd, env: options.env, shell: options.shell });
@@ -216,7 +216,7 @@ assert.equal(spawnedSteps[0].command, buildPlan.steps[0].command);
 assert.deepEqual(spawnedSteps[0].args, buildPlan.steps[0].args);
 assert.equal(spawnedSteps[0].cwd, repoRoot);
 assert.equal(
-  spawnedSteps[0].env.SDKWORK_CHAT_SERVER_API_BASE_URL,
+  spawnedSteps[0].env.SDKWORK_IM_SERVER_API_BASE_URL,
   'https://override.example.com/sdkwork/chat',
   'source deploy runner must execute the audited plan with the resolved deployment env',
 );
@@ -233,7 +233,7 @@ assert.ok(
   sourceDeployGuide.includes('pnpm run server:source:build')
     && sourceDeployGuide.includes('pnpm run server:source:start')
     && sourceDeployGuide.includes('/etc/sdkwork/chat/server.env')
-    && sourceDeployGuide.includes('SDKWORK_CHAT_SERVER_API_BASE_URL'),
+    && sourceDeployGuide.includes('SDKWORK_IM_SERVER_API_BASE_URL'),
   'source deployment guide must document the pnpm workflow and base URL source of truth',
 );
 assert.ok(
@@ -241,4 +241,4 @@ assert.ok(
   'deployment README must link the source deployment guide',
 );
 
-console.log('craw-chat source server command contract passed');
+console.log('sdkwork-im source server command contract passed');

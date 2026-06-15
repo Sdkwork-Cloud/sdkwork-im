@@ -3,7 +3,7 @@
 ## Purpose
 
 Schedules, queue bindings, batch descriptors, maintenance runbooks, and non-Rust job packages for
-Craw Chat.
+Sdkwork IM.
 
 ## Owner
 

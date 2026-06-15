@@ -21,8 +21,8 @@ That made one provider emit two incompatible failure modes for the same class of
 ## Boundary
 
 - This design only covers:
-  - `CRAW_CHAT_PRINCIPAL_PROFILE_PROVIDER=external`
-  - missing or blank `CRAW_CHAT_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH`
+  - `sdkwork_im_PRINCIPAL_PROFILE_PROVIDER=external`
+  - missing or blank `sdkwork_im_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH`
 - It does not change:
   - invalid provider mode behavior
   - unreadable/invalid catalog file behavior

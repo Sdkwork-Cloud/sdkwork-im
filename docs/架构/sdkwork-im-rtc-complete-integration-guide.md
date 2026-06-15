@@ -24,7 +24,7 @@ application integration baselines.
 | --- | --- | --- | --- |
 | TypeScript | `@sdkwork/im-sdk` | executable | Full app-facing baseline, including HTTP modules, message-first API, `sdk.connect(...)`, `sdk.sync.catchUp(...)`, IM calls route surface, and `sdkwork-im-chat` CLI |
 | Flutter | `im_sdk` | executable | App-facing baseline for HTTP modules, `sdk.connect(...)` live receive, WebSocket auth standardization, and IM calls route surface |
-| Rust / Java / C# / Swift / Kotlin / Go / Python | language workspace specific | standardized only | Official workspace family exists, but not the primary app-consumer baseline for Craw Chat today |
+| Rust / Java / C# / Swift / Kotlin / Go / Python | language workspace specific | standardized only | Official workspace family exists, but not the primary app-consumer baseline for Sdkwork IM today |
 
 ### RTC SDK
 
@@ -121,7 +121,7 @@ Important current contract:
 
 Before integrating either SDK into a real app, the backend side must already provide:
 
-- a reachable Craw Chat app base URL
+- a reachable Sdkwork IM app base URL
 - bearer-token login or an already-issued access token
 - IM conversation routes
 - IM message routes
@@ -168,8 +168,8 @@ pnpm add file:../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript
 import { ImSdkClient } from '@sdkwork/im-sdk';
 
 const sdk = new ImSdkClient({
-  baseUrl: process.env.CRAW_CHAT_BASE_URL!,
-  authToken: process.env.CRAW_CHAT_TOKEN,
+  baseUrl: process.env.sdkwork_im_BASE_URL!,
+  authToken: process.env.sdkwork_im_TOKEN,
 });
 ```
 
@@ -179,7 +179,7 @@ If HTTP and WebSocket origins differ:
 const sdk = new ImSdkClient({
   apiBaseUrl: 'https://api.example.com',
   websocketBaseUrl: 'wss://realtime.example.com',
-  authToken: process.env.CRAW_CHAT_TOKEN,
+  authToken: process.env.sdkwork_im_TOKEN,
 });
 ```
 
@@ -419,7 +419,7 @@ import {
 } from '@sdkwork/rtc-sdk';
 
 const imSdk = new ImSdkClient({
-  baseUrl: 'https://craw-chat.example.com',
+  baseUrl: 'https://sdkwork-im.example.com',
   authToken: 'app-token',
 });
 

@@ -108,8 +108,8 @@ Swift workspace wrappers:
 
 ## When To Choose Swift
 
-- Choose Swift when you need a verified Apple-platform transport package generated from the Craw
-  Chat schema.
+- Choose Swift when you need a verified Apple-platform transport package generated from the Sdkwork
+  IM schema.
 - Choose Swift when you can work directly against generated request or response models and transport
   route groups.
 - Choose TypeScript or Flutter when you need a checked-in semantic client rather than a

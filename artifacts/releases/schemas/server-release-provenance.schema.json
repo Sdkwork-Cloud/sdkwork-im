@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "artifacts/releases/schemas/server-release-provenance.schema.json",
-  "title": "craw-chat server release provenance manifest",
+  "title": "sdkwork-im server release provenance manifest",
   "type": "object",
   "additionalProperties": false,
   "required": [

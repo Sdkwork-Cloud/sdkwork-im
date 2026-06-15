@@ -11,14 +11,14 @@
     {
       "packageId": "windows-zip",
       "packageType": "zip",
-      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/craw-chat-server-windows-x86_64.zip",
+      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/sdkwork-im-server-windows-x86_64.zip",
       "installModel": "archive",
       "serviceManager": "windows-service",
-      "startupCommand": "craw-chat-server --config <config-root>/server.yaml",
+      "startupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
       "requiredEntries": [
-        "bin/craw-chat-server.exe",
-        "bin/CrawChatServer.exe",
-        "deployments/windows-service/CrawChatServer.xml"
+        "bin/sdkwork-im-server.exe",
+        "bin/SdkworkImServer.exe",
+        "deployments/windows-service/SdkworkImServer.xml"
       ],
       "validationEvidencePath": null,
       "status": "pending_validation"
@@ -26,14 +26,14 @@
     {
       "packageId": "windows-msi",
       "packageType": "msi",
-      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/craw-chat-server-<version>-x64.msi",
+      "artifactPath": "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts/sdkwork-im-server-<version>-x64.msi",
       "installModel": "native-installer",
       "serviceManager": "windows-service",
-      "startupCommand": "craw-chat-server --config <config-root>/server.yaml",
+      "startupCommand": "sdkwork-im-server --config <config-root>/server.yaml",
       "requiredEntries": [
-        "bin/craw-chat-server.exe",
-        "bin/CrawChatServer.exe",
-        "deployments/windows-service/CrawChatServer.xml"
+        "bin/sdkwork-im-server.exe",
+        "bin/SdkworkImServer.exe",
+        "deployments/windows-service/SdkworkImServer.xml"
       ],
       "validationEvidencePath": null,
       "status": "pending_validation"

@@ -1,8 +1,6 @@
 use super::principal_profile::build_default_principal_profile_provider;
 use super::*;
-use control_plane_api::{
-    SharedChannelLinkedMemberSyncRequest, SharedChannelLinkedMemberSyncTrigger,
-};
+use social_service::SharedChannelLinkedMemberSyncRequest;
 use conversation_runtime::SyncSharedChannelLinkedMemberCommand;
 use im_adapters_postgres_realtime::{
     PostgresRealtimeCheckpointStore, PostgresRealtimeConfig, PostgresRealtimeDisconnectFenceStore,
@@ -11,6 +9,10 @@ use im_adapters_postgres_realtime::{
 };
 use serde::Deserialize;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
+
+trait SharedChannelLinkedMemberSyncTrigger: Send + Sync {
+    fn trigger(&self, request: SharedChannelLinkedMemberSyncRequest) -> Result<(), String>;
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum LocalMinimalRealtimeStorageProvider {
@@ -809,31 +811,22 @@ fn build_local_minimal_projection_snapshot_stores(
 
 fn build_local_minimal_control_plane_app(
     realtime_cluster: Arc<RealtimeClusterBridge>,
-    conversation_runtime: Arc<ConversationRuntime<ProjectionJournal>>,
+    _conversation_runtime: Arc<ConversationRuntime<ProjectionJournal>>,
     ops_runtime: Arc<OpsRuntime>,
     audit_runtime: Arc<AuditRuntime>,
     runtime_dir: Option<&StdPath>,
-) -> (Router, Arc<control_plane_api::SocialControlQuery>) {
-    let shared_channel_sync_trigger: Arc<dyn SharedChannelLinkedMemberSyncTrigger> =
-        Arc::new(LocalMinimalSharedChannelLinkedMemberSyncTrigger {
-            conversation_runtime,
-        });
-
-    match runtime_dir {
-        Some(runtime_dir) => control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_runtime_dir_and_shared_channel_sync_trigger_with_social_query(
-            realtime_cluster,
-            ops_runtime,
-            audit_runtime,
-            runtime_dir,
-            shared_channel_sync_trigger,
-        ),
-        None => control_plane_api::build_control_surface_with_cluster_and_governance_sinks_and_shared_channel_sync_trigger_with_social_query(
-            realtime_cluster,
-            ops_runtime,
-            audit_runtime,
-            shared_channel_sync_trigger,
-        ),
-    }
+) -> (Router, Arc<SocialRuntime>) {
+    let social_runtime = match runtime_dir {
+        Some(runtime_dir) => Arc::new(SocialRuntime::from_runtime_dir(runtime_dir)),
+        None => Arc::new(SocialRuntime::default()),
+    };
+    let social_router = social_service::build_app(social_runtime.clone());
+    let governance_router = control_plane_api::build_control_surface_with_cluster_and_governance_sinks(
+        realtime_cluster,
+        ops_runtime,
+        audit_runtime,
+    );
+    (governance_router.merge(social_router), social_runtime)
 }
 
 pub fn build_app_with_dependencies(
@@ -1090,7 +1083,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
             }
             None => Arc::new(side_effect_outbox::MemoryMessageSideEffectOutboxStore::default()),
         };
-    let (control_plane_app, social_query) = build_local_minimal_control_plane_app(
+    let (control_plane_app, social_runtime) = build_local_minimal_control_plane_app(
         realtime_cluster.clone(),
         conversation_runtime.clone(),
         ops_runtime.clone(),
@@ -1098,7 +1091,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         runtime_dir.as_deref(),
     );
     if let Some(realtime_scope_policy) = realtime_scope_policy.as_ref() {
-        realtime_scope_policy.bind_social_query(social_query.clone());
+        realtime_scope_policy.bind_social_runtime(social_runtime.clone());
     }
     let client_route_registration = LocalNodeClientRouteRegistration::new(
         node_id.clone(),
@@ -1114,7 +1107,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         node_id: node_id.clone(),
         runtime_dir,
         control_plane_app: control_plane_app.clone(),
-        social_query,
+        social_runtime,
         realtime_cluster,
         conversation_runtime,
         principal_profile_provider,

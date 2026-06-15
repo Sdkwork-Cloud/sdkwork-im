@@ -28,7 +28,7 @@ use axum::{
     Json, Router,
     routing::{delete, get, patch, post},
 };
-use control_plane_api::SocialControlQuery;
+use social_service::SocialRuntime;
 use conversation_runtime::{
     AddMessageReactionCommand, AgentHandoffStateView, BindDirectChatConversationCommand,
     ChangeConversationMemberRoleResult, ConversationRuntime, CreateConversationResult,
@@ -175,7 +175,7 @@ struct AppState {
     node_id: String,
     runtime_dir: Option<PathBuf>,
     control_plane_app: Router,
-    social_query: Arc<SocialControlQuery>,
+    social_runtime: Arc<SocialRuntime>,
     realtime_cluster: Arc<RealtimeClusterBridge>,
     conversation_runtime: Arc<ConversationRuntime<ProjectionJournal>>,
     principal_profile_provider: Arc<dyn PrincipalProfileProvider>,

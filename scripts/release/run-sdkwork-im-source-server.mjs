@@ -10,14 +10,14 @@ const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), '..', '..');
 
 const SAFE_PLAN_ENV_KEYS = Object.freeze([
-  'CRAW_CHAT_ADMIN_SITE_DIR',
-  'CRAW_CHAT_PORTAL_SITE_DIR',
-  'CRAW_CHAT_SERVER_BINARY_PATH',
-  'SDKWORK_CHAT_CONFIG_FILE',
-  'SDKWORK_CHAT_DEPLOYMENT_MODE',
-  'SDKWORK_CHAT_SERVER_API_BASE_URL',
-  'SDKWORK_CHAT_SERVER_BIND',
-  'SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL',
+  'SDKWORK_IM_ADMIN_SITE_DIR',
+  'SDKWORK_IM_PORTAL_SITE_DIR',
+  'SDKWORK_IM_SERVER_BINARY_PATH',
+  'SDKWORK_IM_CONFIG_FILE',
+  'SDKWORK_IM_DEPLOYMENT_MODE',
+  'SDKWORK_IM_SERVER_API_BASE_URL',
+  'SDKWORK_IM_SERVER_BIND',
+  'SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL',
 ]);
 
 function pnpmCommand(platform = process.platform) {
@@ -25,26 +25,26 @@ function pnpmCommand(platform = process.platform) {
 }
 
 function printHelp() {
-  console.log(`Usage: node scripts/release/run-craw-chat-source-server.mjs <plan|build|start> [options]
+  console.log(`Usage: node scripts/release/run-sdkwork-im-source-server.mjs <plan|build|start> [options]
 
-Build or start a production Craw Chat server directly from a source checkout.
+Build or start a production Sdkwork IM server directly from a source checkout.
 
 Actions:
   plan                    Print the source deployment plan only.
-  build                   Build web assets and the release craw-chat-server binary.
+  build                   Build web assets and the release sdkwork-im-server binary.
   start                   Start the source-built release binary through bin/start-server.
 
 Options:
   --env-file <path>       Runtime env file. Defaults to <config-dir>/server.env.
   --config-dir <path>     Runtime config directory. Defaults to /etc/sdkwork/chat on Linux/macOS or ProgramData on Windows.
   --install-root <path>   Source checkout/install root. Defaults to this repository root.
-  --binary-path <path>    Release binary path. Defaults to target/release/craw-chat-server.
+  --binary-path <path>    Release binary path. Defaults to target/release/sdkwork-im-server.
   --background            Start as a background process instead of foreground/systemd mode.
   --health-url <url>      Health check URL forwarded to bin/start-server.
   --skip-health-check     Skip bin/start-server background health check.
   --json                  Print machine-readable JSON without secret values.
   --dry-run               Print the plan without executing build/start.
-  -h, --help              Show this help.
+  -h, --help              Show help.
 `);
 }
 
@@ -194,7 +194,7 @@ function mergeEnvValues(...sources) {
 }
 
 function defaultBinaryPath(root, platform = process.platform) {
-  return path.join(root, 'target', 'release', platform === 'win32' ? 'craw-chat-server.exe' : 'craw-chat-server');
+  return path.join(root, 'target', 'release', platform === 'win32' ? 'sdkwork-im-server.exe' : 'sdkwork-im-server');
 }
 
 function createResolvedSourceServerEnv({
@@ -206,47 +206,37 @@ function createResolvedSourceServerEnv({
   platform = process.platform,
 } = {}) {
   const fileEnv = readSourceServerEnvFile(envFile);
-  const sourceDistDir = path.join(root, 'apps', 'sdkwork-chat-pc', 'dist');
+  const sourceDistDir = path.join(root, 'apps', 'sdkwork-im-pc', 'dist');
   const resolvedBinaryPath = binaryPath
-    || env.CRAW_CHAT_SERVER_BINARY_PATH
-    || fileEnv.CRAW_CHAT_SERVER_BINARY_PATH
+    || env.SDKWORK_IM_SERVER_BINARY_PATH
+    || fileEnv.SDKWORK_IM_SERVER_BINARY_PATH
     || defaultBinaryPath(root, platform);
   const merged = mergeEnvValues(
     fileEnv,
     env,
     {
-      CRAW_CHAT_ADMIN_SITE_DIR: env.CRAW_CHAT_ADMIN_SITE_DIR
-        || fileEnv.CRAW_CHAT_ADMIN_SITE_DIR
+      SDKWORK_IM_ADMIN_SITE_DIR: env.SDKWORK_IM_ADMIN_SITE_DIR
+        || fileEnv.SDKWORK_IM_ADMIN_SITE_DIR
         || sourceDistDir,
-      CRAW_CHAT_PORTAL_SITE_DIR: env.CRAW_CHAT_PORTAL_SITE_DIR
-        || fileEnv.CRAW_CHAT_PORTAL_SITE_DIR
+      SDKWORK_IM_PORTAL_SITE_DIR: env.SDKWORK_IM_PORTAL_SITE_DIR
+        || fileEnv.SDKWORK_IM_PORTAL_SITE_DIR
         || sourceDistDir,
-      CRAW_CHAT_SERVER_BINARY_PATH: resolvedBinaryPath,
-      SDKWORK_CHAT_CONFIG_FILE: env.SDKWORK_CHAT_CONFIG_FILE
-        || fileEnv.SDKWORK_CHAT_CONFIG_FILE
+      SDKWORK_IM_SERVER_BINARY_PATH: resolvedBinaryPath,
+      SDKWORK_IM_CONFIG_FILE: env.SDKWORK_IM_CONFIG_FILE
+        || fileEnv.SDKWORK_IM_CONFIG_FILE
         || path.join(configDir, 'chat.toml'),
-      SDKWORK_CHAT_DEPLOYMENT_MODE: env.SDKWORK_CHAT_DEPLOYMENT_MODE
-        || fileEnv.SDKWORK_CHAT_DEPLOYMENT_MODE
+      SDKWORK_IM_DEPLOYMENT_MODE: env.SDKWORK_IM_DEPLOYMENT_MODE
+        || fileEnv.SDKWORK_IM_DEPLOYMENT_MODE
         || 'server',
     },
   );
-
-  if (merged.SDKWORK_CHAT_SERVER_API_BASE_URL && !merged.CRAW_CHAT_SERVER_API_BASE_URL) {
-    merged.CRAW_CHAT_SERVER_API_BASE_URL = merged.SDKWORK_CHAT_SERVER_API_BASE_URL;
-  }
-  if (merged.SDKWORK_CHAT_SERVER_BASE_URL && !merged.CRAW_CHAT_SERVER_BASE_URL) {
-    merged.CRAW_CHAT_SERVER_BASE_URL = merged.SDKWORK_CHAT_SERVER_BASE_URL;
-  }
-  if (merged.SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL && !merged.CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL) {
-    merged.CRAW_CHAT_SERVER_WEBSOCKET_BASE_URL = merged.SDKWORK_CHAT_SERVER_WEBSOCKET_BASE_URL;
-  }
 
   return merged;
 }
 
 function createBuildStep({ env, platform, root }) {
   return {
-    label: 'build craw-chat source server artifacts',
+    label: 'build sdkwork-im source server artifacts',
     command: pnpmCommand(platform),
     args: ['run', 'release:build:production', '--', '--target', 'server'],
     cwd: root,
@@ -296,7 +286,7 @@ function createStartStep({
       args.push('-SkipHealthCheck');
     }
     return {
-      label: 'start craw-chat source server',
+      label: 'start sdkwork-im source server',
       command: 'powershell.exe',
       args,
       cwd: root,
@@ -329,7 +319,7 @@ function createStartStep({
     args.push('--skip-health-check');
   }
   return {
-    label: 'start craw-chat source server',
+    label: 'start sdkwork-im source server',
     command: 'bash',
     args,
     cwd: root,
@@ -338,7 +328,7 @@ function createStartStep({
   };
 }
 
-function createCrawChatSourceServerPlan({
+function createSdkworkImSourceServerPlan({
   action = 'plan',
   background = false,
   binaryPath = null,
@@ -370,7 +360,7 @@ function createCrawChatSourceServerPlan({
     platform,
     repoRoot: root,
   });
-  const resolvedBinaryPath = resolvedEnv.CRAW_CHAT_SERVER_BINARY_PATH;
+  const resolvedBinaryPath = resolvedEnv.SDKWORK_IM_SERVER_BINARY_PATH;
 
   const buildStep = createBuildStep({
     env: resolvedEnv,
@@ -379,7 +369,7 @@ function createCrawChatSourceServerPlan({
   });
   const startStep = createStartStep({
     background,
-    binaryPath: resolvedEnv.CRAW_CHAT_SERVER_BINARY_PATH,
+    binaryPath: resolvedEnv.SDKWORK_IM_SERVER_BINARY_PATH,
     configDir: resolvedConfigDir,
     env: resolvedEnv,
     envFile: resolvedEnvFile,
@@ -397,7 +387,7 @@ function createCrawChatSourceServerPlan({
       : [buildStep, startStep];
 
   return {
-    schemaVersion: '2026-06-14.craw-chat.source-server.v1',
+    schemaVersion: '2026-06-14.sdkwork-im.source-server.v1',
     action,
     background,
     configDir: resolvedConfigDir,
@@ -409,14 +399,14 @@ function createCrawChatSourceServerPlan({
   };
 }
 
-function renderCrawChatSourceServerPlan(plan) {
+function renderSdkworkImSourceServerPlan(plan) {
   return [
-    `[craw-chat-source-server] action: ${plan.action}`,
-    `[craw-chat-source-server] repo root: ${plan.repoRoot}`,
-    `[craw-chat-source-server] config dir: ${plan.configDir}`,
-    `[craw-chat-source-server] env file: ${plan.envFile}`,
-    `[craw-chat-source-server] install root: ${plan.installRoot}`,
-    ...plan.steps.map((step) => `[craw-chat-source-server]   ${step.label}: ${step.command} ${step.args.join(' ')}`),
+    `[sdkwork-im-source-server] action: ${plan.action}`,
+    `[sdkwork-im-source-server] repo root: ${plan.repoRoot}`,
+    `[sdkwork-im-source-server] config dir: ${plan.configDir}`,
+    `[sdkwork-im-source-server] env file: ${plan.envFile}`,
+    `[sdkwork-im-source-server] install root: ${plan.installRoot}`,
+    ...plan.steps.map((step) => `[sdkwork-im-source-server]   ${step.label}: ${step.command} ${step.args.join(' ')}`),
   ];
 }
 
@@ -424,7 +414,7 @@ function selectedSourceDeployEnvKeys(env = {}) {
   return SAFE_PLAN_ENV_KEYS.filter((key) => Object.hasOwn(env, key));
 }
 
-function serializableCrawChatSourceServerPlan(plan) {
+function serializableSdkworkImSourceServerPlan(plan) {
   return {
     ...plan,
     steps: plan.steps.map((step) => {
@@ -453,16 +443,16 @@ function spawnStep(command, args, options) {
   });
 }
 
-async function runCrawChatSourceServerPlan({
+async function runSdkworkImSourceServerPlan({
   plan,
   spawnImpl = spawnStep,
 } = {}) {
   if (!plan) {
-    throw new Error('runCrawChatSourceServerPlan requires a plan');
+    throw new Error('runSdkworkImSourceServerPlan requires a plan');
   }
 
   for (const step of plan.steps) {
-    console.error(`[craw-chat-source-server] ${step.label}: ${step.command} ${step.args.join(' ')}`);
+    console.error(`[sdkwork-im-source-server] ${step.label}: ${step.command} ${step.args.join(' ')}`);
     const result = await spawnImpl(step.command, step.args, {
       cwd: step.cwd,
       env: step.env,
@@ -488,7 +478,7 @@ async function main(argv = process.argv.slice(2)) {
     return 0;
   }
 
-  const plan = createCrawChatSourceServerPlan({
+  const plan = createSdkworkImSourceServerPlan({
     ...settings,
     env: process.env,
     repoRoot,
@@ -498,10 +488,10 @@ async function main(argv = process.argv.slice(2)) {
     console.log(JSON.stringify({
       ok: true,
       dryRun: settings.dryRun || settings.action === 'plan',
-      plan: serializableCrawChatSourceServerPlan(plan),
+      plan: serializableSdkworkImSourceServerPlan(plan),
     }, null, 2));
   } else {
-    for (const line of renderCrawChatSourceServerPlan(plan)) {
+    for (const line of renderSdkworkImSourceServerPlan(plan)) {
       console.log(line);
     }
   }
@@ -510,7 +500,7 @@ async function main(argv = process.argv.slice(2)) {
     return 0;
   }
 
-  await runCrawChatSourceServerPlan({ plan });
+  await runSdkworkImSourceServerPlan({ plan });
   return 0;
 }
 
@@ -518,13 +508,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
   main().then((code) => {
     process.exitCode = code;
   }).catch((error) => {
-    console.error(`[craw-chat-source-server] ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`[sdkwork-im-source-server] ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   });
 }
 
 export {
-  createCrawChatSourceServerPlan,
+  createSdkworkImSourceServerPlan,
   createResolvedSourceServerEnv,
   defaultConfigDir,
   defaultBinaryPath,
@@ -532,7 +522,7 @@ export {
   parseSourceServerArgs,
   pnpmCommand,
   readSourceServerEnvFile,
-  renderCrawChatSourceServerPlan,
-  runCrawChatSourceServerPlan,
-  serializableCrawChatSourceServerPlan,
+  renderSdkworkImSourceServerPlan,
+  runSdkworkImSourceServerPlan,
+  serializableSdkworkImSourceServerPlan,
 };

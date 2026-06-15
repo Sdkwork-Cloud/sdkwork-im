@@ -72,7 +72,7 @@ pub(super) async fn get_contacts(
     let cursor_offset = parse_offset_cursor(query.cursor.as_deref())?;
 
     let mut items = state
-        .social_query
+        .social_runtime
         .authoritative_active_friendships_for_user(auth.tenant_id.as_str(), auth.actor_id.as_str())
         .map_err(|error| ApiError {
             status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -82,7 +82,7 @@ pub(super) async fn get_contacts(
         .into_iter()
         .filter(|friendship| {
             state
-                .social_query
+                .social_runtime
                 .active_friendship_access_block_for_pair(
                     auth.tenant_id.as_str(),
                     friendship.user_low_id.as_str(),
@@ -416,7 +416,7 @@ fn contact_view_from_authoritative_friendship(
     };
 
     let direct_chat = state
-        .social_query
+        .social_runtime
         .authoritative_active_direct_chat_for_pair(
             auth.tenant_id.as_str(),
             friendship.user_low_id.as_str(),
@@ -579,7 +579,7 @@ async fn ensure_active_contact_access(
     }
 
     let active_friendship_exists = state
-        .social_query
+        .social_runtime
         .authoritative_active_friendships_for_user(auth.tenant_id.as_str(), auth.actor_id.as_str())
         .map_err(|error| ApiError {
             status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -597,7 +597,7 @@ async fn ensure_active_contact_access(
         ));
     }
     if state
-        .social_query
+        .social_runtime
         .active_friendship_access_block_for_pair(
             auth.tenant_id.as_str(),
             auth.actor_id.as_str(),

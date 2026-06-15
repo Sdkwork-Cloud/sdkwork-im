@@ -1,4 +1,4 @@
-# ADR-20260615-craw-chat-to-sdkwork-im-rebrand
+# ADR-20260615-sdkwork-im-to-sdkwork-im-rebrand
 
 Status: accepted
 Owner: SDKWork IM maintainers
@@ -8,7 +8,7 @@ Specs: NAMING_SPEC.md, RUST_CODE_SPEC.md, ARCHITECTURE_DECISION_SPEC.md, GOVERNA
 
 ## Context
 
-This repository was historically branded `craw-chat` / `Craw Chat`, with the PC
+This repository was historically branded `sdkwork-im` / `Sdkwork IM`, with the PC
 client workspace at `apps/sdkwork-chat-pc` and client packages scoped as
 `@sdkwork/clawchat-*`. The prior ADR-20260615-crate-naming-alignment began the
 crate-naming cleanup but chose `<app> = chat` as the canonical app token, leaving
@@ -16,7 +16,7 @@ the product still identifiable as "chat" rather than the IM product token `im`.
 
 `NAMING_SPEC.md` §2 requires a single canonical product token. The IM domain
 vocabulary across the codebase is `im` (every `im-*` crate, the `im_` database
-prefix, the `im` capability). Continuing to brand the repository `craw-chat`
+prefix, the `im` capability). Continuing to brand the repository `sdkwork-im`
 while its domain is `im` produced a mixed identity that contradicted the naming
 standard and made ownership non-self-describing.
 
@@ -34,14 +34,14 @@ Adopt `sdkwork-im` as the canonical product **and** app token, everywhere.
 
 | Layer | Current | Target |
 | --- | --- | --- |
-| Repository root / package.json name | `craw-chat` | `sdkwork-im` |
+| Repository root / package.json name | `sdkwork-im` | `sdkwork-im` |
 | App key (sdkwork.app.config.json) | `chat` | `im` |
-| Display name | `SDKWork Chat` / `Craw Chat` | `Sdkwork IM` |
+| Display name | `SDKWork Chat` / `Sdkwork IM` | `Sdkwork IM` |
 | PC app directory | `apps/sdkwork-chat-pc` | `apps/sdkwork-im-pc` |
 | PC app package scope | `@sdkwork/chat-pc` | `@sdkwork/im-pc` |
 | Client packages | `sdkwork-clawchat-<surface>-<cap>` / `@sdkwork/clawchat-<surface>-<cap>` | `sdkwork-im-<surface>-<cap>` / `@sdkwork/im-<surface>-<cap>` |
-| Rust crates | `craw-chat-*` | `sdkwork-im-*` |
-| CLI tool | `craw-chat-cli` (`craw_chat_cli`) | `sdkwork-im-cli` (`sdkwork_im_cli`) |
+| Rust crates | `sdkwork-im-*` | `sdkwork-im-*` |
+| CLI tool | `sdkwork-im-cli` (`sdkwork_im_cli`) | `sdkwork-im-cli` (`sdkwork_im_cli`) |
 
 ### Breaking contract identifiers (renamed, no compatibility alias)
 
@@ -51,20 +51,20 @@ alias window.
 
 | Identifier | Current | Target |
 | --- | --- | --- |
-| WebSocket subprotocol | `craw-chat.ccp.ws.v1` | `sdkwork-im.ccp.ws.v1` |
-| Message schema URN namespace | `urn:sdkwork:craw-chat:message:*` | `urn:sdkwork:sdkwork-im:message:*` |
-| Default `app_id` | `craw-chat` | `sdkwork-im` |
-| Postgres database name | `craw_chat` | `sdkwork_im` |
-| Postgres app role | `craw_chat_app` | `sdkwork_im_app` |
-| Postgres CI test database/role | `craw_chat_test` | `sdkwork_im_test` |
-| Server binary | `craw-chat-server` | `sdkwork-im-server` |
-| Windows install root | `C:\Program Files\CrawChat` | `C:\Program Files\SdkworkIm` |
-| macOS launchd bundle id | `com.sdkwork.crawchat.server` | `com.sdkwork.im.server` |
+| WebSocket subprotocol | `sdkwork-im.ccp.ws.v1` | `sdkwork-im.ccp.ws.v1` |
+| Message schema URN namespace | `urn:sdkwork:sdkwork-im:message:*` | `urn:sdkwork:sdkwork-im:message:*` |
+| Default `app_id` | `sdkwork-im` | `sdkwork-im` |
+| Postgres database name | `sdkwork_im` | `sdkwork_im` |
+| Postgres app role | `sdkwork_im_app` | `sdkwork_im_app` |
+| Postgres CI test database/role | `sdkwork_im_test` | `sdkwork_im_test` |
+| Server binary | `sdkwork-im-server` | `sdkwork-im-server` |
+| Windows install root | `C:\Program Files\SdkworkIm` | `C:\Program Files\SdkworkIm` |
+| macOS launchd bundle id | `com.sdkwork.SdkworkIm.server` | `com.sdkwork.im.server` |
 
 ### Environment variables
 
-`CRAW_CHAT_*` and `SDKWORK_CHAT_*` are renamed to `SDKWORK_IM_*` (including the
-`VITE_CRAW_CHAT_*` browser-prefixed variants → `VITE_SDKWORK_IM_*`).
+`sdkwork_im_*` and `SDKWORK_CHAT_*` are renamed to `SDKWORK_IM_*` (including the
+`VITE_sdkwork_im_*` browser-prefixed variants �?`VITE_SDKWORK_IM_*`).
 
 ### Deferred: forbidden-suffix removal
 
@@ -98,7 +98,7 @@ corruption of non-ASCII content.
 
 - Rust: all 24 renamed crate directories resolve; every `path =` dependency in
   every `Cargo.toml` resolves to an existing target; zero residual
-  `craw_chat_` / `craw-chat-` identifiers in `.rs` / `.toml` source.
+  `sdkwork_im_` / `sdkwork-im-` identifiers in `.rs` / `.toml` source.
   (`cargo check --workspace` is additionally blocked only by pre-existing
   cross-repository layout drift in `../sdkwork-rtc` and `../sdkwork-appbase`,
   unrelated to this rename.)

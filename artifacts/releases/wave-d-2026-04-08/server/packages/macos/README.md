@@ -12,8 +12,8 @@
 
 ## Canonical artifact names
 
-- `craw-chat-server-darwin-universal.tar.gz`
-- `craw-chat-server-<version>.pkg`
+- `sdkwork-im-server-darwin-universal.tar.gz`
+- `sdkwork-im-server-<version>.pkg`
 
 ## Canonical operator entrypoints
 
@@ -24,11 +24,11 @@
 
 ## Default install-root mapping
 
-- install root: `/opt/craw-chat`
-- config root: `/etc/craw-chat/default`
-- data root: `/var/lib/craw-chat/default`
-- log root: `/var/log/craw-chat/default`
-- run root: `/var/run/craw-chat/default`
+- install root: `/opt/sdkwork-im`
+- config root: `/etc/sdkwork-im/default`
+- data root: `/var/lib/sdkwork-im/default`
+- log root: `/var/log/sdkwork-im/default`
+- run root: `/var/run/sdkwork-im/default`
 
 ## Related staging contracts
 

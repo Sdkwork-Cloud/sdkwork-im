@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "artifacts/releases/schemas/sdk-release-catalog.schema.json",
-  "title": "craw-chat sdk release catalog",
+  "title": "sdkwork-im sdk release catalog",
   "type": "object",
   "additionalProperties": false,
   "required": [

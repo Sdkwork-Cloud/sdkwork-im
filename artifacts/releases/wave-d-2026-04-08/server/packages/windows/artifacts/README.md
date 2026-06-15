@@ -8,14 +8,14 @@
 This staging root is where Windows packaging outputs are expected to land when the release
 execution plan is run.
 
-- canonical build command: `cargo build -p web-gateway --release --bin craw-chat-server --offline`
+- canonical build command: `cargo build -p web-gateway --release --bin sdkwork-im-server --offline`
 
 ## Expected staged artifacts
 
-- `craw-chat-server-windows-x86_64.zip`
-- `craw-chat-server-<version>-x64.msi`
+- `sdkwork-im-server-windows-x86_64.zip`
+- `sdkwork-im-server-<version>-x64.msi`
 - Windows Service wrapper payload:
-  - `CrawChatServer.exe`
+  - `SdkworkImServer.exe`
 
 ## Shared staging contracts
 
@@ -26,7 +26,7 @@ execution plan is run.
 
 ## Canonical workflow
 
-- Step 1: build the canonical `craw-chat-server.exe` payload.
+- Step 1: build the canonical `sdkwork-im-server.exe` payload.
 - Step 2: assemble Windows package outputs and wrapper payload into this staging root.
 - Step 3: refresh `../artifact-file-list.txt`.
 - Step 4: refresh `../SHA256SUMS`.

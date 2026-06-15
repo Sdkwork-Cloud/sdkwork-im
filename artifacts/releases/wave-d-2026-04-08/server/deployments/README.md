@@ -15,9 +15,9 @@ form must preserve.
 
 ## Required service definitions
 
-- `deployments/systemd/craw-chat-server.service`
-- `deployments/launchd/com.sdkwork.crawchat.server.plist`
-- `deployments/windows-service/CrawChatServer.xml`
+- `deployments/systemd/sdkwork-im-server.service`
+- `deployments/launchd/com.sdkwork.SdkworkIm.server.plist`
+- `deployments/windows-service/SdkworkImServer.xml`
 
 ## Shared deployment invariants
 

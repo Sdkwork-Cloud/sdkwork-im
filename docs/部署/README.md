@@ -73,7 +73,7 @@
 ## Server Edition
 
 - [server版本安装与初始化](./server版本安装与初始化.md)
-  - formal `craw-chat-server` install entry
+  - formal `sdkwork-im-server` install entry
   - covers `install-server`, `init-config-server`, `init-storage-server`, `verify-server`, `plan-release-server`
   - explains why `web-gateway` is the default external entrypoint
 - [server版本配置与PostgreSQL接入](./server版本配置与PostgreSQL接入.md)
@@ -81,4 +81,6 @@
   - covers `verify-only`, `bootstrap-schema`, and `create-db-and-schema`
 - [server版本service托管标准](./server版本service托管标准.md)
   - freezes `systemd`, `launchd`, and Windows Service targets
-  - standard service identity is `craw-chat-server`
+  - standard service identity is `sdkwork-im-server`
+- [源码部署](./源码部署.md)
+  - source checkout build and start workflow via `pnpm run server:source:build` and `server:source:start`

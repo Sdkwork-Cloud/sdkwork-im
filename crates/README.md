@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Rust crates for Craw Chat contracts, services, repositories, gateways, route helpers, runtime
+Rust crates for Sdkwork IM contracts, services, repositories, gateways, route helpers, runtime
 adapters, and reusable Rust libraries.
 
 ## Owner

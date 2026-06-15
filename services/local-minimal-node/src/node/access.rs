@@ -86,7 +86,7 @@ pub(super) fn direct_chat_access_block_for_conversation(
         .projection_service
         .direct_chat_id_for_conversation(tenant_id, conversation_id)?;
     state
-        .social_query
+        .social_runtime
         .active_direct_chat_access_block(tenant_id, direct_chat_id.as_str())
 }
 

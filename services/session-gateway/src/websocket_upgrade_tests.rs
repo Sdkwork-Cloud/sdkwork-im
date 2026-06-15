@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use craw_chat_runtime_link::LinkWebsocketMode;
+use sdkwork_im_runtime_link::LinkWebsocketMode;
 use im_app_context::AppContext;
 
 use super::{

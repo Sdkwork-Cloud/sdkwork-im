@@ -28,11 +28,11 @@ The disconnect fence file remains:
 
 `local-minimal.env` must contain:
 
-- `CRAW_CHAT_BIND_ADDR`
-- `CRAW_CHAT_RUNTIME_DIR`
-- `CRAW_CHAT_FRIEND_REQUEST_CURSOR_HS256_SECRET`
+- `sdkwork_im_BIND_ADDR`
+- `sdkwork_im_RUNTIME_DIR`
+- `sdkwork_im_FRIEND_REQUEST_CURSOR_HS256_SECRET`
 
-Managed startup scripts must export `CRAW_CHAT_RUNTIME_DIR` before launching the binary.
+Managed startup scripts must export `sdkwork_im_RUNTIME_DIR` before launching the binary.
 
 ## 3. Operational Meaning
 

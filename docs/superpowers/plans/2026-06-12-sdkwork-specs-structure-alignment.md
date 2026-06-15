@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Align `craw-chat` with the new `../sdkwork-specs` workspace and PC application architecture rules without breaking existing package paths.
+**Goal:** Align `sdkwork-im` with the new `../sdkwork-specs` workspace and PC application architecture rules without breaking existing package paths.
 
 **Architecture:** Add compatibility-first SDKWORK dictionary files, root capability placeholders, a root pnpm workspace authority, and a deterministic Node.js static verification command. Preserve current source changes and defer package renaming to a later migration.
 
@@ -297,11 +297,11 @@ Remaining blocker:
 ## Continuation Checkpoint 2026-06-12 - Verification Command And Desktop Asset Entry Alignment
 
 Status: local repository docs and component specs no longer point at the retired
-`apps/craw-chat/Cargo.toml` manifest. The workspace structure standard now fails when documented
+`apps/sdkwork-im/Cargo.toml` manifest. The workspace structure standard now fails when documented
 Cargo manifest paths do not exist, and the documented Rust verification command points to the real
 root workspace with `cargo test --workspace`. The desktop asset build entrypoint now targets the
 current `apps/sdkwork-chat-pc` app root instead of retired `apps/control-plane`,
-`apps/craw-chat-admin`, or `apps/craw-chat-portal` roots.
+`apps/sdkwork-im-admin`, or `apps/sdkwork-im-portal` roots.
 
 Implementation notes:
 
@@ -310,9 +310,9 @@ Implementation notes:
   `specs/component.spec.json`; it fails if any referenced manifest path is missing.
 - `README.md`, `specs/README.md`, and `specs/component.spec.json` now document
   `cargo test --workspace` for the repository Rust workspace.
-- `scripts/build-craw-chat-desktop-assets.mjs` is importable again without retired portal sources
+- `scripts/build-sdkwork-im-desktop-assets.mjs` is importable again without retired portal sources
   and builds/checks `apps/sdkwork-chat-pc/dist/index.html`.
-- `scripts/build-craw-chat-desktop-assets.test.mjs` proves the desktop asset script is aligned to
+- `scripts/build-sdkwork-im-desktop-assets.test.mjs` proves the desktop asset script is aligned to
   `apps/sdkwork-chat-pc`, rejects retired app-root references in that script, and validates the
   expected PC dist readiness check.
 - `scripts/commercial-gates-governance-node-test-catalog.mjs` includes the new desktop asset
@@ -321,21 +321,21 @@ Implementation notes:
 TDD evidence:
 
 - `node scripts\sdkwork-workspace-structure-standard.test.mjs` failed first on the three retired
-  `apps/craw-chat/Cargo.toml` references, then passed after the docs/spec command update.
-- `node --test --experimental-test-isolation=none scripts\build-craw-chat-desktop-assets.test.mjs`
-  failed first because `scripts/build-craw-chat-desktop-assets.mjs` referenced retired app roots and
-  could not import `apps/craw-chat-portal/scripts/lib/build-dist.mjs`, then passed after the script
+  `apps/sdkwork-im/Cargo.toml` references, then passed after the docs/spec command update.
+- `node --test --experimental-test-isolation=none scripts\build-sdkwork-im-desktop-assets.test.mjs`
+  failed first because `scripts/build-sdkwork-im-desktop-assets.mjs` referenced retired app roots and
+  could not import `apps/sdkwork-im-portal/scripts/lib/build-dist.mjs`, then passed after the script
   was realigned to `apps/sdkwork-chat-pc`.
 
 Verified commands:
 
-- `node --test --experimental-test-isolation=none scripts\build-craw-chat-desktop-assets.test.mjs`
+- `node --test --experimental-test-isolation=none scripts\build-sdkwork-im-desktop-assets.test.mjs`
   - Result: passed, 2/2 tests.
 - `node --test --experimental-test-isolation=none scripts\commercial-gates-governance-node-test-catalog.test.mjs`
   - Result: passed, 2/2 tests.
 - `pnpm.cmd run test:sdkwork-workspace-structure-standard`
   - Result: passed with `SDKWork workspace structure standard passed`.
-- `node --check scripts\build-craw-chat-desktop-assets.mjs`
+- `node --check scripts\build-sdkwork-im-desktop-assets.mjs`
   - Result: passed.
 - `pnpm.cmd run test:workflow-commercial-gates`
   - Result: passed, 44/44 governed Node tests.
@@ -377,7 +377,7 @@ Verified commands:
 - `pnpm.cmd run build` from `apps/sdkwork-chat-pc`
   - Result: passed; Vite/esbuild emitted the PC dist and `dist/server.cjs`. Vite still reports the
     existing large chunk warning, but the command exits successfully.
-- `node scripts\build-craw-chat-desktop-assets.mjs`
+- `node scripts\build-sdkwork-im-desktop-assets.mjs`
   - Result: passed; it built the PC app from `apps/sdkwork-chat-pc` and verified the desktop web
     asset output.
 
@@ -419,7 +419,7 @@ Environment note:
 ## Continuation Checkpoint 2026-06-12 - RTC Verifier Command Root Alignment
 
 Status: repository SDK documentation now uses the same sibling `sdkwork-rtc` verifier command when
-the command is meant to run from the Craw Chat repository root. Existing markdown links that are
+the command is meant to run from the Sdkwork IM repository root. Existing markdown links that are
 relative to their own document locations remain unchanged when they already resolve correctly. This
 is documentation and static verification alignment only; no UI layout, visual styling, runtime SDK
 output, or package names were changed.
@@ -481,7 +481,7 @@ TDD evidence:
 - `node scripts\dependency-management-standard.test.mjs` failed first on the three missing retired
   appbase paths:
   `sdkwork-id-rust`, `sdkwork-iam-core-rust`, and `sdkwork-http-context-rust`.
-- After path aliases were updated, `cargo test -p craw-chat-runtime-id --tests` failed on the
+- After path aliases were updated, `cargo test -p sdkwork-im-runtime-id --tests` failed on the
   missing inherited `sdkwork_iam_context_service.workspace = true` root declaration.
 - The dependency-management test was then tightened to detect that missing inherited workspace key,
   failed on it, and passed after the root workspace declarations were completed.
@@ -499,7 +499,7 @@ Verified commands:
 - `cargo metadata --no-deps --format-version 1`
   - Result: passed; Cargo resolved the root workspace metadata with the appbase sibling crate paths,
     including after the duplicate appbase IAM alias was removed.
-- `cargo test -p craw-chat-runtime-id --tests`
+- `cargo test -p sdkwork-im-runtime-id --tests`
   - Result: passed, 4/4 integration tests.
 - `cargo test -p im-app-context --tests`
   - Result: passed, 11/11 integration tests.

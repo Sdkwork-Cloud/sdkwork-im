@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Cross-package, contract, integration, end-to-end, fixture, and static verification inputs for Craw
-Chat.
+Cross-package, contract, integration, end-to-end, fixture, and static verification inputs for Sdkwork
+IM.
 
 ## Owner
 

@@ -7,7 +7,7 @@ import * as viteRuntimeLib from '../../../scripts/dev/vite-runtime-lib.mjs';
 
 const docsRoot = path.resolve(import.meta.dirname, '..');
 const currentWorkspaceRoot = path.resolve(docsRoot, '..', '..');
-const removedRustCompatClientPattern = new RegExp(['Craw', 'Chat', 'Client'].join(''));
+const removedRustCompatClientPattern = new RegExp(['Sdkwork', 'Im', 'Client'].join(''));
 const retiredSdkPattern = (...parts) => new RegExp(parts.join(''));
 
 function listMarkdownFiles(root) {

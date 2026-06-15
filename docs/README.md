@@ -3,7 +3,7 @@
 ## Purpose
 
 Repository and application documentation, architecture decisions, runbooks, changelogs, design
-notes, and developer guides for Craw Chat.
+notes, and developer guides for Sdkwork IM.
 
 ## Owner
 

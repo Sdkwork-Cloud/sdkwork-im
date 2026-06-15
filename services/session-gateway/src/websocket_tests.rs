@@ -5,9 +5,9 @@
 //! back via `#[cfg(test)] #[path = "websocket_tests.rs"] mod tests;` so
 //! `use super::{...}` still resolves to the parent module unchanged.
 
-use craw_chat_ccp_control::HelloFrame;
-use craw_chat_ccp_core::{CapabilitySet, ProtocolVersion, TransportBinding};
-use craw_chat_runtime_link::{LinkConnectionState, OutboundQueuePolicy, ResumeWindow};
+use sdkwork_im_ccp_control::HelloFrame;
+use sdkwork_im_ccp_core::{CapabilitySet, ProtocolVersion, TransportBinding};
+use sdkwork_im_runtime_link::{LinkConnectionState, OutboundQueuePolicy, ResumeWindow};
 use im_app_context::AppContext;
 
 use super::*;

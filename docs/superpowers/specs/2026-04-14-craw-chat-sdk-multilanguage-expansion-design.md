@@ -105,7 +105,7 @@ Keep the current mature layout:
 
 The composed package remains the preferred consumer surface and continues to expose:
 
-- `CrawChatClient`
+- `SdkworkImClient`
 - business modules
 - message, stream, and RTC builders
 
@@ -152,7 +152,7 @@ sdkwork-im-sdk-rust/
       streams_module.rs
       rtc_module.rs
     tests/
-      craw_chat_client_test.rs
+      sdkwork_im_client_test.rs
 ```
 
 Rust follows the same policy boundary:
@@ -166,7 +166,7 @@ The Rust composed crate should be intentionally thin. It should not duplicate ge
 
 The crate exposes:
 
-- `CrawChatClient`
+- `SdkworkImClient`
 - business modules for sessions, presence, realtime HTTP, devices, inbox, conversations, messages, media, streams, and RTC
 - convenience builders for common text-message, stream-frame, and RTC-signal flows
 - auth-token update helpers and ergonomic client-construction helpers
@@ -174,7 +174,7 @@ The crate exposes:
 Recommended responsibilities:
 
 - `client.rs`
-  Defines `CrawChatClient` and wires all module entrypoints around the generated client.
+  Defines `SdkworkImClient` and wires all module entrypoints around the generated client.
 - `context.rs`
   Shared access to generated client state, config, and auth updates.
 - `types.rs`
@@ -229,7 +229,7 @@ Across all three languages, the preferred consumer entrypoint is the composed SD
 
 The composed SDK should provide:
 
-- a clear `CrawChatClient` entrypoint
+- a clear `SdkworkImClient` entrypoint
 - stable module names
 - semantic helper methods for common message and realtime workflows
 - simple bearer-token configuration
@@ -271,7 +271,7 @@ Add a new root verification entrypoint, for example `bin/verify-rust-workspace.m
 - generated crate passes `cargo check`
 - composed crate passes `cargo test`
 - composed crate only depends on supported generated public exports
-- public `CrawChatClient`, module exports, and builder exports compile and are exercised by smoke tests
+- public `SdkworkImClient`, module exports, and builder exports compile and are exercised by smoke tests
 
 ## Testing Strategy
 
@@ -320,7 +320,7 @@ The round is complete only when all of the following are true:
 
 - the workspace supports `typescript`, `flutter`, and `rust`
 - each language has a clean generated/manual ownership split
-- the preferred public surface in each language is a composed `CrawChatClient`
+- the preferred public surface in each language is a composed `SdkworkImClient`
 - Rust reaches the same professional quality bar as TypeScript and Flutter for entrypoint design, documentation, and verification
 - generation is repeatable and does not rely on hand-editing generated output
 - root documentation, language documentation, and assembly metadata all reflect the three-language family accurately

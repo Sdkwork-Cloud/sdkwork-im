@@ -55,7 +55,7 @@ serviceId = "sdkwork-im-http"
 baseUrl = "http://127.0.0.1:18090"
 
 [[upstreams]]
-serviceId = "craw-chat-portal-http"
+serviceId = "sdkwork-im-portal-http"
 baseUrl = "http://127.0.0.1:18079"
 
 [[upstreams]]

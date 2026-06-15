@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Runnable examples, integration examples, sample configs, and SDK/API usage examples for Craw Chat.
+Runnable examples, integration examples, sample configs, and SDK/API usage examples for Sdkwork IM.
 
 ## Owner
 

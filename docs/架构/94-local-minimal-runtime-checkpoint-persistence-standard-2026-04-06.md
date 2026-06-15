@@ -36,13 +36,13 @@ The realtime checkpoint file path is standardized as:
 
 Managed startup must provide:
 
-- `CRAW_CHAT_BIND_ADDR`
-- `CRAW_CHAT_PUBLIC_BEARER_HS256_SECRET`
-- `CRAW_CHAT_RUNTIME_DIR`
+- `sdkwork_im_BIND_ADDR`
+- `sdkwork_im_PUBLIC_BEARER_HS256_SECRET`
+- `sdkwork_im_RUNTIME_DIR`
 
-`init-config-local.*` must write `CRAW_CHAT_RUNTIME_DIR` into `local-minimal.env`.
+`init-config-local.*` must write `sdkwork_im_RUNTIME_DIR` into `local-minimal.env`.
 
-`start-local.*` must export `CRAW_CHAT_RUNTIME_DIR` before launching `local-minimal-node`.
+`start-local.*` must export `sdkwork_im_RUNTIME_DIR` before launching `local-minimal-node`.
 
 ## 5. Builder Contract
 

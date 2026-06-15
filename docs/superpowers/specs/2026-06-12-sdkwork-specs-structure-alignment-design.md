@@ -2,7 +2,7 @@
 
 ## Context
 
-`craw-chat` is a mixed SDKWork application repository with Rust services, generated SDK families,
+`sdkwork-im` is a mixed SDKWork application repository with Rust services, generated SDK families,
 release tooling, and the PC React/Tauri application root at `apps/sdkwork-chat-pc`. The repository
 now follows the canonical sibling standards under `../sdkwork-specs`, especially
 `SDKWORK_WORKSPACE_SPEC.md`, `APPLICATION_SPEC.md`, `APP_PC_ARCHITECTURE_SPEC.md`,

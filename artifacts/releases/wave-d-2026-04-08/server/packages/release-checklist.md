@@ -1,8 +1,8 @@
 # Wave D server package release checklist
 
 - state: `template_only_pending_execution`
-- This checklist freezes the minimum go / no-go gates for the `craw-chat-server` package release flow.
-- Step 1: run `cargo build -p web-gateway --release --bin craw-chat-server --offline`
+- This checklist freezes the minimum go / no-go gates for the `sdkwork-im-server` package release flow.
+- Step 1: run `cargo build -p web-gateway --release --bin sdkwork-im-server --offline`
 - Step 2: stage platform artifacts under each platform `artifacts/` root
 - Step 3: recompute `artifact-file-list.txt`
 - Step 4: recompute `SHA256SUMS`

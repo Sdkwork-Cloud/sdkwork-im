@@ -1,1 +1,0 @@
-{"version":3,"file":"bind-direct-chat-request.d.ts","sourceRoot":"","sources":["../../src/types/bind-direct-chat-request.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,qBAAqB;IACpC,OAAO,EAAE,MAAM,CAAC;IAChB,cAAc,EAAE,MAAM,CAAC;IACvB,YAAY,EAAE,MAAM,CAAC;IACrB,OAAO,EAAE,MAAM,CAAC;IAChB,WAAW,EAAE,MAAM,CAAC;IACpB,YAAY,EAAE,MAAM,CAAC;CACtB"}

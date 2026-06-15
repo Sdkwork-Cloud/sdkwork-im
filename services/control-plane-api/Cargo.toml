@@ -7,36 +7,22 @@ version.workspace = true
 [dependencies]
 audit-service = { path = "../audit-service" }
 axum.workspace = true
-base64 = "0.22.1"
-bytes = "1.11.1"
 sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
 sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
 sdkwork-im-ccp-registry = { path = "../../crates/sdkwork-im-ccp-registry" }
-fs4 = "0.13.1"
-getrandom = "0.3.4"
-hmac = "0.12.1"
-http-body-util.workspace = true
-hyper = { version = "1.9.0", features = ["client", "http1"] }
-hyper-util = { version = "0.1.20", features = ["client", "client-legacy", "http1", "tokio"] }
-im-adapters-local-disk = { path = "../../adapters/local-disk" }
-im-adapters-local-memory = { path = "../../adapters/local-memory" }
 im-app-context = { path = "../../crates/im-app-context" }
-im-domain-core = { path = "../../crates/im-domain-core" }
-im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
-im-time = { path = "../../crates/im-time" }
 ops-service = { path = "../ops-service" }
 serde.workspace = true
 serde_json.workspace = true
 session-gateway = { path = "../session-gateway" }
-sha2 = "0.10"
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 
 [dev-dependencies]
 audit-service = { path = "../audit-service" }
-conversation-runtime = { path = "../conversation-runtime" }
+http-body-util.workspace = true
 ops-service = { path = "../ops-service" }
 session-gateway = { path = "../session-gateway" }
 tower.workspace = true

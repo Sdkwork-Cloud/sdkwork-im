@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make `craw-chat-cli token` stop synthesizing claim payloads for externally supplied bearer tokens while keeping the output envelope stable.
+Make `sdkwork-im-cli token` stop synthesizing claim payloads for externally supplied bearer tokens while keeping the output envelope stable.
 
 ## Implementation
 

@@ -1,1 +1,0 @@
-{"version":3,"file":"submit-friend-request-request.d.ts","sourceRoot":"","sources":["../../src/types/submit-friend-request-request.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,0BAA0B;IACzC,OAAO,EAAE,MAAM,CAAC;IAChB,SAAS,EAAE,MAAM,CAAC;IAClB,cAAc,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IAC/B,WAAW,EAAE,MAAM,CAAC;IACpB,eAAe,EAAE,MAAM,CAAC;IACxB,YAAY,EAAE,MAAM,CAAC;CACtB"}

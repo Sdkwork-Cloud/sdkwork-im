@@ -1,0 +1,26 @@
+[package]
+name = "social-service"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+fs4 = "0.13.1"
+getrandom = "0.3.4"
+im-adapters-local-disk = { path = "../../adapters/local-disk" }
+im-adapters-local-memory = { path = "../../adapters/local-memory" }
+im-domain-core = { path = "../../crates/im-domain-core" }
+im-domain-events = { path = "../../crates/im-domain-events" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+im-time = { path = "../../crates/im-time" }
+sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
+sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
+im-app-context = { path = "../../crates/im-app-context" }
+sha2 = "0.10"
+hmac = "0.12"
+base64 = "0.22"

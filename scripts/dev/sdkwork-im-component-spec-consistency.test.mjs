@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Component-spec â†” workspace crate consistency check.
+ * Component-spec â†?workspace crate consistency check.
  *
  * Validates that the authored workspace stays aligned with `specs/component.spec.json`
  * and the SDKWork standards it references. This complements
  * `sdkwork-workspace-structure-standard.test.mjs` (which owns the directory dictionary
- * and governance artifacts) by focusing on the contract â†” implementation boundary:
+ * and governance artifacts) by focusing on the contract â†?implementation boundary:
  *
  *  1. Every Cargo workspace member under crates/, services/, adapters/, tools/ ships a
  *     module README (DOCUMENTATION_SPEC.md module README rule).
@@ -14,11 +14,10 @@
  *  3. `component.manifests` entries (sdkwork.app.config.json, package.json, Cargo.toml)
  *     exist at the repository root (COMPONENT_SPEC.md manifest rule).
  *  4. `verification.commands` referenced by the spec are non-empty and look executable.
- *
- * Naming-alignment (the craw-chat and im crate prefixes toward sdkwork-im-) is governed by
- * ADR and intentionally NOT enforced here as a hard failure while the batched rename is in
- * progress; the ADR records the migration window. This test only hard-fails on structural
- * drift that has no governance escape hatch.
+ * Naming-alignment (the legacy sdkwork-im and im crate prefixes were consolidated to
+ * sdkwork-im-) is governed by ADR-20260615-sdkwork-im-to-sdkwork-im-rebrand; the batched
+ * rename is complete and intentionally NOT enforced here as a hard failure. This test only
+ * hard-fails on structural drift that has no governance escape hatch.
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

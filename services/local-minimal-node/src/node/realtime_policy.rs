@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use control_plane_api::SocialControlQuery;
+use social_service::SocialRuntime;
 use projection_service::TimelineProjectionService;
 use session_gateway::{RealtimeRuntimeError, RealtimeScopeAccessPolicy};
 
@@ -9,22 +9,22 @@ pub(super) fn direct_chat_realtime_policy(
 ) -> Arc<DirectChatRealtimePolicy> {
     Arc::new(DirectChatRealtimePolicy {
         projection_service,
-        social_query: RwLock::new(None),
+        social_runtime: RwLock::new(None),
     })
 }
 
 pub(super) struct DirectChatRealtimePolicy {
     projection_service: Arc<TimelineProjectionService>,
-    social_query: RwLock<Option<Arc<SocialControlQuery>>>,
+    social_runtime: RwLock<Option<Arc<SocialRuntime>>>,
 }
 
 impl DirectChatRealtimePolicy {
-    pub(super) fn bind_social_query(&self, social_query: Arc<SocialControlQuery>) {
+    pub(super) fn bind_social_runtime(&self, social_runtime: Arc<SocialRuntime>) {
         let mut guard = self
-            .social_query
+            .social_runtime
             .write()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        *guard = Some(social_query);
+        *guard = Some(social_runtime);
     }
 
     fn conversation_access_error(
@@ -45,12 +45,12 @@ impl DirectChatRealtimePolicy {
         let direct_chat_id = self
             .projection_service
             .direct_chat_id_for_conversation(tenant_id, conversation_id)?;
-        let social_query = self
-            .social_query
+        let social_runtime = self
+            .social_runtime
             .read()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone()?;
-        social_query
+        social_runtime
             .active_direct_chat_access_block(tenant_id, direct_chat_id.as_str())
             .map(|user_block| RealtimeRuntimeError {
                 code: "conversation_blocked",
@@ -109,7 +109,7 @@ mod tests {
     fn test_user_scope_subscriptions_are_limited_to_current_user() {
         let policy = DirectChatRealtimePolicy {
             projection_service: Arc::new(TimelineProjectionService::default()),
-            social_query: RwLock::new(None),
+            social_runtime: RwLock::new(None),
         };
 
         assert!(

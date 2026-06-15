@@ -31,7 +31,11 @@
     "test:sdkwork-im-pc-i18n": "node scripts/dev/sdkwork-im-pc-i18n.test.mjs",
     "test:sdkwork-im-pc-message-actions": "node scripts/dev/sdkwork-im-pc-message-actions.test.mjs",
     "test:sdkwork-im-pc-sidebar-modules": "node scripts/dev/sdkwork-im-pc-sidebar-modules.test.mjs",
-    "server:dev": "node ./scripts/dev/start-sdkwork-im-unified-web.mjs"
+    "test:source-server-deploy": "node scripts/release/sdkwork-im-source-server-command.test.mjs",
+    "server:dev": "node ./scripts/dev/start-sdkwork-im-unified-web.mjs",
+    "server:source:plan": "node scripts/release/run-sdkwork-im-source-server.mjs plan",
+    "server:source:build": "node scripts/release/run-sdkwork-im-source-server.mjs build",
+    "server:source:start": "node scripts/release/run-sdkwork-im-source-server.mjs start"
   },
   "dependencies": {
     "@sdkwork/drive-app-sdk": "workspace:*"
