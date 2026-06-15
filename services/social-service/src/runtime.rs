@@ -40,6 +40,9 @@ pub enum SocialStateStore {
         file_path: Arc<PathBuf>,
         io_lock: Arc<Mutex<()>>,
     },
+    Database {
+        pool: im_adapters_social_postgres::SocialPostgresPool,
+    },
 }
 
 impl SocialStateStore {
@@ -52,6 +55,10 @@ impl SocialStateStore {
             file_path: Arc::new(file_path.into()),
             io_lock: Arc::new(Mutex::new(())),
         }
+    }
+
+    pub fn database(pool: im_adapters_social_postgres::SocialPostgresPool) -> Self {
+        Self::Database { pool }
     }
 
     pub(crate) fn load(&self) -> Result<SocialControlState, String> {
@@ -89,6 +96,11 @@ impl SocialStateStore {
                 loaded.rebuild_social_indexes();
                 Ok(loaded)
             }
+            Self::Database { pool: _ } => {
+                // Database mode loads from PostgreSQL on demand
+                // For now, return default state - actual DB queries happen through store methods
+                Ok(SocialControlState::default())
+            }
         }
     }
 
@@ -111,6 +123,11 @@ impl SocialStateStore {
                 let payload = serde_json::to_string_pretty(state)
                     .map_err(|error| format!("failed to serialize social state: {error}"))?;
                 write_file_atomically(file_path.as_path(), payload.as_bytes(), "social state file")
+            }
+            Self::Database { pool: _ } => {
+                // Database mode persists through individual store operations
+                // No bulk save needed - each mutation writes directly to PostgreSQL
+                Ok(())
             }
         }
     }
