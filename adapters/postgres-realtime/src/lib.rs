@@ -190,6 +190,15 @@ impl PostgresRealtimeConfig {
         }
     }
 
+    /// Create config from sdkwork-pool DatabaseConfig
+    pub fn from_pool_config(config: &sdkwork_pool_config::DatabaseConfig) -> Self {
+        Self {
+            database_url: config.url.clone(),
+            pool_max_size: config.max_connections,
+            pool_min_idle: Some(config.min_connections),
+        }
+    }
+
     pub fn with_pool_max_size(mut self, pool_max_size: u32) -> Self {
         self.pool_max_size = pool_max_size.max(1);
         if let Some(pool_min_idle) = self.pool_min_idle {
