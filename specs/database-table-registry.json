@@ -271,6 +271,204 @@
       "systemOfRecord": true,
       "writeOwner": "streaming-service",
       "migration": "deployments/database/postgres/migrations/001_im_core_schema.sql"
+    },
+    {
+      "tableName": "im_friend_requests",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_friendships",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_user_blocks",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_direct_chats",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_external_connections",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_external_member_links",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_shared_channel_policies",
+      "modulePrefix": "im",
+      "boundedContext": "social",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_spaces",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_space_members",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_chat_groups",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_group_members",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_chat_channels",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_channel_access_rules",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_message_reactions",
+      "modulePrefix": "im",
+      "boundedContext": "messaging",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_message_pins",
+      "modulePrefix": "im",
+      "boundedContext": "messaging",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_threads",
+      "modulePrefix": "im",
+      "boundedContext": "messaging",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_thread_subscriptions",
+      "modulePrefix": "im",
+      "boundedContext": "messaging",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "conversation-runtime",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_user_profiles",
+      "modulePrefix": "im",
+      "boundedContext": "user",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_user_settings",
+      "modulePrefix": "im",
+      "boundedContext": "user",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_conversation_settings",
+      "modulePrefix": "im",
+      "boundedContext": "user",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "projection-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_invitations",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
+    },
+    {
+      "tableName": "im_ban_records",
+      "modulePrefix": "im",
+      "boundedContext": "organization",
+      "tableProfile": "tenant_entity",
+      "systemOfRecord": true,
+      "writeOwner": "social-service",
+      "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
     }
   ]
 }

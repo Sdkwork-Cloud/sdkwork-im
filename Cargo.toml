@@ -4,6 +4,7 @@ members = [
     "adapters/local-memory",
     "adapters/postgres-realtime",
     "adapters/postgres-journal",
+    "adapters/social-postgres",
     "adapters/object-storage-s3",
     "crates/sdkwork-im-contract-admin",
     "crates/sdkwork-im-contract-agent",
