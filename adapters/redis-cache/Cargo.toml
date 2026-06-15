@@ -1,0 +1,14 @@
+[package]
+name = "im-adapters-redis-cache"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+chrono = "0.4.44"
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+redis = { version = "0.27", features = ["tokio-comp", "connection-manager", "r2d2"] }
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
