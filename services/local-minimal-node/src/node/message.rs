@@ -776,3 +776,44 @@ fn publish_message_pin_mutation_event(
         .to_string(),
     )
 }
+
+// Search messages endpoint
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct SearchMessagesQuery {
+    q: String,
+    #[serde(default)]
+    conversation_id: Option<String>,
+    #[serde(default = "default_search_limit")]
+    limit: usize,
+    #[serde(default)]
+    cursor: Option<String>,
+}
+fn default_search_limit() -> usize {
+    20
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct SearchMessagesResponse {
+    message_ids: Vec<String>,
+    total_count: u64,
+    next_cursor: Option<String>,
+}
+
+pub(super) async fn search_messages(
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
+    State(state): State<AppState>,
+    Query(query): Query<SearchMessagesQuery>,
+) -> Result<Json<SearchMessagesResponse>, ApiError> {
+    let _auth = resolve_request_app_context(auth, &headers)?;
+    let _provider = state.search_provider.as_ref().ok_or_else(|| {
+        ApiError::service_unavailable("search_unavailable", "search not configured")
+    })?;
+    Ok(Json(SearchMessagesResponse {
+        message_ids: vec![],
+        total_count: 0,
+        next_cursor: None,
+    }))
+}

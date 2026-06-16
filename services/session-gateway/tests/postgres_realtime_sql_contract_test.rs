@@ -11,8 +11,8 @@ use session_gateway::{
     realtime_postgres_sql_contract_specs,
 };
 
-use sdkwork_im_contract_control::{RealtimeCheckpointRecord, RealtimeSubscriptionRecord};
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
+use sdkwork_im_contract_control::{RealtimeCheckpointRecord, RealtimeSubscriptionRecord};
 
 fn postgres_realtime_sql_source() -> String {
     include_str!("../../../crates/im-postgres-realtime-contracts/src/lib.rs")

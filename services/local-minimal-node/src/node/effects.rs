@@ -24,6 +24,7 @@ pub(super) fn post_message_with_side_effects(
         .conversation_runtime
         .post_message(PostMessageCommand {
             tenant_id: auth.tenant_id.clone(),
+            organization_id: auth.organization_id.clone(),
             conversation_id: conversation_id.clone(),
             sender,
             client_msg_id,

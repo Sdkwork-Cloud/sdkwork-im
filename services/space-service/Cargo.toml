@@ -1,0 +1,17 @@
+[package]
+name = "space-service"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+chrono = "0.4"
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
+im-domain-core = { path = "../../crates/im-domain-core" }
+im-platform-contracts = { path = "../../crates/im-platform-contracts" }
+im-app-context = { path = "../../crates/im-app-context" }

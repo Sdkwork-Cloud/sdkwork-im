@@ -159,7 +159,8 @@ fn test_im_commercial_gate_covers_strict_lints_and_exactly_once_regressions() {
         "commercial gate workflow must wire the PostgreSQL database URL into adapter-level, session-gateway runtime, and websocket live tests"
     );
     assert!(
-        workflow.contains("postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test"),
+        workflow
+            .contains("postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test"),
         "commercial gate workflow must wire the live PostgreSQL realtime test to the provisioned test database"
     );
 }

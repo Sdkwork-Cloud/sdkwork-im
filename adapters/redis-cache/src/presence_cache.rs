@@ -5,8 +5,8 @@
 //! Fields: status, device_id, last_seen_at, session_id, custom_status
 //! TTL: 300 seconds (auto-expire stale presence)
 
-use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
+use redis::aio::ConnectionManager;
 use serde::{Deserialize, Serialize};
 
 use crate::redis_unavailable;
@@ -39,7 +39,9 @@ pub trait PresenceCache: Send + Sync {
         org_id: &str,
         principal_kind: &str,
         principal_id: &str,
-    ) -> impl std::future::Future<Output = Result<Option<CachedPresence>, im_platform_contracts::ContractError>> + Send;
+    ) -> impl std::future::Future<
+        Output = Result<Option<CachedPresence>, im_platform_contracts::ContractError>,
+    > + Send;
 
     fn delete_presence(
         &self,
@@ -55,7 +57,9 @@ pub trait PresenceCache: Send + Sync {
         org_id: &str,
         principal_kind: &str,
         principal_ids: &[String],
-    ) -> impl std::future::Future<Output = Result<Vec<Option<CachedPresence>>, im_platform_contracts::ContractError>> + Send;
+    ) -> impl std::future::Future<
+        Output = Result<Vec<Option<CachedPresence>>, im_platform_contracts::ContractError>,
+    > + Send;
 }
 
 fn presence_key(tenant_id: &str, org_id: &str, principal_kind: &str, principal_id: &str) -> String {
@@ -86,8 +90,11 @@ impl PresenceCache for RedisPresenceCache {
     ) -> Result<(), im_platform_contracts::ContractError> {
         let key = presence_key(tenant_id, org_id, principal_kind, principal_id);
         let mut conn = self.manager.clone();
-        let data = serde_json::to_string(presence)
-            .map_err(|e| im_platform_contracts::ContractError::Unavailable(format!("serialize presence failed: {e}")))?;
+        let data = serde_json::to_string(presence).map_err(|e| {
+            im_platform_contracts::ContractError::Unavailable(format!(
+                "serialize presence failed: {e}"
+            ))
+        })?;
 
         // Use SET with EX for TTL
         redis::cmd("SET")
@@ -119,8 +126,11 @@ impl PresenceCache for RedisPresenceCache {
 
         match data {
             Some(json) => {
-                let presence: CachedPresence = serde_json::from_str(&json)
-                    .map_err(|e| im_platform_contracts::ContractError::Unavailable(format!("deserialize presence failed: {e}")))?;
+                let presence: CachedPresence = serde_json::from_str(&json).map_err(|e| {
+                    im_platform_contracts::ContractError::Unavailable(format!(
+                        "deserialize presence failed: {e}"
+                    ))
+                })?;
                 Ok(Some(presence))
             }
             None => Ok(None),
@@ -137,7 +147,10 @@ impl PresenceCache for RedisPresenceCache {
         let key = presence_key(tenant_id, org_id, principal_kind, principal_id);
         let mut conn = self.manager.clone();
 
-        redis::cmd("DEL").arg(&key).query_async::<()>(&mut conn).await
+        redis::cmd("DEL")
+            .arg(&key)
+            .query_async::<()>(&mut conn)
+            .await
             .map_err(|e| redis_unavailable("delete_presence", e))?;
 
         Ok(())
@@ -166,8 +179,11 @@ impl PresenceCache for RedisPresenceCache {
         for item in data {
             match item {
                 Some(json) => {
-                    let presence: CachedPresence = serde_json::from_str(&json)
-                        .map_err(|e| im_platform_contracts::ContractError::Unavailable(format!("deserialize presence failed: {e}")))?;
+                    let presence: CachedPresence = serde_json::from_str(&json).map_err(|e| {
+                        im_platform_contracts::ContractError::Unavailable(format!(
+                            "deserialize presence failed: {e}"
+                        ))
+                    })?;
                     results.push(Some(presence));
                 }
                 None => results.push(None),

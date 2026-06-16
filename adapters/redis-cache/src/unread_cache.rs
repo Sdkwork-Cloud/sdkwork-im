@@ -5,8 +5,8 @@
 //! TTL: 86400 seconds (refreshed on read)
 //! Write: on message delivery (INCR), on read cursor update (DEL/SET)
 
-use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
+use redis::aio::ConnectionManager;
 
 use crate::redis_unavailable;
 
@@ -67,7 +67,10 @@ pub struct RedisUnreadCache {
 
 impl RedisUnreadCache {
     pub fn new(manager: ConnectionManager, ttl_seconds: u64) -> Self {
-        Self { manager, ttl_seconds }
+        Self {
+            manager,
+            ttl_seconds,
+        }
     }
 }
 
@@ -165,7 +168,10 @@ impl UnreadCache for RedisUnreadCache {
         let key = unread_key(tenant_id, org_id, user_id, conversation_id);
         let mut conn = self.manager.clone();
 
-        redis::cmd("DEL").arg(&key).query_async::<()>(&mut conn).await
+        redis::cmd("DEL")
+            .arg(&key)
+            .query_async::<()>(&mut conn)
+            .await
             .map_err(|e| redis_unavailable("clear_unread", e))?;
 
         Ok(())

@@ -13,10 +13,6 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use sdkwork_im_api_registry::HttpMethod;
-use sdkwork_im_openapi::{
-    OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
-};
 use im_app_context::{
     AppContext, AppContextError, resolve_app_context, resolve_app_context_for_request,
 };
@@ -24,6 +20,10 @@ use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursorView, MembershipRole,
 };
 use im_domain_core::message::{ContentPart, MessageBody, MessageType};
+use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_openapi::{
+    OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
+};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::json;

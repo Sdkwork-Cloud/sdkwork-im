@@ -2,12 +2,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
+use futures_util::{SinkExt, StreamExt};
 use sdkwork_im_ccp_binding_ws::{CCP_WS_SUBPROTOCOL, WsBinding, WsBindingMessage, WsOpcode};
 use sdkwork_im_ccp_codec::CcpCodec;
 use sdkwork_im_ccp_codec_json::JsonEnvelopeCodec;
 use sdkwork_im_ccp_control::{AuthBindFrame, ControlFrame, HelloFrame};
-use sdkwork_im_ccp_core::{CapabilitySet, CcpEnvelope, CcpRoute, ProtocolVersion, TransportBinding};
-use futures_util::{SinkExt, StreamExt};
+use sdkwork_im_ccp_core::{
+    CapabilitySet, CcpEnvelope, CcpRoute, ProtocolVersion, TransportBinding,
+};
 use serde_json::json;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;

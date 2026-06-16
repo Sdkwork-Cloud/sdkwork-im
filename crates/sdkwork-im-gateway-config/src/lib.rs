@@ -390,7 +390,8 @@ bind_address = "127.0.0.1:38080"
     fn test_web_gateway_config_defaults_to_split_upstreams() {
         let _guard = gateway_config_env_guard();
         let _runtime_mode = ScopedEnvVar::remove("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE");
-        let _foundation_gateway = ScopedEnvVar::remove("SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL");
+        let _foundation_gateway =
+            ScopedEnvVar::remove("SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL");
         let _gateway_base_url = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BASE_URL");
         let _gateway_bind = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BIND");
         let _appbase_upstream = ScopedEnvVar::remove("SDKWORK_IM_APPBASE_APP_API_UPSTREAM");
@@ -468,7 +469,8 @@ bind_address = "127.0.0.1:38080"
     fn test_web_gateway_config_derives_shared_gateway_base_url_from_gateway_bind() {
         let _guard = gateway_config_env_guard();
         let _runtime_mode = ScopedEnvVar::remove("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE");
-        let _foundation_gateway = ScopedEnvVar::remove("SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL");
+        let _foundation_gateway =
+            ScopedEnvVar::remove("SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL");
         let _gateway_base_url = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BASE_URL");
         let _gateway_bind = ScopedEnvVar::set("SDKWORK_API_GATEWAY_BIND", "127.0.0.1:7900");
         let _appbase_upstream = ScopedEnvVar::remove("SDKWORK_IM_APPBASE_APP_API_UPSTREAM");
@@ -544,7 +546,8 @@ bind_address = "127.0.0.1:38080"
     fn test_web_gateway_local_mode_alias_is_normalized_to_split_gateway_defaults() {
         let _guard = gateway_config_env_guard();
         let _runtime_mode = ScopedEnvVar::set("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE", "local");
-        let _foundation_gateway = ScopedEnvVar::remove("SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL");
+        let _foundation_gateway =
+            ScopedEnvVar::remove("SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL");
         let _gateway_base_url = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BASE_URL");
         let _gateway_bind = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BIND");
         let _appbase_upstream = ScopedEnvVar::remove("SDKWORK_IM_APPBASE_APP_API_UPSTREAM");

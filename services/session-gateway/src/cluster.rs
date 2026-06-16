@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use im_platform_contracts::ClusterEventBus;
+use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_contract_control::RealtimeDisconnectFenceStore;
 use sdkwork_im_runtime_route::{
     RouteBinding, RouteBindingRequest, RouteDirectory, RouteMigrationResult, RouteNodeLifecycle,
     RouteRuntimeError,
 };
-use im_time::utc_now_rfc3339_millis;
 use tokio::sync::watch;
 
 use crate::{
@@ -60,6 +61,7 @@ pub struct RealtimeClusterBridge {
     route_epoch_notifiers: Arc<Mutex<HashMap<String, watch::Sender<u64>>>>,
     disconnect_fences: Arc<Mutex<HashMap<String, RealtimeDisconnectFence>>>,
     disconnect_fence_store: Arc<dyn RealtimeDisconnectFenceStore>,
+    cluster_bus: Option<Arc<dyn ClusterEventBus>>,
 }
 
 impl Default for RealtimeClusterBridge {
@@ -86,7 +88,15 @@ impl RealtimeClusterBridge {
             route_epoch_notifiers: Arc::new(Mutex::new(HashMap::new())),
             disconnect_fences: Arc::new(Mutex::new(HashMap::new())),
             disconnect_fence_store,
+            cluster_bus: None,
         }
+    }
+
+    /// Attach a cross-node event bus for delivering route events to
+    /// remote nodes. Without a bus, only local-node delivery is available.
+    pub fn with_cluster_bus(mut self, bus: Arc<dyn ClusterEventBus>) -> Self {
+        self.cluster_bus = Some(bus);
+        self
     }
 
     pub fn bind_node_runtime(&self, node_id: &str, runtime: Arc<RealtimeDeliveryRuntime>) {
@@ -749,8 +759,8 @@ impl RealtimeClusterBridge {
             self.resolve_client_route_internal(tenant_id, principal_id, principal_kind, device_id);
         let runtimes = lock_cluster_mutex(&self.node_runtimes, "node_runtimes");
         let (target_node_id, route_state, runtime) = match route {
-            Some(route) => {
-                let target_node_id = route.owner_node_id;
+            Some(ref route) => {
+                let target_node_id = route.owner_node_id.clone();
                 let runtime = runtimes.get(target_node_id.as_str()).cloned();
                 let route_state = if runtime.is_some() {
                     "resolved"
@@ -770,6 +780,45 @@ impl RealtimeClusterBridge {
             }
         };
         drop(runtimes);
+
+        // Try the cluster bus for remote nodes when the target runtime
+        // is not available locally.
+        if runtime.is_none()
+            && route_state == "target_runtime_missing"
+            && let Some(ref bus) = self.cluster_bus
+        {
+            let event = serde_json::json!({
+                "tenant_id": tenant_id,
+                "principal_id": principal_id,
+                "principal_kind": principal_kind,
+                "device_id": device_id,
+                "scope_type": scope_type,
+                "scope_id": scope_id,
+                "event_type": event_type,
+                "payload": payload,
+            });
+            let event_json = event.to_string();
+            match bus.publish_route_event(target_node_id.as_str(), &event_json) {
+                Ok(()) => {
+                    return RealtimeRouteDeliveryResult {
+                        target_node_id,
+                        route_state: "remote_published".to_string(),
+                        delivered: 1,
+                        delivery_error_code: None,
+                        delivery_error_message: None,
+                    };
+                }
+                Err(error) => {
+                    return RealtimeRouteDeliveryResult {
+                        target_node_id,
+                        route_state: "remote_publish_failed".to_string(),
+                        delivered: 0,
+                        delivery_error_code: Some("cluster_bus_error".to_string()),
+                        delivery_error_message: Some(error),
+                    };
+                }
+            }
+        }
 
         let (delivered, delivery_error_code, delivery_error_message) = runtime
             .map(|runtime| {

@@ -1,8 +1,8 @@
+use sdkwork_id::{SnowflakeIdError, default_snowflake_epoch_millis, max_snowflake_node_id};
 use sdkwork_im_runtime_id::{
     RuntimeIdConfig, RuntimeIdError, RuntimeIdStrategy, RuntimeSnowflakeIdGenerator,
     SDKWORK_IM_ID_NODE_ID_ENV, runtime_id_strategy,
 };
-use sdkwork_id::{SnowflakeIdError, default_snowflake_epoch_millis, max_snowflake_node_id};
 
 #[test]
 fn runtime_id_strategy_declares_database_spec_failure_policies() {

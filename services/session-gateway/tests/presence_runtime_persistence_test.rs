@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use sdkwork_im_contract_control::{PresenceStateRecord, PresenceStateStore};
-use sdkwork_im_contract_core::ContractError;
 use im_adapters_local_memory::MemoryPresenceStateStore;
 use im_app_context::AppContext;
 use im_domain_core::presence::{PresenceClientView, PresenceStatus};
+use sdkwork_im_contract_control::{PresenceStateRecord, PresenceStateStore};
+use sdkwork_im_contract_core::ContractError;
 
 fn demo_auth(actor_kind: &str, session_id: &str, device_id: &str) -> AppContext {
     AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: None,
+        organization_id: "default".into(),
         user_id: "u_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: actor_kind.into(),

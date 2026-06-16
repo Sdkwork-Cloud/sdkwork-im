@@ -56,11 +56,42 @@ fn direct_chat_status_to_str(status: &DirectChatStatus) -> &'static str {
 /// Trait for direct chat persistence.
 pub trait DirectChatStore: Send + Sync {
     fn insert(&self, record: &DirectChatRecord) -> Result<(), ContractError>;
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, direct_chat_id: i64) -> Result<Option<DirectChatRecord>, ContractError>;
-    fn find_by_pair_hash(&self, tenant_id: &str, org_id: &str, pair_hash: &str) -> Result<Option<DirectChatRecord>, ContractError>;
-    fn list_by_actor(&self, tenant_id: &str, org_id: &str, actor_id: &str, status: &str, limit: i64) -> Result<Vec<DirectChatRecord>, ContractError>;
-    fn update_status(&self, tenant_id: &str, org_id: &str, direct_chat_id: i64, status: &str, updated_at: &str) -> Result<(), ContractError>;
-    fn update_conversation_id(&self, tenant_id: &str, org_id: &str, direct_chat_id: i64, conversation_id: &str, updated_at: &str) -> Result<(), ContractError>;
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        direct_chat_id: i64,
+    ) -> Result<Option<DirectChatRecord>, ContractError>;
+    fn find_by_pair_hash(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        pair_hash: &str,
+    ) -> Result<Option<DirectChatRecord>, ContractError>;
+    fn list_by_actor(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        actor_id: &str,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<DirectChatRecord>, ContractError>;
+    fn update_status(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        direct_chat_id: i64,
+        status: &str,
+        updated_at: &str,
+    ) -> Result<(), ContractError>;
+    fn update_conversation_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        direct_chat_id: i64,
+        conversation_id: &str,
+        updated_at: &str,
+    ) -> Result<(), ContractError>;
 }
 
 const INSERT_SQL: &str = r#"
@@ -171,7 +202,12 @@ impl DirectChatStore for PostgresDirectChatStore {
         })
     }
 
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, direct_chat_id: i64) -> Result<Option<DirectChatRecord>, ContractError> {
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        direct_chat_id: i64,
+    ) -> Result<Option<DirectChatRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -184,7 +220,12 @@ impl DirectChatStore for PostgresDirectChatStore {
         })
     }
 
-    fn find_by_pair_hash(&self, tenant_id: &str, org_id: &str, pair_hash: &str) -> Result<Option<DirectChatRecord>, ContractError> {
+    fn find_by_pair_hash(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        pair_hash: &str,
+    ) -> Result<Option<DirectChatRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -198,7 +239,14 @@ impl DirectChatStore for PostgresDirectChatStore {
         })
     }
 
-    fn list_by_actor(&self, tenant_id: &str, org_id: &str, actor_id: &str, status: &str, limit: i64) -> Result<Vec<DirectChatRecord>, ContractError> {
+    fn list_by_actor(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        actor_id: &str,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<DirectChatRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -209,11 +257,18 @@ impl DirectChatStore for PostgresDirectChatStore {
             let rows = client
                 .query(LIST_BY_ACTOR_SQL, &[&tid, &oid, &aid, &st, &limit])
                 .map_err(|e| postgres_unavailable("list_direct_chats_by_actor", e))?;
-            Ok(rows.iter().map(|r| row_to_record(r)).collect())
+            Ok(rows.iter().map(row_to_record).collect())
         })
     }
 
-    fn update_status(&self, tenant_id: &str, org_id: &str, direct_chat_id: i64, status: &str, updated_at: &str) -> Result<(), ContractError> {
+    fn update_status(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        direct_chat_id: i64,
+        status: &str,
+        updated_at: &str,
+    ) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -228,7 +283,14 @@ impl DirectChatStore for PostgresDirectChatStore {
         })
     }
 
-    fn update_conversation_id(&self, tenant_id: &str, org_id: &str, direct_chat_id: i64, conversation_id: &str, updated_at: &str) -> Result<(), ContractError> {
+    fn update_conversation_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        direct_chat_id: i64,
+        conversation_id: &str,
+        updated_at: &str,
+    ) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -237,7 +299,10 @@ impl DirectChatStore for PostgresDirectChatStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "update_direct_chat_conversation_id")?;
             client
-                .execute(UPDATE_CONVERSATION_ID_SQL, &[&tid, &oid, &direct_chat_id, &cid, &ua])
+                .execute(
+                    UPDATE_CONVERSATION_ID_SQL,
+                    &[&tid, &oid, &direct_chat_id, &cid, &ua],
+                )
                 .map_err(|e| postgres_unavailable("update_direct_chat_conversation_id", e))?;
             Ok(())
         })

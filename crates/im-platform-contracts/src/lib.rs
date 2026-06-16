@@ -1,9 +1,15 @@
+mod cluster_bus;
 mod conversation_aggregate_store;
 mod id_generator;
 mod message_store;
 mod outbox_store;
 mod provider;
+mod push_provider;
+mod search_provider;
+mod seq_allocator;
 
+pub use im_domain_core::rtc::{RtcStateRecord, RtcStateStore};
+pub use provider::*;
 pub use sdkwork_im_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilityProfileStore};
 pub use sdkwork_im_contract_agent::{
     AgentSubject, AgentSubjectRecord, AgentSubjectStore, AutomationExecutionRecord,
@@ -26,8 +32,11 @@ pub use sdkwork_im_contract_message::{
 };
 pub use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 pub use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
-pub use im_domain_core::rtc::{RtcStateRecord, RtcStateStore};
-pub use provider::*;
+
+pub use cluster_bus::ClusterEventBus;
+pub use push_provider::{PushDeliveryResult, PushMessage, PushProvider};
+pub use search_provider::{SearchProvider, SearchResult, SearchableMessage};
+pub use seq_allocator::ConversationSeqAllocator;
 
 // 新增：消息真值存储契约
 pub use conversation_aggregate_store::{

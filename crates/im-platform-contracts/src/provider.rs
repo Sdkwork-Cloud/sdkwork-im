@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Mutex, MutexGuard};
 
-use sdkwork_im_contract_core::ContractError;
 use im_time::utc_now_rfc3339_millis;
+use sdkwork_im_contract_core::ContractError;
 use serde::{Deserialize, Serialize};
 
 pub const PROVIDER_REGISTRY_INTERFACE_VERSION: &str = "provider-registry/v1";

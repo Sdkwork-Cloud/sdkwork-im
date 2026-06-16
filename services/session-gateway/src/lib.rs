@@ -12,17 +12,17 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use sdkwork_im_api_registry::HttpMethod;
-use sdkwork_im_openapi::{
-    OpenApiServiceSpec, WebsocketRouteMetadata, build_openapi_document,
-    extract_routes_from_function, render_docs_html,
-};
 use im_app_context::{
     AppContext, AppContextError, AppContextSignatureConfig, require_app_context_signature,
     resolve_app_context, resolve_app_context_for_request,
 };
 use im_domain_core::realtime::{
     RealtimeAckState, RealtimeEventWindow, RealtimeSubscriptionSnapshot,
+};
+use sdkwork_im_api_registry::HttpMethod;
+use sdkwork_im_openapi::{
+    OpenApiServiceSpec, WebsocketRouteMetadata, build_openapi_document,
+    extract_routes_from_function, render_docs_html,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
@@ -74,7 +74,8 @@ pub use websocket::{
 };
 
 const SESSION_GATEWAY_MAX_DEVICE_ID_BYTES: usize = 256;
-const REALTIME_MAX_WEBSOCKET_CONNECTIONS_ENV: &str = "SDKWORK_IM_REALTIME_MAX_WEBSOCKET_CONNECTIONS";
+const REALTIME_MAX_WEBSOCKET_CONNECTIONS_ENV: &str =
+    "SDKWORK_IM_REALTIME_MAX_WEBSOCKET_CONNECTIONS";
 const REALTIME_MAX_WEBSOCKET_CONNECTIONS_DEFAULT: usize = 10_000;
 const REALTIME_MAX_WEBSOCKET_CONNECTIONS_MAX: usize = 100_000;
 const SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS_ENV: &str =

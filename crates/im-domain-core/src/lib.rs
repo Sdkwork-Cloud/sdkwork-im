@@ -1,11 +1,13 @@
 pub mod automation;
+pub mod contact;
 pub mod conversation;
+pub mod interaction;
 pub mod media;
 pub mod message;
 pub mod notification;
-pub mod organization;
 pub mod presence;
 pub mod realtime;
 pub mod rtc;
 pub mod social;
+pub mod space;
 pub mod stream;

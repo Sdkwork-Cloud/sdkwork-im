@@ -5,11 +5,11 @@ use axum::extract::ws::WebSocket;
 use axum::extract::{Extension, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
+use im_app_context::AppContext;
 use sdkwork_im_runtime_link::{
     LinkWebsocketMode, LinkWebsocketUpgradeHandoff, prepare_websocket_upgrade,
     supported_websocket_subprotocols,
 };
-use im_app_context::AppContext;
 use tokio::sync::OwnedSemaphorePermit;
 
 use crate::client_route_registration::ClientRouteRegistration;
@@ -150,8 +150,8 @@ async fn serve_realtime_websocket_upgrade(
 mod tests {
     use std::sync::Arc;
 
-    use sdkwork_im_runtime_link::LinkWebsocketMode;
     use im_app_context::AppContext;
+    use sdkwork_im_runtime_link::LinkWebsocketMode;
 
     use super::{
         prepare_realtime_websocket_upgrade, realtime_websocket_subprotocols,
@@ -186,7 +186,7 @@ mod tests {
             Some(crate::CCP_WEBSOCKET_SUBPROTOCOL),
             AppContext {
                 tenant_id: "t_demo".into(),
-                organization_id: None,
+                organization_id: "default".into(),
                 user_id: "u_demo".into(),
                 actor_id: "u_demo".into(),
                 actor_kind: "user".into(),

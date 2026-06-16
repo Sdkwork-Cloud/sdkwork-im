@@ -2,12 +2,10 @@
 //!
 //! Writes message truth to `im_conversation_messages` table with Snowflake IDs.
 
-use im_platform_contracts::{
-    ContractError, MessageStore, MessageWindow, StoredMessageRecord,
-};
+use im_platform_contracts::{ContractError, MessageStore, MessageWindow, StoredMessageRecord};
 use r2d2::Pool;
-use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
+use r2d2_postgres::postgres::NoTls;
 
 use crate::{now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
@@ -92,7 +90,10 @@ impl MessageStore for PostgresMessageStore {
             let mut client = postgres_pool_client(&pool, "allocate_seq")?;
             let now = now_rfc3339();
             let row = client
-                .query_one(ALLOCATE_SEQ_SQL, &[&tenant_id, &organization_id, &conversation_id, &now])
+                .query_one(
+                    ALLOCATE_SEQ_SQL,
+                    &[&tenant_id, &organization_id, &conversation_id, &now],
+                )
                 .map_err(|error| postgres_unavailable("allocate_seq", error))?;
             let seq: i64 = row.get(0);
             Ok(seq as u64)
@@ -151,10 +152,20 @@ impl MessageStore for PostgresMessageStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "read_window")?;
             let rows = client
-                .query(READ_WINDOW_SQL, &[&tenant_id, &organization_id, &conversation_id, &after_seq_i64, &limit_i32])
+                .query(
+                    READ_WINDOW_SQL,
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &conversation_id,
+                        &after_seq_i64,
+                        &limit_i32,
+                    ],
+                )
                 .map_err(|error| postgres_unavailable("read_window", error))?;
-            let items: Vec<StoredMessageRecord> = rows.iter().map(|row| {
-                StoredMessageRecord {
+            let items: Vec<StoredMessageRecord> = rows
+                .iter()
+                .map(|row| StoredMessageRecord {
                     tenant_id: row.get(0),
                     organization_id: row.get(1),
                     conversation_id: row.get(2),
@@ -170,8 +181,8 @@ impl MessageStore for PostgresMessageStore {
                     created_at: row.get(12),
                     updated_at: row.get(13),
                     deleted_at: row.get(14),
-                }
-            }).collect();
+                })
+                .collect();
             let high_watermark = items.last().map(|m| m.message_seq).unwrap_or(0);
             let has_more = items.len() == limit;
             let next_after_seq = items.last().map(|m| m.message_seq);
@@ -235,10 +246,17 @@ impl MessageStore for PostgresMessageStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "read_by_client_id")?;
             let row = client
-                .query_opt(READ_BY_CLIENT_ID_SQL, &[
-                    &tenant_id, &organization_id, &conversation_id,
-                    &sender_principal_kind, &sender_principal_id, &client_msg_id,
-                ])
+                .query_opt(
+                    READ_BY_CLIENT_ID_SQL,
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &conversation_id,
+                        &sender_principal_kind,
+                        &sender_principal_id,
+                        &client_msg_id,
+                    ],
+                )
                 .map_err(|error| postgres_unavailable("read_by_client_id", error))?;
             Ok(row.map(|row| StoredMessageRecord {
                 tenant_id: row.get(0),
@@ -273,7 +291,10 @@ impl MessageStore for PostgresMessageStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "read_high_watermark")?;
             let row = client
-                .query_one(READ_HIGH_WATERMARK_SQL, &[&tenant_id, &organization_id, &conversation_id])
+                .query_one(
+                    READ_HIGH_WATERMARK_SQL,
+                    &[&tenant_id, &organization_id, &conversation_id],
+                )
                 .map_err(|error| postgres_unavailable("read_high_watermark", error))?;
             let seq: i64 = row.get(0);
             Ok(seq as u64)

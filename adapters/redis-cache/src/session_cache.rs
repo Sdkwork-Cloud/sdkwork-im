@@ -5,8 +5,8 @@
 //! Fields: principal_id, principal_kind, connection_kind, node_id, connected_at
 //! TTL: 86400 seconds
 
-use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
+use redis::aio::ConnectionManager;
 use serde::{Deserialize, Serialize};
 
 use crate::redis_unavailable;
@@ -37,7 +37,9 @@ pub trait SessionCache: Send + Sync {
         tenant_id: &str,
         org_id: &str,
         device_id: &str,
-    ) -> impl std::future::Future<Output = Result<Option<CachedSession>, im_platform_contracts::ContractError>> + Send;
+    ) -> impl std::future::Future<
+        Output = Result<Option<CachedSession>, im_platform_contracts::ContractError>,
+    > + Send;
 
     fn delete_session(
         &self,
@@ -75,8 +77,11 @@ impl SessionCache for RedisSessionCache {
         let key = session_key(tenant_id, org_id, device_id);
         let mut conn = self.manager.clone();
 
-        let data = serde_json::to_string(session)
-            .map_err(|e| im_platform_contracts::ContractError::Unavailable(format!("serialize session failed: {e}")))?;
+        let data = serde_json::to_string(session).map_err(|e| {
+            im_platform_contracts::ContractError::Unavailable(format!(
+                "serialize session failed: {e}"
+            ))
+        })?;
 
         redis::cmd("SET")
             .arg(&key)
@@ -106,8 +111,11 @@ impl SessionCache for RedisSessionCache {
 
         match data {
             Some(json) => {
-                let session: CachedSession = serde_json::from_str(&json)
-                    .map_err(|e| im_platform_contracts::ContractError::Unavailable(format!("deserialize session failed: {e}")))?;
+                let session: CachedSession = serde_json::from_str(&json).map_err(|e| {
+                    im_platform_contracts::ContractError::Unavailable(format!(
+                        "deserialize session failed: {e}"
+                    ))
+                })?;
                 Ok(Some(session))
             }
             None => Ok(None),
@@ -123,7 +131,10 @@ impl SessionCache for RedisSessionCache {
         let key = session_key(tenant_id, org_id, device_id);
         let mut conn = self.manager.clone();
 
-        redis::cmd("DEL").arg(&key).query_async::<()>(&mut conn).await
+        redis::cmd("DEL")
+            .arg(&key)
+            .query_async::<()>(&mut conn)
+            .await
             .map_err(|e| redis_unavailable("delete_session", e))?;
 
         Ok(())

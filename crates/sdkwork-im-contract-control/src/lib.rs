@@ -1,9 +1,9 @@
-use sdkwork_im_contract_core::ContractError;
 use im_domain_core::presence::{PresenceClientView, PresenceStatus};
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
 use im_time::{
     compare_optional_rfc3339_asc, max_rfc3339_string, rfc3339_gt, rfc3339_le, rfc3339_lt,
 };
+use sdkwork_im_contract_core::ContractError;
 use serde::{Deserialize, Serialize};
 
 const REALTIME_EVENT_WINDOW_HIGH_RISK_LIMIT: usize = 5;

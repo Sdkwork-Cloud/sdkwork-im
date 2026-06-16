@@ -1,6 +1,5 @@
 use super::principal_profile::build_default_principal_profile_provider;
 use super::*;
-use social_service::SharedChannelLinkedMemberSyncRequest;
 use conversation_runtime::SyncSharedChannelLinkedMemberCommand;
 use im_adapters_postgres_realtime::{
     PostgresRealtimeCheckpointStore, PostgresRealtimeConfig, PostgresRealtimeDisconnectFenceStore,
@@ -8,6 +7,7 @@ use im_adapters_postgres_realtime::{
     PostgresRealtimeSubscriptionStore,
 };
 use serde::Deserialize;
+use social_service::SharedChannelLinkedMemberSyncRequest;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
 #[allow(dead_code)]
@@ -823,11 +823,12 @@ fn build_local_minimal_control_plane_app(
         None => Arc::new(SocialRuntime::default()),
     };
     let social_router = social_service::build_app(social_runtime.clone());
-    let governance_router = governance_service::build_control_surface_with_cluster_and_governance_sinks(
-        realtime_cluster,
-        ops_runtime,
-        audit_runtime,
-    );
+    let governance_router =
+        governance_service::build_control_surface_with_cluster_and_governance_sinks(
+            realtime_cluster,
+            ops_runtime,
+            audit_runtime,
+        );
     (governance_router.merge(social_router), social_runtime)
 }
 
@@ -1136,6 +1137,7 @@ fn build_app_with_dependencies_and_runtime_and_journal(
             pending_friend_request_accept_repairs,
         )),
         friend_request_accept_repair_gate: Arc::new(tokio::sync::Mutex::new(())),
+        search_provider: None,
     };
     social::spawn_pending_friend_request_accept_repair(state.clone());
     platform::refresh_node_operational_view(&state);
@@ -1447,6 +1449,7 @@ fn im_standard_api_routes() -> Router<AppState> {
             "/chat/conversations/{conversation_id}/messages",
             get(projection::get_timeline).post(message::post_message),
         )
+        .route("/chat/messages/search", get(message::search_messages))
         .route(
             "/chat/conversations/{conversation_id}/system_channel/publish",
             post(message::publish_system_channel_message),

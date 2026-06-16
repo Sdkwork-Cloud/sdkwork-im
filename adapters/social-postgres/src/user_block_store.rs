@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use im_domain_core::social::{UserBlock, BlockScope};
+use im_domain_core::social::{BlockScope, UserBlock};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
@@ -54,10 +54,34 @@ fn block_scope_to_str(scope: &BlockScope) -> &'static str {
 /// Trait for user block persistence.
 pub trait UserBlockStore: Send + Sync {
     fn insert(&self, record: &UserBlockRecord) -> Result<(), ContractError>;
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, block_id: i64) -> Result<Option<UserBlockRecord>, ContractError>;
-    fn find_active_block(&self, tenant_id: &str, org_id: &str, blocker_id: &str, blocked_id: &str, scope: &str) -> Result<Option<UserBlockRecord>, ContractError>;
-    fn list_by_blocker(&self, tenant_id: &str, org_id: &str, blocker_id: &str, limit: i64) -> Result<Vec<UserBlockRecord>, ContractError>;
-    fn list_by_blocked(&self, tenant_id: &str, org_id: &str, blocked_id: &str, limit: i64) -> Result<Vec<UserBlockRecord>, ContractError>;
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        block_id: i64,
+    ) -> Result<Option<UserBlockRecord>, ContractError>;
+    fn find_active_block(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        blocker_id: &str,
+        blocked_id: &str,
+        scope: &str,
+    ) -> Result<Option<UserBlockRecord>, ContractError>;
+    fn list_by_blocker(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        blocker_id: &str,
+        limit: i64,
+    ) -> Result<Vec<UserBlockRecord>, ContractError>;
+    fn list_by_blocked(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        blocked_id: &str,
+        limit: i64,
+    ) -> Result<Vec<UserBlockRecord>, ContractError>;
 }
 
 const INSERT_SQL: &str = r#"
@@ -159,7 +183,12 @@ impl UserBlockStore for PostgresUserBlockStore {
         })
     }
 
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, block_id: i64) -> Result<Option<UserBlockRecord>, ContractError> {
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        block_id: i64,
+    ) -> Result<Option<UserBlockRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -172,7 +201,14 @@ impl UserBlockStore for PostgresUserBlockStore {
         })
     }
 
-    fn find_active_block(&self, tenant_id: &str, org_id: &str, blocker_id: &str, blocked_id: &str, scope: &str) -> Result<Option<UserBlockRecord>, ContractError> {
+    fn find_active_block(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        blocker_id: &str,
+        blocked_id: &str,
+        scope: &str,
+    ) -> Result<Option<UserBlockRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -188,7 +224,13 @@ impl UserBlockStore for PostgresUserBlockStore {
         })
     }
 
-    fn list_by_blocker(&self, tenant_id: &str, org_id: &str, blocker_id: &str, limit: i64) -> Result<Vec<UserBlockRecord>, ContractError> {
+    fn list_by_blocker(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        blocker_id: &str,
+        limit: i64,
+    ) -> Result<Vec<UserBlockRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -198,11 +240,17 @@ impl UserBlockStore for PostgresUserBlockStore {
             let rows = client
                 .query(LIST_BY_BLOCKER_SQL, &[&tid, &oid, &bid, &limit])
                 .map_err(|e| postgres_unavailable("list_user_blocks_by_blocker", e))?;
-            Ok(rows.iter().map(|r| row_to_record(r)).collect())
+            Ok(rows.iter().map(row_to_record).collect())
         })
     }
 
-    fn list_by_blocked(&self, tenant_id: &str, org_id: &str, blocked_id: &str, limit: i64) -> Result<Vec<UserBlockRecord>, ContractError> {
+    fn list_by_blocked(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        blocked_id: &str,
+        limit: i64,
+    ) -> Result<Vec<UserBlockRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -212,7 +260,7 @@ impl UserBlockStore for PostgresUserBlockStore {
             let rows = client
                 .query(LIST_BY_BLOCKED_SQL, &[&tid, &oid, &bid, &limit])
                 .map_err(|e| postgres_unavailable("list_user_blocks_by_blocked", e))?;
-            Ok(rows.iter().map(|r| row_to_record(r)).collect())
+            Ok(rows.iter().map(row_to_record).collect())
         })
     }
 }

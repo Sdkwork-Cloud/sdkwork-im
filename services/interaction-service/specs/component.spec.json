@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component",
+  "name": "interaction-service",
+  "domain": "im",
+  "capability": "interaction",
+  "description": "Interaction service for reactions, pins, threads, and conversation settings",
+  "dependencies": [
+    "im-domain-core",
+    "im-platform-contracts",
+    "im-app-context"
+  ]
+}

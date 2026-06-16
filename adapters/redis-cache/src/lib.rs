@@ -3,18 +3,26 @@
 //! Provides caching for presence, unread counts, recent messages,
 //! conversation lists, typing indicators, and session state.
 
+pub mod cluster_bus;
 pub mod config;
-pub mod presence_cache;
-pub mod unread_cache;
-pub mod timeline_cache;
 pub mod inbox_cache;
-pub mod typing_cache;
+pub mod presence_cache;
+pub mod realtime_checkpoint_store;
+pub mod realtime_event_store;
+pub mod seq_allocator;
 pub mod session_cache;
+pub mod timeline_cache;
+pub mod typing_cache;
+pub mod unread_cache;
 
+pub use cluster_bus::{ClusterRouteEvent, RedisClusterBus};
 pub use config::RedisCacheConfig;
+pub use realtime_checkpoint_store::RedisRealtimeCheckpointStore;
+pub use realtime_event_store::RedisRealtimeEventWindowStore;
+pub use seq_allocator::RedisSeqAllocator;
 
-use redis::aio::ConnectionManager;
 use redis::RedisResult;
+use redis::aio::ConnectionManager;
 
 /// Shared Redis connection manager wrapper.
 #[derive(Clone)]
@@ -35,8 +43,9 @@ impl RedisCachePool {
 }
 
 /// Map a Redis error to ContractError.
-pub(crate) fn redis_unavailable(operation: &str, error: redis::RedisError) -> im_platform_contracts::ContractError {
-    im_platform_contracts::ContractError::Unavailable(format!(
-        "redis {operation} failed: {error}"
-    ))
+pub(crate) fn redis_unavailable(
+    operation: &str,
+    error: redis::RedisError,
+) -> im_platform_contracts::ContractError {
+    im_platform_contracts::ContractError::Unavailable(format!("redis {operation} failed: {error}"))
 }

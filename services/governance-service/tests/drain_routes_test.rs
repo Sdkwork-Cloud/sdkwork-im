@@ -109,7 +109,8 @@ async fn test_control_plane_can_drain_and_migrate_routes() {
 
 #[tokio::test]
 async fn test_control_plane_rejects_unknown_node_lifecycle_writes() {
-    let app = governance_service::build_app_with_cluster(Arc::new(RealtimeClusterBridge::default()));
+    let app =
+        governance_service::build_app_with_cluster(Arc::new(RealtimeClusterBridge::default()));
 
     let drain_response = app
         .clone()

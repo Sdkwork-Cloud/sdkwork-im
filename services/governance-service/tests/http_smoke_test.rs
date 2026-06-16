@@ -85,5 +85,3 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
     assert!(html.contains("Control Plane API"));
     assert!(html.contains("/openapi.json"));
 }
-
-

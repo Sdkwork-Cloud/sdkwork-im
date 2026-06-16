@@ -5,8 +5,8 @@
 //! Members: conversation_id
 //! TTL: 3600 seconds
 
-use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
+use redis::aio::ConnectionManager;
 
 use crate::redis_unavailable;
 
@@ -27,7 +27,8 @@ pub trait InboxCache: Send + Sync {
         org_id: &str,
         user_id: &str,
         count: usize,
-    ) -> impl std::future::Future<Output = Result<Vec<String>, im_platform_contracts::ContractError>> + Send;
+    ) -> impl std::future::Future<Output = Result<Vec<String>, im_platform_contracts::ContractError>>
+    + Send;
 
     fn remove_conversation(
         &self,
@@ -58,7 +59,10 @@ pub struct RedisInboxCache {
 
 impl RedisInboxCache {
     pub fn new(manager: ConnectionManager, ttl_seconds: u64) -> Self {
-        Self { manager, ttl_seconds }
+        Self {
+            manager,
+            ttl_seconds,
+        }
     }
 }
 
@@ -135,7 +139,10 @@ impl InboxCache for RedisInboxCache {
         let key = inbox_key(tenant_id, org_id, user_id);
         let mut conn = self.manager.clone();
 
-        redis::cmd("DEL").arg(&key).query_async::<()>(&mut conn).await
+        redis::cmd("DEL")
+            .arg(&key)
+            .query_async::<()>(&mut conn)
+            .await
             .map_err(|e| redis_unavailable("clear_inbox", e))?;
 
         Ok(())

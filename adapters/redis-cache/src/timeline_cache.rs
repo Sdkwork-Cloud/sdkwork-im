@@ -5,8 +5,8 @@
 //! Value: JSON-serialized message summaries
 //! TTL: 3600 seconds
 
-use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
+use redis::aio::ConnectionManager;
 use serde::{Deserialize, Serialize};
 
 use crate::redis_unavailable;
@@ -40,7 +40,9 @@ pub trait TimelineCache: Send + Sync {
         org_id: &str,
         conversation_id: &str,
         count: usize,
-    ) -> impl std::future::Future<Output = Result<Vec<CachedMessageSummary>, im_platform_contracts::ContractError>> + Send;
+    ) -> impl std::future::Future<
+        Output = Result<Vec<CachedMessageSummary>, im_platform_contracts::ContractError>,
+    > + Send;
 
     fn clear_timeline(
         &self,
@@ -63,7 +65,10 @@ pub struct RedisTimelineCache {
 
 impl RedisTimelineCache {
     pub fn new(manager: ConnectionManager, ttl_seconds: u64) -> Self {
-        Self { manager, ttl_seconds }
+        Self {
+            manager,
+            ttl_seconds,
+        }
     }
 }
 
@@ -79,8 +84,11 @@ impl TimelineCache for RedisTimelineCache {
         let key = timeline_key(tenant_id, org_id, conversation_id);
         let mut conn = self.manager.clone();
 
-        let data = serde_json::to_string(message)
-            .map_err(|e| im_platform_contracts::ContractError::Unavailable(format!("serialize message failed: {e}")))?;
+        let data = serde_json::to_string(message).map_err(|e| {
+            im_platform_contracts::ContractError::Unavailable(format!(
+                "serialize message failed: {e}"
+            ))
+        })?;
 
         // LPUSH to add to front, LTRIM to cap at max_entries
         redis::cmd("LPUSH")
@@ -124,8 +132,11 @@ impl TimelineCache for RedisTimelineCache {
 
         let mut messages = Vec::with_capacity(data.len());
         for item in data {
-            let msg: CachedMessageSummary = serde_json::from_str(&item)
-                .map_err(|e| im_platform_contracts::ContractError::Unavailable(format!("deserialize message failed: {e}")))?;
+            let msg: CachedMessageSummary = serde_json::from_str(&item).map_err(|e| {
+                im_platform_contracts::ContractError::Unavailable(format!(
+                    "deserialize message failed: {e}"
+                ))
+            })?;
             messages.push(msg);
         }
 
@@ -141,7 +152,10 @@ impl TimelineCache for RedisTimelineCache {
         let key = timeline_key(tenant_id, org_id, conversation_id);
         let mut conn = self.manager.clone();
 
-        redis::cmd("DEL").arg(&key).query_async::<()>(&mut conn).await
+        redis::cmd("DEL")
+            .arg(&key)
+            .query_async::<()>(&mut conn)
+            .await
             .map_err(|e| redis_unavailable("clear_timeline", e))?;
 
         Ok(())

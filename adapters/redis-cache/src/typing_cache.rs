@@ -4,8 +4,8 @@
 //! Type: STRING
 //! TTL: 5 seconds (auto-expire)
 
-use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
+use redis::aio::ConnectionManager;
 
 use crate::redis_unavailable;
 

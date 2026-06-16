@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component",
+  "name": "contact-service",
+  "domain": "im",
+  "capability": "contact",
+  "description": "Contact service for friend requests, friendships, blocks, direct chats, and user profiles",
+  "dependencies": [
+    "im-adapters-social-postgres",
+    "im-domain-core",
+    "im-platform-contracts",
+    "im-app-context"
+  ]
+}

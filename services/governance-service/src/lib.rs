@@ -11,12 +11,6 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use sdkwork_im_ccp_registry::{
-    BusinessPolicyVocabulary, CapabilityProfile, CcpRegistry, ClientCompatibilityDescriptor,
-    EffectiveProtocolSnapshot, KillSwitchRule, ProtocolGovernanceSnapshot, QuotaProfile,
-    ReleaseChannel, RolloutPolicy, SchemaDescriptor,
-};
-use sdkwork_im_openapi::{OpenApiServiceSpec, render_docs_html};
 use im_app_context::{
     AppContext, AppContextError, resolve_app_context, resolve_app_context_for_request,
 };
@@ -29,6 +23,12 @@ use im_platform_contracts::{
 use ops_service::{
     OpsRuntime, ProviderBindingItemView, ProviderBindingSnapshotView, RouteOwnershipView,
 };
+use sdkwork_im_ccp_registry::{
+    BusinessPolicyVocabulary, CapabilityProfile, CcpRegistry, ClientCompatibilityDescriptor,
+    EffectiveProtocolSnapshot, KillSwitchRule, ProtocolGovernanceSnapshot, QuotaProfile,
+    ReleaseChannel, RolloutPolicy, SchemaDescriptor,
+};
+use sdkwork_im_openapi::{OpenApiServiceSpec, render_docs_html};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use session_gateway::{
@@ -1565,7 +1565,10 @@ fn build_control_surface_with_state(state: AppState) -> Router {
             "/backend/v3/api/control/provider_policies/rollback",
             post(rollback_provider_policy),
         )
-        .route("/backend/v3/api/control/nodes/{node_id}/drain", post(drain_node))
+        .route(
+            "/backend/v3/api/control/nodes/{node_id}/drain",
+            post(drain_node),
+        )
         .route(
             "/backend/v3/api/control/nodes/{node_id}/activate",
             post(activate_node),

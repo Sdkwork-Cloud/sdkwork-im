@@ -4,13 +4,13 @@
 use sdkwork_im_contract_core::ContractError;
 
 /// ID 生成器契约
-/// 
+///
 /// 所有持久化实体的主键 ID 统一由 Snowflake 生成：
 /// - message_id: 消息唯一标识
 /// - member_id: 成员唯一标识  
 /// - event_id: 事件唯一标识
 /// - outbox_id: Outbox 事件唯一标识
-/// 
+///
 /// Snowflake 布局：41 timestamp + 10 node + 12 sequence
 /// 单节点单毫秒可生成 4096 个 ID
 pub trait IdGenerator: Send + Sync {
@@ -25,7 +25,7 @@ pub trait IdGenerator: Send + Sync {
 }
 
 /// ID 生成器配置
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct IdGeneratorConfig {
     /// 节点 ID（0-1023）
     pub node_id: u16,
@@ -33,18 +33,9 @@ pub struct IdGeneratorConfig {
     pub epoch_millis: Option<u64>,
 }
 
-impl Default for IdGeneratorConfig {
-    fn default() -> Self {
-        Self {
-            node_id: 0,
-            epoch_millis: None,
-        }
-    }
-}
-
 impl IdGeneratorConfig {
     /// 从环境变量读取配置
-    /// 
+    ///
     /// SDKWORK_IM_ID_NODE_ID: 节点 ID（必须唯一，0-1023）
     pub fn from_env() -> Self {
         let node_id = std::env::var("SDKWORK_IM_ID_NODE_ID")

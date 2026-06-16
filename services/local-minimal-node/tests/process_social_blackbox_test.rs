@@ -744,7 +744,10 @@ fn test_local_minimal_process_blackbox_restart_repairs_pending_acceptance_after_
     let mut server_a = spawn_local_minimal_server_with_env(
         runtime_dir.as_path(),
         port_a,
-        &[("SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS", "15000")],
+        &[(
+            "SDKWORK_IM_TEST_SOCIAL_ACCEPT_POST_COMMIT_DELAY_MS",
+            "15000",
+        )],
     );
 
     let (submit_status, submit_json) = send_json_request(

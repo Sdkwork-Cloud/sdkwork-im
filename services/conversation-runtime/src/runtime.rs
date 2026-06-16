@@ -1,6 +1,10 @@
+use im_app_context::AppContext;
+use im_platform_contracts::{
+    ConversationAggregateStore, ConversationMemberRecord, ConversationSeqAllocator, IdGenerator,
+    MessageStore, OutboxStore, ReadCursorRecord, StoredMessageRecord,
+};
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitJournal, CommitPosition};
-use im_app_context::AppContext;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
@@ -466,11 +470,17 @@ pub struct ApplyConversationPolicyCommand {
 #[serde(rename_all = "camelCase")]
 pub struct PostMessageCommand {
     pub tenant_id: String,
+    #[serde(default = "default_organization_id")]
+    pub organization_id: String,
     pub conversation_id: String,
     pub sender: Sender,
     pub client_msg_id: Option<String>,
     pub message_type: MessageType,
     pub body: MessageBody,
+}
+
+fn default_organization_id() -> String {
+    "default".to_owned()
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -898,6 +908,7 @@ impl PostMessageCommand {
     ) -> Self {
         Self {
             tenant_id: auth.tenant_id.clone(),
+            organization_id: auth.organization_id.clone(),
             conversation_id,
             sender: sender_from_auth_context(auth),
             client_msg_id,
@@ -1714,6 +1725,13 @@ fn generated_message_id(conversation_id: &str, message_seq: u64) -> String {
     bounded_message_id
 }
 
+/// 计算消息 body 的 SHA256 哈希，用于真值表的 payload_hash 字段。
+fn sha256_message_hash(body: &MessageBody) -> String {
+    let serialized = serde_json::to_vec(body).unwrap_or_default();
+    let digest = Sha256::digest(&serialized);
+    format!("sha256:{digest:x}")
+}
+
 // This internal transition result keeps the full idempotent view and mutation
 // payload inline because the runtime immediately pattern-matches and forwards it
 // within a single command path; boxing would add indirection without changing
@@ -1839,6 +1857,18 @@ impl CommitJournal for InMemoryJournal {
 pub struct ConversationRuntime<J> {
     journal: J,
     state: RwLock<RuntimeState>,
+    /// 可选的消息真值存储。注入后 post_message 走 DB seq 分配 + 真值写入路径。
+    message_store: Option<Arc<dyn MessageStore>>,
+    /// 可选的 Outbox 存储。注入后事件通过 outbox 异步投递。
+    outbox_store: Option<Arc<dyn OutboxStore>>,
+    /// 可选的 ID 生成器。注入后 message_id/event_id 使用 Snowflake。
+    id_generator: Option<Arc<dyn IdGenerator>>,
+    /// 可选的会话聚合存储。注入后成员/已读游标从 DB 加载和持久化，
+    /// 替代纯内存状态，使多实例部署共享会话聚合视图。
+    aggregate_store: Option<Arc<dyn ConversationAggregateStore>>,
+    /// 可选的序列号分配器。注入后 message_seq 走 Redis INCRBY 批量预取，
+    /// 消除 im_conversation_seq_counters 单行热点。
+    seq_allocator: Option<Arc<dyn ConversationSeqAllocator>>,
 }
 
 impl<J> ConversationRuntime<J>
@@ -1849,7 +1879,48 @@ where
         Self {
             journal,
             state: RwLock::new(RuntimeState::default()),
+            message_store: None,
+            outbox_store: None,
+            id_generator: None,
+            aggregate_store: None,
+            seq_allocator: None,
         }
+    }
+
+    /// 注入消息真值存储，启用 DB seq 分配 + 真值写入路径。
+    pub fn with_message_store(mut self, store: Arc<dyn MessageStore>) -> Self {
+        self.message_store = Some(store);
+        self
+    }
+
+    /// 注入 Outbox 存储，启用分布式事件投递。
+    pub fn with_outbox_store(mut self, store: Arc<dyn OutboxStore>) -> Self {
+        self.outbox_store = Some(store);
+        self
+    }
+
+    /// 注入 ID 生成器，启用 Snowflake ID。
+    pub fn with_id_generator(mut self, generator: Arc<dyn IdGenerator>) -> Self {
+        self.id_generator = Some(generator);
+        self
+    }
+
+    /// 注入会话聚合存储，启用 DB 持久化的成员/已读游标管理。
+    /// 多实例部署时启用此选项以共享会话聚合视图。
+    pub fn with_aggregate_store(mut self, store: Arc<dyn ConversationAggregateStore>) -> Self {
+        self.aggregate_store = Some(store);
+        self
+    }
+
+    /// 注入序列号分配器，启用 Redis 批量预取的消息序号分配。
+    pub fn with_seq_allocator(mut self, allocator: Arc<dyn ConversationSeqAllocator>) -> Self {
+        self.seq_allocator = Some(allocator);
+        self
+    }
+
+    /// 运行时是否已配置 DB 真值存储路径。
+    pub fn has_message_store(&self) -> bool {
+        self.message_store.is_some()
     }
 
     pub fn reset_for_recovery(&self) {
@@ -1905,6 +1976,43 @@ where
                 return Ok(());
             }
         }
+        // 优先路径 1：有 AggregateStore 时从 DB 加载聚合状态。
+        if let Some(ref aggregate_store) = self.aggregate_store {
+            let organization_id = "default";
+            let mut state =
+                write_runtime_state(&self.state, "ensure_conversation_loaded.aggregate");
+            let mut conversation_state = ConversationState {
+                last_accessed_at_ms: now_ms(),
+                ..Default::default()
+            };
+            if let Ok(db_state) =
+                aggregate_store.load_aggregate_state(tenant_id, organization_id, conversation_id)
+            {
+                for member_record in &db_state.members {
+                    let member = conversation_member_from_record(member_record);
+                    conversation_state.roster.upsert_member(member);
+                }
+                for cursor_record in &db_state.read_cursors {
+                    let cursor = read_cursor_from_record(cursor_record);
+                    conversation_state.roster.upsert_read_cursor(cursor);
+                }
+            }
+            state.conversations.insert(scope_key, conversation_state);
+            return Ok(());
+        }
+        // 优先路径 2：如果有 MessageStore 但从 journal 重放太昂贵，
+        // 初始化空状态（消息真值已在 im_conversation_messages 中）。
+        if self.message_store.is_some() {
+            let mut state =
+                write_runtime_state(&self.state, "ensure_conversation_loaded.store_path");
+            let conversation_state = ConversationState {
+                last_accessed_at_ms: now_ms(),
+                ..Default::default()
+            };
+            state.conversations.insert(scope_key, conversation_state);
+            return Ok(());
+        }
+        // Fallback 路径：无 store 时从 journal 重放（仅用于测试/单机模式）
         self.recover_single_conversation(tenant_id, conversation_id)?;
         Ok(())
     }
@@ -1913,6 +2021,38 @@ where
         let max = resolve_max_conversations_in_memory();
         let mut state = write_runtime_state(&self.state, "runtime.state.maybe_evict");
         state.evict_idle_conversations(max);
+    }
+
+    /// 将会话的当前内存聚合状态（成员 + 已读游标）持久化到 AggregateStore。
+    /// 多实例部署时在成员变更/已读游标更新后调用，使其他实例可见。
+    pub fn persist_aggregate_state(
+        &self,
+        tenant_id: &str,
+        organization_id: &str,
+        conversation_id: &str,
+    ) -> Result<(), RuntimeError> {
+        let store = self
+            .aggregate_store
+            .as_ref()
+            .ok_or_else(|| RuntimeError::InvalidInput("aggregate_store not configured".into()))?;
+        let state = read_runtime_state(&self.state, "persist_aggregate_state");
+        let conversation = state
+            .conversations
+            .get(conversation_scope_key(tenant_id, conversation_id).as_str())
+            .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
+        for (_, member) in conversation.roster.members() {
+            let record = member_to_record(tenant_id, organization_id, conversation_id, member);
+            store
+                .upsert_member(record)
+                .map_err(|e| RuntimeError::from(e))?;
+        }
+        for (_, cursor) in conversation.roster.read_cursors() {
+            let record = cursor_to_record(tenant_id, organization_id, conversation_id, cursor);
+            store
+                .upsert_read_cursor(record)
+                .map_err(|e| RuntimeError::from(e))?;
+        }
+        Ok(())
     }
 
     pub fn post_message(
@@ -1928,7 +2068,8 @@ where
     ) -> Result<PostMessageResult, RuntimeError> {
         self.post_message_with_policy(
             PostMessageCommand {
-                tenant_id: command.tenant_id,
+                tenant_id: command.tenant_id.clone(),
+                organization_id: "default".to_owned(),
                 conversation_id: command.conversation_id,
                 sender: command.publisher,
                 client_msg_id: command.client_msg_id,
@@ -2014,15 +2155,33 @@ where
                             )?
                         }
                     }
-                    let message_seq = conversation.message_log.high_watermark() + 1;
+                    // 序号分配：优先使用 DB 原子分配器，fallback 到内存 high_watermark
+                    let message_seq = if let Some(store) = &self.message_store {
+                        store
+                            .allocate_message_seq(
+                                command.tenant_id.as_str(),
+                                command.organization_id.as_str(),
+                                command.conversation_id.as_str(),
+                            )
+                            .map_err(|error| RuntimeError::from(error))?
+                    } else {
+                        conversation.message_log.high_watermark() + 1
+                    };
 
                     let mut sender = command.sender.clone();
                     if sender.member_id.is_none() {
                         sender.member_id = Some(sender_member.member_id.clone());
                     }
 
-                    let message_id =
-                        generated_message_id(command.conversation_id.as_str(), message_seq);
+                    // ID 生成：优先使用 Snowflake，fallback 到确定性字符串拼接
+                    let message_id = if let Some(generator) = &self.id_generator {
+                        generator
+                            .next_id()
+                            .map_err(|error| RuntimeError::from(error))?
+                            .to_string()
+                    } else {
+                        generated_message_id(command.conversation_id.as_str(), message_seq)
+                    };
                     let message_timestamp = conversation_timestamp();
                     let message = Message {
                         tenant_id: command.tenant_id.clone(),
@@ -2041,7 +2200,14 @@ where
                         occurred_at: message_timestamp.clone(),
                         committed_at: Some(message_timestamp),
                     };
-                    let event_id = format!("evt_{}_posted", message.message_id);
+                    let event_id = if let Some(generator) = &self.id_generator {
+                        generator
+                            .next_id()
+                            .map_err(|error| RuntimeError::from(error))?
+                            .to_string()
+                    } else {
+                        format!("evt_{}_posted", message.message_id)
+                    };
                     let retention_class = conversation_retention_class(conversation);
                     let envelope = CommitEnvelope {
                         event_id: event_id.clone(),
@@ -2078,6 +2244,32 @@ where
                     };
 
                     self.journal.append(envelope)?;
+
+                    // 真值写入：如果有 MessageStore，写入 im_conversation_messages（消息真值表）
+                    if let Some(store) = &self.message_store {
+                        let stored_record = StoredMessageRecord {
+                            tenant_id: message.tenant_id.clone(),
+                            organization_id: command.organization_id.clone(),
+                            conversation_id: message.conversation_id.clone(),
+                            message_id: message.message_id.parse::<i64>().unwrap_or(0),
+                            message_seq: message.message_seq,
+                            sender_principal_kind: message.sender.kind.clone(),
+                            sender_principal_id: message.sender.id.clone(),
+                            sender_device_id: message.sender.device_id.clone(),
+                            client_msg_id: message.client_msg_id.clone(),
+                            message_type: message.message_type.as_wire_value().to_owned(),
+                            payload_json: serde_json::to_string(&message.body)
+                                .expect("message body should serialize"),
+                            payload_hash: sha256_message_hash(&message.body),
+                            created_at: message.occurred_at.clone(),
+                            updated_at: message.occurred_at.clone(),
+                            deleted_at: None,
+                        };
+                        store
+                            .insert_message(stored_record)
+                            .map_err(|error| RuntimeError::from(error))?;
+                    }
+
                     conversation.message_log.store_posted(message.clone());
                     if let Some(request_key) = request_key.as_ref() {
                         conversation.posted_message_requests.insert(
@@ -2914,6 +3106,114 @@ where
     }
 }
 
+// ---------------------------------------------------------------------------
+// Aggregate store conversion helpers
+// ---------------------------------------------------------------------------
+
+fn conversation_member_from_record(record: &ConversationMemberRecord) -> ConversationMember {
+    use im_domain_core::conversation::{MembershipRole, MembershipState};
+    let role = match record.membership_role.as_str() {
+        "owner" => MembershipRole::Owner,
+        "admin" => MembershipRole::Admin,
+        "member" => MembershipRole::Member,
+        "guest" => MembershipRole::Guest,
+        _ => MembershipRole::Member,
+    };
+    let state = match record.membership_state.as_str() {
+        "joined" => MembershipState::Joined,
+        "linked" => MembershipState::Linked,
+        "invited" => MembershipState::Invited,
+        "removed" => MembershipState::Removed,
+        "left" => MembershipState::Left,
+        _ => MembershipState::Joined,
+    };
+    let attributes: BTreeMap<String, String> =
+        serde_json::from_str(&record.attributes_json).unwrap_or_default();
+    ConversationMember {
+        tenant_id: record.tenant_id.clone(),
+        conversation_id: record.conversation_id.clone(),
+        member_id: record.member_id.to_string(),
+        principal_id: record.principal_id.clone(),
+        principal_kind: record.principal_kind.clone(),
+        role,
+        state,
+        invited_by: record.invited_by.clone(),
+        joined_at: record.joined_at.clone(),
+        removed_at: record.removed_at.clone(),
+        attributes,
+    }
+}
+
+fn read_cursor_from_record(record: &ReadCursorRecord) -> ConversationReadCursor {
+    ConversationReadCursor {
+        tenant_id: record.tenant_id.clone(),
+        conversation_id: record.conversation_id.clone(),
+        member_id: record.member_id.to_string(),
+        principal_id: record.principal_id.clone(),
+        principal_kind: record.principal_kind.clone(),
+        read_seq: record.read_seq,
+        last_read_message_id: record.last_read_message_id.map(|id| id.to_string()),
+        updated_at: record.updated_at.clone(),
+    }
+}
+
+fn member_to_record(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation_id: &str,
+    member: &ConversationMember,
+) -> ConversationMemberRecord {
+    let membership_role = match member.role {
+        MembershipRole::Owner => "owner",
+        MembershipRole::Admin => "admin",
+        MembershipRole::Member => "member",
+        MembershipRole::Guest => "guest",
+    };
+    let membership_state = match member.state {
+        MembershipState::Joined => "joined",
+        MembershipState::Linked => "linked",
+        MembershipState::Invited => "invited",
+        MembershipState::Removed => "removed",
+        MembershipState::Left => "left",
+    };
+    ConversationMemberRecord {
+        tenant_id: tenant_id.to_owned(),
+        organization_id: organization_id.to_owned(),
+        conversation_id: conversation_id.to_owned(),
+        principal_kind: member.principal_kind.clone(),
+        principal_id: member.principal_id.clone(),
+        member_id: member.member_id.parse::<i64>().unwrap_or(0),
+        membership_role: membership_role.into(),
+        membership_state: membership_state.into(),
+        invited_by: member.invited_by.clone(),
+        joined_at: member.joined_at.clone(),
+        removed_at: member.removed_at.clone(),
+        attributes_json: serde_json::to_string(&member.attributes).unwrap_or_default(),
+    }
+}
+
+fn cursor_to_record(
+    tenant_id: &str,
+    organization_id: &str,
+    conversation_id: &str,
+    cursor: &ConversationReadCursor,
+) -> ReadCursorRecord {
+    ReadCursorRecord {
+        tenant_id: tenant_id.to_owned(),
+        organization_id: organization_id.to_owned(),
+        conversation_id: conversation_id.to_owned(),
+        member_id: cursor.member_id.parse::<i64>().unwrap_or(0),
+        principal_kind: cursor.principal_kind.clone(),
+        principal_id: cursor.principal_id.clone(),
+        read_seq: cursor.read_seq,
+        last_read_message_id: cursor
+            .last_read_message_id
+            .clone()
+            .map(|id| id.parse::<i64>().unwrap_or(0)),
+        updated_at: cursor.updated_at.clone(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3060,6 +3360,7 @@ mod tests {
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
             runtime.post_message(PostMessageCommand {
                 tenant_id: "t_demo".into(),
+                organization_id: "default".into(),
                 conversation_id: "c_demo".into(),
                 sender: Sender {
                     id: "u_demo".into(),

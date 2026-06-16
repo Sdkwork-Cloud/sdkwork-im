@@ -116,7 +116,10 @@ async fn test_public_app_exports_live_openapi_json() {
         serde_json::from_slice(&body).expect("body should be valid json");
 
     assert_eq!(value["openapi"], "3.1.0");
-    assert_eq!(value["info"]["title"], "Sdkwork IM Conversation Runtime API");
+    assert_eq!(
+        value["info"]["title"],
+        "Sdkwork IM Conversation Runtime API"
+    );
     assert!(value["paths"]["/im/v3/api/chat/conversations/{conversation_id}/messages"].is_object());
 }
 

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component",
+  "name": "space-service",
+  "domain": "im",
+  "capability": "space",
+  "description": "Space service for spaces, groups, channels, members, invitations, and bans",
+  "dependencies": [
+    "im-adapters-social-postgres",
+    "im-domain-core",
+    "im-platform-contracts",
+    "im-app-context"
+  ]
+}

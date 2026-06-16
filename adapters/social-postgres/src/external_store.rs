@@ -2,7 +2,9 @@
 
 use std::sync::Arc;
 
-use im_domain_core::social::{ExternalConnection, ExternalMemberLink, ExternalConnectionStatus, ExternalMemberLinkStatus};
+use im_domain_core::social::{
+    ExternalConnection, ExternalConnectionStatus, ExternalMemberLink, ExternalMemberLinkStatus,
+};
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
@@ -91,16 +93,45 @@ fn external_member_link_status_to_str(status: &ExternalMemberLinkStatus) -> &'st
 /// Trait for external connection persistence.
 pub trait ExternalConnectionStore: Send + Sync {
     fn insert(&self, record: &ExternalConnectionRecord) -> Result<(), ContractError>;
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, connection_id: i64) -> Result<Option<ExternalConnectionRecord>, ContractError>;
-    fn find_by_external_tenant(&self, tenant_id: &str, org_id: &str, external_tenant_id: &str) -> Result<Option<ExternalConnectionRecord>, ContractError>;
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        connection_id: i64,
+    ) -> Result<Option<ExternalConnectionRecord>, ContractError>;
+    fn find_by_external_tenant(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        external_tenant_id: &str,
+    ) -> Result<Option<ExternalConnectionRecord>, ContractError>;
 }
 
 /// Trait for external member link persistence.
 pub trait ExternalMemberLinkStore: Send + Sync {
     fn insert(&self, record: &ExternalMemberLinkRecord) -> Result<(), ContractError>;
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, link_id: i64) -> Result<Option<ExternalMemberLinkRecord>, ContractError>;
-    fn list_by_connection(&self, tenant_id: &str, org_id: &str, connection_id: i64, status: &str, limit: i64) -> Result<Vec<ExternalMemberLinkRecord>, ContractError>;
-    fn find_by_mapping(&self, tenant_id: &str, org_id: &str, connection_id: i64, local_actor_id: &str, external_member_id: &str) -> Result<Option<ExternalMemberLinkRecord>, ContractError>;
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        link_id: i64,
+    ) -> Result<Option<ExternalMemberLinkRecord>, ContractError>;
+    fn list_by_connection(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        connection_id: i64,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<ExternalMemberLinkRecord>, ContractError>;
+    fn find_by_mapping(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        connection_id: i64,
+        local_actor_id: &str,
+        external_member_id: &str,
+    ) -> Result<Option<ExternalMemberLinkRecord>, ContractError>;
 }
 
 // External Connection SQL
@@ -217,9 +248,15 @@ impl ExternalConnectionStore for PostgresExternalConnectionStore {
                 .execute(
                     EC_INSERT_SQL,
                     &[
-                        &r.tenant_id, &r.organization_id, &r.connection_id,
-                        &r.external_tenant_id, &r.external_org_name, &r.connection_kind,
-                        &r.status, &r.established_at, &r.updated_at,
+                        &r.tenant_id,
+                        &r.organization_id,
+                        &r.connection_id,
+                        &r.external_tenant_id,
+                        &r.external_org_name,
+                        &r.connection_kind,
+                        &r.status,
+                        &r.established_at,
+                        &r.updated_at,
                     ],
                 )
                 .map_err(|e| postgres_unavailable("insert_external_connection", e))?;
@@ -227,7 +264,12 @@ impl ExternalConnectionStore for PostgresExternalConnectionStore {
         })
     }
 
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, connection_id: i64) -> Result<Option<ExternalConnectionRecord>, ContractError> {
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        connection_id: i64,
+    ) -> Result<Option<ExternalConnectionRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -240,7 +282,12 @@ impl ExternalConnectionStore for PostgresExternalConnectionStore {
         })
     }
 
-    fn find_by_external_tenant(&self, tenant_id: &str, org_id: &str, external_tenant_id: &str) -> Result<Option<ExternalConnectionRecord>, ContractError> {
+    fn find_by_external_tenant(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        external_tenant_id: &str,
+    ) -> Result<Option<ExternalConnectionRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -277,9 +324,17 @@ impl ExternalMemberLinkStore for PostgresExternalMemberLinkStore {
                 .execute(
                     EML_INSERT_SQL,
                     &[
-                        &r.tenant_id, &r.organization_id, &r.link_id, &r.connection_id,
-                        &r.local_actor_kind, &r.local_actor_id, &r.external_member_id,
-                        &r.external_display_name, &r.status, &r.linked_at, &r.updated_at,
+                        &r.tenant_id,
+                        &r.organization_id,
+                        &r.link_id,
+                        &r.connection_id,
+                        &r.local_actor_kind,
+                        &r.local_actor_id,
+                        &r.external_member_id,
+                        &r.external_display_name,
+                        &r.status,
+                        &r.linked_at,
+                        &r.updated_at,
                     ],
                 )
                 .map_err(|e| postgres_unavailable("insert_external_member_link", e))?;
@@ -287,7 +342,12 @@ impl ExternalMemberLinkStore for PostgresExternalMemberLinkStore {
         })
     }
 
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, link_id: i64) -> Result<Option<ExternalMemberLinkRecord>, ContractError> {
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        link_id: i64,
+    ) -> Result<Option<ExternalMemberLinkRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -300,21 +360,39 @@ impl ExternalMemberLinkStore for PostgresExternalMemberLinkStore {
         })
     }
 
-    fn list_by_connection(&self, tenant_id: &str, org_id: &str, connection_id: i64, status: &str, limit: i64) -> Result<Vec<ExternalMemberLinkRecord>, ContractError> {
+    fn list_by_connection(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        connection_id: i64,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<ExternalMemberLinkRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
         let st = status.to_string();
         run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "list_external_member_links_by_connection")?;
+            let mut client =
+                postgres_pool_client(&pool, "list_external_member_links_by_connection")?;
             let rows = client
-                .query(EML_LIST_BY_CONNECTION_SQL, &[&tid, &oid, &connection_id, &st, &limit])
+                .query(
+                    EML_LIST_BY_CONNECTION_SQL,
+                    &[&tid, &oid, &connection_id, &st, &limit],
+                )
                 .map_err(|e| postgres_unavailable("list_external_member_links_by_connection", e))?;
-            Ok(rows.iter().map(|r| row_to_eml_record(r)).collect())
+            Ok(rows.iter().map(row_to_eml_record).collect())
         })
     }
 
-    fn find_by_mapping(&self, tenant_id: &str, org_id: &str, connection_id: i64, local_actor_id: &str, external_member_id: &str) -> Result<Option<ExternalMemberLinkRecord>, ContractError> {
+    fn find_by_mapping(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        connection_id: i64,
+        local_actor_id: &str,
+        external_member_id: &str,
+    ) -> Result<Option<ExternalMemberLinkRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -323,7 +401,10 @@ impl ExternalMemberLinkStore for PostgresExternalMemberLinkStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "find_external_member_link_by_mapping")?;
             let row = client
-                .query_opt(EML_FIND_BY_MAPPING_SQL, &[&tid, &oid, &connection_id, &laid, &emid])
+                .query_opt(
+                    EML_FIND_BY_MAPPING_SQL,
+                    &[&tid, &oid, &connection_id, &laid, &emid],
+                )
                 .map_err(|e| postgres_unavailable("find_external_member_link_by_mapping", e))?;
             Ok(row.map(|r| row_to_eml_record(&r)))
         })

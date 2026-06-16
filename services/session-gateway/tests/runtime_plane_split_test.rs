@@ -1,4 +1,6 @@
-use sdkwork_im_runtime_link::{LinkConnectionState, LinkSession, OutboundQueuePolicy, ResumeWindow};
+use sdkwork_im_runtime_link::{
+    LinkConnectionState, LinkSession, OutboundQueuePolicy, ResumeWindow,
+};
 use sdkwork_im_runtime_route::{RouteBindingRequest, RouteDirectory};
 
 #[test]

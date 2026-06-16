@@ -176,7 +176,7 @@ mod tests {
     fn auth_context(principal_id: &str, actor_kind: &str, device_id: &str) -> AppContext {
         AppContext {
             tenant_id: "t_demo".into(),
-            organization_id: None,
+            organization_id: "default".into(),
             user_id: principal_id.into(),
             actor_id: principal_id.into(),
             actor_kind: actor_kind.into(),

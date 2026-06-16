@@ -4,8 +4,8 @@
 //! migration schema. PostgreSQL adapters must bind parameters exactly as each
 //! constant documents and execute multi-statement mutations in one transaction.
 
-use sdkwork_im_contract_control::{RealtimeCheckpointRecord, RealtimeSubscriptionRecord};
 use im_domain_core::realtime::{RealtimeEvent, RealtimeSubscription};
+use sdkwork_im_contract_control::{RealtimeCheckpointRecord, RealtimeSubscriptionRecord};
 
 pub const LOAD_REALTIME_CHECKPOINT_SQL: &str = r#"
 select

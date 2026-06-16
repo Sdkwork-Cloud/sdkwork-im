@@ -363,15 +363,18 @@ fn test_deployment_profiles_and_templates_document_local_minimal_and_local_defau
         assert!(
             template_content.contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=")
         );
-        assert!(template_content.contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS="));
+        assert!(
+            template_content.contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS=")
+        );
         assert!(template_content.contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS="));
         assert!(
             template_content
                 .contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED=")
         );
         assert!(
-            template_content
-                .contains("SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS=")
+            template_content.contains(
+                "SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS="
+            )
         );
         assert!(
             template_content

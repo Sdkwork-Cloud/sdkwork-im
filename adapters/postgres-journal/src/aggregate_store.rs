@@ -7,8 +7,8 @@ use im_platform_contracts::{
     ConversationMemberRecord, ReadCursorRecord,
 };
 use r2d2::Pool;
-use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
+use r2d2_postgres::postgres::NoTls;
 
 use crate::{postgres_pool_client, postgres_unavailable, run_postgres_io};
 
@@ -145,7 +145,10 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "load_members")?;
             let rows = client
-                .query(LOAD_MEMBERS_SQL, &[&tenant_id, &organization_id, &conversation_id])
+                .query(
+                    LOAD_MEMBERS_SQL,
+                    &[&tenant_id, &organization_id, &conversation_id],
+                )
                 .map_err(|error| postgres_unavailable("load_members", error))?;
             Ok(rows.iter().map(row_to_member).collect())
         })
@@ -168,7 +171,16 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "load_member")?;
             let row = client
-                .query_opt(LOAD_MEMBER_SQL, &[&tenant_id, &organization_id, &conversation_id, &principal_kind, &principal_id])
+                .query_opt(
+                    LOAD_MEMBER_SQL,
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &conversation_id,
+                        &principal_kind,
+                        &principal_id,
+                    ],
+                )
                 .map_err(|error| postgres_unavailable("load_member", error))?;
             Ok(row.map(|r| row_to_member(&r)))
         })
@@ -217,7 +229,17 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "remove_member")?;
             client
-                .execute(REMOVE_MEMBER_SQL, &[&tenant_id, &organization_id, &conversation_id, &principal_kind, &principal_id, &removed_at])
+                .execute(
+                    REMOVE_MEMBER_SQL,
+                    &[
+                        &tenant_id,
+                        &organization_id,
+                        &conversation_id,
+                        &principal_kind,
+                        &principal_id,
+                        &removed_at,
+                    ],
+                )
                 .map_err(|error| postgres_unavailable("remove_member", error))?;
             Ok(())
         })
@@ -236,7 +258,10 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "load_read_cursors")?;
             let rows = client
-                .query(LOAD_READ_CURSORS_SQL, &[&tenant_id, &organization_id, &conversation_id])
+                .query(
+                    LOAD_READ_CURSORS_SQL,
+                    &[&tenant_id, &organization_id, &conversation_id],
+                )
                 .map_err(|error| postgres_unavailable("load_read_cursors", error))?;
             Ok(rows.iter().map(row_to_cursor).collect())
         })
@@ -256,7 +281,10 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "load_read_cursor")?;
             let row = client
-                .query_opt(LOAD_READ_CURSOR_SQL, &[&tenant_id, &organization_id, &conversation_id, &member_id])
+                .query_opt(
+                    LOAD_READ_CURSOR_SQL,
+                    &[&tenant_id, &organization_id, &conversation_id, &member_id],
+                )
                 .map_err(|error| postgres_unavailable("load_read_cursor", error))?;
             Ok(row.map(|r| row_to_cursor(&r)))
         })
@@ -326,7 +354,10 @@ impl ConversationAggregateStore for PostgresAggregateStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "conversation_exists")?;
             let row = client
-                .query_one(CONVERSATION_EXISTS_SQL, &[&tenant_id, &organization_id, &conversation_id])
+                .query_one(
+                    CONVERSATION_EXISTS_SQL,
+                    &[&tenant_id, &organization_id, &conversation_id],
+                )
                 .map_err(|error| postgres_unavailable("conversation_exists", error))?;
             let exists: bool = row.get(0);
             Ok(exists)

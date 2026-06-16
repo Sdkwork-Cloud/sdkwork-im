@@ -2,12 +2,10 @@
 //!
 //! Implements distributed outbox pattern with FOR UPDATE SKIP LOCKED.
 
-use im_platform_contracts::{
-    ContractError, OutboxEventRecord, OutboxPublishStatus, OutboxStore,
-};
+use im_platform_contracts::{ContractError, OutboxEventRecord, OutboxPublishStatus, OutboxStore};
 use r2d2::Pool;
-use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
+use r2d2_postgres::postgres::NoTls;
 
 use crate::{now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io};
 
@@ -84,7 +82,8 @@ fn row_to_record(row: &postgres::Row) -> OutboxEventRecord {
         event_type: row.get(6),
         payload_json: row.get(7),
         payload_hash: row.get(8),
-        publish_status: OutboxPublishStatus::from_str(&status_str).unwrap_or(OutboxPublishStatus::Pending),
+        publish_status: OutboxPublishStatus::from_str(&status_str)
+            .unwrap_or(OutboxPublishStatus::Pending),
         attempt_count: row.get::<_, i32>(10) as u32,
         available_at: row.get(11),
         published_at: row.get(12),
@@ -143,7 +142,10 @@ impl OutboxStore for PostgresOutboxStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "drain_pending")?;
             let rows = client
-                .query(DRAIN_PENDING_SQL, &[&tenant_id, &organization_id, &now, &limit])
+                .query(
+                    DRAIN_PENDING_SQL,
+                    &[&tenant_id, &organization_id, &now, &limit],
+                )
                 .map_err(|error| postgres_unavailable("drain_pending", error))?;
             Ok(rows.iter().map(row_to_record).collect())
         })
@@ -163,7 +165,10 @@ impl OutboxStore for PostgresOutboxStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "mark_published")?;
             client
-                .execute(MARK_PUBLISHED_SQL, &[&tenant_id, &organization_id, &outbox_id, &now])
+                .execute(
+                    MARK_PUBLISHED_SQL,
+                    &[&tenant_id, &organization_id, &outbox_id, &now],
+                )
                 .map_err(|error| postgres_unavailable("mark_published", error))?;
             Ok(())
         })
@@ -184,7 +189,10 @@ impl OutboxStore for PostgresOutboxStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "mark_failed")?;
             client
-                .execute(MARK_FAILED_SQL, &[&tenant_id, &organization_id, &outbox_id, &now])
+                .execute(
+                    MARK_FAILED_SQL,
+                    &[&tenant_id, &organization_id, &outbox_id, &now],
+                )
                 .map_err(|error| postgres_unavailable("mark_failed", error))?;
             Ok(())
         })
@@ -203,17 +211,16 @@ impl OutboxStore for PostgresOutboxStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "read_by_event_id")?;
             let row = client
-                .query_opt(READ_BY_EVENT_ID_SQL, &[&tenant_id, &organization_id, &event_id])
+                .query_opt(
+                    READ_BY_EVENT_ID_SQL,
+                    &[&tenant_id, &organization_id, &event_id],
+                )
                 .map_err(|error| postgres_unavailable("read_by_event_id", error))?;
             Ok(row.map(|r| row_to_record(&r)))
         })
     }
 
-    fn count_pending(
-        &self,
-        tenant_id: &str,
-        organization_id: &str,
-    ) -> Result<u64, ContractError> {
+    fn count_pending(&self, tenant_id: &str, organization_id: &str) -> Result<u64, ContractError> {
         let pool = self.pool.clone();
         let tenant_id = tenant_id.to_owned();
         let organization_id = organization_id.to_owned();

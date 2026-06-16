@@ -48,13 +48,18 @@ members = [
     "services/ops-service",
     "services/governance-service",
     "services/conversation-runtime",
+    "services/contact-service",
+    "services/interaction-service",
     "services/local-minimal-node",
     "services/media-service",
     "services/projection-service",
     "services/session-gateway",
     "services/social-service",
+    "services/space-service",
     "services/streaming-service",
     "services/web-gateway",
+    "adapters/push-providers/push-apns",
+    "adapters/push-providers/push-fcm",
     "tools/chat-cli",
 ]
 exclude = [
@@ -95,6 +100,10 @@ sdkwork-api-config = { path = "crates/sdkwork-api-config" }
 # implement.
 sdkwork_id = { path = "../sdkwork-appbase/crates/sdkwork-platform-id-service", package = "sdkwork-platform-id-service" }
 sdkwork_http_context = { path = "../sdkwork-appbase/crates/sdkwork-platform-http-context-service", package = "sdkwork-platform-http-context-service" }
+# DATABASE_SPEC §33: unified database config (env, pool, table prefix).
+# All PostgreSQL adapters consume this; the sqlx pool builder lives in a
+# companion crate `sdkwork-database-sqlx` that is not required here.
+sdkwork_database_config = { path = "../sdkwork-database/crates/sdkwork-database-config", package = "sdkwork-database-config" }
 # IM consumes the provider-plugin-era RTC layout (`crates/sdkwork-rtc-core` +
 # `adapters/rtc-*`). That layout was removed from `sdkwork-rtc` `main` at
 # commit 4a65da5 ("standardize rtc authority workspace"). To stay buildable

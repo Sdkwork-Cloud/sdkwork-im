@@ -1,8 +1,8 @@
 use std::sync::{Arc, RwLock};
 
-use social_service::SocialRuntime;
 use projection_service::TimelineProjectionService;
 use session_gateway::{RealtimeRuntimeError, RealtimeScopeAccessPolicy};
+use social_service::SocialRuntime;
 
 pub(super) fn direct_chat_realtime_policy(
     projection_service: Arc<TimelineProjectionService>,

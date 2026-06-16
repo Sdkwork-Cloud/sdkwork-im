@@ -9,9 +9,9 @@ use im_domain_core::conversation::{
     member_id,
 };
 use im_domain_core::message::{
-    SDKWORK_IM_MESSAGE_SCHEMA_CARD, SDKWORK_IM_MESSAGE_SCHEMA_LOCATION, ContentPart,
-    ConversationMessageLog, DataPart, Message, MessageBody, MessageEdited, MessageLocatorIndex,
-    MessageReactionAdded, MessageReactionRemoved, MessageRecalled, MessageType, Sender,
+    ContentPart, ConversationMessageLog, DataPart, Message, MessageBody, MessageEdited,
+    MessageLocatorIndex, MessageReactionAdded, MessageReactionRemoved, MessageRecalled,
+    MessageType, SDKWORK_IM_MESSAGE_SCHEMA_CARD, SDKWORK_IM_MESSAGE_SCHEMA_LOCATION, Sender,
 };
 
 #[test]

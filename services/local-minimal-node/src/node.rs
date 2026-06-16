@@ -28,7 +28,6 @@ use axum::{
     Json, Router,
     routing::{delete, get, patch, post},
 };
-use social_service::SocialRuntime;
 use conversation_runtime::{
     AddMessageReactionCommand, AgentHandoffStateView, BindDirectChatConversationCommand,
     ChangeConversationMemberRoleResult, ConversationRuntime, CreateConversationResult,
@@ -62,6 +61,7 @@ use im_domain_core::presence::PresenceSnapshotView;
 use im_domain_core::realtime::RealtimeSubscription;
 use im_domain_core::social::{DirectChat, FriendRequest, Friendship};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
+use im_platform_contracts::SearchProvider;
 use im_platform_contracts::{
     CommitJournal, CommitPosition, ContractError, EffectiveProviderBinding, MetadataStore,
     PROVIDER_REGISTRY_INTERFACE_VERSION, PrincipalProfileProvider, ProviderDomain,
@@ -89,6 +89,7 @@ use session_gateway::{
     serve_realtime_websocket,
 };
 use sha2::{Digest, Sha256};
+use social_service::SocialRuntime;
 use streaming_service::{
     AbortStreamRequest, AppendStreamFrameRequest, CheckpointStreamRequest, CompleteStreamRequest,
     ListStreamFramesQuery, OpenStreamRequest, StreamFrameMutationResponse, StreamFrameWindow,
@@ -149,10 +150,10 @@ pub use build::{
     build_public_app_with_runtime_dir, try_build_public_app,
 };
 pub use commercial_readiness::{
-    SDKWORK_IM_COMMERCIAL_EVIDENCE_ROOT_ENV, SDKWORK_IM_DATABASE_URL_ENV,
-    SDKWORK_IM_POSTGRES_CONFIG_ENV, SDKWORK_IM_RUNTIME_PROFILE_ENV, SDKWORK_IM_STORAGE_PROVIDER_ENV,
     CommercialReadinessBlocker, CommercialReadinessInputs, CommercialReadinessReport,
-    CommercialReadinessStatus, CommercialStep11Evidence, commercial_readiness_required_for_profile,
+    CommercialReadinessStatus, CommercialStep11Evidence, SDKWORK_IM_COMMERCIAL_EVIDENCE_ROOT_ENV,
+    SDKWORK_IM_DATABASE_URL_ENV, SDKWORK_IM_POSTGRES_CONFIG_ENV, SDKWORK_IM_RUNTIME_PROFILE_ENV,
+    SDKWORK_IM_STORAGE_PROVIDER_ENV, commercial_readiness_required_for_profile,
     commercial_readiness_required_from_env, evaluate_commercial_readiness,
     evaluate_commercial_readiness_from_env, evaluate_commercial_readiness_from_workspace,
     format_commercial_readiness_blocked_error, format_commercial_readiness_report,
@@ -201,6 +202,7 @@ struct AppState {
     pending_friend_request_accept_repairs:
         Arc<std::sync::Mutex<PendingFriendRequestAcceptanceRepairStore>>,
     friend_request_accept_repair_gate: Arc<tokio::sync::Mutex<()>>,
+    search_provider: Option<Arc<dyn SearchProvider>>,
 }
 
 type PendingFriendRequestAcceptanceRepairStore =
@@ -279,8 +281,9 @@ const IM_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
     include_str!("../../../sdks/sdkwork-im-sdk/openapi/sdkwork-im-im.openapi.yaml");
 const APP_API_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
     include_str!("../../../sdks/sdkwork-im-app-sdk/openapi/sdkwork-im-app-api.openapi.yaml");
-const BACKEND_API_OPENAPI_SCHEMA_EMBEDDED_YAML: &str =
-    include_str!("../../../sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml");
+const BACKEND_API_OPENAPI_SCHEMA_EMBEDDED_YAML: &str = include_str!(
+    "../../../sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml"
+);
 const PUBLIC_BROWSER_ORIGINS_ENV: &str = "SDKWORK_IM_BROWSER_ORIGINS";
 const DEFAULT_PUBLIC_BROWSER_ORIGINS: &[&str] = &["http://127.0.0.1:4176", "http://localhost:4176"];
 

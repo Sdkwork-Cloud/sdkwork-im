@@ -5,12 +5,12 @@ use axum::{
     http::{Method, Request, StatusCode},
     routing::any,
 };
+use http_body_util::BodyExt;
 use sdkwork_im_gateway_config::{GatewayRuntimeMode, WebGatewayConfig, service_upstream};
 use sdkwork_im_gateway_observability::{
     build_startup_summary_with_registry, format_startup_summary,
 };
 use sdkwork_im_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
-use http_body_util::BodyExt;
 use serde_json::json;
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -219,7 +219,10 @@ async fn gateway_exposes_openapi_service_index_and_service_schema_proxy() {
         index_value["sdkContracts"][2]["sdkTarget"],
         "sdkworkImBackendSdk"
     );
-    assert_eq!(index_value["services"][0]["serviceId"], "governance-service");
+    assert_eq!(
+        index_value["services"][0]["serviceId"],
+        "governance-service"
+    );
     assert_eq!(
         index_value["services"][0]["contractKind"],
         "upstreamOperational"

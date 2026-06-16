@@ -31,8 +31,8 @@ use std::sync::Arc;
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
 use r2d2::Pool;
-use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::PostgresConnectionManager;
+use r2d2_postgres::postgres::NoTls;
 use sha2::{Digest, Sha256};
 use tokio::runtime::Handle;
 
@@ -41,10 +41,12 @@ pub use r2d2_postgres::postgres::NoTls as PostgresJournalNoTls;
 mod aggregate_store;
 mod message_store;
 mod outbox_store;
+mod search_store;
 
 pub use aggregate_store::PostgresAggregateStore;
 pub use message_store::PostgresMessageStore;
 pub use outbox_store::PostgresOutboxStore;
+pub use search_store::PostgresSearchProvider;
 
 /// Default upper bound on pooled PostgreSQL connections for the journal store.
 ///
@@ -89,6 +91,15 @@ impl PostgresJournalConfig {
     pub fn with_pool_min_idle(mut self, pool_min_idle: u32) -> Self {
         self.pool_min_idle = Some(pool_min_idle.min(self.pool_max_size));
         self
+    }
+
+    /// Create config from sdkwork-database config (§33 unified pool config).
+    pub fn from_database_config(config: &sdkwork_database_config::DatabaseConfig) -> Self {
+        Self {
+            database_url: config.url.clone(),
+            pool_max_size: config.max_connections,
+            pool_min_idle: Some(config.min_connections),
+        }
     }
 
     pub fn database_url(&self) -> &str {
@@ -483,7 +494,10 @@ pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     format!("{digest:x}")
 }
 
-pub(crate) fn postgres_unavailable(action: &'static str, error: impl std::fmt::Display) -> ContractError {
+pub(crate) fn postgres_unavailable(
+    action: &'static str,
+    error: impl std::fmt::Display,
+) -> ContractError {
     ContractError::Unavailable(format!("postgres journal {action} failed: {error}"))
 }
 
@@ -527,9 +541,7 @@ fn postgres_config_error(
 }
 
 fn postgres_io_thread_panic() -> ContractError {
-    ContractError::Unavailable(
-        "postgres journal blocking IO worker panicked".into(),
-    )
+    ContractError::Unavailable("postgres journal blocking IO worker panicked".into())
 }
 
 /// Redact credentials from a PostgreSQL connection URL before it enters an

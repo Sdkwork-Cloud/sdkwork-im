@@ -54,11 +54,44 @@ fn friend_request_status_to_str(status: &FriendRequestStatus) -> &'static str {
 /// Trait for friend request persistence.
 pub trait FriendRequestStore: Send + Sync {
     fn insert(&self, record: &FriendRequestRecord) -> Result<(), ContractError>;
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, request_id: i64) -> Result<Option<FriendRequestRecord>, ContractError>;
-    fn list_by_requester(&self, tenant_id: &str, org_id: &str, requester_id: &str, status: &str, limit: i64) -> Result<Vec<FriendRequestRecord>, ContractError>;
-    fn list_by_target(&self, tenant_id: &str, org_id: &str, target_id: &str, status: &str, limit: i64) -> Result<Vec<FriendRequestRecord>, ContractError>;
-    fn update_status(&self, tenant_id: &str, org_id: &str, request_id: i64, status: &str, updated_at: &str) -> Result<(), ContractError>;
-    fn find_by_pair_and_status(&self, tenant_id: &str, org_id: &str, requester_id: &str, target_id: &str, status: &str) -> Result<Option<FriendRequestRecord>, ContractError>;
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        request_id: i64,
+    ) -> Result<Option<FriendRequestRecord>, ContractError>;
+    fn list_by_requester(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        requester_id: &str,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<FriendRequestRecord>, ContractError>;
+    fn list_by_target(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        target_id: &str,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<FriendRequestRecord>, ContractError>;
+    fn update_status(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        request_id: i64,
+        status: &str,
+        updated_at: &str,
+    ) -> Result<(), ContractError>;
+    fn find_by_pair_and_status(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        requester_id: &str,
+        target_id: &str,
+        status: &str,
+    ) -> Result<Option<FriendRequestRecord>, ContractError>;
 }
 
 const INSERT_SQL: &str = r#"
@@ -162,7 +195,12 @@ impl FriendRequestStore for PostgresFriendRequestStore {
         })
     }
 
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, request_id: i64) -> Result<Option<FriendRequestRecord>, ContractError> {
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        request_id: i64,
+    ) -> Result<Option<FriendRequestRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -175,7 +213,14 @@ impl FriendRequestStore for PostgresFriendRequestStore {
         })
     }
 
-    fn list_by_requester(&self, tenant_id: &str, org_id: &str, requester_id: &str, status: &str, limit: i64) -> Result<Vec<FriendRequestRecord>, ContractError> {
+    fn list_by_requester(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        requester_id: &str,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<FriendRequestRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -186,11 +231,18 @@ impl FriendRequestStore for PostgresFriendRequestStore {
             let rows = client
                 .query(LIST_BY_REQUESTER_SQL, &[&tid, &oid, &rid, &st, &limit])
                 .map_err(|e| postgres_unavailable("list_friend_requests_by_requester", e))?;
-            Ok(rows.iter().map(|r| row_to_record(r)).collect())
+            Ok(rows.iter().map(row_to_record).collect())
         })
     }
 
-    fn list_by_target(&self, tenant_id: &str, org_id: &str, target_id: &str, status: &str, limit: i64) -> Result<Vec<FriendRequestRecord>, ContractError> {
+    fn list_by_target(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        target_id: &str,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<FriendRequestRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -201,11 +253,18 @@ impl FriendRequestStore for PostgresFriendRequestStore {
             let rows = client
                 .query(LIST_BY_TARGET_SQL, &[&tid, &oid, &tid2, &st, &limit])
                 .map_err(|e| postgres_unavailable("list_friend_requests_by_target", e))?;
-            Ok(rows.iter().map(|r| row_to_record(r)).collect())
+            Ok(rows.iter().map(row_to_record).collect())
         })
     }
 
-    fn update_status(&self, tenant_id: &str, org_id: &str, request_id: i64, status: &str, updated_at: &str) -> Result<(), ContractError> {
+    fn update_status(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        request_id: i64,
+        status: &str,
+        updated_at: &str,
+    ) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -220,7 +279,14 @@ impl FriendRequestStore for PostgresFriendRequestStore {
         })
     }
 
-    fn find_by_pair_and_status(&self, tenant_id: &str, org_id: &str, requester_id: &str, target_id: &str, status: &str) -> Result<Option<FriendRequestRecord>, ContractError> {
+    fn find_by_pair_and_status(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        requester_id: &str,
+        target_id: &str,
+        status: &str,
+    ) -> Result<Option<FriendRequestRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();

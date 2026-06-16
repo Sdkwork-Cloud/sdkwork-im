@@ -1,12 +1,14 @@
-//! Organization domain models for spaces, groups, and channels.
+//! Space domain models for spaces, groups, channels, members, invitations, and bans.
 //!
-//! This module defines the core domain types for IM organizational structures:
+//! This module defines the core domain types for IM space management:
 //! - `Space`: A top-level organizational container (like Discord server, Slack workspace)
 //! - `SpaceMember`: User membership in a space
-//! - `ChatGroup`: A group chat within a space (like Discord channel, Slack channel)
+//! - `ChatGroup`: A group chat within a space
 //! - `GroupMember`: User membership in a group
-//! - `ChatChannel`: A channel within a space (like Discord category, Slack section)
+//! - `ChatChannel`: A channel within a space
 //! - `ChannelAccessRule`: Permission rules for channel access
+//! - `Invitation`: An invitation to join a space/group/channel
+//! - `BanRecord`: A ban record for a user
 
 use serde::{Deserialize, Serialize};
 

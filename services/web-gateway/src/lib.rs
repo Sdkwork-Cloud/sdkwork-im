@@ -10,6 +10,9 @@ use axum::{
     response::{IntoResponse, Response},
     routing::get,
 };
+use futures_util::{SinkExt, StreamExt};
+use im_app_context::{build_dual_token_headers_for_context, resolve_app_context};
+use reqwest::Client;
 use sdkwork_im_api_registry::{
     ContractKind, HttpMethod, RouteDescriptor, RouteProtocol, RouteRegistry, RouteVisibility,
     SdkTarget, ServiceSchemaIndexEntry, build_registry, sdk_contract_summaries,
@@ -21,9 +24,6 @@ use sdkwork_im_gateway_observability::{
 };
 use sdkwork_im_openapi::{OpenApiServiceSpec, render_docs_html};
 use sdkwork_im_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
-use futures_util::{SinkExt, StreamExt};
-use im_app_context::{build_dual_token_headers_for_context, resolve_app_context};
-use reqwest::Client;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::{Map, Value, json};

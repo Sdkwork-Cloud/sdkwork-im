@@ -8,13 +8,13 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use sdkwork_im_ccp_core::{CcpActor, CcpAuthority, CcpSender};
 use hmac::{Hmac, Mac};
 use sdkwork_http_context::{
     AppRequestAuthLevel, AppRequestAuthMode, AppRequestContext, AppRequestDeploymentMode,
     AppRequestEnvironment, AppRequestLoginScope, AppRequestPrincipal, ServerRequestId,
     classify_api_surface, new_request_id,
 };
+use sdkwork_im_ccp_core::{CcpActor, CcpAuthority, CcpSender};
 use serde_json::{Value, json};
 use sha2::Sha256;
 
@@ -468,7 +468,8 @@ where
         permission_scope
     };
     let data_scope = context.data_scope.iter().cloned().collect::<Vec<_>>();
-    let login_scope = if context.organization_id != "default" && !context.organization_id.is_empty() {
+    let login_scope = if context.organization_id != "default" && !context.organization_id.is_empty()
+    {
         "ORGANIZATION"
     } else {
         "TENANT"

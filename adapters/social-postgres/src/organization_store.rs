@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use im_domain_core::organization::*;
+use im_domain_core::space::*;
 use im_platform_contracts::ContractError;
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
@@ -278,7 +278,7 @@ impl SpaceStore for PostgresSpaceStore {
             let rows = client
                 .query(SPACE_LIST_BY_OWNER_SQL, &[&tid, &oid, &uid, &limit])
                 .map_err(|e| postgres_unavailable("list_spaces_by_owner", e))?;
-            Ok(rows.iter().map(|r| row_to_space_record(r)).collect())
+            Ok(rows.iter().map(row_to_space_record).collect())
         })
     }
 
@@ -478,7 +478,7 @@ impl GroupStore for PostgresGroupStore {
             let rows = client
                 .query(GROUP_LIST_BY_SPACE_SQL, &[&tid, &oid, &space_id, &limit])
                 .map_err(|e| postgres_unavailable("list_groups_by_space", e))?;
-            Ok(rows.iter().map(|r| row_to_group_record(r)).collect())
+            Ok(rows.iter().map(row_to_group_record).collect())
         })
     }
 
@@ -498,7 +498,7 @@ impl GroupStore for PostgresGroupStore {
             let rows = client
                 .query(GROUP_LIST_BY_OWNER_SQL, &[&tid, &oid, &uid, &limit])
                 .map_err(|e| postgres_unavailable("list_groups_by_owner", e))?;
-            Ok(rows.iter().map(|r| row_to_group_record(r)).collect())
+            Ok(rows.iter().map(row_to_group_record).collect())
         })
     }
 
@@ -687,7 +687,7 @@ impl ChannelStore for PostgresChannelStore {
             let rows = client
                 .query(CHANNEL_LIST_BY_SPACE_SQL, &[&tid, &oid, &space_id, &limit])
                 .map_err(|e| postgres_unavailable("list_channels_by_space", e))?;
-            Ok(rows.iter().map(|r| row_to_channel_record(r)).collect())
+            Ok(rows.iter().map(row_to_channel_record).collect())
         })
     }
 

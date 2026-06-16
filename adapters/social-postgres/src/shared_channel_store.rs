@@ -53,11 +53,43 @@ fn shared_channel_policy_status_to_str(status: &SharedChannelPolicyStatus) -> &'
 /// Trait for shared channel policy persistence.
 pub trait SharedChannelPolicyStore: Send + Sync {
     fn insert(&self, record: &SharedChannelPolicyRecord) -> Result<(), ContractError>;
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, policy_id: i64) -> Result<Option<SharedChannelPolicyRecord>, ContractError>;
-    fn find_by_target(&self, tenant_id: &str, org_id: &str, connection_id: i64, channel_id: &str) -> Result<Option<SharedChannelPolicyRecord>, ContractError>;
-    fn list_by_connection(&self, tenant_id: &str, org_id: &str, connection_id: i64, status: &str, limit: i64) -> Result<Vec<SharedChannelPolicyRecord>, ContractError>;
-    fn update_status(&self, tenant_id: &str, org_id: &str, policy_id: i64, status: &str, updated_at: &str) -> Result<(), ContractError>;
-    fn update_version(&self, tenant_id: &str, org_id: &str, policy_id: i64, version: i64, updated_at: &str) -> Result<(), ContractError>;
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        policy_id: i64,
+    ) -> Result<Option<SharedChannelPolicyRecord>, ContractError>;
+    fn find_by_target(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        connection_id: i64,
+        channel_id: &str,
+    ) -> Result<Option<SharedChannelPolicyRecord>, ContractError>;
+    fn list_by_connection(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        connection_id: i64,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<SharedChannelPolicyRecord>, ContractError>;
+    fn update_status(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        policy_id: i64,
+        status: &str,
+        updated_at: &str,
+    ) -> Result<(), ContractError>;
+    fn update_version(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        policy_id: i64,
+        version: i64,
+        updated_at: &str,
+    ) -> Result<(), ContractError>;
 }
 
 const INSERT_SQL: &str = r#"
@@ -146,9 +178,17 @@ impl SharedChannelPolicyStore for PostgresSharedChannelPolicyStore {
                 .execute(
                     INSERT_SQL,
                     &[
-                        &r.tenant_id, &r.organization_id, &r.policy_id, &r.connection_id,
-                        &r.channel_id, &r.conversation_id, &r.policy_version,
-                        &r.history_visibility, &r.status, &r.applied_at, &r.updated_at,
+                        &r.tenant_id,
+                        &r.organization_id,
+                        &r.policy_id,
+                        &r.connection_id,
+                        &r.channel_id,
+                        &r.conversation_id,
+                        &r.policy_version,
+                        &r.history_visibility,
+                        &r.status,
+                        &r.applied_at,
+                        &r.updated_at,
                     ],
                 )
                 .map_err(|e| postgres_unavailable("insert_shared_channel_policy", e))?;
@@ -156,7 +196,12 @@ impl SharedChannelPolicyStore for PostgresSharedChannelPolicyStore {
         })
     }
 
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, policy_id: i64) -> Result<Option<SharedChannelPolicyRecord>, ContractError> {
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        policy_id: i64,
+    ) -> Result<Option<SharedChannelPolicyRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -169,7 +214,13 @@ impl SharedChannelPolicyStore for PostgresSharedChannelPolicyStore {
         })
     }
 
-    fn find_by_target(&self, tenant_id: &str, org_id: &str, connection_id: i64, channel_id: &str) -> Result<Option<SharedChannelPolicyRecord>, ContractError> {
+    fn find_by_target(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        connection_id: i64,
+        channel_id: &str,
+    ) -> Result<Option<SharedChannelPolicyRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -183,21 +234,41 @@ impl SharedChannelPolicyStore for PostgresSharedChannelPolicyStore {
         })
     }
 
-    fn list_by_connection(&self, tenant_id: &str, org_id: &str, connection_id: i64, status: &str, limit: i64) -> Result<Vec<SharedChannelPolicyRecord>, ContractError> {
+    fn list_by_connection(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        connection_id: i64,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<SharedChannelPolicyRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
         let st = status.to_string();
         run_postgres_io(move || {
-            let mut client = postgres_pool_client(&pool, "list_shared_channel_policies_by_connection")?;
+            let mut client =
+                postgres_pool_client(&pool, "list_shared_channel_policies_by_connection")?;
             let rows = client
-                .query(LIST_BY_CONNECTION_SQL, &[&tid, &oid, &connection_id, &st, &limit])
-                .map_err(|e| postgres_unavailable("list_shared_channel_policies_by_connection", e))?;
-            Ok(rows.iter().map(|r| row_to_record(r)).collect())
+                .query(
+                    LIST_BY_CONNECTION_SQL,
+                    &[&tid, &oid, &connection_id, &st, &limit],
+                )
+                .map_err(|e| {
+                    postgres_unavailable("list_shared_channel_policies_by_connection", e)
+                })?;
+            Ok(rows.iter().map(row_to_record).collect())
         })
     }
 
-    fn update_status(&self, tenant_id: &str, org_id: &str, policy_id: i64, status: &str, updated_at: &str) -> Result<(), ContractError> {
+    fn update_status(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        policy_id: i64,
+        status: &str,
+        updated_at: &str,
+    ) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -212,7 +283,14 @@ impl SharedChannelPolicyStore for PostgresSharedChannelPolicyStore {
         })
     }
 
-    fn update_version(&self, tenant_id: &str, org_id: &str, policy_id: i64, version: i64, updated_at: &str) -> Result<(), ContractError> {
+    fn update_version(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        policy_id: i64,
+        version: i64,
+        updated_at: &str,
+    ) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();

@@ -181,7 +181,9 @@ fn unique_checkpoint_store_file() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("sdkwork_im_realtime_checkpoint_store_{unique}.json"))
+    std::env::temp_dir().join(format!(
+        "sdkwork_im_realtime_checkpoint_store_{unique}.json"
+    ))
 }
 
 fn unique_subscription_store_file() -> PathBuf {

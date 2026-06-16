@@ -1,4 +1,3 @@
-use sdkwork_im_contract_core::ContractError;
 use im_storage_contracts::{
     StorageAuditRecord, StorageBindingRecord, StorageCatalog, StorageConfigRecord,
     StorageConfigSnapshot, StorageConfigUpsertInput, StorageCredentialMode, StorageDomainSnapshot,
@@ -6,6 +5,7 @@ use im_storage_contracts::{
     StorageScopeKind, StorageScopeRef, StorageSecretRecord, StorageValidationResult,
     StorageValidationStage, StorageValidationStatus,
 };
+use sdkwork_im_contract_core::ContractError;
 use serde_json::{Map, Value};
 
 #[derive(Clone, Debug, PartialEq, Eq)]

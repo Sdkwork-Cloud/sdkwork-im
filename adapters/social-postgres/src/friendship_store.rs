@@ -49,10 +49,35 @@ fn friendship_status_to_str(status: &FriendshipStatus) -> &'static str {
 /// Trait for friendship persistence.
 pub trait FriendshipStore: Send + Sync {
     fn insert(&self, record: &FriendshipRecord) -> Result<(), ContractError>;
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, friendship_id: i64) -> Result<Option<FriendshipRecord>, ContractError>;
-    fn find_by_pair(&self, tenant_id: &str, org_id: &str, user_low_id: &str, user_high_id: &str) -> Result<Option<FriendshipRecord>, ContractError>;
-    fn list_by_user(&self, tenant_id: &str, org_id: &str, user_id: &str, status: &str, limit: i64) -> Result<Vec<FriendshipRecord>, ContractError>;
-    fn update_status(&self, tenant_id: &str, org_id: &str, friendship_id: i64, status: &str, updated_at: &str) -> Result<(), ContractError>;
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        friendship_id: i64,
+    ) -> Result<Option<FriendshipRecord>, ContractError>;
+    fn find_by_pair(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        user_low_id: &str,
+        user_high_id: &str,
+    ) -> Result<Option<FriendshipRecord>, ContractError>;
+    fn list_by_user(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        user_id: &str,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<FriendshipRecord>, ContractError>;
+    fn update_status(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        friendship_id: i64,
+        status: &str,
+        updated_at: &str,
+    ) -> Result<(), ContractError>;
 }
 
 const INSERT_SQL: &str = r#"
@@ -147,7 +172,12 @@ impl FriendshipStore for PostgresFriendshipStore {
         })
     }
 
-    fn get_by_id(&self, tenant_id: &str, org_id: &str, friendship_id: i64) -> Result<Option<FriendshipRecord>, ContractError> {
+    fn get_by_id(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        friendship_id: i64,
+    ) -> Result<Option<FriendshipRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -160,7 +190,13 @@ impl FriendshipStore for PostgresFriendshipStore {
         })
     }
 
-    fn find_by_pair(&self, tenant_id: &str, org_id: &str, user_low_id: &str, user_high_id: &str) -> Result<Option<FriendshipRecord>, ContractError> {
+    fn find_by_pair(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        user_low_id: &str,
+        user_high_id: &str,
+    ) -> Result<Option<FriendshipRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -175,7 +211,14 @@ impl FriendshipStore for PostgresFriendshipStore {
         })
     }
 
-    fn list_by_user(&self, tenant_id: &str, org_id: &str, user_id: &str, status: &str, limit: i64) -> Result<Vec<FriendshipRecord>, ContractError> {
+    fn list_by_user(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        user_id: &str,
+        status: &str,
+        limit: i64,
+    ) -> Result<Vec<FriendshipRecord>, ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();
@@ -186,11 +229,18 @@ impl FriendshipStore for PostgresFriendshipStore {
             let rows = client
                 .query(LIST_BY_USER_SQL, &[&tid, &oid, &uid, &st, &limit])
                 .map_err(|e| postgres_unavailable("list_friendships_by_user", e))?;
-            Ok(rows.iter().map(|r| row_to_record(r)).collect())
+            Ok(rows.iter().map(row_to_record).collect())
         })
     }
 
-    fn update_status(&self, tenant_id: &str, org_id: &str, friendship_id: i64, status: &str, updated_at: &str) -> Result<(), ContractError> {
+    fn update_status(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        friendship_id: i64,
+        status: &str,
+        updated_at: &str,
+    ) -> Result<(), ContractError> {
         let pool = self.pool.clone();
         let tid = tenant_id.to_string();
         let oid = org_id.to_string();

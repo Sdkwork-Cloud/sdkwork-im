@@ -2,13 +2,13 @@ use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use sdkwork_im_gateway_config::WebGatewayConfig;
-use sdkwork_im_gateway_observability::{
-    build_startup_summary_with_registry, format_startup_summary,
-};
 use sdkwork_api_config::StandaloneConfigLoader;
 use sdkwork_api_product_runtime::{
     ProductSiteDirs, RouterProductRuntimeOptions, build_product_runtime_router,
+};
+use sdkwork_im_gateway_config::WebGatewayConfig;
+use sdkwork_im_gateway_observability::{
+    build_startup_summary_with_registry, format_startup_summary,
 };
 
 #[tokio::main]
@@ -100,7 +100,12 @@ fn resolve_product_site_dirs() -> ProductSiteDirs {
             .unwrap_or_else(|| repo_root.join("apps").join("sdkwork-im-admin").join("dist"));
     let portal_site_dir =
         resolve_site_dir_from_env(&["SDKWORK_IM_PORTAL_SITE_DIR", "SDKWORK_IM_PORTAL_SITE_DIR"])
-            .unwrap_or_else(|| repo_root.join("apps").join("sdkwork-im-portal").join("dist"));
+            .unwrap_or_else(|| {
+                repo_root
+                    .join("apps")
+                    .join("sdkwork-im-portal")
+                    .join("dist")
+            });
 
     ProductSiteDirs::new(admin_site_dir, portal_site_dir)
 }

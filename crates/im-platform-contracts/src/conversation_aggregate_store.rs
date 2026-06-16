@@ -1,8 +1,8 @@
 // Conversation Aggregate Store Contract - 会话聚合存储契约
 // 管理会话成员、已读游标等聚合状态
 
-use serde::{Deserialize, Serialize};
 use sdkwork_im_contract_core::ContractError;
+use serde::{Deserialize, Serialize};
 
 /// 会话成员记录
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -12,7 +12,7 @@ pub struct ConversationMemberRecord {
     pub conversation_id: String,
     pub principal_kind: String,
     pub principal_id: String,
-    pub member_id: i64,               // Snowflake ID
+    pub member_id: i64, // Snowflake ID
     pub membership_role: String,
     pub membership_state: String,
     pub invited_by: Option<String>,
@@ -27,7 +27,7 @@ pub struct ReadCursorRecord {
     pub tenant_id: String,
     pub organization_id: String,
     pub conversation_id: String,
-    pub member_id: i64,               // Snowflake ID
+    pub member_id: i64, // Snowflake ID
     pub principal_kind: String,
     pub principal_id: String,
     pub read_seq: u64,
@@ -47,14 +47,14 @@ pub struct ConversationAggregateState {
 }
 
 /// 会话聚合存储契约
-/// 
+///
 /// 设计原则：
 /// 1. 替代 conversation-runtime 的内存 HashMap 状态
 /// 2. 支持按会话加载（O(1)，而非扫全量 journal）
 /// 3. member_id 为 Snowflake i64
 pub trait ConversationAggregateStore: Send + Sync {
     /// 加载会话成员列表
-    /// 
+    ///
     /// SELECT * FROM im_projection_conversation_members
     /// WHERE tenant_id=$1 AND organization_id=$2 AND conversation_id=$3
     ///   AND membership_state IN ('joined', 'linked')
@@ -76,9 +76,9 @@ pub trait ConversationAggregateStore: Send + Sync {
     ) -> Result<Option<ConversationMemberRecord>, ContractError>;
 
     /// 插入或更新成员
-    /// 
-    /// INSERT INTO im_projection_conversation_members (...) 
-    /// ON CONFLICT (tenant_id, organization_id, conversation_id, principal_kind, principal_id) 
+    ///
+    /// INSERT INTO im_projection_conversation_members (...)
+    /// ON CONFLICT (tenant_id, organization_id, conversation_id, principal_kind, principal_id)
     /// DO UPDATE SET ...
     fn upsert_member(&self, member: ConversationMemberRecord) -> Result<(), ContractError>;
 
@@ -94,7 +94,7 @@ pub trait ConversationAggregateStore: Send + Sync {
     ) -> Result<(), ContractError>;
 
     /// 加载会话所有已读游标
-    /// 
+    ///
     /// SELECT * FROM im_projection_read_cursors
     /// WHERE tenant_id=$1 AND organization_id=$2 AND conversation_id=$3
     fn load_read_cursors(
@@ -114,14 +114,14 @@ pub trait ConversationAggregateStore: Send + Sync {
     ) -> Result<Option<ReadCursorRecord>, ContractError>;
 
     /// 插入或更新已读游标
-    /// 
-    /// INSERT INTO im_projection_read_cursors (...) 
-    /// ON CONFLICT (tenant_id, organization_id, conversation_id, member_id) 
+    ///
+    /// INSERT INTO im_projection_read_cursors (...)
+    /// ON CONFLICT (tenant_id, organization_id, conversation_id, member_id)
     /// DO UPDATE SET read_seq=EXCLUDED.read_seq, ...
     fn upsert_read_cursor(&self, cursor: ReadCursorRecord) -> Result<(), ContractError>;
 
     /// 加载完整会话聚合状态（成员 + 游标 + 高水位）
-    /// 
+    ///
     /// 一次调用返回完整状态，减少 DB 往返
     fn load_aggregate_state(
         &self,

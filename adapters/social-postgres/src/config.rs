@@ -38,6 +38,15 @@ impl SocialPostgresConfig {
         self
     }
 
+    /// Create config from sdkwork-database config (§33 unified pool config).
+    pub fn from_database_config(config: &sdkwork_database_config::DatabaseConfig) -> Self {
+        Self {
+            database_url: config.url.clone(),
+            pool_max_size: config.max_connections,
+            pool_min_idle: Some(config.min_connections),
+        }
+    }
+
     pub fn database_url(&self) -> &str {
         self.database_url.as_str()
     }
@@ -52,14 +61,11 @@ impl SocialPostgresConfig {
 
     /// Create a connection pool from this configuration.
     pub fn connect_pool(&self) -> Result<SocialPostgresPool, im_platform_contracts::ContractError> {
-        let pg_config = self
-            .database_url
-            .parse()
-            .map_err(|error| {
-                im_platform_contracts::ContractError::Unavailable(format!(
-                    "invalid postgres url: {error}"
-                ))
-            })?;
+        let pg_config = self.database_url.parse().map_err(|error| {
+            im_platform_contracts::ContractError::Unavailable(format!(
+                "invalid postgres url: {error}"
+            ))
+        })?;
         let manager = PostgresConnectionManager::new(pg_config, NoTls);
         let pool = Pool::builder()
             .max_size(self.pool_max_size)

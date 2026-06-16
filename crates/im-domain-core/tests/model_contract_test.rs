@@ -7,13 +7,13 @@ use im_domain_core::conversation::{
 };
 use im_domain_core::media::{DriveReference, MediaKind, MediaResource, MediaSource};
 use im_domain_core::message::{
-    SDKWORK_IM_CUSTOM_MESSAGE_SCHEMA_PREFIX, SDKWORK_IM_MESSAGE_SCHEMA_AGENT,
-    SDKWORK_IM_MESSAGE_SCHEMA_AI_IMAGE, SDKWORK_IM_MESSAGE_SCHEMA_AI_VIDEO,
-    SDKWORK_IM_MESSAGE_SCHEMA_CARD, SDKWORK_IM_MESSAGE_SCHEMA_CONTACT, SDKWORK_IM_MESSAGE_SCHEMA_LINK,
+    ContentPart, DataPart, MediaPart, Message, MessageBody, MessageEdited, MessageLocatorIndex,
+    MessageRecalled, MessageType, SDKWORK_IM_CUSTOM_MESSAGE_SCHEMA_PREFIX,
+    SDKWORK_IM_MESSAGE_SCHEMA_AGENT, SDKWORK_IM_MESSAGE_SCHEMA_AI_IMAGE,
+    SDKWORK_IM_MESSAGE_SCHEMA_AI_VIDEO, SDKWORK_IM_MESSAGE_SCHEMA_CARD,
+    SDKWORK_IM_MESSAGE_SCHEMA_CONTACT, SDKWORK_IM_MESSAGE_SCHEMA_LINK,
     SDKWORK_IM_MESSAGE_SCHEMA_LOCATION, SDKWORK_IM_MESSAGE_SCHEMA_MUSIC,
-    SDKWORK_IM_MESSAGE_SCHEMA_STICKER, SDKWORK_IM_MESSAGE_SCHEMA_VOICE, ContentPart, DataPart,
-    MediaPart, Message, MessageBody, MessageEdited, MessageLocatorIndex, MessageRecalled,
-    MessageType, Sender,
+    SDKWORK_IM_MESSAGE_SCHEMA_STICKER, SDKWORK_IM_MESSAGE_SCHEMA_VOICE, Sender,
 };
 use im_domain_core::presence::{
     PresenceClientView, PresenceResumeView, PresenceSnapshotView, PresenceStatus,

@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
 use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, close_code};
+use futures_util::StreamExt;
+use im_app_context::AppContext;
+use im_domain_core::realtime::RealtimeEventWindow;
 use sdkwork_im_ccp_binding_ws::{WsBinding, WsBindingMessage, WsOpcode};
 use sdkwork_im_ccp_codec::CcpCodec;
 use sdkwork_im_ccp_codec_json::JsonEnvelopeCodec;
@@ -16,9 +19,6 @@ use sdkwork_im_runtime_link::{
     SESSION_DISCONNECT_CLOSE_REASON as RUNTIME_LINK_SESSION_DISCONNECT_CLOSE_REASON,
     session_disconnect_goaway,
 };
-use futures_util::StreamExt;
-use im_app_context::AppContext;
-use im_domain_core::realtime::RealtimeEventWindow;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::watch;
@@ -1919,17 +1919,17 @@ async fn send_json(socket: &mut WebSocket, value: Value) -> Result<(), axum::Err
 
 #[cfg(test)]
 mod tests {
+    use im_app_context::AppContext;
     use sdkwork_im_ccp_control::HelloFrame;
     use sdkwork_im_ccp_core::{CapabilitySet, ProtocolVersion, TransportBinding};
     use sdkwork_im_runtime_link::{LinkConnectionState, OutboundQueuePolicy, ResumeWindow};
-    use im_app_context::AppContext;
 
     use super::*;
 
     fn demo_auth_context() -> AppContext {
         AppContext {
             tenant_id: "t_demo".into(),
-            organization_id: None,
+            organization_id: "default".into(),
             user_id: "u_demo".into(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),
