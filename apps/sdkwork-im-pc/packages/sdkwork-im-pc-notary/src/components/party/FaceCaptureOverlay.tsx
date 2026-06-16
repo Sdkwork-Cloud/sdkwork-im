@@ -1,4 +1,4 @@
-/**
+﻿/**
  * FaceCaptureOverlay - Full-screen camera overlay for face capture
  *
  * Displays a live camera feed with face alignment guide and capture button.

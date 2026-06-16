@@ -1,11 +1,11 @@
-/**
+﻿/**
  * ConfirmationSummary - Review summary for all wizard data (Step 4)
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { ChevronRight, Camera, Video, FileText } from 'lucide-react';
-import type { Party } from '@sdkwork/clawchat-pc-types';
+import type { Party } from '@sdkwork/im-pc-types';
 import type { LocalAttachment } from '../../types';
 
 export interface ConfirmationSummaryProps {

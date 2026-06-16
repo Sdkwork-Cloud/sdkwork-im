@@ -385,6 +385,43 @@ pub fn resolve_app_context(headers: &HeaderMap) -> Result<AppContext, AppContext
     resolve_app_context_for_request(headers, "", "").map(|resolved| resolved.app_context)
 }
 
+/// Tenant, organization, and user scope extracted from an authenticated request.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AppRequestScope {
+    pub tenant_id: String,
+    pub organization_id: String,
+    pub user_id: String,
+}
+
+impl From<AppContext> for AppRequestScope {
+    fn from(auth: AppContext) -> Self {
+        Self {
+            tenant_id: auth.tenant_id,
+            organization_id: auth.organization_id,
+            user_id: auth.user_id,
+        }
+    }
+}
+
+/// Resolve `AppContext` from middleware-injected extensions or request headers.
+pub fn resolve_handler_app_context(
+    auth: Option<axum::extract::Extension<AppContext>>,
+    headers: &HeaderMap,
+) -> Result<AppContext, AppContextError> {
+    match auth {
+        Some(axum::extract::Extension(context)) => Ok(context),
+        None => resolve_app_context(headers),
+    }
+}
+
+/// Require authenticated request scope for HTTP handlers.
+pub fn require_handler_request_scope(
+    auth: Option<axum::extract::Extension<AppContext>>,
+    headers: &HeaderMap,
+) -> Result<AppRequestScope, AppContextError> {
+    resolve_handler_app_context(auth, headers).map(Into::into)
+}
+
 pub fn resolve_app_context_with_signature_config(
     headers: &HeaderMap,
     _signature_config: AppContextSignatureConfig,
@@ -917,7 +954,7 @@ fn require_optional_match(
 fn normalize_organization_id(value: Option<String>) -> Option<String> {
     value
         .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty() && value != "0")
+        .filter(|value| !value.is_empty() && value != "0" && value != "default")
 }
 
 fn parse_login_scope(

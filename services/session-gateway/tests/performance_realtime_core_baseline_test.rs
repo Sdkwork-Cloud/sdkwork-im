@@ -76,6 +76,17 @@ fn operator_doc_path() -> PathBuf {
         .join("性能与灾备演练场景.md")
 }
 
+fn read_operator_doc() -> String {
+    let doc_path = operator_doc_path();
+    let doc_bytes = fs::read(&doc_path).unwrap_or_else(|err| {
+        panic!(
+            "missing Step 11 operator doc: {} ({err})",
+            doc_path.display()
+        );
+    });
+    String::from_utf8_lossy(&doc_bytes).into_owned()
+}
+
 fn load_realtime_core_baseline() -> Step11ImRealtimeCoreBaseline {
     let path = realtime_core_baseline_path();
     let raw = fs::read_to_string(&path)
@@ -172,9 +183,7 @@ fn test_step11_im_realtime_core_baseline_config_is_frozen() {
         );
     }
 
-    let doc_path = operator_doc_path();
-    let doc = fs::read_to_string(&doc_path)
-        .unwrap_or_else(|_| panic!("missing Step 11 operator doc: {}", doc_path.display()));
+    let doc = read_operator_doc();
     for required_text in [
         "`im-realtime-core`",
         "STEP11_REALTIME_CORE",

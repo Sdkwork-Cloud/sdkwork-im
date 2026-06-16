@@ -8,8 +8,8 @@ The current Sdkwork IM repository already has several capabilities that can be w
 
 | Existing capability | Current owner | RPC service group | Notes |
 | --- | --- | --- | --- |
-| Conversation lifecycle, members, read cursors, profiles, inbox | `conversation-runtime`, `projection-service`, `local-minimal-node` | `ConversationService` | App-facing commands and queries for conversations and membership. |
-| Message posting, edits, recalls, reactions, pins, favorites | `conversation-runtime`, `projection-service`, `local-minimal-node` | `MessageService` | Uses Drive-backed `MediaResource` for uploaded media instead of redefining upload. |
+| Conversation lifecycle, members, read cursors, profiles, inbox | `comms-conversation-service`, `projection-service`, `local-minimal-node` | `ConversationService` | App-facing commands and queries for conversations and membership. |
+| Message posting, edits, recalls, reactions, pins, favorites | `comms-conversation-service`, `projection-service`, `local-minimal-node` | `MessageService` | Uses Drive-backed `MediaResource` for uploaded media instead of redefining upload. |
 | Presence, realtime event list/ack/watch, route registration | `session-gateway`, `projection-service`, `web-gateway` | `PresenceService`, `RealtimeService` | Server-streaming methods are intended for backend/private clients and native hosts. |
 | Contacts, friend requests, friendships, social graph | `projection-service`, `control-plane-api`, `local-minimal-node` | `ContactService`, `SocialService`, `SocialAdminService` | App RPC and backend admin RPC stay separated. |
 | Durable streams, frames, checkpoints, completion, abort | `streaming-service`, `automation-service` | `StreamService` | Supports unary mutation plus server-streaming frame watch. |

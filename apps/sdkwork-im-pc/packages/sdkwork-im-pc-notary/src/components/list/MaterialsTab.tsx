@@ -1,10 +1,10 @@
-/**
+﻿/**
  * MaterialsTab - Documents list grouped by category in the detail pane
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, User as UserIcon, Layers, FileSignature, FileText, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
-import type { NotaryDocument, NotaryTask } from '@sdkwork/clawchat-pc-types';
+import type { NotaryDocument, NotaryTask } from '@sdkwork/im-pc-types';
 
 export interface MaterialsTabProps {
   /** The current task */

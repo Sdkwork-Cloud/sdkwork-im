@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+﻿import React, { useRef, useState, useEffect, useCallback } from 'react';
 import SignaturePadLibrary from 'signature_pad';
 import { SignaturePadHeader } from './components/SignaturePadHeader';
 import { SignaturePadToolbar } from './components/SignaturePadToolbar';

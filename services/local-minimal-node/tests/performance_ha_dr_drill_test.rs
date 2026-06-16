@@ -58,6 +58,12 @@ struct UpgradeRollbackBaseline {
     expected_disabled_capability: String,
 }
 
+fn read_utf8_file(path: impl AsRef<Path>) -> std::io::Result<String> {
+    let path = path.as_ref();
+    let bytes = fs::read(path)?;
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -76,7 +82,7 @@ fn local_drill_baseline_path() -> PathBuf {
 
 fn load_local_drill_baseline() -> Step11LocalDrillBaseline {
     let path = local_drill_baseline_path();
-    let raw = fs::read_to_string(&path)
+    let raw = read_utf8_file(&path)
         .unwrap_or_else(|_| panic!("missing Step 11 local drill baseline: {}", path.display()));
     serde_json::from_str(&raw)
         .unwrap_or_else(|_| panic!("invalid Step 11 local drill baseline: {}", path.display()))
@@ -249,7 +255,7 @@ fn test_step11_local_drill_baseline_config_and_operator_doc_are_frozen() {
         .join("docs")
         .join("部署")
         .join("性能与灾备演练场景.md");
-    let doc = fs::read_to_string(&doc_path)
+    let doc = read_utf8_file(&doc_path)
         .unwrap_or_else(|_| panic!("missing Step 11 operator doc: {}", doc_path.display()));
     assert!(doc.contains("tools/perf/step-11-cp11-3-local-drill-baseline.json"));
     assert!(doc.contains("services/local-minimal-node/tests/performance_ha_dr_drill_test.rs"));

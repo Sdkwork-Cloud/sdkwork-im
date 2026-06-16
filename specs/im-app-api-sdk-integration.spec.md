@@ -113,7 +113,7 @@ Rules:
   default. Direct dependency-owned service URLs are allowed only through explicit split-deployment
   override env keys such as `SDKWORK_IM_APPBASE_APP_API_UPSTREAM`,
   `SDKWORK_IM_DRIVE_APP_API_UPSTREAM`, and `SDKWORK_IM_NOTARY_APP_API_UPSTREAM`.
-- `services/web-gateway`, `crates/sdkwork-im-gateway-config`, and `services/local-minimal-node`
+- `services/sdkwork-im-gateway`, `crates/sdkwork-im-gateway-config`, and `services/local-minimal-node`
   remain product-owned IM routing, config, and local/private runtime layers. Foundation API
   aggregation is owned by `sdkwork-api-gateway`, not by Sdkwork IM product servers.
 - Executable foundation API integration evidence is owned by the `sdkwork-api-gateway` Cargo

@@ -1,4 +1,4 @@
-# Legacy Platform API Grouping
+﻿# Legacy Platform API Grouping
 
 <p class="api-page-intro">
   This page is retained only as a legacy grouping note. Current API authority is split into
@@ -40,7 +40,7 @@
 - Provider health, IoT protocol, app-facing notifications, app-facing automation execution, and
   app-facing RTC provider routes belong to `sdkwork-im-app-sdk` under `/app/v3/api/*`.
 - In packaged installs, these routes are still reached through the unified `sdkwork-im-server` /
-  `web-gateway` public origin even though the implementation remains on the app-node side of the
+  `sdkwork-im-gateway` public origin even though the implementation remains on the app-node side of the
   runtime.
 - Platform routes do not have a standalone SDK family.
 

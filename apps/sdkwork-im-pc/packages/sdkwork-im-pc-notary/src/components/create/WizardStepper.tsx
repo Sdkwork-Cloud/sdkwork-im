@@ -1,10 +1,10 @@
-/**
+﻿/**
  * WizardStepper - 4-step progress indicator for the create task wizard
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react';
-import { cn } from '@sdkwork/clawchat-pc-commons';
+import { cn } from '@sdkwork/im-pc-commons';
 
 export interface WizardStepperProps {
   /** Current step (1-4) */

@@ -37,12 +37,15 @@ function extractObjectPropertyBlock(source, propertyName) {
 
 const authGateSource = readText('src', 'AuthGate.tsx');
 const appSource = readText('src', 'App.tsx');
+const appRoutesSource = readText('src', 'bootstrap', 'routes.tsx');
+const trayNavigationSource = readText('src', 'bootstrap', 'trayNavigation.ts');
 const authStylesSource = readText('src', 'index.css');
 const appAuthServiceSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'appAuthService.ts');
 const authRuntimeSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'appAuthRuntime.ts');
 const sessionSource = readText('packages', 'sdkwork-im-pc-core', 'src', 'sdk', 'session.ts');
 const chatServiceSource = readText('packages', 'sdkwork-im-pc-chat', 'src', 'services', 'ChatService.ts');
 const chatLayoutSource = readText('packages', 'sdkwork-im-pc-chat', 'src', 'pages', 'ChatLayout.tsx');
+const appShellFrameSource = readText('packages', 'sdkwork-im-pc-shell', 'src', 'AppShellFrame.tsx');
 const sidebarSource = readText('packages', 'sdkwork-im-pc-chat', 'src', 'components', 'Sidebar.tsx');
 const profileMenuSource = readText('packages', 'sdkwork-im-pc-chat', 'src', 'components', 'ProfileMenuModal.tsx');
 const settingsModalSource = readText('packages', 'sdkwork-im-pc-chat', 'src', 'components', 'SettingsModal.tsx');
@@ -172,21 +175,27 @@ for (const marker of [
 }
 
 assert.match(
-  chatLayoutSource,
+  appShellFrameSource,
   /import\s+\{[\s\S]*isSdkworkChatDesktopRuntime[\s\S]*\}\s+from\s+['"]@sdkwork\/im-pc-core['"]/u,
-  'ChatLayout must import the shared desktop-runtime guard instead of deciding web/desktop locally.',
+  'AppShellFrame must import the shared desktop-runtime guard instead of deciding web/desktop locally.',
 );
 
 assert.match(
-  chatLayoutSource,
+  appShellFrameSource,
   /const\s+shouldRenderDesktopAppHeader\s*=\s*isSdkworkChatDesktopRuntime\(\)/u,
-  'ChatLayout must compute AppHeader visibility from the shared desktop-runtime guard.',
+  'AppShellFrame must compute AppHeader visibility from the shared desktop-runtime guard.',
+);
+
+assert.match(
+  appShellFrameSource,
+  /\{shouldRenderDesktopAppHeader\s*&&\s*desktopTitleBar\}/u,
+  'AppShellFrame must render the native desktop title bar only in the desktop runtime.',
 );
 
 assert.match(
   chatLayoutSource,
-  /\{shouldRenderDesktopAppHeader\s*&&\s*\([\s\S]*?<WindowControls\s*\/>[\s\S]*?\)\}/u,
-  'ChatLayout must render the native AppHeader only in the desktop runtime.',
+  /desktopTitleBar=\{[\s\S]*?<WindowControls\s*\/>[\s\S]*?\}/u,
+  'ChatLayout must pass native WindowControls through the shell desktop title bar slot.',
 );
 
 assert.match(
@@ -791,25 +800,25 @@ assert.match(
 );
 
 assert.match(
-  appSource,
+  appRoutesSource,
   /useTauriTrayNavigationBridge/u,
-  'App must install a Tauri tray navigation bridge at the router level.',
+  'App routes must install a Tauri tray navigation bridge at the router level.',
 );
 
 assert.match(
-  appSource,
+  trayNavigationSource,
   /const\s+TRAY_PENDING_SETTINGS_STORAGE_KEY\s*=\s*['"]sdkwork-im-pc:pending-open-settings['"]/u,
   'Tray Settings must persist a pending settings intent so it survives navigation from console/admin routes.',
 );
 
 assert.match(
-  appSource,
+  trayNavigationSource,
   /sdkwork-im-pc:\/\/tray\/open-chat[\s\S]*navigate\(['"]\/['"],\s*\{\s*replace:\s*false\s*\}\)/u,
   'Tray Chat action must navigate the frontend back to the main chat route.',
 );
 
 assert.match(
-  appSource,
+  trayNavigationSource,
   /sdkwork-im-pc:\/\/tray\/open-settings[\s\S]*sessionStorage\.setItem\(TRAY_PENDING_SETTINGS_STORAGE_KEY,\s*['"]1['"]\)[\s\S]*navigate\(['"]\/['"],\s*\{\s*replace:\s*false\s*\}\)[\s\S]*window\.dispatchEvent\(new\s+CustomEvent\(['"]sdkwork-im-pc:open-settings['"]\)\)/u,
   'Tray Settings action must record a pending settings intent, navigate to the chat route, and dispatch the in-app open-settings event.',
 );

@@ -18,6 +18,7 @@
 /.sdkwork/tmp/
 /.sdkwork/cache/
 /.sdkwork/secrets/
+/.sdkwork/dart/pub-cache/
 /$jsonFile
 /$outputFile
 *.log

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * IdentityVerification - ID card upload and face capture section
  *
  * Combines IdCardUploader for front/back ID and a face capture trigger

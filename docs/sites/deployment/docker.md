@@ -1,4 +1,4 @@
-# Docker
+﻿# Docker
 
 Docker deployment is the recommended path for local container validation and demo-style bring-up.
 It is not the formal packaged `sdkwork-im-server` install contract.
@@ -84,11 +84,11 @@ wrappers, use [Server Lifecycle](/deployment/server-lifecycle).
 
 For the single-port packaged server, config root layout, PostgreSQL baseline, and service-management wrappers, use [Server Lifecycle](/deployment/server-lifecycle).
 
-If you are validating a production-style install shape with the unified `web-gateway` entrypoint,
+If you are validating a production-style install shape with the unified `sdkwork-im-gateway` entrypoint,
 runtime OpenAPI discovery, or PostgreSQL-backed storage configuration, switch to
 [Server Lifecycle](/deployment/server-lifecycle).
 
-If you are validating a production-style install shape with the unified `web-gateway` entrypoint, runtime OpenAPI discovery, or PostgreSQL-backed storage configuration, switch to [Server Lifecycle](/deployment/server-lifecycle).
+If you are validating a production-style install shape with the unified `sdkwork-im-gateway` entrypoint, runtime OpenAPI discovery, or PostgreSQL-backed storage configuration, switch to [Server Lifecycle](/deployment/server-lifecycle).
 
 ## What To Read Next
 

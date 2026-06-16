@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::{Deserialize, Serialize};
@@ -121,18 +121,20 @@ fn generate_id() -> String {
 
 pub async fn create_space(
     State(_state): State<AppState>,
+    headers: HeaderMap,
     Json(request): Json<CreateSpaceRequest>,
 ) -> Result<impl IntoResponse, SocialServiceError> {
-    let _tenant_id = "default";
-    let _org_id = "default";
-    let user_id = "system"; // TODO: Extract from auth context
+    let auth = crate::friendship::resolve_auth_from_headers(&headers)?;
+    let tenant_id = auth.tenant_id.as_str();
+    let org_id = auth.organization_id.as_str();
+    let user_id = auth.user_id.as_str();
 
     let space_id = generate_id();
     let now = chrono::Utc::now().to_rfc3339();
 
     let _record = im_adapters_social_postgres::organization_store::SpaceRecord {
-        tenant_id: _tenant_id.to_string(),
-        organization_id: _org_id.to_string(),
+        tenant_id: tenant_id.to_string(),
+        organization_id: org_id.to_string(),
         space_id: space_id.parse().unwrap_or(0),
         space_name: request.space_name,
         space_type: request.space_type.unwrap_or_else(|| "organization".to_string()),
@@ -200,18 +202,20 @@ pub async fn delete_space(
 
 pub async fn create_group(
     State(_state): State<AppState>,
+    headers: HeaderMap,
     Json(request): Json<CreateGroupRequest>,
 ) -> Result<impl IntoResponse, SocialServiceError> {
-    let _tenant_id = "default";
-    let _org_id = "default";
-    let user_id = "system"; // TODO: Extract from auth context
+    let auth = crate::friendship::resolve_auth_from_headers(&headers)?;
+    let tenant_id = auth.tenant_id.as_str();
+    let org_id = auth.organization_id.as_str();
+    let user_id = auth.user_id.as_str();
 
     let group_id = generate_id();
     let now = chrono::Utc::now().to_rfc3339();
 
     let _record = im_adapters_social_postgres::organization_store::GroupRecord {
-        tenant_id: _tenant_id.to_string(),
-        organization_id: _org_id.to_string(),
+        tenant_id: tenant_id.to_string(),
+        organization_id: org_id.to_string(),
         group_id: group_id.parse().unwrap_or(0),
         space_id: request.space_id.and_then(|s| s.parse().ok()),
         group_name: request.group_name,

@@ -9,8 +9,9 @@ audit-service = { path = "../audit-service" }
 automation-service = { path = "../automation-service" }
 axum.workspace = true
 governance-service = { path = "../governance-service" }
-conversation-runtime = { path = "../conversation-runtime" }
+conversation-runtime.workspace = true
 social-service = { path = "../social-service" }
+space-service = { path = "../space-service" }
 fs4 = "0.13.1"
 futures-util.workspace = true
 http-body-util.workspace = true

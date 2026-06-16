@@ -3,7 +3,7 @@ import type { SdkworkAppConfig } from './types/common';
 import type { AuthTokenManager } from '@sdkwork/sdk-common';
 
 import { AutomationApi, createAutomationApi } from './api/automation';
-import { NotificationApi, createNotificationApi } from './api/notification';
+import { NotificationsApi, createNotificationsApi } from './api/notifications';
 import { PortalApi, createPortalApi } from './api/portal';
 import { ProviderApi, createProviderApi } from './api/provider';
 
@@ -11,7 +11,7 @@ export class SdkworkImAppClient {
   private httpClient: HttpClient;
 
   public readonly automation: AutomationApi;
-  public readonly notification: NotificationApi;
+  public readonly notifications: NotificationsApi;
   public readonly portal: PortalApi;
   public readonly provider: ProviderApi;
 
@@ -19,7 +19,7 @@ export class SdkworkImAppClient {
     this.httpClient = createHttpClient(config);
     this.automation = createAutomationApi(this.httpClient);
 
-    this.notification = createNotificationApi(this.httpClient);
+    this.notifications = createNotificationsApi(this.httpClient);
 
     this.portal = createPortalApi(this.httpClient);
 

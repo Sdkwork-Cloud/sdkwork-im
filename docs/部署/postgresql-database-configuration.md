@@ -7,7 +7,7 @@ Canonical application identity:
 - App code: `chat`
 - Product/package namespace: `sdkwork-chat`
 - Public SDKWork route: `/sdkwork/chat`
-- Standard environment prefix: `SDKWORK_CHAT_*`
+- Standard environment prefix: `SDKWORK_IM_*`
 - Linux server config: `/etc/sdkwork/chat/chat.toml`
 - Linux PostgreSQL password file: `/etc/sdkwork/chat/database.secret`
 - Linux PostgreSQL helper config: `/etc/sdkwork/chat/postgresql.yaml`
@@ -26,7 +26,7 @@ Server and container deployments default to PostgreSQL. Desktop deployments and 
 - [开发环境PostgreSQL数据库配置教程](./开发环境PostgreSQL数据库配置教程.md)
   - Local developer PostgreSQL workflow.
   - Uses `.env.postgres` copied from `.env.postgres.example`.
-  - Uses split `SDKWORK_CHAT_DATABASE_*` fields, including `SDKWORK_CHAT_DATABASE_ENGINE`, `SDKWORK_CHAT_DATABASE_SSL_MODE`, `SDKWORK_CHAT_DATABASE_SCHEMA`, and `SDKWORK_CHAT_DATABASE_ADMIN_PASSWORD`.
+  - Uses split `SDKWORK_IM_DATABASE_*` fields, including `SDKWORK_IM_DATABASE_ENGINE`, `SDKWORK_IM_DATABASE_SSL_MODE`, `SDKWORK_IM_DATABASE_SCHEMA`, and `SDKWORK_IM_DATABASE_ADMIN_PASSWORD`.
   - `pnpm dev` may use PostgreSQL for integrated browser/server development.
   - `pnpm tauri:dev` defaults to SQLite for desktop local data. Use `pnpm tauri:dev:postgres` only when PostgreSQL diagnostics are explicitly required.
   - `pnpm dev:sqlite` and `pnpm tauri:dev:sqlite` are explicit SQLite entries.
@@ -44,15 +44,15 @@ Do not reuse one configuration file for both local development and production.
 Use these standard names for new config and docs:
 
 ```env
-SDKWORK_CHAT_DATABASE_ENGINE=postgresql
-SDKWORK_CHAT_DATABASE_HOST=127.0.0.1
-SDKWORK_CHAT_DATABASE_PORT=5432
-SDKWORK_CHAT_DATABASE_NAME=sdkwork_ai_dev
-SDKWORK_CHAT_DATABASE_SCHEMA=sdkwork_ai_dev
-SDKWORK_CHAT_DATABASE_USERNAME=sdkwork_ai_dev
-SDKWORK_CHAT_DATABASE_PASSWORD=sdkworkdev123
-SDKWORK_CHAT_DATABASE_SSL_MODE=disable
-SDKWORK_CHAT_DATABASE_MAX_CONNECTIONS=10
+SDKWORK_IM_DATABASE_ENGINE=postgresql
+SDKWORK_IM_DATABASE_HOST=127.0.0.1
+SDKWORK_IM_DATABASE_PORT=5432
+SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev
+SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_dev
+SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_dev
+SDKWORK_IM_DATABASE_PASSWORD=sdkworkdev123
+SDKWORK_IM_DATABASE_SSL_MODE=disable
+SDKWORK_IM_DATABASE_MAX_CONNECTIONS=10
 ```
 
-`SDKWORK_CHAT_DATABASE_PROVIDER` and `SDKWORK_CHAT_DATABASE_SSLMODE` are not standard names. Use `SDKWORK_CHAT_DATABASE_ENGINE` and `SDKWORK_CHAT_DATABASE_SSL_MODE`.
+`SDKWORK_IM_DATABASE_PROVIDER` and `SDKWORK_IM_DATABASE_SSLMODE` are not standard names. Use `SDKWORK_IM_DATABASE_ENGINE` and `SDKWORK_IM_DATABASE_SSL_MODE`.

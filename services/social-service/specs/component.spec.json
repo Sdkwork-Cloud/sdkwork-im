@@ -3,14 +3,15 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "social-service",
+    "gatewayServiceId": "comms-social-service",
     "displayName": "Social Service",
     "version": "0.1.0",
     "type": "rust-crate",
     "root": "sdkwork-im/services/social-service",
-    "domain": "social",
-    "declaredDomain": null,
+    "domain": "communication",
+    "declaredDomain": "communication",
     "capability": "social",
-    "status": "standardizing",
+    "status": "active",
     "languages": [
       "rust"
     ],

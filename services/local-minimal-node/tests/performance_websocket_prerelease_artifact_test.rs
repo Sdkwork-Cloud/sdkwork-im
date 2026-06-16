@@ -3,6 +3,12 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 
+fn read_utf8_file(path: impl AsRef<std::path::Path>) -> std::io::Result<String> {
+    let path = path.as_ref();
+    let bytes = fs::read(path)?;
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -174,7 +180,7 @@ fn test_cp11_6_indexes_websocket_e2e_artifact_without_relabeling_full_pre_releas
             checksum_manifest_path.display()
         )
     });
-    let operator_doc = fs::read_to_string(&operator_doc_path).unwrap_or_else(|_| {
+    let operator_doc = read_utf8_file(&operator_doc_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 operator doc: {}",
             operator_doc_path.display()

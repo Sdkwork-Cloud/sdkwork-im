@@ -112,6 +112,17 @@ fn operator_doc_path() -> PathBuf {
         .join("\u{6027}\u{80FD}\u{4E0E}\u{707E}\u{5907}\u{6F14}\u{7EC3}\u{573A}\u{666F}.md")
 }
 
+fn read_operator_doc() -> String {
+    let doc_path = operator_doc_path();
+    let doc_bytes = fs::read(&doc_path).unwrap_or_else(|err| {
+        panic!(
+            "missing Step 11 operator doc: {} ({err})",
+            doc_path.display()
+        );
+    });
+    String::from_utf8_lossy(&doc_bytes).into_owned()
+}
+
 fn load_websocket_e2e_baseline() -> Step11WebsocketE2eBaseline {
     let path = websocket_e2e_baseline_path();
     let raw = fs::read_to_string(&path)
@@ -532,9 +543,7 @@ fn test_step11_websocket_e2e_baseline_config_is_frozen() {
         );
     }
 
-    let doc_path = operator_doc_path();
-    let doc = fs::read_to_string(&doc_path)
-        .unwrap_or_else(|_| panic!("missing Step 11 operator doc: {}", doc_path.display()));
+    let doc = read_operator_doc();
     for required_text in [
         "`im-websocket-e2e`",
         "STEP11_WEBSOCKET_E2E",

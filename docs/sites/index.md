@@ -1,4 +1,4 @@
----
+﻿---
 layout: home
 
 hero:
@@ -42,7 +42,7 @@ plus checked-in SDK workspaces built from those services:
   media, stream, RTC, platform, ops, audit, and provider-health routes.
 - `services/control-plane-api`, the separate governance surface for protocol registry, provider
   policy, and node lifecycle operations.
-- `services/web-gateway`, the unified external entrypoint that publishes the canonical
+- `services/sdkwork-im-gateway`, the unified external entrypoint that publishes the canonical
   `sdkwork-im-server` binary, aggregates OpenAPI discovery, and fronts operator-facing single-port
   server installs.
 - `sdks/`, which currently contains the IM standard, App API, Backend API, and independent RTC SDK
@@ -131,7 +131,7 @@ For most new integrations, the fastest reading order is:
 | --- | --- |
 | App runtime | Presence heartbeat, realtime delivery, conversations, membership, messages, media, streams, RTC, notifications, automation, audit, ops, and provider health |
 | Control plane | Protocol registry, protocol governance, provider registry, effective bindings, provider policy preview and rollback, plus node drain, activate, and route migration |
-| Unified gateway and server | `web-gateway` publishes the canonical `sdkwork-im-server` binary, the aggregate OpenAPI and discovery routes, service-schema proxies, rendered docs, and the single-port server install contract |
+| Unified gateway and server | `sdkwork-im-gateway` publishes the canonical `sdkwork-im-server` binary, the aggregate OpenAPI and discovery routes, service-schema proxies, rendered docs, and the single-port server install contract |
 | Deployment | Local binary lifecycle scripts, Docker Compose bootstrap, server install/service-management scripts, runtime inspection, repair, backup listing, archive, preview, and restore |
 | SDK workspaces | IM standard SDK for `/im/v3/api`; App API SDK for `/app/v3/api`; Backend SDK for `/backend/v3/api` including control and admin modules; independent RTC provider-standard SDK for provider runtime integration |
 | Frontend apps | `apps/sdkwork-im-admin` already provides a verified standalone operator shell, a first-class storage-management workflow, and a documented `/backend/v3/api/admin/storage/*` contract surface, while `apps/sdkwork-im-portal` exists in-repo but is not yet documented here as a mature product surface |
@@ -146,8 +146,8 @@ such rather than documented as delivered features.
   <strong>Implementation sources:</strong>
   App routing is aligned to <code>services/local-minimal-node/src/node/build.rs</code>.
   Control-plane routing is aligned to <code>services/control-plane-api/src/lib.rs</code>.
-  Unified gateway and packaged server entry are aligned to <code>services/web-gateway/src/lib.rs</code>,
-  <code>services/web-gateway/src/main.rs</code>, and <code>deployments/templates/server.yaml.example</code>.
+  Unified gateway and packaged server entry are aligned to <code>services/sdkwork-im-gateway/src/lib.rs</code>,
+  <code>services/sdkwork-im-gateway/src/main.rs</code>, and <code>deployments/templates/server.yaml.example</code>.
   Local lifecycle and deployment behavior is aligned to <code>bin/</code>,
   <code>deployments/</code>, and the runtime-management entrypoints in
   <code>services/local-minimal-node/src/main.rs</code>.

@@ -1,11 +1,11 @@
-/**
+﻿/**
  * BusinessTypeSelector - Business type selection grid (Step 1)
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { Check } from 'lucide-react';
-import { cn } from '@sdkwork/clawchat-pc-commons';
+import { cn } from '@sdkwork/im-pc-commons';
 
 export interface BusinessTypeSelectorProps {
   /** Currently selected business type */

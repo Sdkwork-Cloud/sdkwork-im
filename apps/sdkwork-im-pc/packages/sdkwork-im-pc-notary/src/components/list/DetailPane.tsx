@@ -1,11 +1,11 @@
-/**
+﻿/**
  * DetailPane - Right-side sliding drawer for task details
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShieldCheck, X } from 'lucide-react';
-import type { NotaryTask, NotaryDocument, Party } from '@sdkwork/clawchat-pc-types';
+import type { NotaryTask, NotaryDocument, Party } from '@sdkwork/im-pc-types';
 import { TaskBaseInfo } from './TaskBaseInfo';
 import { PaneTabSwitcher } from './PaneTabSwitcher';
 import { PartyListTab } from './PartyListTab';

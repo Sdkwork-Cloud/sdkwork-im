@@ -1,10 +1,10 @@
-/**
+﻿/**
  * DetailPaneFooter - Action buttons at the bottom of the detail pane
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Printer } from 'lucide-react';
-import type { NotaryTask } from '@sdkwork/clawchat-pc-types';
+import type { NotaryTask } from '@sdkwork/im-pc-types';
 
 export interface DetailPaneFooterProps {
   /** The current task */

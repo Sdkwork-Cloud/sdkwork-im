@@ -60,6 +60,7 @@ const client = new SdkworkImClient({
 - `client.social` - social API
 - `client.chat` - chat API
 - `client.streams` - streams API
+- `client.spaces` - spaces API
 
 ## Usage Examples
 
@@ -124,6 +125,13 @@ const body = {
   conversationId: 'conversationId',
 };
 const result = await client.streams.create(body);
+```
+
+### spaces
+
+```typescript
+// List spaces
+const result = await client.spaces.list();
 ```
 
 ## Error Handling

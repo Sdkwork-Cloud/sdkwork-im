@@ -7044,8 +7044,12 @@ fn test_install_service_server_ps1_renders_instance_specific_windows_service_con
 fn test_server_runtime_uses_canonical_sdkwork_im_server_binary_contract() {
     let root = workspace_root();
     let gateway_cargo =
-        fs::read_to_string(root.join("services").join("web-gateway").join("Cargo.toml"))
-            .expect("web-gateway Cargo.toml should exist");
+        fs::read_to_string(
+            root.join("services")
+                .join("sdkwork-im-gateway")
+                .join("Cargo.toml"),
+        )
+            .expect("sdkwork-im-gateway Cargo.toml should exist");
     let start_ps1 = fs::read_to_string(root.join("bin").join("start-server.ps1"))
         .expect("start-server.ps1 should exist");
     let start_sh = fs::read_to_string(root.join("bin").join("start-server.sh"))
@@ -7053,7 +7057,7 @@ fn test_server_runtime_uses_canonical_sdkwork_im_server_binary_contract() {
 
     assert!(
         gateway_cargo.contains("[[bin]]") && gateway_cargo.contains("name = \"sdkwork-im-server\""),
-        "web-gateway package must publish the canonical sdkwork-im-server binary entrypoint"
+        "sdkwork-im-gateway package must publish the canonical sdkwork-im-server binary entrypoint"
     );
     assert!(
         start_ps1.contains("target\\release\\sdkwork-im-server.exe")
@@ -7116,7 +7120,7 @@ fn test_server_docs_and_release_bundle_freeze_external_postgresql_install_contra
             "init-storage-server",
             "verify-server",
             "plan-release-server",
-            "web-gateway",
+            "sdkwork-im-gateway",
         ] {
             assert!(
                 content.contains(contract),
@@ -7477,7 +7481,7 @@ fn test_plan_release_server_ps1_can_emit_machine_readable_release_execution_plan
     assert_eq!(report["selectedPlatform"], "windows");
     assert_eq!(
         report["canonicalBuildCommand"],
-        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline"
+        "cargo build -p sdkwork-im-gateway --release --bin sdkwork-im-server --offline"
     );
     assert_eq!(
         report["canonicalStartupCommand"],
@@ -8324,7 +8328,7 @@ fn test_server_release_bundle_freezes_platform_artifact_staging_and_checksum_wor
     for contract in [
         "template_only_pending_payload",
         "artifacts/releases/wave-d-2026-04-08/server/packages/linux/artifacts",
-        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline",
+        "cargo build -p sdkwork-im-gateway --release --bin sdkwork-im-server --offline",
         "sha256sum -b",
         "artifact-file-list.txt",
         "SHA256SUMS",
@@ -8339,7 +8343,7 @@ fn test_server_release_bundle_freezes_platform_artifact_staging_and_checksum_wor
     for contract in [
         "template_only_pending_payload",
         "artifacts/releases/wave-d-2026-04-08/server/packages/macos/artifacts",
-        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline",
+        "cargo build -p sdkwork-im-gateway --release --bin sdkwork-im-server --offline",
         "shasum -a 256",
         "artifact-file-list.txt",
         "SHA256SUMS",
@@ -8354,7 +8358,7 @@ fn test_server_release_bundle_freezes_platform_artifact_staging_and_checksum_wor
     for contract in [
         "template_only_pending_payload",
         "artifacts/releases/wave-d-2026-04-08/server/packages/windows/artifacts",
-        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline",
+        "cargo build -p sdkwork-im-gateway --release --bin sdkwork-im-server --offline",
         "Get-FileHash -Algorithm SHA256",
         "artifact-file-list.txt",
         "SHA256SUMS",
@@ -8473,7 +8477,7 @@ fn test_server_release_bundle_freezes_release_checklist_and_ordered_packaging_st
         "Step 3",
         "Step 4",
         "Step 5",
-        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline",
+        "cargo build -p sdkwork-im-gateway --release --bin sdkwork-im-server --offline",
         "artifact-file-list.txt",
         "SHA256SUMS",
         "go / no-go",
@@ -9596,11 +9600,11 @@ fn test_server_release_bundle_freezes_machine_readable_release_execution_contrac
     );
     assert_eq!(
         execution_manifest_json["canonicalBuild"]["command"],
-        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline"
+        "cargo build -p sdkwork-im-gateway --release --bin sdkwork-im-server --offline"
     );
     assert_eq!(
         execution_manifest_json["canonicalBuild"]["package"],
-        "web-gateway"
+        "sdkwork-im-gateway"
     );
     assert_eq!(
         execution_manifest_json["canonicalBuild"]["binary"],
@@ -9854,7 +9858,7 @@ fn test_server_release_bundle_freezes_machine_readable_release_provenance_contra
     assert_eq!(provenance_json["state"], "template_only_pending_capture");
     assert_eq!(
         provenance_json["canonicalBuildCommand"],
-        "cargo build -p web-gateway --release --bin sdkwork-im-server --offline"
+        "cargo build -p sdkwork-im-gateway --release --bin sdkwork-im-server --offline"
     );
 
     let contract_paths = provenance_json["contractPaths"]
@@ -9882,7 +9886,7 @@ fn test_server_release_bundle_freezes_machine_readable_release_provenance_contra
         .as_array()
         .expect("payloadSourcePaths should be an array");
     for payload_source in [
-        "services/web-gateway/Cargo.toml",
+        "services/sdkwork-im-gateway/Cargo.toml",
         "deployments/templates/server.yaml.example",
         "deployments/templates/server.env.example",
         "deployments/templates/postgresql.yaml.example",

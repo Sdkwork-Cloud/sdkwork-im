@@ -2,9 +2,11 @@
   "schemaVersion": 1,
   "kind": "sdkwork.component",
   "name": "space-service",
-  "domain": "im",
+  "domain": "communication",
   "capability": "space",
-  "description": "Space service for spaces, groups, channels, members, invitations, and bans",
+  "status": "active",
+  "gatewayServiceId": "comms-space-service",
+  "description": "Space service for spaces, groups, channels, members, invitations, and bans on /im/v3/api/spaces/*",
   "dependencies": [
     "im-adapters-social-postgres",
     "im-domain-core",

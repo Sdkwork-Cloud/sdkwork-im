@@ -33,7 +33,7 @@ test('commercial readiness checks cover the verified frontend and backend gate c
       'pc-qr-scan-standard',
       'dependency-management',
       'workflow-commercial-gates',
-      'control-plane-api-tests',
+      'governance-service-tests',
       'commercial-gate-contract',
       'session-gateway-tests',
       'performance-quant-baseline',
@@ -104,15 +104,15 @@ test('commercial readiness checks cover the verified frontend and backend gate c
     'false',
   );
   assert.deepEqual(
-    checks.find((check) => check.id === 'control-plane-api-tests')?.args,
-    ['test', '-p', 'control-plane-api', '--tests'],
+    checks.find((check) => check.id === 'governance-service-tests')?.args,
+    ['test', '-p', 'governance-service', '--tests'],
   );
   assert.equal(
     checks.find((check) => check.id === 'pc-build')?.env?.npm_config_update_notifier,
     'false',
   );
   assert.equal(
-    checks.find((check) => check.id === 'control-plane-api-tests')?.env,
+    checks.find((check) => check.id === 'governance-service-tests')?.env,
     undefined,
   );
   assert.equal(shouldUseShellForCommand('pnpm.cmd', 'win32'), true);

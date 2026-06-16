@@ -1,14 +1,16 @@
 //! Group API handlers.
 
-use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
+use axum::extract::{Extension, Path, Query, State};
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::Json;
+use im_app_context::AppContext;
 use serde::{Deserialize, Serialize};
 
 use im_adapters_social_postgres::organization_store::{GroupRecord, GroupStore};
 
 use crate::http::AppState;
+use crate::service_http::require_request_scope;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateGroupRequest {
@@ -68,24 +70,24 @@ fn generate_id() -> String {
 
 pub async fn create_group(
     State(state): State<AppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Path(space_id): Path<String>,
     Json(request): Json<CreateGroupRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = "default";
-    let org_id = "default";
-    let user_id = "system"; // TODO: Extract from auth context
+    let scope = require_request_scope(auth, &headers)?;
 
     let group_id = generate_id();
     let now = chrono::Utc::now().to_rfc3339();
 
     let record = GroupRecord {
-        tenant_id: tenant_id.to_string(),
-        organization_id: org_id.to_string(),
+        tenant_id: scope.tenant_id,
+        organization_id: scope.organization_id,
         group_id: group_id.parse().unwrap_or(0),
         space_id: space_id.parse().ok(),
         group_name: request.group_name,
         group_type: request.group_type.unwrap_or_else(|| "normal".to_string()),
-        owner_user_id: user_id.to_string(),
+        owner_user_id: scope.user_id,
         conversation_id: None,
         max_members: request.max_members.unwrap_or(500),
         description: request.description,
@@ -107,15 +109,21 @@ pub async fn create_group(
 
 pub async fn list_groups(
     State(state): State<AppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Path(space_id): Path<String>,
     Query(query): Query<ListQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = "default";
-    let org_id = "default";
+    let scope = require_request_scope(auth, &headers)?;
     let sid: i64 = space_id.parse().unwrap_or(0);
     let limit = query.limit.unwrap_or(20);
 
-    match state.group_store.list_by_space(tenant_id, org_id, sid, limit) {
+    match state.group_store.list_by_space(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        sid,
+        limit,
+    ) {
         Ok(records) => {
             let response: Vec<GroupResponse> = records.into_iter().map(GroupResponse::from).collect();
             Ok(Json(response))
@@ -126,13 +134,18 @@ pub async fn list_groups(
 
 pub async fn get_group(
     State(state): State<AppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Path((_space_id, group_id)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = "default";
-    let org_id = "default";
+    let scope = require_request_scope(auth, &headers)?;
     let gid: i64 = group_id.parse().unwrap_or(0);
 
-    match state.group_store.get_by_id(tenant_id, org_id, gid) {
+    match state.group_store.get_by_id(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        gid,
+    ) {
         Ok(Some(record)) => Ok(Json(GroupResponse::from(record))),
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -141,15 +154,20 @@ pub async fn get_group(
 
 pub async fn update_group(
     State(state): State<AppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Path((_space_id, group_id)): Path<(String, String)>,
     Json(request): Json<UpdateGroupRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = "default";
-    let org_id = "default";
+    let scope = require_request_scope(auth, &headers)?;
     let gid: i64 = group_id.parse().unwrap_or(0);
     let now = chrono::Utc::now().to_rfc3339();
 
-    match state.group_store.get_by_id(tenant_id, org_id, gid) {
+    match state.group_store.get_by_id(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        gid,
+    ) {
         Ok(Some(mut record)) => {
             if let Some(name) = request.group_name {
                 record.group_name = name;
@@ -177,13 +195,18 @@ pub async fn update_group(
 
 pub async fn delete_group(
     State(state): State<AppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Path((_space_id, group_id)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = "default";
-    let org_id = "default";
+    let scope = require_request_scope(auth, &headers)?;
     let gid: i64 = group_id.parse().unwrap_or(0);
 
-    match state.group_store.delete(tenant_id, org_id, gid) {
+    match state.group_store.delete(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        gid,
+    ) {
         Ok(()) => Ok(StatusCode::NO_CONTENT),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }

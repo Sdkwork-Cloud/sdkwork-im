@@ -167,7 +167,7 @@ fn test_backend_openapi_security_helpers_are_named_for_app_context_not_bearer() 
     for relative_path in [
         "services/audit-service/src/lib.rs",
         "services/automation-service/src/lib.rs",
-        "services/conversation-runtime/src/runtime/http.rs",
+        "services/sdkwork-comms-conversation-service/src/runtime/http.rs",
         "services/media-service/src/lib.rs",
         "services/notification-service/src/lib.rs",
         "services/ops-service/src/lib.rs",

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PaneTabSwitcher - Tab switcher for the detail pane (Parties / Materials)
  */
 import React from 'react';

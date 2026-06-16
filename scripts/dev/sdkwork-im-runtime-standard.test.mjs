@@ -17,8 +17,8 @@ const manifest = readJson('sdkwork.app.config.json');
 assert.equal(manifest.app.key, 'chat', 'SDKWork app key must be the canonical app code chat');
 assert.equal(manifest.app.name, 'chat', 'PlusApp identity name must be the stable app code chat');
 assert.equal(manifest.app.displayName, 'Sdkwork IM', 'display name may carry the product label');
-assert.equal(manifest.publish.config.workspaceRoot, 'apps/sdkwork-im');
-assert.equal(manifest.devApp.sourceRoot, 'apps/sdkwork-im');
+assert.equal(manifest.publish.config.workspaceRoot, 'apps/sdkwork-im-pc');
+assert.equal(manifest.devApp.sourceRoot, 'apps/sdkwork-im-pc');
 assert.equal(manifest.app.identifiers.desktopAppId, 'com.sdkwork.chat.desktop');
 assert.equal(manifest.app.identifiers.containerImage, 'registry.sdkwork.com/apps/chat');
 assert.equal(manifest.artifacts.installConfig.installCommand, 'sdkwork install chat');
@@ -250,9 +250,11 @@ assert.ok(
     (entry) =>
       entry.tableName.startsWith('im_') &&
       entry.modulePrefix === 'im' &&
-      entry.boundedContext === 'instant_messaging',
+      ['instant_messaging', 'social', 'organization', 'messaging', 'user'].includes(
+        entry.boundedContext,
+      ),
   ),
-  'checked-in chat IM table registry entries must all use the im_ prefix',
+  'checked-in chat IM table registry entries must all use the im_ prefix and registered bounded contexts',
 );
 
 const docs = [

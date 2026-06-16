@@ -94,26 +94,26 @@ jobs:
       - name: Cache Rust Artifacts
         uses: swatinem/rust-cache@v2
 
-      - name: Test conversation-runtime
-        run: cargo test -p conversation-runtime --tests
+      - name: Test sdkwork-comms-conversation-service
+        run: cargo test -p sdkwork-comms-conversation-service --tests
 
-      - name: Test conversation-runtime duplicate direct-chat binding
-        run: cargo test -p conversation-runtime --test conversation_flow_test test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_retry_is_rejected -- --exact
+      - name: Test sdkwork-comms-conversation-service duplicate direct-chat binding
+        run: cargo test -p sdkwork-comms-conversation-service --test conversation_flow_test test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_retry_is_rejected -- --exact
 
-      - name: Test conversation-runtime duplicate direct-chat binding over HTTP
-        run: cargo test -p conversation-runtime --test http_smoke_test test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact
+      - name: Test sdkwork-comms-conversation-service duplicate direct-chat binding over HTTP
+        run: cargo test -p sdkwork-comms-conversation-service --test http_smoke_test test_duplicate_bind_direct_chat_conversation_request_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact
 
-      - name: Test conversation-runtime oversized creator attributes
-        run: cargo test -p conversation-runtime --test conversation_flow_test test_create_conversation_rejects_oversized_creator_attributes -- --exact
+      - name: Test sdkwork-comms-conversation-service oversized creator attributes
+        run: cargo test -p sdkwork-comms-conversation-service --test conversation_flow_test test_create_conversation_rejects_oversized_creator_attributes -- --exact
 
-      - name: Test conversation-runtime oversized member attributes over HTTP
-        run: cargo test -p conversation-runtime --test http_smoke_test test_add_member_rejects_oversized_attributes_over_http -- --exact
+      - name: Test sdkwork-comms-conversation-service oversized member attributes over HTTP
+        run: cargo test -p sdkwork-comms-conversation-service --test http_smoke_test test_add_member_rejects_oversized_attributes_over_http -- --exact
 
-      - name: Test conversation-runtime oversized sender metadata
-        run: cargo test -p conversation-runtime --test conversation_flow_test test_post_message_rejects_oversized_sender_metadata -- --exact
+      - name: Test sdkwork-comms-conversation-service oversized sender metadata
+        run: cargo test -p sdkwork-comms-conversation-service --test conversation_flow_test test_post_message_rejects_oversized_sender_metadata -- --exact
 
-      - name: Test conversation-runtime oversized render hints
-        run: cargo test -p conversation-runtime --test conversation_flow_test test_post_message_rejects_oversized_render_hints -- --exact
+      - name: Test sdkwork-comms-conversation-service oversized render hints
+        run: cargo test -p sdkwork-comms-conversation-service --test conversation_flow_test test_post_message_rejects_oversized_render_hints -- --exact
 
       - name: Test governance-service
         run: cargo test -p governance-service --tests
@@ -257,10 +257,10 @@ jobs:
         run: cargo test -p local-minimal-node --test principal_profile_provider_mainline_test test_local_principal_profile_provider_merges_add_member_request_attributes -- --exact
 
       - name: Strict clippy core runtime scope
-        run: cargo clippy -p conversation-runtime -p governance-service --tests -- -D warnings
+        run: cargo clippy -p sdkwork-comms-conversation-service -p governance-service --tests -- -D warnings
 
-      - name: Strict clippy conversation-runtime and local-minimal scope
-        run: cargo clippy --no-deps -p conversation-runtime -p local-minimal-node --tests -- -D warnings
+      - name: Strict clippy sdkwork-comms-conversation-service and local-minimal scope
+        run: cargo clippy --no-deps -p sdkwork-comms-conversation-service -p local-minimal-node --tests -- -D warnings
 
   downstream-exactly-once-tests:
     name: Downstream Exactly Once

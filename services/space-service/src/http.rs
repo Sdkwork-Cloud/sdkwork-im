@@ -3,7 +3,9 @@
 use std::sync::Arc;
 
 use axum::Router;
+use axum::middleware;
 use axum::routing::{delete, get, patch, post};
+use im_app_context::inject_app_request_context_middleware;
 
 use crate::ban;
 use crate::channel;
@@ -22,102 +24,120 @@ pub struct AppState {
     pub channel_store: Arc<dyn im_adapters_social_postgres::organization_store::ChannelStore>,
 }
 
-pub fn build_app(state: AppState) -> Router {
+pub fn build_embedded_app(state: AppState) -> Router {
+    build_space_api_routes(state)
+}
 
+pub fn build_app(state: AppState) -> Router {
+    Router::new()
+        .route("/healthz", get(healthz))
+        .route("/readyz", get(readyz))
+        .merge(build_embedded_app(state))
+}
+
+fn build_space_api_routes(state: AppState) -> Router {
     Router::new()
         // Spaces
         .route(
-            "/api/v1/spaces",
+            "/im/v3/api/spaces",
             post(space::create_space).get(space::list_spaces),
         )
         .route(
-            "/api/v1/spaces/{space_id}",
+            "/im/v3/api/spaces/{space_id}",
             get(space::get_space)
                 .patch(space::update_space)
                 .delete(space::delete_space),
         )
         // Space members
         .route(
-            "/api/v1/spaces/{space_id}/members",
+            "/im/v3/api/spaces/{space_id}/members",
             post(space_member::add_space_member)
                 .get(space_member::list_space_members),
         )
         .route(
-            "/api/v1/spaces/{space_id}/members/{user_id}",
+            "/im/v3/api/spaces/{space_id}/members/{user_id}",
             get(space_member::get_space_member)
                 .patch(space_member::update_space_member)
                 .delete(space_member::remove_space_member),
         )
         // Groups
         .route(
-            "/api/v1/spaces/{space_id}/groups",
+            "/im/v3/api/spaces/{space_id}/groups",
             post(group::create_group).get(group::list_groups),
         )
         .route(
-            "/api/v1/spaces/{space_id}/groups/{group_id}",
+            "/im/v3/api/spaces/{space_id}/groups/{group_id}",
             get(group::get_group)
                 .patch(group::update_group)
                 .delete(group::delete_group),
         )
         // Group members
         .route(
-            "/api/v1/spaces/{space_id}/groups/{group_id}/members",
+            "/im/v3/api/spaces/{space_id}/groups/{group_id}/members",
             post(group_member::add_group_member)
                 .get(group_member::list_group_members),
         )
         .route(
-            "/api/v1/spaces/{space_id}/groups/{group_id}/members/{user_id}",
+            "/im/v3/api/spaces/{space_id}/groups/{group_id}/members/{user_id}",
             get(group_member::get_group_member)
                 .patch(group_member::update_group_member)
                 .delete(group_member::remove_group_member),
         )
         // Channels
         .route(
-            "/api/v1/spaces/{space_id}/channels",
+            "/im/v3/api/spaces/{space_id}/channels",
             post(channel::create_channel).get(channel::list_channels),
         )
         .route(
-            "/api/v1/spaces/{space_id}/channels/{channel_id}",
+            "/im/v3/api/spaces/{space_id}/channels/{channel_id}",
             get(channel::get_channel)
                 .patch(channel::update_channel)
                 .delete(channel::delete_channel),
         )
         // Channel access rules
         .route(
-            "/api/v1/spaces/{space_id}/channels/{channel_id}/access-rules",
+            "/im/v3/api/spaces/{space_id}/channels/{channel_id}/access_rules",
             post(channel_access_rule::create_access_rule)
                 .get(channel_access_rule::list_access_rules),
         )
         .route(
-            "/api/v1/spaces/{space_id}/channels/{channel_id}/access-rules/{rule_id}",
+            "/im/v3/api/spaces/{space_id}/channels/{channel_id}/access_rules/{rule_id}",
             delete(channel_access_rule::delete_access_rule),
         )
         // Invitations
         .route(
-            "/api/v1/spaces/{space_id}/invites",
+            "/im/v3/api/spaces/{space_id}/invites",
             post(invitation::create_invitation)
                 .get(invitation::list_invitations),
         )
         .route(
-            "/api/v1/spaces/{space_id}/invites/{invite_code}",
+            "/im/v3/api/spaces/{space_id}/invites/{invite_code}",
             get(invitation::get_invitation).delete(invitation::revoke_invitation),
         )
         .route(
-            "/api/v1/spaces/{space_id}/invites/{invite_code}/accept",
+            "/im/v3/api/spaces/{space_id}/invites/{invite_code}/accept",
             post(invitation::accept_invitation),
         )
         // Bans
         .route(
-            "/api/v1/spaces/{space_id}/bans",
+            "/im/v3/api/spaces/{space_id}/bans",
             post(ban::ban_user).get(ban::list_bans),
         )
         .route(
-            "/api/v1/spaces/{space_id}/bans/{user_id}",
+            "/im/v3/api/spaces/{space_id}/bans/{user_id}",
             get(ban::get_ban).delete(ban::unban_user),
         )
         .with_state(state)
 }
 
+async fn healthz() -> &'static str {
+    "ok"
+}
+
+async fn readyz() -> &'static str {
+    "ok"
+}
+
 pub fn build_public_app(state: AppState) -> Router {
-    build_app(state)
+    build_app(state).layer(middleware::from_fn(inject_app_request_context_middleware))
 }

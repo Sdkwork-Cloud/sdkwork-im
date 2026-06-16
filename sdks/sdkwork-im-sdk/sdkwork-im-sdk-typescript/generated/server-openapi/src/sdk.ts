@@ -8,6 +8,7 @@ import { CallsApi, createCallsApi } from './api/calls';
 import { SocialApi, createSocialApi } from './api/social';
 import { ChatApi, createChatApi } from './api/chat';
 import { StreamsApi, createStreamsApi } from './api/streams';
+import { SpacesApi, createSpacesApi } from './api/spaces';
 
 export class SdkworkImClient {
   private httpClient: HttpClient;
@@ -18,6 +19,7 @@ export class SdkworkImClient {
   public readonly social: SocialApi;
   public readonly chat: ChatApi;
   public readonly streams: StreamsApi;
+  public readonly spaces: SpacesApi;
 
   constructor(config: SdkworkImConfig) {
     this.httpClient = createHttpClient(config);
@@ -32,6 +34,8 @@ export class SdkworkImClient {
     this.chat = createChatApi(this.httpClient);
 
     this.streams = createStreamsApi(this.httpClient);
+
+    this.spaces = createSpacesApi(this.httpClient);
   }
   setAuthToken(token: string): this {
     this.httpClient.setAuthToken(token);

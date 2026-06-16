@@ -1,4 +1,4 @@
-export { NotaryHeader } from './NotaryHeader';
+﻿export { NotaryHeader } from './NotaryHeader';
 export type { NotaryHeaderProps } from './NotaryHeader';
 
 export { NotaryFilterBar } from './NotaryFilterBar';

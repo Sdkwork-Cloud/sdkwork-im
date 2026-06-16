@@ -21,7 +21,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 - [component.spec.json](./component.spec.json) is the machine-readable component contract.
 - Shared foundation API composition targets `sdkwork-api-gateway` through the existing
   `SDKWORK_IM_SERVER_API_BASE_URL` server common SDK root and
-  `VITE_SDKWORK_IM_APP_API_BASE_URL` browser app-api root. `services/web-gateway` and
+  `VITE_SDKWORK_IM_APP_API_BASE_URL` browser app-api root. `services/sdkwork-im-gateway` and
   `crates/sdkwork-im-gateway-config` keep product-owned IM routing only; foundation API routing is
   owned by the shared gateway boundary.
 - Local PC development starts the sibling `sdkwork-api-gateway` Cargo service as the shared
@@ -64,6 +64,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 ## Local Extension Specs
 
 - [im-app-api-sdk-integration.spec.md](./im-app-api-sdk-integration.spec.md) defines Sdkwork IM's IM API, IM app API, IM backend API, product SDK ownership, IAM login integration, shared database, local source-link development, and git-backed release dependency rules.
+- [../docs/architecture/decisions/ADR-20260617-comms-service-naming-boundaries.md](../docs/architecture/decisions/ADR-20260617-comms-service-naming-boundaries.md) records canonical communication service ids, social/space ownership, and deprecated contact/interaction HTTP surfaces.
 - [database-prefix-registry.json](./database-prefix-registry.json) registers `im` as the controlled prefix for instant-messaging tables in the `im` app.
 - [database-table-registry.json](./database-table-registry.json) lists the checked-in IM table contracts, table profiles, write owners, and migration source.
 - [database-table-naming-standard.md](../docs/部署/database-table-naming-standard.md) documents the local naming policy: IM tables use `im_`; non-IM tables keep their own business prefix or approved legacy name.

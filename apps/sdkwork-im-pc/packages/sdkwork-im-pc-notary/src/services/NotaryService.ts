@@ -1,4 +1,4 @@
-import type { NotaryDocument, NotaryTask, Party, TimelineEvent } from '@sdkwork/im-pc-types';
+﻿import type { NotaryDocument, NotaryTask, Party, TimelineEvent } from '@sdkwork/im-pc-types';
 import {
   createNotaryApi,
   type CreateNotaryApiOptions,

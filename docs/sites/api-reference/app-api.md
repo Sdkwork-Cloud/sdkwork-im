@@ -1,4 +1,4 @@
-# App API Overview
+﻿# App API Overview
 
 <p class="api-page-intro">
   The App API is the generated app-business HTTP surface under <code>/app/v3/api/*</code>. It
@@ -38,7 +38,7 @@
 - Backend management, control, admin, operator, and audit endpoints map to [Backend API](/api-reference/backend-api) and `sdkwork-im-backend-sdk`.
 - App API routes do not own login, account, tenant, organization, or token refresh; those contexts are supplied by the upstream appbase identity system.
 - In packaged installs, the same App API surface is exposed through the unified `sdkwork-im-server`
-  / `web-gateway` public origin rather than a separate public app-node port.
+  / `sdkwork-im-gateway` public origin rather than a separate public app-node port.
 
 ## How To Use This Page
 

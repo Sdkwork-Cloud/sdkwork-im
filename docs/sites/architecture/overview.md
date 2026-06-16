@@ -1,4 +1,4 @@
-# Architecture Overview
+﻿# Architecture Overview
 
 Sdkwork IM is a multi-service Rust workspace, not a single binary with optional extras. The current
 documentation is easiest to understand through five architectural lenses:
@@ -6,7 +6,7 @@ documentation is easiest to understand through five architectural lenses:
 1. The workspace layout and contract crates
 2. The IM open-platform `local-minimal-node`
 3. The separate `control-plane-api`
-4. The unified `web-gateway` / `sdkwork-im-server` external boundary
+4. The unified `sdkwork-im-gateway` / `sdkwork-im-server` external boundary
 5. The runtime-directory persistence contract and shared storage baseline
 
 ## Core Architecture Facts
@@ -14,7 +14,7 @@ documentation is easiest to understand through five architectural lenses:
 | Fact | Current implementation |
 | --- | --- |
 | Default app runtime | `services/local-minimal-node` |
-| Unified server binary | `services/web-gateway` with `[[bin]] name = "sdkwork-im-server"` |
+| Unified server binary | `services/sdkwork-im-gateway` with `[[bin]] name = "sdkwork-im-server"` |
 | Default IM open-platform prefix | `/im/v3/api/*` |
 | Default app-development prefix | `/app/v3/api/*` |
 | Default backend/operator prefix | `/backend/v3/api/*` |
@@ -52,7 +52,7 @@ binary that binds `127.0.0.1:18081` in `services/control-plane-api/src/main.rs`.
 
 ## Unified Gateway And Packaged Server
 
-`services/web-gateway` publishes the packaged single-port server boundary. Its discovery surface
+`services/sdkwork-im-gateway` publishes the packaged single-port server boundary. Its discovery surface
 includes `GET /openapi.json`, `GET /openapi/index.json`, and `GET /openapi/runtime-summary.json`,
 along with rendered docs and per-service OpenAPI proxies.
 

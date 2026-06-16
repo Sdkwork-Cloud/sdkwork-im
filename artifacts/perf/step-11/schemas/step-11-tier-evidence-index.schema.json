@@ -51,6 +51,7 @@
         "template_only_pending_execution",
         "evidence_partially_collected",
         "evidence_collected_gate_ready",
+        "evidence_collected_gate_passed",
         "evidence_collected_gate_blocked"
       ]
     },

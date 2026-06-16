@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PartyCard - Shared party card component
  *
  * Renders a party's basic info (avatar, name, role, identity ID)
@@ -9,7 +9,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 import { User as UserIcon } from 'lucide-react';
-import type { Party } from '@sdkwork/clawchat-pc-types';
+import type { Party } from '@sdkwork/im-pc-types';
 import { PartyActionButtons } from './PartyActionButtons';
 
 export interface PartyCardProps {

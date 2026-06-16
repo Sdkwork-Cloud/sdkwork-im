@@ -7,6 +7,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const expectedDependencyIds = [
   'sdkwork-appbase',
   'sdkwork-core',
+  'sdkwork-database',
   'sdkwork-drive',
   'sdkwork-ui',
   'sdkwork-rtc',
@@ -16,6 +17,9 @@ const expectedDependencyIds = [
   'sdkwork-sdk-commons',
   'sdkwork-sdk-generator',
 ];
+const siblingDependencyAliases = {
+  'sdkwork-rtc-im-compat': 'sdkwork-rtc',
+};
 const sourceDependencyFiles = [
   'package.json',
   'Cargo.toml',
@@ -145,7 +149,7 @@ function assertSiblingDependencyPathsAreKnown(relativePath) {
   const sourceDir = path.dirname(absolutePath);
   const matches = [...text.matchAll(/(?:\.\.\/|\.{2}\\)+(sdkwork-[A-Za-z0-9-]*)/g)];
   for (const match of matches) {
-    const dependencyId = match[1];
+    const dependencyId = siblingDependencyAliases[match[1]] ?? match[1];
     if (dependencyId === 'sdkwork-specs') {
       continue;
     }
@@ -290,7 +294,7 @@ function assertSharedGatewayFoundationIntegration() {
     'Sdkwork IM may keep per-module foundation upstreams only as explicit split-deployment overrides',
   );
 
-  for (const relativePath of ['Cargo.toml', 'services/web-gateway/Cargo.toml']) {
+  for (const relativePath of ['Cargo.toml', 'services/sdkwork-im-gateway/Cargo.toml']) {
     assert(
       !/^sdkwork_iam_http\s*=/mu.test(readText(relativePath)),
       `${relativePath} must not depend on sdkwork_iam_http; appbase app API runtime is owned by sdkwork-api-gateway`,
@@ -386,8 +390,8 @@ function assertSharedGatewayFoundationIntegration() {
 
   for (const relativePath of [
     'crates/sdkwork-im-gateway-config/src/lib.rs',
-    'services/web-gateway/src/main.rs',
-    'services/web-gateway/src/lib.rs',
+    'services/sdkwork-im-gateway/src/main.rs',
+    'services/sdkwork-im-gateway/src/lib.rs',
   ]) {
     const source = readText(relativePath);
     for (const marker of [

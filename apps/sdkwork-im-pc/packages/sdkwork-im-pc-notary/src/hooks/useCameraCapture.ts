@@ -1,4 +1,4 @@
-/**
+﻿/**
  * useCameraCapture - Custom hook for camera-based face capture
  *
  * Encapsulates all camera lifecycle management logic including:

@@ -39,8 +39,8 @@
   - Pre-Release Tier collected slot examples now include `message_metrics` and `stream_metrics`
   - Pre-Release Tier collected path examples now include `message/metrics.json` and `stream/metrics.json`
   - Pre-Release Tier current state is now `evidence_collected_gate_blocked`
-  - Capacity Tier current state remains `template_only_pending_execution`
-  - Only Capacity Tier still waits for real collection; Pre-Release Tier already carries all seven truthful local artifacts.
+  - Capacity Tier current state is now `evidence_collected_gate_passed`
+  - Both Step 11 tier artifact roots now carry truthful local evidence; dedicated topology runs still gate full commercial sign-off.
   - evidence slot 还公开 `artifactKind`，代表值包�?`metrics_json`、`drill_json`、`capacity_json`、`recovery_json`、`report_markdown`
   - 机器契约还冻�?`requiredFields` / `requiredSections`，示例值包�?`runId`、`connectP95Ms`、`input_scale`、`operator_follow_up`
   - 额外字段示例包括 `messageTps`、`frameP95Ms`、`recovery_window`、`rto_rpo_summary`
@@ -75,7 +75,7 @@
 - [server版本安装与初始化](./server版本安装与初始化.md)
   - formal `sdkwork-im-server` install entry
   - covers `install-server`, `init-config-server`, `init-storage-server`, `verify-server`, `plan-release-server`
-  - explains why `web-gateway` is the default external entrypoint
+  - explains why `sdkwork-im-gateway` is the default external entrypoint
 - [server版本配置与PostgreSQL接入](./server版本配置与PostgreSQL接入.md)
   - explains the external PostgreSQL configuration file workflow
   - covers `verify-only`, `bootstrap-schema`, and `create-db-and-schema`

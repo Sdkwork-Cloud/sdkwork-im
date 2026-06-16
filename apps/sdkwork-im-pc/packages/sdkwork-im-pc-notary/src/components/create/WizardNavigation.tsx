@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WizardNavigation - Prev/Next/Submit buttons for the wizard
  */
 import React from 'react';

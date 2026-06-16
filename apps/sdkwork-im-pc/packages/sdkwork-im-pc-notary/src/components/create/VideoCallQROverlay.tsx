@@ -1,11 +1,11 @@
-/**
+﻿/**
  * VideoCallQROverlay - QR code overlay for party video call
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Video } from 'lucide-react';
-import type { Party } from '@sdkwork/clawchat-pc-types';
+import type { Party } from '@sdkwork/im-pc-types';
 
 function isQrCellFilled(index: number): boolean {
   const row = Math.floor(index / 8);

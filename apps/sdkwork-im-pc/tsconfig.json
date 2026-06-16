@@ -151,6 +151,12 @@
       "@sdkwork/im-pc-chat": [
         "./packages/sdkwork-im-pc-chat/src/index.ts"
       ],
+      "@sdkwork/im-pc-shell/*": [
+        "./packages/sdkwork-im-pc-shell/src/*"
+      ],
+      "@sdkwork/im-pc-shell": [
+        "./packages/sdkwork-im-pc-shell/src/index.tsx"
+      ],
       "@sdkwork/im-pc-agent/*": [
         "./packages/sdkwork-im-pc-agent/src/*"
       ],

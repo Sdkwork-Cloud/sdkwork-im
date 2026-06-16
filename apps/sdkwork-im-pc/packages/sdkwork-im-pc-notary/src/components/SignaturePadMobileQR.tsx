@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import QRCode from 'react-qr-code';
 import { Share } from 'lucide-react';
 

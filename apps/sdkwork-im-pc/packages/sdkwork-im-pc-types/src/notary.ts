@@ -11,6 +11,11 @@ export interface Party {
   identityValidDateStart?: string;
   identityValidDateEnd?: string;
   signatureUrl?: string;
+  ethnicity?: string;
+  identityIssuingAuthority?: string;
+  identityVerificationScore?: number;
+  identityVerificationStatus?: string;
+  faceCaptureTime?: string;
 }
 
 export interface NotaryDocument {

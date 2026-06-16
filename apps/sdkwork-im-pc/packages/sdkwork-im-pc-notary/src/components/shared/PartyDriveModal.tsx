@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PartyDriveModal - Shared party drive directory modal
  *
  * Renders a full-screen modal for managing party documents.
@@ -9,7 +9,7 @@ import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { Cloud, Folder, Plus, Upload, X, FileText, Download } from 'lucide-react';
-import type { NotaryDocument, Party } from '@sdkwork/clawchat-pc-types';
+import type { NotaryDocument, Party } from '@sdkwork/im-pc-types';
 import type { LocalAttachment } from '../../types';
 
 export interface PartyDriveModalProps {

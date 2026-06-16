@@ -439,7 +439,7 @@ assert.doesNotMatch(
 );
 for (const requiredText of [
   'Current Capability Inventory',
-  'conversation-runtime',
+  'comms-conversation-service',
   'session-gateway',
   'streaming-service',
   'notification-service',

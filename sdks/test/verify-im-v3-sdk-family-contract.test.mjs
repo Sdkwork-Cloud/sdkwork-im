@@ -337,6 +337,8 @@ function isImStandardRoute(route) {
     || route === 'calls/sessions/{}'
     || route.startsWith('calls/sessions/{}/')
     || route.startsWith('social/')
+    || route.startsWith('spaces/')
+    || route === 'spaces'
     || route.startsWith('streams')
   );
 }

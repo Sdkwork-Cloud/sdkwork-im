@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Shared constants for the notary package
  */
-import { createDefaultAvatar } from '@sdkwork/clawchat-pc-chat';
+import { createDefaultAvatar } from '@sdkwork/im-pc-chat';
 
 /**
  * Default avatar for notary video call overlay

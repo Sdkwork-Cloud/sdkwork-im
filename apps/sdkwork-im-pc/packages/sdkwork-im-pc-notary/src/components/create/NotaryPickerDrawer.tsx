@@ -1,4 +1,4 @@
-/**
+﻿/**
  * NotaryPickerDrawer - Side drawer for selecting a notary staff member
  */
 import React from 'react';

@@ -21,31 +21,8 @@ import {
   publishAppNotification,
   publishMessageNotification,
 } from "../components/NotificationCenter";
-import { AgentView, Agent } from "./AgentView";
-import { CreateAgentView } from "./CreateAgentView";
-import { VoiceMarketView, Voice } from "@sdkwork/im-pc-voice";
+import type { Agent } from "./AgentView";
 import { ContactsView } from "./ContactsView";
-import { FavoritesView } from "./FavoritesView";
-import { WorkspaceView } from "@sdkwork/im-pc-workspace";
-import { OrdersView } from "@sdkwork/im-pc-orders";
-import { NotaryView } from "@sdkwork/im-pc-notary";
-import { MailView } from "@sdkwork/im-pc-mail";
-import { DriveView } from "@sdkwork/im-pc-drive";
-import { CalendarView } from "@sdkwork/im-pc-calendar";
-import { ShopView } from "@sdkwork/im-pc-shop";
-import { ApprovalsView } from "@sdkwork/im-pc-approvals";
-import { DevicesView } from "@sdkwork/im-pc-devices";
-import { CommunityView } from "@sdkwork/im-pc-community";
-import { ReportsView } from "@sdkwork/im-pc-reports";
-import { AttendanceView } from "@sdkwork/im-pc-attendance";
-import { KnowledgeView } from "@sdkwork/im-pc-knowledge";
-import { CourseView } from "@sdkwork/im-pc-course";
-import { EnterpriseView } from "@sdkwork/im-pc-enterprise";
-import { VideoGenView } from "@sdkwork/im-pc-video-gen";
-import { ImageGenView } from "@sdkwork/im-pc-image-gen";
-import { VoiceGenView } from "@sdkwork/im-pc-voice-gen";
-import { MusicGenView } from "@sdkwork/im-pc-music-gen";
-import { WritingView } from "@sdkwork/im-pc-writing";
 import { chatService } from "../services/ChatService";
 import { callService } from "../services/CallService";
 import { contactService } from "../services/ContactService";
@@ -64,7 +41,9 @@ import {
 } from "../services/NotificationService";
 import { settingsService, type AppSettings } from "../services/SettingsService";
 import { systemAssistantService } from "../services/SystemAssistantService";
-import { appAuthService, isSdkworkChatDesktopRuntime } from "@sdkwork/im-pc-core";
+import { appAuthService } from "@sdkwork/im-pc-core";
+import { AppShellFrame, ModuleRenderHost } from "@sdkwork/im-pc-shell";
+import { CapabilityModuleSurface } from "../surfaces/CapabilityModuleSurface";
 import type { Chat, User } from "@sdkwork/im-pc-types";
 import { IconButton } from "@sdkwork/im-pc-commons";
 import {
@@ -88,7 +67,6 @@ import { I18nextProvider } from "react-i18next";
 const ChatLayoutComponent: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const shouldRenderDesktopAppHeader = isSdkworkChatDesktopRuntime();
   const [activeTab, setActiveTab] = useState("chat");
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -1002,172 +980,88 @@ const ChatLayoutComponent: React.FC = () => {
     );
   };
 
-  const renderMainContent = () => {
-    switch (activeTab) {
-      case "agent":
-        return (
-          <AgentView
-            onStartChat={handleStartAgentChat}
-            onCreateAgent={() => {
-              setEditAgentId(undefined);
-              setIsCreateAgentModalOpen(true);
-            }}
-            onEditAgent={(id) => {
-              setEditAgentId(id);
-              setActiveTab("create-agent");
-            }}
-          />
-        );
-      case "create-agent":
-        return <CreateAgentView onBack={() => { setActiveTab("agent"); setEditAgentId(undefined); }} initialAgentId={editAgentId} />;
-      case "voice":
-        return (
-          <VoiceMarketView
-            onSelectVoice={(voice) => {
-              toast(t("chat.toast.voiceLoading", { name: voice.name }), "success");
-            }}
-            onCreateVoice={() => {
-              toast(t("chat.toast.voiceCloneSoon"), "success");
-            }}
-          />
-        );
-      case "workspace":
-        return (
-          <WorkspaceView
-            onAppSelect={(appId) => {
-              if (appId === "notary") setActiveTab("notary");
-              else if (appId === "mail") setActiveTab("mail");
-              else if (appId === "drive") setActiveTab("drive");
-              else if (appId === "calendar") setActiveTab("calendar");
-              else if (appId === "approval") setActiveTab("approval");
-              else if (appId === "report") setActiveTab("report");
-              else if (appId === "attendance") setActiveTab("attendance");
-              else if (appId === "knowledge") setActiveTab("knowledge");
-              else if (appId === "devices") setActiveTab("devices");
-              else if (appId === "community") setActiveTab("community");
-              else if (appId === "videogen") setActiveTab("videogen");
-              else if (appId === "imagegen") setActiveTab("imagegen");
-              else if (appId === "voicegen") setActiveTab("voicegen");
-              else if (appId === "musicgen") setActiveTab("musicgen");
-              else if (appId === "writing") setActiveTab("writing");
-              else toast(t("chat.toast.workspaceAppUnavailable", { appId }), "error");
-            }}
-          />
-        );
-      case "orders":
-        return <OrdersView />;
-      case "shop":
-        return <ShopView onNavigateToOrders={() => setActiveTab("orders")} />;
-      case "notary":
-        return <NotaryView />;
-      case "mail":
-        return <MailView />;
-      case "drive":
-        return <DriveView />;
-      case "calendar":
-        return <CalendarView />;
-      case "approval":
-        return <ApprovalsView />;
-      case "report":
-        return <ReportsView />;
-      case "attendance":
-        return <AttendanceView />;
-      case "knowledge":
-        return <KnowledgeView />;
-      case "course":
-        return <CourseView />;
-      case "enterprise":
-        return <EnterpriseView 
-          onStartChat={async (enterpriseId, enterpriseName) => {
-            try {
-              const enterpriseChat = await chatService.startEnterpriseChat({
-                id: enterpriseId,
-                name: enterpriseName,
-              });
-              const refreshedChats = await chatService.getChats().catch(() => chats);
-              const nextChats = refreshedChats.some((chat) => chat.id === enterpriseChat.id)
-                ? refreshedChats.map((chat) => chat.id === enterpriseChat.id ? { ...chat, ...enterpriseChat } : chat)
-                : [enterpriseChat, ...refreshedChats];
-              setChats(nextChats);
-              setActiveChat(nextChats.find((chat) => chat.id === enterpriseChat.id) ?? enterpriseChat);
-              setActiveTab("chat");
-            } catch {
-              toast(t("chat.toast.enterpriseChatFailed"), "error");
-            }
-          }}
-          onCall={(id, name) => {
-            toast(t("chat.toast.enterpriseCalling", { name }), "success");
-          }}
-        />;
-      case "devices":
-        return <DevicesView onEditAgent={(id) => {
-          setEditAgentId(id);
-          setActiveTab("create-agent");
-        }} />;
-      case "community":
-        return (
-          <CommunityView
-            initialCommunityId={pendingCommunityId ?? undefined}
-            onInitialCommunityHandled={() => setPendingCommunityId(null)}
-          />
-        );
-      case "videogen":
-        return <VideoGenView />;
-      case "imagegen":
-        return <ImageGenView />;
-      case "voicegen":
-        return <VoiceGenView />;
-      case "musicgen":
-        return <MusicGenView />;
-      case "writing":
-        return <WritingView />;
-      case "contacts":
-        return (
-          <ContactsView
-            searchQuery={searchQuery}
-            onSendMessage={async (user) => {
-              try {
-                const chatTarget = await resolveContactChatTarget(user);
-                const directChat = await chatService.startDirectChat(chatTarget);
-                const refreshedChats = await chatService.getChats().catch(() => chats);
-                const nextChats = refreshedChats.some((chat) => chat.id === directChat.id)
-                  ? refreshedChats.map((chat) => chat.id === directChat.id ? { ...chat, ...directChat } : chat)
-                  : [directChat, ...refreshedChats];
-                setChats(nextChats);
-                setActiveChat(nextChats.find((chat) => chat.id === directChat.id) ?? directChat);
-                setActiveTab("chat");
-              } catch {
-                toast(t("chat.toast.directChatFailed"), "error");
-              }
-            }}
-            onStartCall={(type, user) => {
-              void handleStartContactCall(type, user);
-            }}
-            onAddFriend={() => setIsAddFriendOpen(true)}
-            onAppSelect={(appId) => {
-              if (appId === "mail") setActiveTab("mail");
-            }}
-            onOpenGroup={async (group) => {
-              await openHydratedChat(group);
-            }}
-          />
-        );
-      case "favorites":
-        return <FavoritesView searchQuery={searchQuery} />;
-      default:
-        return (
-          <div className="flex-1 flex items-center justify-center bg-[#1e1e1e]">
-            <div className="text-gray-500 text-xl capitalize">
-              {activeTab} Content
-            </div>
-          </div>
-        );
-    }
-  };
+  const capabilitySurface = (
+    <CapabilityModuleSurface
+      activeTab={activeTab}
+      searchQuery={searchQuery}
+      editAgentId={editAgentId}
+      pendingCommunityId={pendingCommunityId}
+      t={t}
+      onTabChange={setActiveTab}
+      onEditAgentIdChange={setEditAgentId}
+      onOpenCreateAgentModal={() => {
+        setEditAgentId(undefined);
+        setIsCreateAgentModalOpen(true);
+      }}
+      onPendingCommunityHandled={() => setPendingCommunityId(null)}
+      onOpenAddFriend={() => setIsAddFriendOpen(true)}
+      onStartAgentChat={handleStartAgentChat}
+      onEnterpriseStartChat={async (enterpriseId, enterpriseName) => {
+        try {
+          const enterpriseChat = await chatService.startEnterpriseChat({
+            id: enterpriseId,
+            name: enterpriseName,
+          });
+          const refreshedChats = await chatService.getChats().catch(() => chats);
+          const nextChats = refreshedChats.some((chat) => chat.id === enterpriseChat.id)
+            ? refreshedChats.map((chat) =>
+                chat.id === enterpriseChat.id ? { ...chat, ...enterpriseChat } : chat,
+              )
+            : [enterpriseChat, ...refreshedChats];
+          setChats(nextChats);
+          setActiveChat(nextChats.find((chat) => chat.id === enterpriseChat.id) ?? enterpriseChat);
+          setActiveTab("chat");
+        } catch {
+          toast(t("chat.toast.enterpriseChatFailed"), "error");
+        }
+      }}
+      onEnterpriseCall={(_id, name) => {
+        toast(t("chat.toast.enterpriseCalling", { name }), "success");
+      }}
+      onContactSendMessage={async (user) => {
+        try {
+          const chatTarget = await resolveContactChatTarget(user);
+          const directChat = await chatService.startDirectChat(chatTarget);
+          const refreshedChats = await chatService.getChats().catch(() => chats);
+          const nextChats = refreshedChats.some((chat) => chat.id === directChat.id)
+            ? refreshedChats.map((chat) =>
+                chat.id === directChat.id ? { ...chat, ...directChat } : chat,
+              )
+            : [directChat, ...refreshedChats];
+          setChats(nextChats);
+          setActiveChat(nextChats.find((chat) => chat.id === directChat.id) ?? directChat);
+          setActiveTab("chat");
+        } catch {
+          toast(t("chat.toast.directChatFailed"), "error");
+        }
+      }}
+      onContactStartCall={(type, user) => {
+        void handleStartContactCall(type, user);
+      }}
+      onOpenGroup={openHydratedChat}
+      showToast={toast}
+    />
+  );
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-[#1e1e1e] font-sans text-gray-200 print:overflow-visible print:h-auto print:min-h-0">
-      {shouldRenderDesktopAppHeader && (
+    <>
+    <AppShellFrame
+      activeTab={activeTab}
+      sidebar={
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onLogout={handleLogout}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          chatUnreadCount={chats.reduce(
+            (acc, c) =>
+              acc + (c.unreadCount || 0) + ((c.unreadCount || 0) > 0 || !c.isMarkedUnread ? 0 : 1),
+            0,
+          )}
+          friendRequestUnreadCount={friendRequestUnreadCount}
+        />
+      }
+      desktopTitleBar={
         <div className="h-[32px] w-full flex shrink-0 bg-[#181818] border-b border-white/5 drag-region justify-between items-center z-50 print:hidden">
           <div className="text-[12px] text-gray-400 pl-4 font-medium tracking-widest select-none">
             SDKWORK_IM
@@ -1176,54 +1070,12 @@ const ChatLayoutComponent: React.FC = () => {
             <WindowControls />
           </div>
         </div>
-      )}
-
-      <div className="flex flex-1 min-h-0 relative print:overflow-visible print:h-auto print:min-h-0 print:block">
-        <div className="h-full shrink-0 flex flex-col z-20 print:hidden">
-          <Sidebar
-            activeTab={activeTab}
-            onTabChange={handleTabChange}
-            onLogout={handleLogout}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            chatUnreadCount={chats.reduce(
-              (acc, c) =>
-                acc + (c.unreadCount || 0) + ((c.unreadCount || 0) > 0 || !c.isMarkedUnread ? 0 : 1),
-              0,
-            )}
-            friendRequestUnreadCount={friendRequestUnreadCount}
-          />
-        </div>
-
-        <div className="flex flex-col flex-1 min-w-0 min-h-0 relative print:overflow-visible print:h-auto print:min-h-0 print:block">
-          {/* We only render the Unified App Header for non-fullscreen tabs */}
-          {![
-            "orders",
-            "notary",
-            "workspace",
-            "calendar",
-            "shop",
-            "drive",
-            "approval",
-            "report",
-            "attendance",
-            "knowledge",
-            "create-agent",
-            "course",
-            "enterprise",
-            "voice",
-            "videogen",
-            "imagegen",
-            "voicegen",
-            "musicgen",
-            "writing",
-          ].includes(activeTab) && (
-            <div className="h-[52px] w-full flex items-center shrink-0 border-b border-white/5 bg-[#1e1e1e] relative print:hidden">
-              {renderHeaderContent()}
-            </div>
-          )}
-
-          <div className="flex flex-row flex-1 min-h-0 min-w-0 relative print:overflow-visible print:h-auto print:min-h-0 print:block">
-            {activeTab === "chat" ? (
+      }
+      header={renderHeaderContent()}
+    >
+            <ModuleRenderHost
+              activeTab={activeTab}
+              chatSurface={
               <>
                 <ChatList
                   chats={localizedChats}
@@ -1255,9 +1107,9 @@ const ChatLayoutComponent: React.FC = () => {
                   />
                 )}
               </>
-            ) : (
-              renderMainContent()
-            )}
+              }
+              capabilitySurface={capabilitySurface}
+            />
 
             {/* RHS Chat Panel */}
             <AnimatePresence>
@@ -1373,8 +1225,7 @@ const ChatLayoutComponent: React.FC = () => {
                 />
               )}
             </AnimatePresence>
-          </div>
-        </div>
+    </AppShellFrame>
 
         {/* Call Overlay */}
         {callTarget && (
@@ -1617,8 +1468,7 @@ const ChatLayoutComponent: React.FC = () => {
           }}
         />
         <MusicPlayer />
-      </div>
-    </div>
+    </>
   );
 };
 

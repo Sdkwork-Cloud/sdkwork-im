@@ -100,7 +100,7 @@ fn test_resolve_app_context_uses_dual_token_claims() {
     let context = resolve_app_context(&headers).expect("app context should resolve");
 
     assert_eq!(context.tenant_id, "t_demo");
-    assert_eq!(context.organization_id.as_deref(), Some("o_demo"));
+    assert_eq!(context.organization_id, "o_demo");
     assert_eq!(context.user_id, "u_demo");
     assert_eq!(context.actor_id, "u_demo");
     assert_eq!(context.actor_kind, "user");

@@ -6,9 +6,10 @@
     "version": "0.1.0",
     "language": "typescript",
     "sdkType": "app",
+    "protocol": "http",
     "packageName": "@sdkwork-internal/im-app-api-generated"
   },
-  "changeFingerprint": "0663d1d3862df00635e14a7dcd6f9b338a271fc79d4961fe1cd97401c90bdc4a",
+  "changeFingerprint": "9700e77deb313bbc755b9341d1e5117080df85ef95520678d8137dbe336ec204",
   "changes": {
     "createdGeneratedFiles": [
       "CHANGELOG.md",
@@ -19,7 +20,7 @@
       "src/api/automation.ts",
       "src/api/base.ts",
       "src/api/index.ts",
-      "src/api/notification.ts",
+      "src/api/notifications.ts",
       "src/api/paths.ts",
       "src/api/portal.ts",
       "src/api/provider.ts",
@@ -62,21 +63,27 @@
       "src/types/string-map.ts",
       "tsconfig.json"
     ],
-    "updatedGeneratedFiles": [],
-    "unchangedGeneratedFiles": [
+    "updatedGeneratedFiles": [
       "bin/publish-core.mjs",
       "bin/publish.ps1",
       "bin/publish.sh",
       "bin/sdk-gen.bat",
       "bin/sdk-gen.sh"
     ],
+    "unchangedGeneratedFiles": [],
     "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/build-runtime.mjs",
       "custom/README.md"
     ],
-    "backedUpFiles": []
+    "backedUpFiles": [
+      "bin/publish-core.mjs",
+      "bin/publish.ps1",
+      "bin/publish.sh",
+      "bin/sdk-gen.bat",
+      "bin/sdk-gen.sh"
+    ]
   },
   "impact": {
     "schemaVersion": 1,
@@ -85,6 +92,7 @@
       "models",
       "runtime",
       "build-metadata",
+      "publish-workflow",
       "documentation",
       "unknown"
     ],
@@ -95,7 +103,7 @@
           "src/api/automation.ts",
           "src/api/base.ts",
           "src/api/index.ts",
-          "src/api/notification.ts",
+          "src/api/notifications.ts",
           "src/api/paths.ts",
           "src/api/portal.ts",
           "src/api/provider.ts",
@@ -157,6 +165,16 @@
         ]
       },
       {
+        "area": "publish-workflow",
+        "paths": [
+          "bin/publish-core.mjs",
+          "bin/publish.ps1",
+          "bin/publish.sh",
+          "bin/sdk-gen.bat",
+          "bin/sdk-gen.sh"
+        ]
+      },
+      {
         "area": "documentation",
         "paths": [
           "CHANGELOG.md",
@@ -172,18 +190,18 @@
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required."
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown.",
         "workingDirectory": "E:\\sdkwork-space\\sdkwork-im\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -201,7 +219,7 @@
         "id": "build",
         "title": "Unified package build",
         "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, documentation, unknown.",
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime, build-metadata, publish-workflow, documentation, unknown.",
         "workingDirectory": "E:\\sdkwork-space\\sdkwork-im\\sdks\\sdkwork-im-app-sdk\\sdkwork-im-app-sdk-typescript\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -225,6 +243,7 @@
     "applyRequiresExpectedFingerprint": false,
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
+      "backed-up-generated-files",
       "manual-review-required",
       "preserved-legacy-files",
       "unknown-impact",

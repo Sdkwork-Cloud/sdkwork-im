@@ -44,7 +44,7 @@ interface SidebarProps {
 
 const SETTINGS_CHANGED_EVENT = "sdkwork-im-pc:settings-changed";
 const MODULE_REFRESH_DEDUPE_MS = 800;
-const PINNED_SIDEBAR_MODULES = new Set(DEFAULT_SIDEBAR_MODULES);
+const PINNED_SIDEBAR_MODULES = new Set<string>(DEFAULT_SIDEBAR_MODULES as readonly string[]);
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
@@ -139,7 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           (m) =>
             m === "chat" ||
             PINNED_SIDEBAR_MODULES.has(m) ||
-            ALWAYS_CONFIGURABLE_MODULES.has(m) ||
+            (ALWAYS_CONFIGURABLE_MODULES as ReadonlySet<string>).has(m) ||
             serverModules.includes(m),
         );
         if (!disposed) {

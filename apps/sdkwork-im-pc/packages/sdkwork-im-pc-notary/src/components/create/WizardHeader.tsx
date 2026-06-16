@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WizardHeader - Header bar for the create task wizard
  */
 import React from 'react';

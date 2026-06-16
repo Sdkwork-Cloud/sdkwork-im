@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Check, Plus, Video, Trash2, User as UserIcon, ShieldCheck, FileText, Camera, Loader2, X, Edit, Folder, Cloud, Upload, QrCode, Smartphone, PenTool } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@sdkwork/im-pc-commons';

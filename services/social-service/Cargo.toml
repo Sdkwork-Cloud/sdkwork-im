@@ -24,5 +24,7 @@ sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
 sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
 im-app-context = { path = "../../crates/im-app-context" }
 sha2 = "0.10"
+im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 hmac = "0.12"
 base64 = "0.22"

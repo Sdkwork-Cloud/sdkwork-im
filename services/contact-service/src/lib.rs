@@ -1,12 +1,11 @@
-//! Contact Service - 好友请求、好友关系、用户屏蔽、单聊、用户资料
+//! Contact Service — deprecated compatibility shim.
+//!
+//! Postgres supplemental handlers now live in `social-service`.
 
-mod friend_request;
-mod friendship;
-mod block;
-mod direct_chat;
-mod user_profile;
-mod user_settings;
-mod http;
-mod openapi;
+pub use social_service::{
+    app_state_from_postgres_pool, build_public_app_with_contact_extension,
+    build_public_app_with_postgres_extension, build_supplemental_app,
+    build_supplemental_public_app, try_postgres_app_state_from_database_url_env, PostgresAppState,
+};
 
-pub use http::{AppState, build_app, build_public_app};
+pub type AppState = PostgresAppState;

@@ -1,4 +1,4 @@
-# Backend Control Module Overview
+﻿# Backend Control Module Overview
 
 <p class="api-page-intro">
   Backend control modules manage runtime governance outside the app node request path under
@@ -45,7 +45,7 @@
   `sdks/sdkwork-im-backend-sdk/openapi/sdkwork-im-backend-api.openapi.yaml`.
 - Read and write permissions are split between `control.read` and `control.write`.
 - Standalone governance development can call `control-plane-api` directly, but packaged installs
-  expose the same governance routes through the unified `sdkwork-im-server` / `web-gateway` public
+  expose the same governance routes through the unified `sdkwork-im-server` / `sdkwork-im-gateway` public
   origin.
 
 ## How To Use This Page

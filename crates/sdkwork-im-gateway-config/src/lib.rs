@@ -57,10 +57,7 @@ impl WebGatewayConfig {
     }
 
     pub fn upstream_base_url(&self, service_id: &str) -> Option<&str> {
-        self.upstreams
-            .iter()
-            .find(|upstream| upstream.service_id == service_id)
-            .map(|upstream| upstream.base_url.as_str())
+        service_upstream_lookup(&self.upstreams, service_id)
     }
 
     fn with_bind_addr_and_runtime_mode(
@@ -165,6 +162,7 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
         service_upstream("sdkwork-appbase-app-api", appbase_upstream.as_str()),
         service_upstream("session-gateway", "http://127.0.0.1:18080"),
         service_upstream("governance-service", "http://127.0.0.1:18081"),
+        service_upstream("comms-conversation-service", "http://127.0.0.1:18082"),
         service_upstream("conversation-runtime", "http://127.0.0.1:18082"),
         service_upstream("projection-service", "http://127.0.0.1:18083"),
         service_upstream("streaming-service", "http://127.0.0.1:18084"),
@@ -176,7 +174,39 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
         service_upstream("automation-service", "http://127.0.0.1:18088"),
         service_upstream("audit-service", "http://127.0.0.1:18089"),
         service_upstream("ops-service", "http://127.0.0.1:18091"),
+        service_upstream("comms-social-service", "http://127.0.0.1:18092"),
+        service_upstream("social-service", "http://127.0.0.1:18092"),
+        service_upstream("comms-space-service", "http://127.0.0.1:18093"),
+        service_upstream("space-service", "http://127.0.0.1:18093"),
     ]
+}
+
+/// Resolves legacy gateway service ids to canonical communication capability ids.
+pub fn canonical_service_id(service_id: &str) -> &str {
+    match service_id {
+        "social-service" => "comms-social-service",
+        "space-service" => "comms-space-service",
+        "conversation-runtime" => "comms-conversation-service",
+        "web-gateway" => "sdkwork-im-gateway",
+        other => other,
+    }
+}
+
+fn service_upstream_lookup<'a>(
+    upstreams: &'a [ServiceUpstreamConfig],
+    service_id: &str,
+) -> Option<&'a str> {
+    let canonical = canonical_service_id(service_id);
+    for candidate in [service_id, canonical] {
+        if let Some(base_url) = upstreams
+            .iter()
+            .find(|upstream| upstream.service_id == candidate)
+            .map(|upstream| upstream.base_url.as_str())
+        {
+            return Some(base_url);
+        }
+    }
+    None
 }
 
 fn default_appbase_app_api_upstream() -> String {
@@ -426,6 +456,19 @@ bind_address = "127.0.0.1:38080"
             config.upstream_base_url("ops-service"),
             Some("http://127.0.0.1:18091")
         );
+        assert_eq!(
+            config.upstream_base_url("comms-social-service"),
+            Some("http://127.0.0.1:18092")
+        );
+        assert_eq!(
+            config.upstream_base_url("social-service"),
+            Some("http://127.0.0.1:18092")
+        );
+        assert_eq!(
+            config.upstream_base_url("comms-space-service"),
+            Some("http://127.0.0.1:18093")
+        );
+        assert_eq!(config.upstream_base_url("interaction-service"), None);
     }
 
     #[test]

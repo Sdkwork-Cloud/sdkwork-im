@@ -599,7 +599,7 @@ Observed result:
 RTC:
 
 ```powershell
-node ../../../sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
+node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
 node ../../../sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\smoke-sdk.mjs
 ```
 

@@ -1,4 +1,4 @@
-# Runtime Topology
+﻿# Runtime Topology
 
 This page describes the topology that is implemented today, not a future target topology.
 
@@ -105,7 +105,7 @@ The control plane is parallel to the app node. It is not a nested route tree ins
 The formal packaged server install flow uses the unified gateway as the operator-facing entrypoint:
 
 - binary: `sdkwork-im-server`
-- package source: `services/web-gateway`
+- package source: `services/sdkwork-im-gateway`
 - startup contract: `sdkwork-im-server --config <config-root>/server.yaml`
 - frozen server template bind: `0.0.0.0:18080`
 - storage baseline: PostgreSQL through `storage/postgresql.yaml`

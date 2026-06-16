@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Trash2, ShieldCheck, User as UserIcon, FileText, Camera, Loader2, X, PenTool } from 'lucide-react';
 import { Party } from '@sdkwork/im-pc-types';

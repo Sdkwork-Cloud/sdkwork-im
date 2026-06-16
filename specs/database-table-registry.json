@@ -15,7 +15,7 @@
       "boundedContext": "instant_messaging",
       "tableProfile": "event_log",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/010_im_tenant_organization_isolation.sql"
     },
     {
@@ -24,7 +24,7 @@
       "boundedContext": "instant_messaging",
       "tableProfile": "outbox_event",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/010_im_tenant_organization_isolation.sql"
     },
     {
@@ -51,7 +51,7 @@
       "boundedContext": "instant_messaging",
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/010_im_tenant_organization_isolation.sql"
     },
     {
@@ -60,7 +60,7 @@
       "boundedContext": "instant_messaging",
       "tableProfile": "sequence_allocator",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/010_im_tenant_organization_isolation.sql"
     },
     {
@@ -69,7 +69,7 @@
       "boundedContext": "instant_messaging",
       "tableProfile": "relation_entity",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/010_im_tenant_organization_isolation.sql"
     },
     {
@@ -368,7 +368,7 @@
       "boundedContext": "organization",
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
     },
     {
@@ -377,7 +377,7 @@
       "boundedContext": "organization",
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
     },
     {
@@ -386,7 +386,7 @@
       "boundedContext": "organization",
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
     },
     {
@@ -395,7 +395,7 @@
       "boundedContext": "organization",
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
     },
     {
@@ -404,7 +404,7 @@
       "boundedContext": "messaging",
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
     },
     {
@@ -413,7 +413,7 @@
       "boundedContext": "messaging",
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
     },
     {
@@ -422,7 +422,7 @@
       "boundedContext": "messaging",
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
     },
     {
@@ -431,7 +431,7 @@
       "boundedContext": "messaging",
       "tableProfile": "tenant_entity",
       "systemOfRecord": true,
-      "writeOwner": "conversation-runtime",
+      "writeOwner": "comms-conversation-service",
       "migration": "deployments/database/postgres/migrations/012_im_social_org_interactions.sql"
     },
     {

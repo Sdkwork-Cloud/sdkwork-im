@@ -124,7 +124,7 @@ function createSdkworkImProductionBuildPlan({
     steps.push({
       label: 'build sdkwork-im-server release binary',
       command: cargoCommand(),
-      args: ['build', '-p', 'web-gateway', '--bin', 'sdkwork-im-server', '--release'],
+      args: ['build', '-p', 'sdkwork-im-gateway', '--bin', 'sdkwork-im-server', '--release'],
       cwd: root,
       env,
     });

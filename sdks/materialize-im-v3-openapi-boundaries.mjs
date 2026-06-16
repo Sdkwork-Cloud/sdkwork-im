@@ -10,6 +10,7 @@ import {
   writeOpenApiYamlDocument,
 } from './workspace-openapi-source-shared.mjs';
 import { applySdkworkV3OpenApiStandard } from './workspace-openapi-v3-standard.mjs';
+import { mergeImSpacesOpenApiFragments } from './merge-im-spaces-openapi-fragments.mjs';
 
 const sdkRoot = path.dirname(fileURLToPath(import.meta.url));
 const imRoot = path.join(sdkRoot, 'sdkwork-im-sdk');
@@ -98,6 +99,8 @@ function isImStandardPath(pathKey, prefix) {
     || route.startsWith('presence/')
     || route.startsWith('realtime/')
     || route.startsWith('social/')
+    || route.startsWith('spaces/')
+    || route === 'spaces'
     || route.startsWith('streams')
   );
 }
@@ -478,7 +481,7 @@ function normalizeImAuthority(im) {
     title: 'Sdkwork IM IM Standardized Development API',
     version: im.info?.version || '0.1.0',
     description:
-      'IM standardized development OpenAPI contract for conversations, messages, realtime, media, streams, and social IM flows.',
+      'IM standardized development OpenAPI contract for conversations, messages, realtime, media, streams, social IM flows, and communication spaces.',
   };
   next.paths = collectRebasedPaths({
     sources: [im],
@@ -624,6 +627,7 @@ function sdkgenDerivedDocument(
 
 const yaml = await loadGeneratorYaml(sdkRoot);
 const im = loadOpenApiDocument({ prefix: 'sdkwork-im-sdk', filePath: imAuthorityPath, yaml });
+mergeImSpacesOpenApiFragments(im, yaml);
 const backend = loadOpenApiDocument({ prefix: 'sdkwork-im-backend-sdk', filePath: backendAuthorityPath, yaml });
 const app = loadOpenApiDocument({ prefix: 'sdkwork-im-app-sdk', filePath: appAuthorityPath, yaml });
 const appbaseApp = loadOpenApiDocument({
@@ -665,6 +669,9 @@ const consolidatedAppFlutter = sdkgenDerivedDocument(consolidatedApp, {
   applyFlutterCompatibility: true,
 });
 
+if (!consolidatedIm.paths['/im/v3/api/spaces']) {
+  fail('IM authority is missing /im/v3/api/spaces.');
+}
 if (!consolidatedIm.paths['/im/v3/api/chat/conversations']) {
   fail('IM authority is missing /im/v3/api/chat/conversations.');
 }

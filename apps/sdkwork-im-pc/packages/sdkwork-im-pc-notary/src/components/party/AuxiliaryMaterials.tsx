@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AuxiliaryMaterials - Remarks and attachments section in PartyDrawer
  */
 import React, { useRef } from 'react';

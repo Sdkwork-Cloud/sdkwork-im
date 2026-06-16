@@ -257,6 +257,13 @@ const chatLayoutSource = readText(
   'pages',
   'ChatLayout.tsx',
 );
+const capabilityModuleSurfaceSource = readText(
+  'packages',
+  'sdkwork-im-pc-chat',
+  'src',
+  'surfaces',
+  'CapabilityModuleSurface.tsx',
+);
 const communityViewSource = readText(
   'packages',
   'sdkwork-im-pc-community',
@@ -442,9 +449,9 @@ assert.match(
   'ChatLayout must keep the scanned community id so the community tab can open the exact target.',
 );
 assert.match(
-  chatLayoutSource,
-  /<CommunityView[\s\S]*initialCommunityId=\{pendingCommunityId\s*\?\?\s*undefined\}[\s\S]*onInitialCommunityHandled=\{/u,
-  'ChatLayout must pass the scanned community id into CommunityView and clear it after handling.',
+  `${chatLayoutSource}\n${capabilityModuleSurfaceSource}`,
+  /initialCommunityId=\{pendingCommunityId\s*\?\?\s*undefined\}[\s\S]*onInitialCommunityHandled=/u,
+  'Chat layout must pass the scanned community id into CommunityView and clear it after handling.',
 );
 assert.match(
   chatLayoutSource,

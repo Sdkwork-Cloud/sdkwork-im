@@ -3,6 +3,12 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 
+fn read_utf8_file(path: impl AsRef<std::path::Path>) -> std::io::Result<String> {
+    let path = path.as_ref();
+    let bytes = fs::read(path)?;
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -42,11 +48,11 @@ fn test_step11_catalog_freezes_tiers_scenarios_and_repo_assets() {
         .join("perf")
         .join("schemas")
         .join("step-11-scenario-catalog.schema.json");
-    let catalog_raw = fs::read_to_string(&catalog_path)
+    let catalog_raw = read_utf8_file(&catalog_path)
         .unwrap_or_else(|_| panic!("missing Step 11 catalog: {}", catalog_path.display()));
     let catalog: Value = serde_json::from_str(&catalog_raw)
         .unwrap_or_else(|_| panic!("invalid Step 11 catalog JSON: {}", catalog_path.display()));
-    let catalog_schema_raw = fs::read_to_string(&catalog_schema_path).unwrap_or_else(|_| {
+    let catalog_schema_raw = read_utf8_file(&catalog_schema_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 catalog schema: {}",
             catalog_schema_path.display()
@@ -198,7 +204,7 @@ fn test_step11_catalog_freezes_tiers_scenarios_and_repo_assets() {
 fn test_step11_operator_doc_links_to_catalog_and_execution_tiers() {
     let root = workspace_root();
     let doc_path = root.join("docs").join("部署").join("性能与灾备演练场景.md");
-    let doc = fs::read_to_string(&doc_path)
+    let doc = read_utf8_file(&doc_path)
         .unwrap_or_else(|_| panic!("missing Step 11 operator doc: {}", doc_path.display()));
 
     for required_text in [
@@ -275,7 +281,7 @@ fn test_continuous_optimization_freezes_pre_release_and_capacity_tier_gate_templ
         .join("\u{67B6}\u{6784}")
         .join("150AR-pre-release-capacity-tier-gates-design-2026-04-09.md");
 
-    let pre_release_gate_raw = fs::read_to_string(&pre_release_gate_path).unwrap_or_else(|_| {
+    let pre_release_gate_raw = read_utf8_file(&pre_release_gate_path).unwrap_or_else(|_| {
         panic!(
             "missing Pre-Release Tier gate template: {}",
             pre_release_gate_path.display()
@@ -288,7 +294,7 @@ fn test_continuous_optimization_freezes_pre_release_and_capacity_tier_gate_templ
                 pre_release_gate_path.display()
             )
         });
-    let capacity_gate_raw = fs::read_to_string(&capacity_gate_path).unwrap_or_else(|_| {
+    let capacity_gate_raw = read_utf8_file(&capacity_gate_path).unwrap_or_else(|_| {
         panic!(
             "missing Capacity Tier gate template: {}",
             capacity_gate_path.display()
@@ -300,13 +306,13 @@ fn test_continuous_optimization_freezes_pre_release_and_capacity_tier_gate_templ
             capacity_gate_path.display()
         )
     });
-    let gate_schema_raw = fs::read_to_string(&gate_schema_path).unwrap_or_else(|_| {
+    let gate_schema_raw = read_utf8_file(&gate_schema_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 tier gate schema: {}",
             gate_schema_path.display()
         )
     });
-    let catalog_raw = fs::read_to_string(&catalog_path)
+    let catalog_raw = read_utf8_file(&catalog_path)
         .unwrap_or_else(|_| panic!("missing Step 11 catalog: {}", catalog_path.display()));
     let catalog: Value = serde_json::from_str(&catalog_raw)
         .unwrap_or_else(|_| panic!("invalid Step 11 catalog JSON: {}", catalog_path.display()));
@@ -426,7 +432,7 @@ fn test_continuous_optimization_freezes_pre_release_and_capacity_tier_gate_templ
         architecture_plan_path,
         architecture_design_path,
     ] {
-        let doc = fs::read_to_string(&doc_path)
+        let doc = read_utf8_file(&doc_path)
             .unwrap_or_else(|_| panic!("missing backwrite doc: {}", doc_path.display()));
         for required_text in [
             "step-11-pre-release-tier-gate.json",
@@ -482,7 +488,7 @@ fn test_continuous_optimization_freezes_tier_gate_evidence_slot_placeholders() {
         .join("\u{67B6}\u{6784}")
         .join("150AR-pre-release-capacity-tier-gates-design-2026-04-09.md");
 
-    let pre_release_gate_raw = fs::read_to_string(&pre_release_gate_path).unwrap_or_else(|_| {
+    let pre_release_gate_raw = read_utf8_file(&pre_release_gate_path).unwrap_or_else(|_| {
         panic!(
             "missing Pre-Release Tier gate template: {}",
             pre_release_gate_path.display()
@@ -495,7 +501,7 @@ fn test_continuous_optimization_freezes_tier_gate_evidence_slot_placeholders() {
                 pre_release_gate_path.display()
             )
         });
-    let capacity_gate_raw = fs::read_to_string(&capacity_gate_path).unwrap_or_else(|_| {
+    let capacity_gate_raw = read_utf8_file(&capacity_gate_path).unwrap_or_else(|_| {
         panic!(
             "missing Capacity Tier gate template: {}",
             capacity_gate_path.display()
@@ -507,7 +513,7 @@ fn test_continuous_optimization_freezes_tier_gate_evidence_slot_placeholders() {
             capacity_gate_path.display()
         )
     });
-    let gate_schema_raw = fs::read_to_string(&gate_schema_path).unwrap_or_else(|_| {
+    let gate_schema_raw = read_utf8_file(&gate_schema_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 tier gate schema: {}",
             gate_schema_path.display()
@@ -677,7 +683,7 @@ fn test_continuous_optimization_freezes_tier_gate_evidence_slot_placeholders() {
         architecture_plan_path,
         architecture_design_path,
     ] {
-        let doc = fs::read_to_string(&doc_path)
+        let doc = read_utf8_file(&doc_path)
             .unwrap_or_else(|_| panic!("missing backwrite doc: {}", doc_path.display()));
         for required_text in [
             "artifactRoot",
@@ -730,11 +736,11 @@ fn test_continuous_optimization_surfaces_tier_gate_artifact_roots_in_catalog_sch
         .join("\u{67B6}\u{6784}")
         .join("150AR-pre-release-capacity-tier-gates-design-2026-04-09.md");
 
-    let catalog_raw = fs::read_to_string(&catalog_path)
+    let catalog_raw = read_utf8_file(&catalog_path)
         .unwrap_or_else(|_| panic!("missing Step 11 catalog: {}", catalog_path.display()));
     let catalog: Value = serde_json::from_str(&catalog_raw)
         .unwrap_or_else(|_| panic!("invalid Step 11 catalog JSON: {}", catalog_path.display()));
-    let catalog_schema_raw = fs::read_to_string(&catalog_schema_path).unwrap_or_else(|_| {
+    let catalog_schema_raw = read_utf8_file(&catalog_schema_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 catalog schema: {}",
             catalog_schema_path.display()
@@ -780,7 +786,7 @@ fn test_continuous_optimization_surfaces_tier_gate_artifact_roots_in_catalog_sch
         architecture_plan_path,
         architecture_design_path,
     ] {
-        let doc = fs::read_to_string(&doc_path)
+        let doc = read_utf8_file(&doc_path)
             .unwrap_or_else(|_| panic!("missing backwrite doc: {}", doc_path.display()));
         for required_text in [
             "step-11-scenario-catalog.json",
@@ -805,7 +811,7 @@ fn test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed()
         .join("docs")
         .join("step")
         .join("continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md");
-    let step_doc = fs::read_to_string(&step_doc_path)
+    let step_doc = read_utf8_file(&step_doc_path)
         .unwrap_or_else(|_| panic!("missing step doc: {}", step_doc_path.display()));
 
     for required_text in [
@@ -830,7 +836,7 @@ fn test_continuous_optimization_step11_step_doc_supersedes_stale_catalog_gap_wor
         .join("docs")
         .join("step")
         .join("continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md");
-    let step_doc = fs::read_to_string(&step_doc_path)
+    let step_doc = read_utf8_file(&step_doc_path)
         .unwrap_or_else(|_| panic!("missing step doc: {}", step_doc_path.display()));
 
     let required_text = "Any earlier note in this doc that says the catalog still lacks tier-level artifactRoot is stale and superseded by this addendum.";
@@ -864,7 +870,7 @@ fn test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo(
         );
 
         let readme_path = artifact_root_path.join("README.md");
-        let readme = fs::read_to_string(&readme_path).unwrap_or_else(|_| {
+        let readme = read_utf8_file(&readme_path).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 artifactRoot README: {}",
                 readme_path.display()
@@ -908,8 +914,18 @@ fn test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo(
                 "{} must not retain stale pending_collection placeholders",
                 readme_path.display()
             );
-        } else {
-            for required_text in ["template_only_pending_execution", "pending_collection"] {
+        } else if tier_id == "capacity" {
+            for required_text in [
+                "evidence_collected_gate_passed",
+                "connection_capacity",
+                "message_capacity",
+                "stream_capacity",
+                "restore-recovery/recovery.json",
+                "failover/recovery.json",
+                "reports/capacity-report.md",
+                "reports/recovery-report.md",
+                "all seven truthful local Capacity Tier artifacts",
+            ] {
                 assert!(
                     readme.contains(required_text),
                     "{} must contain {}",
@@ -917,6 +933,13 @@ fn test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo(
                     required_text
                 );
             }
+            assert!(
+                !readme.contains("pending_collection"),
+                "{} must not retain stale pending_collection placeholders",
+                readme_path.display()
+            );
+        } else {
+            panic!("unexpected Step 11 tier id: {tier_id}");
         }
     }
 }
@@ -930,7 +953,7 @@ fn test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_art
         .join("step-11")
         .join("schemas")
         .join("step-11-tier-evidence-index.schema.json");
-    let schema_raw = fs::read_to_string(&schema_path).unwrap_or_else(|_| {
+    let schema_raw = read_utf8_file(&schema_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 tier evidence index schema: {}",
             schema_path.display()
@@ -978,7 +1001,7 @@ fn test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_art
         ),
     ] {
         let gate_template_file = root.join(gate_template_path.replace('/', "\\"));
-        let gate_template_raw = fs::read_to_string(&gate_template_file).unwrap_or_else(|_| {
+        let gate_template_raw = read_utf8_file(&gate_template_file).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 tier gate template: {}",
                 gate_template_file.display()
@@ -993,7 +1016,7 @@ fn test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_art
             });
 
         let index_path = root.join(index_relative_path.replace('/', "\\"));
-        let index_raw = fs::read_to_string(&index_path).unwrap_or_else(|_| {
+        let index_raw = read_utf8_file(&index_path).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 tier evidence index for {tier_id}: {}",
                 index_path.display()
@@ -1029,7 +1052,7 @@ fn test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_art
         assert_eq!(index_json["artifactFileListPath"], artifact_file_list_path);
 
         let checksum_manifest_file = root.join(checksum_manifest_path.replace('/', "\\"));
-        let checksum_manifest = fs::read_to_string(&checksum_manifest_file).unwrap_or_else(|_| {
+        let checksum_manifest = read_utf8_file(&checksum_manifest_file).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 checksum manifest placeholder: {}",
                 checksum_manifest_file.display()
@@ -1038,7 +1061,7 @@ fn test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_art
 
         let artifact_file_list_file = root.join(artifact_file_list_path.replace('/', "\\"));
         let artifact_file_list =
-            fs::read_to_string(&artifact_file_list_file).unwrap_or_else(|_| {
+            read_utf8_file(&artifact_file_list_file).unwrap_or_else(|_| {
                 panic!(
                     "missing Step 11 artifact-file-list placeholder: {}",
                     artifact_file_list_file.display()
@@ -1190,34 +1213,63 @@ fn test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_art
                 "{} must list the collected stream artifact",
                 artifact_file_list_file.display()
             );
-        } else {
-            assert_eq!(index_json["state"], gate_template_json["state"]);
-            assert_eq!(
-                index_json["collectionSummary"],
-                gate_template_json["collectionSummary"]
-            );
-            assert_eq!(
-                index_json["evidenceSlots"],
-                gate_template_json["evidenceSlots"]
-            );
-            assert_eq!(index_json["boundary"], gate_template_json["boundary"]);
+        } else if tier_id == "capacity" {
+            assert_eq!(index_json["state"], "evidence_collected_gate_passed");
+            assert_eq!(index_json["collectionSummary"]["totalSlots"], 7);
+            assert_eq!(index_json["collectionSummary"]["requiredSlots"], 7);
+            assert_eq!(index_json["collectionSummary"]["collectedSlots"], 7);
+            assert_eq!(index_json["collectionSummary"]["pendingSlots"], 0);
+            let evidence_slots = index_json["evidenceSlots"]
+                .as_array()
+                .expect("Capacity Tier evidenceSlots must be an array");
+            for (slot_id, artifact_suffix) in [
+                ("connection_capacity", "connection/capacity.json"),
+                ("message_capacity", "message/capacity.json"),
+                ("stream_capacity", "stream/capacity.json"),
+                (
+                    "restore_recovery_recovery",
+                    "restore-recovery/recovery.json",
+                ),
+                ("failover_recovery", "failover/recovery.json"),
+                ("capacity_report", "reports/capacity-report.md"),
+                ("recovery_report", "reports/recovery-report.md"),
+            ] {
+                assert!(
+                    evidence_slots.iter().any(|slot| {
+                        slot["id"] == slot_id
+                            && slot["status"] == "collected"
+                            && slot["artifactPath"]
+                                == format!(
+                                    "artifacts/perf/step-11/capacity/{artifact_suffix}"
+                                )
+                    }),
+                    "Capacity Tier must materialize the collected {slot_id} slot"
+                );
+                assert!(
+                    checksum_manifest.contains(artifact_suffix),
+                    "{} must list the collected {slot_id} artifact",
+                    checksum_manifest_file.display()
+                );
+                assert!(
+                    artifact_file_list.contains(artifact_suffix),
+                    "{} must list the collected {slot_id} artifact",
+                    artifact_file_list_file.display()
+                );
+            }
             assert!(
-                checksum_manifest.contains("template_only_pending_execution"),
-                "{} must keep the current template-only state visible",
+                checksum_manifest.contains("evidence_collected_gate_passed"),
+                "{} must surface the fully-collected gate-passed state",
                 checksum_manifest_file.display()
             );
-            assert!(
-                artifact_file_list.contains("pending_collection"),
-                "{} must keep the current slot state visible",
-                artifact_file_list_file.display()
-            );
+        } else {
+            panic!("unexpected Step 11 tier id: {tier_id}");
         }
 
         let artifact_root_readme_path = root
             .join(artifact_root.replace('/', "\\"))
             .join("README.md");
         let artifact_root_readme =
-            fs::read_to_string(&artifact_root_readme_path).unwrap_or_else(|_| {
+            read_utf8_file(&artifact_root_readme_path).unwrap_or_else(|_| {
                 panic!(
                     "missing Step 11 artifactRoot README: {}",
                     artifact_root_readme_path.display()
@@ -1246,24 +1298,24 @@ fn test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_art
 fn test_continuous_optimization_surfaces_tier_gate_templates_in_public_indexes() {
     let root = workspace_root();
     let deployment_index_path = root.join("docs").join("部署").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let architecture_index_path = root.join("docs").join("架构").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
         )
     });
     let implementation_plan_path = root.join("docs").join("架构").join("09-实施计划.md");
-    let implementation_plan = fs::read_to_string(&implementation_plan_path).unwrap_or_else(|_| {
+    let implementation_plan = read_utf8_file(&implementation_plan_path).unwrap_or_else(|_| {
         panic!(
             "missing implementation plan doc: {}",
             implementation_plan_path.display()
@@ -1322,17 +1374,17 @@ fn test_continuous_optimization_surfaces_tier_gate_templates_in_public_indexes()
 fn test_continuous_optimization_surfaces_tier_gate_backwrite_docs_in_indexes() {
     let root = workspace_root();
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let architecture_index_path = root.join("docs").join("架构").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
         )
     });
     let implementation_plan_path = root.join("docs").join("架构").join("09-实施计划.md");
-    let implementation_plan = fs::read_to_string(&implementation_plan_path).unwrap_or_else(|_| {
+    let implementation_plan = read_utf8_file(&implementation_plan_path).unwrap_or_else(|_| {
         panic!(
             "missing implementation plan doc: {}",
             implementation_plan_path.display()
@@ -1372,7 +1424,7 @@ fn test_continuous_optimization_surfaces_tier_gate_backwrite_docs_in_indexes() {
 fn test_continuous_optimization_surfaces_tier_gate_review_doc_in_review_index() {
     let root = workspace_root();
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
 
     for required_text in [
@@ -1392,7 +1444,7 @@ fn test_continuous_optimization_surfaces_tier_gate_review_doc_in_review_index() 
 fn test_continuous_optimization_surfaces_step_and_review_indexes_in_repo_readme() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
 
     for required_text in ["docs/step/README.md", "docs/review/README.md"] {
@@ -1408,7 +1460,7 @@ fn test_continuous_optimization_surfaces_related_step_and_architecture_backwrite
 {
     let root = workspace_root();
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
 
     for required_text in [
@@ -1427,7 +1479,7 @@ fn test_continuous_optimization_surfaces_related_step_and_architecture_backwrite
 fn test_continuous_optimization_surfaces_review_index_in_step_index() {
     let root = workspace_root();
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
 
     assert!(
@@ -1440,7 +1492,7 @@ fn test_continuous_optimization_surfaces_review_index_in_step_index() {
 fn test_continuous_optimization_keeps_template_only_state_visible_in_review_index() {
     let root = workspace_root();
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
 
     for required_text in [
@@ -1459,7 +1511,7 @@ fn test_continuous_optimization_keeps_template_only_state_visible_in_review_inde
 fn test_continuous_optimization_surfaces_operational_assets_in_review_index() {
     let root = workspace_root();
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
 
     for required_text in [
@@ -1478,7 +1530,7 @@ fn test_continuous_optimization_surfaces_operational_assets_in_review_index() {
 fn test_continuous_optimization_keeps_template_only_state_visible_in_step_index() {
     let root = workspace_root();
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
 
     for required_text in [
@@ -1497,7 +1549,7 @@ fn test_continuous_optimization_keeps_template_only_state_visible_in_step_index(
 fn test_continuous_optimization_surfaces_operational_assets_in_step_index() {
     let root = workspace_root();
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
 
     for required_text in [
@@ -1516,23 +1568,23 @@ fn test_continuous_optimization_surfaces_operational_assets_in_step_index() {
 fn test_continuous_optimization_surfaces_catalog_and_artifact_roots_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -1563,23 +1615,23 @@ fn test_continuous_optimization_surfaces_catalog_and_artifact_roots_in_public_in
 fn test_continuous_optimization_surfaces_step11_schemas_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -1609,23 +1661,23 @@ fn test_continuous_optimization_surfaces_step11_schemas_in_public_indexes() {
 fn test_continuous_optimization_surfaces_artifact_root_field_name_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -1650,23 +1702,23 @@ fn test_continuous_optimization_surfaces_artifact_root_field_name_in_public_inde
 fn test_continuous_optimization_surfaces_evidence_slot_contract_fields_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -1698,23 +1750,23 @@ fn test_continuous_optimization_surfaces_evidence_slot_contract_fields_in_public
 fn test_continuous_optimization_surfaces_template_only_state_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -1745,23 +1797,23 @@ fn test_continuous_optimization_surfaces_template_only_state_in_public_indexes()
 fn test_continuous_optimization_surfaces_evidence_slot_metadata_fields_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -1793,23 +1845,23 @@ fn test_continuous_optimization_surfaces_evidence_slot_metadata_fields_in_public
 fn test_continuous_optimization_surfaces_null_placeholder_state_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -1842,23 +1894,23 @@ fn test_continuous_optimization_surfaces_null_placeholder_state_in_public_indexe
 fn test_continuous_optimization_surfaces_artifact_path_naming_rule_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -1890,23 +1942,23 @@ fn test_continuous_optimization_surfaces_artifact_path_naming_rule_in_public_ind
 fn test_continuous_optimization_surfaces_collection_summary_counters_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -1940,23 +1992,23 @@ fn test_continuous_optimization_surfaces_collection_summary_counters_in_public_i
 fn test_continuous_optimization_surfaces_collection_summary_frozen_values_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -1990,23 +2042,23 @@ fn test_continuous_optimization_surfaces_collection_summary_frozen_values_in_pub
 fn test_continuous_optimization_surfaces_evidence_slot_semantics_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2033,23 +2085,23 @@ fn test_continuous_optimization_surfaces_evidence_slot_semantics_in_public_index
 fn test_continuous_optimization_surfaces_evidence_slot_semantic_examples_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2082,23 +2134,23 @@ fn test_continuous_optimization_surfaces_evidence_slot_semantic_examples_in_publ
 fn test_continuous_optimization_surfaces_suggested_relative_path_examples_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2130,23 +2182,23 @@ fn test_continuous_optimization_surfaces_suggested_relative_path_examples_in_pub
 fn test_continuous_optimization_surfaces_evidence_slot_ids_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2178,23 +2230,23 @@ fn test_continuous_optimization_surfaces_evidence_slot_ids_in_public_indexes() {
 fn test_continuous_optimization_surfaces_capacity_tier_path_examples_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2225,23 +2277,23 @@ fn test_continuous_optimization_surfaces_capacity_tier_path_examples_in_public_i
 fn test_continuous_optimization_surfaces_remaining_capacity_slot_ids_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2272,23 +2324,23 @@ fn test_continuous_optimization_surfaces_remaining_capacity_slot_ids_in_public_i
 fn test_continuous_optimization_surfaces_remaining_capacity_path_examples_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2315,23 +2367,23 @@ fn test_continuous_optimization_surfaces_remaining_capacity_path_examples_in_pub
 fn test_continuous_optimization_surfaces_remaining_pre_release_slot_ids_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2358,23 +2410,23 @@ fn test_continuous_optimization_surfaces_remaining_pre_release_slot_ids_in_publi
 fn test_continuous_optimization_surfaces_remaining_pre_release_path_examples_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2402,23 +2454,23 @@ fn test_continuous_optimization_separates_pre_release_and_capacity_current_state
  {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2434,8 +2486,8 @@ fn test_continuous_optimization_separates_pre_release_and_capacity_current_state
     ] {
         for required_text in [
             "Pre-Release Tier current state is now `evidence_collected_gate_blocked`",
-            "Capacity Tier current state remains `template_only_pending_execution`",
-            "Only Capacity Tier still waits for real collection; Pre-Release Tier already carries all seven truthful local artifacts.",
+            "Capacity Tier current state is now `evidence_collected_gate_passed`",
+            "Both Step 11 tier artifact roots now carry truthful local evidence; dedicated topology runs still gate full commercial sign-off.",
         ] {
             assert!(
                 doc.contains(required_text),
@@ -2449,23 +2501,23 @@ fn test_continuous_optimization_separates_pre_release_and_capacity_current_state
 fn test_continuous_optimization_surfaces_artifact_kind_examples_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2499,23 +2551,23 @@ fn test_continuous_optimization_surfaces_artifact_kind_examples_in_public_indexe
 fn test_continuous_optimization_surfaces_required_field_contract_examples_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2549,23 +2601,23 @@ fn test_continuous_optimization_surfaces_required_field_contract_examples_in_pub
 fn test_continuous_optimization_surfaces_additional_required_field_examples_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2597,23 +2649,23 @@ fn test_continuous_optimization_surfaces_additional_required_field_examples_in_p
 fn test_continuous_optimization_surfaces_additional_report_section_examples_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2645,23 +2697,23 @@ fn test_continuous_optimization_surfaces_additional_report_section_examples_in_p
 fn test_continuous_optimization_surfaces_advanced_required_field_examples_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2693,23 +2745,23 @@ fn test_continuous_optimization_surfaces_advanced_required_field_examples_in_pub
 fn test_continuous_optimization_surfaces_drill_required_field_examples_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2741,23 +2793,23 @@ fn test_continuous_optimization_surfaces_drill_required_field_examples_in_public
 fn test_continuous_optimization_surfaces_artifact_kind_to_field_mappings_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2790,23 +2842,23 @@ fn test_continuous_optimization_surfaces_artifact_kind_to_field_mappings_in_publ
 fn test_continuous_optimization_surfaces_scenario_family_to_slot_id_mappings_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2838,23 +2890,23 @@ fn test_continuous_optimization_surfaces_scenario_family_to_suggested_relative_p
  {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2886,23 +2938,23 @@ fn test_continuous_optimization_surfaces_report_id_to_suggested_relative_path_ma
  {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2933,23 +2985,23 @@ fn test_continuous_optimization_surfaces_slot_id_to_suggested_relative_path_mapp
  {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -2980,23 +3032,23 @@ fn test_continuous_optimization_surfaces_slot_id_to_suggested_relative_path_mapp
 fn test_continuous_optimization_surfaces_report_id_to_artifact_kind_mappings_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3027,23 +3079,23 @@ fn test_continuous_optimization_surfaces_scenario_family_to_artifact_kind_mappin
  {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3074,23 +3126,23 @@ fn test_continuous_optimization_surfaces_scenario_family_to_artifact_kind_mappin
 fn test_continuous_optimization_surfaces_slot_id_to_artifact_kind_mappings_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3122,23 +3174,23 @@ fn test_continuous_optimization_surfaces_report_id_to_required_sections_mappings
 {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3168,23 +3220,23 @@ fn test_continuous_optimization_surfaces_report_id_to_required_sections_mappings
 fn test_continuous_optimization_surfaces_slot_id_to_required_contract_mappings_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3216,23 +3268,23 @@ fn test_continuous_optimization_surfaces_scenario_family_to_required_contract_ma
  {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3264,23 +3316,23 @@ fn test_continuous_optimization_surfaces_artifact_kind_to_suggested_relative_pat
  {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3313,23 +3365,23 @@ fn test_continuous_optimization_surfaces_artifact_kind_to_suggested_relative_pat
 fn test_continuous_optimization_surfaces_artifact_kind_to_slot_id_mappings_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3363,23 +3415,23 @@ fn test_continuous_optimization_surfaces_artifact_kind_to_required_contract_mapp
  {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3412,23 +3464,23 @@ fn test_continuous_optimization_surfaces_artifact_kind_to_required_contract_mapp
 fn test_continuous_optimization_surfaces_required_family_and_report_arrays_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3459,23 +3511,23 @@ fn test_continuous_optimization_surfaces_required_family_and_report_arrays_in_pu
 fn test_continuous_optimization_surfaces_required_outputs_array_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3506,23 +3558,23 @@ fn test_continuous_optimization_surfaces_required_outputs_array_in_public_indexe
 fn test_continuous_optimization_surfaces_operator_and_catalog_path_keys_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3552,23 +3604,23 @@ fn test_continuous_optimization_surfaces_operator_and_catalog_path_keys_in_publi
 fn test_continuous_optimization_surfaces_profile_key_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3594,23 +3646,23 @@ fn test_continuous_optimization_surfaces_profile_key_in_public_indexes() {
 fn test_continuous_optimization_surfaces_review_backwrite_key_in_public_indexes() {
     let root = workspace_root();
     let repo_readme_path = root.join("README.md");
-    let repo_readme = fs::read_to_string(&repo_readme_path)
+    let repo_readme = read_utf8_file(&repo_readme_path)
         .unwrap_or_else(|_| panic!("missing repository README: {}", repo_readme_path.display()));
     let deployment_index_path = root.join("docs").join("\u{90E8}\u{7F72}").join("README.md");
-    let deployment_index = fs::read_to_string(&deployment_index_path).unwrap_or_else(|_| {
+    let deployment_index = read_utf8_file(&deployment_index_path).unwrap_or_else(|_| {
         panic!(
             "missing deployment index doc: {}",
             deployment_index_path.display()
         )
     });
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3649,7 +3701,7 @@ fn test_continuous_optimization_materializes_pre_release_failover_collected_evid
         .join("pre-release")
         .join("failover")
         .join("drill.json");
-    let artifact_raw = fs::read_to_string(&artifact_path).unwrap_or_else(|_| {
+    let artifact_raw = read_utf8_file(&artifact_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier collected failover artifact: {}",
             artifact_path.display()
@@ -3722,7 +3774,7 @@ fn test_continuous_optimization_materializes_pre_release_failover_collected_evid
         .join("step-11")
         .join("pre-release")
         .join("pre-release-tier-evidence-index.json");
-    let index_raw = fs::read_to_string(&index_path).unwrap_or_else(|_| {
+    let index_raw = read_utf8_file(&index_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier evidence index: {}",
             index_path.display()
@@ -3811,7 +3863,7 @@ fn test_continuous_optimization_materializes_pre_release_failover_collected_evid
         .join("step-11")
         .join("pre-release")
         .join("checksum-manifest.txt");
-    let checksum_manifest = fs::read_to_string(&checksum_manifest_path).unwrap_or_else(|_| {
+    let checksum_manifest = read_utf8_file(&checksum_manifest_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier checksum manifest: {}",
             checksum_manifest_path.display()
@@ -3839,7 +3891,7 @@ fn test_continuous_optimization_materializes_pre_release_failover_collected_evid
         .join("step-11")
         .join("pre-release")
         .join("artifact-file-list.txt");
-    let artifact_file_list = fs::read_to_string(&artifact_file_list_path).unwrap_or_else(|_| {
+    let artifact_file_list = read_utf8_file(&artifact_file_list_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier artifact-file-list: {}",
             artifact_file_list_path.display()
@@ -3863,7 +3915,7 @@ fn test_continuous_optimization_materializes_pre_release_failover_collected_evid
         .join("pre-release")
         .join("README.md");
     let pre_release_root_readme =
-        fs::read_to_string(&pre_release_root_readme_path).unwrap_or_else(|_| {
+        read_utf8_file(&pre_release_root_readme_path).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 Pre-Release Tier artifact-root README: {}",
                 pre_release_root_readme_path.display()
@@ -3896,7 +3948,7 @@ fn test_continuous_optimization_materializes_pre_release_failover_collected_evid
             .join("\u{67B6}\u{6784}")
             .join("150BQ-step11-pre-release-failover-collected-evidence-design-2026-04-09.md"),
     ] {
-        let doc = fs::read_to_string(&doc_path)
+        let doc = read_utf8_file(&doc_path)
             .unwrap_or_else(|_| panic!("missing Step 11 backwrite doc: {}", doc_path.display()));
         for required_text in [
             "evidence_partially_collected",
@@ -3915,7 +3967,7 @@ fn test_continuous_optimization_materializes_pre_release_failover_collected_evid
     }
 
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     assert!(
         step_index.contains(
@@ -3925,7 +3977,7 @@ fn test_continuous_optimization_materializes_pre_release_failover_collected_evid
         step_index_path.display()
     );
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     assert!(
         review_index.contains(
@@ -3935,7 +3987,7 @@ fn test_continuous_optimization_materializes_pre_release_failover_collected_evid
         review_index_path.display()
     );
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -3964,7 +4016,7 @@ fn test_continuous_optimization_materializes_pre_release_restore_recovery_collec
         .join("pre-release")
         .join("restore-recovery")
         .join("drill.json");
-    let artifact_raw = fs::read_to_string(&artifact_path).unwrap_or_else(|_| {
+    let artifact_raw = read_utf8_file(&artifact_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier collected restore-recovery artifact: {}",
             artifact_path.display()
@@ -4053,7 +4105,7 @@ fn test_continuous_optimization_materializes_pre_release_restore_recovery_collec
         .join("step-11")
         .join("pre-release")
         .join("pre-release-tier-evidence-index.json");
-    let index_raw = fs::read_to_string(&index_path).unwrap_or_else(|_| {
+    let index_raw = read_utf8_file(&index_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier evidence index: {}",
             index_path.display()
@@ -4142,7 +4194,7 @@ fn test_continuous_optimization_materializes_pre_release_restore_recovery_collec
         .join("step-11")
         .join("pre-release")
         .join("checksum-manifest.txt");
-    let checksum_manifest = fs::read_to_string(&checksum_manifest_path).unwrap_or_else(|_| {
+    let checksum_manifest = read_utf8_file(&checksum_manifest_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier checksum manifest: {}",
             checksum_manifest_path.display()
@@ -4170,7 +4222,7 @@ fn test_continuous_optimization_materializes_pre_release_restore_recovery_collec
         .join("step-11")
         .join("pre-release")
         .join("artifact-file-list.txt");
-    let artifact_file_list = fs::read_to_string(&artifact_file_list_path).unwrap_or_else(|_| {
+    let artifact_file_list = read_utf8_file(&artifact_file_list_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier artifact-file-list: {}",
             artifact_file_list_path.display()
@@ -4194,7 +4246,7 @@ fn test_continuous_optimization_materializes_pre_release_restore_recovery_collec
         .join("pre-release")
         .join("README.md");
     let pre_release_root_readme =
-        fs::read_to_string(&pre_release_root_readme_path).unwrap_or_else(|_| {
+        read_utf8_file(&pre_release_root_readme_path).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 Pre-Release Tier artifact-root README: {}",
                 pre_release_root_readme_path.display()
@@ -4227,7 +4279,7 @@ fn test_continuous_optimization_materializes_pre_release_restore_recovery_collec
             "150BR-step11-pre-release-restore-recovery-collected-evidence-design-2026-04-09.md",
         ),
     ] {
-        let doc = fs::read_to_string(&doc_path)
+        let doc = read_utf8_file(&doc_path)
             .unwrap_or_else(|_| panic!("missing Step 11 backwrite doc: {}", doc_path.display()));
         for required_text in [
             "evidence_partially_collected",
@@ -4246,7 +4298,7 @@ fn test_continuous_optimization_materializes_pre_release_restore_recovery_collec
     }
 
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     assert!(
         step_index.contains(
@@ -4256,7 +4308,7 @@ fn test_continuous_optimization_materializes_pre_release_restore_recovery_collec
         step_index_path.display()
     );
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     assert!(
         review_index.contains(
@@ -4266,7 +4318,7 @@ fn test_continuous_optimization_materializes_pre_release_restore_recovery_collec
         review_index_path.display()
     );
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -4295,7 +4347,7 @@ fn test_continuous_optimization_materializes_pre_release_drain_rebalance_collect
         .join("pre-release")
         .join("drain-rebalance")
         .join("drill.json");
-    let artifact_raw = fs::read_to_string(&artifact_path).unwrap_or_else(|_| {
+    let artifact_raw = read_utf8_file(&artifact_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier collected drain-rebalance artifact: {}",
             artifact_path.display()
@@ -4377,7 +4429,7 @@ fn test_continuous_optimization_materializes_pre_release_drain_rebalance_collect
         .join("step-11")
         .join("pre-release")
         .join("pre-release-tier-evidence-index.json");
-    let index_raw = fs::read_to_string(&index_path).unwrap_or_else(|_| {
+    let index_raw = read_utf8_file(&index_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier evidence index: {}",
             index_path.display()
@@ -4466,7 +4518,7 @@ fn test_continuous_optimization_materializes_pre_release_drain_rebalance_collect
         .join("step-11")
         .join("pre-release")
         .join("checksum-manifest.txt");
-    let checksum_manifest = fs::read_to_string(&checksum_manifest_path).unwrap_or_else(|_| {
+    let checksum_manifest = read_utf8_file(&checksum_manifest_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier checksum manifest: {}",
             checksum_manifest_path.display()
@@ -4494,7 +4546,7 @@ fn test_continuous_optimization_materializes_pre_release_drain_rebalance_collect
         .join("step-11")
         .join("pre-release")
         .join("artifact-file-list.txt");
-    let artifact_file_list = fs::read_to_string(&artifact_file_list_path).unwrap_or_else(|_| {
+    let artifact_file_list = read_utf8_file(&artifact_file_list_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier artifact-file-list: {}",
             artifact_file_list_path.display()
@@ -4518,7 +4570,7 @@ fn test_continuous_optimization_materializes_pre_release_drain_rebalance_collect
         .join("pre-release")
         .join("README.md");
     let pre_release_root_readme =
-        fs::read_to_string(&pre_release_root_readme_path).unwrap_or_else(|_| {
+        read_utf8_file(&pre_release_root_readme_path).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 Pre-Release Tier artifact-root README: {}",
                 pre_release_root_readme_path.display()
@@ -4551,7 +4603,7 @@ fn test_continuous_optimization_materializes_pre_release_drain_rebalance_collect
             "150BS-step11-pre-release-drain-rebalance-collected-evidence-design-2026-04-09.md",
         ),
     ] {
-        let doc = fs::read_to_string(&doc_path)
+        let doc = read_utf8_file(&doc_path)
             .unwrap_or_else(|_| panic!("missing Step 11 backwrite doc: {}", doc_path.display()));
         for required_text in [
             "evidence_partially_collected",
@@ -4570,7 +4622,7 @@ fn test_continuous_optimization_materializes_pre_release_drain_rebalance_collect
     }
 
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     assert!(
         step_index.contains(
@@ -4580,7 +4632,7 @@ fn test_continuous_optimization_materializes_pre_release_drain_rebalance_collect
         step_index_path.display()
     );
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     assert!(
         review_index.contains(
@@ -4590,7 +4642,7 @@ fn test_continuous_optimization_materializes_pre_release_drain_rebalance_collect
         review_index_path.display()
     );
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -4619,7 +4671,7 @@ fn test_continuous_optimization_materializes_pre_release_upgrade_rollback_collec
         .join("pre-release")
         .join("upgrade-rollback")
         .join("drill.json");
-    let artifact_raw = fs::read_to_string(&artifact_path).unwrap_or_else(|_| {
+    let artifact_raw = read_utf8_file(&artifact_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier collected upgrade-rollback artifact: {}",
             artifact_path.display()
@@ -4710,7 +4762,7 @@ fn test_continuous_optimization_materializes_pre_release_upgrade_rollback_collec
         .join("step-11")
         .join("pre-release")
         .join("pre-release-tier-evidence-index.json");
-    let index_raw = fs::read_to_string(&index_path).unwrap_or_else(|_| {
+    let index_raw = read_utf8_file(&index_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier evidence index: {}",
             index_path.display()
@@ -4799,7 +4851,7 @@ fn test_continuous_optimization_materializes_pre_release_upgrade_rollback_collec
         .join("step-11")
         .join("pre-release")
         .join("checksum-manifest.txt");
-    let checksum_manifest = fs::read_to_string(&checksum_manifest_path).unwrap_or_else(|_| {
+    let checksum_manifest = read_utf8_file(&checksum_manifest_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier checksum manifest: {}",
             checksum_manifest_path.display()
@@ -4827,7 +4879,7 @@ fn test_continuous_optimization_materializes_pre_release_upgrade_rollback_collec
         .join("step-11")
         .join("pre-release")
         .join("artifact-file-list.txt");
-    let artifact_file_list = fs::read_to_string(&artifact_file_list_path).unwrap_or_else(|_| {
+    let artifact_file_list = read_utf8_file(&artifact_file_list_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier artifact-file-list: {}",
             artifact_file_list_path.display()
@@ -4851,7 +4903,7 @@ fn test_continuous_optimization_materializes_pre_release_upgrade_rollback_collec
         .join("pre-release")
         .join("README.md");
     let pre_release_root_readme =
-        fs::read_to_string(&pre_release_root_readme_path).unwrap_or_else(|_| {
+        read_utf8_file(&pre_release_root_readme_path).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 Pre-Release Tier artifact-root README: {}",
                 pre_release_root_readme_path.display()
@@ -4884,7 +4936,7 @@ fn test_continuous_optimization_materializes_pre_release_upgrade_rollback_collec
             "150BT-step11-pre-release-upgrade-rollback-collected-evidence-design-2026-04-09.md",
         ),
     ] {
-        let doc = fs::read_to_string(&doc_path)
+        let doc = read_utf8_file(&doc_path)
             .unwrap_or_else(|_| panic!("missing Step 11 backwrite doc: {}", doc_path.display()));
         for required_text in [
             "evidence_partially_collected",
@@ -4903,7 +4955,7 @@ fn test_continuous_optimization_materializes_pre_release_upgrade_rollback_collec
     }
 
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     assert!(
         step_index.contains(
@@ -4913,7 +4965,7 @@ fn test_continuous_optimization_materializes_pre_release_upgrade_rollback_collec
         step_index_path.display()
     );
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     assert!(
         review_index.contains(
@@ -4923,7 +4975,7 @@ fn test_continuous_optimization_materializes_pre_release_upgrade_rollback_collec
         review_index_path.display()
     );
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -4952,7 +5004,7 @@ fn test_continuous_optimization_materializes_pre_release_connection_metrics_coll
         .join("pre-release")
         .join("connection")
         .join("metrics.json");
-    let artifact_raw = fs::read_to_string(&artifact_path).unwrap_or_else(|_| {
+    let artifact_raw = read_utf8_file(&artifact_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier collected connection artifact: {}",
             artifact_path.display()
@@ -5024,7 +5076,7 @@ fn test_continuous_optimization_materializes_pre_release_connection_metrics_coll
         .join("step-11")
         .join("pre-release")
         .join("pre-release-tier-evidence-index.json");
-    let index_raw = fs::read_to_string(&index_path).unwrap_or_else(|_| {
+    let index_raw = read_utf8_file(&index_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier evidence index: {}",
             index_path.display()
@@ -5113,7 +5165,7 @@ fn test_continuous_optimization_materializes_pre_release_connection_metrics_coll
         .join("step-11")
         .join("pre-release")
         .join("checksum-manifest.txt");
-    let checksum_manifest = fs::read_to_string(&checksum_manifest_path).unwrap_or_else(|_| {
+    let checksum_manifest = read_utf8_file(&checksum_manifest_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier checksum manifest: {}",
             checksum_manifest_path.display()
@@ -5141,7 +5193,7 @@ fn test_continuous_optimization_materializes_pre_release_connection_metrics_coll
         .join("step-11")
         .join("pre-release")
         .join("artifact-file-list.txt");
-    let artifact_file_list = fs::read_to_string(&artifact_file_list_path).unwrap_or_else(|_| {
+    let artifact_file_list = read_utf8_file(&artifact_file_list_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier artifact-file-list: {}",
             artifact_file_list_path.display()
@@ -5165,7 +5217,7 @@ fn test_continuous_optimization_materializes_pre_release_connection_metrics_coll
         .join("pre-release")
         .join("README.md");
     let pre_release_root_readme =
-        fs::read_to_string(&pre_release_root_readme_path).unwrap_or_else(|_| {
+        read_utf8_file(&pre_release_root_readme_path).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 Pre-Release Tier artifact-root README: {}",
                 pre_release_root_readme_path.display()
@@ -5198,7 +5250,7 @@ fn test_continuous_optimization_materializes_pre_release_connection_metrics_coll
             "150BU-step11-pre-release-connection-metrics-collected-evidence-design-2026-04-09.md",
         ),
     ] {
-        let doc = fs::read_to_string(&doc_path)
+        let doc = read_utf8_file(&doc_path)
             .unwrap_or_else(|_| panic!("missing Step 11 backwrite doc: {}", doc_path.display()));
         for required_text in [
             "evidence_partially_collected",
@@ -5217,7 +5269,7 @@ fn test_continuous_optimization_materializes_pre_release_connection_metrics_coll
     }
 
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     assert!(
         step_index.contains(
@@ -5227,7 +5279,7 @@ fn test_continuous_optimization_materializes_pre_release_connection_metrics_coll
         step_index_path.display()
     );
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     assert!(
         review_index.contains(
@@ -5237,7 +5289,7 @@ fn test_continuous_optimization_materializes_pre_release_connection_metrics_coll
         review_index_path.display()
     );
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -5266,7 +5318,7 @@ fn test_continuous_optimization_materializes_pre_release_message_metrics_collect
         .join("pre-release")
         .join("message")
         .join("metrics.json");
-    let artifact_raw = fs::read_to_string(&artifact_path).unwrap_or_else(|_| {
+    let artifact_raw = read_utf8_file(&artifact_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier collected message artifact: {}",
             artifact_path.display()
@@ -5346,7 +5398,7 @@ fn test_continuous_optimization_materializes_pre_release_message_metrics_collect
         .join("step-11")
         .join("pre-release")
         .join("pre-release-tier-evidence-index.json");
-    let index_raw = fs::read_to_string(&index_path).unwrap_or_else(|_| {
+    let index_raw = read_utf8_file(&index_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier evidence index: {}",
             index_path.display()
@@ -5435,7 +5487,7 @@ fn test_continuous_optimization_materializes_pre_release_message_metrics_collect
         .join("step-11")
         .join("pre-release")
         .join("checksum-manifest.txt");
-    let checksum_manifest = fs::read_to_string(&checksum_manifest_path).unwrap_or_else(|_| {
+    let checksum_manifest = read_utf8_file(&checksum_manifest_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier checksum manifest: {}",
             checksum_manifest_path.display()
@@ -5468,7 +5520,7 @@ fn test_continuous_optimization_materializes_pre_release_message_metrics_collect
         .join("step-11")
         .join("pre-release")
         .join("artifact-file-list.txt");
-    let artifact_file_list = fs::read_to_string(&artifact_file_list_path).unwrap_or_else(|_| {
+    let artifact_file_list = read_utf8_file(&artifact_file_list_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier artifact-file-list: {}",
             artifact_file_list_path.display()
@@ -5497,7 +5549,7 @@ fn test_continuous_optimization_materializes_pre_release_message_metrics_collect
         .join("pre-release")
         .join("README.md");
     let pre_release_root_readme =
-        fs::read_to_string(&pre_release_root_readme_path).unwrap_or_else(|_| {
+        read_utf8_file(&pre_release_root_readme_path).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 Pre-Release Tier artifact-root README: {}",
                 pre_release_root_readme_path.display()
@@ -5522,7 +5574,7 @@ fn test_continuous_optimization_materializes_pre_release_message_metrics_collect
         .join("perf")
         .join("step-11")
         .join("README.md");
-    let step11_root_readme = fs::read_to_string(&step11_root_readme_path).unwrap_or_else(|_| {
+    let step11_root_readme = read_utf8_file(&step11_root_readme_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 tier artifact-root index README: {}",
             step11_root_readme_path.display()
@@ -5555,7 +5607,7 @@ fn test_continuous_optimization_materializes_pre_release_message_metrics_collect
             "150BW-step11-pre-release-message-metrics-collected-evidence-design-2026-04-09.md",
         ),
     ] {
-        let doc = fs::read_to_string(&doc_path)
+        let doc = read_utf8_file(&doc_path)
             .unwrap_or_else(|_| panic!("missing Step 11 backwrite doc: {}", doc_path.display()));
         for required_text in [
             "evidence_partially_collected",
@@ -5576,7 +5628,7 @@ fn test_continuous_optimization_materializes_pre_release_message_metrics_collect
     }
 
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     assert!(
         step_index.contains(
@@ -5586,7 +5638,7 @@ fn test_continuous_optimization_materializes_pre_release_message_metrics_collect
         step_index_path.display()
     );
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     assert!(
         review_index.contains(
@@ -5596,7 +5648,7 @@ fn test_continuous_optimization_materializes_pre_release_message_metrics_collect
         review_index_path.display()
     );
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -5625,7 +5677,7 @@ fn test_continuous_optimization_materializes_pre_release_stream_metrics_collecte
         .join("pre-release")
         .join("stream")
         .join("metrics.json");
-    let artifact_raw = fs::read_to_string(&artifact_path).unwrap_or_else(|_| {
+    let artifact_raw = read_utf8_file(&artifact_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier collected stream artifact: {}",
             artifact_path.display()
@@ -5701,7 +5753,7 @@ fn test_continuous_optimization_materializes_pre_release_stream_metrics_collecte
         .join("step-11")
         .join("pre-release")
         .join("pre-release-tier-evidence-index.json");
-    let index_raw = fs::read_to_string(&index_path).unwrap_or_else(|_| {
+    let index_raw = read_utf8_file(&index_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier evidence index: {}",
             index_path.display()
@@ -5789,7 +5841,7 @@ fn test_continuous_optimization_materializes_pre_release_stream_metrics_collecte
         .join("step-11")
         .join("pre-release")
         .join("checksum-manifest.txt");
-    let checksum_manifest = fs::read_to_string(&checksum_manifest_path).unwrap_or_else(|_| {
+    let checksum_manifest = read_utf8_file(&checksum_manifest_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier checksum manifest: {}",
             checksum_manifest_path.display()
@@ -5822,7 +5874,7 @@ fn test_continuous_optimization_materializes_pre_release_stream_metrics_collecte
         .join("step-11")
         .join("pre-release")
         .join("artifact-file-list.txt");
-    let artifact_file_list = fs::read_to_string(&artifact_file_list_path).unwrap_or_else(|_| {
+    let artifact_file_list = read_utf8_file(&artifact_file_list_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 Pre-Release Tier artifact-file-list: {}",
             artifact_file_list_path.display()
@@ -5846,7 +5898,7 @@ fn test_continuous_optimization_materializes_pre_release_stream_metrics_collecte
         .join("pre-release")
         .join("README.md");
     let pre_release_root_readme =
-        fs::read_to_string(&pre_release_root_readme_path).unwrap_or_else(|_| {
+        read_utf8_file(&pre_release_root_readme_path).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 Pre-Release Tier artifact-root README: {}",
                 pre_release_root_readme_path.display()
@@ -5871,7 +5923,7 @@ fn test_continuous_optimization_materializes_pre_release_stream_metrics_collecte
         .join("perf")
         .join("step-11")
         .join("README.md");
-    let step11_root_readme = fs::read_to_string(&step11_root_readme_path).unwrap_or_else(|_| {
+    let step11_root_readme = read_utf8_file(&step11_root_readme_path).unwrap_or_else(|_| {
         panic!(
             "missing Step 11 tier artifact-root index README: {}",
             step11_root_readme_path.display()
@@ -5904,7 +5956,7 @@ fn test_continuous_optimization_materializes_pre_release_stream_metrics_collecte
             "150BX-step11-pre-release-stream-metrics-collected-evidence-design-2026-04-09.md",
         ),
     ] {
-        let doc = fs::read_to_string(&doc_path)
+        let doc = read_utf8_file(&doc_path)
             .unwrap_or_else(|_| panic!("missing Step 11 backwrite doc: {}", doc_path.display()));
         for required_text in [
             "evidence_collected_gate_blocked",
@@ -5925,7 +5977,7 @@ fn test_continuous_optimization_materializes_pre_release_stream_metrics_collecte
     }
 
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     assert!(
         step_index.contains(
@@ -5935,7 +5987,7 @@ fn test_continuous_optimization_materializes_pre_release_stream_metrics_collecte
         step_index_path.display()
     );
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     assert!(
         review_index.contains(
@@ -5945,7 +5997,7 @@ fn test_continuous_optimization_materializes_pre_release_stream_metrics_collecte
         review_index_path.display()
     );
     let architecture_index_path = root.join("docs").join("\u{67B6}\u{6784}").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()
@@ -5983,7 +6035,7 @@ fn test_continuous_optimization_supersedes_stale_step11_closure_claims_in_histor
             .join("review")
             .join("wave-d-93-总验收-2026-04-08.md"),
     ] {
-        let doc = fs::read_to_string(&doc_path)
+        let doc = read_utf8_file(&doc_path)
             .unwrap_or_else(|_| panic!("missing Step 11 historical doc: {}", doc_path.display()));
         for required_text in [
             "2026-04-09 Correction",
@@ -6018,7 +6070,7 @@ fn test_continuous_optimization_supersedes_stale_step11_closure_claims_in_histor
             .join("架构")
             .join("150BV-step11-closure-claim-supersession-design-2026-04-09.md"),
     ] {
-        let doc = fs::read_to_string(&doc_path).unwrap_or_else(|_| {
+        let doc = read_utf8_file(&doc_path).unwrap_or_else(|_| {
             panic!(
                 "missing Step 11 closure-claim supersession backwrite doc: {}",
                 doc_path.display()
@@ -6042,7 +6094,7 @@ fn test_continuous_optimization_supersedes_stale_step11_closure_claims_in_histor
     }
 
     let step_index_path = root.join("docs").join("step").join("README.md");
-    let step_index = fs::read_to_string(&step_index_path)
+    let step_index = read_utf8_file(&step_index_path)
         .unwrap_or_else(|_| panic!("missing step index doc: {}", step_index_path.display()));
     assert!(
         step_index.contains("continuous-optimization-step11-closure-claim-supersession-2026-04-09"),
@@ -6051,7 +6103,7 @@ fn test_continuous_optimization_supersedes_stale_step11_closure_claims_in_histor
     );
 
     let review_index_path = root.join("docs").join("review").join("README.md");
-    let review_index = fs::read_to_string(&review_index_path)
+    let review_index = read_utf8_file(&review_index_path)
         .unwrap_or_else(|_| panic!("missing review index doc: {}", review_index_path.display()));
     assert!(
         review_index
@@ -6061,7 +6113,7 @@ fn test_continuous_optimization_supersedes_stale_step11_closure_claims_in_histor
     );
 
     let architecture_index_path = root.join("docs").join("架构").join("README.md");
-    let architecture_index = fs::read_to_string(&architecture_index_path).unwrap_or_else(|_| {
+    let architecture_index = read_utf8_file(&architecture_index_path).unwrap_or_else(|_| {
         panic!(
             "missing architecture index doc: {}",
             architecture_index_path.display()

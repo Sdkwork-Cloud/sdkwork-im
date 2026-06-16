@@ -822,14 +822,22 @@ fn build_local_minimal_control_plane_app(
         Some(runtime_dir) => Arc::new(SocialRuntime::from_runtime_dir(runtime_dir)),
         None => Arc::new(SocialRuntime::default()),
     };
-    let social_router = social_service::build_app(social_runtime.clone());
+    let social_router = social_service::build_embedded_app(social_runtime.clone());
     let governance_router =
         governance_service::build_control_surface_with_cluster_and_governance_sinks(
             realtime_cluster,
             ops_runtime,
             audit_runtime,
         );
-    (governance_router.merge(social_router), social_runtime)
+    let mut control_plane_router = governance_router.merge(social_router);
+    if let Some(postgres_state) = social_service::try_postgres_app_state_from_database_url_env() {
+        control_plane_router = control_plane_router
+            .merge(social_service::build_supplemental_app(postgres_state));
+    }
+    if let Some(space_router) = space_service::try_build_embedded_app_from_database_url_env() {
+        control_plane_router = control_plane_router.merge(space_router);
+    }
+    (control_plane_router, social_runtime)
 }
 
 pub fn build_app_with_dependencies(
@@ -1053,11 +1061,13 @@ fn build_app_with_dependencies_and_runtime_and_journal(
         "local-minimal",
         bind_addr.clone(),
         vec![
-            "conversation-runtime".into(),
+            "comms-conversation-service".into(),
             "governance-service".into(),
             "projection-service".into(),
             "media-service".into(),
             "streaming-service".into(),
+            "social-service".into(),
+            "space-service".into(),
             "im-calls-service".into(),
             "notification-service".into(),
             "automation-service".into(),
@@ -1321,26 +1331,6 @@ fn im_standard_api_routes() -> Router<AppState> {
             get(presence_routes::list_realtime_events),
         )
         .route("/social/users", get(social::list_social_users))
-        .route(
-            "/social/friend_requests",
-            get(social::list_friend_requests).post(social::submit_friend_request),
-        )
-        .route(
-            "/social/friend_requests/{request_id}/accept",
-            post(social::accept_friend_request),
-        )
-        .route(
-            "/social/friend_requests/{request_id}/decline",
-            post(social::decline_friend_request),
-        )
-        .route(
-            "/social/friend_requests/{request_id}/cancel",
-            post(social::cancel_friend_request),
-        )
-        .route(
-            "/social/friendships/{friendship_id}/remove",
-            post(social::remove_friendship),
-        )
         .route(
             "/social/contacts/tags",
             get(projection::list_contact_tags).post(projection::create_contact_tag),

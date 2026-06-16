@@ -51,7 +51,7 @@ The local registry artifacts are the source of truth for this app:
   `craw_`, `sdkwork_`, `app_`, `sys_`, `common_`, and `comms_`.
 - `specs/database-table-registry.json` lists every checked-in IM table, table
   profile, write owner, and migration path.
-- `scripts/dev/sdkwork-chat-database-naming-standard.test.mjs` scans the
+- `scripts/dev/sdkwork-im-database-naming-standard.test.mjs` scans the
   PostgreSQL migration and Rust SQL contracts so new IM tables cannot drift away
   from `im_` or skip registry registration.
 

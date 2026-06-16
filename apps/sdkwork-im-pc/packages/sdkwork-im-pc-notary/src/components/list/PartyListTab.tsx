@@ -1,11 +1,11 @@
-/**
+﻿/**
  * PartyListTab - Party list with expand/collapse functionality in the detail pane
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShieldCheck, CheckCircle2, PenTool, Folder, Edit, Video } from 'lucide-react';
-import type { NotaryTask, Party } from '@sdkwork/clawchat-pc-types';
+import type { NotaryTask, Party } from '@sdkwork/im-pc-types';
 import { PartyActionButtons } from '../shared/PartyActionButtons';
 
 export interface PartyListTabProps {

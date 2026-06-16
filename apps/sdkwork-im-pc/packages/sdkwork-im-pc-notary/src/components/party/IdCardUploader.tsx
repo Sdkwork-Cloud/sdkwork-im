@@ -1,4 +1,4 @@
-/**
+﻿/**
  * IdCardUploader - Reusable ID card image upload component
  *
  * Used for both ID front and ID back uploads in IdentityVerification.

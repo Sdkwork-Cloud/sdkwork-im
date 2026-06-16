@@ -1,4 +1,4 @@
-# Profiles and Environment
+﻿# Profiles and Environment
 
 Use this page to choose the right local profile and confirm the environment variables required for
 startup, dual-token auth context, private service projection, and shared-channel sync behavior.
@@ -79,7 +79,7 @@ runtime guards.
 
 | Variable | Purpose |
 | --- | --- |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` | Enables standalone control-plane sync dispatch to conversation-runtime public HTTP route. |
+| `SDKWORK_IM_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` | Enables standalone control-plane sync dispatch to comms-conversation-service public HTTP route. |
 | `SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS` | Caps each tenant's in-process sync request budget per window (`1..10000`). |
 | `SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS` | Defines per-tenant sync limiter window size in seconds (`1..3600`). |
 | `SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS` | Bounds active per-tenant limiter buckets to prevent in-memory amplification (`1..200000`, default `10000`). |

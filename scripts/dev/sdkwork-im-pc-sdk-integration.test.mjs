@@ -9,7 +9,7 @@ const appRoot = path.join(repoRoot, 'apps/sdkwork-im-pc');
 const desktopPackageRoot = path.join(appRoot, 'packages/sdkwork-im-pc-desktop');
 
 function read(relativePath) {
-  return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
+  return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8').replace(/\r\n/gu, '\n');
 }
 
 function readJson(relativePath) {
@@ -2923,6 +2923,9 @@ assert.match(
 const chatRightPanelSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ChatRightPanel.tsx');
 const addGroupMembersModalSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/AddGroupMembersModal.tsx');
 const chatLayoutSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/pages/ChatLayout.tsx');
+const capabilityModuleSurfaceSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/surfaces/CapabilityModuleSurface.tsx',
+);
 const mergeGroupProjectionsStart = chatLayoutSource.indexOf('const mergeGroupProjections = async');
 assert.notEqual(mergeGroupProjectionsStart, -1, 'chat layout must keep realtime group projection merge behavior auditable');
 const mergeGroupProjectionsEnd = chatLayoutSource.indexOf('  const refreshChats = async', mergeGroupProjectionsStart);
@@ -2948,26 +2951,31 @@ assert.notEqual(editNoticeModalStart, -1, 'chat layout must keep edit-notice mod
 const editNoticeModalEnd = chatLayoutSource.indexOf('</motion.div>', editNoticeModalStart);
 assert.notEqual(editNoticeModalEnd, -1, 'chat layout edit-notice modal block must end before inline modal closes');
 const editNoticeModalSource = chatLayoutSource.slice(editNoticeModalStart, editNoticeModalEnd);
-const contactsViewStart = chatLayoutSource.indexOf('case "contacts":');
-assert.notEqual(contactsViewStart, -1, 'chat layout must keep the contacts view behavior auditable');
-const contactsViewEnd = chatLayoutSource.indexOf('case "favorites":', contactsViewStart);
-assert.notEqual(contactsViewEnd, -1, 'chat layout contacts branch must end before favorites branch');
-const contactsViewSource = chatLayoutSource.slice(contactsViewStart, contactsViewEnd);
-const contactsSendMessageStart = contactsViewSource.indexOf('onSendMessage={async');
-assert.notEqual(contactsSendMessageStart, -1, 'chat layout contacts branch must keep send-message behavior auditable');
-const contactsSendMessageEnd = contactsViewSource.indexOf('onStartCall=', contactsSendMessageStart);
+const contactsViewStart = capabilityModuleSurfaceSource.indexOf('case "contacts":');
+assert.notEqual(contactsViewStart, -1, 'capability module surface must keep the contacts view behavior auditable');
+const contactsViewEnd = capabilityModuleSurfaceSource.indexOf('case "favorites":', contactsViewStart);
+assert.notEqual(contactsViewEnd, -1, 'capability module surface contacts branch must end before favorites branch');
+const contactsViewSource = capabilityModuleSurfaceSource.slice(contactsViewStart, contactsViewEnd);
+const contactsSendMessageStart = chatLayoutSource.indexOf('onContactSendMessage={async');
+assert.notEqual(contactsSendMessageStart, -1, 'chat layout must keep contacts send-message behavior auditable');
+const contactsSendMessageEnd = chatLayoutSource.indexOf('onContactStartCall=', contactsSendMessageStart);
 assert.notEqual(contactsSendMessageEnd, -1, 'chat layout contacts send-message block must end before start-call block');
-const contactsSendMessageSource = contactsViewSource.slice(contactsSendMessageStart, contactsSendMessageEnd);
+const contactsSendMessageSource = chatLayoutSource.slice(contactsSendMessageStart, contactsSendMessageEnd);
 const agentStartHandlerStart = chatLayoutSource.indexOf('const handleStartAgentChat = async');
 assert.notEqual(agentStartHandlerStart, -1, 'chat layout must keep the agent start-chat handler auditable');
 const agentStartHandlerEnd = chatLayoutSource.indexOf('  const renderHeaderContent', agentStartHandlerStart);
 assert.notEqual(agentStartHandlerEnd, -1, 'chat layout agent start-chat handler must end before renderHeaderContent');
 const agentStartHandlerSource = chatLayoutSource.slice(agentStartHandlerStart, agentStartHandlerEnd);
-const enterpriseViewStart = chatLayoutSource.indexOf('case "enterprise":');
-assert.notEqual(enterpriseViewStart, -1, 'chat layout must keep the enterprise view behavior auditable');
-const enterpriseViewEnd = chatLayoutSource.indexOf('case "devices":', enterpriseViewStart);
-assert.notEqual(enterpriseViewEnd, -1, 'chat layout enterprise branch must end before devices branch');
-const enterpriseViewSource = chatLayoutSource.slice(enterpriseViewStart, enterpriseViewEnd);
+const enterpriseViewStart = capabilityModuleSurfaceSource.indexOf('case "enterprise":');
+assert.notEqual(enterpriseViewStart, -1, 'capability module surface must keep the enterprise view behavior auditable');
+const enterpriseViewEnd = capabilityModuleSurfaceSource.indexOf('case "devices":', enterpriseViewStart);
+assert.notEqual(enterpriseViewEnd, -1, 'capability module surface enterprise branch must end before devices branch');
+const enterpriseViewSource = capabilityModuleSurfaceSource.slice(enterpriseViewStart, enterpriseViewEnd);
+const enterpriseStartChatStart = chatLayoutSource.indexOf('onEnterpriseStartChat={async');
+assert.notEqual(enterpriseStartChatStart, -1, 'chat layout must keep enterprise start-chat behavior auditable');
+const enterpriseStartChatEnd = chatLayoutSource.indexOf('onEnterpriseCall=', enterpriseStartChatStart);
+assert.notEqual(enterpriseStartChatEnd, -1, 'chat layout enterprise start-chat block must end before enterprise call block');
+const enterpriseStartChatSource = chatLayoutSource.slice(enterpriseStartChatStart, enterpriseStartChatEnd);
 assert.match(
   chatLayoutSource,
   /import\s+\{\s*groupService\s*\}\s+from\s+["']\.\.\/services\/GroupService["']/u,
@@ -3015,7 +3023,12 @@ assert.match(
 );
 assert.match(
   contactsViewSource,
-  /onOpenGroup=\{async\s*\(group\)\s*=>\s*\{[\s\S]*?await\s+openHydratedChat\(group\)[\s\S]*?\}/u,
+  /onOpenGroup=\{onOpenGroup\}/u,
+  'capability module surface contacts flow must delegate group open behavior to ChatLayout',
+);
+assert.match(
+  chatLayoutSource,
+  /onOpenGroup=\{openHydratedChat\}/u,
   'chat layout contacts group flow must hydrate backend conversations and open the selected real group chat',
 );
 assert.doesNotMatch(
@@ -3060,31 +3073,36 @@ assert.match(
 );
 assert.match(
   enterpriseViewSource,
+  /onStartChat=\{onEnterpriseStartChat\}/u,
+  'capability module surface enterprise start flow must delegate to ChatLayout handlers',
+);
+assert.match(
+  enterpriseStartChatSource,
   /chatService\.startEnterpriseChat\s*\(\s*\{\s*id:\s*enterpriseId,\s*name:\s*enterpriseName,\s*\}\s*\)/u,
   'chat layout enterprise start flow must create a real SDK-backed enterprise conversation',
 );
 assert.match(
-  enterpriseViewSource,
+  enterpriseStartChatSource,
   /chatService\.getChats\s*\(\s*\)/u,
   'chat layout enterprise start flow must hydrate from backend conversations after enterprise binding',
 );
 assert.doesNotMatch(
-  enterpriseViewSource,
+  enterpriseStartChatSource,
   /const\s+chatId\s*=\s*`ent-\$\{enterpriseId\}`/u,
   'chat layout enterprise start flow must not synthesize a local enterprise chat id',
 );
 assert.doesNotMatch(
-  enterpriseViewSource,
+  enterpriseStartChatSource,
   /lastMessage:\s*\{/u,
   'chat layout enterprise start flow must not synthesize a local enterprise welcome message',
 );
 assert.doesNotMatch(
-  enterpriseViewSource,
+  enterpriseStartChatSource,
   /senderId:\s*["']bot["']/u,
   'chat layout enterprise start flow must not synthesize bot-authored enterprise messages',
 );
 assert.doesNotMatch(
-  enterpriseViewSource,
+  enterpriseStartChatSource,
   /members:\s*\[\s*["']currentUser["']\s*,\s*["']ent["']\s*\]/u,
   'chat layout enterprise start flow must not synthesize local enterprise members',
 );

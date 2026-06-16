@@ -1,4 +1,4 @@
-export { WizardHeader } from './WizardHeader';
+﻿export { WizardHeader } from './WizardHeader';
 export type { WizardHeaderProps } from './WizardHeader';
 
 export { WizardStepper } from './WizardStepper';

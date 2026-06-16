@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AttachmentItem - Single attachment display in AuxiliaryMaterials
  */
 import React from 'react';

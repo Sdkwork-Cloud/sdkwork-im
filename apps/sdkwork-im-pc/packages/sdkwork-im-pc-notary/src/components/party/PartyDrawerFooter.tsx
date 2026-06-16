@@ -1,10 +1,10 @@
-/**
+﻿/**
  * PartyDrawerFooter - Action bar at the bottom of PartyDrawer
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { PenTool } from 'lucide-react';
-import type { Party } from '@sdkwork/clawchat-pc-types';
+import type { Party } from '@sdkwork/im-pc-types';
 
 export interface PartyDrawerFooterProps {
   /** The party being edited (if any) */

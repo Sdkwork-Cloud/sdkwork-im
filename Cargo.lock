@@ -318,41 +318,8 @@ name = "contact-service"
 version = "0.1.0"
 dependencies = [
  "axum",
- "chrono",
- "im-adapters-redis-cache",
  "im-adapters-social-postgres",
- "im-app-context",
- "im-domain-core",
- "im-platform-contracts",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "conversation-runtime"
-version = "0.1.0"
-dependencies = [
- "axum",
- "http-body-util",
- "im-app-context",
- "im-domain-core",
- "im-domain-events",
- "im-platform-contracts",
- "im-time",
- "sdkwork-im-api-registry",
- "sdkwork-im-contract-core",
- "sdkwork-im-contract-message",
- "sdkwork-im-openapi",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tokio",
- "tower",
- "tracing",
- "tracing-subscriber",
+ "social-service",
 ]
 
 [[package]]
@@ -1376,7 +1343,6 @@ dependencies = [
  "audit-service",
  "automation-service",
  "axum",
- "conversation-runtime",
  "fs4",
  "futures-util",
  "governance-service",
@@ -1396,6 +1362,7 @@ dependencies = [
  "ops-service",
  "projection-service",
  "regex",
+ "sdkwork-comms-conversation-service",
  "sdkwork-im-ccp-control",
  "sdkwork-im-ccp-core",
  "sdkwork-im-ccp-registry",
@@ -1414,6 +1381,7 @@ dependencies = [
  "session-gateway",
  "sha2 0.10.9",
  "social-service",
+ "space-service",
  "streaming-service",
  "tokio",
  "tokio-tungstenite 0.28.0",
@@ -2238,6 +2206,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-comms-conversation-service"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "http-body-util",
+ "im-app-context",
+ "im-domain-core",
+ "im-domain-events",
+ "im-platform-contracts",
+ "im-time",
+ "sdkwork-im-api-registry",
+ "sdkwork-im-contract-core",
+ "sdkwork-im-contract-message",
+ "sdkwork-im-openapi",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "sdkwork-database-config"
 version = "0.1.0"
 dependencies = [
@@ -2417,6 +2409,33 @@ dependencies = [
  "im-domain-core",
  "sdkwork-im-contract-core",
  "serde",
+]
+
+[[package]]
+name = "sdkwork-im-gateway"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "futures-util",
+ "http-body-util",
+ "im-app-context",
+ "im-platform-contracts",
+ "reqwest",
+ "sdkwork-api-config",
+ "sdkwork-api-product-runtime",
+ "sdkwork-im-api-registry",
+ "sdkwork-im-gateway-config",
+ "sdkwork-im-gateway-observability",
+ "sdkwork-im-openapi",
+ "sdkwork-im-runtime-link",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite 0.28.0",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2802,6 +2821,7 @@ dependencies = [
  "hmac 0.12.1",
  "im-adapters-local-disk",
  "im-adapters-local-memory",
+ "im-adapters-redis-cache",
  "im-adapters-social-postgres",
  "im-app-context",
  "im-domain-core",
@@ -2815,6 +2835,7 @@ dependencies = [
  "sha2 0.10.9",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2851,6 +2872,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -3572,33 +3594,6 @@ dependencies = [
  "hashbrown 0.15.5",
  "indexmap",
  "semver",
-]
-
-[[package]]
-name = "web-gateway"
-version = "0.1.0"
-dependencies = [
- "axum",
- "futures-util",
- "http-body-util",
- "im-app-context",
- "im-platform-contracts",
- "reqwest",
- "sdkwork-api-config",
- "sdkwork-api-product-runtime",
- "sdkwork-im-api-registry",
- "sdkwork-im-gateway-config",
- "sdkwork-im-gateway-observability",
- "sdkwork-im-openapi",
- "sdkwork-im-runtime-link",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite 0.28.0",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

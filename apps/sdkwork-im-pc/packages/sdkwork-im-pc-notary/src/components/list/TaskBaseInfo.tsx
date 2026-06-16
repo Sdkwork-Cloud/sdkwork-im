@@ -1,10 +1,10 @@
-/**
+﻿/**
  * TaskBaseInfo - Grid display of task summary info in the detail pane
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Hash, User as UserIcon, Activity, Clock, Shield } from 'lucide-react';
-import type { NotaryTask } from '@sdkwork/clawchat-pc-types';
+import type { NotaryTask } from '@sdkwork/im-pc-types';
 
 export interface TaskBaseInfoProps {
   task: NotaryTask;

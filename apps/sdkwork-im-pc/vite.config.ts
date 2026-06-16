@@ -178,6 +178,7 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/sdk-common', replacement: sdkCommonEntry },
         { find: '@sdkwork/im-pc-types', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-types/src') },
         { find: '@sdkwork/im-pc-commons', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-commons/src') },
+        { find: '@sdkwork/im-pc-shell', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-shell/src') },
         { find: '@sdkwork/im-pc-core', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-core/src') },
         { find: '@sdkwork/im-pc-chat', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-chat/src') },
         { find: '@sdkwork/im-pc-agent', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-agent/src') },

@@ -1,11 +1,11 @@
-/**
+﻿/**
  * NotaryTaskTable - Main task list table with pagination
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileCheck, MoreHorizontal, Download, User as UserIcon, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { NotaryTask } from '@sdkwork/clawchat-pc-types';
+import type { NotaryTask } from '@sdkwork/im-pc-types';
 
 export interface NotaryTaskTableProps {
   /** All tasks (for total count) */

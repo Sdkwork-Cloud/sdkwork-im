@@ -142,11 +142,11 @@ assert.ok(
 );
 assert.ok(
   unifiedWebSource.includes('cargo')
-    && unifiedWebSource.includes('web-gateway')
+    && unifiedWebSource.includes('sdkwork-im-gateway')
     && unifiedWebSource.includes('sdkwork-im-server')
     && unifiedWebSource.includes('SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE')
     && unifiedWebSource.includes('resolveSdkworkImSharedDatabaseConfig'),
-  'root server:dev must start the Rust web-gateway in shared-gateway split mode with the shared database config',
+  'root server:dev must start the Rust sdkwork-im-gateway in shared-gateway split mode with the shared database config',
 );
 assert.doesNotMatch(
   unifiedWebSource,

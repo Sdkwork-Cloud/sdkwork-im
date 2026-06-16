@@ -146,7 +146,7 @@ function Resolve-ServerBinaryPath {
 
     $installCandidates = @(
         (Join-Path $InstallRoot "bin\sdkwork-im-server.exe"),
-        (Join-Path $InstallRoot "bin\web-gateway.exe")
+        (Join-Path $InstallRoot "bin\sdkwork-im-gateway.exe")
     )
     foreach ($candidate in $installCandidates) {
         if (Test-Path $candidate) { return $candidate }
@@ -169,10 +169,10 @@ function Resolve-ServerBinaryPath {
     $cargo = Get-Command cargo -ErrorAction SilentlyContinue
     if ($null -ne $cargo) {
         if ($PreferRelease) {
-            cargo build --release -p web-gateway --offline | Out-Host
+            cargo build --release -p sdkwork-im-gateway --offline | Out-Host
         }
         else {
-            cargo build -p web-gateway --offline | Out-Host
+            cargo build -p sdkwork-im-gateway --offline | Out-Host
         }
         foreach ($candidate in $candidates) {
             if (Test-Path $candidate) { return $candidate }
@@ -251,7 +251,7 @@ if ([string]::IsNullOrWhiteSpace($resolvedBindAddress)) {
 }
 $resolvedBinaryPath = Resolve-ServerBinaryPath -Root $root -InstallRoot $InstallRoot -ExplicitBinaryPath $BinaryPath -PreferRelease:$Release
 if ([string]::IsNullOrWhiteSpace($resolvedBinaryPath)) {
-    throw "Unable to resolve sdkwork-im-server binary. Set -BinaryPath, install a packaged binary under $InstallRoot, or build web-gateway."
+    throw "Unable to resolve sdkwork-im-server binary. Set -BinaryPath, install a packaged binary under $InstallRoot, or build sdkwork-im-gateway."
 }
 
 $resolvedHealthUrl = Resolve-HealthUrl -ExplicitHealthUrl $HealthUrl -ResolvedBindAddress $resolvedBindAddress

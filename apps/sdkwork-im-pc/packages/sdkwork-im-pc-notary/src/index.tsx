@@ -1,4 +1,4 @@
-const EMPTY_NOTARY_PRINT_IMAGE_URL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+﻿const EMPTY_NOTARY_PRINT_IMAGE_URL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, ShieldCheck, Download, ChevronLeft, ChevronRight, FileText, CheckCircle2, Clock, AlertCircle, FileSignature, X, MoreHorizontal, FileCheck, CheckSquare, Shield, Activity, Hash, Layers, User as UserIcon, Video, Printer, Edit, Folder, Cloud, Plus, Upload, PenTool } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';

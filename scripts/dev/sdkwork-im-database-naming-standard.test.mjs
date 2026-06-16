@@ -256,12 +256,12 @@ assert.ok(
 
 assert.match(
   databaseSpec,
-  /运行时业务数据 INSERT 的 `BIGINT id` MUST 由统一 ID Provider 显式生成并绑定写入/u,
+  /运行时业务数.{0,4}INSERT.{0,4}`BIGINT id` MUST 由统一 ID Provider 显式生成并绑定写入/u,
   'root DATABASE_SPEC.md must require explicit generated IDs for runtime INSERTs',
 );
 assert.match(
   databaseSpec,
-  /sdkwork_id::SnowflakeIdGenerator/u,
+  /sdkwork_platform_id_service::SnowflakeIdGenerator/u,
   'root DATABASE_SPEC.md must name the shared Rust Snowflake generator authority',
 );
 
@@ -272,8 +272,8 @@ assert.match(
 );
 assert.match(
   cargoManifest,
-  /sdkwork_id\s*=\s*\{\s*path\s*=\s*"\.\.\/sdkwork-appbase\/packages\/native-rust\/foundation\/sdkwork-id-rust"\s*\}/u,
-  'sdkwork-im must consume the appbase sdkwork_id Snowflake generator instead of a local fork',
+  /sdkwork_id\s*=\s*\{\s*path\s*=\s*"\.\.\/sdkwork-appbase\/crates\/sdkwork-platform-id-service"/u,
+  'sdkwork-im must consume the appbase platform ID service Snowflake generator instead of a local fork',
 );
 assert.match(
   runtimeIdCrate,

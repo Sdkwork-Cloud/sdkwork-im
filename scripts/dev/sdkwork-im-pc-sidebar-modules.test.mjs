@@ -17,8 +17,16 @@ function readJson(relativePath) {
 const rootPackage = readJson('package.json');
 const sidebarSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/Sidebar.tsx');
 const settingsServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/SettingsService.ts');
+const moduleRegistrySource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell/src/moduleRegistry.ts');
 const settingsModalSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/SettingsModal.tsx');
 const chatLayoutSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/pages/ChatLayout.tsx');
+const capabilityModuleSurfaceSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/surfaces/CapabilityModuleSurface.tsx',
+);
+const capabilityModuleLoadersSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell/src/capabilityModuleLoaders.ts',
+);
+const moduleLayoutSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell/src/moduleLayout.ts');
 const notaryAccessServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/NotaryAccessService.ts');
 const workspaceServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/services/WorkspaceService.ts');
 const workspaceViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/index.tsx');
@@ -43,7 +51,9 @@ const expectedDefaultSidebarModules = [
 ];
 
 function extractStringArray(source, exportName) {
-  const match = source.match(new RegExp(`export\\s+const\\s+${exportName}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'u'));
+  const match = source.match(
+    new RegExp(`export\\s+const\\s+${exportName}(?::[^=]+)?\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'u'),
+  );
   assert.ok(match, `${exportName} must be exported as a string array`);
   return [...match[1].matchAll(/"([^"]+)"/gu)].map((item) => item[1]);
 }
@@ -98,20 +108,30 @@ assert.match(
 );
 
 assert.deepEqual(
-  extractStringArray(settingsServiceSource, 'DEFAULT_SIDEBAR_MODULES'),
+  extractStringArray(moduleRegistrySource, 'DEFAULT_SIDEBAR_MODULES'),
   expectedDefaultSidebarModules,
   'default sidebar modules must only keep chat, workspace, contacts, knowledge, drive, agent, and favorites visible',
 );
 
 assert.match(
-  settingsServiceSource,
-  /export\s+const\s+ALWAYS_CONFIGURABLE_MODULES\s*=\s*new Set\(\[\s*["']notary["']\s*\]\)/u,
-  'SettingsService must own the always-configurable notary module contract shared by settings and sidebar',
+  moduleRegistrySource,
+  /export\s+const\s+ALWAYS_CONFIGURABLE_MODULES\s*=\s*new Set[\s\S]*["']notary["']/u,
+  'shell moduleRegistry must own the always-configurable notary module contract shared by settings and sidebar',
+);
+assert.match(
+  moduleRegistrySource,
+  /export\s+const\s+ALL_APP_MODULES\s*=\s*\[[\s\S]*["']notary["'][\s\S]*\]/u,
+  'shell moduleRegistry catalog must retain notary so the configuration center can offer the feature',
 );
 assert.match(
   settingsServiceSource,
-  /export\s+const\s+ALL_APP_MODULES\s*=\s*\[[\s\S]*["']notary["'][\s\S]*\]/u,
-  'SettingsService module catalog must retain notary so the configuration center can offer the feature',
+  /from\s+["']@sdkwork\/im-pc-shell["']/u,
+  'SettingsService must import the module catalog from shell',
+);
+assert.match(
+  settingsServiceSource,
+  /export\s*\{\s*ALL_APP_MODULES,\s*DEFAULT_SIDEBAR_MODULES,\s*ALWAYS_CONFIGURABLE_MODULES\s*\}/u,
+  'SettingsService must re-export shell module catalog for backward compatibility',
 );
 assert.match(
   localApiSource,
@@ -146,9 +166,9 @@ assert.doesNotMatch(
 
 for (const moduleId of expectedDefaultSidebarModules) {
   assert.match(
-    settingsServiceSource,
+    moduleRegistrySource,
     new RegExp(`"(${moduleId})"`, 'u'),
-    `SettingsService module catalog must include ${moduleId}`,
+    `shell moduleRegistry catalog must include ${moduleId}`,
   );
 }
 
@@ -200,7 +220,7 @@ assert.match(
 );
 assert.match(
   sidebarSource,
-  /ALWAYS_CONFIGURABLE_MODULES\.has\(m\)/u,
+  /ALWAYS_CONFIGURABLE_MODULES[\s\S]*?\.has\(m\)/u,
   'Sidebar must keep user-enabled notary in the sidebar candidate list without requiring the server module snapshot',
 );
 assert.doesNotMatch(
@@ -243,7 +263,7 @@ assert.match(
 );
 assert.match(
   settingsModalSource,
-  /ALWAYS_CONFIGURABLE_MODULES\.has\(mod\.id\)/u,
+  /ALWAYS_CONFIGURABLE_MODULES[\s\S]*?\.has\(mod\.id\)/u,
   'SettingsModal must not require the server module snapshot before showing the notary enable option',
 );
 assert.doesNotMatch(
@@ -253,18 +273,38 @@ assert.doesNotMatch(
 );
 assert.match(
   settingsModalSource,
-  /DEFAULT_SIDEBAR_MODULES\.includes\(mod\.id\)/u,
+  /DEFAULT_SIDEBAR_MODULES[\s\S]*?\.includes\(mod\.id\)/u,
   'SettingsModal must keep the product-ready default modules visible even when the server module list is incomplete',
 );
 assert.match(
-  chatLayoutSource,
-  /case\s+["']drive["']:\s*[\r\n\s]*return\s+<DriveView\s*\/>/u,
-  'ChatLayout must route drive to the existing DriveView',
+  capabilityModuleLoadersSource,
+  /drive:\s*\(\)\s*=>\s*import\(['"]@sdkwork\/im-pc-drive['"]\)/u,
+  'shell capability loaders must lazy-load the drive module',
+);
+assert.match(
+  capabilityModuleSurfaceSource,
+  /isShellCapabilityModule\(activeTab\)/u,
+  'CapabilityModuleSurface must delegate shell capability modules to lazy loaders',
+);
+assert.match(
+  capabilityModuleSurfaceSource,
+  /resolveWorkspaceAppTab\(appId\)/u,
+  'Workspace app selection must resolve launcher app ids through shell moduleRegistry',
+);
+assert.match(
+  capabilityModuleLoadersSource,
+  /notary:\s*\(\)\s*=>\s*import\(['"]@sdkwork\/im-pc-notary['"]\)/u,
+  'shell capability loaders must lazy-load the notary module when selected from sidebar or workspace',
+);
+assert.match(
+  moduleLayoutSource,
+  /FULLSCREEN_MODULE_TABS[\s\S]*["']drive["']/u,
+  'shell moduleLayout must treat drive as a full-screen module page instead of rendering an empty unified header',
 );
 assert.match(
   chatLayoutSource,
-  /appId\s*===\s*["']notary["'][\s\S]*setActiveTab\(["']notary["']\)/u,
-  'Workspace notary app selection must navigate directly to the notary module without access-state gating',
+  /ModuleRenderHost/u,
+  'ChatLayout must delegate module routing to shell ModuleRenderHost',
 );
 assert.match(
   workspaceServiceSource,
@@ -312,21 +352,10 @@ assert.doesNotMatch(
   'Workspace notary entry and navigation must not be hidden behind notary access state',
 );
 assert.doesNotMatch(
-  chatLayoutSource,
+  `${chatLayoutSource}\n${capabilityModuleSurfaceSource}`,
   /notaryAccessService\.canUseNotary/u,
-  'ChatLayout must not use notary access state to block sidebar or workspace navigation',
+  'Chat shell surfaces must not use notary access state to block sidebar or workspace navigation',
 );
-assert.match(
-  chatLayoutSource,
-  /case\s+["']notary["']:\s*[\r\n\s]*return\s+<NotaryView\s*\/>/u,
-  'ChatLayout must render the notary module when the configured sidebar or workspace entry selects it',
-);
-assert.match(
-  chatLayoutSource,
-  /\[[\s\S]*["']drive["'][\s\S]*\]\.includes\(activeTab\)/u,
-  'ChatLayout must treat drive as a full-screen module page instead of rendering an empty unified header',
-);
-
 assert.match(
   chatLayoutSource,
   /subscribePendingFriendRequestCount/u,

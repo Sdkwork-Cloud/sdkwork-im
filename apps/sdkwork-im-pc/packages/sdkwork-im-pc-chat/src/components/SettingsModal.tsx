@@ -85,7 +85,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
-  const [serverModules, setServerModules] = useState<string[]>(ALL_APP_MODULES);
+  const [serverModules, setServerModules] = useState<string[]>([...ALL_APP_MODULES]);
   const [systemNotificationPermission, setSystemNotificationPermission] =
     useState<SystemNotificationPermission>(() => getSystemNotificationPermission());
 
@@ -435,8 +435,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               const allAvailable = configuredAvailable.filter(
                                 (mod) =>
                                   mod.id === "chat" ||
-                                  DEFAULT_SIDEBAR_MODULES.includes(mod.id) ||
-                                  ALWAYS_CONFIGURABLE_MODULES.has(mod.id) ||
+                                  (DEFAULT_SIDEBAR_MODULES as readonly string[]).includes(mod.id) ||
+                                  (ALWAYS_CONFIGURABLE_MODULES as ReadonlySet<string>).has(mod.id) ||
                                   serverModules.includes(mod.id),
                               );
 

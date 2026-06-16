@@ -136,7 +136,7 @@ for (const relativePath of [
   );
 }
 
-const webGatewaySource = read('services/web-gateway/src/lib.rs');
+const webGatewaySource = read('services/sdkwork-im-gateway/src/lib.rs');
 assert.doesNotMatch(
   webGatewaySource,
   /sdkwork-rtc-signaling-service|\/app\/v3\/api\/rtc/u,

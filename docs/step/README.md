@@ -295,8 +295,8 @@
   - Pre-Release Tier collected slot examples now include `message_metrics` and `stream_metrics`
   - Pre-Release Tier collected path examples now include `message/metrics.json` and `stream/metrics.json`
   - Pre-Release Tier current state is now `evidence_collected_gate_blocked`
-  - Capacity Tier current state remains `template_only_pending_execution`
-  - Only Capacity Tier still waits for real collection; Pre-Release Tier already carries all seven truthful local artifacts.
+  - Capacity Tier current state is now `evidence_collected_gate_passed`
+  - Both Step 11 tier artifact roots now carry truthful local evidence; dedicated topology runs still gate full commercial sign-off.
     evidence slot 还公开 `artifactKind`，代表值包括 `metrics_json`、`drill_json`、`capacity_json`、`recovery_json`、`report_markdown`
     机器契约还冻结 `requiredFields` / `requiredSections`，示例值包括 `runId`、`connectP95Ms`、`input_scale`、`operator_follow_up`
     额外字段示例包括 `messageTps`、`frameP95Ms`、`recovery_window`、`rto_rpo_summary`

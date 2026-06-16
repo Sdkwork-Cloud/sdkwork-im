@@ -1,8 +1,8 @@
-/**
+﻿/**
  * Shared type exports for the notary package
- * Re-exports from @sdkwork/clawchat-pc-types and defines local types
+ * Re-exports from @sdkwork/im-pc-types and defines local types
  */
-export type { NotaryTask, Party, NotaryDocument, TimelineEvent } from '@sdkwork/clawchat-pc-types';
+export type { NotaryTask, Party, NotaryDocument, TimelineEvent } from '@sdkwork/im-pc-types';
 export type { NotaryStaffOption, CreateNotaryTaskInput } from '../services/NotaryService';
 
 /**

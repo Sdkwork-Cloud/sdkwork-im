@@ -1,4 +1,4 @@
-/**
+﻿/**
  * NotaryHeader - Page header with title, stats cards, and action buttons
  */
 import React from 'react';

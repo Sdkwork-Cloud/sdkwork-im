@@ -1,4 +1,4 @@
-# API Reference
+﻿# API Reference
 
 <p class="api-page-intro">
   This API reference stays aligned to the HTTP surface implemented by the current repository state.
@@ -37,7 +37,7 @@
 ## Standards Used
 
 - Operation pages are grouped by runtime domain and linked individually in the sidebar.
-- The unified `web-gateway` also publishes an aggregate OpenAPI 3.1 document, a service schema index, and service-specific schema/docs routes.
+- The unified `sdkwork-im-gateway` also publishes an aggregate OpenAPI 3.1 document, a service schema index, and service-specific schema/docs routes.
 - For packaged installs, start with [Gateway OpenAPI](/api-reference/gateway-openapi):
   `/im/v3/api`, `/app/v3/api`, `/backend/v3/api`, backend control modules, and
   `/backend/v3/api/admin/*` discovery all converge on the same unified public origin.

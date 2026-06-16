@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BasicInfoForm - Form fields for party basic information
  *
  * Contains phone, name, ID number, gender, birth date, valid dates, and address.

@@ -1,3 +1,12 @@
-# Step 11 Capacity Tier artifact file list placeholder
-# slot state: pending_collection
-# Future lines list suggestedRelativePath values from capacity-tier-evidence-index.json
+# Step 11 Capacity Tier artifact file list
+# state: evidence_collected_gate_passed
+capacity-tier-evidence-index.json
+checksum-manifest.txt
+artifact-file-list.txt
+connection/capacity.json
+message/capacity.json
+stream/capacity.json
+restore-recovery/recovery.json
+failover/recovery.json
+reports/capacity-report.md
+reports/recovery-report.md

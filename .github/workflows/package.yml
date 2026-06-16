@@ -68,6 +68,10 @@ on:
         description: sdkwork-core commit/ref.
         required: false
         default: fd64773e8f73ce38f6995ded0ee63c00d6c5e675
+      sdkwork_database_ref:
+        description: sdkwork-database commit/ref.
+        required: false
+        default: main
       sdkwork_ui_ref:
         description: sdkwork-ui commit/ref.
         required: false
@@ -83,7 +87,7 @@ on:
       sdkwork_rtc_ref:
         description: sdkwork-rtc commit/ref.
         required: false
-        default: 9520a452f744b5a868449547bb2031a7ffc6fd30
+        default: 1c1ff3b753a2e856faeef58f3a62a9bd153041e1
       sdkwork_kernel_ref:
         description: sdkwork-kernel commit/ref.
         required: false
@@ -128,6 +132,7 @@ jobs:
         {
           "SDKWORK_APPBASE_REF": "${{ github.event.inputs.sdkwork_appbase_ref || vars.SDKWORK_APPBASE_REF }}",
           "SDKWORK_CORE_REF": "${{ github.event.inputs.sdkwork_core_ref || vars.SDKWORK_CORE_REF }}",
+          "SDKWORK_DATABASE_REF": "${{ github.event.inputs.sdkwork_database_ref || vars.SDKWORK_DATABASE_REF }}",
           "SDKWORK_UI_REF": "${{ github.event.inputs.sdkwork_ui_ref || vars.SDKWORK_UI_REF }}",
           "SDKWORK_DRIVE_REF": "${{ github.event.inputs.sdkwork_drive_ref || vars.SDKWORK_DRIVE_REF }}",
           "SDKWORK_NOTARY_REF": "${{ github.event.inputs.sdkwork_notary_ref || vars.SDKWORK_NOTARY_REF }}",

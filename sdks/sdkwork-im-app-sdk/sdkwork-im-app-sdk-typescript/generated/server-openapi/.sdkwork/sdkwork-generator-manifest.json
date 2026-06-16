@@ -6,12 +6,13 @@
     "version": "0.1.0",
     "language": "typescript",
     "sdkType": "app",
+    "protocol": "http",
     "packageName": "@sdkwork-internal/im-app-api-generated"
   },
   "generatedFiles": [
     {
       "path": "bin/publish-core.mjs",
-      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+      "sha256": "98ad0918a78bfbe22bf8f12fec709b0bed545b9e01edd40f5e4abf31a23378a5"
     },
     {
       "path": "bin/publish.ps1",
@@ -43,7 +44,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "c7cb87fef7c3a23e0ad228fee0d1a18884aac5eda1d6def92271b3257edf1997"
+      "sha256": "1451ab8bc1f47ced2b174e84fc54057aca82cac92d5907c0ce4bb0bb38d490e5"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -59,11 +60,11 @@
     },
     {
       "path": "src/api/index.ts",
-      "sha256": "7cb9cbdc554f4dbf57f37d1da3ef6fce1b5f9a26e478fcbad7084989e36bad22"
+      "sha256": "4c6daac581beb225fa65e6a14b31122dff684a30eb50df53d9c54f9e85b41962"
     },
     {
-      "path": "src/api/notification.ts",
-      "sha256": "6bd96ec52d30ce956bb809fdef8966a80410f6241bb8bea95efd55c4cfa1588b"
+      "path": "src/api/notifications.ts",
+      "sha256": "43acc1cb6a7f1622f47fd79ae7add1443fb81e50d48c5f9eb6bd3e6064ef8a71"
     },
     {
       "path": "src/api/paths.ts",
@@ -83,7 +84,7 @@
     },
     {
       "path": "src/http/client.ts",
-      "sha256": "4a29de78aa79c6964d43ee533380dfb6a32af200b88fd7b7a2a94375ba407cbb"
+      "sha256": "8200225b1363ec0ef556e9f10b7e80c3ce37c311e0641054c88615329a052eb8"
     },
     {
       "path": "src/http/index.ts",
@@ -95,7 +96,7 @@
     },
     {
       "path": "src/sdk.ts",
-      "sha256": "0602d8ab971ecafbd528158d45cad91950a70914c40ab2028d0f90d3ff0cb84d"
+      "sha256": "e0c79e575405f7abe542ac9ac1c5cf29e5037117caa6e0b7e3c23c46b77527bc"
     },
     {
       "path": "src/types/agent-subject.ts",

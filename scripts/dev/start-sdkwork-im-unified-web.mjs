@@ -152,7 +152,7 @@ function terminateStaleSdkworkImServerProcesses(env) {
     '| ForEach-Object {',
     '  $server = $_;',
     '  $parent = $all | Where-Object { $_.ProcessId -eq $server.ParentProcessId } | Select-Object -First 1;',
-    '  if ($parent -and $parent.Name -eq "cargo.exe" -and $parent.CommandLine -match "run\\s+-p\\s+web-gateway\\s+--bin\\s+sdkwork-im-server") {',
+    '  if ($parent -and $parent.Name -eq "cargo.exe" -and $parent.CommandLine -match "run\\s+-p\\s+sdkwork-im-gateway\\s+--bin\\s+sdkwork-im-server") {',
     '    $parent.ProcessId',
     '  } else {',
     '    $server.ProcessId',
@@ -293,6 +293,6 @@ if (managedSdkworkApiGatewayProcess) {
 }
 
 terminateStaleSdkworkImServerProcesses(runtimeEnv);
-await runCommand('cargo', ['run', '-p', 'web-gateway', '--bin', 'sdkwork-im-server'], {
+await runCommand('cargo', ['run', '-p', 'sdkwork-im-gateway', '--bin', 'sdkwork-im-server'], {
   env: runtimeEnv,
 });

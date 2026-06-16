@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DrawerShell - Reusable animated slide-in drawer wrapper
  *
  * Provides the common overlay backdrop + sliding panel pattern

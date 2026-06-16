@@ -159,7 +159,7 @@ resolve_binary_path() {
 
   for candidate in \
     "${install_root}/bin/sdkwork-im-server" \
-    "${install_root}/bin/web-gateway"; do
+    "${install_root}/bin/sdkwork-im-gateway"; do
     if [[ -x "$candidate" ]]; then
       printf '%s\n' "$candidate"
       return 0
@@ -168,8 +168,8 @@ resolve_binary_path() {
 
   local debug_candidate="${ROOT_DIR}/target/debug/sdkwork-im-server"
   local release_candidate="${ROOT_DIR}/target/release/sdkwork-im-server"
-  local legacy_debug_candidate="${ROOT_DIR}/target/debug/web-gateway"
-  local legacy_release_candidate="${ROOT_DIR}/target/release/web-gateway"
+  local legacy_debug_candidate="${ROOT_DIR}/target/debug/sdkwork-im-gateway"
+  local legacy_release_candidate="${ROOT_DIR}/target/release/sdkwork-im-gateway"
   if [[ "$prefer_release" -eq 1 ]]; then
     for candidate in "$release_candidate" "$debug_candidate" "$legacy_release_candidate" "$legacy_debug_candidate"; do
       [[ -x "$candidate" ]] && printf '%s\n' "$candidate" && return 0
@@ -182,9 +182,9 @@ resolve_binary_path() {
 
   if command -v cargo >/dev/null 2>&1; then
     if [[ "$prefer_release" -eq 1 ]]; then
-      cargo build --release -p web-gateway --offline
+      cargo build --release -p sdkwork-im-gateway --offline
     else
-      cargo build -p web-gateway --offline
+      cargo build -p sdkwork-im-gateway --offline
     fi
     resolve_binary_path "" "$prefer_release"
     return 0
@@ -225,7 +225,7 @@ if [[ -z "$bind_address" ]]; then
 fi
 [[ -n "$bind_address" ]] || bind_address="127.0.0.1:18079"
 resolved_binary="$(resolve_binary_path "$binary_path" "$release_mode" || true)"
-[[ -n "$resolved_binary" ]] || { echo "Unable to resolve sdkwork-im-server binary. Set --binary-path, install a packaged binary, or build web-gateway." >&2; exit 1; }
+[[ -n "$resolved_binary" ]] || { echo "Unable to resolve sdkwork-im-server binary. Set --binary-path, install a packaged binary, or build sdkwork-im-gateway." >&2; exit 1; }
 resolved_health_url="$(resolve_health_url "$health_url" "$bind_address")"
 
 mkdir -p "$log_dir" "$run_dir"

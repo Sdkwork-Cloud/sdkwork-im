@@ -1,9 +1,9 @@
-/**
+﻿/**
  * PrintPartyPage - Single party page in the print overlay
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Party } from '@sdkwork/clawchat-pc-types';
+import type { Party } from '@sdkwork/im-pc-types';
 import { EMPTY_NOTARY_PRINT_IMAGE_URL } from '../../constants';
 import type { PartyIdentityMediaUrls } from '../../types';
 

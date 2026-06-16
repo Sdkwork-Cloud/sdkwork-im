@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { RotateCcw, ChevronDown, Palette, Maximize, CheckCircle2, Check } from 'lucide-react';
 
 interface SignaturePadToolbarProps {

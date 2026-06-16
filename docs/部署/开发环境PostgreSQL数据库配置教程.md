@@ -4,7 +4,7 @@
 
 - app code: `chat`
 - 发布访问根路径: `/sdkwork/chat`
-- 环境变量前缀: `SDKWORK_CHAT_*`
+- 环境变量前缀: `SDKWORK_IM_*`
 - desktop 本地数据默认数据库: SQLite
 - desktop SQLite 路径: `~/.sdkwork/chat/data/chat.sqlite`
 
@@ -53,23 +53,23 @@ Copy-Item .env.postgres.example .env.postgres
 `.env.postgres` 使用拆分字段维护数据库连接，不把 host、database、username、password 混在一条长 URL 中。
 
 ```env
-SDKWORK_CHAT_DEPLOYMENT_MODE=server
-SDKWORK_CHAT_DATABASE_ENGINE=postgresql
-SDKWORK_CHAT_DATABASE_HOST=127.0.0.1
-SDKWORK_CHAT_DATABASE_PORT=5432
-SDKWORK_CHAT_DATABASE_NAME=sdkwork_ai_dev
-SDKWORK_CHAT_DATABASE_SCHEMA=sdkwork_ai_dev
-SDKWORK_CHAT_DATABASE_USERNAME=sdkwork_ai_dev
-SDKWORK_CHAT_DATABASE_PASSWORD=sdkworkdev123
-SDKWORK_CHAT_DATABASE_SSL_MODE=disable
-SDKWORK_CHAT_DATABASE_MAX_CONNECTIONS=10
+SDKWORK_IM_DEPLOYMENT_MODE=server
+SDKWORK_IM_DATABASE_ENGINE=postgresql
+SDKWORK_IM_DATABASE_HOST=127.0.0.1
+SDKWORK_IM_DATABASE_PORT=5432
+SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev
+SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_dev
+SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_dev
+SDKWORK_IM_DATABASE_PASSWORD=sdkworkdev123
+SDKWORK_IM_DATABASE_SSL_MODE=disable
+SDKWORK_IM_DATABASE_MAX_CONNECTIONS=10
 
-SDKWORK_CHAT_DATABASE_ADMIN_HOST=127.0.0.1
-SDKWORK_CHAT_DATABASE_ADMIN_PORT=5432
-SDKWORK_CHAT_DATABASE_ADMIN_USERNAME=postgres
-SDKWORK_CHAT_DATABASE_ADMIN_PASSWORD=postgres_admin_pass
-SDKWORK_CHAT_DATABASE_ADMIN_DATABASE=postgres
-SDKWORK_CHAT_DATABASE_ADMIN_SSL_MODE=disable
+SDKWORK_IM_DATABASE_ADMIN_HOST=127.0.0.1
+SDKWORK_IM_DATABASE_ADMIN_PORT=5432
+SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres
+SDKWORK_IM_DATABASE_ADMIN_PASSWORD=postgres_admin_pass
+SDKWORK_IM_DATABASE_ADMIN_DATABASE=postgres
+SDKWORK_IM_DATABASE_ADMIN_SSL_MODE=disable
 ```
 
 脚本会组装并桥接给当前 Rust 运行时所需的数据库 URL：
@@ -82,19 +82,19 @@ postgresql://sdkwork_ai_dev:sdkworkdev123@127.0.0.1:5432/sdkwork_ai_dev?sslmode=
 
 | 变量 | 说明 | 示例 |
 | --- | --- | --- |
-| `SDKWORK_CHAT_DATABASE_ENGINE` | 数据库类型。开发 PostgreSQL 固定为 `postgresql`。 | `postgresql` |
-| `SDKWORK_CHAT_DATABASE_HOST` | PostgreSQL 主机名或 IP。 | `127.0.0.1` |
-| `SDKWORK_CHAT_DATABASE_PORT` | PostgreSQL 端口。 | `5432` |
-| `SDKWORK_CHAT_DATABASE_NAME` | 应用使用的数据库名。 | `sdkwork_ai_dev` |
-| `SDKWORK_CHAT_DATABASE_SCHEMA` | 应用表结构所在 schema。建议与数据库名保持一致。 | `sdkwork_ai_dev` |
-| `SDKWORK_CHAT_DATABASE_USERNAME` | 应用数据库账号。 | `sdkwork_ai_dev` |
-| `SDKWORK_CHAT_DATABASE_PASSWORD` | 应用数据库密码。 | `sdkworkdev123` |
-| `SDKWORK_CHAT_DATABASE_SSL_MODE` | PostgreSQL SSL 模式。本地通常用 `disable`。 | `disable` |
-| `SDKWORK_CHAT_DATABASE_MAX_CONNECTIONS` | 本地连接池最大连接数。 | `10` |
-| `SDKWORK_CHAT_DATABASE_ADMIN_USERNAME` | 初始化数据库时使用的 PostgreSQL 管理账号。 | `postgres` |
-| `SDKWORK_CHAT_DATABASE_ADMIN_PASSWORD` | 管理账号密码。只用于 `pnpm db:postgres:init`。 | `postgres_admin_pass` |
-| `SDKWORK_CHAT_DATABASE_ADMIN_DATABASE` | 管理账号先连接的维护库。通常是 `postgres`。 | `postgres` |
-| `SDKWORK_CHAT_DATABASE_ADMIN_URL` | 可选完整管理员连接串。设置后优先于拆分管理员字段。 | `postgresql://postgres:postgres_admin_pass@127.0.0.1:5432/postgres?sslmode=disable` |
+| `SDKWORK_IM_DATABASE_ENGINE` | 数据库类型。开发 PostgreSQL 固定为 `postgresql`。 | `postgresql` |
+| `SDKWORK_IM_DATABASE_HOST` | PostgreSQL 主机名或 IP。 | `127.0.0.1` |
+| `SDKWORK_IM_DATABASE_PORT` | PostgreSQL 端口。 | `5432` |
+| `SDKWORK_IM_DATABASE_NAME` | 应用使用的数据库名。 | `sdkwork_ai_dev` |
+| `SDKWORK_IM_DATABASE_SCHEMA` | 应用表结构所在 schema。建议与数据库名保持一致。 | `sdkwork_ai_dev` |
+| `SDKWORK_IM_DATABASE_USERNAME` | 应用数据库账号。 | `sdkwork_ai_dev` |
+| `SDKWORK_IM_DATABASE_PASSWORD` | 应用数据库密码。 | `sdkworkdev123` |
+| `SDKWORK_IM_DATABASE_SSL_MODE` | PostgreSQL SSL 模式。本地通常用 `disable`。 | `disable` |
+| `SDKWORK_IM_DATABASE_MAX_CONNECTIONS` | 本地连接池最大连接数。 | `10` |
+| `SDKWORK_IM_DATABASE_ADMIN_USERNAME` | 初始化数据库时使用的 PostgreSQL 管理账号。 | `postgres` |
+| `SDKWORK_IM_DATABASE_ADMIN_PASSWORD` | 管理账号密码。只用于 `pnpm db:postgres:init`。 | `postgres_admin_pass` |
+| `SDKWORK_IM_DATABASE_ADMIN_DATABASE` | 管理账号先连接的维护库。通常是 `postgres`。 | `postgres` |
+| `SDKWORK_IM_DATABASE_ADMIN_URL` | 可选完整管理员连接串。设置后优先于拆分管理员字段。 | `postgresql://postgres:postgres_admin_pass@127.0.0.1:5432/postgres?sslmode=disable` |
 
 `DATABASE_PROVIDER` 和 `DATABASE_SSLMODE` 不是标准名称。新配置必须使用 `DATABASE_ENGINE` 和 `DATABASE_SSL_MODE`。
 
@@ -124,7 +124,7 @@ pnpm db:postgres:init
 pnpm db:postgres:migrate
 ```
 
-`pnpm db:postgres:init` 需要 `SDKWORK_CHAT_DATABASE_ADMIN_PASSWORD` 或 `SDKWORK_CHAT_DATABASE_ADMIN_URL`。`pnpm db:postgres:migrate` 使用应用账号连接目标数据库，并执行 `deployments/database/postgres/migrations/001_im_core_schema.sql`。
+`pnpm db:postgres:init` 需要 `SDKWORK_IM_DATABASE_ADMIN_PASSWORD` 或 `SDKWORK_IM_DATABASE_ADMIN_URL`。`pnpm db:postgres:migrate` 使用应用账号连接目标数据库，并执行 `deployments/database/postgres/migrations/001_im_core_schema.sql`。
 
 脚本通过 `PGPASSWORD` 把密码传给 `psql`，不会把密码拼进命令行参数。`pnpm db:postgres:plan` 输出中的密码会被替换为 `***`。
 
@@ -133,7 +133,7 @@ pnpm db:postgres:migrate
 如果 SDKWork Chat 和 `pnpm` 在 Windows PowerShell 中运行，而 PostgreSQL 安装在 WSL Ubuntu 中，`.env.postgres` 的 host 必须填写 Windows 能访问到的 TCP 地址。优先使用：
 
 ```env
-SDKWORK_CHAT_DATABASE_HOST=127.0.0.1
+SDKWORK_IM_DATABASE_HOST=127.0.0.1
 ```
 
 验证端口：
@@ -148,7 +148,7 @@ Test-NetConnection 127.0.0.1 -Port 5432
 wsl hostname -I
 ```
 
-然后把 `SDKWORK_CHAT_DATABASE_HOST` 改成对应 IP。Windows 应用不应该使用 WSL 内部的 Unix socket。
+然后把 `SDKWORK_IM_DATABASE_HOST` 改成对应 IP。Windows 应用不应该使用 WSL 内部的 Unix socket。
 
 ## 7. 手工连接验证
 

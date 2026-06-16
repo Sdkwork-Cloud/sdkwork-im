@@ -1,4 +1,4 @@
-/**
+﻿/**
  * NotaryFilterBar - Search and filter controls for the task list
  */
 import React from 'react';

@@ -6,14 +6,5 @@ version.workspace = true
 
 [dependencies]
 axum.workspace = true
-chrono = "0.4"
-sha2 = "0.10"
-tokio.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-tracing.workspace = true
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
-im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
-im-domain-core = { path = "../../crates/im-domain-core" }
-im-platform-contracts = { path = "../../crates/im-platform-contracts" }
-im-app-context = { path = "../../crates/im-app-context" }
+social-service = { path = "../social-service" }

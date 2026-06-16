@@ -1,14 +1,16 @@
 //! Channel API handlers.
 
-use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
+use axum::extract::{Extension, Path, Query, State};
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::Json;
+use im_app_context::AppContext;
 use serde::{Deserialize, Serialize};
 
 use im_adapters_social_postgres::organization_store::{ChannelRecord, ChannelStore};
 
 use crate::http::AppState;
+use crate::service_http::require_request_scope;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateChannelRequest {
@@ -70,18 +72,18 @@ fn generate_id() -> String {
 
 pub async fn create_channel(
     State(state): State<AppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Path(space_id): Path<String>,
     Json(request): Json<CreateChannelRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = "default";
-    let org_id = "default";
-
+    let scope = require_request_scope(auth, &headers)?;
     let channel_id = generate_id();
     let now = chrono::Utc::now().to_rfc3339();
 
     let record = ChannelRecord {
-        tenant_id: tenant_id.to_string(),
-        organization_id: org_id.to_string(),
+        tenant_id: scope.tenant_id,
+        organization_id: scope.organization_id,
         channel_id: channel_id.parse().unwrap_or(0),
         space_id: space_id.parse().unwrap_or(0),
         channel_name: request.channel_name,
@@ -108,17 +110,24 @@ pub async fn create_channel(
 
 pub async fn list_channels(
     State(state): State<AppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Path(space_id): Path<String>,
     Query(query): Query<ListQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = "default";
-    let org_id = "default";
+    let scope = require_request_scope(auth, &headers)?;
     let sid: i64 = space_id.parse().unwrap_or(0);
     let limit = query.limit.unwrap_or(20);
 
-    match state.channel_store.list_by_space(tenant_id, org_id, sid, limit) {
+    match state.channel_store.list_by_space(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        sid,
+        limit,
+    ) {
         Ok(records) => {
-            let response: Vec<ChannelResponse> = records.into_iter().map(ChannelResponse::from).collect();
+            let response: Vec<ChannelResponse> =
+                records.into_iter().map(ChannelResponse::from).collect();
             Ok(Json(response))
         }
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -127,13 +136,18 @@ pub async fn list_channels(
 
 pub async fn get_channel(
     State(state): State<AppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Path((_space_id, channel_id)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = "default";
-    let org_id = "default";
+    let scope = require_request_scope(auth, &headers)?;
     let cid: i64 = channel_id.parse().unwrap_or(0);
 
-    match state.channel_store.get_by_id(tenant_id, org_id, cid) {
+    match state.channel_store.get_by_id(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        cid,
+    ) {
         Ok(Some(record)) => Ok(Json(ChannelResponse::from(record))),
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -142,15 +156,20 @@ pub async fn get_channel(
 
 pub async fn update_channel(
     State(state): State<AppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Path((_space_id, channel_id)): Path<(String, String)>,
     Json(request): Json<UpdateChannelRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = "default";
-    let org_id = "default";
+    let scope = require_request_scope(auth, &headers)?;
     let cid: i64 = channel_id.parse().unwrap_or(0);
     let now = chrono::Utc::now().to_rfc3339();
 
-    match state.channel_store.get_by_id(tenant_id, org_id, cid) {
+    match state.channel_store.get_by_id(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        cid,
+    ) {
         Ok(Some(mut record)) => {
             if let Some(name) = request.channel_name {
                 record.channel_name = name;
@@ -178,13 +197,18 @@ pub async fn update_channel(
 
 pub async fn delete_channel(
     State(state): State<AppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
     Path((_space_id, channel_id)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = "default";
-    let org_id = "default";
+    let scope = require_request_scope(auth, &headers)?;
     let cid: i64 = channel_id.parse().unwrap_or(0);
 
-    match state.channel_store.delete(tenant_id, org_id, cid) {
+    match state.channel_store.delete(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        cid,
+    ) {
         Ok(()) => Ok(StatusCode::NO_CONTENT),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }

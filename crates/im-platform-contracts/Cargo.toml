@@ -5,28 +5,28 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-sdkwork-im-contract-admin = { path = "../sdkwork-im-contract-admin" }
-sdkwork-im-contract-agent = { path = "../sdkwork-im-contract-agent" }
-sdkwork-im-contract-control = { path = "../sdkwork-im-contract-control" }
-sdkwork-im-contract-core = { path = "../sdkwork-im-contract-core" }
-sdkwork-im-contract-message = { path = "../sdkwork-im-contract-message" }
-sdkwork-im-contract-notification = { path = "../sdkwork-im-contract-notification" }
-sdkwork-im-contract-stream = { path = "../sdkwork-im-contract-stream" }
-im-domain-core = { path = "../im-domain-core" }
-im-domain-events = { path = "../im-domain-events" }
-im-time = { path = "../im-time" }
+sdkwork-im-contract-admin.workspace = true
+sdkwork-im-contract-agent.workspace = true
+sdkwork-im-contract-control.workspace = true
+sdkwork-im-contract-core.workspace = true
+sdkwork-im-contract-message.workspace = true
+sdkwork-im-contract-notification.workspace = true
+sdkwork-im-contract-stream.workspace = true
+im-domain-core.workspace = true
+im-domain-events.workspace = true
+im-time.workspace = true
 sdkwork-rtc-core.workspace = true
 serde.workspace = true
 
 [dev-dependencies]
-sdkwork-im-ccp-binding-http = { path = "../sdkwork-im-ccp-binding-http" }
-sdkwork-im-ccp-binding-mqtt = { path = "../sdkwork-im-ccp-binding-mqtt" }
-sdkwork-im-ccp-binding-sse = { path = "../sdkwork-im-ccp-binding-sse" }
-sdkwork-im-ccp-binding-ws = { path = "../sdkwork-im-ccp-binding-ws" }
-sdkwork-im-ccp-codec = { path = "../sdkwork-im-ccp-codec" }
-sdkwork-im-ccp-codec-cbor = { path = "../sdkwork-im-ccp-codec-cbor" }
-sdkwork-im-ccp-codec-json = { path = "../sdkwork-im-ccp-codec-json" }
-sdkwork-im-ccp-control = { path = "../sdkwork-im-ccp-control" }
-sdkwork-im-ccp-core = { path = "../sdkwork-im-ccp-core" }
-sdkwork-im-ccp-registry = { path = "../sdkwork-im-ccp-registry" }
+sdkwork-im-ccp-binding-http.workspace = true
+sdkwork-im-ccp-binding-mqtt.workspace = true
+sdkwork-im-ccp-binding-sse.workspace = true
+sdkwork-im-ccp-binding-ws.workspace = true
+sdkwork-im-ccp-codec.workspace = true
+sdkwork-im-ccp-codec-cbor.workspace = true
+sdkwork-im-ccp-codec-json.workspace = true
+sdkwork-im-ccp-control.workspace = true
+sdkwork-im-ccp-core.workspace = true
+sdkwork-im-ccp-registry.workspace = true
 serde_json.workspace = true

@@ -1,10 +1,10 @@
-/**
+﻿/**
  * DocumentItem - Single document row in the materials tab
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, Download, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
-import type { NotaryDocument } from '@sdkwork/clawchat-pc-types';
+import type { NotaryDocument } from '@sdkwork/im-pc-types';
 
 export interface DocumentItemProps {
   document: NotaryDocument;

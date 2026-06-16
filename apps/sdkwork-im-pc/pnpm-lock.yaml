@@ -150,9 +150,6 @@ catalogs:
     vite:
       specifier: ^6.2.0
       version: 6.4.3
-    vite-plugin-dts:
-      specifier: ^4.5.4
-      version: 4.5.4
 
 overrides:
   '@sdkwork-internal/im-app-api-generated': workspace:*
@@ -358,7 +355,7 @@ importers:
         version: 19.2.3(@types/react@19.2.16)
       autoprefixer:
         specifier: 'catalog:'
-        version: 10.5.0(postcss@8.5.15)
+        version: 10.5.0(postcss@8.5.8)
       esbuild:
         specifier: 'catalog:'
         version: 0.28.0
@@ -382,7 +379,18 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
-  ../../../sdkwork-aiot/sdks/sdkwork-aiot-backend-sdk/sdkwork-aiot-backend-sdk-typescript: {}
+  ../../../sdkwork-aiot/sdks/sdkwork-aiot-backend-sdk/sdkwork-aiot-backend-sdk-typescript:
+    dependencies:
+      '@sdkwork/sdk-common':
+        specifier: ^1.0.2
+        version: 1.0.2
+    devDependencies:
+      '@sdkwork/sdk-generator':
+        specifier: ^1.0.9
+        version: 1.0.9
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
 
   ../../../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap:
     devDependencies:
@@ -822,58 +830,58 @@ importers:
         specifier: ^8.18.1
         version: 8.20.0
 
-  packages/sdkwork-clawchat-admin-core: {}
+  packages/sdkwork-im-admin-core: {}
 
-  packages/sdkwork-clawchat-admin-dashboard: {}
+  packages/sdkwork-im-admin-dashboard: {}
 
-  packages/sdkwork-clawchat-admin-infra: {}
+  packages/sdkwork-im-admin-infra: {}
 
-  packages/sdkwork-clawchat-admin-infrastructure: {}
+  packages/sdkwork-im-admin-infrastructure: {}
 
-  packages/sdkwork-clawchat-admin-operations: {}
+  packages/sdkwork-im-admin-operations: {}
 
-  packages/sdkwork-clawchat-admin-ops: {}
+  packages/sdkwork-im-admin-ops: {}
 
-  packages/sdkwork-clawchat-admin-tenants: {}
+  packages/sdkwork-im-admin-tenants: {}
 
-  packages/sdkwork-clawchat-console-communications: {}
+  packages/sdkwork-im-console-communications: {}
 
-  packages/sdkwork-clawchat-console-core:
+  packages/sdkwork-im-console-core:
     dependencies:
-      '@sdkwork/clawchat-console-product':
+      '@sdkwork/im-console-product':
         specifier: workspace:*
-        version: link:../sdkwork-clawchat-console-product
-      '@sdkwork/clawchat-console-shop':
+        version: link:../sdkwork-im-console-product
+      '@sdkwork/im-console-shop':
         specifier: workspace:*
-        version: link:../sdkwork-clawchat-console-shop
+        version: link:../sdkwork-im-console-shop
 
-  packages/sdkwork-clawchat-console-dashboard: {}
+  packages/sdkwork-im-console-dashboard: {}
 
-  packages/sdkwork-clawchat-console-integrations: {}
+  packages/sdkwork-im-console-integrations: {}
 
-  packages/sdkwork-clawchat-console-product: {}
+  packages/sdkwork-im-console-product: {}
 
-  packages/sdkwork-clawchat-console-roles: {}
+  packages/sdkwork-im-console-roles: {}
 
-  packages/sdkwork-clawchat-console-security: {}
+  packages/sdkwork-im-console-security: {}
 
-  packages/sdkwork-clawchat-console-settings: {}
+  packages/sdkwork-im-console-settings: {}
 
-  packages/sdkwork-clawchat-console-shop: {}
+  packages/sdkwork-im-console-shop: {}
 
-  packages/sdkwork-clawchat-console-users: {}
+  packages/sdkwork-im-console-users: {}
 
-  packages/sdkwork-clawchat-pc-approvals: {}
+  packages/sdkwork-im-pc-approvals: {}
 
-  packages/sdkwork-clawchat-pc-attendance: {}
+  packages/sdkwork-im-pc-attendance: {}
 
-  packages/sdkwork-clawchat-pc-calendar: {}
+  packages/sdkwork-im-pc-calendar: {}
 
-  packages/sdkwork-clawchat-pc-chat: {}
+  packages/sdkwork-im-pc-chat: {}
 
-  packages/sdkwork-clawchat-pc-commons: {}
+  packages/sdkwork-im-pc-commons: {}
 
-  packages/sdkwork-clawchat-pc-community:
+  packages/sdkwork-im-pc-community:
     dependencies:
       lucide-react:
         specifier: 'catalog:'
@@ -883,9 +891,9 @@ importers:
         version: 12.38.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.8(i18next@26.3.0(typescript@6.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.2)
+        version: 17.0.8(i18next@26.3.0(typescript@5.9.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
 
-  packages/sdkwork-clawchat-pc-core:
+  packages/sdkwork-im-pc-core:
     dependencies:
       '@sdkwork/aiot-app-sdk':
         specifier: workspace:*
@@ -897,7 +905,7 @@ importers:
         specifier: workspace:*
         version: link:../../../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript
 
-  packages/sdkwork-clawchat-pc-course:
+  packages/sdkwork-im-pc-course:
     dependencies:
       lucide-react:
         specifier: 'catalog:'
@@ -907,9 +915,9 @@ importers:
         version: 12.38.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.8(i18next@26.3.0(typescript@6.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.2)
+        version: 17.0.8(i18next@26.3.0(typescript@5.9.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
 
-  packages/sdkwork-clawchat-pc-desktop:
+  packages/sdkwork-im-pc-desktop:
     dependencies:
       '@tauri-apps/api':
         specifier: 'catalog:'
@@ -919,14 +927,14 @@ importers:
         specifier: 'catalog:'
         version: 2.10.1
 
-  packages/sdkwork-clawchat-pc-devices:
+  packages/sdkwork-im-pc-devices:
     dependencies:
       '@sdkwork/aiot-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-aiot/sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript
-      '@sdkwork/clawchat-pc-core':
+      '@sdkwork/im-pc-core':
         specifier: workspace:*
-        version: link:../sdkwork-clawchat-pc-core
+        version: link:../sdkwork-im-pc-core
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -935,19 +943,19 @@ importers:
         version: 12.38.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-i18next:
         specifier: 'catalog:'
-        version: 17.0.8(i18next@26.3.0(typescript@6.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.2)
+        version: 17.0.8(i18next@26.3.0(typescript@5.9.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
 
-  packages/sdkwork-clawchat-pc-drive:
+  packages/sdkwork-im-pc-drive:
     dependencies:
-      '@sdkwork/clawchat-pc-chat':
-        specifier: workspace:*
-        version: link:../sdkwork-clawchat-pc-chat
-      '@sdkwork/clawchat-pc-core':
-        specifier: workspace:*
-        version: link:../sdkwork-clawchat-pc-core
       '@sdkwork/drive-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript
+      '@sdkwork/im-pc-chat':
+        specifier: workspace:*
+        version: link:../sdkwork-im-pc-chat
+      '@sdkwork/im-pc-core':
+        specifier: workspace:*
+        version: link:../sdkwork-im-pc-core
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -955,47 +963,49 @@ importers:
         specifier: 'catalog:'
         version: 19.2.4
 
-  packages/sdkwork-clawchat-pc-enterprise:
+  packages/sdkwork-im-pc-enterprise:
     dependencies:
-      '@sdkwork/clawchat-pc-core':
+      '@sdkwork/im-pc-core':
         specifier: workspace:*
-        version: link:../sdkwork-clawchat-pc-core
+        version: link:../sdkwork-im-pc-core
 
-  packages/sdkwork-clawchat-pc-image-gen: {}
+  packages/sdkwork-im-pc-image-gen: {}
 
-  packages/sdkwork-clawchat-pc-knowledge:
+  packages/sdkwork-im-pc-knowledge:
     dependencies:
       '@sdkwork/agent-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi
-      '@sdkwork/clawchat-pc-core':
+      '@sdkwork/im-pc-core':
         specifier: workspace:*
-        version: link:../sdkwork-clawchat-pc-core
+        version: link:../sdkwork-im-pc-core
 
-  packages/sdkwork-clawchat-pc-mail: {}
+  packages/sdkwork-im-pc-mail: {}
 
-  packages/sdkwork-clawchat-pc-music-gen: {}
+  packages/sdkwork-im-pc-music-gen: {}
 
-  packages/sdkwork-clawchat-pc-notary: {}
+  packages/sdkwork-im-pc-notary: {}
 
-  packages/sdkwork-clawchat-pc-orders: {}
+  packages/sdkwork-im-pc-orders: {}
 
-  packages/sdkwork-clawchat-pc-reports: {}
+  packages/sdkwork-im-pc-reports: {}
 
-  packages/sdkwork-clawchat-pc-shop: {}
+  packages/sdkwork-im-pc-shell: {}
 
-  packages/sdkwork-clawchat-pc-types: {}
+  packages/sdkwork-im-pc-shop: {}
 
-  packages/sdkwork-clawchat-pc-video-gen: {}
+  packages/sdkwork-im-pc-types: {}
 
-  packages/sdkwork-clawchat-pc-voice:
+  packages/sdkwork-im-pc-video-gen: {}
+
+  packages/sdkwork-im-pc-voice:
     dependencies:
-      '@sdkwork/clawchat-pc-commons':
+      '@sdkwork/im-pc-commons':
         specifier: workspace:*
-        version: link:../sdkwork-clawchat-pc-commons
-      '@sdkwork/clawchat-pc-types':
+        version: link:../sdkwork-im-pc-commons
+      '@sdkwork/im-pc-types':
         specifier: workspace:*
-        version: link:../sdkwork-clawchat-pc-types
+        version: link:../sdkwork-im-pc-types
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -1010,11 +1020,11 @@ importers:
         specifier: 'catalog:'
         version: 5.8.3
 
-  packages/sdkwork-clawchat-pc-voice-gen: {}
+  packages/sdkwork-im-pc-voice-gen: {}
 
-  packages/sdkwork-clawchat-pc-workspace: {}
+  packages/sdkwork-im-pc-workspace: {}
 
-  packages/sdkwork-clawchat-pc-writing: {}
+  packages/sdkwork-im-pc-writing: {}
 
 packages:
 
@@ -1096,6 +1106,21 @@ packages:
   '@algolia/requester-node-http@5.53.0':
     resolution: {integrity: sha512-6mF9LZMUk0QqWvrnxkxBqhswwz6Xfiwy6/gmTzL5HrlhdVG3ITAqGV2k3XmVThP1h0Ulc3VQwiNCD7/Nr4JNlQ==}
     engines: {node: '>= 14.0.0'}
+
+  '@apidevtools/json-schema-ref-parser@9.1.2':
+    resolution: {integrity: sha512-r1w81DpR+KyRWd3f+rk6TNqMgedmAxZP5v5KWlXQWlgMUUtyEJch0DKEci1SorPMiSeM8XPl7MZ3miJ60JIpQg==}
+
+  '@apidevtools/openapi-schemas@2.1.0':
+    resolution: {integrity: sha512-Zc1AlqrJlX3SlpupFGpiLi2EbteyP7fXmUOGup6/DnkRgjP9bgMM/ag+n91rsv0U1Gpz0H3VILA/o3bW7Ua6BQ==}
+    engines: {node: '>=10'}
+
+  '@apidevtools/swagger-methods@3.0.2':
+    resolution: {integrity: sha512-QAkD5kK2b1WfjDS/UQn/qQkbwF31uqRjPTrsCs5ZG9BQGAkjwvqGFjjPqAuzac/IYzpPtRzjCP1WrTuAIjMrXg==}
+
+  '@apidevtools/swagger-parser@10.0.3':
+    resolution: {integrity: sha512-sNiLY51vZOmSPFZA5TF35KZ2HbgYklQnTSDnkghamzLb3EkNtcQnrBQEj5AOCxHpTtXpqMCRM1CrmV2rG6nw4g==}
+    peerDependencies:
+      openapi-types: '>=7'
 
   '@asamuzakjp/css-color@5.1.11':
     resolution: {integrity: sha512-KVw6qIiCTUQhByfTd78h2yD1/00waTmm9uy/R7Ck/ctUyAPj+AEDLkQIdJW0T8+qGgj3j5bpNKK7Q3G+LedJWg==}
@@ -1942,6 +1967,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@jsdevtools/ono@7.1.3':
+    resolution: {integrity: sha512-4JQNk+3mVzK3xh2rqd6RB4J46qUR19azEHBneZyTZM+c456qOrbbM/5xcR8huNCCcbVt7+UmizG6GuUvPvKUYg==}
 
   '@microsoft/api-extractor-model@7.33.8':
     resolution: {integrity: sha512-aIcoQggPyer3B6Ze3usz0YWC/oBwUHfRH5ETUsr+oT2BRA6SfTJl7IKPcPZkX4UR+PohowzW4uMxsvjrn8vm+w==}
@@ -2792,6 +2820,11 @@ packages:
     resolution: {integrity: sha512-EGCm742ya1VL9hZ+9SVVArUxieFxIwQ3MMpt8Tv6Vc++U5ug4qG2TBUQ/hKAeJIwhL5Tvbhs6Tzy31P8fBO/cQ==}
     engines: {node: '>=18.0.0'}
 
+  '@sdkwork/sdk-generator@1.0.9':
+    resolution: {integrity: sha512-KZbjw1DL1HnSopu+ZkmHALrW7bT3WPtlSmeDBC7Gl1YN1u+FVUsT6BMk31W5n/yrImpDr5zxqr4LiyviJpV+/g==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
+
   '@shikijs/core@2.5.0':
     resolution: {integrity: sha512-uu/8RExTKtavlpH7XqnVYBrfBkUc20ngXiX9NSrBhOVZYv/7XQRKUyhtkeflY5QsxC0GbJThCerruZfsUaSldg==}
 
@@ -3241,6 +3274,9 @@ packages:
   '@types/http-errors@2.0.5':
     resolution: {integrity: sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==}
 
+  '@types/json-schema@7.0.15':
+    resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
+
   '@types/linkify-it@3.0.5':
     resolution: {integrity: sha512-yg6E+u0/+Zjva+buc3EIb+29XEg4wltq7cSmd4Uc2EE/1nUVmxyzpX6gUXD0V8jIrG0r7YeOGVIbYRkxeooCtw==}
 
@@ -3628,6 +3664,9 @@ packages:
     resolution: {integrity: sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg==}
     engines: {node: '>= 0.4'}
 
+  call-me-maybe@1.0.2:
+    resolution: {integrity: sha512-HpX65o1Hnr9HH25ojC1YGs7HCQLq0GCOibSaWER0eNpgJ/Z1MZv2mTc7+xh6WOPxbRVcmgbv4hGU+uSQ/2xFZQ==}
+
   camelcase@5.3.1:
     resolution: {integrity: sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==}
     engines: {node: '>=6'}
@@ -3679,6 +3718,14 @@ packages:
 
   comma-separated-tokens@2.0.3:
     resolution: {integrity: sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg==}
+
+  commander@12.1.0:
+    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
+    engines: {node: '>=18'}
+
+  commander@9.5.0:
+    resolution: {integrity: sha512-KRs7WVDKg86PWiuAqhDrAQnTXZKraVcCc6vFdL14qrZ/DcWwuRo7VoiYXalXO7S5GKpqYiVEwCbgFDfxNHKJBQ==}
+    engines: {node: ^12.20.0 || >=14}
 
   compare-versions@6.1.1:
     resolution: {integrity: sha512-4hm4VPpIecmlg59CHXnRDnqGplJFrbLG4aFEl5vl6cK1u76ws3LLvX7ikFnTDl5vo39sjWD6AaDPYodJp/NNHg==}
@@ -4175,6 +4222,10 @@ packages:
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
+  js-yaml@4.2.0:
+    resolution: {integrity: sha512-ePWsvanv0DWuDRsW8dnt+R4jQ31SCRCQ7hhNcPXZPsoBZiemuZNYGf7adZdqX2D86j6rvKp3RpCxVTSb8WQlOw==}
+    hasBin: true
+
   jsdom@29.1.1:
     resolution: {integrity: sha512-ECi4Fi2f7BdJtUKTflYRTiaMxIB0O6zfR1fX0GXpUrf6flp8QIYn1UT20YQqdSOfk2dfkCwS8LAFoJDEppNK5Q==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24.0.0}
@@ -4299,6 +4350,14 @@ packages:
   locate-path@5.0.0:
     resolution: {integrity: sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==}
     engines: {node: '>=8'}
+
+  lodash.get@4.4.2:
+    resolution: {integrity: sha512-z+Uw/vLuy6gQe8cfaFWD7p0wVv8fJl3mbzXh33RS+0oW2wvUqiRXiQ69gLWSLpgB5/6sU+r6BlQR0MBILadqTQ==}
+    deprecated: This package is deprecated. Use the optional chaining (?.) operator instead.
+
+  lodash.isequal@4.5.0:
+    resolution: {integrity: sha512-pDo3lu8Jhfjqls6GkMgpahsF9kCyayhgykjyLMNFTKWrpVdAQtYyB4muAMWozBB4ig/dtWAmsMxLEI8wuz+DYQ==}
+    deprecated: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
 
   long@5.3.2:
     resolution: {integrity: sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==}
@@ -4552,6 +4611,9 @@ packages:
   oniguruma-to-es@3.1.1:
     resolution: {integrity: sha512-bUH8SDvPkH3ho3dvwJwfonjlQ4R80vjyvrU8YpxuROddv55vAEJrTuCuCVUhhsHbtlD9tGGbaNApGQckXhS8iQ==}
 
+  openapi-types@12.1.3:
+    resolution: {integrity: sha512-N4YtSYJqghVu4iek2ZUvcN/0aqH1kRDuNqzcycDxhOUpg7GdvLa2F3DgS6yBNhInhv2r/6I0Flkn7CqL8+nIcw==}
+
   orderedmap@2.1.1:
     resolution: {integrity: sha512-TvAWxi0nDe1j/rtMcWcIj94+Ffe6n7zhow33h40SKxmsmozs6dz/e+EajymfoFcHd7sxNn8yHM8839uixMOV6g==}
 
@@ -4634,6 +4696,11 @@ packages:
 
   preact@10.29.2:
     resolution: {integrity: sha512-7tNmwg/7mzzAoB/8kSg6Hl37JraAZw3Z3A0JSY7VXlZwo82Xn0G7wKbNNs2qoF4ZEEsQGTwDAroNdqKs1ofJxQ==}
+
+  prettier@3.8.4:
+    resolution: {integrity: sha512-N2MylSdi48+5N/6S5j+maeHbUSIzzZ5uOcX5Hm4QpV8Dkb1HFjfAKTKX6yNPJQD9AhcT3ifHNB66tWTTJDi11Q==}
+    engines: {node: '>=14'}
+    hasBin: true
 
   prop-types@15.8.1:
     resolution: {integrity: sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==}
@@ -5023,6 +5090,10 @@ packages:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
+  swagger-parser@10.0.3:
+    resolution: {integrity: sha512-nF7oMeL4KypldrQhac8RyHerJeGPD1p2xDh900GPvc+Nk7nWP6jX2FcC7WmkinMoAmoO774+AFXcWsW8gMWEIg==}
+    engines: {node: '>=10'}
+
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
 
@@ -5194,6 +5265,10 @@ packages:
   utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
+
+  validator@13.15.35:
+    resolution: {integrity: sha512-TQ5pAGhd5whStmqWvYF4OjQROlmv9SMFVt37qoCBdqRffuuklWYQlCNnEs2ZaIBD1kZRNnikiZOS1eqgkar0iw==}
+    engines: {node: '>= 0.10'}
 
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
@@ -5464,6 +5539,11 @@ packages:
     resolution: {integrity: sha512-aePbxDmcYW++PaqBsJ+HYUFwCdv4LVvdnhBy78E57PIor8/OVvhMrADFFEDh8DHDFRv/O9i3lPhsENjO7QX0+A==}
     engines: {node: '>=8'}
 
+  z-schema@5.0.5:
+    resolution: {integrity: sha512-D7eujBWkLa3p2sIpJA0d1pr7es+a7m0vFAnZLlCEKq/Ij2k0MLi9Br2UPxoxdYystm5K1yeBGzub0FlYUEWj2Q==}
+    engines: {node: '>=8.0.0'}
+    hasBin: true
+
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
@@ -5581,6 +5661,27 @@ snapshots:
   '@algolia/requester-node-http@5.53.0':
     dependencies:
       '@algolia/client-common': 5.53.0
+
+  '@apidevtools/json-schema-ref-parser@9.1.2':
+    dependencies:
+      '@jsdevtools/ono': 7.1.3
+      '@types/json-schema': 7.0.15
+      call-me-maybe: 1.0.2
+      js-yaml: 4.2.0
+
+  '@apidevtools/openapi-schemas@2.1.0': {}
+
+  '@apidevtools/swagger-methods@3.0.2': {}
+
+  '@apidevtools/swagger-parser@10.0.3(openapi-types@12.1.3)':
+    dependencies:
+      '@apidevtools/json-schema-ref-parser': 9.1.2
+      '@apidevtools/openapi-schemas': 2.1.0
+      '@apidevtools/swagger-methods': 3.0.2
+      '@jsdevtools/ono': 7.1.3
+      call-me-maybe: 1.0.2
+      openapi-types: 12.1.3
+      z-schema: 5.0.5
 
   '@asamuzakjp/css-color@5.1.11':
     dependencies:
@@ -6142,6 +6243,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@jsdevtools/ono@7.1.3': {}
 
   '@microsoft/api-extractor-model@7.33.8(@types/node@25.9.2)':
     dependencies:
@@ -6926,6 +7029,16 @@ snapshots:
 
   '@sdkwork/sdk-common@1.0.3': {}
 
+  '@sdkwork/sdk-generator@1.0.9':
+    dependencies:
+      '@sdkwork/sdk-common': 1.0.2
+      commander: 12.1.0
+      fs-extra: 11.3.5
+      js-yaml: 4.2.0
+      openapi-types: 12.1.3
+      prettier: 3.8.4
+      swagger-parser: 10.0.3(openapi-types@12.1.3)
+
   '@shikijs/core@2.5.0':
     dependencies:
       '@shikijs/engine-javascript': 2.5.0
@@ -7386,6 +7499,8 @@ snapshots:
 
   '@types/http-errors@2.0.5': {}
 
+  '@types/json-schema@7.0.15': {}
+
   '@types/linkify-it@3.0.5': {}
 
   '@types/linkify-it@5.0.0': {}
@@ -7761,13 +7876,13 @@ snapshots:
 
   assertion-error@2.0.1: {}
 
-  autoprefixer@10.5.0(postcss@8.5.15):
+  autoprefixer@10.5.0(postcss@8.5.8):
     dependencies:
       browserslist: 4.28.2
       caniuse-lite: 1.0.30001793
       fraction.js: 5.3.4
       picocolors: 1.1.1
-      postcss: 8.5.15
+      postcss: 8.5.8
       postcss-value-parser: 4.2.0
 
   bail@2.0.2: {}
@@ -7835,6 +7950,8 @@ snapshots:
       call-bind-apply-helpers: 1.0.2
       get-intrinsic: 1.3.0
 
+  call-me-maybe@1.0.2: {}
+
   camelcase@5.3.1: {}
 
   caniuse-lite@1.0.30001793: {}
@@ -7882,6 +7999,11 @@ snapshots:
   color-name@1.1.4: {}
 
   comma-separated-tokens@2.0.3: {}
+
+  commander@12.1.0: {}
+
+  commander@9.5.0:
+    optional: true
 
   compare-versions@6.1.1: {}
 
@@ -8404,6 +8526,10 @@ snapshots:
     optionalDependencies:
       typescript: 5.8.3
 
+  i18next@26.3.0(typescript@5.9.3):
+    optionalDependencies:
+      typescript: 5.9.3
+
   i18next@26.3.0(typescript@6.0.2):
     optionalDependencies:
       typescript: 6.0.2
@@ -8450,6 +8576,10 @@ snapshots:
   jju@1.4.0: {}
 
   js-tokens@4.0.0: {}
+
+  js-yaml@4.2.0:
+    dependencies:
+      argparse: 2.0.1
 
   jsdom@29.1.1:
     dependencies:
@@ -8570,6 +8700,10 @@ snapshots:
   locate-path@5.0.0:
     dependencies:
       p-locate: 4.1.0
+
+  lodash.get@4.4.2: {}
+
+  lodash.isequal@4.5.0: {}
 
   long@5.3.2: {}
 
@@ -8921,6 +9055,8 @@ snapshots:
       regex: 6.1.0
       regex-recursion: 6.0.2
 
+  openapi-types@12.1.3: {}
+
   orderedmap@2.1.1: {}
 
   p-limit@2.3.0:
@@ -9004,6 +9140,8 @@ snapshots:
       source-map-js: 1.2.1
 
   preact@10.29.2: {}
+
+  prettier@3.8.4: {}
 
   prop-types@15.8.1:
     dependencies:
@@ -9167,6 +9305,17 @@ snapshots:
     optionalDependencies:
       react-dom: 19.2.4(react@19.2.4)
       typescript: 5.8.3
+
+  react-i18next@17.0.8(i18next@26.3.0(typescript@5.9.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3):
+    dependencies:
+      '@babel/runtime': 7.29.2
+      html-parse-stringify: 3.0.1
+      i18next: 26.3.0(typescript@5.9.3)
+      react: 19.2.4
+      use-sync-external-store: 1.6.0(react@19.2.4)
+    optionalDependencies:
+      react-dom: 19.2.4(react@19.2.4)
+      typescript: 5.9.3
 
   react-i18next@17.0.8(i18next@26.3.0(typescript@6.0.2))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.2):
     dependencies:
@@ -9513,6 +9662,12 @@ snapshots:
 
   supports-preserve-symlinks-flag@1.0.0: {}
 
+  swagger-parser@10.0.3(openapi-types@12.1.3):
+    dependencies:
+      '@apidevtools/swagger-parser': 10.0.3(openapi-types@12.1.3)
+    transitivePeerDependencies:
+      - openapi-types
+
   symbol-tree@3.2.4: {}
 
   tabbable@6.4.0: {}
@@ -9659,6 +9814,8 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   utils-merge@1.0.1: {}
+
+  validator@13.15.35: {}
 
   vary@1.1.2: {}
 
@@ -9904,5 +10061,13 @@ snapshots:
       which-module: 2.0.1
       y18n: 4.0.3
       yargs-parser: 18.1.3
+
+  z-schema@5.0.5:
+    dependencies:
+      lodash.get: 4.4.2
+      lodash.isequal: 4.5.0
+      validator: 13.15.35
+    optionalDependencies:
+      commander: 9.5.0
 
   zwitch@2.0.4: {}

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Hook exports for the notary package
  */
 export { useCameraCapture } from './useCameraCapture';

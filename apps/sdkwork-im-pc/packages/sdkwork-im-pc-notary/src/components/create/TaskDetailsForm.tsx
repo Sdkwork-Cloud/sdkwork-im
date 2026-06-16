@@ -1,4 +1,4 @@
-/**
+﻿/**
  * TaskDetailsForm - Business description textarea and attachments upload (Step 3)
  */
 import React, { useRef } from 'react';

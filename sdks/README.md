@@ -1,5 +1,40 @@
 # SDK Workspace Overview
 
+## Purpose
+
+Repository-owned SDK families, OpenAPI authorities, RPC manifests, generated transports, and
+verification entrypoints for Sdkwork IM.
+
+## Owner
+
+SDKWork Chat maintainers.
+
+## Allowed Content
+
+- SDK family directories, OpenAPI authorities, derived generator inputs, generated transports,
+  composed facades, RPC manifests, and workspace verification scripts.
+- Checked-in assembly metadata and family-local `specs/` contracts.
+
+## Forbidden Content
+
+- Hand-edited generated SDK output without a verified source contract refresh.
+- Raw HTTP client wrappers that bypass generated SDK transport boundaries.
+- Runtime caches or local generator control-plane artifacts under repository `.sdkwork/`.
+
+## Related Specs
+
+- `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`
+- `../sdkwork-specs/SDK_SPEC.md`
+- `../sdkwork-specs/SDK_WORKSPACE_GENERATION_SPEC.md`
+- `../sdkwork-specs/API_SPEC.md`
+- `../sdkwork-specs/TEST_SPEC.md`
+
+## Verification
+
+Run the family verifier scripts documented below and
+`pnpm run test:sdkwork-workspace-structure-standard` from the repository root after SDK workspace
+layout or authority changes.
+
 `sdks/` is the repository home for Sdkwork IM SDK workspaces. The directory is organized by public
 consumer SDK family and by authoritative API boundary, not by historical generated-package dumps.
 
@@ -201,7 +236,7 @@ node ..\sdkwork-sdk-generator\bin\sdkgen.js inspect --protocol rpc --output .\sd
 Use the RTC verifier for the independent provider-standard SDK:
 
 ```powershell
-node ../../sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
+node ..\sdkwork-rtc\sdks\sdkwork-rtc-sdk\bin\verify-sdk.mjs
 ```
 
 ## Recommended Reading

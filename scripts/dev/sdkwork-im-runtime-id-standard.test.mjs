@@ -13,8 +13,8 @@ function readText(...segments) {
 const rootCargo = readText('Cargo.toml');
 assert.match(
   rootCargo,
-  /sdkwork_id\s*=\s*\{\s*path\s*=\s*"\.\.\/sdkwork-appbase\/packages\/native-rust\/foundation\/sdkwork-id-rust"\s*\}/u,
-  'Rust runtime ID generation must reuse sdkwork-appbase sdkwork_id::SnowflakeIdGenerator.',
+  /sdkwork_id\s*=\s*\{\s*path\s*=\s*"\.\.\/sdkwork-appbase\/crates\/sdkwork-platform-id-service"/u,
+  'Rust runtime ID generation must reuse sdkwork-appbase sdkwork-platform-id-service via the sdkwork_id workspace alias.',
 );
 assert.match(
   rootCargo,

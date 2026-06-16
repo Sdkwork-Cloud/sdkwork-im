@@ -91,11 +91,11 @@ export function buildCommercialReadinessChecks({
       env: pnpmRuntimeEnv,
     },
     {
-      id: 'control-plane-api-tests',
-      label: 'Control-plane API tests',
+      id: 'governance-service-tests',
+      label: 'Governance service tests',
       cwd: repoRoot,
       command: 'cargo',
-      args: ['test', '-p', 'control-plane-api', '--tests'],
+      args: ['test', '-p', 'governance-service', '--tests'],
     },
     {
       id: 'commercial-gate-contract',

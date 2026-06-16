@@ -1,4 +1,4 @@
-export { IdCardUploader } from './IdCardUploader';
+﻿export { IdCardUploader } from './IdCardUploader';
 export type { IdCardUploaderProps } from './IdCardUploader';
 
 export { FaceCaptureOverlay } from './FaceCaptureOverlay';

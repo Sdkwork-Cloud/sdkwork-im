@@ -4,12 +4,20 @@ mod external;
 mod friendship;
 mod http;
 mod openapi;
+mod postgres;
 mod runtime;
 mod shared_channel;
 
 use serde::{Deserialize, Serialize};
 
-pub use http::{build_app, build_public_app};
+pub use http::{
+    build_app, build_embedded_app, build_public_app, build_public_app_with_contact_extension,
+    build_public_app_with_postgres_extension,
+};
+pub use postgres::{
+    app_state_from_postgres_pool, build_supplemental_app, build_supplemental_public_app,
+    try_postgres_app_state_from_database_url_env, PostgresAppState,
+};
 pub use runtime::SocialRuntime;
 
 pub const SHARED_CHANNEL_SYNC_DEAD_LETTER_FAILURE_THRESHOLD: u32 = 3;

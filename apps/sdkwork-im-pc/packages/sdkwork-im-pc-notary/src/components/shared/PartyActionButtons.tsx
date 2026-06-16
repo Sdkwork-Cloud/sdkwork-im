@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PartyActionButtons - Shared action buttons for party cards
  *
  * Used in both the detail pane (index.tsx) and create wizard (CreateNotaryTaskView.tsx)
@@ -16,7 +16,7 @@ import {
   Check,
   CheckCircle2,
 } from 'lucide-react';
-import type { Party } from '@sdkwork/clawchat-pc-types';
+import type { Party } from '@sdkwork/im-pc-types';
 
 export interface PartyActionButtonsProps {
   /** The party these actions belong to */

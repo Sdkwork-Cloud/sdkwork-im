@@ -13,37 +13,13 @@ import {
   resolveAppSdkUserId,
 } from "@sdkwork/im-pc-core/sdk/session";
 import { resolveSdkworkChatPcClientId } from "./ClientIdentityService";
+import {
+  ALL_APP_MODULES,
+  ALWAYS_CONFIGURABLE_MODULES,
+  DEFAULT_SIDEBAR_MODULES,
+} from "@sdkwork/im-pc-shell";
 
-export const ALL_APP_MODULES = [
-  "chat",
-  "workspace",
-  "contacts",
-  "knowledge",
-  "drive",
-  "agent",
-  "favorites",
-  "orders",
-  "shop",
-  "calendar",
-  "notary",
-  "enterprise",
-  "devices",
-  "community",
-  "voice",
-  "course",
-];
-
-export const DEFAULT_SIDEBAR_MODULES = [
-  "chat",
-  "workspace",
-  "contacts",
-  "knowledge",
-  "drive",
-  "agent",
-  "favorites",
-];
-
-export const ALWAYS_CONFIGURABLE_MODULES = new Set(["notary"]);
+export { ALL_APP_MODULES, DEFAULT_SIDEBAR_MODULES, ALWAYS_CONFIGURABLE_MODULES };
 
 const SUPPORTED_LANGUAGES = new Set(["zh-CN", "en-US"]);
 const NOTIFICATION_PREVIEW_MODES = new Set([
@@ -177,7 +153,7 @@ function pickStringArray(value: unknown): string[] {
 }
 
 function uniqueKnownModules(modules: string[]): string[] {
-  const known = new Set(ALL_APP_MODULES);
+  const known = new Set<string>(ALL_APP_MODULES as readonly string[]);
   const seen = new Set<string>();
   const result: string[] = [];
   for (const moduleId of modules) {
@@ -203,7 +179,7 @@ function normalizeSidebarModules(
     return [...DEFAULT_SIDEBAR_MODULES];
   }
   if (options.migrateLegacyAllModules && (
-    hasSameModuleSet(modules, ALL_APP_MODULES) ||
+    hasSameModuleSet(modules, [...ALL_APP_MODULES]) ||
     hasSameModuleSet(modules, LEGACY_AUTOFILLED_SIDEBAR_MODULES)
   )) {
     return [...DEFAULT_SIDEBAR_MODULES];
