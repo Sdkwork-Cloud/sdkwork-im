@@ -13,6 +13,7 @@ serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
+im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-app-context = { path = "../../crates/im-app-context" }

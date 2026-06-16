@@ -19,6 +19,8 @@ pub struct AppState {
     pub friendship_store: Arc<dyn im_adapters_social_postgres::friendship_store::FriendshipStore>,
     pub user_block_store: Arc<dyn im_adapters_social_postgres::user_block_store::UserBlockStore>,
     pub direct_chat_store: Arc<dyn im_adapters_social_postgres::direct_chat_store::DirectChatStore>,
+    pub presence_cache: im_adapters_redis_cache::presence_cache::RedisPresenceCache,
+    pub session_cache: im_adapters_redis_cache::session_cache::RedisSessionCache,
 }
 
 pub fn build_app(state: AppState) -> Router {
