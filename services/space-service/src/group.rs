@@ -6,6 +6,8 @@ use axum::response::IntoResponse;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
+use im_adapters_social_postgres::organization_store::{GroupRecord, GroupStore};
+
 use crate::http::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -21,13 +23,28 @@ pub struct CreateGroupRequest {
 #[derive(Debug, Serialize)]
 pub struct GroupResponse {
     pub group_id: String,
-    pub space_id: String,
+    pub space_id: Option<String>,
     pub group_name: String,
     pub group_type: String,
     pub owner_user_id: String,
     pub conversation_id: Option<String>,
     pub max_members: i32,
     pub created_at: String,
+}
+
+impl From<GroupRecord> for GroupResponse {
+    fn from(record: GroupRecord) -> Self {
+        Self {
+            group_id: record.group_id.to_string(),
+            space_id: record.space_id.map(|s| s.to_string()),
+            group_name: record.group_name,
+            group_type: record.group_type,
+            owner_user_id: record.owner_user_id,
+            conversation_id: record.conversation_id,
+            max_members: record.max_members,
+            created_at: record.created_at,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,40 +60,131 @@ pub struct ListQuery {
     pub limit: Option<i64>,
 }
 
+fn generate_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    format!("{}", duration.as_millis())
+}
+
 pub async fn create_group(
-    State(_state): State<AppState>,
-    Path(_space_id): Path<String>,
-    Json(_request): Json<CreateGroupRequest>,
+    State(state): State<AppState>,
+    Path(space_id): Path<String>,
+    Json(request): Json<CreateGroupRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    Ok((StatusCode::CREATED, Json(serde_json::json!({"status": "created"}))))
+    let tenant_id = "default";
+    let org_id = "default";
+    let user_id = "system"; // TODO: Extract from auth context
+
+    let group_id = generate_id();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let record = GroupRecord {
+        tenant_id: tenant_id.to_string(),
+        organization_id: org_id.to_string(),
+        group_id: group_id.parse().unwrap_or(0),
+        space_id: space_id.parse().ok(),
+        group_name: request.group_name,
+        group_type: request.group_type.unwrap_or_else(|| "normal".to_string()),
+        owner_user_id: user_id.to_string(),
+        conversation_id: None,
+        max_members: request.max_members.unwrap_or(500),
+        description: request.description,
+        avatar_url: request.avatar_url,
+        announcement: None,
+        settings_json: request.settings_json.unwrap_or_else(|| "{}".to_string()),
+        created_at: now.clone(),
+        updated_at: now,
+    };
+
+    match state.group_store.insert(&record) {
+        Ok(()) => {
+            let response = GroupResponse::from(record);
+            Ok((StatusCode::CREATED, Json(response)))
+        }
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 pub async fn list_groups(
-    State(_state): State<AppState>,
-    Path(_space_id): Path<String>,
-    Query(_query): Query<ListQuery>,
+    State(state): State<AppState>,
+    Path(space_id): Path<String>,
+    Query(query): Query<ListQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    Ok(Json(Vec::<GroupResponse>::new()))
+    let tenant_id = "default";
+    let org_id = "default";
+    let sid: i64 = space_id.parse().unwrap_or(0);
+    let limit = query.limit.unwrap_or(20);
+
+    match state.group_store.list_by_space(tenant_id, org_id, sid, limit) {
+        Ok(records) => {
+            let response: Vec<GroupResponse> = records.into_iter().map(GroupResponse::from).collect();
+            Ok(Json(response))
+        }
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 pub async fn get_group(
-    State(_state): State<AppState>,
-    Path((_space_id, _group_id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Path((_space_id, group_id)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    Err::<(), StatusCode>(StatusCode::NOT_FOUND)
+    let tenant_id = "default";
+    let org_id = "default";
+    let gid: i64 = group_id.parse().unwrap_or(0);
+
+    match state.group_store.get_by_id(tenant_id, org_id, gid) {
+        Ok(Some(record)) => Ok(Json(GroupResponse::from(record))),
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 pub async fn update_group(
-    State(_state): State<AppState>,
-    Path((_space_id, _group_id)): Path<(String, String)>,
-    Json(_request): Json<UpdateGroupRequest>,
+    State(state): State<AppState>,
+    Path((_space_id, group_id)): Path<(String, String)>,
+    Json(request): Json<UpdateGroupRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    Ok(StatusCode::NO_CONTENT)
+    let tenant_id = "default";
+    let org_id = "default";
+    let gid: i64 = group_id.parse().unwrap_or(0);
+    let now = chrono::Utc::now().to_rfc3339();
+
+    match state.group_store.get_by_id(tenant_id, org_id, gid) {
+        Ok(Some(mut record)) => {
+            if let Some(name) = request.group_name {
+                record.group_name = name;
+            }
+            if let Some(desc) = request.description {
+                record.description = Some(desc);
+            }
+            if let Some(url) = request.avatar_url {
+                record.avatar_url = Some(url);
+            }
+            if let Some(ann) = request.announcement {
+                record.announcement = Some(ann);
+            }
+            record.updated_at = now;
+
+            match state.group_store.update(&record) {
+                Ok(()) => Ok(StatusCode::NO_CONTENT),
+                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+            }
+        }
+        Ok(None) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 pub async fn delete_group(
-    State(_state): State<AppState>,
-    Path((_space_id, _group_id)): Path<(String, String)>,
+    State(state): State<AppState>,
+    Path((_space_id, group_id)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    Ok(StatusCode::NO_CONTENT)
+    let tenant_id = "default";
+    let org_id = "default";
+    let gid: i64 = group_id.parse().unwrap_or(0);
+
+    match state.group_store.delete(tenant_id, org_id, gid) {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
