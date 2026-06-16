@@ -15,11 +15,13 @@ use crate::user_settings;
 /// Shared state for contact service handlers.
 #[derive(Clone)]
 pub struct AppState {
-    // TODO: Add database stores
+    pub friend_request_store: Arc<dyn im_adapters_social_postgres::friend_request_store::FriendRequestStore>,
+    pub friendship_store: Arc<dyn im_adapters_social_postgres::friendship_store::FriendshipStore>,
+    pub user_block_store: Arc<dyn im_adapters_social_postgres::user_block_store::UserBlockStore>,
+    pub direct_chat_store: Arc<dyn im_adapters_social_postgres::direct_chat_store::DirectChatStore>,
 }
 
-pub fn build_app() -> Router {
-    let state = AppState {};
+pub fn build_app(state: AppState) -> Router {
 
     Router::new()
         // Friend requests
@@ -105,6 +107,6 @@ pub fn build_app() -> Router {
         .with_state(state)
 }
 
-pub fn build_public_app() -> Router {
-    build_app()
+pub fn build_public_app(state: AppState) -> Router {
+    build_app(state)
 }

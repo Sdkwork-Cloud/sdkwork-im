@@ -1,5 +1,7 @@
 //! Space Service HTTP routes.
 
+use std::sync::Arc;
+
 use axum::Router;
 use axum::routing::{delete, get, patch, post};
 
@@ -15,11 +17,12 @@ use crate::space_member;
 /// Shared state for space service handlers.
 #[derive(Clone)]
 pub struct AppState {
-    // TODO: Add database stores
+    pub space_store: Arc<dyn im_adapters_social_postgres::organization_store::SpaceStore>,
+    pub group_store: Arc<dyn im_adapters_social_postgres::organization_store::GroupStore>,
+    pub channel_store: Arc<dyn im_adapters_social_postgres::organization_store::ChannelStore>,
 }
 
-pub fn build_app() -> Router {
-    let state = AppState {};
+pub fn build_app(state: AppState) -> Router {
 
     Router::new()
         // Spaces
@@ -115,6 +118,6 @@ pub fn build_app() -> Router {
         .with_state(state)
 }
 
-pub fn build_public_app() -> Router {
-    build_app()
+pub fn build_public_app(state: AppState) -> Router {
+    build_app(state)
 }

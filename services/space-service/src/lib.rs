@@ -11,4 +11,4 @@ mod ban;
 mod http;
 mod openapi;
 
-pub use http::{build_app, build_public_app};
+pub use http::{AppState, build_app, build_public_app};
