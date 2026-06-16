@@ -1,3 +1,6 @@
+-- DEFERRED (Phase 2): Do not apply via pnpm db:postgres:migrate.
+-- See docs/superpowers/specs/2026-06-16-im-phase0-approach-a-design.md
+--
 -- Migration 013: Table Partitioning for Scale
 -- ============================================================
 -- Strategy: Expand-Contract (DATABASE_SPEC §3.5, MIGRATION_SPEC §3)
@@ -74,6 +77,38 @@ CREATE TABLE IF NOT EXISTS im_conversation_messages_p28 PARTITION OF im_conversa
 CREATE TABLE IF NOT EXISTS im_conversation_messages_p29 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 29);
 CREATE TABLE IF NOT EXISTS im_conversation_messages_p30 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 30);
 CREATE TABLE IF NOT EXISTS im_conversation_messages_p31 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 31);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p32 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 32);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p33 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 33);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p34 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 34);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p35 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 35);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p36 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 36);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p37 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 37);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p38 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 38);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p39 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 39);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p40 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 40);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p41 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 41);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p42 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 42);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p43 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 43);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p44 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 44);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p45 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 45);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p46 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 46);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p47 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 47);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p48 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 48);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p49 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 49);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p50 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 50);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p51 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 51);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p52 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 52);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p53 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 53);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p54 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 54);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p55 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 55);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p56 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 56);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p57 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 57);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p58 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 58);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p59 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 59);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p60 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 60);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p61 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 61);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p62 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 62);
+CREATE TABLE IF NOT EXISTS im_conversation_messages_p63 PARTITION OF im_conversation_messages_partitioned FOR VALUES WITH (MODULUS 64, REMAINDER 63);
 
 -- Re-apply indexes on the partitioned table (they propagate to partitions)
 CREATE INDEX IF NOT EXISTS idx_im_msgs_p_tenant_conv_seq

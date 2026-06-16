@@ -490,6 +490,10 @@ function migrationFilesFor(migrationsDir) {
     .map((entry) => path.join(migrationsDir, entry));
 }
 
+export function listActivePostgresMigrationBasenames(migrationsDir = defaultMigrationsDir) {
+  return migrationFilesFor(migrationsDir).map((migration) => path.basename(migration));
+}
+
 function normalizePathForWsl(value) {
   const normalized = path.resolve(value).replaceAll('\\', '/');
   const driveMatch = normalized.match(/^([A-Za-z]):\/(.*)$/u);

@@ -858,15 +858,21 @@ paths:
           name: fromVersion
           required: true
           schema:
+            type: string
             format: int64
-            type: integer
+            pattern: '^[0-9]+$'
+            x-sdkwork-int64-string: true
+            x-sdkwork-rust-type: i64
         - description: Target provider policy version.
           in: query
           name: toVersion
           required: true
           schema:
+            type: string
             format: int64
-            type: integer
+            pattern: '^[0-9]+$'
+            x-sdkwork-int64-string: true
+            x-sdkwork-rust-type: i64
       responses:
         '200':
           content:
@@ -4666,8 +4672,11 @@ components:
         policyId:
           type: string
         policyVersion:
+          type: string
           format: int64
-          type: integer
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
       required:
         - policyId
         - eventId
@@ -5041,8 +5050,11 @@ components:
       additionalProperties: false
       properties:
         targetVersion:
+          type: string
           format: int64
-          type: integer
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
       required:
         - targetVersion
       type: object
@@ -5055,17 +5067,29 @@ components:
       additionalProperties: false
       properties:
         maxConcurrentSessionsPerTenant:
+          type: string
           format: int64
-          type: integer
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         maxInflightMessages:
+          type: string
           format: int64
-          type: integer
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         maxPayloadBytes:
+          type: string
           format: int64
-          type: integer
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         maxSubscriptionsPerSession:
+          type: string
           format: int64
-          type: integer
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         profileId:
           type: string
       required:
@@ -5093,8 +5117,11 @@ components:
             type: string
           type: array
         trafficPercent:
+          type: string
           format: int64
-          type: integer
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
       required:
         - policyId
         - releaseChannel
@@ -5108,8 +5135,11 @@ components:
       additionalProperties: false
       properties:
         migratedRouteCount:
+          type: string
           format: int64
-          type: integer
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         sourceDrainStatus:
           type: string
         sourceNodeId:
@@ -5139,8 +5169,11 @@ components:
         nodeId:
           type: string
         ownedRouteCount:
+          type: string
           format: int64
-          type: integer
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         rebalanceState:
           type: string
       required:

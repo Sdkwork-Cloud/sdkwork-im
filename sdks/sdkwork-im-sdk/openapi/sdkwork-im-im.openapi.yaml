@@ -4059,9 +4059,11 @@ components:
         rtcSessionId:
           type: string
         signalSeq:
-          type: integer
+          type: string
           format: int64
-          minimum: 0
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         conversationId:
           type: string
           nullable: true
@@ -4221,9 +4223,11 @@ components:
           type: string
           nullable: true
         size:
-          type: integer
+          type: string
           format: int64
-          minimum: 0
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
           nullable: true
         sizeBytes:
           type: string

@@ -103,9 +103,14 @@ assert.ok(fs.existsSync(dbScriptPath), 'PostgreSQL pnpm database script must exi
 const {
   buildPostgresDatabaseUrl,
   createPostgresDbPlan,
+  listActivePostgresMigrationBasenames,
   parsePostgresConfig,
   sanitizePostgresDatabaseUrl,
 } = await import(pathToFileURL(dbScriptPath).href);
+
+const expectedImMigrationLabels = listActivePostgresMigrationBasenames().map(
+  (basename) => `apply PostgreSQL migration ${basename}`,
+);
 
 const parsedSplitConfig = parsePostgresConfig({
   configText: [
@@ -289,27 +294,24 @@ const migratePlan = createPostgresDbPlan({
   repoRoot,
 });
 assert.deepEqual(
-  migratePlan.steps.map((step) => step.label),
-  [
-    'apply PostgreSQL migration 001_im_core_schema.sql',
-    'apply appbase IAM PostgreSQL migration 0001_iam_foundation.sql',
-    'apply appbase IAM PostgreSQL migration 0002_drop_legacy_organization_member.sql',
-  ],
-  'migrate mode must apply the IM schema and appbase IAM schema migrations',
+  migratePlan.steps.map((step) => step.label).filter((label) => label.startsWith('apply PostgreSQL migration')),
+  expectedImMigrationLabels,
+  'migrate mode must apply all active IM PostgreSQL migrations in lexical order',
 );
 assert.ok(
   migratePlan.steps[0].args.includes('-f')
     && migratePlan.steps[0].args.some((arg) => arg.endsWith('deployments/database/postgres/migrations/001_im_core_schema.sql')),
-  'migrate mode must execute the repository PostgreSQL migration SQL file',
+  'migrate mode must start with the bootstrap PostgreSQL migration SQL file',
 );
+const iamMigrationStepOffset = expectedImMigrationLabels.length;
 assert.ok(
-  migratePlan.steps[1].args.includes('-f')
-    && migratePlan.steps[1].args.some((arg) => arg.endsWith('sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust/migrations/0001_iam_foundation.sql')),
+  migratePlan.steps[iamMigrationStepOffset].args.includes('-f')
+    && migratePlan.steps[iamMigrationStepOffset].args.some((arg) => arg.endsWith('sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust/migrations/0001_iam_foundation.sql')),
   'migrate mode must execute the appbase IAM PostgreSQL migration SQL file so iam_organization_membership exists',
 );
 assert.ok(
-  migratePlan.steps[2].args.includes('-f')
-    && migratePlan.steps[2].args.some((arg) => arg.endsWith('sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust/migrations/0002_drop_legacy_organization_member.sql')),
+  migratePlan.steps[iamMigrationStepOffset + 1].args.includes('-f')
+    && migratePlan.steps[iamMigrationStepOffset + 1].args.some((arg) => arg.endsWith('sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust/migrations/0002_drop_legacy_organization_member.sql')),
   'migrate mode must execute the appbase IAM cleanup migration SQL file so iam_organization_member is removed',
 );
 assert.ok(
@@ -318,18 +320,18 @@ assert.ok(
   'migrate mode must set the configured schema search_path before running migration SQL',
 );
 assert.ok(
-  migratePlan.steps[1].args.includes('--set')
-    && migratePlan.steps[1].args.includes('search_path=sdkwork_ai_dev, public'),
+  migratePlan.steps[iamMigrationStepOffset].args.includes('--set')
+    && migratePlan.steps[iamMigrationStepOffset].args.includes('search_path=sdkwork_ai_dev, public'),
   'appbase IAM migration must use the configured schema search_path before running migration SQL',
 );
 assert.ok(
-  migratePlan.steps[2].args.includes('--set')
-    && migratePlan.steps[2].args.includes('search_path=sdkwork_ai_dev, public'),
+  migratePlan.steps[iamMigrationStepOffset + 1].args.includes('--set')
+    && migratePlan.steps[iamMigrationStepOffset + 1].args.includes('search_path=sdkwork_ai_dev, public'),
   'appbase IAM cleanup migration must use the configured schema search_path before running migration SQL',
 );
 assert.equal(migratePlan.steps[0].env.PGPASSWORD, '***', 'serialized migration plan must redact app password');
-assert.equal(migratePlan.steps[1].env.PGPASSWORD, '***', 'serialized appbase IAM migration plan must redact app password');
-assert.equal(migratePlan.steps[2].env.PGPASSWORD, '***', 'serialized appbase IAM cleanup migration plan must redact app password');
+assert.equal(migratePlan.steps[iamMigrationStepOffset].env.PGPASSWORD, '***', 'serialized appbase IAM migration plan must redact app password');
+assert.equal(migratePlan.steps[iamMigrationStepOffset + 1].env.PGPASSWORD, '***', 'serialized appbase IAM cleanup migration plan must redact app password');
 
 const wslMigratePlan = createPostgresDbPlan({
   config: parsedWslPsqlConfig,
@@ -381,11 +383,11 @@ assert.deepEqual(
   [
     'initialize PostgreSQL role and database',
     'initialize PostgreSQL schema and grants',
-    'apply PostgreSQL migration 001_im_core_schema.sql',
+    ...expectedImMigrationLabels,
     'apply appbase IAM PostgreSQL migration 0001_iam_foundation.sql',
     'apply appbase IAM PostgreSQL migration 0002_drop_legacy_organization_member.sql',
   ],
-  'plan mode must show initialization, IM migration, and appbase IAM migration actions',
+  'plan mode must show initialization, all active IM migrations, and appbase IAM migration actions',
 );
 
 for (const required of [

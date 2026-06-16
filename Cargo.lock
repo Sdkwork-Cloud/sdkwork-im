@@ -319,12 +319,14 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "chrono",
+ "im-adapters-redis-cache",
  "im-adapters-social-postgres",
  "im-app-context",
  "im-domain-core",
  "im-platform-contracts",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tokio",
  "tracing",
 ]

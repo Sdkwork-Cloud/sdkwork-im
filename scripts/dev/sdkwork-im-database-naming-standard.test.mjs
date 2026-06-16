@@ -32,7 +32,15 @@ function extractRustRawStrings(source) {
 
 const prefixRegistry = readJson('specs/database-prefix-registry.json');
 const tableRegistry = readJson('specs/database-table-registry.json');
-const schema = read('deployments/database/postgres/migrations/001_im_core_schema.sql').toLowerCase();
+const activeMigrationDir = 'deployments/database/postgres/migrations';
+const activeMigrationFiles = fs
+  .readdirSync(path.join(repoRoot, ...activeMigrationDir.split('/')))
+  .filter((entry) => entry.endsWith('.sql'))
+  .sort((left, right) => left.localeCompare(right));
+const schema = activeMigrationFiles
+  .map((entry) => read(`${activeMigrationDir}/${entry}`))
+  .join('\n')
+  .toLowerCase();
 const databaseSpec = readWorkspace('sdkwork-specs/DATABASE_SPEC.md');
 const cargoManifest = read('Cargo.toml');
 const runtimeIdCrate = read('crates/sdkwork-im-runtime-id/src/lib.rs');
@@ -78,23 +86,39 @@ assert.equal(
 
 for (const entry of tableRegistry.tables) {
   assert.equal(entry.modulePrefix, 'im', `${entry.tableName} must register modulePrefix=im`);
-  assert.equal(
-    entry.boundedContext,
+  const allowedBoundedContexts = new Set([
     'instant_messaging',
-    `${entry.tableName} must belong to the instant_messaging bounded context`,
+    'social',
+    'organization',
+    'messaging',
+    'user',
+  ]);
+  assert.ok(
+    allowedBoundedContexts.has(entry.boundedContext),
+    `${entry.tableName} must belong to a registered IM bounded context`,
   );
   assert.match(entry.tableName, /^im_[a-z0-9]+(?:_[a-z0-9]+)*$/u);
   assert.ok(entry.tableProfile, `${entry.tableName} must declare a table profile`);
   assert.ok(entry.writeOwner, `${entry.tableName} must declare a write owner`);
-  assert.equal(
-    entry.migration,
-    'deployments/database/postgres/migrations/001_im_core_schema.sql',
-    `${entry.tableName} must point to the canonical IM PostgreSQL migration`,
+  const migrationPath = entry.migration;
+  assert.match(
+    migrationPath,
+    /^deployments\/database\/postgres\/migrations\/[0-9]{3}_[a-z0-9_]+\.sql$/u,
+    `${entry.tableName} must point to a numbered PostgreSQL migration under deployments/database/postgres/migrations`,
+  );
+  assert.ok(
+    fs.existsSync(path.join(repoRoot, ...migrationPath.split('/'))),
+    `${entry.tableName} migration file must exist: ${migrationPath}`,
+  );
+  const migrationSource = read(migrationPath).toLowerCase();
+  assert.ok(
+    migrationSource.includes(`create table`) && migrationSource.includes(entry.tableName),
+    `${entry.tableName} must be created in its registered migration ${migrationPath}`,
   );
 }
 
 const migrationTables = extractAll(
-  /\bcreate\s+table\s+if\s+not\s+exists\s+([a-z_][a-z0-9_]*)\s*\(/giu,
+  /\bcreate\s+table(?:\s+if\s+not\s+exists)?\s+([a-z_][a-z0-9_]*)\s*\(/giu,
   schema,
 );
 assert.ok(migrationTables.length > 0, 'core IM schema must define database tables');

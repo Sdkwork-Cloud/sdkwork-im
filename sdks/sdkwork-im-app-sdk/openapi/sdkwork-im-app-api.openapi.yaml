@@ -16,6 +16,7 @@ tags:
   - name: media
   - name: automation
   - name: notifications
+  - name: provider
   - name: principal
 paths:
   /app/v3/api/automation/agent_responses:
@@ -462,7 +463,7 @@ paths:
   /app/v3/api/notifications:
     get:
       tags:
-        - notification
+        - notifications
       operationId: notifications.list
       summary: List notifications for the current principal
       responses:
@@ -498,7 +499,7 @@ paths:
   /app/v3/api/notifications/requests:
     post:
       tags:
-        - notification
+        - notifications
       operationId: notifications.requests.create
       summary: Request a notification task
       requestBody:
@@ -558,7 +559,7 @@ paths:
   /app/v3/api/notifications/{notificationId}:
     get:
       tags:
-        - notification
+        - notifications
       operationId: notifications.retrieve
       summary: Get a notification task
       parameters:
@@ -1093,11 +1094,17 @@ components:
         state:
           $ref: '#/components/schemas/StreamSessionState'
         lastFrameSeq:
-          type: integer
+          type: string
           format: int64
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         lastCheckpointSeq:
-          type: integer
+          type: string
           format: int64
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         resultMessageId:
           type: string
         openedAt:
@@ -1136,8 +1143,11 @@ components:
         scopeId:
           type: string
         frameSeq:
-          type: integer
+          type: string
           format: int64
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         frameType:
           type: string
         schemaRef:
@@ -1240,9 +1250,11 @@ components:
         - payload
       properties:
         frameSeq:
-          type: integer
+          type: string
           format: int64
-          minimum: 0
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         frameType:
           type: string
         schemaRef:
@@ -1372,9 +1384,11 @@ components:
         - frameSeq
       properties:
         frameSeq:
-          type: integer
+          type: string
           format: int64
-          minimum: 0
+          pattern: '^[0-9]+$'
+          x-sdkwork-int64-string: true
+          x-sdkwork-rust-type: i64
         resultMessageId:
           type: string
     CompleteAgentToolCallRequest:
