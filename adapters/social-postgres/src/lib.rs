@@ -4,12 +4,13 @@
 //! user blocks, direct chats, external connections, and shared channel policies.
 
 pub mod config;
-pub mod friend_request_store;
-pub mod friendship_store;
-pub mod user_block_store;
 pub mod direct_chat_store;
 pub mod external_store;
+pub mod friend_request_store;
+pub mod friendship_store;
+pub mod organization_store;
 pub mod shared_channel_store;
+pub mod user_block_store;
 
 pub use config::SocialPostgresConfig;
 
@@ -43,7 +44,10 @@ where
 }
 
 /// Map a postgres error to ContractError, redacting the connection URL.
-pub(crate) fn postgres_unavailable(operation: &str, error: postgres::Error) -> im_platform_contracts::ContractError {
+pub(crate) fn postgres_unavailable(
+    operation: &str,
+    error: postgres::Error,
+) -> im_platform_contracts::ContractError {
     im_platform_contracts::ContractError::Unavailable(format!(
         "postgres {operation} failed: {error}"
     ))
@@ -53,7 +57,10 @@ pub(crate) fn postgres_unavailable(operation: &str, error: postgres::Error) -> i
 pub(crate) fn postgres_pool_client(
     pool: &Pool<PostgresConnectionManager<NoTls>>,
     operation: &str,
-) -> Result<r2d2::PooledConnection<PostgresConnectionManager<NoTls>>, im_platform_contracts::ContractError> {
+) -> Result<
+    r2d2::PooledConnection<PostgresConnectionManager<NoTls>>,
+    im_platform_contracts::ContractError,
+> {
     pool.get().map_err(|error| {
         im_platform_contracts::ContractError::Unavailable(format!(
             "postgres pool get for {operation} failed: {error}"

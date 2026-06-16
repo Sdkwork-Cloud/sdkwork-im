@@ -3,6 +3,7 @@ pub mod conversation;
 pub mod media;
 pub mod message;
 pub mod notification;
+pub mod organization;
 pub mod presence;
 pub mod realtime;
 pub mod rtc;
